@@ -24,7 +24,7 @@ bool hashtable_search_key_or_create_new(
     hashtable_bucket_index_t index_neighborhood_begin, index_neighborhood_end;
     bool found = false;
 
-    hashtable_calculate_neighborhood(
+    hashtable_calculate_neighborhood_from_hash(
             hashtable_data->buckets_count,
             hash,
             &index_neighborhood_begin,
@@ -44,7 +44,7 @@ bool hashtable_search_key_or_create_new(
 
         HASHTABLE_MEMORY_FENCE_LOAD();
 
-        for(hashtable_bucket_index_t index = index_neighborhood_begin; index < index_neighborhood_end; index++) {
+        for(hashtable_bucket_index_t index = index_neighborhood_begin; index <= index_neighborhood_end; index++) {
             if (searching_or_creating == 0) {
                 // If it's searching, loop of the neighborhood searching for the hash
                 if (hashtable_data->hashes[index] != hash) {
