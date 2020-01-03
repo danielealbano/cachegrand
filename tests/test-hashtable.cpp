@@ -1,6 +1,5 @@
 #include "catch.hpp"
 
-#include "cachelinesize.h"
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_config.h"
 #include "hashtable/hashtable_data.h"
