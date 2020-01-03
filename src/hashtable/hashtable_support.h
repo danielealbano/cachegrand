@@ -35,11 +35,16 @@ hashtable_bucket_index_t hashtable_bucket_index_from_hash(
         hashtable_bucket_count_t buckets_count,
         hashtable_bucket_hash_t hash);
 
-void hashtable_calculate_neighborhood(
+void hashtable_calculate_neighborhood_from_index(
+        hashtable_bucket_index_t index,
+        hashtable_bucket_index_t *index_neighborhood_begin,
+        hashtable_bucket_index_t *index_neighborhood_end);
+
+void hashtable_calculate_neighborhood_from_hash(
         hashtable_bucket_count_t buckets_count,
         hashtable_bucket_hash_t hash,
-        hashtable_bucket_index_t* index_neighborhood_begin,
-        hashtable_bucket_index_t* index_neighborhood_end);
+        hashtable_bucket_index_t *index_neighborhood_begin,
+        hashtable_bucket_index_t *index_neighborhood_end);
 
 #ifdef __cplusplus
 }

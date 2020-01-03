@@ -198,12 +198,19 @@ hashtable_bucket_index_t hashtable_bucket_index_from_hash(
     return hashtable_primenumbers_mod(hash, buckets_count);
 }
 
-void hashtable_calculate_neighborhood(
+void hashtable_calculate_neighborhood_from_index(
+        hashtable_bucket_index_t index,
+        hashtable_bucket_index_t *index_neighborhood_begin,
+        hashtable_bucket_index_t *index_neighborhood_end) {
+    *index_neighborhood_begin = hashtable_rounddown_to_cacheline(index);
+    *index_neighborhood_end = hashtable_roundup_to_cacheline_plus_one(index) - 1;
+}
+
+void hashtable_calculate_neighborhood_from_hash(
         hashtable_bucket_count_t buckets_count,
         hashtable_bucket_hash_t hash,
-        hashtable_bucket_index_t* index_neighborhood_begin,
-        hashtable_bucket_index_t* index_neighborhood_end) {
+        hashtable_bucket_index_t *index_neighborhood_begin,
+        hashtable_bucket_index_t *index_neighborhood_end) {
     uint64_t index = hashtable_bucket_index_from_hash(buckets_count, hash);
-    *index_neighborhood_begin = hashtable_rounddown_to_cacheline(index);
-    *index_neighborhood_end = hashtable_roundup_to_cacheline_plus_one(index);
+    hashtable_calculate_neighborhood_from_index(index, index_neighborhood_begin, index_neighborhood_end);
 }
