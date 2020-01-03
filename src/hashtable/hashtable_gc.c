@@ -9,10 +9,11 @@
 #include "hashtable_support.h"
 #include "hashtable_gc.h"
 
-void hashtable_garbage_collect_neighborhood(hashtable_t* hashtable, hashtable_bucket_index_t bucket_index) {
+void hashtable_garbage_collect_neighborhood(hashtable_t* hashtable, hashtable_bucket_index_t index) {
+    hashtable_bucket_index_t index_neighborhood_begin, index_neighborhood_end;
     volatile hashtable_data_t* hashtable_data = hashtable->ht_current;
-    hashtable_bucket_index_t index_neighborhood_begin = hashtable_rounddown_to_cacheline(bucket_index);
-    hashtable_bucket_index_t index_neighborhood_end = hashtable_roundup_to_cacheline_plus_one(bucket_index);
+
+    hashtable_calculate_neighborhood_from_index(index, &index_neighborhood_begin, &index_neighborhood_end);
 
     for(
             hashtable_bucket_index_t index_outer = index_neighborhood_begin;
