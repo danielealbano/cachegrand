@@ -1,13 +1,13 @@
 #include "catch.hpp"
 
-#include "hashtable.h"
-#include "hashtable_config.h"
-#include "hashtable_data.h"
-#include "hashtable_support.h"
-#include "hashtable_gc.h"
-#include "hashtable_op_get.h"
-#include "hashtable_op_set.h"
 #include "cachelinesize.h"
+#include "hashtable/hashtable.h"
+#include "hashtable/hashtable_config.h"
+#include "hashtable/hashtable_data.h"
+#include "hashtable/hashtable_support.h"
+#include "hashtable/hashtable_gc.h"
+#include "hashtable/hashtable_op_get.h"
+#include "hashtable/hashtable_op_set.h"
 
 #define HASHTABLE_DATA_INIT(buckets_count_v, ...) \
 { \

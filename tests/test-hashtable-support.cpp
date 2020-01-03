@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include "hashtable.h"
-#include "hashtable_support.h"
+#include "hashtable/hashtable.h"
+#include "hashtable/hashtable_support.h"
 
 TEST_CASE("hashtable_support.c", "[hashtable][hashtable_support") {
     // Shared Test data
