@@ -30,13 +30,37 @@ Intel / AMD X64 architectures.
 
 TODO
 
+### How to...
+
+Checkout
+
+```bash
+git clone https://github.com/danielealbano/cachegrand.git
+git submodule update --init --recursive
+```
+
+Build
+```bash
+mkdir cmake-build-debug
+cd cmake-build-debug
+cmake ..
+make cachegrand
+```
+
+Build for testing
+```bash
+mkdir cmake-build-debug
+cd cmake-build-debug
+cmake .. -DBUILD_TESTS=1
+make tests
+make test
+```
+
 ### TODO
 
-cachegrand is still under heavy development and it's currently not even at it's 0.1 version.
-
-The goals for the 0.1 milestone are the following:
-- implement a zero-copy the network layer
+cachegrand is still under heavy development, the goals for the 0.1 milestone are the following:
 - implement the lock-free, fixed queue, auto-scalable threadpool
+- implement a zero-copy the network layer, possibly backed by libuv
 - implement a basic support for the redis protocol for the GET and the SET operations
 - improve code documentation coverage
 - improve code testing coverage
