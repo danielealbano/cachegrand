@@ -1,0 +1,3 @@
+[submodule "3rdparty/t1ha"]
+	path = 3rdparty/t1ha
+	url = https://github.com/leo-yuriev/t1ha.git
