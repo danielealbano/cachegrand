@@ -20,14 +20,14 @@ bool hashtable_search_key(
     hashtable_bucket_index_t index_neighborhood_begin, index_neighborhood_end;
     bool found = false;
 
-    hashtable_calculate_neighborhood(
+    hashtable_calculate_neighborhood_from_hash(
             hashtable_data->buckets_count,
             hash,
             &index_neighborhood_begin,
             &index_neighborhood_end);
 
     HASHTABLE_MEMORY_FENCE_LOAD();
-    for(hashtable_bucket_index_t index = index_neighborhood_begin; index < index_neighborhood_end; index++) {
+    for(hashtable_bucket_index_t index = index_neighborhood_begin; index <= index_neighborhood_end; index++) {
         if (hashtable_data->hashes[index] != hash) {
             continue;
         }
