@@ -47,16 +47,18 @@ bool hashtable_search_key(
             found_bucket_key_max_compare_size = found_bucket_key_value->external_key.size;
         }
 
-        if (
-                HASHTABLE_BUCKET_KEY_VALUE_IS_EMPTY(found_bucket_key_value->flags)
-                ||
-                HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(
-                        found_bucket_key_value->flags,
-                        HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED)) {
+        // Stop if hash found but bucket being filled, edge case because of parallelism, if marked as delete continue
+        // and if key doesn't match continue as well
+        if (HASHTABLE_BUCKET_KEY_VALUE_IS_EMPTY(found_bucket_key_value->flags)) {
             break;
-        }
-
-        if (strncmp(key, (const char *)found_bucket_key, MIN(found_bucket_key_max_compare_size, key_size)) != 0) {
+        } else if (HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(
+                found_bucket_key_value->flags,
+                HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED)) {
+            continue;
+        } else if (strncmp(
+                key,
+                (const char *)found_bucket_key,
+                MIN(found_bucket_key_max_compare_size, key_size)) != 0) {
             continue;
         }
 
