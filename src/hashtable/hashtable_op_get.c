@@ -74,12 +74,13 @@ bool hashtable_get(
         hashtable_t* hashtable,
         hashtable_key_data_t* key,
         hashtable_key_size_t key_size,
-        hashtable_value_data_t** data) {
+        hashtable_value_data_t* data) {
     hashtable_bucket_hash_t hash;
     hashtable_bucket_index_t bucket_index;
     volatile hashtable_bucket_key_value_t* bucket_key_value;
 
-    *data = NULL;
+    bool data_found= false;
+    *data = 0;
 
     hash = hashtable_calculate_hash(key, key_size);
 
@@ -103,11 +104,12 @@ bool hashtable_get(
             continue;
         }
 
-        (*data)->void_data = bucket_key_value->data.void_data;
+        *data = bucket_key_value->data;
+        data_found = true;
 
         HASHTABLE_MEMORY_FENCE_LOAD();
         if (
-                hashtable_data->hashes[bucket_index] == hash
+                hashtable_data->hashes[bucket_index] != hash
                 ||
                 HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(
                         bucket_key_value->flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED)
@@ -115,12 +117,13 @@ bool hashtable_get(
                 HASHTABLE_BUCKET_KEY_VALUE_IS_EMPTY(
                         bucket_key_value->flags)
                 ) {
-            *data = NULL;
+            *data = 0;
+            data_found = false;
         }
         HASHTABLE_MEMORY_FENCE_STORE();
 
         break;
     }
 
-    return *data == NULL ? false : true;
+    return data_found;
 }
