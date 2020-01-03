@@ -35,7 +35,6 @@ enum {
 #define HASHTABLE_BUCKET_KEY_VALUE_IS_EMPTY(flags) \
     (flags == 0)
 
-
 /**
  * This struct holds the configuration of the hashtable
  */
