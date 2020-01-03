@@ -20,16 +20,12 @@ typedef uint64_t hashtable_bucket_index_t;
 typedef uint64_t hashtable_bucket_count_t;
 typedef uint32_t hashtable_key_size_t;
 typedef char hashtable_key_data_t;
+typedef uintptr_t hashtable_value_data_t;
 
-typedef union {
-    uintptr_t uintptr_data;
-    intptr_t intptr_data;
-    void* void_data;
-} hashtable_value_data_t;
 enum {
-    HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED          = 0x01,
-    HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE      = 0x02,
-    HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED         = 0x80,
+    HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED          = 0x01u,
+    HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE      = 0x02u,
+    HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED         = 0x80u,
 };
 
 #define HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(flags, flag) \

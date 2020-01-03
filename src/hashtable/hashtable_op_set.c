@@ -115,7 +115,11 @@ bool hashtable_search_key_or_create_new(
     return found;
 }
 
-bool hashtable_set(hashtable_t* hashtable, hashtable_key_data_t* key, hashtable_key_size_t key_size, void* value) {
+bool hashtable_set(
+        hashtable_t* hashtable,
+        hashtable_key_data_t* key,
+        hashtable_key_size_t key_size,
+        hashtable_value_data_t value) {
     bool bucket_found, created_new;
     hashtable_bucket_index_t bucket_index;
     hashtable_bucket_hash_t hash;
@@ -164,16 +168,14 @@ bool hashtable_set(hashtable_t* hashtable, hashtable_key_data_t* key, hashtable_
 
     if (created_new) {
         // It's a new bucket, the other threads will not access the bucket till the flags will be set to != 0
-        bucket_key_value->data.void_data = value;
+        bucket_key_value->data = value;
     } else {
         // Update / Set the data in an atomic way with a CAS, something else may have changed it in the mean time!
-        hashtable_value_data_t value_data_temp;
-        value_data_temp.void_data = value;
-        uintptr_t current_data = bucket_key_value->data.uintptr_data;
+        uintptr_t current_data = bucket_key_value->data;
         if (atomic_compare_exchange_strong(
-                &bucket_key_value->data.uintptr_data,
+                &bucket_key_value->data,
                 &current_data,
-                value_data_temp.uintptr_data) == false) {
+                value) == false) {
 
         }
     }
@@ -182,9 +184,12 @@ bool hashtable_set(hashtable_t* hashtable, hashtable_key_data_t* key, hashtable_
 
     // Check if it's a new bucket or not
     if (created_new) {
+        hashtable_bucket_key_value_flags_t flags = 0;
+
         // Get the destination pointer for the key
         if (key_size <= HASHTABLE_INLINE_KEY_MAX_SIZE) {
             ht_key = (hashtable_key_data_t *)&bucket_key_value->inline_key.data;
+            HASHTABLE_BUCKET_KEY_VALUE_SET_FLAG(flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE);
         } else {
             ht_key = xalloc(key_size + 1);
             ht_key[key_size] = '\0';
@@ -197,7 +202,10 @@ bool hashtable_set(hashtable_t* hashtable, hashtable_key_data_t* key, hashtable_
         strncpy((char*)ht_key, key, key_size);
 
         // Set the FILLED flag (drops the deleted flag as well)
-        bucket_key_value->flags = HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED;
+        HASHTABLE_BUCKET_KEY_VALUE_SET_FLAG(flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED);
+
+        // Update thhe flags
+        bucket_key_value->flags = flags;
     }
 
     return bucket_found;
