@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 11)
 add_subdirectory(3rdparty)
 add_subdirectory(src)
 
-if (RUN_TESTS)
+if (BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
