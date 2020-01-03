@@ -65,7 +65,7 @@ cachegrand is still under heavy development, the goals for the 0.1 milestone are
     - append only, sharding per thread, shards map, gc data copying them into active shards, circular-shards approach
       - needs an in memory shard map for the on-memory backed storage and thhe on-disk backed storage
     - on-memory: memfd (for hugepages & sendfile), small shards, up to 16MB, copied to the on-disk storage in the
-      background once the shard is full/closed.
+      background once the shard is full/closed, once the data have been copied te buckets are updated.
     - on-disk: only when the data being written is +8M to maximize the IO  
 - implement the network layer
     - plain epoll, read/write, sendfile, socket sharded per thread
