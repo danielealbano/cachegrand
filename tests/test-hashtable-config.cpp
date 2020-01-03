@@ -8,12 +8,12 @@
 #include "hashtable/hashtable_op_get.h"
 #include "hashtable/hashtable_op_set.h"
 
-#include "test-hashtable.h"
+TEST_CASE("hashtable_config.c", "[hashtable][hashtable_config]") {
+    SECTION("hashtable_config_init") {
+        hashtable_config_t* hashtable_config = hashtable_config_init();
 
-TEST_CASE("hashtable.c", "[hashtable]") {
-    SECTION("hashtable_init") {
-        HASHTABLE_INIT(buckets_initial_count_5, false, {
-            REQUIRE(hashtable != NULL);
-        })
+        REQUIRE(hashtable_config != NULL);
+
+        hashtable_config_free(hashtable_config);
     }
 }

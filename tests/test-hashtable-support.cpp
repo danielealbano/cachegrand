@@ -3,26 +3,9 @@
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_support.h"
 
+#include "test-hashtable.h"
+
 TEST_CASE("hashtable_support.c", "[hashtable][hashtable_support") {
-    // Shared Test data
-    char test_key[] = "cachegrand v2"; // hash(test_key) == 4804135818922944713
-    uint64_t test_hash = 4804135818922944713;
-    hashtable_bucket_index_t test_index_53 = 51;
-    hashtable_bucket_index_t test_index_101 = 77;
-    hashtable_bucket_index_t test_index_307 = 20;
-
-    uint64_t buckets_initial_count_5 = 5;
-    uint64_t buckets_initial_count_100 = 100;
-    uint64_t buckets_initial_count_305 = 305;
-
-    uint64_t buckets_count_53 = 53;
-    uint64_t buckets_count_101 = 101;
-    uint64_t buckets_count_307 = 307;
-
-    uint64_t buckets_count_real_64 = 64;
-    uint64_t buckets_count_real_112 = 112;
-    uint64_t buckets_count_real_320 = 320;
-
     SECTION("hashtable_primenumbers_next") {
         SECTION("allowed values") {
             REQUIRE(hashtable_primenumbers_next(53 - 1) == 53);
@@ -123,8 +106,8 @@ TEST_CASE("hashtable_support.c", "[hashtable][hashtable_support") {
 
     SECTION("hashtable_calculate_hash") {
         REQUIRE(hashtable_calculate_hash(
-                test_key,
-                sizeof(test_key)) == test_hash);
+                test_key_1,
+                test_key_1_len) == test_key_1_hash);
     }
 
     SECTION("hashtable_rounddown_to_cacheline") {
@@ -143,56 +126,90 @@ TEST_CASE("hashtable_support.c", "[hashtable][hashtable_support") {
         SECTION("buckets_initial_count_5") {
             REQUIRE(hashtable_bucket_index_from_hash(
                     buckets_count_53,
-                    test_hash) == 13);
+                    test_key_1_hash) == 12);
         }
 
         SECTION("buckets_initial_count_100") {
             REQUIRE(hashtable_bucket_index_from_hash(
                     buckets_count_101,
-                    test_hash) == 15);
+                    test_key_1_hash) == 70);
         }
 
         SECTION("buckets_initial_count_305") {
             REQUIRE(hashtable_bucket_index_from_hash(
                     buckets_count_307,
-                    test_hash) == 292);
+                    test_key_1_hash) == 13);
         }
     }
 
-    SECTION("hashtable_calculate_neighborhood") {
+    SECTION("hashtable_calculate_neighborhood_from_index") {
         hashtable_bucket_index_t start, end;
 
         SECTION("buckets_count_53") {
-            hashtable_calculate_neighborhood(
-                    buckets_count_53,
-                    test_hash,
+            hashtable_calculate_neighborhood_from_index(
+                    test_key_1_hash % buckets_count_53,
                     &start,
                     &end);
 
             REQUIRE(start == 8);
-            REQUIRE(end == 24);
+            REQUIRE(end == 23);
         }
 
         SECTION("buckets_count_101") {
-            hashtable_calculate_neighborhood(
-                    buckets_count_101,
-                    test_hash,
+            hashtable_calculate_neighborhood_from_index(
+                    test_key_1_hash % buckets_count_101,
+                    &start,
+                    &end);
+
+            REQUIRE(start == 64);
+            REQUIRE(end == 79);
+        }
+
+        SECTION("buckets_initial_count_305") {
+            hashtable_calculate_neighborhood_from_index(
+                    test_key_1_hash % buckets_count_307,
                     &start,
                     &end);
 
             REQUIRE(start == 8);
-            REQUIRE(end == 24);
+            REQUIRE(end == 23);
         }
+    }
 
-        SECTION("buckets_initial_count_305") {
-            hashtable_calculate_neighborhood(
-                    buckets_count_307,
-                    test_hash,
+    SECTION("hashtable_calculate_neighborhood_from_hash") {
+        hashtable_bucket_index_t start, end;
+
+        SECTION("buckets_count_53") {
+            hashtable_calculate_neighborhood_from_hash(
+                    buckets_count_53,
+                    test_key_1_hash,
                     &start,
                     &end);
 
-            REQUIRE(start == 288);
-            REQUIRE(end == 304);
+            REQUIRE(start == 8);
+            REQUIRE(end == 23);
+        }
+
+        SECTION("buckets_count_101") {
+            hashtable_calculate_neighborhood_from_hash(
+                    buckets_count_101,
+                    test_key_1_hash,
+                    &start,
+                    &end);
+
+            REQUIRE(start == 64);
+            REQUIRE(end == 79);
+        }
+
+        SECTION("buckets_initial_count_305") {
+            hashtable_calculate_neighborhood_from_hash(
+                    buckets_count_307,
+                    test_key_1_hash,
+                    &start,
+                    &end);
+
+            REQUIRE(start == 8);
+            REQUIRE(end == 23);
         }
     }
 }
