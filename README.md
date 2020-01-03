@@ -60,7 +60,18 @@ make test
 
 cachegrand is still under heavy development, the goals for the 0.1 milestone are the following:
 - implement the lock-free, fixed queue, auto-scalable threadpool
-- implement a zero-copy the network layer, possibly backed by libuv
+- implement the data backing layer, with per-thread sharding on-memory (using mmap with hugepages) and on-disk
+    - preadv/pwritev
+    - append only, sharding per thread, shards map, gc data copying them into active shards
+    - on-memory: memfd (to be able to use sendfile)
+    - on-disk: append only is partially wear levelling friendly, would be better to actually write when it's possible to
+      fill a page
+- implement the network layer
+    - plain epoll, read/write, sendfile, socket sharded per thread
+    - threadpool to manage the network, each thread in the pool will manage it's own backlog, socket set and will have it's own
+      slab allocator
+    - use simple array to store the data structures, better to use more memory and spawn a new thread if really needed
+      that doing atomic operations continuously 
 - implement a basic support for the redis protocol for the GET and the SET operations
 - improve code documentation coverage
 - improve code testing coverage
@@ -70,6 +81,8 @@ cachegrand is still under heavy development, the goals for the 0.1 milestone are
 
 Because it aims to be a modern platform, the goal is to have the features mentioned below by the time of it's first
 stable release:
+- More SSD friendly, temporary keep data in memory instead of writing directly on the disk to fill a page to avoid a RMW
+  operation on the SSD that would have, in cascade, an impact on the SSD GC
 - Add support for Windows and Mac OS X, the code is already being written with this goal in mind;
 - Commands batching, to be able to perform multiple set of operations at the same time;
 - TLS, to encrypt the data on-transit;
