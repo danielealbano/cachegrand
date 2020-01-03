@@ -61,11 +61,12 @@ make test
 cachegrand is still under heavy development, the goals for the 0.1 milestone are the following:
 - implement the lock-free, fixed queue, auto-scalable threadpool
 - implement the data backing layer, with per-thread sharding on-memory (using mmap with hugepages) and on-disk
-    - preadv/pwritev
-    - append only, sharding per thread, shards map, gc data copying them into active shards
-    - on-memory: memfd (to be able to use sendfile)
-    - on-disk: append only is partially wear levelling friendly, would be better to actually write when it's possible to
-      fill a page
+    - preadv/pwritev/splice
+    - append only, sharding per thread, shards map, gc data copying them into active shards, circular-shards approach
+      - needs an in memory shard map for the on-memory backed storage and thhe on-disk backed storage
+    - on-memory: memfd (for hugepages & sendfile), small shards, up to 16MB, copied to the on-disk storage in the
+      background once the shard is full/closed.
+    - on-disk: only when the data being written is +8M to maximize the IO  
 - implement the network layer
     - plain epoll, read/write, sendfile, socket sharded per thread
     - threadpool to manage the network, each thread in the pool will manage it's own backlog, socket set and will have it's own
