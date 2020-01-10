@@ -1,14 +1,10 @@
 #include "catch.hpp"
 
 #include "hashtable/hashtable.h"
-#include "hashtable/hashtable_config.h"
 #include "hashtable/hashtable_data.h"
-#include "hashtable/hashtable_support.h"
-#include "hashtable/hashtable_gc.h"
-#include "hashtable/hashtable_op_get.h"
-#include "hashtable/hashtable_op_set.h"
+#include "hashtable/hashtable_support_primenumbers.h"
 
-#include "test-hashtable.h"
+#include "fixtures-hashtable.h"
 
 TEST_CASE("hashtable_data.c", "[hashtable][hashtable_data]") {
     SECTION("hashtable_data_init") {
