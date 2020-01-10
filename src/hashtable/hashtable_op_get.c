@@ -44,6 +44,13 @@ bool hashtable_get(
             continue;
         }
 
+        /**
+         * Two memory load fences are required to ensure that the CPU reads in sequence the data first and the
+         * hash/flags after
+         */
+
+        HASHTABLE_MEMORY_FENCE_LOAD();
+
         *data = bucket_key_value->data;
         data_found = true;
 
@@ -60,7 +67,6 @@ bool hashtable_get(
             *data = 0;
             data_found = false;
         }
-        HASHTABLE_MEMORY_FENCE_STORE();
 
         break;
     }
