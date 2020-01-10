@@ -8,20 +8,21 @@
 
 #include "hashtable.h"
 #include "hashtable_data.h"
-#include "hashtable_support.h"
+#include "hashtable_support_primenumbers.h"
+#include "hashtable_support_index.h"
 
 static const char* TAG = "hashtable/data";
 
 hashtable_data_t* hashtable_data_init(hashtable_bucket_count_t buckets_count) {
     hashtable_bucket_count_t buckets_count_real = 0;
 
-    if (hashtable_primenumbers_supported(buckets_count) == false) {
+    if (hashtable_support_primenumbers_valid(buckets_count) == false) {
         LOG_E(TAG, "The buckets_count is greater than the maximum allowed value %lu", HASHTABLE_PRIMENUMBERS_MAX);
         return NULL;
     }
 
-    buckets_count = hashtable_primenumbers_next(buckets_count);
-    buckets_count_real = hashtable_roundup_to_cacheline_plus_one(buckets_count);
+    buckets_count = hashtable_support_primenumbers_next(buckets_count);
+    buckets_count_real = hashtable_support_index_roundup_to_cacheline_plus_one(buckets_count);
 
     size_t hashes_size = sizeof(hashtable_bucket_hash_t) * buckets_count_real;
     size_t keys_values_size = sizeof(hashtable_bucket_key_value_t) * buckets_count_real;
