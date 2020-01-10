@@ -4,13 +4,13 @@
 #include <t1ha.h>
 
 #include "hashtable.h"
-#include "hashtable_support.h"
+#include "hashtable_support_primenumbers.h"
 
-bool hashtable_primenumbers_supported(uint64_t number) {
+bool hashtable_support_primenumbers_valid(uint64_t number) {
     return number <= HASHTABLE_PRIMENUMBERS_MAX ? true : false;
 }
 
-uint64_t hashtable_primenumbers_next(uint64_t number) {
+uint64_t hashtable_support_primenumbers_next(uint64_t number) {
     if (number < 53U) {
         return 53U;
     } else if (number < 101U) {
@@ -92,7 +92,7 @@ uint64_t hashtable_primenumbers_next(uint64_t number) {
     return 0;
 }
 
-uint64_t hashtable_primenumbers_mod(uint64_t number, uint64_t prime) {
+uint64_t hashtable_support_primenumbers_mod(uint64_t number, uint64_t prime) {
     if (prime == 53U) {
         return number % 53U;
     } else if (prime == 101U) {
@@ -172,45 +172,4 @@ uint64_t hashtable_primenumbers_mod(uint64_t number, uint64_t prime) {
     }
 
     return 0;
-}
-
-uint64_t hashtable_rounddown_to_cacheline(uint64_t number) {
-    return number -
-           (number % HASHTABLE_HASHES_PER_CACHELINE);
-}
-
-uint64_t hashtable_roundup_to_cacheline_plus_one(uint64_t number) {
-    return
-            hashtable_rounddown_to_cacheline(number) +
-            HASHTABLE_HASHES_PER_CACHELINE +
-            HASHTABLE_HASHES_PER_CACHELINE;
-}
-
-hashtable_bucket_hash_t hashtable_calculate_hash(
-        hashtable_key_data_t* key,
-        hashtable_key_size_t key_size) {
-    return t1ha2_atonce(key, key_size, HASHTABLE_T1HA2_SEED);
-}
-
-hashtable_bucket_index_t hashtable_bucket_index_from_hash(
-        hashtable_bucket_count_t buckets_count,
-        hashtable_bucket_hash_t hash) {
-    return hashtable_primenumbers_mod(hash, buckets_count);
-}
-
-void hashtable_calculate_neighborhood_from_index(
-        hashtable_bucket_index_t index,
-        hashtable_bucket_index_t *index_neighborhood_begin,
-        hashtable_bucket_index_t *index_neighborhood_end) {
-    *index_neighborhood_begin = hashtable_rounddown_to_cacheline(index);
-    *index_neighborhood_end = hashtable_roundup_to_cacheline_plus_one(index) - 1;
-}
-
-void hashtable_calculate_neighborhood_from_hash(
-        hashtable_bucket_count_t buckets_count,
-        hashtable_bucket_hash_t hash,
-        hashtable_bucket_index_t *index_neighborhood_begin,
-        hashtable_bucket_index_t *index_neighborhood_end) {
-    uint64_t index = hashtable_bucket_index_from_hash(buckets_count, hash);
-    hashtable_calculate_neighborhood_from_index(index, index_neighborhood_begin, index_neighborhood_end);
 }
