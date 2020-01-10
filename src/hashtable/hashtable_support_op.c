@@ -10,6 +10,9 @@
 #include "hashtable_support_index.h"
 #include "hashtable_support_op.h"
 
+// TODO: refactor to merge the functions hashtable_support_op_search_key and
+//       hashtable_support_op_search_key_or_create_new and reorganize the code
+
 bool hashtable_support_op_search_key(
         volatile hashtable_data_t *hashtable_data,
         hashtable_key_data_t *key,
@@ -69,7 +72,6 @@ bool hashtable_support_op_search_key(
         found = true;
         break;
     }
-    HASHTABLE_MEMORY_FENCE_STORE();
 
     return found;
 }
