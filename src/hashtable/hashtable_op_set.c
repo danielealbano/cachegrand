@@ -7,120 +7,19 @@
 #include "xalloc.h"
 
 #include "hashtable.h"
-#include "hashtable_support.h"
 #include "hashtable_gc.h"
 #include "hashtable_op_set.h"
-
-bool hashtable_search_key_or_create_new(
-        volatile hashtable_data_t* hashtable_data,
-        hashtable_key_data_t* key,
-        hashtable_key_size_t key_size,
-        hashtable_bucket_hash_t hash,
-        bool* created_new,
-        hashtable_bucket_index_t* found_index,
-        volatile hashtable_bucket_key_value_t** found_key_value) {
-    volatile hashtable_key_data_t* found_bucket_key;
-    hashtable_key_size_t found_bucket_key_max_compare_size;
-    hashtable_bucket_index_t index_neighborhood_begin, index_neighborhood_end;
-    bool found = false;
-
-    hashtable_calculate_neighborhood_from_hash(
-            hashtable_data->buckets_count,
-            hash,
-            &index_neighborhood_begin,
-            &index_neighborhood_end);
-
-    // TODO: the implementation below is buggy, potentially two or more thread can create the same key. A possible
-    //       way to resolve this is to set the key and then loop over the neighborhood again to ensure that there are
-    //       no other keys with the same value and if they are found then the key closer to the begin is kept.
-    //       The problem with this approach is that the check should be performed always and after the key is created
-    //       and this may potentially cause a resize.
-    //       The possibility of a resize, though, is very unlikely because the neighborhood is fairly huge so unless
-    //       there is a massive amount request to set a bucket with the same key.
-    //       --- Need to investigate it further ---
-
-    bool terminate_outer_loop = false;
-    for(uint8_t searching_or_creating = 0; searching_or_creating < 2; searching_or_creating++) {
-
-        HASHTABLE_MEMORY_FENCE_LOAD();
-
-        for(hashtable_bucket_index_t index = index_neighborhood_begin; index <= index_neighborhood_end; index++) {
-            if (searching_or_creating == 0) {
-                // If it's searching, loop of the neighborhood searching for the hash
-                if (hashtable_data->hashes[index] != hash) {
-                    continue;
-                }
-            } else {
-                // If it's creating, it has still to search not only an empty bucket but a bucket with the key as well
-                // because it may have been created in the mean time
-                if (hashtable_data->hashes[index] != hash && hashtable_data->hashes[index] != 0) {
-                    continue;
-                }
-
-                hashtable_bucket_hash_t expected_hash = 0U;
-
-                // If the operation is successful, it's a new bucket, if it fails it may be an existing bucket, this
-                // specific case is checked below
-                *created_new = atomic_compare_exchange_strong(&hashtable_data->hashes[index], &expected_hash, hash);
-
-                if (*created_new == false) {
-                    if (expected_hash != hash) {
-                        continue;
-                    }
-                }
-            }
-
-            volatile hashtable_bucket_key_value_t* found_bucket_key_value = &hashtable_data->keys_values[index];
-
-            if (searching_or_creating == 0 || *created_new == false) {
-                if (
-                        HASHTABLE_BUCKET_KEY_VALUE_IS_EMPTY(found_bucket_key_value->flags)
-                        ||
-                        HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(
-                                found_bucket_key_value->flags,
-                                HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED)) {
-                    terminate_outer_loop = true;
-                    break;
-                }
-
-                if (HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(
-                        found_bucket_key_value->flags,
-                        HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE)) {
-                    found_bucket_key = (volatile hashtable_key_data_t*)&found_bucket_key_value->inline_key.data;
-                    found_bucket_key_max_compare_size = HASHTABLE_INLINE_KEY_MAX_SIZE;
-                } else {
-                    found_bucket_key = found_bucket_key_value->external_key.data;
-                    found_bucket_key_max_compare_size = found_bucket_key_value->external_key.size;
-                }
-
-                int res = strncmp(key, (const char *)found_bucket_key, MIN(found_bucket_key_max_compare_size, key_size));
-                if (res != 0) {
-                    continue;
-                }
-            }
-
-            *found_index = index;
-            *found_key_value = found_bucket_key_value;
-            found = true;
-            break;
-        }
-
-        HASHTABLE_MEMORY_FENCE_STORE();
-
-        if (terminate_outer_loop) {
-            break;
-        }
-    }
-
-    return found;
-}
+#include "hashtable_support_index.h"
+#include "hashtable_support_hash.h"
+#include "hashtable_support_op.h"
 
 bool hashtable_set(
         hashtable_t* hashtable,
         hashtable_key_data_t* key,
         hashtable_key_size_t key_size,
         hashtable_value_data_t value) {
-    bool bucket_found, created_new;
+    bool created_new;
+    hashtable_search_key_or_create_new_ret_t ret;
     hashtable_bucket_index_t bucket_index;
     hashtable_bucket_hash_t hash;
     hashtable_key_data_t* ht_key;
@@ -128,11 +27,10 @@ bool hashtable_set(
     bool resized = false;
     volatile hashtable_bucket_key_value_t* bucket_key_value;
 
-    hash = hashtable_calculate_hash(key, key_size);
+    hash = hashtable_support_hash_calculate(key, key_size);
 
     do {
-
-        bucket_found = hashtable_search_key_or_create_new(
+        ret = hashtable_support_op_search_key_or_create_new(
                 hashtable->ht_current,
                 key,
                 key_size,
@@ -141,8 +39,7 @@ bool hashtable_set(
                 &bucket_index,
                 &bucket_key_value);
 
-        // TODO: review, bucket_found == false is set as well when the hash is found but the bucket is still empty!
-        if (bucket_found == false) {
+        if (ret == HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_NO_FREE) {
             if (cleaned_up == false) {
                 hashtable_garbage_collect_neighborhood(hashtable, bucket_index);
                 cleaned_up = true;
@@ -151,7 +48,7 @@ bool hashtable_set(
 
             if (resized == false && hashtable->config->can_auto_resize) {
                 // TODO: implement (auto)resize
-                // hashhtable_scale_up_start(hashtable);
+                // hashtable_scale_up_start(hashtable);
                 resized = true;
                 continue;
             }
@@ -159,26 +56,17 @@ bool hashtable_set(
             break;
         }
     }
-    while(bucket_found == false);
+    while(
+            ret == HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_FOUND ||
+            ret == HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_EMPTY_OR_DELETED);
 
-    // Unable to find any bucket available and not able to auto resize (ie. max hashtable size or auto resize disabled)
-    if (bucket_found == false) {
+    if (ret == HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_EMPTY_OR_DELETED) {
+        return true;
+    } else if (ret == HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_NO_FREE) {
         return false;
     }
 
-    if (created_new) {
-        // It's a new bucket, the other threads will not access the bucket till the flags will be set to != 0
-        bucket_key_value->data = value;
-    } else {
-        // Update / Set the data in an atomic way with a CAS, something else may have changed it in the mean time!
-        uintptr_t current_data = bucket_key_value->data;
-        if (atomic_compare_exchange_strong(
-                &bucket_key_value->data,
-                &current_data,
-                value) == false) {
-
-        }
-    }
+    bucket_key_value->data = value;
 
     HASHTABLE_MEMORY_FENCE_LOAD_STORE();
 
@@ -191,6 +79,8 @@ bool hashtable_set(
             ht_key = (hashtable_key_data_t *)&bucket_key_value->inline_key.data;
             HASHTABLE_BUCKET_KEY_VALUE_SET_FLAG(flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE);
         } else {
+            // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't be freed
+            //       immediately after the bucket is freed because it can be in use and would cause a crash34567
             ht_key = xalloc(key_size + 1);
             ht_key[key_size] = '\0';
 
@@ -204,9 +94,9 @@ bool hashtable_set(
         // Set the FILLED flag (drops the deleted flag as well)
         HASHTABLE_BUCKET_KEY_VALUE_SET_FLAG(flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED);
 
-        // Update thhe flags
+        // Update the flags atomically
         bucket_key_value->flags = flags;
     }
 
-    return bucket_found;
+    return true;
 }

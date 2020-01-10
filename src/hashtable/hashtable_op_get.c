@@ -5,72 +5,10 @@
 #include <string.h>
 
 #include "hashtable.h"
-#include "hashtable_support.h"
 #include "hashtable_op_get.h"
-
-bool hashtable_search_key(
-        volatile hashtable_data_t* hashtable_data,
-        hashtable_key_data_t* key,
-        hashtable_key_size_t key_size,
-        hashtable_bucket_hash_t hash,
-        hashtable_bucket_index_t* found_index,
-        volatile hashtable_bucket_key_value_t** found_key_value) {
-    volatile hashtable_key_data_t* found_bucket_key;
-    hashtable_key_size_t found_bucket_key_max_compare_size;
-    hashtable_bucket_index_t index_neighborhood_begin, index_neighborhood_end;
-    bool found = false;
-
-    hashtable_calculate_neighborhood_from_hash(
-            hashtable_data->buckets_count,
-            hash,
-            &index_neighborhood_begin,
-            &index_neighborhood_end);
-
-    HASHTABLE_MEMORY_FENCE_LOAD();
-    for(hashtable_bucket_index_t index = index_neighborhood_begin; index <= index_neighborhood_end; index++) {
-        if (hashtable_data->hashes[index] != hash) {
-            continue;
-        }
-
-        volatile hashtable_bucket_key_value_t* found_bucket_key_value = &hashtable_data->keys_values[index];
-
-        // The key may potentially change if the item is first deleted and then recreated, if it's inline it
-        // doesn't really matter because the key will mismatch and the execution will continue but if the key is
-        // stored externally and the allocated memory is freed it may crash.
-        if (HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(found_bucket_key_value->flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE)) {
-            found_bucket_key = (volatile hashtable_key_data_t*)&found_bucket_key_value->inline_key.data;
-            found_bucket_key_max_compare_size = HASHTABLE_INLINE_KEY_MAX_SIZE;
-        } else {
-            // TODO: The keys must be stored in an append only memory structure to avoid locking, it's mandatory
-            //       to avoid crashes!
-            found_bucket_key = found_bucket_key_value->external_key.data;
-            found_bucket_key_max_compare_size = found_bucket_key_value->external_key.size;
-        }
-
-        // Stop if hash found but bucket being filled, edge case because of parallelism, if marked as delete continue
-        // and if key doesn't match continue as well
-        if (HASHTABLE_BUCKET_KEY_VALUE_IS_EMPTY(found_bucket_key_value->flags)) {
-            break;
-        } else if (HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(
-                found_bucket_key_value->flags,
-                HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED)) {
-            continue;
-        } else if (strncmp(
-                key,
-                (const char *)found_bucket_key,
-                MIN(found_bucket_key_max_compare_size, key_size)) != 0) {
-            continue;
-        }
-
-        *found_index = index;
-        *found_key_value = found_bucket_key_value;
-        found = true;
-        break;
-    }
-    HASHTABLE_MEMORY_FENCE_STORE();
-
-    return found;
-}
+#include "hashtable_support_index.h"
+#include "hashtable_support_hash.h"
+#include "hashtable_support_op.h"
 
 bool hashtable_get(
         hashtable_t* hashtable,
@@ -81,10 +19,10 @@ bool hashtable_get(
     hashtable_bucket_index_t bucket_index;
     volatile hashtable_bucket_key_value_t* bucket_key_value;
 
-    bool data_found= false;
+    bool data_found = false;
     *data = 0;
 
-    hash = hashtable_calculate_hash(key, key_size);
+    hash = hashtable_support_hash_calculate(key, key_size);
 
     volatile hashtable_data_t* hashtable_data_list[] = {
             hashtable->ht_current,
@@ -102,7 +40,7 @@ bool hashtable_get(
             continue;
         }
 
-        if (hashtable_search_key(hashtable_data, key, key_size, hash, &bucket_index, &bucket_key_value) == false) {
+        if (hashtable_support_op_search_key(hashtable_data, key, key_size, hash, &bucket_index, &bucket_key_value) == false) {
             continue;
         }
 
