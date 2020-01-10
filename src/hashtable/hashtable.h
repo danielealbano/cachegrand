@@ -11,8 +11,14 @@ extern "C" {
  *   better to have a smart way to handle the key storage when they are not inline (ie. with a SLAB allocator)
  */
 
+#define HASHTABLE_MEMORY_FENCE_LOAD() atomic_thread_fence(memory_order_acquire)
+#define HASHTABLE_MEMORY_FENCE_STORE() atomic_thread_fence(memory_order_release)
+#define HASHTABLE_MEMORY_FENCE_LOAD_STORE() atomic_thread_fence(memory_order_acq_rel)
+
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+
 #define HASHTABLE_INLINE_KEY_MAX_SIZE       23
-#define HASHTABLE_T1HA2_SEED                42U
 
 typedef uint8_t hashtable_bucket_key_value_flags_t;
 typedef uint64_t hashtable_bucket_hash_t;
@@ -21,11 +27,18 @@ typedef uint64_t hashtable_bucket_count_t;
 typedef uint32_t hashtable_key_size_t;
 typedef char hashtable_key_data_t;
 typedef uintptr_t hashtable_value_data_t;
+typedef uint8_t hashtable_search_key_or_create_new_ret_t;
 
 enum {
     HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED          = 0x01u,
     HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE      = 0x02u,
     HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED         = 0x80u,
+};
+
+enum {
+    HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_NO_FREE,
+    HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_FOUND,
+    HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_EMPTY_OR_DELETED,
 };
 
 #define HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(flags, flag) \
@@ -76,8 +89,8 @@ struct hashtable_data {
     hashtable_bucket_count_t buckets_count_real;
     uint64_t t1ha2_seed;
     bool can_be_deleted;
-    volatile hashtable_bucket_hash_t* hashes;
-    volatile hashtable_bucket_key_value_t* keys_values;
+    hashtable_bucket_hash_t* volatile hashes;
+    hashtable_bucket_key_value_t* volatile keys_values;
 };
 typedef struct hashtable_data hashtable_data_t;
 
