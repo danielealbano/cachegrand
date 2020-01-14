@@ -11,7 +11,7 @@
 #include "fixtures-hashtable.h"
 
 TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
-    SECTION("hashtable_set") {
+    SECTION("hashtable_op_set") {
         SECTION("set 1 bucket") {
             HASHTABLE_INIT(buckets_initial_count_5, false, {
                 hashtable_bucket_index_t index_neighborhood_begin, index_neighborhood_end;
@@ -22,7 +22,7 @@ TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
                         &index_neighborhood_begin,
                         &index_neighborhood_end);
 
-                REQUIRE(hashtable_set(
+                REQUIRE(hashtable_op_set(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
@@ -49,13 +49,13 @@ TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
                         &index_neighborhood_begin,
                         &index_neighborhood_end);
 
-                REQUIRE(hashtable_set(
+                REQUIRE(hashtable_op_set(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
                         test_value_1));
 
-                REQUIRE(hashtable_set(
+                REQUIRE(hashtable_op_set(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
@@ -91,13 +91,13 @@ TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
 
                 REQUIRE(index_1_neighborhood_begin != index_2_neighborhood_begin);
 
-                REQUIRE(hashtable_set(
+                REQUIRE(hashtable_op_set(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
                         test_value_1));
 
-                REQUIRE(hashtable_set(
+                REQUIRE(hashtable_op_set(
                         hashtable,
                         test_key_2,
                         test_key_2_len,
@@ -123,7 +123,6 @@ TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
             })
         }
 
-
         SECTION("set delete set 1 bucket") {
             HASHTABLE_INIT(buckets_initial_count_5, false, {
                 hashtable_bucket_index_t index_1_neighborhood_begin, index_1_neighborhood_end;
@@ -143,13 +142,13 @@ TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
 
                 REQUIRE(index_1_neighborhood_begin != index_2_neighborhood_begin);
 
-                REQUIRE(hashtable_set(
+                REQUIRE(hashtable_op_set(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
                         test_value_1));
 
-                REQUIRE(hashtable_set(
+                REQUIRE(hashtable_op_set(
                         hashtable,
                         test_key_2,
                         test_key_2_len,
