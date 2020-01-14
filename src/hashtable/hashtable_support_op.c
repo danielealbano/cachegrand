@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -31,8 +32,9 @@ bool hashtable_support_op_search_key(
             &index_neighborhood_begin,
             &index_neighborhood_end);
 
-    HASHTABLE_MEMORY_FENCE_LOAD();
     for(hashtable_bucket_index_t index = index_neighborhood_begin; index <= index_neighborhood_end; index++) {
+        HASHTABLE_MEMORY_FENCE_LOAD();
+
         if (hashtable_data->hashes[index] != hash) {
             continue;
         }
@@ -53,7 +55,7 @@ bool hashtable_support_op_search_key(
         }
 
         // Stop if hash found but bucket being filled, edge case because of parallelism, if marked as delete continue
-        // and if key doesn't match continue as well
+        // and if key doesn't match continue as well. The order of the operations doesn't matter.
         if (HASHTABLE_BUCKET_KEY_VALUE_IS_EMPTY(found_bucket_key_value->flags)) {
             break;
         } else if (HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(
@@ -97,21 +99,28 @@ hashtable_search_key_or_create_new_ret_t hashtable_support_op_search_key_or_crea
 
     bool terminate_outer_loop = false;
     for(uint8_t searching_or_creating = 0; searching_or_creating < 2; searching_or_creating++) {
-
-        HASHTABLE_MEMORY_FENCE_LOAD();
+        if (searching_or_creating == 0) {
+        } else {
+        }
 
         for(hashtable_bucket_index_t index = index_neighborhood_begin; index <= index_neighborhood_end; index++) {
+            HASHTABLE_MEMORY_FENCE_LOAD();
+
+
             if (searching_or_creating == 0) {
                 // If it's searching, loop of the neighborhood searching for the hash
                 if (hashtable_data->hashes[index] != hash) {
                     continue;
                 }
+
             } else if (searching_or_creating == 1) {
+
                 // If it's creating, it has still to search not only an empty bucket but a bucket with the key as well
                 // because it may have been created in the mean time
                 if (hashtable_data->hashes[index] != hash && hashtable_data->hashes[index] != 0) {
                     continue;
                 }
+
 
                 hashtable_bucket_hash_t expected_hash = 0U;
                 do {
@@ -130,8 +139,11 @@ hashtable_search_key_or_create_new_ret_t hashtable_support_op_search_key_or_crea
                 }
                 while(!*created_new);
 
-                if (expected_hash != hash) {
-                    continue;
+                if (*created_new == false) {
+                    // Corner case, consider valid the operation if the new hash is what was going to be set
+                    if (expected_hash != hash) {
+                        continue;
+                    }
                 }
             }
 
@@ -170,13 +182,14 @@ hashtable_search_key_or_create_new_ret_t hashtable_support_op_search_key_or_crea
                 }
             }
 
+            HASHTABLE_MEMORY_FENCE_STORE();
+
             *found_index = index;
             *found_key_value = found_bucket_key_value;
             ret = HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_FOUND;
+            terminate_outer_loop = true;
             break;
         }
-
-        HASHTABLE_MEMORY_FENCE_STORE();
 
         if (terminate_outer_loop) {
             break;

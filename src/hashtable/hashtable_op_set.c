@@ -13,9 +13,9 @@
 #include "hashtable_support_hash.h"
 #include "hashtable_support_op.h"
 
-bool hashtable_set(
-        hashtable_t* hashtable,
-        hashtable_key_data_t* key,
+bool hashtable_op_set(
+        hashtable_t *hashtable,
+        hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_value_data_t value) {
     bool created_new;
@@ -40,13 +40,12 @@ bool hashtable_set(
                 &bucket_key_value);
 
         if (ret == HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_NO_FREE) {
-            if (cleaned_up == false) {
+            if (!cleaned_up) {
                 hashtable_garbage_collect_neighborhood(hashtable, bucket_index);
                 cleaned_up = true;
-                continue;
-            }
 
-            if (resized == false && hashtable->config->can_auto_resize) {
+                continue;
+            } else if (!resized && hashtable->config->can_auto_resize) {
                 // TODO: implement (auto)resize
                 // hashtable_scale_up_start(hashtable);
                 resized = true;
@@ -56,22 +55,24 @@ bool hashtable_set(
             break;
         }
     }
-    while(
-            ret == HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_FOUND ||
-            ret == HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_EMPTY_OR_DELETED);
+    while(ret == HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_NO_FREE);
 
-    if (ret == HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_EMPTY_OR_DELETED) {
-        return true;
-    } else if (ret == HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_NO_FREE) {
+    if (ret == HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_EMPTY_OR_DELETED ||
+        ret == HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_NO_FREE) {
         return false;
     }
 
+    HASHTABLE_MEMORY_FENCE_LOAD();
+
     bucket_key_value->data = value;
 
-    HASHTABLE_MEMORY_FENCE_LOAD_STORE();
+    if (!created_new) {
+        HASHTABLE_MEMORY_FENCE_LOAD();
 
-    // Check if it's a new bucket or not
-    if (created_new) {
+        if (HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(bucket_key_value->flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED)) {
+            return false;
+        }
+    } else {
         hashtable_bucket_key_value_flags_t flags = 0;
 
         // Get the destination pointer for the key
@@ -93,6 +94,8 @@ bool hashtable_set(
 
         // Set the FILLED flag (drops the deleted flag as well)
         HASHTABLE_BUCKET_KEY_VALUE_SET_FLAG(flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED);
+
+        HASHTABLE_MEMORY_FENCE_STORE();
 
         // Update the flags atomically
         bucket_key_value->flags = flags;
