@@ -30,9 +30,9 @@ typedef uintptr_t hashtable_value_data_t;
 typedef uint8_t hashtable_search_key_or_create_new_ret_t;
 
 enum {
-    HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED          = 0x01u,
-    HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE      = 0x02u,
-    HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED         = 0x80u,
+    HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED         = 0x01u,
+    HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED          = 0x02u,
+    HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE      = 0x04u,
 };
 
 enum {
