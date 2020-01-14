@@ -10,12 +10,12 @@
 #include "fixtures-hashtable.h"
 
 TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
-    SECTION("hashtable_get") {
+    SECTION("hashtable_op_get") {
         hashtable_value_data_t value = 0;
 
         SECTION("not found - hashtable empty") {
             HASHTABLE_INIT(buckets_initial_count_5, false, {
-                REQUIRE(!hashtable_get(
+                REQUIRE(!hashtable_op_get(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
@@ -32,7 +32,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
                         test_key_1_len,
                         test_value_1);
 
-                REQUIRE(hashtable_get(
+                REQUIRE(hashtable_op_get(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
@@ -49,7 +49,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
                         test_key_1_len,
                         test_value_1);
 
-                REQUIRE(hashtable_get(
+                REQUIRE(hashtable_op_get(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
@@ -73,7 +73,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
                         test_key_2_len,
                         test_value_2);
 
-                REQUIRE(hashtable_get(
+                REQUIRE(hashtable_op_get(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
@@ -81,7 +81,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
 
                 REQUIRE(value == test_value_1);
 
-                REQUIRE(hashtable_get(
+                REQUIRE(hashtable_op_get(
                         hashtable,
                         test_key_2,
                         test_key_2_len,
@@ -104,7 +104,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
                         hashtable->ht_current->keys_values[test_index_1_buckets_count_53].flags,
                         HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED);
 
-                REQUIRE(!hashtable_get(
+                REQUIRE(!hashtable_op_get(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
@@ -129,7 +129,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
                         test_key_1_len,
                         test_value_1);
 
-                REQUIRE(hashtable_get(
+                REQUIRE(hashtable_op_get(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
@@ -146,7 +146,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
                         test_key_1_len,
                         test_value_1);
 
-                REQUIRE(hashtable_get(
+                REQUIRE(hashtable_op_get(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
@@ -160,7 +160,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
             HASHTABLE_INIT(buckets_initial_count_5, false, {
                 hashtable->ht_current->hashes[test_index_1_buckets_count_53] = test_key_1_hash;
 
-                REQUIRE(!hashtable_get(
+                REQUIRE(!hashtable_op_get(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
@@ -196,7 +196,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
                         test_key_1_len,
                         test_value_1);
 
-                REQUIRE(hashtable_get(
+                REQUIRE(hashtable_op_get(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
