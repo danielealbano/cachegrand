@@ -10,11 +10,11 @@
 #include "hashtable_support_hash.h"
 #include "hashtable_support_op.h"
 
-bool hashtable_get(
-        hashtable_t* hashtable,
-        hashtable_key_data_t* key,
+bool hashtable_op_get(
+        hashtable_t *hashtable,
+        hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
-        hashtable_value_data_t* data) {
+        hashtable_value_data_t *data) {
     hashtable_bucket_hash_t hash;
     hashtable_bucket_index_t bucket_index;
     volatile hashtable_bucket_key_value_t* bucket_key_value;
@@ -34,9 +34,11 @@ bool hashtable_get(
             uint8_t hashtable_data_index = 0;
             hashtable_data_index < hashtable_data_list_size;
             hashtable_data_index++) {
+        HASHTABLE_MEMORY_FENCE_LOAD();
+
         volatile hashtable_data_t* hashtable_data = hashtable_data_list[hashtable_data_index];
 
-        if (hashtable_data == NULL) {
+        if (hashtable_data_index > 0 && (!hashtable->is_resizing || hashtable_data == NULL)) {
             continue;
         }
 
