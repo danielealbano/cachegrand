@@ -22,7 +22,6 @@ bool hashtable_op_set(
     hashtable_bucket_index_t bucket_index;
     hashtable_bucket_hash_t hash;
     hashtable_key_data_t* ht_key;
-    bool cleaned_up = false;
     bool resized = false;
     volatile hashtable_bucket_key_value_t* bucket_key_value;
 
