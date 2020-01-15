@@ -7,7 +7,6 @@
 #include "xalloc.h"
 
 #include "hashtable.h"
-#include "hashtable_gc.h"
 #include "hashtable_op_set.h"
 #include "hashtable_support_index.h"
 #include "hashtable_support_hash.h"
@@ -40,12 +39,7 @@ bool hashtable_op_set(
                 &bucket_key_value);
 
         if (ret == HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_NO_FREE) {
-            if (!cleaned_up) {
-                hashtable_garbage_collect_neighborhood(hashtable, bucket_index);
-                cleaned_up = true;
-
-                continue;
-            } else if (!resized && hashtable->config->can_auto_resize) {
+            if (!resized && hashtable->config->can_auto_resize) {
                 // TODO: implement (auto)resize
                 // hashtable_scale_up_start(hashtable);
                 resized = true;
