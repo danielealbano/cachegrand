@@ -23,7 +23,7 @@ add_library(catch2::catch ALIAS catch2)
 
 # Build tests
 file(GLOB SRC_CACHEGRAND_TESTS "test-*.cpp")
-add_executable(cachegrand-tests ${SRC_CACHEGRAND_TESTS})
+add_executable(cachegrand-tests main.cpp ${SRC_CACHEGRAND_TESTS})
 add_dependencies(cachegrand-tests cachegrand-internal catch2-external-project catch2)
 set_target_properties(cachegrand-tests PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(cachegrand-tests catch2)
@@ -35,7 +35,7 @@ add_test(NAME cachegrand-tests COMMAND cachegrand-tests)
 
 # Build benches
 file(GLOB SRC_CACHEGRAND_BENCHES "bench-*.cpp")
-add_executable(cachegrand-benches ${SRC_CACHEGRAND_BENCHES})
+add_executable(cachegrand-benches main.cpp ${SRC_CACHEGRAND_BENCHES})
 add_dependencies(cachegrand-benches cachegrand-internal catch2-external-project catch2)
 set_target_properties(cachegrand-benches PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(cachegrand-benches catch2)
