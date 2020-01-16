@@ -8,35 +8,35 @@
 
 TEST_CASE("hashtable_data.c", "[hashtable][hashtable_data]") {
     SECTION("hashtable_data_init") {
-        HASHTABLE_DATA_INIT(buckets_initial_count_5, {
+        HASHTABLE_DATA(buckets_initial_count_5, {
             /* do nothing */
         })
     }
 
     SECTION("hashtable_data->buckets_count") {
-        HASHTABLE_DATA_INIT(buckets_initial_count_5, {
+        HASHTABLE_DATA(buckets_initial_count_5, {
             REQUIRE(hashtable_data->buckets_count == buckets_count_53);
         })
 
-        HASHTABLE_DATA_INIT(buckets_initial_count_100, {
+        HASHTABLE_DATA(buckets_initial_count_100, {
             REQUIRE(hashtable_data->buckets_count == buckets_count_101);
         })
 
-        HASHTABLE_DATA_INIT(buckets_initial_count_305, {
+        HASHTABLE_DATA(buckets_initial_count_305, {
             REQUIRE(hashtable_data->buckets_count == buckets_count_307);
         })
     }
 
     SECTION("hashtable_data->buckets_count_real") {
-        HASHTABLE_DATA_INIT(buckets_initial_count_5, {
+        HASHTABLE_DATA(buckets_initial_count_5, {
             REQUIRE(hashtable_data->buckets_count_real == buckets_count_real_64);
         })
 
-        HASHTABLE_DATA_INIT(buckets_initial_count_100, {
+        HASHTABLE_DATA(buckets_initial_count_100, {
             REQUIRE(hashtable_data->buckets_count_real == buckets_count_real_112);
         })
 
-        HASHTABLE_DATA_INIT(buckets_initial_count_305, {
+        HASHTABLE_DATA(buckets_initial_count_305, {
             REQUIRE(hashtable_data->buckets_count_real == buckets_count_real_320);
         })
     }

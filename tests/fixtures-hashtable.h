@@ -38,24 +38,30 @@ hashtable_key_size_t test_key_2_len = 10;
 hashtable_bucket_hash_t test_key_2_hash = 0x8c8b1b670da1324d;
 hashtable_bucket_index_t test_index_2_buckets_count_53 = test_key_2_hash % buckets_count_53;
 
-#define HASHTABLE_DATA_INIT(buckets_count_v, ...) \
+#define HASHTABLE_DATA(buckets_count_v, ...) \
 { \
     hashtable_data_t* hashtable_data = hashtable_data_init(buckets_count_v); \
     __VA_ARGS__; \
     hashtable_data_free(hashtable_data); \
 }
 
-#define HASHTABLE_INIT(initial_size_v, can_auto_resize_v, ...) \
-{ \
+#define HASHTABLE_INIT(initial_size_v, can_auto_resize_v) \
     hashtable_config_t* hashtable_config = hashtable_config_init();  \
     hashtable_config->initial_size = initial_size_v; \
     hashtable_config->can_auto_resize = can_auto_resize_v; \
     \
     hashtable_t* hashtable = hashtable_init(hashtable_config); \
+
+#define HASHTABLE_FREE() \
+    hashtable_free(hashtable); \
+
+#define HASHTABLE(initial_size_v, can_auto_resize_v, ...) \
+{ \
+    HASHTABLE_INIT(initial_size_v, can_auto_resize_v); \
     \
     __VA_ARGS__ \
     \
-    hashtable_free(hashtable); \
+    HASHTABLE_FREE(); \
 }
 
 #define HASHTABLE_BUCKET_HASH_KEY_VALUE_SET_KEY_INLINE(index, hash, key, key_size, value) \

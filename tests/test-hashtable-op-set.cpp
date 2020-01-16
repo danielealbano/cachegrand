@@ -13,7 +13,7 @@
 TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
     SECTION("hashtable_op_set") {
         SECTION("set 1 bucket") {
-            HASHTABLE_INIT(buckets_initial_count_5, false, {
+            HASHTABLE(buckets_initial_count_5, false, {
                 hashtable_bucket_index_t index_neighborhood_begin, index_neighborhood_end;
 
                 hashtable_support_index_calculate_neighborhood_from_hash(
@@ -40,7 +40,7 @@ TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
         }
 
         SECTION("set and update 1 bucket") {
-            HASHTABLE_INIT(buckets_initial_count_5, false, {
+            HASHTABLE(buckets_initial_count_5, false, {
                 hashtable_bucket_index_t index_neighborhood_begin, index_neighborhood_end;
 
                 hashtable_support_index_calculate_neighborhood_from_hash(
@@ -73,7 +73,7 @@ TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
         }
 
         SECTION("set 2 buckets") {
-            HASHTABLE_INIT(buckets_initial_count_5, false, {
+            HASHTABLE(buckets_initial_count_5, false, {
                 hashtable_bucket_index_t index_1_neighborhood_begin, index_1_neighborhood_end;
                 hashtable_bucket_index_t index_2_neighborhood_begin, index_2_neighborhood_end;
 
@@ -124,7 +124,7 @@ TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
         }
 
         SECTION("set delete set 1 bucket") {
-            HASHTABLE_INIT(buckets_initial_count_5, false, {
+            HASHTABLE(buckets_initial_count_5, false, {
                 hashtable_bucket_index_t index_1_neighborhood_begin, index_1_neighborhood_end;
                 hashtable_bucket_index_t index_2_neighborhood_begin, index_2_neighborhood_end;
 

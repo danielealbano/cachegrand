@@ -7,7 +7,7 @@
 
 TEST_CASE("hashtable.c", "[hashtable]") {
     SECTION("hashtable_init") {
-        HASHTABLE_INIT(buckets_initial_count_5, false, {
+        HASHTABLE(buckets_initial_count_5, false, {
             REQUIRE(hashtable != NULL);
         })
     }

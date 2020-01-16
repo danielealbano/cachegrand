@@ -14,7 +14,7 @@
 TEST_CASE("hashtable_op_delete.c", "[hashtable][hashtable_op][hashtable_op_delete]") {
     SECTION("hashtable_op_delete") {
         SECTION("set and delete 1 bucket") {
-            HASHTABLE_INIT(buckets_initial_count_5, false, {
+            HASHTABLE(buckets_initial_count_5, false, {
                 hashtable_bucket_index_t index_neighborhood_begin, index_neighborhood_end;
 
                 hashtable_support_index_calculate_neighborhood_from_hash(
@@ -43,7 +43,7 @@ TEST_CASE("hashtable_op_delete.c", "[hashtable][hashtable_op][hashtable_op_delet
         }
 
         SECTION("set and delete 1 bucket - twice to reuse") {
-            HASHTABLE_INIT(buckets_initial_count_5, false, {
+            HASHTABLE(buckets_initial_count_5, false, {
                 hashtable_bucket_index_t index_neighborhood_begin, index_neighborhood_end;
 
                 hashtable_support_index_calculate_neighborhood_from_hash(
@@ -89,7 +89,7 @@ TEST_CASE("hashtable_op_delete.c", "[hashtable][hashtable_op][hashtable_op_delet
         }
 
         SECTION("set 2 buckets delete second") {
-            HASHTABLE_INIT(buckets_initial_count_5, false, {
+            HASHTABLE(buckets_initial_count_5, false, {
                 hashtable_bucket_index_t index_1_neighborhood_begin, index_1_neighborhood_end;
                 hashtable_bucket_index_t index_2_neighborhood_begin, index_2_neighborhood_end;
 

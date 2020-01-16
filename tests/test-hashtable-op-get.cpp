@@ -14,7 +14,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
         hashtable_value_data_t value = 0;
 
         SECTION("not found - hashtable empty") {
-            HASHTABLE_INIT(buckets_initial_count_5, false, {
+            HASHTABLE(buckets_initial_count_5, false, {
                 REQUIRE(!hashtable_op_get(
                         hashtable,
                         test_key_1,
@@ -24,7 +24,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
         }
 
         SECTION("found - test key inline") {
-            HASHTABLE_INIT(buckets_initial_count_5, false, {
+            HASHTABLE(buckets_initial_count_5, false, {
                 HASHTABLE_BUCKET_HASH_KEY_VALUE_SET_KEY_INLINE(
                         test_index_1_buckets_count_53,
                         test_key_1_hash,
@@ -41,7 +41,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
         }
 
         SECTION("found - test key external") {
-            HASHTABLE_INIT(buckets_initial_count_5, false, {
+            HASHTABLE(buckets_initial_count_5, false, {
                 HASHTABLE_BUCKET_HASH_KEY_VALUE_SET_KEY_EXTERNAL(
                         test_index_1_buckets_count_53,
                         test_key_1_hash,
@@ -58,7 +58,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
         }
 
         SECTION("found - test multiple buckets with key inline") {
-            HASHTABLE_INIT(buckets_initial_count_5, false, {
+            HASHTABLE(buckets_initial_count_5, false, {
                 HASHTABLE_BUCKET_HASH_KEY_VALUE_SET_KEY_INLINE(
                         test_index_1_buckets_count_53,
                         test_key_1_hash,
@@ -92,7 +92,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
         }
 
         SECTION("not found - test deleted flag") {
-            HASHTABLE_INIT(buckets_initial_count_5, false, {
+            HASHTABLE(buckets_initial_count_5, false, {
                 HASHTABLE_BUCKET_HASH_KEY_VALUE_SET_KEY_INLINE(
                         test_index_1_buckets_count_53,
                         test_key_1_hash,
@@ -113,7 +113,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
         }
 
         SECTION("found - test neighborhood") {
-            HASHTABLE_INIT(buckets_initial_count_5, false, {
+            HASHTABLE(buckets_initial_count_5, false, {
                 hashtable_bucket_index_t index_neighborhood_begin, index_neighborhood_end;
 
                 hashtable_support_index_calculate_neighborhood_from_hash(
@@ -157,7 +157,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
         }
 
         SECTION("not found - test hash set but key_value not (edge case because of parallelism)") {
-            HASHTABLE_INIT(buckets_initial_count_5, false, {
+            HASHTABLE(buckets_initial_count_5, false, {
                 hashtable->ht_current->hashes[test_index_1_buckets_count_53] = test_key_1_hash;
 
                 REQUIRE(!hashtable_op_get(
@@ -169,7 +169,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
         }
 
         SECTION("found - single bucket - get key after delete with hash still in hashes (edge case because of parallelism)") {
-            HASHTABLE_INIT(buckets_initial_count_5, false, {
+            HASHTABLE(buckets_initial_count_5, false, {
                 hashtable_bucket_index_t index_neighborhood_begin, index_neighborhood_end;
 
                 hashtable_support_index_calculate_neighborhood_from_hash(
