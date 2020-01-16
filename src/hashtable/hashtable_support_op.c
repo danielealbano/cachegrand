@@ -121,23 +121,11 @@ hashtable_search_key_or_create_new_ret_t hashtable_support_op_search_key_or_crea
                     continue;
                 }
 
-
                 hashtable_bucket_hash_t expected_hash = 0U;
-                do {
 
-                    // If the operation is successful, it's a new bucket, if it fails it may be an existing bucket, this
-                    // specific case is checked below
-                    *created_new = atomic_compare_exchange_strong(&hashtable_data->hashes[index], &expected_hash, hash);
-
-                    if (*created_new == false) {
-                        // If the new hash stored in expected hash is the same as hash another thread just set this same
-                        // hash for teh same bucket so we can skip and check first the flags and then the key
-                        if (expected_hash != hash && expected_hash != 0) {
-                            break;
-                        }
-                    }
-                }
-                while(!*created_new);
+                // If the operation is successful, it's a new bucket, if it fails it may be an existing bucket, this
+                // specific case is checked below
+                *created_new = atomic_compare_exchange_strong(&hashtable_data->hashes[index], &expected_hash, hash);
 
                 if (*created_new == false) {
                     // Corner case, consider valid the operation if the new hash is what was going to be set
