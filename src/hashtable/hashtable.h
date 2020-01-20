@@ -71,7 +71,7 @@ struct hashtable_bucket_key_value {
             char padding[11];                   // 11 bytes padding
             hashtable_key_size_t size;          // 4 bytes
             hashtable_key_data_t* data;         // 8 bytes
-        } external_key;
+        } __attribute__((packed)) external_key;
         struct {
             hashtable_key_data_t data[HASHTABLE_INLINE_KEY_MAX_SIZE];
         } inline_key;
