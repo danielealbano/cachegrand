@@ -54,6 +54,7 @@ enum {
 struct hashtable_config {
     uint64_t initial_size;
     bool can_auto_resize;
+    uint16_t cachelines_to_probe;
 };
 typedef struct hashtable_config hashtable_config_t;
 
@@ -86,6 +87,7 @@ typedef struct hashtable_bucket_key_value hashtable_bucket_key_value_t;
 struct hashtable_data {
     hashtable_bucket_count_t buckets_count;
     hashtable_bucket_count_t buckets_count_real;
+    uint16_t cachelines_to_probe;
     uint64_t t1ha2_seed;
     bool can_be_deleted;
     hashtable_bucket_hash_t* volatile hashes;

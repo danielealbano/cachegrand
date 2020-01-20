@@ -9,7 +9,9 @@
 
 hashtable_t* hashtable_init(hashtable_config_t* hashtable_config) {
     hashtable_t* hashtable = (hashtable_t*)xalloc(sizeof(hashtable_t));
-    hashtable_data_t* hashtable_data = hashtable_data_init(hashtable_config->initial_size);
+    hashtable_data_t* hashtable_data = hashtable_data_init(
+            hashtable_config->initial_size,
+            hashtable_config->cachelines_to_probe);
 
     hashtable->is_resizing = false;
     hashtable->is_shutdowning = false;
@@ -36,3 +38,4 @@ void hashtable_free(hashtable_t* hashtable) {
 
     xfree(hashtable);
 }
+

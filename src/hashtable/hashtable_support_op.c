@@ -29,6 +29,7 @@ bool hashtable_support_op_search_key(
     hashtable_support_index_calculate_neighborhood_from_hash(
             hashtable_data->buckets_count,
             hash,
+            hashtable_data->cachelines_to_probe,
             &index_neighborhood_begin,
             &index_neighborhood_end);
 
@@ -94,18 +95,14 @@ hashtable_search_key_or_create_new_ret_t hashtable_support_op_search_key_or_crea
     hashtable_support_index_calculate_neighborhood_from_hash(
             hashtable_data->buckets_count,
             hash,
+            hashtable_data->cachelines_to_probe,
             &index_neighborhood_begin,
             &index_neighborhood_end);
 
     bool terminate_outer_loop = false;
     for(uint8_t searching_or_creating = 0; searching_or_creating < 2; searching_or_creating++) {
-        if (searching_or_creating == 0) {
-        } else {
-        }
-
         for(hashtable_bucket_index_t index = index_neighborhood_begin; index <= index_neighborhood_end; index++) {
             HASHTABLE_MEMORY_FENCE_LOAD();
-
 
             if (searching_or_creating == 0) {
                 // If it's searching, loop of the neighborhood searching for the hash
