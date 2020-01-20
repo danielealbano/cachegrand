@@ -7,6 +7,7 @@
 
 #include "log.h"
 #include "fatal.h"
+#include "backtrace.h"
 
 void fatal_trigger_debugger() {
 #if defined(__APPLE__)
@@ -40,6 +41,8 @@ void fatal(const char* tag, const char* message, ...) {
     va_start(args, message);
     fatal_log_message(tag, message, args);
     va_end(args);
+
+    backtrace_print();
 
     fatal_trigger_debugger();
 
