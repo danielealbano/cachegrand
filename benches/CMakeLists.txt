@@ -1,5 +1,4 @@
 find_package(benchmark REQUIRED)
-find_package(Boost REQUIRED)
 
 
 # Build benches
