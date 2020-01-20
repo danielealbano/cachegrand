@@ -13,8 +13,8 @@ hashtable_t* hashtable_init(hashtable_config_t* hashtable_config) {
 
     hashtable->is_resizing = false;
     hashtable->is_shutdowning = false;
-    hashtable->ht_current = hashtable->ht_1 = hashtable_data;
-    hashtable->ht_old = hashtable->ht_2 = NULL;
+    hashtable->ht_current = hashtable_data;
+    hashtable->ht_old = NULL;
 
     hashtable->config = hashtable_config;
 
@@ -22,14 +22,14 @@ hashtable_t* hashtable_init(hashtable_config_t* hashtable_config) {
 }
 
 void hashtable_free(hashtable_t* hashtable) {
-    if (hashtable->ht_1) {
-        hashtable_data_free(hashtable->ht_1);
-        hashtable->ht_1 = NULL;
+    if (hashtable->ht_current) {
+        hashtable_data_free(hashtable->ht_current);
+        hashtable->ht_current = NULL;
     }
 
-    if (hashtable->ht_2) {
-        hashtable_data_free(hashtable->ht_2);
-        hashtable->ht_2 = NULL;
+    if (hashtable->ht_old) {
+        hashtable_data_free(hashtable->ht_old);
+        hashtable->ht_old = NULL;
     }
 
     hashtable_config_free(hashtable->config);

@@ -110,8 +110,6 @@ struct hashtable {
     hashtable_config_t* config;
     bool is_shutdowning;
     bool is_resizing;
-    volatile hashtable_data_t* ht_1;
-    volatile hashtable_data_t* ht_2;
     volatile hashtable_data_t* ht_current;
     volatile hashtable_data_t* ht_old;
 };
