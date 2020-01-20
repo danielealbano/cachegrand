@@ -21,7 +21,7 @@ extern "C" {
 #define HASHTABLE_INLINE_KEY_MAX_SIZE       23
 
 typedef uint8_t hashtable_bucket_key_value_flags_t;
-typedef uint64_t hashtable_bucket_hash_t;
+typedef uint32_t hashtable_bucket_hash_t;
 typedef uint64_t hashtable_bucket_index_t;
 typedef uint64_t hashtable_bucket_count_t;
 typedef uint32_t hashtable_key_size_t;
