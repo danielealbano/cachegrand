@@ -20,6 +20,7 @@ TEST_CASE("hashtable_op_delete.c", "[hashtable][hashtable_op][hashtable_op_delet
                 hashtable_support_index_calculate_neighborhood_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash,
+                        hashtable->ht_current->cachelines_to_probe,
                         &index_neighborhood_begin,
                         &index_neighborhood_end);
 
@@ -49,6 +50,7 @@ TEST_CASE("hashtable_op_delete.c", "[hashtable][hashtable_op][hashtable_op_delet
                 hashtable_support_index_calculate_neighborhood_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash,
+                        hashtable->ht_current->cachelines_to_probe,
                         &index_neighborhood_begin,
                         &index_neighborhood_end);
 
@@ -96,12 +98,14 @@ TEST_CASE("hashtable_op_delete.c", "[hashtable][hashtable_op][hashtable_op_delet
                 hashtable_support_index_calculate_neighborhood_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash,
+                        hashtable->ht_current->cachelines_to_probe,
                         &index_1_neighborhood_begin,
                         &index_1_neighborhood_end);
 
                 hashtable_support_index_calculate_neighborhood_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_2_hash,
+                        hashtable->ht_current->cachelines_to_probe,
                         &index_2_neighborhood_begin,
                         &index_2_neighborhood_end);
 

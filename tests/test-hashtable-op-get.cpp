@@ -119,6 +119,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
                 hashtable_support_index_calculate_neighborhood_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash,
+                        hashtable->ht_current->cachelines_to_probe,
                         &index_neighborhood_begin,
                         &index_neighborhood_end);
 
@@ -175,6 +176,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
                 hashtable_support_index_calculate_neighborhood_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash,
+                        hashtable->ht_current->cachelines_to_probe,
                         &index_neighborhood_begin,
                         &index_neighborhood_end);
 
