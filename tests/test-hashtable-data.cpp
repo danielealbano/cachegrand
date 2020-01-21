@@ -13,6 +13,17 @@ TEST_CASE("hashtable_data.c", "[hashtable][hashtable_data]") {
         })
     }
 
+    SECTION("hashtable_data_init - mmap zero'ed") {
+        HASHTABLE_DATA(buckets_initial_count_305, {
+            for(
+                    hashtable_bucket_count_t bucket_index = 0;
+                    bucket_index < hashtable_data->buckets_count_real;
+                    bucket_index++) {
+                REQUIRE(hashtable_data->hashes[bucket_index] == 0);
+            }
+        })
+    }
+
     SECTION("hashtable_data->buckets_count") {
         HASHTABLE_DATA(buckets_initial_count_5, {
             REQUIRE(hashtable_data->buckets_count == buckets_count_53);
