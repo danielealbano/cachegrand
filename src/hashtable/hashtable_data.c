@@ -32,18 +32,16 @@ hashtable_data_t* hashtable_data_init(hashtable_bucket_count_t buckets_count, ui
     hashtable_data->buckets_count = buckets_count;
     hashtable_data->buckets_count_real = buckets_count_real;
     hashtable_data->cachelines_to_probe = cachelines_to_probe;
-    hashtable_data->hashes = (hashtable_bucket_hash_t*)xalloc_aligned(
-            HASHTABLE_CACHELINE_LENGTH, hashes_size);
-    hashtable_data->keys_values = (hashtable_bucket_key_value_t*)xalloc_aligned(
-            HASHTABLE_CACHELINE_LENGTH, keys_values_size);
-
-    memset((void*)hashtable_data->hashes, 0, hashes_size);
-    memset((void*)hashtable_data->keys_values, 0, keys_values_size);
+    hashtable_data->hashes_size = hashes_size;
+    hashtable_data->keys_values_size = keys_values_size;
+    hashtable_data->hashes = (hashtable_bucket_hash_t*)xalloc_hugepages(hashes_size);
+    hashtable_data->keys_values = (hashtable_bucket_key_value_t*)xalloc_hugepages(keys_values_size);
 
     return hashtable_data;
 }
 
 extern inline void hashtable_data_free(volatile hashtable_data_t* hashtable_data) {
-    xfree((void*)hashtable_data->hashes);
-    xfree((void*)hashtable_data->keys_values);
+    xfree_hugepages((void*)hashtable_data->hashes, hashtable_data->hashes_size);
+    xfree_hugepages((void*)hashtable_data->keys_values, hashtable_data->keys_values_size);
+    xfree((void*)hashtable_data);
 }
