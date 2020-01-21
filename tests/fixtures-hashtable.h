@@ -7,6 +7,8 @@ namespace
 #endif
 
 // Fixtures
+uint16_t cachelines_to_probe_2 = 2;
+
 uintptr_t test_value_1 = 12345;
 uintptr_t test_value_2 = 54321;
 
@@ -40,7 +42,7 @@ hashtable_bucket_index_t test_index_2_buckets_count_53 = test_key_2_hash % bucke
 
 #define HASHTABLE_DATA(buckets_count_v, ...) \
 { \
-    hashtable_data_t* hashtable_data = hashtable_data_init(buckets_count_v); \
+    hashtable_data_t* hashtable_data = hashtable_data_init(buckets_count_v, cachelines_to_probe_2); \
     __VA_ARGS__; \
     hashtable_data_free(hashtable_data); \
 }
@@ -49,6 +51,7 @@ hashtable_bucket_index_t test_index_2_buckets_count_53 = test_key_2_hash % bucke
     hashtable_config_t* hashtable_config = hashtable_config_init();  \
     hashtable_config->initial_size = initial_size_v; \
     hashtable_config->can_auto_resize = can_auto_resize_v; \
+    hashtable_config->cachelines_to_probe = cachelines_to_probe_2; \
     \
     hashtable_t* hashtable = hashtable_init(hashtable_config); \
 
