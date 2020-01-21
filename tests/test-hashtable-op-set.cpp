@@ -93,7 +93,9 @@ TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
                         &index_2_neighborhood_begin,
                         &index_2_neighborhood_end);
 
-                REQUIRE(index_1_neighborhood_begin != index_2_neighborhood_begin);
+                if (index_1_neighborhood_begin == index_2_neighborhood_begin) {
+                    index_2_neighborhood_begin++;
+                }
 
                 REQUIRE(hashtable_op_set(
                         hashtable,
@@ -146,7 +148,9 @@ TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
                         &index_2_neighborhood_begin,
                         &index_2_neighborhood_end);
 
-                REQUIRE(index_1_neighborhood_begin != index_2_neighborhood_begin);
+                if (index_1_neighborhood_begin == index_2_neighborhood_begin) {
+                    index_2_neighborhood_begin++;
+                }
 
                 REQUIRE(hashtable_op_set(
                         hashtable,
