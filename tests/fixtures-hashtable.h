@@ -12,21 +12,17 @@ uint16_t cachelines_to_probe_2 = 2;
 uintptr_t test_value_1 = 12345;
 uintptr_t test_value_2 = 54321;
 
-hashtable_bucket_index_t test_index_53 = 51;
-hashtable_bucket_index_t test_index_101 = 77;
-hashtable_bucket_index_t test_index_307 = 20;
-
 uint64_t buckets_initial_count_5 = 5;
 uint64_t buckets_initial_count_100 = 100;
 uint64_t buckets_initial_count_305 = 305;
 
-uint64_t buckets_count_53 = 53;
+uint64_t buckets_count_42 = 42;
 uint64_t buckets_count_101 = 101;
 uint64_t buckets_count_307 = 307;
 
 uint64_t buckets_count_real_64 = 64;
-uint64_t buckets_count_real_112 = 112;
-uint64_t buckets_count_real_320 = 320;
+uint64_t buckets_count_real_128 = 128;
+uint64_t buckets_count_real_336 = 336;
 
 hashtable_bucket_hash_t test_hash_zero = 0;
 

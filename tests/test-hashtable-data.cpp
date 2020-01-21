@@ -26,7 +26,7 @@ TEST_CASE("hashtable_data.c", "[hashtable][hashtable_data]") {
 
     SECTION("hashtable_data->buckets_count") {
         HASHTABLE_DATA(buckets_initial_count_5, {
-            REQUIRE(hashtable_data->buckets_count == buckets_count_53);
+            REQUIRE(hashtable_data->buckets_count == buckets_count_42);
         })
 
         HASHTABLE_DATA(buckets_initial_count_100, {
@@ -44,18 +44,18 @@ TEST_CASE("hashtable_data.c", "[hashtable][hashtable_data]") {
         })
 
         HASHTABLE_DATA(buckets_initial_count_100, {
-            REQUIRE(hashtable_data->buckets_count_real == buckets_count_real_112);
+            REQUIRE(hashtable_data->buckets_count_real == buckets_count_real_128);
         })
 
         HASHTABLE_DATA(buckets_initial_count_305, {
-            REQUIRE(hashtable_data->buckets_count_real == buckets_count_real_320);
+            REQUIRE(hashtable_data->buckets_count_real == buckets_count_real_336);
         })
     }
 
     SECTION("invalid buckets_count") {
         hashtable_data_t *hashtable_data;
 
-        hashtable_data = hashtable_data_init(HASHTABLE_PRIMENUMBERS_MAX + 5);
+        hashtable_data = hashtable_data_init(HASHTABLE_PRIMENUMBERS_MAX + 1, cachelines_to_probe_2);
 
         REQUIRE(hashtable_data == NULL);
     }
