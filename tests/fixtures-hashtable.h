@@ -32,13 +32,13 @@ hashtable_bucket_hash_t test_hash_zero = 0;
 
 char test_key_1[] = "test key 1";
 hashtable_key_size_t test_key_1_len = 10;
-hashtable_bucket_hash_t test_key_1_hash = 0xf1bdcc8aaccb614c;
-hashtable_bucket_index_t test_index_1_buckets_count_53 = test_key_1_hash % buckets_count_53;
+hashtable_bucket_hash_t test_key_1_hash = (hashtable_bucket_hash_t)0xf1bdcc8aaccb614c;
+hashtable_bucket_index_t test_index_1_buckets_count_53 = test_key_1_hash % buckets_count_42;
 
 char test_key_2[] = "test key 2";
 hashtable_key_size_t test_key_2_len = 10;
-hashtable_bucket_hash_t test_key_2_hash = 0x8c8b1b670da1324d;
-hashtable_bucket_index_t test_index_2_buckets_count_53 = test_key_2_hash % buckets_count_53;
+hashtable_bucket_hash_t test_key_2_hash = (hashtable_bucket_hash_t)0x8c8b1b670da1324d;
+hashtable_bucket_index_t test_index_2_buckets_count_53 = test_key_2_hash % buckets_count_42;
 
 #define HASHTABLE_DATA(buckets_count_v, ...) \
 { \
