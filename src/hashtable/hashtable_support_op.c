@@ -11,6 +11,7 @@
 #include "hashtable_support_index.h"
 #include "hashtable_support_op.h"
 
+#pragma GCC optimization ("unroll-loops")
 // TODO: refactor to merge the functions hashtable_support_op_search_key and
 //       hashtable_support_op_search_key_or_create_new and reorganize the code
 
