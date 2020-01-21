@@ -23,7 +23,7 @@ extern "C" {
 typedef uint8_t hashtable_bucket_key_value_flags_t;
 typedef uint32_t hashtable_bucket_hash_t;
 typedef uint64_t hashtable_bucket_index_t;
-typedef uint64_t hashtable_bucket_count_t;
+typedef hashtable_bucket_index_t hashtable_bucket_count_t;
 typedef uint32_t hashtable_key_size_t;
 typedef char hashtable_key_data_t;
 typedef uintptr_t hashtable_value_data_t;
@@ -90,6 +90,8 @@ struct hashtable_data {
     uint16_t cachelines_to_probe;
     uint64_t t1ha2_seed;
     bool can_be_deleted;
+    size_t hashes_size;
+    size_t keys_values_size;
     hashtable_bucket_hash_t* volatile hashes;
     hashtable_bucket_key_value_t* volatile keys_values;
 };
