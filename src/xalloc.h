@@ -5,12 +5,12 @@
 extern "C" {
 #endif
 
-size_t xalloc_page_align(size_t size);
-void* xalloc_aligned(size_t alignment, size_t size);
-void* xalloc(size_t size);
-void xfree(void* memptr);
-void* xalloc_hugepages(size_t size);
-int xfree_hugepages(void* memptr, size_t size);
+size_t xalloc_mmap_align_size(size_t size);
+void* xalloc_alloc_aligned(size_t alignment, size_t size);
+void* xalloc_alloc(size_t size);
+void xalloc_free(void *memptr);
+void* xalloc_mmap_alloc(size_t size);
+int xalloc_mmap_free(void *memptr, size_t size);
 
 #ifdef __cplusplus
 }

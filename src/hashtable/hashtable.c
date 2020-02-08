@@ -8,7 +8,7 @@
 #include "hashtable_data.h"
 
 hashtable_t* hashtable_init(hashtable_config_t* hashtable_config) {
-    hashtable_t* hashtable = (hashtable_t*)xalloc(sizeof(hashtable_t));
+    hashtable_t* hashtable = (hashtable_t*)xalloc_alloc(sizeof(hashtable_t));
     hashtable_data_t* hashtable_data = hashtable_data_init(
             hashtable_config->initial_size,
             hashtable_config->cachelines_to_probe);
@@ -36,6 +36,6 @@ void hashtable_free(hashtable_t* hashtable) {
 
     hashtable_config_free(hashtable->config);
 
-    xfree(hashtable);
+    xalloc_free(hashtable);
 }
 

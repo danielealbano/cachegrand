@@ -8,9 +8,9 @@
 #include "hashtable_config.h"
 
 hashtable_config_t* hashtable_config_init() {
-    return (hashtable_config_t*)xalloc(sizeof(hashtable_config_t));
+    return (hashtable_config_t*)xalloc_alloc(sizeof(hashtable_config_t));
 }
 
 void hashtable_config_free(hashtable_config_t* hashtable_config) {
-    xfree(hashtable_config);
+    xalloc_free(hashtable_config);
 }

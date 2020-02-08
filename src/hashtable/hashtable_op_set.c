@@ -75,7 +75,7 @@ bool hashtable_op_set(
         } else {
             // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't be freed
             //       immediately after the bucket is freed because it can be in use and would cause a crash34567
-            ht_key = xalloc(key_size + 1);
+            ht_key = xalloc_alloc(key_size + 1);
             ht_key[key_size] = '\0';
 
             bucket_key_value->external_key.data = ht_key;

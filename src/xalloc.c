@@ -5,18 +5,21 @@
 #include "log.h"
 #include "fatal.h"
 
-static const char* TAG = "xalloc";
+static const char* TAG = "xalloc_alloc";
 
-size_t xalloc_page_align(size_t size) {
-    long alignment = sysconf(_SC_PAGESIZE);
+void* xalloc_alloc(size_t size) {
+    void* memptr;
 
-    size_t hugepages_alignment = alignment; //2 * 1024 * 1024;
-    size = size - (size % hugepages_alignment) + hugepages_alignment;
+    memptr = malloc(size);
 
-    return size;
+    if (memptr == NULL) {
+        FATAL(TAG, "Unable to allocate the requested memory %d", size);
+    }
+
+    return memptr;
 }
 
-void* xalloc_aligned(size_t alignment, size_t size) {
+void* xalloc_alloc_aligned(size_t alignment, size_t size) {
     void* memptr;
 
 #if defined(__APPLE__)
@@ -36,26 +39,22 @@ void* xalloc_aligned(size_t alignment, size_t size) {
     return memptr;
 }
 
-void* xalloc(size_t size) {
-    void* memptr;
-
-    memptr = malloc(size);
-
-    if (memptr == NULL) {
-        FATAL(TAG, "Unable to allocate the requested memory %d", size);
-    }
-
-    return memptr;
-}
-
-void xfree(void* memptr) {
+void xalloc_free(void *memptr) {
     free(memptr);
 }
 
-void* xalloc_hugepages(size_t size) {
+size_t xalloc_mmap_align_size(size_t size) {
+    long alignment = sysconf(_SC_PAGESIZE);
+
+    size = size - (size % alignment) + alignment;
+
+    return size;
+}
+
+void* xalloc_mmap_alloc(size_t size) {
     void* memptr;
 
-    size = xalloc_page_align(size);
+    size = xalloc_mmap_align_size(size);
 
     memptr = mmap(
             NULL,
@@ -69,16 +68,9 @@ void* xalloc_hugepages(size_t size) {
         FATAL(TAG, "Unable to allocate the requested memory %d", size);
     }
 
-    if (madvise(
-            memptr,
-            size,
-            MADV_RANDOM | MADV_HUGEPAGE) == -1) {
-        FATAL(TAG, "Unable to advise the kernel for the data at %p with size %ld", memptr, size);
-    }
-
     return memptr;
 }
 
-int xfree_hugepages(void* memptr, size_t size) {
-    return munmap(memptr, xalloc_page_align(size));
+int xalloc_mmap_free(void *memptr, size_t size) {
+    return munmap(memptr, xalloc_mmap_align_size(size));
 }
