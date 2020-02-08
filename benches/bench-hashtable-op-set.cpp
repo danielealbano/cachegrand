@@ -111,8 +111,10 @@ void shuffle(uint64_t *array, size_t n) {
 }
 
 char* build_keys_random(uint64_t count) {
-    uint64_t* keys_numbers = (uint64_t*)xalloc_hugepages(count * sizeof(uint64_t));
-    char* keys = (char*)xalloc_hugepages(count * KEY_MAX_LENGTH);
+    fprintf(stdout, "Generating random keys...\n"); fflush(stdout);
+
+    uint64_t* keys_numbers = (uint64_t*)xalloc_mmap_alloc(count * sizeof(uint64_t));
+    char* keys = (char*)xalloc_mmap_alloc(count * KEY_MAX_LENGTH);
 
     for(uint64_t i = 0; i < count; i++) {
         keys_numbers[i] = i;
@@ -124,13 +126,15 @@ char* build_keys_random(uint64_t count) {
         sprintf(keys + (KEY_MAX_LENGTH * i), "%ld", keys_numbers[i]);
     }
 
-    xfree_hugepages(keys_numbers, count * sizeof(uint64_t));
+    xalloc_mmap_free(keys_numbers, count * sizeof(uint64_t));
+
+    fprintf(stdout, "Random keys generated\n"); fflush(stdout);
 
     return keys;
 }
 
 void free_keys(char* keys, uint64_t count) {
-    xfree_hugepages(keys, count * KEY_MAX_LENGTH);
+    xalloc_mmap_free(keys, count * KEY_MAX_LENGTH);
 }
 
 void set_thread_affinity(int thread_index) {
