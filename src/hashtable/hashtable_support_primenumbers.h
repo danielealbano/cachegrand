@@ -50,8 +50,8 @@ extern "C" {
 #define HASHTABLE_PRIMENUMBERS_MAX      4294967291U
 
 #define HASHTABLE_PRIMENUMBERS_FOREACH(list, index, ...) { \
-    uint64_t list[] = { HASHTABLE_PRIMENUMBERS_LIST }; \
-    uint64_t list_length = sizeof(list) / sizeof(uint32_t); \
+    hashtable_bucket_index_t list[] = { HASHTABLE_PRIMENUMBERS_LIST }; \
+    hashtable_bucket_index_t list_length = sizeof(list) / sizeof(list[0]); \
     _Pragma("GCC ivdep") _Pragma("GCC unroll(16)") \
     for(uint64_t index = 0; index < list_length; index++) { \
 __VA_ARGS__ \
