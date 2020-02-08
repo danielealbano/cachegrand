@@ -2,6 +2,8 @@
 // Date: October 29, 2010
 // Returns the cache line size (in bytes) of the processor, or 0 on failure
 
+#include <stddef.h>
+
 #include "cachelinesize.h"
 
 static size_t _cacheline_size = 0;

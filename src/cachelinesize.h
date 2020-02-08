@@ -5,7 +5,14 @@
 #ifndef CACHEGRAND_CACHELINESIZE_H
 #define CACHEGRAND_CACHELINESIZE_H
 
-#include <stddef.h>
-size_t CacheLineSize();
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+size_t cacheline_size();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //CACHEGRAND_CACHELINESIZE_H
