@@ -15,7 +15,7 @@
 #include "../tests/fixtures-hashtable.h"
 
 #define KEY_MAX_LENGTH              12
-#define KEYS_TO_PREGENERATE_COUNT   677472371U
+#define KEYS_TO_PREGENERATE_COUNT   677472127U
 
 #define SET_BENCH_ARGS_HT_SIZE_AND_KEYS \
     Args({1522, 1522 / 4})-> \
