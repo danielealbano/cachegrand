@@ -257,16 +257,18 @@ static void hashtable_op_set_load_factor(benchmark::State& state) {
 
             set_thread_affinity(1);
             uint64_t inserted_keys_counter = buckets_count + 1;
+
             state.ResumeTiming();
 
             uint64_t inserted_keys_counter_temp = 0;
             for(int i = 0; i < buckets_count; i++) {
+                bool result;
                 char* key = keys + (KEY_MAX_LENGTH * i);
-                bool result = hashtable_op_set(
+                benchmark::DoNotOptimize(result = hashtable_op_set(
                         hashtable,
                         key,
                         strlen(key),
-                        test_value_1);
+                        test_value_1));
 
                 if (!result) {
                     break;
@@ -275,11 +277,11 @@ static void hashtable_op_set_load_factor(benchmark::State& state) {
                 inserted_keys_counter_temp++;
             }
 
+            state.PauseTiming();
+
             if (inserted_keys_counter > inserted_keys_counter_temp) {
                 inserted_keys_counter = inserted_keys_counter_temp;
             }
-
-            state.PauseTiming();
 
             hashtable_free(hashtable);
 
@@ -293,10 +295,15 @@ static void hashtable_op_set_load_factor(benchmark::State& state) {
                 state.counters["cachelines_to_probe"] = cachelines_to_probe;
             }
 
-            if (state.counters["load_factor"] > 0.75) {
+            if (state.counters["load_factor"] >= 0.74) {
                 state.ResumeTiming();
                 break;
             } else {
+                fprintf(stdout, "Load factor %f lower than 0.75 with %d cache lines, re-trying with %d cache lines\n",
+                       (double)state.counters["load_factor"],
+                       cachelines_to_probe,
+                       cachelines_to_probe + 1);
+                fflush(stdout);
                 cachelines_to_probe += 1;
                 state.ResumeTiming();
             }
