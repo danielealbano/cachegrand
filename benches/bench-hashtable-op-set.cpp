@@ -123,7 +123,7 @@ char* build_keys_random(uint64_t count) {
     shuffle(keys_numbers, count);
 
     for(uint64_t i = 0; i< count; i++) {
-        sprintf(keys + (KEY_MAX_LENGTH * i), "%ld", keys_numbers[i]);
+        sprintf(keys + (KEY_MAX_LENGTH * i), "%011ld", keys_numbers[i]);
     }
 
     xalloc_mmap_free(keys_numbers, count * sizeof(uint64_t));
