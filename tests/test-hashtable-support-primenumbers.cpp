@@ -10,7 +10,7 @@ TEST_CASE("hashtable_support_primenumbers.c", "[hashtable][hashtable_support][ha
         SECTION("allowed values") {
             HASHTABLE_PRIMENUMBERS_FOREACH(primenumbers, i, {
                 REQUIRE(hashtable_support_primenumbers_next(primenumbers[i] - 1) == primenumbers[i]);
-            });
+            })
         }
 
         SECTION("unsupported value") {
@@ -22,7 +22,7 @@ TEST_CASE("hashtable_support_primenumbers.c", "[hashtable][hashtable_support][ha
         SECTION("allowed values") {
             HASHTABLE_PRIMENUMBERS_FOREACH(primenumbers, i, {
                 REQUIRE(hashtable_support_primenumbers_mod(primenumbers[i], primenumbers[i]) == 0);
-            });
+            })
         }
 
         SECTION("unsupported value") {
