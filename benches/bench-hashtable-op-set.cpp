@@ -161,6 +161,7 @@ static void hashtable_op_set_new(benchmark::State& state) {
         hashtable_config = hashtable_config_init();
         hashtable_config->initial_size = state.range(0);
         hashtable_config->can_auto_resize = false;
+        hashtable_config->cachelines_to_probe = cachelines_to_probe_2;
 
         hashtable = hashtable_init(hashtable_config);
         keys = build_keys_random(state.range(1));
@@ -194,6 +195,7 @@ static void hashtable_op_set_update(benchmark::State& state) {
         hashtable_config = hashtable_config_init();
         hashtable_config->initial_size = state.range(0);
         hashtable_config->can_auto_resize = false;
+        hashtable_config->cachelines_to_probe = cachelines_to_probe_2;
 
         hashtable = hashtable_init(hashtable_config);
         keys = build_keys_random(state.range(1));
