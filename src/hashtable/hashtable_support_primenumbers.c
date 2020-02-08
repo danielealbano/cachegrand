@@ -6,7 +6,6 @@
 #include "hashtable.h"
 #include "hashtable_support_primenumbers.h"
 
-#pragma GCC optimization ("unroll-loops")
 bool hashtable_support_primenumbers_valid(uint64_t number) {
     return number <= HASHTABLE_PRIMENUMBERS_MAX ? true : false;
 }
