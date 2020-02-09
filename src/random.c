@@ -19,6 +19,7 @@ random_state_t random_init(uint64_t seed) {
     random_state_t result = {0};
 
     result.a = random_init_internal_seed(&init_state);
+    result.b = random_init_internal_seed(&init_state);
 
     random_state = result;
 
@@ -27,8 +28,8 @@ random_state_t random_init(uint64_t seed) {
 
 uint64_t random_generate()
 {
+    uint64_t t, s;
     struct timespec seed;
-    uint64_t x;
 
     if (random_state.a == 0) {
         clock_gettime(CLOCK_REALTIME, &seed);
@@ -36,9 +37,13 @@ uint64_t random_generate()
         random_init(seed.tv_nsec);
     }
 
-    x = random_state.a;
-    x ^= x << 13U;
-    x ^= x >> 7U;
-    x ^= x << 17U;
-    return random_state.a = x;
+    t = random_state.a;
+    s = random_state.b;
+    random_state.a = s;
+    t ^= t << 23U;
+    t ^= t >> 17U;
+    t ^= s ^ (s >> 26U);
+    random_state.b = t;
+
+    return t + s;
 }
