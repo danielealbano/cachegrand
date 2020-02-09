@@ -11,11 +11,29 @@
 #include "hashtable/hashtable_op_set.h"
 #include "hashtable/hashtable_op_delete.h"
 #include "xalloc.h"
+#include "random.h"
 
 #include "../tests/fixtures-hashtable.h"
 
-#define KEY_MAX_LENGTH              12
-#define KEYS_TO_PREGENERATE_COUNT   677472127U
+#define RANDOM_KEYS_MIN_LENGTH              5
+#define RANDOM_KEYS_MAX_LENGTH              30
+#define RANDOM_KEYS_TO_PREGENERATE_COUNT    200732527U
+#define RANDOM_KEYS_CHARACTER_SET_LIST      'q','w','e','r','t','y','u','i','o','p','a','s','d','f','g','h','j','k', \
+                                            'l','z','x','c','v','b','n','m', \
+                                            'q','w','e','r','t','y','u','i','o','p','a','s','d','f','g','h','j','k', \
+                                            'l','z','x','c','v','b','n','m', \
+                                            'Q','W','E','R','T','Y','U','I','O','P','A','S','D','F','G','H','J','K', \
+                                            'L','Z','X','C','V','B','N','M', \
+                                            'Q','W','E','R','T','Y','U','I','O','P','A','S','D','F','G','H','J','K', \
+                                            'L','Z','X','C','V','B','N','M', \
+                                            '1','2','3','4','5','6','7','8','9','0', \
+                                            '1','2','3','4','5','6','7','8','9','0', \
+                                            '.',',','/','|','\'',';',']','[','<','>','?',']',':','"','|','{','}','!',\
+                                            '@','$','%','^','&','*','(',')','_','-','=','+','#'
+#define RANDOM_KEYS_CHARACTER_SET_SIZE      sizeof((char[]){RANDOM_KEYS_CHARACTER_SET_LIST})
+#define RANDOM_KEYS_GEN_FUNC_MAX_LENGTH     1
+#define RANDOM_KEYS_GEN_FUNC_RANDOM_LENGTH  2
+
 
 #define SET_BENCH_ARGS_HT_SIZE_AND_KEYS \
     Args({1522, 1522 / 4})-> \
@@ -34,45 +52,37 @@
     Args({133821673, 133821673 / 3})-> \
     Args({133821673, 133821673 / 2})
 
-#define LOAD_FACTOR_BENCH_ARGS \
-    Arg(42U)-> \
-    Arg(101U)-> \
-    Arg(307U)-> \
-    Arg(677U)-> \
-    Arg(1523U)-> \
-    Arg(3389U)-> \
-    Arg(7639U)-> \
-    Arg(17203U)-> \
-    Arg(26813U)-> \
-    Arg(40213U)-> \
-    Arg(60353U)-> \
-    Arg(90529U)-> \
-    Arg(135799U)-> \
-    Arg(203669U)-> \
-    Arg(305581U)-> \
-    Arg(458377U)-> \
-    Arg(687581U)-> \
-    Arg(1031399U)-> \
-    Arg(1547101U)-> \
-    Arg(2320651U)-> \
-    Arg(5221501U)-> \
-    Arg(7832021U)-> \
-    Arg(11748391U)-> \
-    Arg(17622551U)-> \
-    Arg(26433887U)-> \
-    Arg(39650833U)-> \
-    Arg(59476253U)-> \
-    Arg(89214403U)-> \
-    Arg(133821599U)-> \
-    Arg(200732527U)-> \
-    Arg(301099033U)-> \
-    Arg(451649113U)-> \
-    Arg(677472127U)-> \
-    Arg(1016208581U)-> \
-    Arg(1524312899U)-> \
-    Arg(2286469357U)-> \
-    Arg(3429704039U)-> \
-    Arg(4294967291U)
+#define LOAD_FACTOR_BENCH_ARGS(keys_gen_func_name) \
+    Args({42U, keys_gen_func_name})-> \
+    Args({101U, keys_gen_func_name})-> \
+    Args({307U, keys_gen_func_name})-> \
+    Args({677U, keys_gen_func_name})-> \
+    Args({1523U, keys_gen_func_name})-> \
+    Args({3389U, keys_gen_func_name})-> \
+    Args({7639U, keys_gen_func_name})-> \
+    Args({17203U, keys_gen_func_name})-> \
+    Args({26813U, keys_gen_func_name})-> \
+    Args({40213U, keys_gen_func_name})-> \
+    Args({60353U, keys_gen_func_name})-> \
+    Args({90529U, keys_gen_func_name})-> \
+    Args({135799U, keys_gen_func_name})-> \
+    Args({203669U, keys_gen_func_name})-> \
+    Args({305581U, keys_gen_func_name})-> \
+    Args({458377U, keys_gen_func_name})-> \
+    Args({687581U, keys_gen_func_name})-> \
+    Args({1031399U, keys_gen_func_name})-> \
+    Args({1547101U, keys_gen_func_name})-> \
+    Args({2320651U, keys_gen_func_name})-> \
+    Args({5221501U, keys_gen_func_name})-> \
+    Args({7832021U, keys_gen_func_name})-> \
+    Args({11748391U, keys_gen_func_name})-> \
+    Args({17622551U, keys_gen_func_name})-> \
+    Args({26433887U, keys_gen_func_name})-> \
+    Args({39650833U, keys_gen_func_name})-> \
+    Args({59476253U, keys_gen_func_name})-> \
+    Args({89214403U, keys_gen_func_name})-> \
+    Args({133821599U, keys_gen_func_name})-> \
+    Args({200732527U, keys_gen_func_name})
 
 #define SET_BENCH_ITERATIONS \
     Iterations(2)
@@ -90,51 +100,57 @@
     SET_BENCH_ITERATIONS-> \
     SET_BENCH_THREADS
 
-#define CONFIGURE_LOAD_FACTOR_BENCH \
-    UseRealTime()-> \
-    LOAD_FACTOR_BENCH_ARGS-> \
-    Iterations(1)
+#define CONFIGURE_LOAD_FACTOR_BENCH(keys_gen_func_name)  \
+    LOAD_FACTOR_BENCH_ARGS(keys_gen_func_name)-> \
+    Iterations(1)-> \
+    ReportAggregatesOnly(false)
 
 #define handle_error_en(en, msg) \
                do { errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
 
-void shuffle(uint64_t *array, size_t n) {
-    if (n > 1) {
-        size_t i;
-        for (i = 0; i < n - 1; i++) {
-            size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
-            int t = array[j];
-            array[j] = array[i];
-            array[i] = t;
+char* build_keys_random_max_length(uint64_t count) {
+    char keys_character_set_list[] = { RANDOM_KEYS_CHARACTER_SET_LIST };
+    char* keys = (char*)xalloc_mmap_alloc(count * RANDOM_KEYS_MAX_LENGTH);
+
+    char* keys_current = keys;
+    for(uint64_t i = 0; i < count; i++) {
+        for(uint8_t i2 = 0; i2 < RANDOM_KEYS_MAX_LENGTH - 1; i2++) {
+            *keys_current = keys_character_set_list[random_generate() % RANDOM_KEYS_CHARACTER_SET_SIZE];
+            keys_current++;
         }
+        *keys_current=0;
+        keys_current++;
+
+        assert((keys_current - keys) % RANDOM_KEYS_MAX_LENGTH != 0);
     }
+
+    return keys;
 }
 
-char* build_keys_random(uint64_t count) {
-    fprintf(stdout, "Generating random keys...\n"); fflush(stdout);
+char* build_keys_random_random_length(uint64_t count) {
+    char keys_character_set_list[] = { RANDOM_KEYS_CHARACTER_SET_LIST };
+    char* keys = (char*)xalloc_mmap_alloc(count * RANDOM_KEYS_MAX_LENGTH);
 
-    uint64_t* keys_numbers = (uint64_t*)xalloc_mmap_alloc(count * sizeof(uint64_t));
-    char* keys = (char*)xalloc_mmap_alloc(count * KEY_MAX_LENGTH);
+    char* keys_current = keys;
 
     for(uint64_t i = 0; i < count; i++) {
-        keys_numbers[i] = i;
+        uint8_t i2;
+        uint8_t length =  ((random_generate() % (RANDOM_KEYS_MAX_LENGTH - RANDOM_KEYS_MIN_LENGTH)) + RANDOM_KEYS_MIN_LENGTH) - 1;
+        for(i2 = 0; i2 < length; i2++) {
+            *keys_current = keys_character_set_list[random_generate() % RANDOM_KEYS_CHARACTER_SET_SIZE];
+            keys_current++;
+        }
+        *keys_current=0;
+        keys_current += RANDOM_KEYS_MAX_LENGTH - length;
+
+        assert((keys_current - keys) % RANDOM_KEYS_MAX_LENGTH != 0);
     }
-
-    shuffle(keys_numbers, count);
-
-    for(uint64_t i = 0; i< count; i++) {
-        sprintf(keys + (KEY_MAX_LENGTH * i), "%011ld", keys_numbers[i]);
-    }
-
-    xalloc_mmap_free(keys_numbers, count * sizeof(uint64_t));
-
-    fprintf(stdout, "Random keys generated\n"); fflush(stdout);
 
     return keys;
 }
 
 void free_keys(char* keys, uint64_t count) {
-    xalloc_mmap_free(keys, count * KEY_MAX_LENGTH);
+    xalloc_mmap_free(keys, count * RANDOM_KEYS_MAX_LENGTH);
 }
 
 void set_thread_affinity(int thread_index) {
@@ -164,14 +180,14 @@ static void hashtable_op_set_new(benchmark::State& state) {
         hashtable_config->cachelines_to_probe = cachelines_to_probe_2;
 
         hashtable = hashtable_init(hashtable_config);
-        keys = build_keys_random(state.range(1));
+        keys = build_keys_random_max_length(state.range(1));
     }
 
     set_thread_affinity(state.thread_index);
 
     for (auto _ : state) {
         for(int i = 0; i < state.range(1); i++) {
-            char* key = keys + (KEY_MAX_LENGTH * i);
+            char* key = keys + (RANDOM_KEYS_MAX_LENGTH * i);
             hashtable_op_set(
                     hashtable,
                     key,
@@ -198,10 +214,10 @@ static void hashtable_op_set_update(benchmark::State& state) {
         hashtable_config->cachelines_to_probe = cachelines_to_probe_2;
 
         hashtable = hashtable_init(hashtable_config);
-        keys = build_keys_random(state.range(1));
+        keys = build_keys_random_max_length(state.range(1));
 
         for(int i = 0; i < state.range(1); i++) {
-            char* key = keys + (KEY_MAX_LENGTH * i);
+            char* key = keys + (RANDOM_KEYS_MAX_LENGTH * i);
 
             hashtable_op_set(
                     hashtable,
@@ -215,7 +231,7 @@ static void hashtable_op_set_update(benchmark::State& state) {
 
     for (auto _ : state) {
         for(int i = state.thread_index; i < state.range(1); i += state.threads) {
-            char* key = keys + (KEY_MAX_LENGTH * i);
+            char* key = keys + (RANDOM_KEYS_MAX_LENGTH * i);
 
             hashtable_op_set(
                     hashtable,
@@ -239,12 +255,16 @@ static void hashtable_op_set_load_factor(benchmark::State& state) {
     static uint16_t cachelines_to_probe = 1;
 
     if (keys == nullptr) {
-        keys = build_keys_random(KEYS_TO_PREGENERATE_COUNT);
+        if (state.range(1) == RANDOM_KEYS_GEN_FUNC_MAX_LENGTH) {
+            keys = build_keys_random_max_length(RANDOM_KEYS_TO_PREGENERATE_COUNT);
+        } else {
+            keys = build_keys_random_random_length(RANDOM_KEYS_TO_PREGENERATE_COUNT);
+        }
     }
 
     for (auto _ : state) {
         do {
-            state.PauseTiming();
+            //state.PauseTiming();
 
             hashtable_config = hashtable_config_init();
             hashtable_config->initial_size = state.range(0) - 1;
@@ -256,14 +276,14 @@ static void hashtable_op_set_load_factor(benchmark::State& state) {
             state.counters["buckets_count"] = buckets_count;
 
             set_thread_affinity(1);
-            uint64_t inserted_keys_counter = buckets_count + 1;
+            uint64_t inserted_keys_counter = 0;
 
+            // Resume will reset the execution time (internal behaviour)
             state.ResumeTiming();
 
-            uint64_t inserted_keys_counter_temp = 0;
             for(int i = 0; i < buckets_count; i++) {
                 bool result;
-                char* key = keys + (KEY_MAX_LENGTH * i);
+                char* key = keys + (RANDOM_KEYS_MAX_LENGTH * i);
                 benchmark::DoNotOptimize(result = hashtable_op_set(
                         hashtable,
                         key,
@@ -274,18 +294,10 @@ static void hashtable_op_set_load_factor(benchmark::State& state) {
                     break;
                 }
 
-                inserted_keys_counter_temp++;
+                inserted_keys_counter++;
             }
 
-            state.PauseTiming();
-
-            if (inserted_keys_counter > inserted_keys_counter_temp) {
-                inserted_keys_counter = inserted_keys_counter_temp;
-            }
-
-            hashtable_free(hashtable);
-
-            if (inserted_keys_counter > buckets_count) {
+            if (inserted_keys_counter == 0) {
                 state.counters["inserted_keys"] = 0;
                 state.counters["load_factor"] = 0;
                 state.counters["cachelines_to_probe"] = 0;
@@ -296,16 +308,19 @@ static void hashtable_op_set_load_factor(benchmark::State& state) {
             }
 
             if (state.counters["load_factor"] >= 0.74) {
+                state.PauseTiming();
+                hashtable_free(hashtable);
                 state.ResumeTiming();
                 break;
             } else {
+                hashtable_free(hashtable);
+
                 fprintf(stdout, "Load factor %f lower than 0.75 with %d cache lines, re-trying with %d cache lines\n",
-                       (double)state.counters["load_factor"],
-                       cachelines_to_probe,
-                       cachelines_to_probe + 1);
+                        (double)state.counters["load_factor"],
+                        cachelines_to_probe,
+                        cachelines_to_probe + 1);
                 fflush(stdout);
                 cachelines_to_probe += 1;
-                state.ResumeTiming();
             }
         }
         while(true);
@@ -318,4 +333,6 @@ BENCHMARK(hashtable_op_set_load_factor)->CONFIGURE_LOAD_FACTOR_BENCH;
 
 
 
+BENCHMARK(hashtable_op_set_load_factor)
+    ->CONFIGURE_LOAD_FACTOR_BENCH(RANDOM_KEYS_GEN_FUNC_RANDOM_LENGTH);
 
