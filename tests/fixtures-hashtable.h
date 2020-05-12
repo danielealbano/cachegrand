@@ -20,7 +20,7 @@ uint64_t buckets_count_42 = 42;
 uint64_t buckets_count_101 = 101;
 uint64_t buckets_count_307 = 307;
 
-uint64_t buckets_count_real_64 = 64;
+uint64_t buckets_count_real_32 = 32;
 uint64_t buckets_count_real_128 = 128;
 uint64_t buckets_count_real_336 = 336;
 
@@ -47,7 +47,6 @@ hashtable_bucket_index_t test_index_2_buckets_count_53 = test_key_2_hash % bucke
     hashtable_config_t* hashtable_config = hashtable_config_init();  \
     hashtable_config->initial_size = initial_size_v; \
     hashtable_config->can_auto_resize = can_auto_resize_v; \
-    hashtable_config->cachelines_to_probe = cachelines_to_probe_2; \
     \
     hashtable_t* hashtable = hashtable_init(hashtable_config); \
 

@@ -13,6 +13,19 @@
 
 static const char* TAG = "hashtable/data";
 
+uint16_t hashtable_data_cachelines_to_probe_from_buckets_count(
+        hashtable_config_t* hashtable_config,
+        hashtable_bucket_count_t buckets_count) {
+    hashtable_config_cachelines_to_probe_t* list = hashtable_config->cachelines_to_probe;
+    for(uint64_t index = 0; index < HASHTABLE_CONFIG_CACHELINES_TO_PROBE_COUNT; index++) {
+        if (list[index].hashtable_size == buckets_count) {
+            return list[index].cachelines_to_probe;
+        }
+    }
+
+    return 0;
+}
+
 hashtable_data_t* hashtable_data_init(hashtable_bucket_count_t buckets_count, uint16_t cachelines_to_probe) {
     hashtable_bucket_count_t buckets_count_real = 0;
 
@@ -21,7 +34,6 @@ hashtable_data_t* hashtable_data_init(hashtable_bucket_count_t buckets_count, ui
         return NULL;
     }
 
-    buckets_count = hashtable_support_primenumbers_next(buckets_count);
     buckets_count_real = hashtable_support_index_roundup_to_cacheline_to_probe(buckets_count, cachelines_to_probe);
 
     size_t hashes_size = sizeof(hashtable_bucket_hash_t) * buckets_count_real;

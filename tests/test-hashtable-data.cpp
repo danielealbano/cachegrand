@@ -24,23 +24,9 @@ TEST_CASE("hashtable_data.c", "[hashtable][hashtable_data]") {
         })
     }
 
-    SECTION("hashtable_data->buckets_count") {
-        HASHTABLE_DATA(buckets_initial_count_5, {
-            REQUIRE(hashtable_data->buckets_count == buckets_count_42);
-        })
-
-        HASHTABLE_DATA(buckets_initial_count_100, {
-            REQUIRE(hashtable_data->buckets_count == buckets_count_101);
-        })
-
-        HASHTABLE_DATA(buckets_initial_count_305, {
-            REQUIRE(hashtable_data->buckets_count == buckets_count_307);
-        })
-    }
-
     SECTION("hashtable_data->buckets_count_real") {
         HASHTABLE_DATA(buckets_initial_count_5, {
-            REQUIRE(hashtable_data->buckets_count_real == buckets_count_real_64);
+            REQUIRE(hashtable_data->buckets_count_real == buckets_count_real_32);
         })
 
         HASHTABLE_DATA(buckets_initial_count_100, {

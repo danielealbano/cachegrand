@@ -118,7 +118,7 @@ typedef struct hashtable_config_cachelines_to_probe hashtable_config_cachelines_
 struct hashtable_config {
     uint64_t initial_size;
     bool can_auto_resize;
-    uint16_t cachelines_to_probe;
+    hashtable_config_cachelines_to_probe_t cachelines_to_probe[HASHTABLE_CONFIG_CACHELINES_TO_PROBE_COUNT];
 };
 typedef struct hashtable_config hashtable_config_t;
 
