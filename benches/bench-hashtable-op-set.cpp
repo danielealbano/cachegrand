@@ -98,7 +98,7 @@
 
 
 #define SET_BENCH_ITERATIONS \
-    Iterations(2)
+    Iterations(10)
 
 #define SET_BENCH_THREADS \
     Threads(1)-> \
