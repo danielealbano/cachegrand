@@ -35,22 +35,22 @@
 #define RANDOM_KEYS_GEN_FUNC_RANDOM_LENGTH  2
 
 
-#define SET_BENCH_ARGS_HT_SIZE_AND_KEYS \
-    Args({1522, 1522 / 4})-> \
-    Args({1522, 1522 / 3})-> \
-    Args({1522, 1522 / 2})-> \
-    Args({135798, 135798 / 4})-> \
-    Args({135798, 135798 / 3})-> \
-    Args({135798, 135798 / 2})-> \
-    Args({1031398, 1031398 / 4})-> \
-    Args({1031398, 1031398 / 3})-> \
-    Args({1031398, 1031398 / 2})-> \
-    Args({11748391, 11748391U / 4})-> \
-    Args({11748391, 11748391U / 3})-> \
-    Args({11748391, 11748391U / 2})-> \
-    Args({133821673, 133821673 / 4})-> \
-    Args({133821673, 133821673 / 3})-> \
-    Args({133821673, 133821673 / 2})
+#define SET_BENCH_ARGS_HT_SIZE_AND_KEYS(keys_gen_func_name) \
+    Args({1522, 1522 / 4, keys_gen_func_name})-> \
+    Args({1522, 1522 / 3, keys_gen_func_name})-> \
+    Args({1522, 1522 / 2, keys_gen_func_name})-> \
+    Args({135798, 135798 / 4, keys_gen_func_name})-> \
+    Args({135798, 135798 / 3, keys_gen_func_name})-> \
+    Args({135798, 135798 / 2, keys_gen_func_name})-> \
+    Args({1031398, 1031398 / 4, keys_gen_func_name})-> \
+    Args({1031398, 1031398 / 3, keys_gen_func_name})-> \
+    Args({1031398, 1031398 / 2, keys_gen_func_name})-> \
+    Args({11748391, 11748391U / 4, keys_gen_func_name})-> \
+    Args({11748391, 11748391U / 3, keys_gen_func_name})-> \
+    Args({11748391, 11748391U / 2, keys_gen_func_name})-> \
+    Args({133821673, 133821673 / 4, keys_gen_func_name})-> \
+    Args({133821673, 133821673 / 3, keys_gen_func_name})-> \
+    Args({133821673, 133821673 / 2, keys_gen_func_name})
 
 #define LOAD_FACTOR_BENCH_ARGS(keys_gen_func_name) \
     Args({42U, keys_gen_func_name})-> \
@@ -107,9 +107,9 @@
     Threads(8)-> \
     Threads(16)
 
-#define CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS \
+#define CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS(keys_gen_func_name) \
     UseRealTime()-> \
-    SET_BENCH_ARGS_HT_SIZE_AND_KEYS-> \
+    SET_BENCH_ARGS_HT_SIZE_AND_KEYS(keys_gen_func_name)-> \
     SET_BENCH_ITERATIONS-> \
     SET_BENCH_THREADS
 
@@ -187,12 +187,17 @@ static void hashtable_op_set_new(benchmark::State& state) {
     static char* keys;
 
     if (state.thread_index == 0) {
+        if (state.range(2) == RANDOM_KEYS_GEN_FUNC_MAX_LENGTH) {
+            keys = build_keys_random_max_length(RANDOM_KEYS_TO_PREGENERATE_COUNT);
+        } else {
+            keys = build_keys_random_random_length(RANDOM_KEYS_TO_PREGENERATE_COUNT);
+        }
+
         hashtable_config = hashtable_config_init();
         hashtable_config->initial_size = state.range(0);
         hashtable_config->can_auto_resize = false;
 
         hashtable = hashtable_init(hashtable_config);
-        keys = build_keys_random_max_length(state.range(1));
     }
 
     set_thread_affinity(state.thread_index);
@@ -220,12 +225,16 @@ static void hashtable_op_set_update(benchmark::State& state) {
     static char* keys;
 
     if (state.thread_index == 0) {
+        if (state.range(2) == RANDOM_KEYS_GEN_FUNC_MAX_LENGTH) {
+            keys = build_keys_random_max_length(RANDOM_KEYS_TO_PREGENERATE_COUNT);
+        } else {
+            keys = build_keys_random_random_length(RANDOM_KEYS_TO_PREGENERATE_COUNT);
+        }
+
         hashtable_config = hashtable_config_init();
         hashtable_config->initial_size = state.range(0);
         hashtable_config->can_auto_resize = false;
-
         hashtable = hashtable_init(hashtable_config);
-        keys = build_keys_random_max_length(state.range(1));
 
         for(int i = 0; i < state.range(1); i++) {
             char* key = keys + (RANDOM_KEYS_MAX_LENGTH * i);
@@ -340,8 +349,10 @@ static void hashtable_op_set_load_factor(benchmark::State& state) {
     }
 }
 
-BENCHMARK(hashtable_op_set_new)->CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS;
-BENCHMARK(hashtable_op_set_update)->CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS;
 BENCHMARK(hashtable_op_set_load_factor)
     ->CONFIGURE_LOAD_FACTOR_BENCH(RANDOM_KEYS_GEN_FUNC_RANDOM_LENGTH);
+BENCHMARK(hashtable_op_set_new)
+    ->CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS(RANDOM_KEYS_GEN_FUNC_RANDOM_LENGTH);
+BENCHMARK(hashtable_op_set_update)
+    ->CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS(RANDOM_KEYS_GEN_FUNC_RANDOM_LENGTH);
 
