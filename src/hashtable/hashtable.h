@@ -21,6 +21,8 @@ extern "C" {
 #define HASHTABLE_INLINE_KEY_MAX_SIZE       23
 #define HASHTABLE_PRIMENUMBERS_COUNT                        38
 #define HASHTABLE_PRIMENUMBERS_MAX                          4294967291U
+#define HASHTABLE_CONFIG_CACHELINES_TO_PROBE_COUNT          HASHTABLE_PRIMENUMBERS_COUNT
+#define HASHTABLE_CONFIG_CACHELINES_PRIMENUMBERS_MAP_SIZE  12
 
 #define HASHTABLE_PRIMENUMBERS_LIST \
     42U, /* not a prime number, but it's the answer! */ \
@@ -62,6 +64,20 @@ extern "C" {
     3429704039U, \
     4294967291U
 
+#define HASHTABLE_CONFIG_CACHELINES_PRIMENUMBERS_MAP \
+    { 42U, 2U }, \
+    { 3389U, 4U }, \
+    { 7639U, 6U }, \
+    { 17203U, 7U }, \
+    { 26813U, 8U }, \
+    { 40213U, 9U }, \
+    { 458377U, 10U }, \
+    { 2320651U, 12U }, \
+    { 17622551U, 16U }, \
+    { 89214403U, 17U }, \
+    { 133821599U, 18U }, \
+    { HASHTABLE_PRIMENUMBERS_MAX, 32U }
+
 typedef uint8_t hashtable_bucket_key_value_flags_t;
 typedef uint32_t hashtable_bucket_hash_t;
 typedef uint32_t hashtable_bucket_index_t;
@@ -93,6 +109,12 @@ enum {
 /**
  * This struct holds the configuration of the hashtable
  */
+struct hashtable_config_cachelines_to_probe {
+    hashtable_bucket_count_t hashtable_size;
+    uint16_t cachelines_to_probe;
+};
+typedef struct hashtable_config_cachelines_to_probe hashtable_config_cachelines_to_probe_t;
+
 struct hashtable_config {
     uint64_t initial_size;
     bool can_auto_resize;
