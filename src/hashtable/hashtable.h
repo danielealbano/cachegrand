@@ -19,6 +19,47 @@ extern "C" {
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
 #define HASHTABLE_INLINE_KEY_MAX_SIZE       23
+#define HASHTABLE_PRIMENUMBERS_MAX                          4294967291U
+
+#define HASHTABLE_PRIMENUMBERS_LIST \
+    42U, /* not a prime number, but it's the answer! */ \
+    101U, \
+    307U, \
+    677U, \
+    1523U, \
+    3389U, \
+    7639U, \
+    17203U, \
+    26813U, \
+    40213U, \
+    60353U, \
+    90529U, \
+    135799U, \
+    203669U, \
+    305581U, \
+    458377U, \
+    687581U, \
+    1031399U, \
+    1547101U, \
+    2320651U, \
+    5221501U, \
+    7832021U, \
+    11748391U, \
+    17622551U, \
+    26433887U, \
+    39650833U, \
+    59476253U, \
+    89214403U, \
+    133821599U, \
+    200732527U, \
+    301099033U, \
+    451649113U, \
+    677472127U, \
+    1016208581U, \
+    1524312899U, \
+    2286469357U, \
+    3429704039U, \
+    4294967291U
 
 typedef uint8_t hashtable_bucket_key_value_flags_t;
 typedef uint32_t hashtable_bucket_hash_t;
