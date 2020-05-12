@@ -111,7 +111,6 @@ hashtable_search_key_or_create_new_ret_t hashtable_support_op_search_key_or_crea
                 }
 
             } else if (searching_or_creating == 1) {
-
                 // If it's creating, it has still to search not only an empty bucket but a bucket with the key as well
                 // because it may have been created in the mean time
                 if (hashtable_data->hashes[index] != hash && hashtable_data->hashes[index] != 0) {
