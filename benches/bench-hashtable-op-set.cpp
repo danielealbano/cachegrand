@@ -177,7 +177,6 @@ static void hashtable_op_set_new(benchmark::State& state) {
         hashtable_config = hashtable_config_init();
         hashtable_config->initial_size = state.range(0);
         hashtable_config->can_auto_resize = false;
-        hashtable_config->cachelines_to_probe = cachelines_to_probe_2;
 
         hashtable = hashtable_init(hashtable_config);
         keys = build_keys_random_max_length(state.range(1));
@@ -211,7 +210,6 @@ static void hashtable_op_set_update(benchmark::State& state) {
         hashtable_config = hashtable_config_init();
         hashtable_config->initial_size = state.range(0);
         hashtable_config->can_auto_resize = false;
-        hashtable_config->cachelines_to_probe = cachelines_to_probe_2;
 
         hashtable = hashtable_init(hashtable_config);
         keys = build_keys_random_max_length(state.range(1));
@@ -267,7 +265,10 @@ static void hashtable_op_set_load_factor(benchmark::State& state) {
             hashtable_config = hashtable_config_init();
             hashtable_config->initial_size = state.range(0) - 1;
             hashtable_config->can_auto_resize = false;
-            hashtable_config->cachelines_to_probe = cachelines_to_probe;
+
+            for(uint16_t index = 0; index < HASHTABLE_CONFIG_CACHELINES_TO_PROBE_COUNT; index++) {
+                hashtable_config->cachelines_to_probe[index].cachelines_to_probe = cachelines_to_probe;
+            }
             hashtable = hashtable_init(hashtable_config);
 
             uint64_t buckets_count = hashtable->ht_current->buckets_count;
@@ -328,10 +329,6 @@ static void hashtable_op_set_load_factor(benchmark::State& state) {
 
 BENCHMARK(hashtable_op_set_new)->CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS;
 BENCHMARK(hashtable_op_set_update)->CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS;
-BENCHMARK(hashtable_op_set_load_factor)->CONFIGURE_LOAD_FACTOR_BENCH;
-
-
-
 BENCHMARK(hashtable_op_set_load_factor)
     ->CONFIGURE_LOAD_FACTOR_BENCH(RANDOM_KEYS_GEN_FUNC_RANDOM_LENGTH);
 
