@@ -23,18 +23,15 @@ TEST_CASE("hashtable_config.c", "[hashtable][hashtable_config]") {
             uint16_t cachelines_to_probe = 0;
 
             HASHTABLE_CONFIG_CACHELINES_PRIMENUMBERS_MAP_FOREACH(map, map_index, map_value, {
-                    if (primenumber <= map_value.hashtable_size) {
-                        cachelines_to_probe = map_value.cachelines_to_probe;
-                        continue;
-                    }
-
+                cachelines_to_probe = map_value.cachelines_to_probe;
+                if (map_value.hashtable_size >= primenumber) {
                     break;
+                }
             })
 
-
-            REQUIRE((cachelines_to_probe == cachelines_to_probe_list[primenumbers_index].cachelines_to_probe
-                    &&
-                    primenumber == cachelines_to_probe_list[primenumbers_index].hashtable_size));
+            REQUIRE(cachelines_to_probe_list[primenumbers_index].hashtable_size == primenumber);
+            REQUIRE(cachelines_to_probe_list[primenumbers_index].cachelines_to_probe > 0);
+            REQUIRE(cachelines_to_probe_list[primenumbers_index].cachelines_to_probe == cachelines_to_probe);
         })
 
         hashtable_config_free(hashtable_config);
