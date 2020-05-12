@@ -5,11 +5,10 @@
 extern "C" {
 #endif
 
-#define HASHTABLE_PRIMENUMBERS_FOREACH(list, index, ...) { \
-    hashtable_bucket_index_t list[] = { HASHTABLE_PRIMENUMBERS_LIST }; \
-    hashtable_bucket_index_t list_length = sizeof(list) / sizeof(list[0]); \
-    for(uint64_t index = 0; index < list_length; index++) { \
+#define HASHTABLE_PRIMENUMBERS_FOREACH(list, index, list_value, ...) { \
+    hashtable_bucket_count_t list[] = { HASHTABLE_PRIMENUMBERS_LIST }; \
     for(uint64_t index = 0; index < HASHTABLE_PRIMENUMBERS_COUNT; index++) { \
+        hashtable_bucket_count_t list_value = list[index]; \
 __VA_ARGS__ \
     } \
 }

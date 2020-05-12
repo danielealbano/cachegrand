@@ -11,9 +11,9 @@ bool hashtable_support_primenumbers_valid(uint64_t number) {
 }
 
 uint64_t hashtable_support_primenumbers_next(uint64_t number) {
-    HASHTABLE_PRIMENUMBERS_FOREACH(primenumbers, index, {
-        if (number < primenumbers[index]) {
-            return primenumbers[index];
+    HASHTABLE_PRIMENUMBERS_FOREACH(primenumbers, index, primenumber, {
+        if (number < primenumber) {
+            return primenumber;
         }
     });
 
@@ -21,9 +21,9 @@ uint64_t hashtable_support_primenumbers_next(uint64_t number) {
 }
 
 uint64_t hashtable_support_primenumbers_mod(uint64_t number, uint64_t prime) {
-    HASHTABLE_PRIMENUMBERS_FOREACH(primenumbers, index, {
-        if (prime == primenumbers[index]) {
-            return number % primenumbers[index];
+    HASHTABLE_PRIMENUMBERS_FOREACH(primenumbers, index, primenumber, {
+        if (prime == primenumber) {
+            return number % primenumber;
         }
     });
 

@@ -8,8 +8,8 @@
 TEST_CASE("hashtable_support_primenumbers.c", "[hashtable][hashtable_support][hashtable_support_primenumbers]") {
     SECTION("hashtable_support_primenumbers_next") {
         SECTION("allowed values") {
-            HASHTABLE_PRIMENUMBERS_FOREACH(primenumbers, i, {
-                REQUIRE(hashtable_support_primenumbers_next(primenumbers[i] - 1) == primenumbers[i]);
+            HASHTABLE_PRIMENUMBERS_FOREACH(primenumbers, index, primenumber, {
+                REQUIRE(hashtable_support_primenumbers_next(primenumber - 1) == primenumber);
             })
         }
 
@@ -20,8 +20,8 @@ TEST_CASE("hashtable_support_primenumbers.c", "[hashtable][hashtable_support][ha
 
     SECTION("hashtable_support_primenumbers_mod") {
         SECTION("allowed values") {
-            HASHTABLE_PRIMENUMBERS_FOREACH(primenumbers, i, {
-                REQUIRE(hashtable_support_primenumbers_mod(primenumbers[i], primenumbers[i]) == 0);
+            HASHTABLE_PRIMENUMBERS_FOREACH(primenumbers, index, primenumber, {
+                REQUIRE(hashtable_support_primenumbers_mod(primenumber, primenumber) == 0);
             })
         }
 
@@ -35,8 +35,8 @@ TEST_CASE("hashtable_support_primenumbers.c", "[hashtable][hashtable_support][ha
 
     SECTION("HASHTABLE_PRIMENUMBERS_LIST") {
         SECTION("HASHTABLE_PRIMENUMBERS_LIST[last] < UINT32_MAX") {
-            HASHTABLE_PRIMENUMBERS_FOREACH(primenumbers, i, {
-                REQUIRE(primenumbers[i] < UINT32_MAX);
+            HASHTABLE_PRIMENUMBERS_FOREACH(primenumbers, index, primenumber, {
+                REQUIRE(primenumber < UINT32_MAX);
             })
         }
 
