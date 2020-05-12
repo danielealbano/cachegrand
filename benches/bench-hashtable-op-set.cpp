@@ -84,6 +84,19 @@
     Args({133821599U, keys_gen_func_name})-> \
     Args({200732527U, keys_gen_func_name})
 
+// TODO: Need hardware more powerful to test hashtables of this size :)
+//       My current HW is a 8c/16t cores with 32GB VM, to handle in memory properly an hashtable with 4 bln elements I
+//       need at least 684GB, too much memory for an OOS project that it's starting now :)
+//    Arg(301099033U)-> \
+//    Arg(451649113U)-> \
+//    Arg(677472127U)-> \
+//    Arg(1016208581U)-> \
+//    Arg(1524312899U)-> \
+//    Arg(2286469357U)-> \
+//    Arg(3429704039U)-> \
+//    Arg(4294967291U)
+
+
 #define SET_BENCH_ITERATIONS \
     Iterations(2)
 
