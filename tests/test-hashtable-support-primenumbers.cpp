@@ -42,9 +42,8 @@ TEST_CASE("hashtable_support_primenumbers.c", "[hashtable][hashtable_support][ha
 
         SECTION("HASHTABLE_PRIMENUMBERS_LIST[last] == HASHTABLE_PRIMENUMBERS_MAX") {
             hashtable_bucket_index_t list[] = { HASHTABLE_PRIMENUMBERS_LIST };
-            hashtable_bucket_index_t list_length = sizeof(list) / sizeof(list[0]);
 
-            REQUIRE(list[list_length - 1] == HASHTABLE_PRIMENUMBERS_MAX);
+            REQUIRE(list[HASHTABLE_PRIMENUMBERS_COUNT - 1] == HASHTABLE_PRIMENUMBERS_MAX);
         }
     }
 }

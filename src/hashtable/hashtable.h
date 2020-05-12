@@ -19,6 +19,7 @@ extern "C" {
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
 #define HASHTABLE_INLINE_KEY_MAX_SIZE       23
+#define HASHTABLE_PRIMENUMBERS_COUNT                        38
 #define HASHTABLE_PRIMENUMBERS_MAX                          4294967291U
 
 #define HASHTABLE_PRIMENUMBERS_LIST \
