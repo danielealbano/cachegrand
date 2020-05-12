@@ -264,8 +264,6 @@ static void hashtable_op_set_load_factor(benchmark::State& state) {
 
     for (auto _ : state) {
         do {
-            //state.PauseTiming();
-
             hashtable_config = hashtable_config_init();
             hashtable_config->initial_size = state.range(0) - 1;
             hashtable_config->can_auto_resize = false;
@@ -278,7 +276,8 @@ static void hashtable_op_set_load_factor(benchmark::State& state) {
             set_thread_affinity(1);
             uint64_t inserted_keys_counter = 0;
 
-            // Resume will reset the execution time (internal behaviour)
+            // HACK: Invoking directly ResumeTimeing will have the side effect of resetting the internal execution time
+            // and not to "sum" it because PauseTiming is not being invoked.
             state.ResumeTiming();
 
             for(int i = 0; i < buckets_count; i++) {
