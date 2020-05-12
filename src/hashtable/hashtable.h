@@ -18,7 +18,7 @@ extern "C" {
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
-#define HASHTABLE_INLINE_KEY_MAX_SIZE       23
+#define HASHTABLE_INLINE_KEY_MAX_SIZE                       23
 #define HASHTABLE_PRIMENUMBERS_COUNT                        38
 #define HASHTABLE_PRIMENUMBERS_MAX                          4294967291U
 #define HASHTABLE_CONFIG_CACHELINES_TO_PROBE_COUNT          HASHTABLE_PRIMENUMBERS_COUNT
@@ -107,7 +107,7 @@ enum {
     (flags == 0)
 
 /**
- * This struct holds the configuration of the hashtable
+ * Configuration of the map between the hashtable size and the cachelines to probe when searching / assigning hashes
  */
 struct hashtable_config_cachelines_to_probe {
     hashtable_bucket_count_t hashtable_size;
@@ -115,6 +115,9 @@ struct hashtable_config_cachelines_to_probe {
 };
 typedef struct hashtable_config_cachelines_to_probe hashtable_config_cachelines_to_probe_t;
 
+/**
+ * Configuration of the hashtable
+ */
 struct hashtable_config {
     uint64_t initial_size;
     bool can_auto_resize;
