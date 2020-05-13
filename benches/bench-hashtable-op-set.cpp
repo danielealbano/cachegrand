@@ -180,6 +180,7 @@ void free_keys(char* keys, uint64_t count) {
 }
 
 void set_thread_affinity(int thread_index) {
+#if !defined(__MINGW32__)
     int res;
     cpu_set_t cpuset;
     pthread_t thread;
@@ -192,6 +193,7 @@ void set_thread_affinity(int thread_index) {
     if (res != 0) {
         handle_error_en(res, "pthread_setaffinity_np");
     }
+#endif
 }
 
 static void hashtable_op_set_new(benchmark::State& state) {
