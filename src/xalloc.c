@@ -26,20 +26,31 @@ void* xalloc_alloc(size_t size) {
 
 void* xalloc_alloc_aligned(size_t alignment, size_t size) {
     void* memptr;
+    bool failed = false;
 
 #if defined(__APPLE__)
     if (posix_memalign(&memptr, alignment, size) != 0) {
-        FATAL(TAG, "Unable to allocate the requested memory %d aligned to %d", size, alignment);
+        failed = true;
     }
 #elif defined(__linux__)
     memptr = aligned_alloc(alignment, size);
 
     if (memptr == NULL) {
-        FATAL(TAG, "Unable to allocate the requested memory %d aligned to %d", size, alignment);
+        failed = true;
+    }
+#elif defined(__MINGW32__)
+    memptr = _aligned_malloc(size, alignment);
+
+    if (memptr == NULL) {
+        failed = true;
     }
 #else
 #error Platform not supported
 #endif
+
+    if (failed) {
+        FATAL(TAG, "Unable to allocate the requested memory %d aligned to %d", size, alignment);
+    }
 
     return memptr;
 }
