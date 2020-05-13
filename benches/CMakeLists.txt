@@ -1,6 +1,5 @@
 find_package(benchmark REQUIRED)
 
-
 # Build benches
 file(GLOB SRC_CACHEGRAND_BENCHES "bench-*.cpp")
 add_executable(cachegrand-benches main.cpp ${SRC_CACHEGRAND_BENCHES})
