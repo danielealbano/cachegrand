@@ -1,12 +1,11 @@
 # Setup catch2, it's the testing framework
 include(ExternalProject)
-find_package(Wget REQUIRED)
 
 ExternalProject_Add(
         catch2-external-project
         PREFIX ${CMAKE_BINARY_DIR}/catch2
-        DOWNLOAD_DIR catch2
-        DOWNLOAD_COMMAND ${WGET_EXECUTABLE} https://github.com/catchorg/Catch2/releases/download/v2.1.2/catch.hpp
+        URL https://github.com/catchorg/Catch2/releases/download/v2.1.2/catch.hpp
+        DOWNLOAD_NO_EXTRACT false
         TIMEOUT 10
         UPDATE_COMMAND ""
         CONFIGURE_COMMAND ""
@@ -31,4 +30,5 @@ target_link_libraries(cachegrand-tests cachegrand-internal t1ha2)
 target_include_directories(cachegrand-tests PUBLIC ".")
 target_include_directories(cachegrand-tests PUBLIC "../src")
 target_include_directories(cachegrand-tests PUBLIC "${download_dir}")
+target_compile_options(cachegrand-tests PRIVATE -fpermissive)
 add_test(NAME cachegrand-tests COMMAND cachegrand-tests)
