@@ -60,7 +60,17 @@ void xalloc_free(void *memptr) {
 }
 
 size_t xalloc_mmap_align_size(size_t size) {
-    long alignment = sysconf(_SC_PAGESIZE);
+    long alignment;
+
+#if defined(__APPLE__) || defined(__linux__)
+    alignment = sysconf(_SC_PAGESIZE);
+#elif defined(__MINGW32__)
+    SYSTEM_INFO stInfo;
+    GetNativeSystemInfo(&stInfo);
+    alignment = stInfo.dwPageSize;
+#else
+#error Platform not supported
+#endif
 
     size = size - (size % alignment) + alignment;
 
@@ -69,9 +79,11 @@ size_t xalloc_mmap_align_size(size_t size) {
 
 void* xalloc_mmap_alloc(size_t size) {
     void* memptr;
+    bool failed = false;
 
     size = xalloc_mmap_align_size(size);
 
+#if defined(__APPLE__) || defined(__linux__)
     memptr = mmap(
             NULL,
             size,
@@ -81,6 +93,43 @@ void* xalloc_mmap_alloc(size_t size) {
             0);
 
     if (memptr < 0) {
+        failed = true;
+    }
+#elif defined(__MINGW32__)
+    // Reference implementation https://github.com/witwall/mman-win32/blob/master/mman.c
+    const DWORD dwMaxSizeLow = (DWORD)(size & 0xFFFFFFFFL);
+    const DWORD dwMaxSizeHigh = (DWORD)((size >> 32) & 0xFFFFFFFFL);
+
+    HANDLE fhm = CreateFileMapping(
+            INVALID_HANDLE_VALUE,
+            NULL,
+            PAGE_READWRITE,
+            dwMaxSizeHigh,
+            dwMaxSizeLow,
+            NULL);
+
+    if (fhm == NULL) {
+        FATAL(TAG, "Unable to create the file mapping to allocate the requested memory", size);
+    }
+
+    memptr = MapViewOfFile(
+            fhm,
+            (DWORD)FILE_MAP_READ | (DWORD)FILE_MAP_WRITE,
+            0,
+            0,
+            0);
+
+    CloseHandle(fhm);
+
+    if (memptr == NULL) {
+        failed = true;
+    }
+
+#else
+#error Platform not supported
+#endif
+
+    if (failed) {
         FATAL(TAG, "Unable to allocate the requested memory %d", size);
     }
 
@@ -88,5 +137,15 @@ void* xalloc_mmap_alloc(size_t size) {
 }
 
 int xalloc_mmap_free(void *memptr, size_t size) {
+#if defined(__APPLE__) || defined(__linux__)
     return munmap(memptr, xalloc_mmap_align_size(size));
+#elif defined(__MINGW32__)
+    if (UnmapViewOfFile(memptr)) {
+        return 0;
+    }
+
+    return -1;
+#else
+#error Platform not supported
+#endif
 }
