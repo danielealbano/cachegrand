@@ -1,4 +1,4 @@
-# Setup catch2, it's the testing framework
+# Setup catch2 lib, it's the testing framework
 include(ExternalProject)
 
 ExternalProject_Add(
