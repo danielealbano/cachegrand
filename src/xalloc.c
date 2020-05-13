@@ -1,8 +1,13 @@
 #include <stdlib.h>
-#include <sys/mman.h>
+#include <stdbool.h>
 #include <unistd.h>
 
-#include "log.h"
+#if defined(__APPLE__) || defined(__linux__)
+#include <sys/mman.h>
+#elif defined(__MINGW32__)
+#include <windows.h>
+#endif
+
 #include "fatal.h"
 
 static const char* TAG = "xalloc_alloc";
