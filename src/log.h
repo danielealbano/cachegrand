@@ -7,8 +7,12 @@ extern "C" {
 
 #include <stdarg.h>
 
-#define LOG_MESSAGE_TIMESTAMP_MAX_LENGTH 25
+#if defined(__MINGW32__)
+#define LOG_MESSAGE_TIMESTAMP_FORMAT "%Y-%m-%d %H:%M:%S"
+#else
 #define LOG_MESSAGE_TIMESTAMP_FORMAT "%F %T"
+#endif
+#define LOG_MESSAGE_TIMESTAMP_MAX_LENGTH 25
 
 #define LOG_E(tag, message, ...) \
     log_message(tag, LOG_LEVEL_ERROR, message, __VA_ARGS__)

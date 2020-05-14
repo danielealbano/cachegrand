@@ -14,6 +14,10 @@ target_include_directories(cachegrand-internal PUBLIC ".")
 set_target_properties(cachegrand-internal PROPERTIES LINKER_LANGUAGE C)
 set_target_properties(cachegrand-internal PROPERTIES C_STANDARD 11)
 
+IF(WIN32)
+    target_link_libraries(cachegrand-internal imagehlp)
+ENDIF(WIN32)
+
 # Build the exacutable
 add_executable(cachegrand "main.c")
 add_dependencies(cachegrand cachegrand-internal t1ha2)

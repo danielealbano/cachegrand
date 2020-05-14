@@ -70,7 +70,6 @@ void log_set_log_level(log_level_t level) {
 }
 
 void log_message(const char* tag, log_level_t level, const char* message, ...) {
-
     va_list args;
     va_start(args, message);
 

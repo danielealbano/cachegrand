@@ -180,6 +180,7 @@ void free_keys(char* keys, uint64_t count) {
 }
 
 void set_thread_affinity(int thread_index) {
+#if !defined(__MINGW32__)
     int res;
     cpu_set_t cpuset;
     pthread_t thread;
@@ -192,6 +193,7 @@ void set_thread_affinity(int thread_index) {
     if (res != 0) {
         handle_error_en(res, "pthread_setaffinity_np");
     }
+#endif
 }
 
 static void hashtable_op_set_new(benchmark::State& state) {
@@ -216,7 +218,7 @@ static void hashtable_op_set_new(benchmark::State& state) {
     set_thread_affinity(state.thread_index);
 
     for (auto _ : state) {
-        for(int i = 0; i < state.range(1); i++) {
+        for(long int i = state.thread_index; i < state.range(1); i += state.threads) {
             char* key = keys + (RANDOM_KEYS_MAX_LENGTH * i);
             hashtable_op_set(
                     hashtable,
@@ -248,7 +250,7 @@ static void hashtable_op_set_update(benchmark::State& state) {
         hashtable_config->can_auto_resize = false;
         hashtable = hashtable_init(hashtable_config);
 
-        for(int i = 0; i < state.range(1); i++) {
+        for(long int i = state.thread_index; i < state.range(1); i += state.threads) {
             char* key = keys + (RANDOM_KEYS_MAX_LENGTH * i);
 
             hashtable_op_set(
