@@ -39,7 +39,7 @@ jobs:
     - name: Build All
       working-directory: ${{runner.workspace}}/build
       shell: bash
-      run: /usr/local/bin/cmake --build . -- -v
+      run: /usr/local/bin/cmake --build .
 
     - name: Test
       working-directory: ${{runner.workspace}}/build
