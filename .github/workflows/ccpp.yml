@@ -8,10 +8,6 @@ on:
 
 env:
   BUILD_TYPE: Release
-  CCACHE_VERSION: 3.7.7
-  CCACHE_COMPRESS: true
-  CCACHE_COMPRESSLEVEL: 6
-  CCACHE_MAXISZE: 400M
 
 jobs:
   build:
@@ -40,39 +36,10 @@ jobs:
     - name: Setup cmake
       uses: lukka/get-cmake@latest
 
-    - name: Setup ccache
-      shell: cmake -P {0}
-      run: |
-        set(ccache_url "https://github.com/cristianadam/ccache/releases/download/v$ENV{CCACHE_VERSION}/$ENV{RUNNER_OS}.tar.xz")
-        file(DOWNLOAD "${ccache_url}" ./ccache.tar.xz SHOW_PROGRESS)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf ./ccache.tar.xz)
-        if (NOT "${{ runner.os }}" STREQUAL "Windows")
-          execute_process(COMMAND chmod +x ./ccache)
-        endif()
-
-        message("::add-path::$ENV{GITHUB_WORKSPACE}")
-        message("::set-env name=CCACHE_DIR::$ENV{RUNNER_WORKSPACE}/.ccache")
-        message("::set-env name=ccache_BIN::$ENV{GITHUB_WORKSPACE}/")
-
     - name: Checkout
       uses: actions/checkout@v2
       with:
         submodules: true
-
-    - name: Prepare ccache timestamp
-      id: ccache_cache_timestamp
-      shell: cmake -P {0}
-      run: |
-        string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
-        message("::set-output name=timestamp::${current_date}")
-
-    - name: ccache cache files
-      uses: actions/cache@v1.1.0
-      with:
-        path: .ccache
-        key: ${ { matrix.config.name } }-ccache-${ { steps.ccache_cache_timestamp.outputs.timestamp } }
-        restore-keys: |
-          ${ { matrix.config.name } }-ccache-
 
     - name: Create Build Environment
       run: cmake -E make_directory ${{runner.workspace}}/build
