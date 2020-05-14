@@ -20,7 +20,6 @@ add_dependencies(benchmark::benchmark benchmark-install)
 set_target_properties(benchmark::benchmark PROPERTIES
         IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
         IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/benchmark-install/lib/libbenchmark.a"
-        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/benchmark-install/include"
         )
 IF(WIN32)
     set_target_properties(benchmark::benchmark PROPERTIES
