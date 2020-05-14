@@ -47,16 +47,19 @@ jobs:
         file(DOWNLOAD "${ccache_url}" ./ccache.tar.xz SHOW_PROGRESS)
         execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf ./ccache.tar.xz)
         if (NOT "${{ runner.os }}" STREQUAL "Windows")
-          execute_process(COMMAND ${CMAKE_COMMAND} -E chmod +x ./ccache)
+          execute_process(COMMAND chmod +x ./ccache)
         endif()
-
-        message("$ENV{GITHUB_WORKSPACE}")
-        message("$ENV{RUNNER_WORKSPACE}/.ccache")
-        execute_process(COMMAND ${CMAKE_COMMAND} -E ls -lha)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E pwd)
 
         message("::add-path::$ENV{GITHUB_WORKSPACE}")
         message("::set-env name=CCACHE_DIR::$ENV{RUNNER_WORKSPACE}/.ccache")
+
+        message("$ENV{PATH}")
+        message("$ENV{CCACHE_DIR}")
+        message("$ENV{GITHUB_WORKSPACE}")
+        message("$ENV{RUNNER_WORKSPACE}/.ccache")
+        execute_process(COMMAND ls -lha)
+        execute_process(COMMAND pwd)
+        execute_process(COMMAND ccache)
 
     - name: Checkout
       uses: actions/checkout@v2
