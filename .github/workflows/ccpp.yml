@@ -34,7 +34,6 @@ jobs:
           }
 
     env:
-      CCACHE_DIR: ${{ runner.workspace }}/.ccache
       CCACHE_COMPRESS: true
       CCACHE_COMPRESSLEVEL: 6
       CCACHE_MAXISZE: 400M
@@ -80,11 +79,15 @@ jobs:
     - name: Configure CMake
       shell: bash
       working-directory: ${{runner.workspace}}/build
+      env:
+        CCACHE_DIR: ${{ runner.workspace }}/.ccache
       run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$ENV{BUILD_TYPE} -DBUILD_TESTS=1 -DBUILD_BENCHES=1 -G "Unix Makefiles"
 
     - name: Build All
       working-directory: ${{runner.workspace}}/build
       shell: bash
+      env:
+        CCACHE_DIR: ${{ runner.workspace }}/.ccache
       run: cmake --build . -- -j 4
 
     - name: Test
