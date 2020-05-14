@@ -50,6 +50,11 @@ jobs:
           execute_process(COMMAND ${CMAKE_COMMAND} -E chmod +x ./ccache)
         endif()
 
+        message("$ENV{GITHUB_WORKSPACE}")
+        message("$ENV{RUNNER_WORKSPACE}/.ccache")
+        execute_process(COMMAND ${CMAKE_COMMAND} -E ls -lha)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E pwd)
+
         message("::add-path::$ENV{GITHUB_WORKSPACE}")
         message("::set-env name=CCACHE_DIR::$ENV{RUNNER_WORKSPACE}/.ccache")
 
