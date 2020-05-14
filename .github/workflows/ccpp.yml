@@ -29,17 +29,17 @@ jobs:
         submodules: true
 
     - name: Create Build Environment
-      run: /usr/local/bin/cmake -E make_directory ${{runner.workspace}}/build
+      run: cmake -E make_directory ${{runner.workspace}}/build
 
     - name: Configure CMake
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: /usr/local/bin/cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=1 -DBUILD_BENCHES=1
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=1 -DBUILD_BENCHES=1
 
     - name: Build All
       working-directory: ${{runner.workspace}}/build
       shell: bash
-      run: /usr/local/bin/cmake --build .
+      run: cmake --build .
 
     - name: Test
       working-directory: ${{runner.workspace}}/build
