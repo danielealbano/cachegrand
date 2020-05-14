@@ -6,19 +6,32 @@ on:
   pull_request:
     branches: [ master ]
 
+env:
+  BUILD_TYPE: Release
+
 jobs:
   build:
-    name: ${{ matrix.os }}-hosted-basic
-    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        include:
-          - os: windows-latest
-            triplet: x64-windows
-          - os: ubuntu-latest
-            triplet: x64-linux
+        config:
+        - {
+            name: "Windows Latest",
+            os: windows-latest,
+            triplet: x64-windows,
+            cc: "gcc",
+            cxx: "g++"
+          }
+        - {
+            name: "Ubuntu Latest",
+            os: ubuntu-latest,
+            triplet: x64-linux,
+            cc: "gcc",
+            cxx: "g++"
+          }
+
     steps:
     - name: Setup cmake
       uses: lukka/get-cmake@latest
@@ -34,7 +47,7 @@ jobs:
     - name: Configure CMake
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=1 -DBUILD_BENCHES=1 -G "Unix Makefiles"
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$ENV{BUILD_TYPE} -DBUILD_TESTS=1 -DBUILD_BENCHES=1 -G "Unix Makefiles"
 
     - name: Build All
       working-directory: ${{runner.workspace}}/build
