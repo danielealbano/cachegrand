@@ -17,19 +17,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - {
-              name: "Windows Latest",
-              os: windows-latest,
-              triplet: x64-windows,
-              cc: "gcc"
-              cxx: "g++"
-            }
-          - {
-              name: "Ubuntu Latest",
-              os: ubuntu-latest
-              triplet: x64-linux
-            }
+        config:
+        - {
+            name: "Windows Latest",
+            os: windows-latest,
+            triplet: x64-windows,
+            cc: "gcc",
+            cxx: "g++"
+          }
+        - {
+            name: "Ubuntu Latest",
+            os: ubuntu-latest,
+            triplet: x64-linux,
+            cc: "gcc",
+            cxx: "g++"
+          }
 
     steps:
     - name: Setup cmake
