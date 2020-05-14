@@ -47,10 +47,6 @@ jobs:
           execute_process(COMMAND ${CMAKE_COMMAND} -E chmod +x ./ccache)
         endif()
 
-    - name: Test ccache
-      shell: bash
-      run: ls -lha && ls -lha build
-
     - name: Checkout
       uses: actions/checkout@v2
       with:
@@ -88,7 +84,7 @@ jobs:
     - name: Configure CMake
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$ENV{BUILD_TYPE} -D CMAKE_CXX_COMPILER_LAUNCHER=GITHUB_WORKSPACE/ccache -D CMAKE_C_COMPILER_LAUNCHER=$GITHUB_WORKSPACE/ccache -DBUILD_TESTS=1 -DBUILD_BENCHES=1 -G "Unix Makefiles"
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$ENV{BUILD_TYPE} -D CMAKE_CXX_COMPILER_LAUNCHER=$GITHUB_WORKSPACE/ccache -D CMAKE_C_COMPILER_LAUNCHER=$GITHUB_WORKSPACE/ccache -DBUILD_TESTS=1 -DBUILD_BENCHES=1 -G "Unix Makefiles"
 
     - name: Build All
       working-directory: ${{runner.workspace}}/build
