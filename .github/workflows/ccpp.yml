@@ -47,6 +47,10 @@ jobs:
           execute_process(COMMAND ${CMAKE_COMMAND} -E chmod +x ./ccache)
         endif()
 
+    - name: Test ccache
+      shell: bash
+      run: ls -lha && ls -lha build
+
     - name: Checkout
       uses: actions/checkout@v2
       with:
