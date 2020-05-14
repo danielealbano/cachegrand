@@ -74,10 +74,10 @@ jobs:
     - name: ccache cache files
       uses: actions/cache@v1.1.0
       with:
-      path: .ccache
-      key: ${ { matrix.config.name } }-ccache-${ { steps.ccache_cache_timestamp.outputs.timestamp } }
-      restore-keys: |
-        ${ { matrix.config.name } }-ccache-
+        path: .ccache
+        key: ${ { matrix.config.name } }-ccache-${ { steps.ccache_cache_timestamp.outputs.timestamp } }
+        restore-keys: |
+          ${ { matrix.config.name } }-ccache-
 
     - name: Create Build Environment
       run: cmake -E make_directory ${{runner.workspace}}/build
