@@ -61,6 +61,17 @@ jobs:
         execute_process(COMMAND pwd)
         execute_process(COMMAND ccache)
 
+    - name: temp debug
+      shell: cmake -P {0}
+      run: |
+        message("$ENV{PATH}")
+        message("$ENV{CCACHE_DIR}")
+        message("$ENV{GITHUB_WORKSPACE}")
+        message("$ENV{RUNNER_WORKSPACE}/.ccache")
+        execute_process(COMMAND ls -lha)
+        execute_process(COMMAND pwd)
+        execute_process(COMMAND ccache)
+
     - name: Checkout
       uses: actions/checkout@v2
       with:
