@@ -34,12 +34,12 @@ jobs:
     - name: Configure CMake
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=1 -DBUILD_BENCHES=1
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=1 -DBUILD_BENCHES=1 -G "Unix Makefiles"
 
     - name: Build All
       working-directory: ${{runner.workspace}}/build
       shell: bash
-      run: cmake --build .
+      run: cmake --build . -- -j 4
 
     - name: Test
       working-directory: ${{runner.workspace}}/build
