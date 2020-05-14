@@ -22,8 +22,12 @@ set_target_properties(benchmark::benchmark PROPERTIES
         IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
         IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/benchmark-install/lib/libbenchmark.a"
         INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/benchmark-install/include"
-        INTERFACE_LINK_LIBRARIES "Shlwapi"
         )
+IF(WIN32)
+    set_target_properties(benchmark::benchmark PROPERTIES
+            INTERFACE_LINK_LIBRARIES "Shlwapi"
+            )
+ENDIF(WIN32)
 
 # Build benches
 file(GLOB SRC_CACHEGRAND_BENCHES "bench-*.cpp")
