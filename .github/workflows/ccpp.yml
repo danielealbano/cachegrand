@@ -1,0 +1,33 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    name: ${{ matrix.os }}-hosted-basic
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: windows-latest
+            triplet: x64-windows
+          - os: ubuntu-latest
+            triplet: x64-linux
+    steps:
+    - name: Setup cmake
+      uses: lukka/get-cmake@latest
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Build cachegrand
+      uses: lukka/run-cmake@v2
+      with:
+        buildDirectory: '${{ runner.workspace }}/b//unixmakefiles'
+        cmakeAppendedArgs: '-DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=1 -DBUILD_BENCHES=1'
