@@ -6,27 +6,76 @@ on:
   pull_request:
     branches: [ master ]
 
+env:
+  BUILD_TYPE: Release
+  CCACHE_VERSION: 3.7.7
+
 jobs:
   build:
-    name: ${{ matrix.os }}-hosted-basic
-    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
         include:
-          - os: windows-latest
-            triplet: x64-windows
-          - os: ubuntu-latest
-            triplet: x64-linux
+          - {
+              name: "Windows Latest",
+              os: windows-latest,
+              triplet: x64-windows,
+              cc: "gcc"
+              cxx: "g++"
+            }
+          - {
+              name: "Ubuntu Latest",
+              os: ubuntu-latest
+              triplet: x64-linux
+            }
+
     steps:
     - name: Setup cmake
       uses: lukka/get-cmake@latest
+
+    - name: Setup ccache
+      id: ccache
+      shell: cmake -P {0}
+      run: |
+        set(ccache_url "https://github.com/cristianadam/ccache/releases/download/v$ENV{CCACHE_VERSION}/${ { runner.os } }.tar.xz")
+        file(DOWNLOAD "${ccache_url}" ./ccache.tar.xz SHOW_PROGRESS)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf ./ccache.tar.xz)
 
     - name: Checkout
       uses: actions/checkout@v2
       with:
         submodules: true
+
+    - name: Prepare ccache timestamp
+      id: ccache_cache_timestamp
+      shell: cmake -P {0}
+      run: |
+        string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
+        message("::set-output name=timestamp::${current_date}")
+
+    - name: Configure ccache
+      id: ccache
+      shell: cmake -P {0}
+      run: |
+        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}" ccache_basedir)
+        set(ENV{CCACHE_BASEDIR} "${ccache_basedir}")
+        set(ENV{CCACHE_DIR} "${ccache_basedir}/.ccache")
+        set(ENV{CCACHE_COMPRESS} "true")
+        set(ENV{CCACHE_COMPRESSLEVEL} "6")
+        set(ENV{CCACHE_MAXSIZE} "400M")
+        if ("${ { matrix.config.cxx } }" STREQUAL "cl")
+            set(ENV{CCACHE_MAXSIZE} "600M")
+        endif()
+
+    - name: ccache cache files
+      uses: actions/cache@v1.1.0
+      with:
+      path: .ccache
+      key: ${ { matrix.config.name } }-ccache-${ { steps.ccache_cache_timestamp.outputs.timestamp } }
+      restore-keys: |
+        ${ { matrix.config.name } }-ccache-
 
     - name: Create Build Environment
       run: cmake -E make_directory ${{runner.workspace}}/build
@@ -34,7 +83,7 @@ jobs:
     - name: Configure CMake
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=1 -DBUILD_BENCHES=1 -G "Unix Makefiles"
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$ENV{BUILD_TYPE} -D CMAKE_CXX_COMPILER_LAUNCHER=ccache -D CMAKE_C_COMPILER_LAUNCHER=ccache -DBUILD_TESTS=1 -DBUILD_BENCHES=1 -G "Unix Makefiles"
 
     - name: Build All
       working-directory: ${{runner.workspace}}/build
