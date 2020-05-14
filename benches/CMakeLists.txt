@@ -3,7 +3,6 @@ include(ExternalProject)
 set (CMAKE_CXX_STANDARD 17)
 
 ExternalProject_Add(benchmark-install
-        EXCLUDE_FROM_ALL ON
         PREFIX benchmark-sources
         INSTALL_DIR ${CMAKE_BINARY_DIR}/benchmark-install
         URL https://github.com/google/benchmark/archive/v1.5.0.tar.gz
@@ -38,4 +37,3 @@ target_link_libraries(cachegrand-benches cachegrand-internal t1ha2 pthread bench
 target_include_directories(cachegrand-benches PUBLIC ".")
 target_include_directories(cachegrand-benches PUBLIC "../src")
 target_include_directories(cachegrand-benches PUBLIC "${CMAKE_BINARY_DIR}/benchmark-install/include")
-add_test(NAME cachegrand-benches COMMAND cachegrand-benches)
