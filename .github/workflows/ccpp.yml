@@ -22,12 +22,26 @@ jobs:
     steps:
     - name: Setup cmake
       uses: lukka/get-cmake@latest
+
     - name: Checkout
       uses: actions/checkout@v2
       with:
         submodules: true
-    - name: Build cachegrand
-      uses: lukka/run-cmake@v2
-      with:
-        buildDirectory: '${{ runner.workspace }}/b//unixmakefiles'
-        cmakeAppendedArgs: '-DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=1 -DBUILD_BENCHES=1'
+
+    - name: Create Build Environment
+      run: /usr/local/bin/cmake -E make_directory ${{runner.workspace}}/build
+
+    - name: Configure CMake
+      shell: bash
+      working-directory: ${{runner.workspace}}/build
+      run: /usr/local/bin/cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=1 -DBUILD_BENCHES=1
+
+    - name: Build All
+      working-directory: ${{runner.workspace}}/build
+      shell: bash
+      run: /usr/local/bin/cmake --build . -- -v
+
+    - name: Test
+      working-directory: ${{runner.workspace}}/build
+      shell: bash
+      run: ctest
