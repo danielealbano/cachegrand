@@ -52,6 +52,7 @@ jobs:
 
         message("::add-path::$ENV{GITHUB_WORKSPACE}")
         message("::set-env name=CCACHE_DIR::$ENV{RUNNER_WORKSPACE}/.ccache")
+        message("::set-env name=ccache_BIN::$ENV{GITHUB_WORKSPACE}/")
 
     - name: Checkout
       uses: actions/checkout@v2
@@ -79,7 +80,7 @@ jobs:
     - name: Configure CMake
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_BUILD_TYPE=$ENV{BUILD_TYPE} -DBUILD_TESTS=1 -DBUILD_BENCHES=1 -G "Unix Makefiles"
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$ENV{BUILD_TYPE} -DBUILD_TESTS=1 -DBUILD_BENCHES=1 -G "Unix Makefiles"
 
     - name: Build All
       working-directory: ${{runner.workspace}}/build
