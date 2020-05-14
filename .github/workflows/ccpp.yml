@@ -34,7 +34,7 @@ jobs:
           }
 
     env:
-      CCACHE_DIR: ${{runner.workspace}}/.ccache
+      CCACHE_DIR: ${{ runner.workspace }}/.ccache
       CCACHE_COMPRESS: true
       CCACHE_COMPRESSLEVEL: 6
       CCACHE_MAXISZE: 400M
