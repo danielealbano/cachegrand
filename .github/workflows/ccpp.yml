@@ -66,9 +66,6 @@ jobs:
         set(ENV{CCACHE_COMPRESS} "true")
         set(ENV{CCACHE_COMPRESSLEVEL} "6")
         set(ENV{CCACHE_MAXSIZE} "400M")
-        if ("${ { matrix.config.cxx } }" STREQUAL "cl")
-            set(ENV{CCACHE_MAXSIZE} "600M")
-        endif()
 
     - name: ccache cache files
       uses: actions/cache@v1.1.0
@@ -84,7 +81,7 @@ jobs:
     - name: Configure CMake
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$ENV{BUILD_TYPE} -D CMAKE_CXX_COMPILER_LAUNCHER=$ENV{GITHUB_WORKSPACE}/ccache -D CMAKE_C_COMPILER_LAUNCHER=$ENV{GITHUB_WORKSPACE}/ccache -DBUILD_TESTS=1 -DBUILD_BENCHES=1 -G "Unix Makefiles"
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$ENV{BUILD_TYPE} -D CMAKE_CXX_COMPILER_LAUNCHER=GITHUB_WORKSPACE/ccache -D CMAKE_C_COMPILER_LAUNCHER=$GITHUB_WORKSPACE/ccache -DBUILD_TESTS=1 -DBUILD_BENCHES=1 -G "Unix Makefiles"
 
     - name: Build All
       working-directory: ${{runner.workspace}}/build
