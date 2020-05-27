@@ -200,6 +200,7 @@ static void hashtable_op_set_new(benchmark::State& state) {
     static hashtable_config_t* hashtable_config;
     static hashtable_t* hashtable;
     static char* keys;
+    char error_message[150] = {0};
 
     if (state.thread_index == 0) {
         if (state.range(2) == RANDOM_KEYS_GEN_FUNC_MAX_LENGTH) {
@@ -220,11 +221,22 @@ static void hashtable_op_set_new(benchmark::State& state) {
     for (auto _ : state) {
         for(long int i = state.thread_index; i < state.range(1); i += state.threads) {
             char* key = keys + (RANDOM_KEYS_MAX_LENGTH * i);
-            hashtable_op_set(
+            bool result = hashtable_op_set(
                     hashtable,
                     key,
                     strlen(key),
                     test_value_1);
+
+            if (!result) {
+                sprintf(
+                        error_message,
+                        "Unable to set the key <%s> with index <%ld> for the thread <%d>",
+                        key,
+                        i,
+                        state.thread_index);
+                state.SkipWithError(error_message);
+                break;
+            }
         }
     }
 
@@ -237,6 +249,7 @@ static void hashtable_op_set_update(benchmark::State& state) {
     static hashtable_config_t* hashtable_config;
     static hashtable_t* hashtable;
     static char* keys;
+    char error_message[150] = {0};
 
     if (state.thread_index == 0) {
         if (state.range(2) == RANDOM_KEYS_GEN_FUNC_MAX_LENGTH) {
@@ -253,11 +266,22 @@ static void hashtable_op_set_update(benchmark::State& state) {
         for(long int i = state.thread_index; i < state.range(1); i += state.threads) {
             char* key = keys + (RANDOM_KEYS_MAX_LENGTH * i);
 
-            hashtable_op_set(
+            bool result = hashtable_op_set(
                     hashtable,
                     key,
                     strlen(key),
                     test_value_1);
+
+            if (!result) {
+                sprintf(
+                        error_message,
+                        "Unable to set the key <%s> with index <%ld> for the thread <%d>",
+                        key,
+                        i,
+                        state.thread_index);
+                state.SkipWithError(error_message);
+                break;
+            }
         }
     }
 
