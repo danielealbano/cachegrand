@@ -1,4 +1,4 @@
-# Design - Hashtable
+# Design - Hashtable - OBSOLETE
 
 The hashtable that is backing the cache in cachegrand rely on a lock free and almost atomic free, relying mostly on
 memory fences whenever is necessary, multi producer multi consumer algorithm to guarantee a pretty good vertical
