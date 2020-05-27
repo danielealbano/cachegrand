@@ -1,4 +1,4 @@
-# Design - Principles
+# Design - Principles - OBSOLETE
 
 Cachegrand has been designed around these principles:
 - lock free and, whenever it's not impacting the consistency, atomic-free using memory barriers
