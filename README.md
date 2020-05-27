@@ -110,9 +110,3 @@ stable release:
 - Authentication and ACLs, to limit who has access and which data are accessible;
 - On-memory and On-disk data encryption;
 - Multi database.
-
-### BENCHMARKS
-
-I have ran a number of initial benchmarks to test how the hashtable implemented in cachegrand is capable of scale-out
-when performing insert or update operations.
-The bencm
