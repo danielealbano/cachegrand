@@ -5,8 +5,6 @@
 #include <stdatomic.h>
 #include <string.h>
 
-#include "xalloc.h"
-
 #include "hashtable.h"
 #include "hashtable_support_index.h"
 #include "hashtable_support_op.h"
