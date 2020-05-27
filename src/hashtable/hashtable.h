@@ -5,11 +5,13 @@
 extern "C" {
 #endif
 
-/**
- * TODO:
- * - the data storage is not managed by the hashtable library on purpose, to have more flexibility, but it would be
- *   better to have a smart way to handle the key storage when they are not inline (ie. with a SLAB allocator)
- */
+#if defined(__clang__) && defined(__has_feature)
+#if !__has_feature(c_atomic)
+
+#endif
+#else
+#define _Atomic(T) T volatile
+#endif
 
 #define HASHTABLE_MEMORY_FENCE_LOAD() atomic_thread_fence(memory_order_acquire)
 #define HASHTABLE_MEMORY_FENCE_STORE() atomic_thread_fence(memory_order_release)
@@ -87,6 +89,8 @@ typedef char hashtable_key_data_t;
 typedef uintptr_t hashtable_value_data_t;
 typedef uint8_t hashtable_search_key_or_create_new_ret_t;
 
+typedef _Atomic(hashtable_bucket_hash_t) hashtable_bucket_hash_atomic_t;
+
 enum {
     HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED         = 0x01u,
     HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED          = 0x02u,
@@ -159,7 +163,7 @@ struct hashtable_data {
     bool can_be_deleted;
     size_t hashes_size;
     size_t keys_values_size;
-    hashtable_bucket_hash_t* volatile hashes;
+    hashtable_bucket_hash_atomic_t* hashes;
     hashtable_bucket_key_value_t* volatile keys_values;
 };
 typedef struct hashtable_data hashtable_data_t;

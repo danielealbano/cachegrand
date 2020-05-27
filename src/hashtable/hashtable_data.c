@@ -46,7 +46,7 @@ hashtable_data_t* hashtable_data_init(hashtable_bucket_count_t buckets_count, ui
     hashtable_data->cachelines_to_probe = cachelines_to_probe;
     hashtable_data->hashes_size = hashes_size;
     hashtable_data->keys_values_size = keys_values_size;
-    hashtable_data->hashes = (hashtable_bucket_hash_t*)xalloc_mmap_alloc(hashes_size);
+    hashtable_data->hashes = (hashtable_bucket_hash_atomic_t*)xalloc_mmap_alloc(hashes_size);
     hashtable_data->keys_values = (hashtable_bucket_key_value_t*)xalloc_mmap_alloc(keys_values_size);
 
     return hashtable_data;
