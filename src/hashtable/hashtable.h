@@ -23,6 +23,9 @@ extern "C" {
 #define HASHTABLE_PRIMENUMBERS_COUNT                        38
 #define HASHTABLE_PRIMENUMBERS_MAX                          4294967291U
 #define HASHTABLE_KEY_INLINE_MAX_LENGTH         23
+#define HASHTABLE_KEY_EXTERNAL_PREFIX_SIZE      HASHTABLE_KEY_INLINE_MAX_LENGTH \
+                                                - sizeof(hashtable_key_size_t) \
+                                                - sizeof(hashtable_key_data_t*)
 
 #define HASHTABLE_PRIMENUMBERS_LIST \
     42U, /* not a prime number, but it's the answer! */ \
@@ -118,6 +121,7 @@ struct hashtable_bucket_key_value {
         struct {
             hashtable_key_size_t size;          // 4 bytes
             hashtable_key_data_t* data;         // 8 bytes
+            hashtable_key_data_t key_prefix[HASHTABLE_KEY_EXTERNAL_PREFIX_SIZE];
         } __attribute__((packed)) external_key;
         struct {
             hashtable_key_data_t data[HASHTABLE_KEY_INLINE_MAX_LENGTH];
