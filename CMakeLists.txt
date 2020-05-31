@@ -21,11 +21,11 @@ endif(CCACHE_FOUND_PATH)
 add_subdirectory(3rdparty)
 add_subdirectory(src)
 
-if (BUILD_TESTS)
+if (CACHEGRAND_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
 
-if (BUILD_BENCHES)
+if (CACHEGRAND_BUILD_BENCHES)
     add_subdirectory(benches)
 endif()
