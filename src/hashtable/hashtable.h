@@ -98,11 +98,11 @@ enum {
 /**
  * Configuration of the hashtable
  */
+typedef struct hashtable_config hashtable_config_t;
 struct hashtable_config {
     uint64_t initial_size;
     bool can_auto_resize;
 };
-typedef struct hashtable_config hashtable_config_t;
 
 /**
  * Struct holding the information related to a bucket (flags, key, value).
@@ -110,6 +110,7 @@ typedef struct hashtable_config hashtable_config_t;
  * The key can be stored inlined (there are 23 bytes for it) or stored externally in ad-hoc allocated memory if needed.
  * The struct is aligned to 32 byte to ensure to fit the first half or the second half of a cacheline
  */
+typedef struct hashtable_bucket_key_value hashtable_bucket_key_value_t;
 struct hashtable_bucket_key_value {
     hashtable_bucket_key_value_flags_t flags;
 
@@ -125,11 +126,11 @@ struct hashtable_bucket_key_value {
 
     hashtable_value_data_t data;                // 8 byte
 } __attribute__((aligned(32)));
-typedef struct hashtable_bucket_key_value hashtable_bucket_key_value_t;
 
 /**
  * Struct holding the hashtable data
  **/
+typedef struct hashtable_data hashtable_data_t;
 struct hashtable_data {
     hashtable_bucket_count_t buckets_count;
     hashtable_bucket_count_t buckets_count_real;
@@ -140,7 +141,6 @@ struct hashtable_data {
     hashtable_bucket_hash_atomic_t* hashes;
     hashtable_bucket_key_value_t* volatile keys_values;
 };
-typedef struct hashtable_data hashtable_data_t;
 
 /**
  * Struct holding the hashtable
@@ -155,6 +155,7 @@ typedef struct hashtable_data hashtable_data_t;
  * work on the buckets in that hashtable and then ht_old is updated to point to null and all the data structures
  * associated are freed.
  **/
+typedef struct hashtable hashtable_t;
 struct hashtable {
     hashtable_config_t* config;
     bool is_shutdowning;
@@ -162,7 +163,6 @@ struct hashtable {
     volatile hashtable_data_t* ht_current;
     volatile hashtable_data_t* ht_old;
 };
-typedef struct hashtable hashtable_t;
 
 hashtable_t* hashtable_init(hashtable_config_t* hashtable_config);
 void hashtable_free(hashtable_t* hashtable);
