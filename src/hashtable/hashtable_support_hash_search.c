@@ -2,6 +2,7 @@
 #include <string.h>
 #include <immintrin.h>
 
+#include "cpu.h"
 #include "hashtable_support_hash_search.h"
 
 #if defined(__AVX512F__)
@@ -88,34 +89,18 @@ int8_t hashtable_support_hash_search_loop(uint32_t hash, volatile uint32_t* hash
     return -1;
 }
 
-#define hashtable_support_hash_search_init_instruction_set_check(NAME, FP) \
-    if (__builtin_cpu_supports(NAME)) { \
+#define HASHTABLE_SUPPORT_HASH_SEARCH_INIT_INSTRUCTION_SET_CHECK(NAME, FP) \
+    if (psnip_cpu_feature_check(NAME)) { \
         hashtable_support_hash_search = FP; \
-         \
-        if (prefer_instruction_set != NULL && strcmp(prefer_instruction_set, NAME) == 0) { \
-            return hashtable_support_hash_search; \
-        } \
     }
 
-hashtable_support_hash_search_fp_t hashtable_support_hash_search_select_instruction_set(char* prefer_instruction_set) {
+void hashtable_support_hash_search_select_instruction_set() {
     hashtable_support_hash_search = hashtable_support_hash_search_loop;
 
-#if defined(__SSE4_2__) || defined(__AVX2__) || defined(__AVX512__)
-    __builtin_cpu_init();
-
-#if defined(__SSE4_2__)
-    hashtable_support_hash_search_init_instruction_set_check("sse4.2", hashtable_support_hash_search_sse42);
-#endif // defined(__SSE4_2__)
-
-#if defined(__AVX2__)
-    hashtable_support_hash_search_init_instruction_set_check("avx2", hashtable_support_hash_search_avx2);
-#endif // defined(__AVX2__)
-
-#if defined(__AVX512__)
-    hashtable_support_hash_search_init_instruction_set_check("avx512f", hashtable_support_hash_search_avx512);
-#endif // defined(__AVX512__)
-
-#endif // defined(__SSE4_2__) || defined(__AVX2__) || defined(__AVX512__)
-
-    return hashtable_support_hash_search;
+    HASHTABLE_SUPPORT_HASH_SEARCH_INIT_INSTRUCTION_SET_CHECK(
+            PSNIP_CPU_FEATURE_X86_SSE4_2, hashtable_support_hash_search_sse42);
+    HASHTABLE_SUPPORT_HASH_SEARCH_INIT_INSTRUCTION_SET_CHECK(
+            PSNIP_CPU_FEATURE_X86_AVX2, hashtable_support_hash_search_avx2);
+    HASHTABLE_SUPPORT_HASH_SEARCH_INIT_INSTRUCTION_SET_CHECK(
+            PSNIP_CPU_FEATURE_X86_AVX512F, hashtable_support_hash_search_avx512);
 }

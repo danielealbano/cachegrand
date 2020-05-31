@@ -26,7 +26,7 @@ int8_t hashtable_support_hash_search_sse42(uint32_t hash, volatile uint32_t* has
 #endif
 
 int8_t hashtable_support_hash_search_loop(uint32_t hash, volatile uint32_t* hashes);
-hashtable_support_hash_search_fp_t hashtable_support_hash_search_select_instruction_set(char* prefer_instruction_set);
+void hashtable_support_hash_search_select_instruction_set();
 
 hashtable_support_hash_search_fp_t hashtable_support_hash_search;
 
