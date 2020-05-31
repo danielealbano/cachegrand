@@ -45,7 +45,7 @@ bool hashtable_support_op_search_key(
         // stored externally and the allocated memory is freed it may crash.
         if (HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(found_bucket_key_value->flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE)) {
             found_bucket_key = (volatile hashtable_key_data_t*)&found_bucket_key_value->inline_key.data;
-            found_bucket_key_max_compare_size = HASHTABLE_INLINE_KEY_MAX_SIZE;
+            found_bucket_key_max_compare_size = HASHTABLE_KEY_INLINE_MAX_LENGTH;
         } else {
             // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't be freed
             //       immediately after the bucket is freed because it can be in use and would cause a crash34567
@@ -152,7 +152,7 @@ hashtable_search_key_or_create_new_ret_t hashtable_support_op_search_key_or_crea
                         found_bucket_key_value->flags,
                         HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE)) {
                     found_bucket_key = (volatile hashtable_key_data_t*)&found_bucket_key_value->inline_key.data;
-                    found_bucket_key_max_compare_size = HASHTABLE_INLINE_KEY_MAX_SIZE;
+                    found_bucket_key_max_compare_size = HASHTABLE_KEY_INLINE_MAX_LENGTH;
                 } else {
                     found_bucket_key = found_bucket_key_value->external_key.data;
                     found_bucket_key_max_compare_size = found_bucket_key_value->external_key.size;

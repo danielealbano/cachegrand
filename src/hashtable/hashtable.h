@@ -20,9 +20,9 @@ extern "C" {
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
-#define HASHTABLE_INLINE_KEY_MAX_SIZE                       23
 #define HASHTABLE_PRIMENUMBERS_COUNT                        38
 #define HASHTABLE_PRIMENUMBERS_MAX                          4294967291U
+#define HASHTABLE_KEY_INLINE_MAX_LENGTH         23
 
 #define HASHTABLE_PRIMENUMBERS_LIST \
     42U, /* not a prime number, but it's the answer! */ \
@@ -114,13 +114,13 @@ typedef struct hashtable_bucket_key_value hashtable_bucket_key_value_t;
 struct hashtable_bucket_key_value {
     hashtable_bucket_key_value_flags_t flags;
 
-    union {                                     // union 23 bytes (HASHTABLE_INLINE_KEY_MAX_SIZE must match this size)
+    union {                                     // union 23 bytes (HASHTABLE_KEY_INLINE_MAX_LENGTH must match this size)
         struct {
             hashtable_key_size_t size;          // 4 bytes
             hashtable_key_data_t* data;         // 8 bytes
         } __attribute__((packed)) external_key;
         struct {
-            hashtable_key_data_t data[HASHTABLE_INLINE_KEY_MAX_SIZE];
+            hashtable_key_data_t data[HASHTABLE_KEY_INLINE_MAX_LENGTH];
         } inline_key;
     };
 

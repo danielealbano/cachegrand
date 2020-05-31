@@ -69,7 +69,7 @@ bool hashtable_op_set(
         hashtable_bucket_key_value_flags_t flags = 0;
 
         // Get the destination pointer for the key
-        if (key_size <= HASHTABLE_INLINE_KEY_MAX_SIZE) {
+        if (key_size <= HASHTABLE_KEY_INLINE_MAX_LENGTH) {
             ht_key = (hashtable_key_data_t *)&bucket_key_value->inline_key.data;
             HASHTABLE_BUCKET_KEY_VALUE_SET_FLAG(flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE);
         } else {
