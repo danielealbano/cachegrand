@@ -69,16 +69,5 @@ uint32_t* init_hashes() {
         ->UseRealTime()
 
 
-#if defined(__AVX512F__)
-BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH(avx512);
-#endif
-
-#if defined(__AVX2__)
 BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH(avx2);
-#endif
-
-#if defined(__SSE4_2__)
-BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH(sse);
-#endif
-
 BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH(loop);
