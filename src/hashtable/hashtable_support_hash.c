@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <stdint.h>
 #include <stdbool.h>
 #include <t1ha.h>
 
