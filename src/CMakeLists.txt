@@ -16,7 +16,13 @@ IF(WIN32)
     target_link_libraries(cachegrand-internal imagehlp)
 ENDIF(WIN32)
 
-# Build the exacutable
+# For the hashtable hash search algorithm optimized for avx2 enable -mno-avx256-split-unaligned-load -mavx2 -mlzcnt
+set_source_files_properties(
+        "hashtable/hashtable_support_hash_search_avx2.c"
+        PROPERTIES COMPILE_FLAGS
+        "-mno-avx256-split-unaligned-load -mavx2 -mlzcnt")
+
+# Build the executable
 add_executable(cachegrand "main.c")
 add_dependencies(cachegrand cachegrand-internal t1ha2)
 target_link_libraries(cachegrand cachegrand-internal t1ha2)
