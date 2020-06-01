@@ -22,49 +22,59 @@ void set_thread_affinity(int thread_index) {
 
 uint32_t* init_hashes() {
     uint32_t* __attribute__((aligned(16))) hashes =
-            (uint32_t*)aligned_alloc(256, sizeof(uint32_t) * 16);
+            (uint32_t*)aligned_alloc(16, sizeof(uint32_t) * 16);
 
     for(uint32_t i = 0; i < 16; i++) {
-        uint32_t v = i;
-        hashes[i] = v;
+        hashes[i] = i;
     }
+    hashes[14] = 0;
+    hashes[15] = 0;
 
     return hashes;
 }
 
-#define BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_FUNC(METHOD, SUFFIX) \
+#define BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_FUNC_WRAPPER(METHOD, SUFFIX, ...) \
     void bench_template_hashtable_support_hash_search_##METHOD##_##SUFFIX(benchmark::State& state) { \
-        volatile int found_index; \
-        static uint32_t* hashes; \
+        uint32_t* hashes = NULL; \
+        hashtable_support_hash_search_fp_t hashtable_support_hash_search_method = hashtable_support_hash_search_##METHOD; \
         \
-        if (state.thread_index == 0) { hashes = init_hashes(); } \
+        set_thread_affinity(state.thread_index); \
         \
         for (auto _ : state) { \
-            benchmark::DoNotOptimize( \
-                    found_index = hashtable_support_hash_search_##METHOD(state.range(0), hashes) \
-            ); \
+            hashes = init_hashes(); \
+            __VA_ARGS__ \
+            free(hashes); \
         } \
-        \
-        if (state.thread_index == 0) { free(hashes); } \
-    }
+    } \
+    BENCHMARK(bench_template_hashtable_support_hash_search_##METHOD##_##SUFFIX) \
+        ->Iterations(10000000) \
+        ->Threads(1)->Threads(2)->Threads(4)->Threads(8)->Threads(16)->Threads(32)->Threads(64);
 
-#define BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_ST(METHOD) \
-    BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_FUNC(METHOD, st) \
-    BENCHMARK(bench_template_hashtable_support_hash_search_##METHOD##_st) \
-        ->Iterations(100000000) \
-        ->Arg(0)->Arg(1)->Arg(2)->Arg(3)->Arg(4)->Arg(5)->Arg(6)->Arg(7) \
-        ->Arg(8)->Arg(9)->Arg(10)->Arg(11)->Arg(12)->Arg(13)->Arg(14)->Arg(15)
+#define BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_FULL(METHOD) \
+    BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_FUNC_WRAPPER(METHOD, full, { \
+        benchmark::DoNotOptimize(hashtable_support_hash_search_method(8, hashes)); \
+        benchmark::DoNotOptimize(hashtable_support_hash_search_method(1, hashes)); \
+        benchmark::DoNotOptimize(hashtable_support_hash_search_method(13, hashes)); \
+        benchmark::DoNotOptimize(hashtable_support_hash_search_method(4, hashes)); \
+        benchmark::DoNotOptimize(hashtable_support_hash_search_method(9, hashes)); \
+        benchmark::DoNotOptimize(hashtable_support_hash_search_method(0, hashes)); \
+        benchmark::DoNotOptimize(hashtable_support_hash_search_method(5, hashes)); \
+        benchmark::DoNotOptimize(hashtable_support_hash_search_method(11, hashes)); \
+        free(hashes); hashes = init_hashes(); \
+        benchmark::DoNotOptimize(hashtable_support_hash_search_method(3, hashes)); \
+        benchmark::DoNotOptimize(hashtable_support_hash_search_method(12, hashes)); \
+        benchmark::DoNotOptimize(hashtable_support_hash_search_method(7, hashes)); \
+        benchmark::DoNotOptimize(hashtable_support_hash_search_method(2, hashes)); \
+        benchmark::DoNotOptimize(hashtable_support_hash_search_method(15, hashes)); \
+        benchmark::DoNotOptimize(hashtable_support_hash_search_method(14, hashes)); \
+        benchmark::DoNotOptimize(hashtable_support_hash_search_method(6, hashes)); \
+        benchmark::DoNotOptimize(hashtable_support_hash_search_method(10, hashes)); \
+    })
 
-#define BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_MT(METHOD) \
-    BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_FUNC(METHOD, mt) \
-    BENCHMARK(bench_template_hashtable_support_hash_search_##METHOD##_mt) \
-        ->Iterations(100000000) \
-        ->Arg(0)->Arg(1)->Arg(2)->Arg(3)->Arg(4)->Arg(5)->Arg(6)->Arg(7) \
-        ->Arg(8)->Arg(9)->Arg(10)->Arg(11)->Arg(12)->Arg(13)->Arg(14)->Arg(15) \
-        ->Threads(2)->Threads(4)->Threads(8)->Threads(16)->Threads(32)
+#define BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_ALL(METHOD) \
+    BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_FULL(METHOD);
 
-BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_ST(avx2);
-BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_ST(loop);
-BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_MT(avx2);
-BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_MT(loop);
+BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_ALL(loop);
+BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_ALL(avx2);
 
+BENCHMARK_MAIN();
