@@ -6,7 +6,7 @@ endif()
 # Fetch the git version ([tag|commitid](-dirty))
 execute_process(
     COMMAND ${GIT_EXECUTABLE} describe --always --dirty
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     OUTPUT_VARIABLE CACHEGRAND_VERSION_GIT
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 
@@ -23,9 +23,15 @@ set(CACHEGRAND_BUILD_DATE_TIME "${CACHEGRAND_BUILD_DATE}T${CACHEGRAND_BUILD_TIME
 message(STATUS "Git Version: ${CACHEGRAND_VERSION_GIT}")
 message(STATUS "Build date/time: ${CACHEGRAND_BUILD_DATE_TIME}")
 
-message(STATUS "Updating version.c")
+message(STATUS "Updating cmake_config.c")
 configure_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/version.c.in"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/version.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/cmake_config.c.in"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/cmake_config.c"
         @ONLY)
-message(STATUS "Updating version.c -- done")
+message(STATUS "Updating cmake_config.c -- done")
+
+if(NOT SKIP_CUSTOM_TARGET)
+    add_custom_target(refresh_cmake_config_c
+        COMMAND cmake -DSKIP_CUSTOM_TARGET=1 -P ${CMAKE_CURRENT_SOURCE_DIR}/tools/cmake/cmake_config.c.cmake >/dev/null
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+endif()

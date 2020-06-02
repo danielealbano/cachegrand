@@ -7,7 +7,7 @@ add_library(
         ${SRC_FILES_CACHEGRAND}
         ${SRC_FILES_CACHEGRAND_HASHTABLE}
 )
-add_dependencies(cachegrand-internal t1ha2)
+add_dependencies(cachegrand-internal refresh_cmake_config_c t1ha2)
 target_link_libraries(cachegrand-internal t1ha2)
 target_include_directories(cachegrand-internal PUBLIC "../3rdparty/t1ha/")
 target_include_directories(cachegrand-internal PUBLIC ".")

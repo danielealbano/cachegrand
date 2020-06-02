@@ -6,4 +6,4 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/compiler/")
 
 include(arch)
 include(compiler)
-include(version)
+include(cmake_config.c)

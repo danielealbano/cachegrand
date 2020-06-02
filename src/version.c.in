@@ -1,4 +1,0 @@
-#include "version.h"
-
-const char* CACHEGRAND_VERSION_GIT = "@CACHEGRAND_VERSION_GIT@";
-const char* CACHEGRAND_BUILD_DATE_TIME = "@CACHEGRAND_BUILD_DATE_TIME@";
