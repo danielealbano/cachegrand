@@ -1,10 +1,17 @@
-#ifndef CACHEGRAND_VERSION_H
+#ifndef CACHEGRAND_CMAKE_CONFIG
+#define CACHEGRAND_CMAKE_CONFIG
 
-extern const char* CACHEGRAND_CMAKE_CONFIG_ARCH_TARGET;
-extern const char* CACHEGRAND_CMAKE_CONFIG_VERSION_GIT;
-extern const char* CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#define CACHEGRAND_VERSION_H
+extern const char *CACHEGRAND_CMAKE_CONFIG_ARCH_TARGET;
+extern const char *CACHEGRAND_CMAKE_CONFIG_VERSION_GIT;
+extern const char *CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME;
 extern const char *CACHEGRAND_CMAKE_CONFIG_BUILD_TYPE;
 
-#endif //CACHEGRAND_VERSION_H
+#ifdef __cplusplus
+}
+#endif
+
+#endif //CACHEGRAND_CMAKE_CONFIG
