@@ -139,7 +139,6 @@ struct hashtable_bucket_key_value {
 typedef struct hashtable_data hashtable_data_t;
 struct hashtable_data {
     hashtable_bucket_count_t buckets_count;
-    hashtable_bucket_count_t buckets_count_real;
     uint64_t t1ha2_seed;
     bool can_be_deleted;
     size_t hashes_size;

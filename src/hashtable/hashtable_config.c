@@ -12,8 +12,6 @@
 hashtable_config_t* hashtable_config_init() {
     hashtable_config_t* hashtable_config = (hashtable_config_t*)xalloc_alloc(sizeof(hashtable_config_t));
 
-    hashtable_config_prefill_cachelines_to_probe_with_defaults(hashtable_config);
-
     return hashtable_config;
 }
 
