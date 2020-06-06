@@ -26,6 +26,8 @@ hashtable_t* hashtable_init(hashtable_config_t* hashtable_config) {
 
     hashtable->config = hashtable_config;
 
+    hashtable_support_hash_search_select_instruction_set();
+
     return hashtable;
 }
 
