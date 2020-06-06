@@ -28,12 +28,12 @@ hashtable_t* hashtable_init(hashtable_config_t* hashtable_config) {
 
 void hashtable_free(hashtable_t* hashtable) {
     if (hashtable->ht_current) {
-        hashtable_data_free(hashtable->ht_current);
+        hashtable_data_free((hashtable_data_t*)hashtable->ht_current);
         hashtable->ht_current = NULL;
     }
 
     if (hashtable->ht_old) {
-        hashtable_data_free(hashtable->ht_old);
+        hashtable_data_free((hashtable_data_t*)hashtable->ht_old);
         hashtable->ht_old = NULL;
     }
 
