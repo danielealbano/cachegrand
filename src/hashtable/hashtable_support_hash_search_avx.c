@@ -1,8 +1,17 @@
+#include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <immintrin.h>
 
-__attribute__((noinline)) int8_t hashtable_support_hash_search_avx(uint32_t hash, uint32_t* hashes) {
+#include "hashtable.h"
+#include "hashtable_support_hash_search.h"
+
+__attribute__((noinline)) hashtable_bucket_chain_ring_index_t hashtable_support_hash_search_avx(
+        hashtable_bucket_hash_half_t hash,
+        hashtable_bucket_hash_half_atomic_t* hashes,
+        uint32_t skip_indexes_mask) {
     uint32_t compacted_result_mask = 0;
+    uint32_t skip_indexes_mask_inv = ~skip_indexes_mask;
     __m256 cmp_vector = _mm256_castsi256_ps(_mm256_set1_epi32(hash));
 
     // The second load, load from the 6th uint32 to the 14th uint32, _mm256_loadu_si256 always loads 8 x uint32
@@ -14,5 +23,5 @@ __attribute__((noinline)) int8_t hashtable_support_hash_search_avx(uint32_t hash
         compacted_result_mask |= (uint32_t)_mm256_movemask_ps(result_mask_vector) << (base_index);
     }
 
-    return _tzcnt_u32(compacted_result_mask);
+    return _tzcnt_u32(compacted_result_mask & skip_indexes_mask_inv);
 }

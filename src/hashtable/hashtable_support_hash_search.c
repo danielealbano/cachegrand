@@ -1,6 +1,9 @@
+#include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "cpu.h"
+#include "hashtable.h"
 #include "hashtable_support_hash_search.h"
 
 #define HASHTABLE_SUPPORT_HASH_SEARCH_INIT_INSTRUCTION_SET_CHECK(NAME, FP) \

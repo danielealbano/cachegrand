@@ -69,7 +69,8 @@ extern "C" {
 
 
 typedef uint8_t hashtable_bucket_key_value_flags_t;
-typedef uint32_t hashtable_bucket_hash_t;
+typedef uint64_t hashtable_bucket_hash_t;
+typedef uint32_t hashtable_bucket_hash_half_t;
 typedef uint32_t hashtable_bucket_index_t;
 typedef hashtable_bucket_index_t hashtable_bucket_count_t;
 typedef uint32_t hashtable_key_size_t;
@@ -78,6 +79,7 @@ typedef uintptr_t hashtable_value_data_t;
 typedef uint8_t hashtable_search_key_or_create_new_ret_t;
 
 typedef _Atomic(hashtable_bucket_hash_t) hashtable_bucket_hash_atomic_t;
+typedef _Atomic(hashtable_bucket_hash_half_t) hashtable_bucket_hash_half_atomic_t;
 
 enum {
     HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED         = 0x01u,
