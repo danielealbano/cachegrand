@@ -13,8 +13,4 @@ TEST_CASE("hashtable_support_hash.c", "[hashtable][hashtable_support][hashtable_
                     test_key_1_len) == test_key_1_hash);
         }
     }
-
-    SECTION("ensure that hash with value 0 is translated into -1") {
-        REQUIRE(hashtable_support_hash_ensure_not_zero(test_hash_zero) != test_hash_zero);
-    }
 }
