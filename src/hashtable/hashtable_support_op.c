@@ -8,6 +8,8 @@
 #include "hashtable.h"
 #include "hashtable_support_index.h"
 #include "hashtable_support_op.h"
+#include "hashtable_support_hash.h"
+#include "hashtable_support_hash_search.h"
 
 // TODO: refactor to merge the functions hashtable_support_op_search_key and
 //       hashtable_support_op_search_key_or_create_new and reorganize the code
@@ -17,62 +19,95 @@ bool hashtable_support_op_search_key(
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_bucket_hash_t hash,
-        hashtable_bucket_index_t *found_index,
-        volatile hashtable_bucket_key_value_t **found_key_value) {
+        hashtable_bucket_hash_half_t hash_half,
+        volatile hashtable_bucket_chain_ring_t **found_chain_ring,
+        hashtable_bucket_chain_ring_index_t *found_chain_ring_index,
+        volatile hashtable_bucket_key_value_t **found_bucket_key_value) {
+
     volatile hashtable_key_data_t* found_bucket_key;
+    volatile hashtable_bucket_t* bucket;
     hashtable_key_size_t found_bucket_key_max_compare_size;
-    hashtable_bucket_index_t index_neighborhood_begin, index_neighborhood_end;
+    hashtable_bucket_index_t bucket_index;
+    hashtable_bucket_chain_ring_index_t ring_index;
+    volatile hashtable_bucket_key_value_t* bucket_key_value;
+    uint32_t skip_indexes;
     bool found = false;
+    bool stop_search = false;
 
-    hashtable_support_index_calculate_neighborhood_from_hash(
-            hashtable_data->buckets_count,
-            hash,
-            hashtable_data->cachelines_to_probe,
-            &index_neighborhood_begin,
-            &index_neighborhood_end);
+    bucket_index = hashtable_support_index_from_hash(hashtable_data->buckets_count, hash);
 
-    for(hashtable_bucket_index_t index = index_neighborhood_begin; index <= index_neighborhood_end; index++) {
-        HASHTABLE_MEMORY_FENCE_LOAD();
+    HASHTABLE_MEMORY_FENCE_LOAD();
 
-        if (hashtable_data->hashes[index] != hash) {
-            continue;
-        }
+    bucket = &hashtable_data->buckets[bucket_index];
 
-        volatile hashtable_bucket_key_value_t* found_bucket_key_value = &hashtable_data->keys_values[index];
-
-        // The key may potentially change if the item is first deleted and then recreated, if it's inline it
-        // doesn't really matter because the key will mismatch and the execution will continue but if the key is
-        // stored externally and the allocated memory is freed it may crash.
-        if (HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(found_bucket_key_value->flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE)) {
-            found_bucket_key = (volatile hashtable_key_data_t*)&found_bucket_key_value->inline_key.data;
-            found_bucket_key_max_compare_size = HASHTABLE_KEY_INLINE_MAX_LENGTH;
-        } else {
-            // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't be freed
-            //       immediately after the bucket is freed because it can be in use and would cause a crash34567
-            found_bucket_key = found_bucket_key_value->external_key.data;
-            found_bucket_key_max_compare_size = found_bucket_key_value->external_key.size;
-        }
-
-        // Stop if hash found but bucket being filled, edge case because of parallelism, if marked as delete continue
-        // and if key doesn't match continue as well. The order of the operations doesn't matter.
-        if (HASHTABLE_BUCKET_KEY_VALUE_IS_EMPTY(found_bucket_key_value->flags)) {
-            break;
-        } else if (HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(
-                found_bucket_key_value->flags,
-                HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED)) {
-            continue;
-        } else if (strncmp(
-                key,
-                (const char *)found_bucket_key,
-                MIN(found_bucket_key_max_compare_size, key_size)) != 0) {
-            continue;
-        }
-
-        *found_index = index;
-        *found_key_value = found_bucket_key_value;
-        found = true;
-        break;
+    if (bucket == NULL || bucket->chain_first_ring == NULL) {
+        return found;
     }
+
+    volatile hashtable_bucket_chain_ring_t *ring = bucket->chain_first_ring;
+    do {
+        skip_indexes = 0;
+        stop_search = false;
+
+        // TODO: with AVX/AVX2 I can get a full match on all the results after the first iteration, no need to re-invoke
+        //       the search function again! The search function should return the bitmask instead of having to re-run
+        //       it entirely every single time
+        HASHTABLE_MEMORY_FENCE_LOAD();
+        while((ring_index = hashtable_support_hash_search(
+                hash_half,
+                (hashtable_bucket_hash_half_atomic_t*)ring->half_hashes,
+                skip_indexes)) != HASHTABLE_SUPPORT_HASH_SEARCH_NOT_FOUND) {
+            // Update the skip indexes in case of another iteration
+            skip_indexes |= 1u << ring_index;
+
+            bucket_key_value = &ring->keys_values[ring_index];
+
+            // Stop if hash found but bucket being filled, edge case because of parallelism, if marked as delete continue
+            // and if key doesn't match continue as well. The order of the operations doesn't matter.
+            if (HASHTABLE_BUCKET_KEY_VALUE_IS_EMPTY(bucket_key_value->flags)) {
+                stop_search = true;
+                break;
+            } else {
+                // The key may potentially change if the item is first deleted and then recreated, if it's inline it
+                // doesn't really matter because the key will mismatch and the execution will continue but if the key is
+                // stored externally and the allocated memory is freed it may crash.
+                if (HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(bucket_key_value->flags,
+                                                        HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE)) {
+                    found_bucket_key = bucket_key_value->inline_key.data;
+                    found_bucket_key_max_compare_size = HASHTABLE_KEY_INLINE_MAX_LENGTH;
+                } else {
+#if CACHEGRAND_HASHTABLE_KEY_CHECK_FULL
+                    // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't
+                    //       be freed immediately after the bucket is freed because it can be in use and would cause a
+                    // crash
+                    found_bucket_key = bucket_key_value->external_key.data;
+                    found_bucket_key_max_compare_size = bucket_key_value->external_key.size;
+#else
+                    found_bucket_key = bucket_key_value->external_key.key_prefix;
+                    found_bucket_key_max_compare_size = HASHTABLE_KEY_EXTERNAL_PREFIX_SIZE;
+#endif // CACHEGRAND_HASHTABLE_KEY_CHECK_FULL
+                }
+
+                if (
+                        (HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(
+                            bucket_key_value->flags,
+                            HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED))
+                        ||
+                        (strncmp(
+                            key,
+                            (const char *) found_bucket_key,
+                            MIN(found_bucket_key_max_compare_size, key_size)) != 0)) {
+                    continue;
+                }
+            }
+
+            *found_chain_ring = ring;
+            *found_chain_ring_index = ring_index;
+            *found_bucket_key_value = bucket_key_value;
+            found = true;
+            break;
+        }
+    } while(found == false && stop_search == false && (ring = ring->next_ring) != NULL);
 
     return found;
 }
