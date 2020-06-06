@@ -20,12 +20,13 @@ extern "C" {
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
-#define HASHTABLE_PRIMENUMBERS_COUNT                        38
-#define HASHTABLE_PRIMENUMBERS_MAX                          4294967291U
+#define HASHTABLE_BUCKET_CHAIN_RING_HASHES_COUNT           14
 #define HASHTABLE_KEY_INLINE_MAX_LENGTH         23
 #define HASHTABLE_KEY_EXTERNAL_PREFIX_SIZE      HASHTABLE_KEY_INLINE_MAX_LENGTH \
                                                 - sizeof(hashtable_key_size_t) \
                                                 - sizeof(hashtable_key_data_t*)
+#define HASHTABLE_PRIMENUMBERS_COUNT            38
+#define HASHTABLE_PRIMENUMBERS_MAX              4294967291U
 
 #define HASHTABLE_PRIMENUMBERS_LIST \
     42U, /* not a prime number, but it's the answer! */ \
@@ -67,6 +68,12 @@ extern "C" {
     3429704039U, \
     4294967291U
 
+typedef __int128 int128_t;
+typedef unsigned __int128 uint128_t;
+
+typedef _Atomic(int128_t) atomic_int128_t;
+typedef _Atomic(uint128_t) atomic_uint128_t;
+
 
 typedef uint8_t hashtable_bucket_key_value_flags_t;
 typedef uint64_t hashtable_bucket_hash_t;
@@ -77,6 +84,7 @@ typedef uint32_t hashtable_key_size_t;
 typedef char hashtable_key_data_t;
 typedef uintptr_t hashtable_value_data_t;
 typedef uint8_t hashtable_search_key_or_create_new_ret_t;
+typedef uint8_t hashtable_bucket_chain_ring_index_t;
 
 typedef _Atomic(hashtable_bucket_hash_t) hashtable_bucket_hash_atomic_t;
 typedef _Atomic(hashtable_bucket_hash_half_t) hashtable_bucket_hash_half_atomic_t;
@@ -134,6 +142,39 @@ struct hashtable_bucket_key_value {
 } __attribute__((aligned(32)));
 
 /**
+ * Struct holding a ring of the hashes chain
+ *
+ * This structure is referenced, through a pointer, from the bucket list in the hashtable or from a pointer in the
+ * bucket itself
+ */
+typedef struct hashtable_bucket_chain_ring hashtable_bucket_chain_ring_t;
+struct hashtable_bucket_chain_ring {
+    volatile hashtable_bucket_chain_ring_t* next_ring;
+    hashtable_bucket_hash_half_atomic_t half_hashes[HASHTABLE_BUCKET_CHAIN_RING_HASHES_COUNT];
+    volatile hashtable_bucket_key_value_t keys_values[HASHTABLE_BUCKET_CHAIN_RING_HASHES_COUNT];
+} __attribute__((aligned(64)));
+
+/**
+ * Structure holding a bucket of hashtable
+ *
+ * It references the first ring of the chain, offer a write lock and a rings_count, the latter should be used only
+ * when the write_lock is in use to avoid performing useless atomic operations.
+ * To update the bucket in an atomic way, _internal_cmpandxcg is exposed on purpose.
+ */
+typedef struct hashtable_bucket hashtable_bucket_t;
+struct hashtable_bucket {
+    union {
+        atomic_uint128_t _internal_cmpandxcg;
+        struct {
+            volatile hashtable_bucket_chain_ring_t* chain_first_ring;
+            uint16_t reserved0;
+            uint16_t rings_count;
+            uint32_t write_lock;
+        };
+    } __attribute__((aligned(16)));
+};
+
+/**
  * Struct holding the hashtable data
  **/
 typedef struct hashtable_data hashtable_data_t;
@@ -141,10 +182,8 @@ struct hashtable_data {
     hashtable_bucket_count_t buckets_count;
     uint64_t t1ha2_seed;
     bool can_be_deleted;
-    size_t hashes_size;
-    size_t keys_values_size;
-    hashtable_bucket_hash_atomic_t* hashes;
-    hashtable_bucket_key_value_t* volatile keys_values;
+    size_t buckets_size;
+    volatile hashtable_bucket_t* buckets;
 };
 
 /**
