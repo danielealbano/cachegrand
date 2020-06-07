@@ -169,7 +169,7 @@ volatile hashtable_bucket_t* hashtable_support_op_bucket_fetch_and_write_lock(
         }
 
         // Try to lock the bucket for writes
-        if (hashtable_support_op_bucket_lock(bucket, false)) {
+        if (hashtable_support_op_bucket_lock(bucket, false) == false) {
             continue;
         }
 
