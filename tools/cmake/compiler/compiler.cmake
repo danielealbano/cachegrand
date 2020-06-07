@@ -3,6 +3,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 if (CMAKE_BUILD_TYPE MATCHES Debug)
     add_definitions(-DDEBUG=1)
+    add_compile_options (-g -O0 -fno-inline)
 else()
     add_definitions(-DNDEBUG=1)
 endif()
