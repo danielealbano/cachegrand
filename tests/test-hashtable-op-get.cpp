@@ -317,7 +317,6 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
 
         SECTION("found - single bucket - get key after delete with hash still in hashes (edge case because of parallelism)") {
             HASHTABLE(buckets_initial_count_5, false, {
-
                 hashtable_bucket_chain_ring_t* chain_ring = HASHTABLE_BUCKET_CHAIN_RING_NEW();
                 hashtable->ht_current->buckets[test_index_1_buckets_count_42].chain_first_ring = chain_ring;
 

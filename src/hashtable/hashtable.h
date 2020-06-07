@@ -20,13 +20,12 @@ extern "C" {
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
-#define HASHTABLE_BUCKET_CHAIN_RING_HASHES_COUNT           14
-#define HASHTABLE_KEY_INLINE_MAX_LENGTH         23
-#define HASHTABLE_KEY_EXTERNAL_PREFIX_SIZE      HASHTABLE_KEY_INLINE_MAX_LENGTH \
-                                                - sizeof(hashtable_key_size_t) \
-                                                - sizeof(hashtable_key_data_t*)
-#define HASHTABLE_PRIMENUMBERS_COUNT            38
-#define HASHTABLE_PRIMENUMBERS_MAX              4294967291U
+#define HASHTABLE_BUCKET_CHAIN_RING_HASHES_COUNT    14
+#define HASHTABLE_KEY_INLINE_MAX_LENGTH             23
+#define HASHTABLE_KEY_PREFIX_SIZE                   HASHTABLE_KEY_INLINE_MAX_LENGTH \
+                                                    - sizeof(hashtable_key_size_t)
+#define HASHTABLE_PRIMENUMBERS_COUNT                38
+#define HASHTABLE_PRIMENUMBERS_MAX                  4294967291U
 
 #define HASHTABLE_PRIMENUMBERS_LIST \
     42U, /* not a prime number, but it's the answer! */ \
