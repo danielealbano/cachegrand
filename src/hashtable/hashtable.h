@@ -157,7 +157,7 @@ struct hashtable_bucket_chain_ring {
  */
 
 #define HASHTABLE_BUCKET_WRITE_LOCK_CLEAR(var)  var & ~((uint128_t)1 << 120u)
-#define HASHTABLE_BUCKET_WRITE_LOCK_SET(var)    var | ~((uint128_t)1 << 120u)
+#define HASHTABLE_BUCKET_WRITE_LOCK_SET(var)    var | ((uint128_t)1 << 120u)
 
 typedef struct hashtable_bucket hashtable_bucket_t;
 struct hashtable_bucket {
