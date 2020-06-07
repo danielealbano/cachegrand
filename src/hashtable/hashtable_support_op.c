@@ -175,7 +175,6 @@ volatile hashtable_bucket_t* hashtable_support_op_bucket_fetch_and_write_lock(
             continue;
         }
 
-
         hashtable_bucket_chain_ring_t* chain_first_ring;
         chain_first_ring = (hashtable_bucket_chain_ring_t*)xalloc_alloc(sizeof(hashtable_bucket_chain_ring_t));
         memset(chain_first_ring, 0, sizeof(hashtable_bucket_chain_ring_t));
