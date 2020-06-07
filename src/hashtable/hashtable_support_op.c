@@ -150,9 +150,9 @@ void hashtable_support_op_bucket_unlock(
 volatile hashtable_bucket_t* hashtable_support_op_bucket_fetch_and_write_lock(
         volatile hashtable_data_t *hashtable_data,
         hashtable_bucket_index_t bucket_index,
-        bool create_new_if_missing) {
+        bool initialize_new_if_missing,
+        bool *initialized) {
     volatile hashtable_bucket_t* bucket;
-    bool created_new = false;
 
     // Ensure that the initial chain ring already exists
     do {
@@ -160,7 +160,7 @@ volatile hashtable_bucket_t* hashtable_support_op_bucket_fetch_and_write_lock(
 
         bucket = &hashtable_data->buckets[bucket_index];
 
-        if (bucket->chain_first_ring != NULL || (bucket->chain_first_ring == NULL && create_new_if_missing == false)) {
+        if (bucket->chain_first_ring != NULL || (bucket->chain_first_ring == NULL && initialize_new_if_missing == false)) {
             break;
         }
 
@@ -183,16 +183,14 @@ volatile hashtable_bucket_t* hashtable_support_op_bucket_fetch_and_write_lock(
         bucket->chain_first_ring = chain_first_ring;
         HASHTABLE_MEMORY_FENCE_STORE();
 
-        created_new = true;
-
-        break;
-    } while(true);
+        *initialized = true;
+    } while(*initialized == false);
 
     if (bucket->chain_first_ring == NULL) {
         return NULL;
     }
 
-    if (created_new == false) {
+    if (*initialized == false) {
         hashtable_support_op_bucket_lock(bucket, true);
     }
 
@@ -219,7 +217,7 @@ bool hashtable_support_op_search_key_or_create_new(
     volatile hashtable_bucket_key_value_t* bucket_key_value;
     hashtable_bucket_chain_ring_index_t ring_index;
     volatile hashtable_bucket_chain_ring_t *ring;
-    bool write_lock_set = false;
+    bool bucket_newly_initialized = false;
     bool stop_search = false;
     bool found;
 
@@ -228,7 +226,8 @@ bool hashtable_support_op_search_key_or_create_new(
     bucket = hashtable_support_op_bucket_fetch_and_write_lock(
             hashtable_data,
             bucket_index,
-            create_new_if_missing);
+            create_new_if_missing,
+            &bucket_newly_initialized);
 
     if (bucket == NULL) {
         return false;

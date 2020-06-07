@@ -38,7 +38,8 @@ void hashtable_support_op_bucket_unlock(
 volatile hashtable_bucket_t* hashtable_support_op_bucket_fetch_and_write_lock(
         volatile hashtable_data_t *hashtable_data,
         hashtable_bucket_index_t bucket_index,
-        bool create_new_if_missing);
+        bool initialize_new_if_missing,
+        bool *initialized);
 
 #ifdef __cplusplus
 }
