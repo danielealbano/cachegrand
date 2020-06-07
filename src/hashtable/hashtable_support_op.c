@@ -23,14 +23,13 @@ bool hashtable_support_op_search_key(
         volatile hashtable_bucket_chain_ring_t **found_chain_ring,
         hashtable_bucket_chain_ring_index_t *found_chain_ring_index,
         volatile hashtable_bucket_key_value_t **found_bucket_key_value) {
-
     volatile hashtable_key_data_t* found_bucket_key;
     volatile hashtable_bucket_t* bucket;
     hashtable_key_size_t found_bucket_key_max_compare_size;
     hashtable_bucket_index_t bucket_index;
     hashtable_bucket_chain_ring_index_t ring_index;
     volatile hashtable_bucket_key_value_t* bucket_key_value;
-    uint32_t skip_indexes;
+    uint32_t skip_indexes_mask;
     bool found = false;
     bool stop_search = false;
 
@@ -45,8 +44,9 @@ bool hashtable_support_op_search_key(
     }
 
     volatile hashtable_bucket_chain_ring_t *ring = bucket->chain_first_ring;
+
     do {
-        skip_indexes = 0;
+        skip_indexes_mask = 0;
         stop_search = false;
 
         // TODO: with AVX/AVX2 I can get a full match on all the results after the first iteration, no need to re-invoke
@@ -56,9 +56,10 @@ bool hashtable_support_op_search_key(
         while((ring_index = hashtable_support_hash_search(
                 hash_half,
                 (hashtable_bucket_hash_half_atomic_t*)ring->half_hashes,
-                skip_indexes)) != HASHTABLE_SUPPORT_HASH_SEARCH_NOT_FOUND) {
+                skip_indexes_mask)) != HASHTABLE_SUPPORT_HASH_SEARCH_NOT_FOUND) {
+
             // Update the skip indexes in case of another iteration
-            skip_indexes |= 1u << ring_index;
+            skip_indexes_mask |= 1u << ring_index;
 
             bucket_key_value = &ring->keys_values[ring_index];
 
