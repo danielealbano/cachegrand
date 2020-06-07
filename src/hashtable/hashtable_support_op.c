@@ -219,7 +219,7 @@ bool hashtable_support_op_search_key_or_create_new(
     volatile hashtable_bucket_chain_ring_t *ring;
     bool bucket_newly_initialized = false;
     bool stop_search = false;
-    bool found;
+    bool found = false;
 
     bucket_index = hashtable_support_index_from_hash(hashtable_data->buckets_count, hash);
 
@@ -232,6 +232,8 @@ bool hashtable_support_op_search_key_or_create_new(
     if (bucket == NULL) {
         return false;
     }
+
+    *found_bucket = bucket;
 
     for(
             uint8_t searching_or_creating = 0;
