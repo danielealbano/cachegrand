@@ -133,7 +133,7 @@ bool hashtable_support_op_bucket_lock(
 
         write_lock_set = __sync_bool_compare_and_swap(
                 &bucket->_internal_cmpandxcg,
-                &expected_value,
+                expected_value,
                 new_value);
     } while(!write_lock_set && retry == true);
 
