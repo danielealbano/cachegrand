@@ -5,13 +5,7 @@
 extern "C" {
 #endif
 
-#if defined(__clang__) && defined(__has_feature)
-#if !__has_feature(c_atomic)
-
-#endif
-#else
 #define _Atomic(T) T volatile
-#endif
 
 #define HASHTABLE_MEMORY_FENCE_LOAD() atomic_thread_fence(memory_order_acquire)
 #define HASHTABLE_MEMORY_FENCE_STORE() atomic_thread_fence(memory_order_release)
