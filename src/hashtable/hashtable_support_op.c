@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 #include <string.h>
+#include <sched.h>
 
 #include "xalloc.h"
 #include "hashtable.h"
@@ -164,14 +165,16 @@ volatile hashtable_bucket_t* hashtable_support_op_bucket_fetch_and_write_lock(
         }
 
         if (bucket->write_lock == 1) {
-            // TODO: sched_yield
+            sched_yield();
             continue;
         }
 
         // Try to lock the bucket for writes
         if (hashtable_support_op_bucket_lock(bucket, false) == false) {
+            sched_yield();
             continue;
         }
+
 
         hashtable_bucket_chain_ring_t* chain_first_ring;
         chain_first_ring = (hashtable_bucket_chain_ring_t*)xalloc_alloc(sizeof(hashtable_bucket_chain_ring_t));
