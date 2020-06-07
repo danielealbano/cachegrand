@@ -13,4 +13,10 @@ TEST_CASE("hashtable_support_hash.c", "[hashtable][hashtable_support][hashtable_
                     test_key_1_len) == test_key_1_hash);
         }
     }
+
+    SECTION("hashtable_support_hash_half") {
+        SECTION("test hash half calculation") {
+            REQUIRE(hashtable_support_hash_half(test_key_1_hash) == test_key_1_hash_half);
+        }
+    }
 }

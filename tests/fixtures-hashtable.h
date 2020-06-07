@@ -23,6 +23,7 @@ hashtable_bucket_hash_t test_hash_zero = 0;
 char test_key_1[] = "test key 1";
 hashtable_key_size_t test_key_1_len = 10;
 hashtable_bucket_hash_t test_key_1_hash = (hashtable_bucket_hash_t)0xf1bdcc8aaccb614c;
+hashtable_bucket_hash_half_t test_key_1_hash_half = test_key_1_hash >> 32u;
 hashtable_bucket_index_t test_index_1_buckets_count_42 = test_key_1_hash % buckets_count_42;
 
 char test_key_1_kv_1[] = "test key 1_same_bucket_42_0036";
