@@ -64,9 +64,8 @@ extern "C" {
 typedef __int128 int128_t;
 typedef unsigned __int128 uint128_t;
 
-typedef _Atomic(int128_t) atomic_int128_t;
-typedef _Atomic(uint128_t) atomic_uint128_t;
-
+typedef _Atomic(int128_t) int128_atomic_t;
+typedef _Atomic(uint128_t) uint128_atomic_t;
 
 typedef uint8_t hashtable_bucket_key_value_flags_t;
 typedef uint64_t hashtable_bucket_hash_t;
