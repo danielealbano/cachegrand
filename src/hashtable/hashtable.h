@@ -124,11 +124,14 @@ struct hashtable_bucket_key_value {
         struct {
             hashtable_key_size_t size;          // 4 bytes
             hashtable_key_data_t* data;         // 8 bytes
-            hashtable_key_data_t key_prefix[HASHTABLE_KEY_EXTERNAL_PREFIX_SIZE];
         } __attribute__((packed)) external_key;
         struct {
+            hashtable_key_size_t size;          // 4 bytes
+            hashtable_key_data_t data[HASHTABLE_KEY_PREFIX_SIZE];
+        } __attribute__((packed)) prefix_key;
+        struct {
             hashtable_key_data_t data[HASHTABLE_KEY_INLINE_MAX_LENGTH];
-        } inline_key;
+        } __attribute__((packed)) inline_key;
     };
 
     hashtable_value_data_t data;                // 8 byte

@@ -76,15 +76,23 @@ bool hashtable_support_op_search_key(
                     found_bucket_key = bucket_key_value->inline_key.data;
                     found_bucket_key_max_compare_size = HASHTABLE_KEY_INLINE_MAX_LENGTH;
                 } else {
-#if CACHEGRAND_HASHTABLE_KEY_CHECK_FULL
+#if defined(CACHEGRAND_HASHTABLE_KEY_CHECK_FULL)
                     // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't
                     //       be freed immediately after the bucket is freed because it can be in use and would cause a
-                    // crash
+                    //       crash
                     found_bucket_key = bucket_key_value->external_key.data;
                     found_bucket_key_max_compare_size = bucket_key_value->external_key.size;
+
+                    if (bucket_key_value->external_key.size != key_size) {
+                        continue;
+                    }
 #else
-                    found_bucket_key = bucket_key_value->external_key.key_prefix;
-                    found_bucket_key_max_compare_size = HASHTABLE_KEY_EXTERNAL_PREFIX_SIZE;
+                    found_bucket_key = bucket_key_value->prefix_key.data;
+                    found_bucket_key_max_compare_size = HASHTABLE_KEY_PREFIX_SIZE;
+
+                    if (bucket_key_value->prefix_key.size != key_size) {
+                        continue;
+                    }
 #endif // CACHEGRAND_HASHTABLE_KEY_CHECK_FULL
                 }
 
@@ -96,7 +104,7 @@ bool hashtable_support_op_search_key(
                         (strncmp(
                             key,
                             (const char *) found_bucket_key,
-                            MIN(found_bucket_key_max_compare_size, key_size)) != 0)) {
+                            found_bucket_key_max_compare_size) != 0)) {
                     continue;
                 }
             }

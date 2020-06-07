@@ -84,9 +84,6 @@ hashtable_bucket_index_t test_index_2_buckets_count_42 = test_key_2_hash % bucke
     var; \
 })
 
-#define HASHTABLE_BUCKET_CHAIN_RING_FREE(chain_ring) \
-    xalloc_free(chain_ring);
-
 #define HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_SHARED(chain_ring, chain_ring_index, hash, value) \
     chain_ring->half_hashes[chain_ring_index] = hash >> 32u; \
     chain_ring->keys_values[chain_ring_index].data = value;
@@ -103,7 +100,8 @@ hashtable_bucket_index_t test_index_2_buckets_count_42 = test_key_2_hash % bucke
         HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED; \
     chain_ring->keys_values[chain_ring_index].external_key.data = key; \
     chain_ring->keys_values[chain_ring_index].external_key.size = key_size; \
-    strncpy((char*)&chain_ring->keys_values[chain_ring_index].external_key.key_prefix, key, HASHTABLE_KEY_EXTERNAL_PREFIX_SIZE);
+    chain_ring->keys_values[chain_ring_index].prefix_key.size = key_size; \
+    strncpy((char*)&chain_ring->keys_values[chain_ring_index].prefix_key.data, key, HASHTABLE_KEY_PREFIX_SIZE);
 
 #define HASHTABLE_BUCKET_NEW_KEY_INLINE(bucket_index, hash, key, key_size, value) \
     hashtable_bucket_chain_ring_t* chain_ring = HASHTABLE_BUCKET_CHAIN_RING_NEW(); \
