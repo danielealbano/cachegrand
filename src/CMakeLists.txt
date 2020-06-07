@@ -15,6 +15,9 @@ target_link_libraries(cachegrand-internal t1ha2)
 target_include_directories(cachegrand-internal PUBLIC "../3rdparty/t1ha/")
 target_include_directories(cachegrand-internal PUBLIC ".")
 
+# Force GCC to emit cmpxchg16b inline (supported only on x86_64 platforms)
+target_compile_options(cachegrand-internal PRIVATE -mcx16)
+
 IF(WIN32)
     target_link_libraries(cachegrand-internal imagehlp)
 ENDIF(WIN32)

@@ -5,6 +5,7 @@
 #include <stdatomic.h>
 #include <string.h>
 
+#include "xalloc.h"
 #include "hashtable.h"
 #include "hashtable_support_index.h"
 #include "hashtable_support_op.h"
@@ -122,6 +123,82 @@ bool hashtable_support_op_search_key(
 }
 
 hashtable_search_key_or_create_new_ret_t hashtable_support_op_search_key_or_create_new(
+bool hashtable_support_op_bucket_lock(
+        volatile hashtable_bucket_t* bucket,
+        bool retry) {
+    bool write_lock_set = false;
+
+    uint128_t new_value = HASHTABLE_BUCKET_WRITE_LOCK_SET(bucket->_internal_cmpandxcg);
+
+    // Acquire the lock on the bucket
+    do {
+        uint128_t expected_value = HASHTABLE_BUCKET_WRITE_LOCK_CLEAR(bucket->_internal_cmpandxcg);
+
+        write_lock_set = __sync_bool_compare_and_swap(
+                &bucket->_internal_cmpandxcg,
+                &expected_value,
+                new_value);
+    } while(!write_lock_set && retry == true);
+
+    return write_lock_set;
+}
+
+void hashtable_support_op_bucket_unlock(
+        volatile hashtable_bucket_t* bucket) {
+    bucket->write_lock = 0;
+    HASHTABLE_MEMORY_FENCE_STORE();
+}
+
+volatile hashtable_bucket_t* hashtable_support_op_bucket_fetch_and_write_lock(
+        volatile hashtable_data_t *hashtable_data,
+        hashtable_bucket_index_t bucket_index,
+        bool create_new_if_missing) {
+    volatile hashtable_bucket_t* bucket;
+    bool created_new = false;
+
+    // Ensure that the initial chain ring already exists
+    do {
+        HASHTABLE_MEMORY_FENCE_LOAD();
+
+        bucket = &hashtable_data->buckets[bucket_index];
+
+        if (bucket->chain_first_ring != NULL || (bucket->chain_first_ring == NULL && create_new_if_missing == false)) {
+            break;
+        }
+
+        if (bucket->write_lock == 1) {
+            // TODO: sched_yield
+            continue;
+        }
+
+        // Try to lock the bucket for writes
+        if (hashtable_support_op_bucket_lock(bucket, false)) {
+            continue;
+        }
+
+        hashtable_bucket_chain_ring_t* chain_first_ring;
+        chain_first_ring = (hashtable_bucket_chain_ring_t*)xalloc_alloc(sizeof(hashtable_bucket_chain_ring_t));
+        memset(chain_first_ring, 0, sizeof(hashtable_bucket_chain_ring_t));
+
+        bucket->chain_first_ring = chain_first_ring;
+        HASHTABLE_MEMORY_FENCE_STORE();
+
+        created_new = true;
+
+        break;
+    } while(true);
+
+    if (bucket->chain_first_ring == NULL) {
+        return NULL;
+    }
+
+    if (created_new == false) {
+        hashtable_support_op_bucket_lock(bucket, true);
+    }
+
+    return bucket;
+}
+
         volatile hashtable_data_t *hashtable_data,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,

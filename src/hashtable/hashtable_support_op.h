@@ -24,6 +24,18 @@ hashtable_search_key_or_create_new_ret_t hashtable_support_op_search_key_or_crea
         hashtable_bucket_index_t *found_index,
         volatile hashtable_bucket_key_value_t **found_key_value);
 
+bool hashtable_support_op_bucket_lock(
+        volatile hashtable_bucket_t* bucket,
+        bool retry);
+
+void hashtable_support_op_bucket_unlock(
+        volatile hashtable_bucket_t* bucket);
+
+volatile hashtable_bucket_t* hashtable_support_op_bucket_fetch_and_write_lock(
+        volatile hashtable_data_t *hashtable_data,
+        hashtable_bucket_index_t bucket_index,
+        bool create_new_if_missing);
+
 #ifdef __cplusplus
 }
 #endif
