@@ -154,16 +154,22 @@ struct hashtable_bucket_chain_ring {
  * when the write_lock is in use to avoid performing useless atomic operations.
  * To update the bucket in an atomic way, _internal_cmpandxcg is exposed on purpose.
  */
+
+#define HASHTABLE_BUCKET_WRITE_LOCK_CLEAR(var)  var & ~((uint128_t)1 << 120u)
+#define HASHTABLE_BUCKET_WRITE_LOCK_SET(var)    var | ~((uint128_t)1 << 120u)
+
 typedef struct hashtable_bucket hashtable_bucket_t;
 struct hashtable_bucket {
     union {
-        atomic_uint128_t _internal_cmpandxcg;
+        uint128_t _internal_cmpandxcg;
         struct {
             volatile hashtable_bucket_chain_ring_t* chain_first_ring;
             uint16_t reserved0;
-            uint16_t rings_count;
-            uint32_t write_lock;
-        };
+            uint16_t reserved1;
+            uint16_t reserved2;
+            uint8_t reserved3;
+            uint8_t write_lock;
+        } __attribute__((packed));
     } __attribute__((aligned(16)));
 };
 
