@@ -112,7 +112,7 @@ TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
 
                 hashtable_bucket_index_t bucket_index2 = hashtable_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
-                        test_key_1_hash);
+                        test_key_2_hash);
 
                 volatile hashtable_bucket_chain_ring_t* chain_ring2 =
                         hashtable->ht_current->buckets[bucket_index2].chain_first_ring;
