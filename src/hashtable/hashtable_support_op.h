@@ -15,13 +15,17 @@ bool hashtable_support_op_search_key(
         hashtable_bucket_chain_ring_index_t *found_chain_ring_index,
         volatile hashtable_bucket_key_value_t **found_bucket_key_value);
 
-hashtable_search_key_or_create_new_ret_t hashtable_support_op_search_key_or_create_new(
+bool hashtable_support_op_search_key_or_create_new(
         volatile hashtable_data_t *hashtable_data,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_bucket_hash_t hash,
+        hashtable_bucket_hash_half_t hash_half,
+        bool create_new_if_missing,
         bool *created_new,
-        hashtable_bucket_index_t *found_index,
+        volatile hashtable_bucket_t **found_bucket,
+        volatile hashtable_bucket_chain_ring_t **found_chain_ring,
+        hashtable_bucket_chain_ring_index_t *found_chain_ring_index,
         volatile hashtable_bucket_key_value_t **found_key_value);
 
 bool hashtable_support_op_bucket_lock(

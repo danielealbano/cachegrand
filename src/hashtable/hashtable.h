@@ -75,7 +75,6 @@ typedef hashtable_bucket_index_t hashtable_bucket_count_t;
 typedef uint32_t hashtable_key_size_t;
 typedef char hashtable_key_data_t;
 typedef uintptr_t hashtable_value_data_t;
-typedef uint8_t hashtable_search_key_or_create_new_ret_t;
 typedef uint8_t hashtable_bucket_chain_ring_index_t;
 
 typedef _Atomic(hashtable_bucket_hash_t) hashtable_bucket_hash_atomic_t;
