@@ -160,14 +160,21 @@ volatile hashtable_bucket_t* hashtable_support_op_bucket_fetch_and_write_lock(
 
         bucket = &hashtable_data->buckets[bucket_index];
 
-        if (bucket->chain_first_ring != NULL || (bucket->chain_first_ring == NULL && initialize_new_if_missing == false)) {
-            break;
-        }
-
         // Try to lock the bucket for writes
         if (hashtable_support_op_bucket_lock(bucket, false) == false) {
             sched_yield();
             continue;
+        }
+
+        if (
+                bucket->chain_first_ring != NULL ||
+                (bucket->chain_first_ring == NULL && initialize_new_if_missing == false)) {
+
+            if (initialize_new_if_missing == false) {
+                hashtable_support_op_bucket_unlock(bucket);
+            }
+
+            break;
         }
 
         hashtable_bucket_chain_ring_t* chain_first_ring;
@@ -182,10 +189,6 @@ volatile hashtable_bucket_t* hashtable_support_op_bucket_fetch_and_write_lock(
 
     if (bucket->chain_first_ring == NULL) {
         return NULL;
-    }
-
-    if (*initialized == false) {
-        hashtable_support_op_bucket_lock(bucket, true);
     }
 
     return bucket;
