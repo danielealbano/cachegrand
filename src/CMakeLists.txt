@@ -16,7 +16,7 @@ target_include_directories(cachegrand-internal PUBLIC "../3rdparty/t1ha/")
 target_include_directories(cachegrand-internal PUBLIC ".")
 
 # Force GCC to emit cmpxchg16b inline (supported only on x86_64 platforms)
-target_compile_options(cachegrand-internal PRIVATE -mcx16)
+target_compile_options(cachegrand-internal PUBLIC -mcx16)
 
 IF(WIN32)
     target_link_libraries(cachegrand-internal imagehlp)
@@ -27,25 +27,19 @@ list(FILTER SRC_FILES_CACHEGRAND_HASHTABLE EXCLUDE REGEX ".*hashtable_support_ha
 list(APPEND SRC_FILES_CACHEGRAND_HASHTABLE "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_loop.c")
 
 if(ARCH_IS_X86_64)
-    # Check for AVX2 and BMI
-    if(COMPILER_HAS_MAVX2_FLAG AND COMPILER_HAS_MBMI_FLAG)
-        message(STATUS "Enabling accelerated hash search -- avx2")
-        list(APPEND SRC_FILES_CACHEGRAND_HASHTABLE "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_avx2.c")
-        set_source_files_properties(
-                "hashtable/hashtable_support_hash_search_avx2.c"
-                PROPERTIES COMPILE_FLAGS
-                "-mno-avx256-split-unaligned-load -mavx2 -mbmi")
-    endif(COMPILER_HAS_MAVX2_FLAG AND COMPILER_HAS_MBMI_FLAG)
+    message(STATUS "Enabling accelerated hash search -- avx2")
+    list(APPEND SRC_FILES_CACHEGRAND_HASHTABLE "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_avx2.c")
+    set_source_files_properties(
+            "hashtable/hashtable_support_hash_search_avx2.c"
+            PROPERTIES COMPILE_FLAGS
+            "-mno-avx256-split-unaligned-load -mavx2 -mbmi")
 
-    # Check for AVX and BMI
-    if(COMPILER_HAS_MAVX_FLAG AND COMPILER_HAS_MBMI_FLAG)
-        message(STATUS "Enabling accelerated hash search -- avx")
-        list(APPEND SRC_FILES_CACHEGRAND_HASHTABLE "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_avx.c")
-        set_source_files_properties(
-                "hashtable/hashtable_support_hash_search_avx.c"
-                PROPERTIES COMPILE_FLAGS
-                "-mno-avx256-split-unaligned-load -mavx -mbmi")
-    endif(COMPILER_HAS_MAVX_FLAG AND COMPILER_HAS_MBMI_FLAG)
+    message(STATUS "Enabling accelerated hash search -- avx")
+    list(APPEND SRC_FILES_CACHEGRAND_HASHTABLE "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_avx.c")
+    set_source_files_properties(
+            "hashtable/hashtable_support_hash_search_avx.c"
+            PROPERTIES COMPILE_FLAGS
+            "-mno-avx256-split-unaligned-load -mno-avx2 -mavx -mbmi")
 elseif(ARCH_IS_AARCH64)
 # TODO
 else()
