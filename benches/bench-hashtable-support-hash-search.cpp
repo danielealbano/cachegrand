@@ -2,28 +2,13 @@
 #include <stdint.h>
 #include <stdint.h>
 #include <immintrin.h>
+
 #include <benchmark/benchmark.h>
 
-#include "cpu.h"
+#include "bench-support.h"
+
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_support_hash_search.h"
-
-void set_thread_affinity(int thread_index) {
-#if !defined(__MINGW32__)
-    int res;
-    cpu_set_t cpuset;
-    pthread_t thread;
-
-    CPU_ZERO(&cpuset);
-    CPU_SET(thread_index % psnip_cpu_count(), &cpuset);
-
-    thread = pthread_self();
-    res = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
-    if (res != 0) {
-        perror("pthread_setaffinity_np");
-    }
-#endif
-}
 
 uint32_t* init_hashes() {
     uint32_t* __attribute__((aligned(16))) hashes =
@@ -41,7 +26,6 @@ uint32_t* init_hashes() {
 #define BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_FUNC_WRAPPER(METHOD, SUFFIX, ...) \
     void bench_template_hashtable_support_hash_search_##METHOD##_##SUFFIX(benchmark::State& state) { \
         uint32_t* hashes = NULL; \
-        hashtable_support_hash_search_fp_t hashtable_support_hash_search_method = hashtable_support_hash_search_##METHOD; \
         \
         set_thread_affinity(state.thread_index); \
         \
@@ -60,7 +44,9 @@ uint32_t* init_hashes() {
         volatile uint32_t skip_hashes = 0x04 | 0x100 | 0x400; \
         hashtable_bucket_hash_half_atomic_t hashes[] =  { 8, 1, 13, 4, 9, 0, 5, 11, 3, 12, 7, 2, 15, 14, 6, 10 }; \
         for(uint8_t i = 0; i < sizeof(hashes) / sizeof(uint32_t); i++) { \
-            benchmark::DoNotOptimize(hashtable_support_hash_search_method(hashes[i], hashes, skip_hashes)); \
+            benchmark::DoNotOptimize( \
+                hashtable_support_hash_search_##METHOD##_8(hashes[i], hashes, skip_hashes) \
+                ); \
         } \
     })
 
