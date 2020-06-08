@@ -5,12 +5,12 @@
 #include <string.h>
 
 #include "xalloc.h"
+#include "memory_fences.h"
 
-#include "hashtable.h"
-#include "hashtable_op_set.h"
-#include "hashtable_support_index.h"
-#include "hashtable_support_hash.h"
-#include "hashtable_support_op.h"
+#include "hashtable/hashtable.h"
+#include "hashtable/hashtable_op_set.h"
+#include "hashtable/hashtable_support_hash.h"
+#include "hashtable/hashtable_support_op.h"
 
 bool hashtable_op_set(
         hashtable_t *hashtable,
@@ -21,9 +21,10 @@ bool hashtable_op_set(
     hashtable_bucket_hash_t hash;
     hashtable_bucket_hash_half_t hash_half;
     volatile hashtable_bucket_t* bucket;
-    volatile hashtable_bucket_chain_ring_t* bucket_chain_ring;
-    hashtable_bucket_chain_ring_index_t bucket_chain_ring_index;
+    hashtable_bucket_index_t bucket_index;
+    hashtable_bucket_slot_index_t bucket_slot_index;
     volatile hashtable_bucket_key_value_t* bucket_key_value;
+
     hashtable_key_data_t* ht_key;
 
     hash = hashtable_support_hash_calculate(key, key_size);
@@ -40,21 +41,30 @@ bool hashtable_op_set(
         true,
         &created_new,
         &bucket,
-        &bucket_chain_ring,
-        &bucket_chain_ring_index,
+        &bucket_index,
+        &bucket_slot_index,
         &bucket_key_value);
 
     if (ret == false) {
+#if HASHTABLE_BUCKET_FEATURE_USE_LOCK == 1
         if (bucket) {
             hashtable_support_op_bucket_unlock(bucket);
         }
-
+#endif // HASHTABLE_BUCKET_FEATURE_USE_LOCK == 1
         return false;
     }
 
     HASHTABLE_MEMORY_FENCE_LOAD();
 
-    if (created_new) {
+    bucket_key_value->data = value;
+
+    if (!created_new) {
+        HASHTABLE_MEMORY_FENCE_LOAD();
+
+        if (HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(bucket_key_value->flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED)) {
+            return false;
+        }
+    } else {
         hashtable_bucket_key_value_flags_t flags = 0;
 
         // Get the destination pointer for the key
@@ -83,15 +93,17 @@ bool hashtable_op_set(
         // Set the FILLED flag (drops the deleted flag as well)
         HASHTABLE_BUCKET_KEY_VALUE_SET_FLAG(flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED);
 
+        HASHTABLE_MEMORY_FENCE_STORE();
+
         // Update the flags atomically
         bucket_key_value->flags = flags;
     }
 
-    bucket_key_value->data = value;
-
     HASHTABLE_MEMORY_FENCE_STORE();
 
+#if HASHTABLE_BUCKET_FEATURE_USE_LOCK == 1
     hashtable_support_op_bucket_unlock(bucket);
+#endif // HASHTABLE_BUCKET_FEATURE_USE_LOCK == 1
 
     return true;
 }

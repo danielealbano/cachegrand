@@ -7,11 +7,15 @@ extern "C" {
 
 #define _Atomic(T) T volatile
 
-#define HASHTABLE_MEMORY_FENCE_LOAD() atomic_thread_fence(memory_order_acquire)
-#define HASHTABLE_MEMORY_FENCE_STORE() atomic_thread_fence(memory_order_release)
-#define HASHTABLE_MEMORY_FENCE_LOAD_STORE() atomic_thread_fence(memory_order_acq_rel)
+#ifndef HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES
+#define HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES      0
+#endif // HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES
 
-#define HASHTABLE_BUCKET_CHAIN_RING_SLOTS_COUNT     8
+#ifndef HASHTABLE_BUCKET_FEATURE_USE_LOCK
+#define HASHTABLE_BUCKET_FEATURE_USE_LOCK               0
+#endif // HASHTABLE_BUCKET_FEATURE_USE_LOCK
+
+#define HASHTABLE_BUCKET_SLOTS_COUNT                13
 #define HASHTABLE_KEY_INLINE_MAX_LENGTH             23
 #define HASHTABLE_KEY_PREFIX_SIZE                   HASHTABLE_KEY_INLINE_MAX_LENGTH \
                                                     - sizeof(hashtable_key_size_t)
@@ -62,15 +66,14 @@ typedef __int128 int128_t;
 typedef unsigned __int128 uint128_t;
 
 typedef uint8_t hashtable_bucket_key_value_flags_t;
-typedef uint8_t hashtable_bucket_chain_ring_flags_t;
 typedef uint64_t hashtable_bucket_hash_t;
 typedef uint32_t hashtable_bucket_hash_half_t;
 typedef uint32_t hashtable_bucket_index_t;
+typedef uint8_t hashtable_bucket_slot_index_t;
 typedef hashtable_bucket_index_t hashtable_bucket_count_t;
 typedef uint32_t hashtable_key_size_t;
 typedef char hashtable_key_data_t;
 typedef uintptr_t hashtable_value_data_t;
-typedef uint8_t hashtable_bucket_chain_ring_index_t;
 
 typedef _Atomic(hashtable_bucket_hash_t) hashtable_bucket_hash_atomic_t;
 typedef _Atomic(hashtable_bucket_hash_half_t) hashtable_bucket_hash_half_atomic_t;
@@ -79,10 +82,6 @@ enum {
     HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED         = 0x01u,
     HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED          = 0x02u,
     HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE      = 0x04u,
-};
-
-enum {
-    HASHTABLE_BUCKET_CHAIN_RING_FLAG_FULL           = 0x01u
 };
 
 #define HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(flags, flag) \
@@ -129,44 +128,41 @@ struct hashtable_bucket_key_value {
 } __attribute__((aligned(32)));
 
 /**
- * Struct holding a ring of the hashes chain
- *
- * This structure is referenced, through a pointer, from the bucket list in the hashtable or from a pointer in the
- * bucket itself
- */
-typedef struct hashtable_bucket_chain_ring hashtable_bucket_chain_ring_t;
-struct hashtable_bucket_chain_ring {
-    volatile hashtable_bucket_chain_ring_t* next_ring;
-    hashtable_bucket_hash_half_atomic_t half_hashes[HASHTABLE_BUCKET_CHAIN_RING_SLOTS_COUNT];
-    volatile hashtable_bucket_key_value_t keys_values[HASHTABLE_BUCKET_CHAIN_RING_SLOTS_COUNT];
-    hashtable_bucket_chain_ring_flags_t flags;
-} __attribute__((aligned(64)));
-
-/**
  * Structure holding a bucket of hashtable
  *
- * It references the first ring of the chain, offer a write lock and a rings_count, the latter should be used only
- * when the write_lock is in use to avoid performing useless atomic operations.
- * To update the bucket in an atomic way, _internal_cmpandxcg is exposed on purpose.
+ * Each bucket contains write lock, a pointer to the keys and the values referenced in this bucket and 13 half hashes.
+ * The 13 half hashes are matched by 13 hashtable_bucket_key_value_t and a combo of half hash plus a kv represents a slot.
+ * The size has been tuned to fit exactly 1 cache line on x86 system, on systems with bigger cache lines there maybe a
+ * slow down caused by the false sharing but the alternative would be to add some padding and not to increase the amount
+ * of the half hashes to avoid wasting too much memory.
+ *
+ * The order of the elements of the struct is required to be half hashes / write lock / padding / pointer to keys_values
+ * otherwise the compiler will have to add padding to align the elements properly
  */
-
-#define HASHTABLE_BUCKET_WRITE_LOCK_CLEAR(var)  var & ~((uint128_t)1 << 120u)
-#define HASHTABLE_BUCKET_WRITE_LOCK_SET(var)    var | ((uint128_t)1 << 120u)
 
 typedef struct hashtable_bucket hashtable_bucket_t;
 struct hashtable_bucket {
-    union {
-        uint128_t _internal_cmpandxcg;
-        struct {
-            volatile hashtable_bucket_chain_ring_t* chain_first_ring;
-            uint16_t reserved0;
-            uint16_t reserved1;
-            uint16_t reserved2;
-            uint8_t reserved3;
-            uint8_t write_lock;
-        } __attribute__((packed));
-    } __attribute__((aligned(16)));
-};
+#if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
+    // Pointer to keys_values (8 bytes)
+    volatile hashtable_bucket_key_value_t* keys_values;
+#endif // HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
+
+    // Half hashes (52 bytes | 4 * 13)
+    hashtable_bucket_hash_half_atomic_t half_hashes[HASHTABLE_BUCKET_SLOTS_COUNT];
+
+    // Write lock plus padding (4 bytes)
+    uint8_t write_lock;
+    uint8_t padding0[3];
+
+#if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 1
+    // More padding to align the keys_values at the end of the cacheline and keep them aligned
+    uint8_t padding1[8];
+
+    // Pointer to keys_values (416 bytes | 32 * 13)
+    volatile hashtable_bucket_key_value_t keys_values[HASHTABLE_BUCKET_SLOTS_COUNT];
+#endif // HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 1
+
+} __attribute__((aligned(64)));
 
 /**
  * Struct holding the hashtable data

@@ -1,11 +1,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <t1ha.h>
 
-#include "hashtable.h"
-#include "hashtable_support_index.h"
-#include "hashtable_support_primenumbers.h"
+#include "hashtable/hashtable.h"
+#include "hashtable/hashtable_support_index.h"
+#include "hashtable/hashtable_support_primenumbers.h"
 
 hashtable_bucket_index_t hashtable_support_index_from_hash(
         hashtable_bucket_count_t buckets_count,

@@ -11,8 +11,9 @@ bool hashtable_support_op_search_key(
         hashtable_key_size_t key_size,
         hashtable_bucket_hash_t hash,
         hashtable_bucket_hash_half_t hash_half,
-        volatile hashtable_bucket_chain_ring_t **found_chain_ring,
-        hashtable_bucket_chain_ring_index_t *found_chain_ring_index,
+        volatile hashtable_bucket_t **found_bucket,
+        hashtable_bucket_index_t *found_bucket_index,
+        hashtable_bucket_slot_index_t *found_bucket_slot_index,
         volatile hashtable_bucket_key_value_t **found_bucket_key_value);
 
 bool hashtable_support_op_search_key_or_create_new(
@@ -24,9 +25,9 @@ bool hashtable_support_op_search_key_or_create_new(
         bool create_new_if_missing,
         bool *created_new,
         volatile hashtable_bucket_t **found_bucket,
-        volatile hashtable_bucket_chain_ring_t **found_chain_ring,
-        hashtable_bucket_chain_ring_index_t *found_chain_ring_index,
-        volatile hashtable_bucket_key_value_t **found_key_value);
+        hashtable_bucket_index_t *found_bucket_index,
+        hashtable_bucket_slot_index_t *found_bucket_slot_index,
+        volatile hashtable_bucket_key_value_t **found_bucket_key_value);
 
 bool hashtable_support_op_bucket_lock(
         volatile hashtable_bucket_t* bucket,

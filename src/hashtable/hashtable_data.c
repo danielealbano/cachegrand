@@ -6,10 +6,9 @@
 #include "xalloc.h"
 #include "log.h"
 
-#include "hashtable.h"
-#include "hashtable_data.h"
-#include "hashtable_support_primenumbers.h"
-#include "hashtable_support_index.h"
+#include "hashtable/hashtable.h"
+#include "hashtable/hashtable_data.h"
+#include "hashtable/hashtable_support_primenumbers.h"
 
 static const char* TAG = "hashtable/data";
 
@@ -29,33 +28,22 @@ hashtable_data_t* hashtable_data_init(hashtable_bucket_count_t buckets_count) {
     return hashtable_data;
 }
 
-void hashtable_data_free_buckets_chain_rings(volatile hashtable_bucket_t* bucket) {
-    volatile hashtable_bucket_chain_ring_t* chain_ring = bucket->chain_first_ring;
-    while(chain_ring != NULL) {
-        volatile hashtable_bucket_chain_ring_t* next = chain_ring->next_ring;
-
-        xalloc_free((void*)chain_ring);
-
-        chain_ring = next;
-    }
-}
-
+#if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
 void hashtable_data_free_buckets(hashtable_data_t* hashtable_data) {
     for(hashtable_bucket_index_t index = 0; index < hashtable_data->buckets_count; index++) {
-        if (&hashtable_data->buckets[index]) {
+        if (hashtable_data->buckets[index].keys_values == NULL) {
             continue;
         }
 
-        volatile hashtable_bucket_t* bucket = &hashtable_data->buckets[index];
-
-        hashtable_data_free_buckets_chain_rings(bucket);
-
-        xalloc_mmap_free((void*)bucket, sizeof(hashtable_bucket_t));
+        xalloc_free((hashtable_bucket_key_value_t*)hashtable_data->buckets[index].keys_values);
     }
 }
+#endif
 
 void hashtable_data_free(hashtable_data_t* hashtable_data) {
+#if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
     hashtable_data_free_buckets(hashtable_data);
+#endif
     xalloc_mmap_free((void*)hashtable_data->buckets, hashtable_data->buckets_size);
     xalloc_free((void*)hashtable_data);
 }

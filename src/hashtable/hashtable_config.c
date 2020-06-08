@@ -5,9 +5,8 @@
 
 #include "xalloc.h"
 
-#include "hashtable.h"
-#include "hashtable_config.h"
-#include "hashtable_support_primenumbers.h"
+#include "hashtable/hashtable.h"
+#include "hashtable/hashtable_config.h"
 
 hashtable_config_t* hashtable_config_init() {
     hashtable_config_t* hashtable_config = (hashtable_config_t*)xalloc_alloc(sizeof(hashtable_config_t));

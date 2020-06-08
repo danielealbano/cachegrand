@@ -3,11 +3,11 @@
 #include <stdbool.h>
 
 #include "xalloc.h"
-#include "hashtable.h"
-#include "hashtable_config.h"
-#include "hashtable_data.h"
-#include "hashtable_support_primenumbers.h"
-#include "hashtable_support_hash_search.h"
+
+#include "hashtable/hashtable.h"
+#include "hashtable/hashtable_config.h"
+#include "hashtable/hashtable_data.h"
+#include "hashtable/hashtable_support_primenumbers.h"
 
 hashtable_t* hashtable_init(hashtable_config_t* hashtable_config) {
     hashtable_bucket_count_t buckets_count = hashtable_support_primenumbers_next(hashtable_config->initial_size);
