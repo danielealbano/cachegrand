@@ -43,9 +43,9 @@ uint32_t* init_hashes() {
     BENCH_TEMPLATE_HASHTABLE_SUPPORT_HASH_SEARCH_FUNC_WRAPPER(METHOD, full, { \
         volatile uint32_t skip_hashes = 0x04 | 0x100 | 0x400; \
         hashtable_bucket_hash_half_atomic_t hashes[] =  { 8, 1, 13, 4, 9, 0, 5, 11, 3, 12, 7, 2, 15, 14, 6, 10 }; \
-        for(uint8_t i = 0; i < sizeof(hashes) / sizeof(uint32_t); i++) { \
+        for(uint8_t i = 0; i < 13; i++) { \
             benchmark::DoNotOptimize( \
-                hashtable_support_hash_search_##METHOD##_8(hashes[i], hashes, skip_hashes) \
+                hashtable_support_hash_search_##METHOD##_13(hashes[i], hashes, skip_hashes) \
                 ); \
         } \
     })
