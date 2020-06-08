@@ -16,7 +16,6 @@
 
 #define RANDOM_KEYS_MIN_LENGTH              5
 #define RANDOM_KEYS_MAX_LENGTH              30
-#define RANDOM_KEYS_TO_PREGENERATE_COUNT    200732527U
 #define RANDOM_KEYS_CHARACTER_SET_LIST      'q','w','e','r','t','y','u','i','o','p','a','s','d','f','g','h','j','k', \
                                             'l','z','x','c','v','b','n','m', \
                                             'q','w','e','r','t','y','u','i','o','p','a','s','d','f','g','h','j','k', \
@@ -77,58 +76,47 @@
     SET_BENCH_ITERATIONS-> \
     SET_BENCH_THREADS
 
-static char* keys_RANDOM_KEYS_GEN_FUNC_MAX_LENGTH = nullptr;
-static char* keys_RANDOM_KEYS_GEN_FUNC_RANDOM_LENGTH = nullptr;
-
 char* build_keys_random_max_length(uint64_t count) {
-    if (keys_RANDOM_KEYS_GEN_FUNC_MAX_LENGTH == nullptr) {
-        char keys_character_set_list[] = { RANDOM_KEYS_CHARACTER_SET_LIST };
-        char* keys = (char*)xalloc_mmap_alloc(count * RANDOM_KEYS_MAX_LENGTH);
+    char keys_character_set_list[] = { RANDOM_KEYS_CHARACTER_SET_LIST };
+    char* keys = (char*)xalloc_mmap_alloc(count * RANDOM_KEYS_MAX_LENGTH);
 
-        char* keys_current = keys;
-        for(uint64_t i = 0; i < count; i++) {
-            for(uint8_t i2 = 0; i2 < RANDOM_KEYS_MAX_LENGTH - 1; i2++) {
-                *keys_current = keys_character_set_list[random_generate() % RANDOM_KEYS_CHARACTER_SET_SIZE];
-                keys_current++;
-            }
-            *keys_current=0;
+    char* keys_current = keys;
+    for(uint64_t i = 0; i < count; i++) {
+        for(uint8_t i2 = 0; i2 < RANDOM_KEYS_MAX_LENGTH - 1; i2++) {
+            *keys_current = keys_character_set_list[random_generate() % RANDOM_KEYS_CHARACTER_SET_SIZE];
             keys_current++;
-
-            assert((keys_current - keys) % RANDOM_KEYS_MAX_LENGTH != 0);
         }
+        *keys_current=0;
+        keys_current++;
 
-        keys_RANDOM_KEYS_GEN_FUNC_MAX_LENGTH = keys;
+        assert((keys_current - keys) % RANDOM_KEYS_MAX_LENGTH != 0);
     }
 
-    return keys_RANDOM_KEYS_GEN_FUNC_MAX_LENGTH;
+    return keys;
 }
 
 char* build_keys_random_random_length(uint64_t count) {
-    if (keys_RANDOM_KEYS_GEN_FUNC_RANDOM_LENGTH == nullptr) {
-        char keys_character_set_list[] = {RANDOM_KEYS_CHARACTER_SET_LIST};
-        char *keys = (char *) xalloc_mmap_alloc(count * RANDOM_KEYS_MAX_LENGTH);
+    char keys_character_set_list[] = {RANDOM_KEYS_CHARACTER_SET_LIST};
+    char *keys = (char *) xalloc_mmap_alloc(count * RANDOM_KEYS_MAX_LENGTH);
 
-        char *keys_current = keys;
+    char *keys_current = keys;
 
-        for (uint64_t i = 0; i < count; i++) {
-            uint8_t i2;
-            uint8_t length =
-                    ((random_generate() % (RANDOM_KEYS_MAX_LENGTH - RANDOM_KEYS_MIN_LENGTH)) + RANDOM_KEYS_MIN_LENGTH) -
-                    1;
-            for (i2 = 0; i2 < length; i2++) {
-                *keys_current = keys_character_set_list[random_generate() % RANDOM_KEYS_CHARACTER_SET_SIZE];
-                keys_current++;
-            }
-            *keys_current = 0;
-            keys_current += RANDOM_KEYS_MAX_LENGTH - length;
-
-            assert((keys_current - keys) % RANDOM_KEYS_MAX_LENGTH != 0);
+    for (uint64_t i = 0; i < count; i++) {
+        uint8_t i2;
+        uint8_t length =
+                ((random_generate() % (RANDOM_KEYS_MAX_LENGTH - RANDOM_KEYS_MIN_LENGTH)) + RANDOM_KEYS_MIN_LENGTH) -
+                1;
+        for (i2 = 0; i2 < length; i2++) {
+            *keys_current = keys_character_set_list[random_generate() % RANDOM_KEYS_CHARACTER_SET_SIZE];
+            keys_current++;
         }
+        *keys_current = 0;
+        keys_current += RANDOM_KEYS_MAX_LENGTH - length;
 
-        keys_RANDOM_KEYS_GEN_FUNC_RANDOM_LENGTH = keys;
+        assert((keys_current - keys) % RANDOM_KEYS_MAX_LENGTH != 0);
     }
 
-    return keys_RANDOM_KEYS_GEN_FUNC_RANDOM_LENGTH;
+    return keys;
 }
 
 
@@ -150,9 +138,9 @@ static void hashtable_op_set_new(benchmark::State& state) {
 
     if (state.thread_index == 0) {
         if (state.range(2) == RANDOM_KEYS_GEN_FUNC_MAX_LENGTH) {
-            keys = build_keys_random_max_length(RANDOM_KEYS_TO_PREGENERATE_COUNT);
+            keys = build_keys_random_max_length(state.range(0));
         } else {
-            keys = build_keys_random_random_length(RANDOM_KEYS_TO_PREGENERATE_COUNT);
+            keys = build_keys_random_random_length(state.range(0));
         }
 
         hashtable_config = hashtable_config_init();
@@ -188,6 +176,7 @@ static void hashtable_op_set_new(benchmark::State& state) {
 
     if (state.thread_index == 0) {
         hashtable_free(hashtable);
+        free_keys(keys, state.range(0));
     }
 }
 
@@ -199,9 +188,9 @@ static void hashtable_op_set_update(benchmark::State& state) {
 
     if (state.thread_index == 0) {
         if (state.range(2) == RANDOM_KEYS_GEN_FUNC_MAX_LENGTH) {
-            keys = build_keys_random_max_length(RANDOM_KEYS_TO_PREGENERATE_COUNT);
+            keys = build_keys_random_max_length(state.range(0));
         } else {
-            keys = build_keys_random_random_length(RANDOM_KEYS_TO_PREGENERATE_COUNT);
+            keys = build_keys_random_random_length(state.range(0));
         }
 
         hashtable_config = hashtable_config_init();
@@ -246,14 +235,9 @@ static void hashtable_op_set_update(benchmark::State& state) {
     }
 
     if (state.thread_index == 0) {
+
         hashtable_free(hashtable);
-    }
-}
-
-
-        }
-
-        }
+        free_keys(keys, state.range(0));
     }
 }
 
