@@ -119,11 +119,64 @@ char* build_keys_random_random_length(uint64_t count) {
     return keys;
 }
 
+void collect_hashtable_stats(
+        hashtable_t* hashtable,
+        uint64_t* return_used_buckets,
+        double* return_load_factor_buckets,
+        double* return_used_avg_chain_rings,
+        double* return_used_avg_chain_ring_slots,
+        uint64_t* return_max_chain_rings,
+        uint64_t* return_max_chain_ring_slots) {
+    volatile hashtable_data_t* ht_data = hashtable->ht_current;
+    volatile hashtable_bucket_t* buckets = ht_data->buckets;
 
+    uint64_t used_buckets = 0;
+    double used_avg_chain_rings = 0;
+    double used_avg_chain_ring_slots = 0;
+    uint64_t max_chain_rings = 0;
+    uint64_t max_chain_ring_slots = 0;
 
+    for(hashtable_bucket_index_t bucket_index = 0; bucket_index < ht_data->buckets_count; bucket_index++) {
+        volatile hashtable_bucket_chain_ring_t* chain_ring = buckets[bucket_index].chain_first_ring;
+        uint64_t current_chain_rings = 0;
+        uint64_t current_chain_ring_slots = 0;
 
+        if (chain_ring == nullptr) {
+            continue;
+        }
+
+        used_buckets++;
+
+        do {
+            used_avg_chain_rings++;
+            current_chain_rings++;
+
+            for(
+                    uint8_t chain_ring_index = 0;
+                    chain_ring_index < HASHTABLE_BUCKET_CHAIN_RING_SLOTS_COUNT;
+                    chain_ring_index++) {
+                if (chain_ring->half_hashes[chain_ring_index] != 0) {
+                    used_avg_chain_ring_slots++;
+                    current_chain_ring_slots++;
+                }
+            }
+        } while((chain_ring = chain_ring->next_ring) != nullptr);
+
+        if (current_chain_rings > max_chain_rings) {
+            max_chain_rings = current_chain_rings;
+        }
+
+        if (current_chain_ring_slots > max_chain_ring_slots) {
+            max_chain_ring_slots = current_chain_ring_slots;
+        }
     }
 
+    *return_used_buckets = used_buckets;
+    *return_max_chain_rings = max_chain_rings;
+    *return_max_chain_ring_slots = max_chain_ring_slots;
+    *return_used_avg_chain_rings = (double)used_avg_chain_rings / (double)used_buckets;
+    *return_used_avg_chain_ring_slots = (double)used_avg_chain_ring_slots / (double)used_buckets;
+    *return_load_factor_buckets = (double)used_buckets / (double)ht_data->buckets_count;
 }
 
 void free_keys(char* keys, uint64_t count) {
@@ -175,6 +228,26 @@ static void hashtable_op_set_new(benchmark::State& state) {
     }
 
     if (state.thread_index == 0) {
+        uint64_t used_buckets;
+        double load_factor_buckets;
+        double used_avg_chain_rings;
+        double used_avg_chain_ring_slots;
+        uint64_t max_chain_rings;
+        uint64_t max_chain_ring_slots;
+        collect_hashtable_stats(
+                hashtable, &used_buckets, &load_factor_buckets, &used_avg_chain_rings,
+                &used_avg_chain_ring_slots, &max_chain_rings, &max_chain_ring_slots);
+
+        state.counters["total_buckets"] = state.range(0);
+        state.counters["keys_to_insert"] = state.range(1);
+        state.counters["load_factor"] = (double)state.range(1) / (double)state.range(0);
+        state.counters["used_buckets"] = used_buckets;
+        state.counters["load_factor_buckets"] = load_factor_buckets;
+        state.counters["used_avg_chain_rings"] = used_avg_chain_rings;
+        state.counters["used_avg_chain_ring_slots"] = used_avg_chain_ring_slots;
+        state.counters["max_chain_rings"] = max_chain_rings;
+        state.counters["max_chain_ring_slots"] = max_chain_ring_slots;
+
         hashtable_free(hashtable);
         free_keys(keys, state.range(0));
     }
@@ -235,6 +308,25 @@ static void hashtable_op_set_update(benchmark::State& state) {
     }
 
     if (state.thread_index == 0) {
+        uint64_t used_buckets;
+        double load_factor_buckets;
+        double used_avg_chain_rings;
+        double used_avg_chain_ring_slots;
+        uint64_t max_chain_rings;
+        uint64_t max_chain_ring_slots;
+        collect_hashtable_stats(
+                hashtable, &used_buckets, &load_factor_buckets, &used_avg_chain_rings,
+                &used_avg_chain_ring_slots, &max_chain_rings, &max_chain_ring_slots);
+
+        state.counters["total_buckets"] = state.range(0);
+        state.counters["keys_to_insert"] = state.range(1);
+        state.counters["load_factor"] = (double)state.range(1) / (double)state.range(0);
+        state.counters["used_buckets"] = used_buckets;
+        state.counters["load_factor_buckets"] = load_factor_buckets;
+        state.counters["used_avg_chain_rings"] = used_avg_chain_rings;
+        state.counters["used_avg_chain_ring_slots"] = used_avg_chain_ring_slots;
+        state.counters["max_chain_rings"] = max_chain_rings;
+        state.counters["max_chain_ring_slots"] = max_chain_ring_slots;
 
         hashtable_free(hashtable);
         free_keys(keys, state.range(0));
