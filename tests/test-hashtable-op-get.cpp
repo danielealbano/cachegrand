@@ -109,76 +109,25 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
                 hashtable_bucket_chain_ring_t* chain_ring = HASHTABLE_BUCKET_CHAIN_RING_NEW();
                 hashtable->ht_current->buckets[test_index_1_buckets_count_42].chain_first_ring = chain_ring;
 
-                HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                        chain_ring,
-                        1,
-                        test_key_1_kv_1_hash,
-                        test_key_1_kv_1,
-                        test_key_1_kv_1_len,
-                        test_value_1 + 1);
-                HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                        chain_ring,
-                        2,
-                        test_key_1_kv_2_hash,
-                        test_key_1_kv_2,
-                        test_key_1_kv_2_len,
-                        test_value_1 + 2);
-                HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                        chain_ring,
-                        3,
-                        test_key_1_kv_3_hash,
-                        test_key_1_kv_3,
-                        test_key_1_kv_3_len,
-                        test_value_1 + 3);
-                HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                        chain_ring,
-                        4,
-                        test_key_1_kv_4_hash,
-                        test_key_1_kv_4,
-                        test_key_1_kv_4_len,
-                        test_value_1 + 4);
-                HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                        chain_ring,
-                        5,
-                        test_key_1_kv_5_hash,
-                        test_key_1_kv_5,
-                        test_key_1_kv_5_len,
-                        test_value_1 + 5);
+                for(uint32_t i = 0; i < HASHTABLE_BUCKET_CHAIN_RING_SLOTS_COUNT; i++) {
+                    HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
+                            chain_ring,
+                            i,
+                            test_key_1_same_bucket[i].key_hash,
+                            test_key_1_same_bucket[i].key,
+                            test_key_1_same_bucket[i].key_len,
+                            test_value_1 + i);
+                }
 
-                REQUIRE(hashtable_op_get(
-                        hashtable,
-                        test_key_1_kv_1,
-                        test_key_1_kv_1_len,
-                        &value));
-                REQUIRE(value == test_value_1 + 1);
 
-                REQUIRE(hashtable_op_get(
-                        hashtable,
-                        test_key_1_kv_2,
-                        test_key_1_kv_2_len,
-                        &value));
-                REQUIRE(value == test_value_1 + 2);
-
-                REQUIRE(hashtable_op_get(
-                        hashtable,
-                        test_key_1_kv_3,
-                        test_key_1_kv_3_len,
-                        &value));
-                REQUIRE(value == test_value_1 + 3);
-
-                REQUIRE(hashtable_op_get(
-                        hashtable,
-                        test_key_1_kv_4,
-                        test_key_1_kv_4_len,
-                        &value));
-                REQUIRE(value == test_value_1 + 4);
-
-                REQUIRE(hashtable_op_get(
-                        hashtable,
-                        test_key_1_kv_5,
-                        test_key_1_kv_5_len,
-                        &value));
-                REQUIRE(value == test_value_1 + 5);
+                for(uint32_t i = 0; i < HASHTABLE_BUCKET_CHAIN_RING_SLOTS_COUNT; i++) {
+                    REQUIRE(hashtable_op_get(
+                            hashtable,
+                            (char*)test_key_1_same_bucket[i].key,
+                            test_key_1_same_bucket[i].key_len,
+                            &value));
+                    REQUIRE(value == test_value_1 + i);
+                }
             })
         }
 
@@ -195,71 +144,71 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
                 HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
                         chain_ring1,
                         1,
-                        test_key_1_kv_1_hash,
-                        test_key_1_kv_1,
-                        test_key_1_kv_1_len,
+                        test_key_1_same_bucket[1].key_hash,
+                        test_key_1_same_bucket[1].key,
+                        test_key_1_same_bucket[1].key_len,
                         test_value_1 + 1);
                 HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
                         chain_ring1,
                         2,
-                        test_key_1_kv_2_hash,
-                        test_key_1_kv_2,
-                        test_key_1_kv_2_len,
+                        test_key_1_same_bucket[2].key_hash,
+                        test_key_1_same_bucket[2].key,
+                        test_key_1_same_bucket[2].key_len,
                         test_value_1 + 2);
                 HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
                         chain_ring2,
                         3,
-                        test_key_1_kv_3_hash,
-                        test_key_1_kv_3,
-                        test_key_1_kv_3_len,
+                        test_key_1_same_bucket[3].key_hash,
+                        test_key_1_same_bucket[3].key,
+                        test_key_1_same_bucket[3].key_len,
                         test_value_1 + 3);
                 HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
                         chain_ring3,
                         4,
-                        test_key_1_kv_4_hash,
-                        test_key_1_kv_4,
-                        test_key_1_kv_4_len,
+                        test_key_1_same_bucket[4].key_hash,
+                        test_key_1_same_bucket[4].key,
+                        test_key_1_same_bucket[4].key_len,
                         test_value_1 + 4);
                 HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
                         chain_ring3,
                         5,
-                        test_key_1_kv_5_hash,
-                        test_key_1_kv_5,
-                        test_key_1_kv_5_len,
+                        test_key_1_same_bucket[5].key_hash,
+                        test_key_1_same_bucket[5].key,
+                        test_key_1_same_bucket[5].key_len,
                         test_value_1 + 5);
 
                 REQUIRE(hashtable_op_get(
                         hashtable,
-                        test_key_1_kv_1,
-                        test_key_1_kv_1_len,
+                        (char*)test_key_1_same_bucket[1].key,
+                        test_key_1_same_bucket[1].key_len,
                         &value));
                 REQUIRE(value == test_value_1 + 1);
 
                 REQUIRE(hashtable_op_get(
                         hashtable,
-                        test_key_1_kv_2,
-                        test_key_1_kv_2_len,
+                        (char*)test_key_1_same_bucket[2].key,
+                        test_key_1_same_bucket[2].key_len,
                         &value));
                 REQUIRE(value == test_value_1 + 2);
 
                 REQUIRE(hashtable_op_get(
                         hashtable,
-                        test_key_1_kv_3,
-                        test_key_1_kv_3_len,
+                        (char*)test_key_1_same_bucket[3].key,
+                        test_key_1_same_bucket[3].key_len,
                         &value));
                 REQUIRE(value == test_value_1 + 3);
 
                 REQUIRE(hashtable_op_get(
                         hashtable,
-                        test_key_1_kv_4,
-                        test_key_1_kv_4_len,
+                        (char*)test_key_1_same_bucket[4].key,
+                        test_key_1_same_bucket[4].key_len,
                         &value));
                 REQUIRE(value == test_value_1 + 4);
 
                 REQUIRE(hashtable_op_get(
                         hashtable,
-                        test_key_1_kv_5,
-                        test_key_1_kv_5_len,
+                        (char*)test_key_1_same_bucket[5].key,
+                        test_key_1_same_bucket[5].key_len,
                         &value));
                 REQUIRE(value == test_value_1 + 5);
             })

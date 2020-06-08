@@ -138,5 +138,37 @@ TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
                 REQUIRE(chain_ring2->keys_values[0].data == test_value_2);
             })
         }
+
+        SECTION("fill multiple chain rings - key with same prefix - key not inline") {
+            HASHTABLE(buckets_initial_count_5, false, {
+                uint32_t slots_to_fill = (HASHTABLE_BUCKET_CHAIN_RING_SLOTS_COUNT * 3) + 3;
+
+                for(uint32_t i = 0; i < slots_to_fill; i++) {
+                    REQUIRE(hashtable_op_set(
+                            hashtable,
+                            (char*)test_key_1_same_bucket[i].key,
+                            test_key_1_same_bucket[i].key_len,
+                            test_value_1 + i));
+                }
+
+                volatile hashtable_bucket_chain_ring_t* chain_ring =
+                        hashtable->ht_current->buckets[test_index_1_buckets_count_42].chain_first_ring;
+
+                for(uint32_t i = 0; i < slots_to_fill; i++) {
+                    uint8_t slot_index = i % 8;
+                    if (slot_index == 0 && i > 0) {
+                        chain_ring = chain_ring->next_ring;
+                    }
+
+                    REQUIRE(chain_ring->half_hashes[slot_index] == test_key_1_same_bucket[i].key_hash_half);
+                    REQUIRE(chain_ring->keys_values[slot_index].flags == HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED);
+                    REQUIRE(strncmp(
+                            (char*)chain_ring->keys_values[slot_index].prefix_key.data,
+                            test_key_1_same_bucket[i].key,
+                            HASHTABLE_KEY_PREFIX_SIZE) == 0);
+                    REQUIRE(chain_ring->keys_values[slot_index].data == test_value_1 + i);
+                }
+            })
+        }
     }
 }
