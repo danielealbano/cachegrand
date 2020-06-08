@@ -1,10 +1,15 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <sched.h>
 #include <pthread.h>
 
 #include "cpu.h"
+
+bool check_if_too_many_threads_per_core(int threads, int max_threads_per_core) {
+    return (threads / psnip_cpu_count()) > max_threads_per_core;
+}
 
 void set_thread_affinity(int thread_index) {
 #if !defined(__MINGW32__)

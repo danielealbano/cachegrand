@@ -14,6 +14,7 @@
 
 #include "../tests/fixtures-hashtable.h"
 
+#define BENCHES_MAX_THREADS_PER_CORE        4
 #define RANDOM_KEYS_MIN_LENGTH              5
 #define RANDOM_KEYS_MAX_LENGTH              30
 #define RANDOM_KEYS_CHARACTER_SET_LIST      'q','w','e','r','t','y','u','i','o','p','a','s','d','f','g','h','j','k', \
@@ -68,7 +69,13 @@
     Threads(2)-> \
     Threads(4)-> \
     Threads(8)-> \
-    Threads(16)
+    Threads(16)-> \
+    Threads(32)-> \
+    Threads(64)-> \
+    Threads(128)-> \
+    Threads(256)-> \
+    Threads(512)-> \
+    Threads(1024)
 
 #define CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS(keys_gen_func_name) \
     UseRealTime()-> \
@@ -189,6 +196,12 @@ static void hashtable_op_set_new(benchmark::State& state) {
     static char* keys;
     char error_message[150] = {0};
 
+    if (check_if_too_many_threads_per_core(state.threads, BENCHES_MAX_THREADS_PER_CORE)) {
+        sprintf(error_message, "Too many threads per core, max allowed <%d>", BENCHES_MAX_THREADS_PER_CORE);
+        state.SkipWithError(error_message);
+        return;
+    }
+
     if (state.thread_index == 0) {
         if (state.range(2) == RANDOM_KEYS_GEN_FUNC_MAX_LENGTH) {
             keys = build_keys_random_max_length(state.range(0));
@@ -258,6 +271,12 @@ static void hashtable_op_set_update(benchmark::State& state) {
     static hashtable_t* hashtable;
     static char* keys;
     char error_message[150] = {0};
+
+    if (check_if_too_many_threads_per_core(state.threads, BENCHES_MAX_THREADS_PER_CORE)) {
+        sprintf(error_message, "Too many threads per core, max allowed <%d>", BENCHES_MAX_THREADS_PER_CORE);
+        state.SkipWithError(error_message);
+        return;
+    }
 
     if (state.thread_index == 0) {
         if (state.range(2) == RANDOM_KEYS_GEN_FUNC_MAX_LENGTH) {
