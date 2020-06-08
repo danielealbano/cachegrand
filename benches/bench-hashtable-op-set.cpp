@@ -271,7 +271,7 @@ static void hashtable_op_set_update(benchmark::State& state) {
         hashtable_config->can_auto_resize = false;
         hashtable = hashtable_init(hashtable_config);
 
-        for(long int i = state.thread_index; i < state.range(1); i += state.threads) {
+        for(long int i = 0; i < state.range(1); i++) {
             char* key = keys + (RANDOM_KEYS_MAX_LENGTH * i);
 
             bool result = hashtable_op_set(
@@ -296,7 +296,7 @@ static void hashtable_op_set_update(benchmark::State& state) {
     set_thread_affinity(state.thread_index);
 
     for (auto _ : state) {
-        for(int i = state.thread_index; i < state.range(1); i += state.threads) {
+        for(long int i = state.thread_index; i < state.range(1); i += state.threads) {
             char* key = keys + (RANDOM_KEYS_MAX_LENGTH * i);
 
             bool result = hashtable_op_set(
