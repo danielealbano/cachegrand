@@ -132,25 +132,15 @@ char* build_keys_random_random_length(uint64_t count) {
     return keys_RANDOM_KEYS_GEN_FUNC_RANDOM_LENGTH;
 }
 
-void free_keys(char* keys, uint64_t count) {
-    xalloc_mmap_free(keys, count * RANDOM_KEYS_MAX_LENGTH);
+
+
+
+    }
+
 }
 
-void set_thread_affinity(int thread_index) {
-#if !defined(__MINGW32__)
-    int res;
-    cpu_set_t cpuset;
-    pthread_t thread;
-
-    CPU_ZERO(&cpuset);
-    CPU_SET(thread_index, &cpuset);
-
-    thread = pthread_self();
-    res = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
-    if (res != 0) {
-        handle_error_en(res, "pthread_setaffinity_np");
-    }
-#endif
+void free_keys(char* keys, uint64_t count) {
+    xalloc_mmap_free(keys, count * RANDOM_KEYS_MAX_LENGTH);
 }
 
 static void hashtable_op_set_new(benchmark::State& state) {
