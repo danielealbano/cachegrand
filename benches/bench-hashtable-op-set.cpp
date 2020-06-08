@@ -1,15 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
 
 #include <benchmark/benchmark.h>
 
+#include "bench-support.h"
+
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_config.h"
-#include "hashtable/hashtable_support_index.h"
 #include "hashtable/hashtable_op_set.h"
-#include "hashtable/hashtable_op_delete.h"
 #include "xalloc.h"
 #include "random.h"
 
