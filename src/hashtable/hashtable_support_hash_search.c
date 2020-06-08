@@ -2,30 +2,24 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "cpu.h"
 #include "hashtable.h"
 #include "hashtable_support_hash_search.h"
 
-static bool hashtable_support_hash_search_select_instruction_set_invoked = false;
+hashtable_bucket_chain_ring_index_t hashtable_support_hash_search(
+        hashtable_bucket_hash_half_t hash,
+        hashtable_bucket_hash_half_atomic_t* hashes,
+        uint32_t skip_indexes)
+__attribute__ ((ifunc ("hashtable_support_hash_search_resolve")));
 
-#define HASHTABLE_SUPPORT_HASH_SEARCH_INIT_INSTRUCTION_SET_CHECK(NAME, FP) \
-    if (psnip_cpu_feature_check(NAME)) { \
-        hashtable_support_hash_search = FP; \
-    }
-
-void hashtable_support_hash_search_select_instruction_set() {
-    if (hashtable_support_hash_search_select_instruction_set_invoked) {
-        return;
-    }
-
-    hashtable_support_hash_search = hashtable_support_hash_search_loop;
-
+static void *hashtable_support_hash_search_resolve(void)
+{
 #if defined(PSNIP_CPU_ARCH_X86_64)
-    HASHTABLE_SUPPORT_HASH_SEARCH_INIT_INSTRUCTION_SET_CHECK(
-            PSNIP_CPU_FEATURE_X86_AVX, hashtable_support_hash_search_avx);
-    HASHTABLE_SUPPORT_HASH_SEARCH_INIT_INSTRUCTION_SET_CHECK(
-            PSNIP_CPU_FEATURE_X86_AVX2, hashtable_support_hash_search_avx2);
+    if (__builtin_cpu_supports("avx2")) {
+        return HASHTABLE_SUPPORT_HASH_SEARCH_METHOD_SIZE(avx2, 8);
+    } else if (__builtin_cpu_supports("avx")) {
+        return HASHTABLE_SUPPORT_HASH_SEARCH_METHOD_SIZE(avx, 8);
+    }
 #endif
-    
-    hashtable_support_hash_search_select_instruction_set_invoked = true;
+
+    return HASHTABLE_SUPPORT_HASH_SEARCH_METHOD_SIZE(loop, 8);
 }
