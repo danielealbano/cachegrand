@@ -4,12 +4,15 @@
 #include <stdatomic.h>
 #include <string.h>
 
-#include "hashtable.h"
-#include "hashtable_support_index.h"
-#include "hashtable_op_delete.h"
-#include "hashtable_support_hash.h"
-#include "hashtable_support_op.h"
+#include "memory_fences.h"
 
+#include "hashtable/hashtable.h"
+#include "hashtable/hashtable_support_index.h"
+#include "hashtable/hashtable_op_delete.h"
+#include "hashtable/hashtable_support_hash.h"
+#include "hashtable/hashtable_support_op.h"
+
+// TODO: support the new data structure
 bool hashtable_op_delete(
         hashtable_t* hashtable,
         hashtable_key_data_t* key,
@@ -18,7 +21,7 @@ bool hashtable_op_delete(
     hashtable_bucket_index_t bucket_index;
     volatile hashtable_bucket_key_value_t* bucket_key_value;
     bool deleted = false;
-
+/*
     hash = hashtable_support_hash_calculate(key, key_size);
 
     volatile hashtable_data_t* hashtable_data_list[] = {
@@ -42,7 +45,6 @@ bool hashtable_op_delete(
                 key,
                 key_size,
                 hash,
-                &bucket_index,
                 &bucket_key_value) == false) {
             continue;
         }
@@ -53,6 +55,6 @@ bool hashtable_op_delete(
 
         deleted = true;
     }
-
+*/
     return deleted;
 }

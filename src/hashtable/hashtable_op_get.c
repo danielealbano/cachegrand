@@ -4,11 +4,13 @@
 #include <stdatomic.h>
 #include <string.h>
 
-#include "hashtable.h"
-#include "hashtable_op_get.h"
-#include "hashtable_support_index.h"
-#include "hashtable_support_hash.h"
-#include "hashtable_support_op.h"
+#include "memory_fences.h"
+
+#include "hashtable/hashtable.h"
+#include "hashtable/hashtable_op_get.h"
+#include "hashtable/hashtable_support_index.h"
+#include "hashtable/hashtable_support_hash.h"
+#include "hashtable/hashtable_support_op.h"
 
 bool hashtable_op_get(
         hashtable_t *hashtable,
@@ -16,13 +18,17 @@ bool hashtable_op_get(
         hashtable_key_size_t key_size,
         hashtable_value_data_t *data) {
     hashtable_bucket_hash_t hash;
+    hashtable_bucket_hash_half_t hash_half;
+    volatile hashtable_bucket_t* bucket;
     hashtable_bucket_index_t bucket_index;
+    hashtable_bucket_slot_index_t bucket_slot_index;
     volatile hashtable_bucket_key_value_t* bucket_key_value;
 
     bool data_found = false;
     *data = 0;
 
     hash = hashtable_support_hash_calculate(key, key_size);
+    hash_half = hashtable_support_hash_half(hash);
 
     volatile hashtable_data_t* hashtable_data_list[] = {
             hashtable->ht_current,
@@ -42,33 +48,23 @@ bool hashtable_op_get(
             continue;
         }
 
-        if (hashtable_support_op_search_key(hashtable_data, key, key_size, hash, &bucket_index, &bucket_key_value) == false) {
+        if (hashtable_support_op_search_key(
+                hashtable_data,
+                key,
+                key_size,
+                hash,
+                hash_half,
+                &bucket,
+                &bucket_index,
+                &bucket_slot_index,
+                &bucket_key_value) == false) {
             continue;
         }
-
-        /**
-         * Two memory load fences are required to ensure that the CPU reads in sequence the data first and the
-         * hash/flags after
-         */
 
         HASHTABLE_MEMORY_FENCE_LOAD();
 
         *data = bucket_key_value->data;
         data_found = true;
-
-        HASHTABLE_MEMORY_FENCE_LOAD();
-        if (
-                hashtable_data->hashes[bucket_index] != hash
-                ||
-                HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(
-                        bucket_key_value->flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED)
-                ||
-                HASHTABLE_BUCKET_KEY_VALUE_IS_EMPTY(
-                        bucket_key_value->flags)
-                ) {
-            *data = 0;
-            data_found = false;
-        }
 
         break;
     }

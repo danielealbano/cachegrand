@@ -92,7 +92,7 @@ void* xalloc_mmap_alloc(size_t size) {
             -1,
             0);
 
-    if (memptr < 0) {
+    if (memptr == (void *)-1) {
         failed = true;
     }
 #elif defined(__MINGW32__)

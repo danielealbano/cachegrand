@@ -6,54 +6,44 @@
 #include "xalloc.h"
 #include "log.h"
 
-#include "hashtable.h"
-#include "hashtable_data.h"
-#include "hashtable_support_primenumbers.h"
-#include "hashtable_support_index.h"
+#include "hashtable/hashtable.h"
+#include "hashtable/hashtable_data.h"
+#include "hashtable/hashtable_support_primenumbers.h"
 
 static const char* TAG = "hashtable/data";
 
-uint16_t hashtable_data_cachelines_to_probe_from_buckets_count(
-        hashtable_config_t* hashtable_config,
-        hashtable_bucket_count_t buckets_count) {
-    hashtable_config_cachelines_to_probe_t* list = hashtable_config->cachelines_to_probe;
-    for(uint64_t index = 0; index < HASHTABLE_CONFIG_CACHELINES_TO_PROBE_COUNT; index++) {
-        if (list[index].hashtable_size == buckets_count) {
-            return list[index].cachelines_to_probe;
-        }
-    }
-
-    return 0;
-}
-
-hashtable_data_t* hashtable_data_init(hashtable_bucket_count_t buckets_count, uint16_t cachelines_to_probe) {
-    hashtable_bucket_count_t buckets_count_real = 0;
-
+hashtable_data_t* hashtable_data_init(hashtable_bucket_count_t buckets_count) {
     if (hashtable_support_primenumbers_valid(buckets_count) == false) {
         LOG_E(TAG, "The buckets_count is greater than the maximum allowed value %lu", HASHTABLE_PRIMENUMBERS_MAX);
         return NULL;
     }
 
-    buckets_count_real = hashtable_support_index_roundup_to_cacheline_to_probe(buckets_count, cachelines_to_probe);
-
-    size_t hashes_size = sizeof(hashtable_bucket_hash_t) * buckets_count_real;
-    size_t keys_values_size = sizeof(hashtable_bucket_key_value_t) * buckets_count_real;
-
     hashtable_data_t* hashtable_data = (hashtable_data_t*)xalloc_alloc(sizeof(hashtable_data_t));
 
     hashtable_data->buckets_count = buckets_count;
-    hashtable_data->buckets_count_real = buckets_count_real;
-    hashtable_data->cachelines_to_probe = cachelines_to_probe;
-    hashtable_data->hashes_size = hashes_size;
-    hashtable_data->keys_values_size = keys_values_size;
-    hashtable_data->hashes = (hashtable_bucket_hash_atomic_t*)xalloc_mmap_alloc(hashes_size);
-    hashtable_data->keys_values = (hashtable_bucket_key_value_t*)xalloc_mmap_alloc(keys_values_size);
+    hashtable_data->buckets_size = sizeof(hashtable_bucket_t) * buckets_count;
+
+    hashtable_data->buckets = (hashtable_bucket_t*)xalloc_mmap_alloc(hashtable_data->buckets_size);
 
     return hashtable_data;
 }
 
-extern inline void hashtable_data_free(volatile hashtable_data_t* hashtable_data) {
-    xalloc_mmap_free((void*)hashtable_data->hashes, hashtable_data->hashes_size);
-    xalloc_mmap_free((void*)hashtable_data->keys_values, hashtable_data->keys_values_size);
+#if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
+void hashtable_data_free_buckets(hashtable_data_t* hashtable_data) {
+    for(hashtable_bucket_index_t index = 0; index < hashtable_data->buckets_count; index++) {
+        if (hashtable_data->buckets[index].keys_values == NULL) {
+            continue;
+        }
+
+        xalloc_free((hashtable_bucket_key_value_t*)hashtable_data->buckets[index].keys_values);
+    }
+}
+#endif
+
+void hashtable_data_free(hashtable_data_t* hashtable_data) {
+#if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
+    hashtable_data_free_buckets(hashtable_data);
+#endif
+    xalloc_mmap_free((void*)hashtable_data->buckets, hashtable_data->buckets_size);
     xalloc_free((void*)hashtable_data);
 }

@@ -5,11 +5,13 @@
 extern "C" {
 #endif
 
-#define HASHTABLE_T1HA2_SEED    42U
+#define HASHTABLE_T1HA_SEED    42U
 
-hashtable_bucket_hash_t hashtable_support_hash_calculate(hashtable_key_data_t *key, hashtable_key_size_t key_size);
+hashtable_bucket_hash_t hashtable_support_hash_calculate(
+        hashtable_key_data_t *key, hashtable_key_size_t key_size);
 
-hashtable_bucket_hash_t hashtable_support_hash_ensure_not_zero(hashtable_bucket_hash_t hash);
+hashtable_bucket_hash_half_t hashtable_support_hash_half(
+        hashtable_bucket_hash_t hash);
 
 #ifdef __cplusplus
 }

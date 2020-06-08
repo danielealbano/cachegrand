@@ -1,23 +1,53 @@
 # Build the base cachegrand library
 file(GLOB SRC_FILES_CACHEGRAND "*.c")
 file(GLOB SRC_FILES_CACHEGRAND_HASHTABLE "hashtable/*.c")
-LIST(REMOVE_ITEM SRC_FILES_CACHEGRAND ${CMAKE_CURRENT_SOURCE_DIR}/main.c)
+list(APPEND SRC_FILE_CACHEGRAND "${CACHEGRAND_CMAKE_CONFIG_C_SRC}")
+list(REMOVE_ITEM SRC_FILES_CACHEGRAND ${CMAKE_CURRENT_SOURCE_DIR}/main.c)
 add_library(
         cachegrand-internal
         ${SRC_FILES_CACHEGRAND}
         ${SRC_FILES_CACHEGRAND_HASHTABLE}
 )
-add_dependencies(cachegrand-internal t1ha2)
-target_link_libraries(cachegrand-internal t1ha2)
+add_dependencies(cachegrand-internal
+        __internal_refresh_cmake_config_c
+        t1ha)
+target_link_libraries(cachegrand-internal t1ha)
 target_include_directories(cachegrand-internal PUBLIC "../3rdparty/t1ha/")
 target_include_directories(cachegrand-internal PUBLIC ".")
+
+# Force GCC to emit cmpxchg16b inline (supported only on x86_64 platforms)
+target_compile_options(cachegrand-internal PUBLIC -mcx16)
 
 IF(WIN32)
     target_link_libraries(cachegrand-internal imagehlp)
 ENDIF(WIN32)
 
-# Build the exacutable
+# Remove all the architecture dependant implementation but reinclude the loop (non architecture dependant)
+list(FILTER SRC_FILES_CACHEGRAND_HASHTABLE EXCLUDE REGEX ".*hashtable_support_hash_search_[a-z0-9]+\\.c$")
+list(APPEND SRC_FILES_CACHEGRAND_HASHTABLE "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_loop.c")
+
+if(ARCH_IS_X86_64)
+    message(STATUS "Enabling accelerated hash search -- avx2")
+    list(APPEND SRC_FILES_CACHEGRAND_HASHTABLE "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_avx2.c")
+    set_source_files_properties(
+            "hashtable/hashtable_support_hash_search_avx2.c"
+            PROPERTIES COMPILE_FLAGS
+            "-mno-avx256-split-unaligned-load -mavx2 -mbmi")
+
+    message(STATUS "Enabling accelerated hash search -- avx")
+    list(APPEND SRC_FILES_CACHEGRAND_HASHTABLE "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_avx.c")
+    set_source_files_properties(
+            "hashtable/hashtable_support_hash_search_avx.c"
+            PROPERTIES COMPILE_FLAGS
+            "-mno-avx256-split-unaligned-load -mno-avx2 -mavx -mbmi")
+elseif(ARCH_IS_AARCH64)
+# TODO
+else()
+    message(FATAL_ERROR "Unsupported architecture")
+endif()
+
+# Build the executable
 add_executable(cachegrand "main.c")
-add_dependencies(cachegrand cachegrand-internal t1ha2)
-target_link_libraries(cachegrand cachegrand-internal t1ha2)
+add_dependencies(cachegrand cachegrand-internal t1ha)
+target_link_libraries(cachegrand cachegrand-internal t1ha)
 target_include_directories(cachegrand PUBLIC ".")

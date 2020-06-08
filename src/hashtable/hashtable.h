@@ -5,26 +5,22 @@
 extern "C" {
 #endif
 
-#if defined(__clang__) && defined(__has_feature)
-#if !__has_feature(c_atomic)
-
-#endif
-#else
 #define _Atomic(T) T volatile
-#endif
 
-#define HASHTABLE_MEMORY_FENCE_LOAD() atomic_thread_fence(memory_order_acquire)
-#define HASHTABLE_MEMORY_FENCE_STORE() atomic_thread_fence(memory_order_release)
-#define HASHTABLE_MEMORY_FENCE_LOAD_STORE() atomic_thread_fence(memory_order_acq_rel)
+#ifndef HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES
+#define HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES      1
+#endif // HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES
 
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
-#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#ifndef HASHTABLE_BUCKET_FEATURE_USE_LOCK
+#define HASHTABLE_BUCKET_FEATURE_USE_LOCK               1
+#endif // HASHTABLE_BUCKET_FEATURE_USE_LOCK
 
-#define HASHTABLE_INLINE_KEY_MAX_SIZE                       23
-#define HASHTABLE_PRIMENUMBERS_COUNT                        38
-#define HASHTABLE_PRIMENUMBERS_MAX                          4294967291U
-#define HASHTABLE_CONFIG_CACHELINES_TO_PROBE_COUNT          HASHTABLE_PRIMENUMBERS_COUNT
-#define HASHTABLE_CONFIG_CACHELINES_PRIMENUMBERS_MAP_SIZE  12
+#define HASHTABLE_BUCKET_SLOTS_COUNT                13
+#define HASHTABLE_KEY_INLINE_MAX_LENGTH             23
+#define HASHTABLE_KEY_PREFIX_SIZE                   HASHTABLE_KEY_INLINE_MAX_LENGTH \
+                                                    - sizeof(hashtable_key_size_t)
+#define HASHTABLE_PRIMENUMBERS_COUNT                38
+#define HASHTABLE_PRIMENUMBERS_MAX                  4294967291U
 
 #define HASHTABLE_PRIMENUMBERS_LIST \
     42U, /* not a prime number, but it's the answer! */ \
@@ -66,41 +62,26 @@ extern "C" {
     3429704039U, \
     4294967291U
 
-#define HASHTABLE_CONFIG_CACHELINES_PRIMENUMBERS_MAP \
-    { 42U, 2U }, \
-    { 3389U, 4U }, \
-    { 7639U, 6U }, \
-    { 17203U, 7U }, \
-    { 26813U, 8U }, \
-    { 40213U, 9U }, \
-    { 458377U, 10U }, \
-    { 2320651U, 12U }, \
-    { 17622551U, 16U }, \
-    { 89214403U, 17U }, \
-    { 133821599U, 18U }, \
-    { HASHTABLE_PRIMENUMBERS_MAX, 32U }
+typedef __int128 int128_t;
+typedef unsigned __int128 uint128_t;
 
 typedef uint8_t hashtable_bucket_key_value_flags_t;
-typedef uint32_t hashtable_bucket_hash_t;
+typedef uint64_t hashtable_bucket_hash_t;
+typedef uint32_t hashtable_bucket_hash_half_t;
 typedef uint32_t hashtable_bucket_index_t;
+typedef uint8_t hashtable_bucket_slot_index_t;
 typedef hashtable_bucket_index_t hashtable_bucket_count_t;
 typedef uint32_t hashtable_key_size_t;
 typedef char hashtable_key_data_t;
 typedef uintptr_t hashtable_value_data_t;
-typedef uint8_t hashtable_search_key_or_create_new_ret_t;
 
 typedef _Atomic(hashtable_bucket_hash_t) hashtable_bucket_hash_atomic_t;
+typedef _Atomic(hashtable_bucket_hash_half_t) hashtable_bucket_hash_half_atomic_t;
 
 enum {
     HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED         = 0x01u,
     HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED          = 0x02u,
     HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE      = 0x04u,
-};
-
-enum {
-    HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_NO_FREE,
-    HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_FOUND,
-    HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_EMPTY_OR_DELETED,
 };
 
 #define HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(flags, flag) \
@@ -111,23 +92,13 @@ enum {
     (flags == 0)
 
 /**
- * Configuration of the map between the hashtable size and the cachelines to probe when searching / assigning hashes
- */
-struct hashtable_config_cachelines_to_probe {
-    hashtable_bucket_count_t hashtable_size;
-    uint16_t cachelines_to_probe;
-};
-typedef struct hashtable_config_cachelines_to_probe hashtable_config_cachelines_to_probe_t;
-
-/**
  * Configuration of the hashtable
  */
+typedef struct hashtable_config hashtable_config_t;
 struct hashtable_config {
     uint64_t initial_size;
     bool can_auto_resize;
-    hashtable_config_cachelines_to_probe_t cachelines_to_probe[HASHTABLE_CONFIG_CACHELINES_TO_PROBE_COUNT];
 };
-typedef struct hashtable_config hashtable_config_t;
 
 /**
  * Struct holding the information related to a bucket (flags, key, value).
@@ -135,38 +106,74 @@ typedef struct hashtable_config hashtable_config_t;
  * The key can be stored inlined (there are 23 bytes for it) or stored externally in ad-hoc allocated memory if needed.
  * The struct is aligned to 32 byte to ensure to fit the first half or the second half of a cacheline
  */
+typedef struct hashtable_bucket_key_value hashtable_bucket_key_value_t;
 struct hashtable_bucket_key_value {
-    hashtable_bucket_key_value_flags_t flags;
-
-    union {                                     // union 23 bytes (HASHTABLE_INLINE_KEY_MAX_SIZE must match this size)
+    union {                                     // union 23 bytes (HASHTABLE_KEY_INLINE_MAX_LENGTH must match this size)
         struct {
             hashtable_key_size_t size;          // 4 bytes
             hashtable_key_data_t* data;         // 8 bytes
         } __attribute__((packed)) external_key;
         struct {
-            hashtable_key_data_t data[HASHTABLE_INLINE_KEY_MAX_SIZE];
-        } inline_key;
+            hashtable_key_size_t size;          // 4 bytes
+            hashtable_key_data_t data[HASHTABLE_KEY_PREFIX_SIZE];
+        } __attribute__((packed)) prefix_key;
+        struct {
+            hashtable_key_data_t data[HASHTABLE_KEY_INLINE_MAX_LENGTH];
+        } __attribute__((packed)) inline_key;
     };
+
+    hashtable_bucket_key_value_flags_t flags;
 
     hashtable_value_data_t data;                // 8 byte
 } __attribute__((aligned(32)));
-typedef struct hashtable_bucket_key_value hashtable_bucket_key_value_t;
+
+/**
+ * Structure holding a bucket of hashtable
+ *
+ * Each bucket contains write lock, a pointer to the keys and the values referenced in this bucket and 13 half hashes.
+ * The 13 half hashes are matched by 13 hashtable_bucket_key_value_t and a combo of half hash plus a kv represents a slot.
+ * The size has been tuned to fit exactly 1 cache line on x86 system, on systems with bigger cache lines there maybe a
+ * slow down caused by the false sharing but the alternative would be to add some padding and not to increase the amount
+ * of the half hashes to avoid wasting too much memory.
+ *
+ * The order of the elements of the struct is required to be half hashes / write lock / padding / pointer to keys_values
+ * otherwise the compiler will have to add padding to align the elements properly
+ */
+
+typedef struct hashtable_bucket hashtable_bucket_t;
+struct hashtable_bucket {
+#if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
+    // Pointer to keys_values (8 bytes)
+    volatile hashtable_bucket_key_value_t* keys_values;
+#endif // HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
+
+    // Half hashes (52 bytes | 4 * 13)
+    hashtable_bucket_hash_half_atomic_t half_hashes[HASHTABLE_BUCKET_SLOTS_COUNT];
+
+    // Write lock plus padding (4 bytes)
+    uint8_t write_lock;
+    uint8_t padding0[3];
+
+#if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 1
+    // More padding to align the keys_values at the end of the cacheline and keep them aligned
+    uint8_t padding1[8];
+
+    // Pointer to keys_values (416 bytes | 32 * 13)
+    volatile hashtable_bucket_key_value_t keys_values[HASHTABLE_BUCKET_SLOTS_COUNT];
+#endif // HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 1
+
+} __attribute__((aligned(64)));
 
 /**
  * Struct holding the hashtable data
  **/
+typedef struct hashtable_data hashtable_data_t;
 struct hashtable_data {
     hashtable_bucket_count_t buckets_count;
-    hashtable_bucket_count_t buckets_count_real;
-    uint16_t cachelines_to_probe;
-    uint64_t t1ha2_seed;
     bool can_be_deleted;
-    size_t hashes_size;
-    size_t keys_values_size;
-    hashtable_bucket_hash_atomic_t* hashes;
-    hashtable_bucket_key_value_t* volatile keys_values;
+    size_t buckets_size;
+    volatile hashtable_bucket_t* buckets;
 };
-typedef struct hashtable_data hashtable_data_t;
 
 /**
  * Struct holding the hashtable
@@ -181,6 +188,7 @@ typedef struct hashtable_data hashtable_data_t;
  * work on the buckets in that hashtable and then ht_old is updated to point to null and all the data structures
  * associated are freed.
  **/
+typedef struct hashtable hashtable_t;
 struct hashtable {
     hashtable_config_t* config;
     bool is_shutdowning;
@@ -188,7 +196,6 @@ struct hashtable {
     volatile hashtable_data_t* ht_current;
     volatile hashtable_data_t* ht_old;
 };
-typedef struct hashtable hashtable_t;
 
 hashtable_t* hashtable_init(hashtable_config_t* hashtable_config);
 void hashtable_free(hashtable_t* hashtable);

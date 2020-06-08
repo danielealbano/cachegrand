@@ -25,4 +25,20 @@ TEST_CASE("hashtable.c", "[hashtable]") {
             REQUIRE(hashtable->ht_current->buckets_count == buckets_count_307);
         })
     }
+
+    SECTION("hashtable struct size") {
+        SECTION("sizeof(hashtable_bucket_key_value_t) == 32") {
+            REQUIRE(sizeof(hashtable_bucket_key_value_t) == 32);
+        }
+
+#if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
+        SECTION("sizeof(hashtable_bucket_t) == 64") {
+            REQUIRE(sizeof(hashtable_bucket_t) == 64);
+        }
+#else
+        SECTION("sizeof(hashtable_bucket_t) == 512") {
+            REQUIRE(sizeof(hashtable_bucket_t) == 512);
+        }
+#endif // HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
+    }
 }

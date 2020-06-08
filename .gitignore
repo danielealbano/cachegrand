@@ -1,2 +1,4 @@
 .idea
 cmake-build-*/*
+
+/src/cmake_config.c

@@ -1,10 +1,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <t1ha.h>
 
-#include "hashtable.h"
-#include "hashtable_support_primenumbers.h"
+#include "hashtable/hashtable.h"
+#include "hashtable/hashtable_support_primenumbers.h"
 
 bool hashtable_support_primenumbers_valid(uint64_t number) {
     return number <= HASHTABLE_PRIMENUMBERS_MAX ? true : false;
