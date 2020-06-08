@@ -11,10 +11,7 @@ extern "C" {
 #define HASHTABLE_MEMORY_FENCE_STORE() atomic_thread_fence(memory_order_release)
 #define HASHTABLE_MEMORY_FENCE_LOAD_STORE() atomic_thread_fence(memory_order_acq_rel)
 
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
-#define MAX(x, y) (((x) > (y)) ? (x) : (y))
-
-#define HASHTABLE_BUCKET_CHAIN_RING_HASHES_COUNT    14
+#define HASHTABLE_BUCKET_CHAIN_RING_SLOTS_COUNT     8
 #define HASHTABLE_KEY_INLINE_MAX_LENGTH             23
 #define HASHTABLE_KEY_PREFIX_SIZE                   HASHTABLE_KEY_INLINE_MAX_LENGTH \
                                                     - sizeof(hashtable_key_size_t)
@@ -64,10 +61,8 @@ extern "C" {
 typedef __int128 int128_t;
 typedef unsigned __int128 uint128_t;
 
-typedef _Atomic(int128_t) int128_atomic_t;
-typedef _Atomic(uint128_t) uint128_atomic_t;
-
 typedef uint8_t hashtable_bucket_key_value_flags_t;
+typedef uint8_t hashtable_bucket_chain_ring_flags_t;
 typedef uint64_t hashtable_bucket_hash_t;
 typedef uint32_t hashtable_bucket_hash_half_t;
 typedef uint32_t hashtable_bucket_index_t;
@@ -87,9 +82,7 @@ enum {
 };
 
 enum {
-    HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_NO_FREE,
-    HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_FOUND,
-    HASHTABLE_SEARCH_KEY_OR_CREATE_NEW_RET_EMPTY_OR_DELETED,
+    HASHTABLE_BUCKET_CHAIN_RING_FLAG_FULL           = 0x01u
 };
 
 #define HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(flags, flag) \
@@ -116,8 +109,6 @@ struct hashtable_config {
  */
 typedef struct hashtable_bucket_key_value hashtable_bucket_key_value_t;
 struct hashtable_bucket_key_value {
-    hashtable_bucket_key_value_flags_t flags;
-
     union {                                     // union 23 bytes (HASHTABLE_KEY_INLINE_MAX_LENGTH must match this size)
         struct {
             hashtable_key_size_t size;          // 4 bytes
@@ -132,6 +123,8 @@ struct hashtable_bucket_key_value {
         } __attribute__((packed)) inline_key;
     };
 
+    hashtable_bucket_key_value_flags_t flags;
+
     hashtable_value_data_t data;                // 8 byte
 } __attribute__((aligned(32)));
 
@@ -144,8 +137,9 @@ struct hashtable_bucket_key_value {
 typedef struct hashtable_bucket_chain_ring hashtable_bucket_chain_ring_t;
 struct hashtable_bucket_chain_ring {
     volatile hashtable_bucket_chain_ring_t* next_ring;
-    hashtable_bucket_hash_half_atomic_t half_hashes[HASHTABLE_BUCKET_CHAIN_RING_HASHES_COUNT];
-    volatile hashtable_bucket_key_value_t keys_values[HASHTABLE_BUCKET_CHAIN_RING_HASHES_COUNT];
+    hashtable_bucket_hash_half_atomic_t half_hashes[HASHTABLE_BUCKET_CHAIN_RING_SLOTS_COUNT];
+    volatile hashtable_bucket_key_value_t keys_values[HASHTABLE_BUCKET_CHAIN_RING_SLOTS_COUNT];
+    hashtable_bucket_chain_ring_flags_t flags;
 } __attribute__((aligned(64)));
 
 /**
@@ -180,7 +174,6 @@ struct hashtable_bucket {
 typedef struct hashtable_data hashtable_data_t;
 struct hashtable_data {
     hashtable_bucket_count_t buckets_count;
-    uint64_t t1ha2_seed;
     bool can_be_deleted;
     size_t buckets_size;
     volatile hashtable_bucket_t* buckets;
