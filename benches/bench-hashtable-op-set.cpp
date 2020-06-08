@@ -299,11 +299,22 @@ static void hashtable_op_set_update(benchmark::State& state) {
         for(int i = state.thread_index; i < state.range(1); i += state.threads) {
             char* key = keys + (RANDOM_KEYS_MAX_LENGTH * i);
 
-            hashtable_op_set(
+            bool result = hashtable_op_set(
                     hashtable,
                     key,
                     strlen(key),
                     test_value_1);
+
+            if (!result) {
+                sprintf(
+                        error_message,
+                        "Unable to set the key <%s> with index <%ld> for the thread <%d>",
+                        key,
+                        i,
+                        state.thread_index);
+                state.SkipWithError(error_message);
+                break;
+            }
         }
     }
 
