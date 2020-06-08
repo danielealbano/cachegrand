@@ -83,7 +83,7 @@
     SET_BENCH_ITERATIONS-> \
     SET_BENCH_THREADS
 
-char* build_keys_random_max_length(uint64_t count) {
+char* bench_build_keys_random_max_length(uint64_t count) {
     char keys_character_set_list[] = { RANDOM_KEYS_CHARACTER_SET_LIST };
     char* keys = (char*)xalloc_mmap_alloc(count * RANDOM_KEYS_MAX_LENGTH);
 
@@ -102,7 +102,7 @@ char* build_keys_random_max_length(uint64_t count) {
     return keys;
 }
 
-char* build_keys_random_random_length(uint64_t count) {
+char* bench_build_keys_random_random_length(uint64_t count) {
     char keys_character_set_list[] = {RANDOM_KEYS_CHARACTER_SET_LIST};
     char *keys = (char *) xalloc_mmap_alloc(count * RANDOM_KEYS_MAX_LENGTH);
 
@@ -126,7 +126,11 @@ char* build_keys_random_random_length(uint64_t count) {
     return keys;
 }
 
-void collect_hashtable_stats(
+void bench_free_keys(char* keys, uint64_t count) {
+    xalloc_mmap_free(keys, count * RANDOM_KEYS_MAX_LENGTH);
+}
+
+void bench_collect_hashtable_stats(
         hashtable_t* hashtable,
         uint64_t* return_used_buckets,
         double* return_load_factor_buckets,
@@ -186,8 +190,26 @@ void collect_hashtable_stats(
     *return_load_factor_buckets = (double)used_buckets / (double)ht_data->buckets_count;
 }
 
-void free_keys(char* keys, uint64_t count) {
-    xalloc_mmap_free(keys, count * RANDOM_KEYS_MAX_LENGTH);
+void bench_collect_hashtable_stats_and_update_state(benchmark::State& state, hashtable_t* hashtable) {
+    uint64_t used_buckets;
+    double load_factor_buckets;
+    double used_avg_chain_rings;
+    double used_avg_chain_ring_slots;
+    uint64_t max_chain_rings;
+    uint64_t max_chain_ring_slots;
+    bench_collect_hashtable_stats(
+            hashtable, &used_buckets, &load_factor_buckets, &used_avg_chain_rings,
+            &used_avg_chain_ring_slots, &max_chain_rings, &max_chain_ring_slots);
+
+    state.counters["total_buckets"] = state.range(0);
+    state.counters["keys_to_insert"] = state.range(1);
+    state.counters["load_factor"] = (double)state.range(1) / (double)state.range(0);
+    state.counters["used_buckets"] = used_buckets;
+    state.counters["load_factor_buckets"] = load_factor_buckets;
+    state.counters["used_avg_chain_rings"] = used_avg_chain_rings;
+    state.counters["used_avg_chain_ring_slots"] = used_avg_chain_ring_slots;
+    state.counters["max_chain_rings"] = max_chain_rings;
+    state.counters["max_chain_ring_slots"] = max_chain_ring_slots;
 }
 
 static void hashtable_op_set_new(benchmark::State& state) {
@@ -204,9 +226,9 @@ static void hashtable_op_set_new(benchmark::State& state) {
 
     if (state.thread_index == 0) {
         if (state.range(2) == RANDOM_KEYS_GEN_FUNC_MAX_LENGTH) {
-            keys = build_keys_random_max_length(state.range(0));
+            keys = bench_build_keys_random_max_length(state.range(0));
         } else {
-            keys = build_keys_random_random_length(state.range(0));
+            keys = bench_build_keys_random_random_length(state.range(0));
         }
 
         hashtable_config = hashtable_config_init();
@@ -241,28 +263,9 @@ static void hashtable_op_set_new(benchmark::State& state) {
     }
 
     if (state.thread_index == 0) {
-        uint64_t used_buckets;
-        double load_factor_buckets;
-        double used_avg_chain_rings;
-        double used_avg_chain_ring_slots;
-        uint64_t max_chain_rings;
-        uint64_t max_chain_ring_slots;
-        collect_hashtable_stats(
-                hashtable, &used_buckets, &load_factor_buckets, &used_avg_chain_rings,
-                &used_avg_chain_ring_slots, &max_chain_rings, &max_chain_ring_slots);
-
-        state.counters["total_buckets"] = state.range(0);
-        state.counters["keys_to_insert"] = state.range(1);
-        state.counters["load_factor"] = (double)state.range(1) / (double)state.range(0);
-        state.counters["used_buckets"] = used_buckets;
-        state.counters["load_factor_buckets"] = load_factor_buckets;
-        state.counters["used_avg_chain_rings"] = used_avg_chain_rings;
-        state.counters["used_avg_chain_ring_slots"] = used_avg_chain_ring_slots;
-        state.counters["max_chain_rings"] = max_chain_rings;
-        state.counters["max_chain_ring_slots"] = max_chain_ring_slots;
-
+        bench_collect_hashtable_stats_and_update_state(state, hashtable);
         hashtable_free(hashtable);
-        free_keys(keys, state.range(0));
+        bench_free_keys(keys, state.range(0));
     }
 }
 
@@ -280,9 +283,9 @@ static void hashtable_op_set_update(benchmark::State& state) {
 
     if (state.thread_index == 0) {
         if (state.range(2) == RANDOM_KEYS_GEN_FUNC_MAX_LENGTH) {
-            keys = build_keys_random_max_length(state.range(0));
+            keys = bench_build_keys_random_max_length(state.range(0));
         } else {
-            keys = build_keys_random_random_length(state.range(0));
+            keys = bench_build_keys_random_random_length(state.range(0));
         }
 
         hashtable_config = hashtable_config_init();
@@ -338,28 +341,9 @@ static void hashtable_op_set_update(benchmark::State& state) {
     }
 
     if (state.thread_index == 0) {
-        uint64_t used_buckets;
-        double load_factor_buckets;
-        double used_avg_chain_rings;
-        double used_avg_chain_ring_slots;
-        uint64_t max_chain_rings;
-        uint64_t max_chain_ring_slots;
-        collect_hashtable_stats(
-                hashtable, &used_buckets, &load_factor_buckets, &used_avg_chain_rings,
-                &used_avg_chain_ring_slots, &max_chain_rings, &max_chain_ring_slots);
-
-        state.counters["total_buckets"] = state.range(0);
-        state.counters["keys_to_insert"] = state.range(1);
-        state.counters["load_factor"] = (double)state.range(1) / (double)state.range(0);
-        state.counters["used_buckets"] = used_buckets;
-        state.counters["load_factor_buckets"] = load_factor_buckets;
-        state.counters["used_avg_chain_rings"] = used_avg_chain_rings;
-        state.counters["used_avg_chain_ring_slots"] = used_avg_chain_ring_slots;
-        state.counters["max_chain_rings"] = max_chain_rings;
-        state.counters["max_chain_ring_slots"] = max_chain_ring_slots;
-
+        bench_collect_hashtable_stats_and_update_state(state, hashtable);
         hashtable_free(hashtable);
-        free_keys(keys, state.range(0));
+        bench_free_keys(keys, state.range(0));
     }
 }
 
