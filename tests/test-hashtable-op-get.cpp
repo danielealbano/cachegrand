@@ -62,29 +62,25 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
             })
         }
 
-        SECTION("found - test multiple buckets single chain with single key inline") {
+        SECTION("found - test multiple buckets") {
             HASHTABLE(buckets_initial_count_5, false, {
-                hashtable_bucket_chain_ring_t* chain_ring;
-
-                chain_ring = HASHTABLE_BUCKET_CHAIN_RING_NEW();
-                HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                        chain_ring,
-                        1,
+                HASHTABLE_BUCKET_KEYS_VALUES_NEW(test_index_1_buckets_count_42);
+                HASHTABLE_BUCKET_SET_INDEX_KEY_INLINE(
+                        test_index_1_buckets_count_42,
+                        0,
                         test_key_1_hash,
                         test_key_1,
                         test_key_1_len,
                         test_value_1);
-                hashtable->ht_current->buckets[test_index_1_buckets_count_42].chain_first_ring = chain_ring;
 
-                chain_ring = HASHTABLE_BUCKET_CHAIN_RING_NEW();
-                HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                        chain_ring,
-                        2,
+                HASHTABLE_BUCKET_KEYS_VALUES_NEW(test_index_2_buckets_count_42);
+                HASHTABLE_BUCKET_SET_INDEX_KEY_INLINE(
+                        test_index_2_buckets_count_42,
+                        0,
                         test_key_2_hash,
                         test_key_2,
                         test_key_2_len,
                         test_value_2);
-                hashtable->ht_current->buckets[test_index_2_buckets_count_42].chain_first_ring = chain_ring;
 
                 REQUIRE(hashtable_op_get(
                         hashtable,
@@ -104,14 +100,34 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
             })
         }
 
-        SECTION("found - test single bucket single chain multiple with key inline") {
+        SECTION("found - test single bucket with first slot empty") {
             HASHTABLE(buckets_initial_count_5, false, {
-                hashtable_bucket_chain_ring_t* chain_ring = HASHTABLE_BUCKET_CHAIN_RING_NEW();
-                hashtable->ht_current->buckets[test_index_1_buckets_count_42].chain_first_ring = chain_ring;
+                HASHTABLE_BUCKET_KEYS_VALUES_NEW(test_index_1_buckets_count_42);
+                HASHTABLE_BUCKET_SET_INDEX_KEY_INLINE(
+                        test_index_1_buckets_count_42,
+                        1,
+                        test_key_1_hash,
+                        test_key_1,
+                        test_key_1_len,
+                        test_value_1);
 
-                for(uint32_t i = 0; i < HASHTABLE_BUCKET_CHAIN_RING_SLOTS_COUNT; i++) {
-                    HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                            chain_ring,
+                REQUIRE(hashtable_op_get(
+                        hashtable,
+                        test_key_1,
+                        test_key_1_len,
+                        &value));
+
+                REQUIRE(value == test_value_1);
+            })
+        }
+
+        SECTION("found - test single bucket multiple slots with key inline") {
+            HASHTABLE(buckets_initial_count_5, false, {
+                HASHTABLE_BUCKET_KEYS_VALUES_NEW(test_index_1_buckets_count_42);
+
+                for(hashtable_bucket_slot_index_t i = 0; i < HASHTABLE_BUCKET_SLOTS_COUNT; i++) {
+                    HASHTABLE_BUCKET_SET_INDEX_KEY_INLINE(
+                            test_index_1_buckets_count_42,
                             i,
                             test_key_1_same_bucket[i].key_hash,
                             test_key_1_same_bucket[i].key,
@@ -120,7 +136,7 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
                 }
 
 
-                for(uint32_t i = 0; i < HASHTABLE_BUCKET_CHAIN_RING_SLOTS_COUNT; i++) {
+                for(hashtable_bucket_slot_index_t i = 0; i < HASHTABLE_BUCKET_SLOTS_COUNT; i++) {
                     REQUIRE(hashtable_op_get(
                             hashtable,
                             (char*)test_key_1_same_bucket[i].key,
@@ -131,104 +147,20 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
             })
         }
 
-        SECTION("found - test single bucket multiple chain multiple with key inline") {
-            HASHTABLE(buckets_initial_count_5, false, {
-                hashtable_bucket_chain_ring_t* chain_ring1 = HASHTABLE_BUCKET_CHAIN_RING_NEW();
-                hashtable_bucket_chain_ring_t* chain_ring2 = HASHTABLE_BUCKET_CHAIN_RING_NEW();
-                hashtable_bucket_chain_ring_t* chain_ring3 = HASHTABLE_BUCKET_CHAIN_RING_NEW();
-
-                chain_ring1->next_ring = chain_ring2;
-                chain_ring2->next_ring = chain_ring3;
-                hashtable->ht_current->buckets[test_index_1_buckets_count_42].chain_first_ring = chain_ring1;
-
-                HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                        chain_ring1,
-                        1,
-                        test_key_1_same_bucket[1].key_hash,
-                        test_key_1_same_bucket[1].key,
-                        test_key_1_same_bucket[1].key_len,
-                        test_value_1 + 1);
-                HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                        chain_ring1,
-                        2,
-                        test_key_1_same_bucket[2].key_hash,
-                        test_key_1_same_bucket[2].key,
-                        test_key_1_same_bucket[2].key_len,
-                        test_value_1 + 2);
-                HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                        chain_ring2,
-                        3,
-                        test_key_1_same_bucket[3].key_hash,
-                        test_key_1_same_bucket[3].key,
-                        test_key_1_same_bucket[3].key_len,
-                        test_value_1 + 3);
-                HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                        chain_ring3,
-                        4,
-                        test_key_1_same_bucket[4].key_hash,
-                        test_key_1_same_bucket[4].key,
-                        test_key_1_same_bucket[4].key_len,
-                        test_value_1 + 4);
-                HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                        chain_ring3,
-                        5,
-                        test_key_1_same_bucket[5].key_hash,
-                        test_key_1_same_bucket[5].key,
-                        test_key_1_same_bucket[5].key_len,
-                        test_value_1 + 5);
-
-                REQUIRE(hashtable_op_get(
-                        hashtable,
-                        (char*)test_key_1_same_bucket[1].key,
-                        test_key_1_same_bucket[1].key_len,
-                        &value));
-                REQUIRE(value == test_value_1 + 1);
-
-                REQUIRE(hashtable_op_get(
-                        hashtable,
-                        (char*)test_key_1_same_bucket[2].key,
-                        test_key_1_same_bucket[2].key_len,
-                        &value));
-                REQUIRE(value == test_value_1 + 2);
-
-                REQUIRE(hashtable_op_get(
-                        hashtable,
-                        (char*)test_key_1_same_bucket[3].key,
-                        test_key_1_same_bucket[3].key_len,
-                        &value));
-                REQUIRE(value == test_value_1 + 3);
-
-                REQUIRE(hashtable_op_get(
-                        hashtable,
-                        (char*)test_key_1_same_bucket[4].key,
-                        test_key_1_same_bucket[4].key_len,
-                        &value));
-                REQUIRE(value == test_value_1 + 4);
-
-                REQUIRE(hashtable_op_get(
-                        hashtable,
-                        (char*)test_key_1_same_bucket[5].key,
-                        test_key_1_same_bucket[5].key_len,
-                        &value));
-                REQUIRE(value == test_value_1 + 5);
-            })
-        }
-
         SECTION("not found - test deleted flag") {
             HASHTABLE(buckets_initial_count_5, false, {
-                hashtable_bucket_chain_ring_t* chain_ring = HASHTABLE_BUCKET_CHAIN_RING_NEW();
-                hashtable->ht_current->buckets[test_index_1_buckets_count_42].chain_first_ring = chain_ring;
+                HASHTABLE_BUCKET_KEYS_VALUES_NEW(test_index_1_buckets_count_42);
 
-                HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                        chain_ring,
-                        1,
+                HASHTABLE_BUCKET_SET_INDEX_KEY_INLINE(
+                        test_index_1_buckets_count_42,
+                        0,
                         test_key_1_hash,
                         test_key_1,
                         test_key_1_len,
                         test_value_1);
 
                 HASHTABLE_BUCKET_KEY_VALUE_SET_FLAG(
-                        chain_ring->keys_values[1].flags,
+                        HASHTABLE_BUCKET(test_index_1_buckets_count_42).keys_values[0].flags,
                         HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED);
 
                 REQUIRE(!hashtable_op_get(
@@ -241,20 +173,19 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
 
         SECTION("not found - test hash set but key_value not (edge case because of parallelism)") {
             HASHTABLE(buckets_initial_count_5, false, {
-                hashtable_bucket_chain_ring_t* chain_ring = HASHTABLE_BUCKET_CHAIN_RING_NEW();
-                hashtable->ht_current->buckets[test_index_1_buckets_count_42].chain_first_ring = chain_ring;
+                HASHTABLE_BUCKET_KEYS_VALUES_NEW(test_index_1_buckets_count_42);
 
-                HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                        chain_ring,
-                        1,
+                HASHTABLE_BUCKET_SET_INDEX_KEY_INLINE(
+                        test_index_1_buckets_count_42,
+                        0,
                         test_key_1_hash,
                         test_key_1,
                         test_key_1_len,
                         test_value_1);
 
                 // Unset the flags and the data to simulate finding a value in the process of being set
-                chain_ring->keys_values[1].flags = 0;
-                chain_ring->keys_values[1].data = 0;
+                HASHTABLE_BUCKET(test_index_1_buckets_count_42).keys_values[0].flags = 0;
+                HASHTABLE_BUCKET(test_index_1_buckets_count_42).keys_values[0].data = 0;
 
                 REQUIRE(!hashtable_op_get(
                         hashtable,
@@ -264,25 +195,24 @@ TEST_CASE("hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
             })
         }
 
-        SECTION("found - single bucket - get key after delete with hash still in hashes (edge case because of parallelism)") {
+        SECTION("found - single bucket - get key after delete with hash still in hash_half (edge case because of parallelism)") {
             HASHTABLE(buckets_initial_count_5, false, {
-                hashtable_bucket_chain_ring_t* chain_ring = HASHTABLE_BUCKET_CHAIN_RING_NEW();
-                hashtable->ht_current->buckets[test_index_1_buckets_count_42].chain_first_ring = chain_ring;
+                HASHTABLE_BUCKET_KEYS_VALUES_NEW(test_index_1_buckets_count_42);
 
-                HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                        chain_ring,
-                        1,
+                HASHTABLE_BUCKET_SET_INDEX_KEY_INLINE(
+                        test_index_1_buckets_count_42,
+                        0,
                         test_key_1_hash,
                         test_key_1,
                         test_key_1_len,
                         test_value_1);
 
                 HASHTABLE_BUCKET_KEY_VALUE_SET_FLAG(
-                        chain_ring->keys_values[1].flags,
+                        HASHTABLE_BUCKET(test_index_1_buckets_count_42).keys_values[0].flags,
                         HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED);
 
-                HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(
-                        chain_ring,
+                HASHTABLE_BUCKET_SET_INDEX_KEY_INLINE(
+                        test_index_1_buckets_count_42,
                         2,
                         test_key_1_hash,
                         test_key_1,

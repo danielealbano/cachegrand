@@ -90,45 +90,47 @@ hashtable_bucket_index_t test_index_2_buckets_count_42 = test_key_2_hash % bucke
     HASHTABLE_FREE(); \
 }
 
-#define HASHTABLE_BUCKET_CHAIN_RING_NEW() \
-({ \
-    hashtable_bucket_chain_ring_t* var; \
-    var = (hashtable_bucket_chain_ring_t*)xalloc_alloc(sizeof(hashtable_bucket_chain_ring_t)); \
-    memset(var, 0, sizeof(hashtable_bucket_chain_ring_t)); \
-    var; \
-})
+#define HASHTABLE_BUCKET(bucket_index) hashtable->ht_current->buckets[bucket_index]
 
-#define HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_SHARED(chain_ring, chain_ring_index, hash, value) \
-    chain_ring->half_hashes[chain_ring_index] = hash >> 32u; \
-    chain_ring->keys_values[chain_ring_index].data = value;
+#if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
+#define HASHTABLE_BUCKET_KEYS_VALUES_NEW(bucket_index) \
+{ \
+    hashtable_bucket_key_value_t* keys_values; \
+    keys_values = (hashtable_bucket_key_value_t*)xalloc_alloc(sizeof(hashtable_bucket_key_value_t) * HASHTABLE_BUCKET_SLOTS_COUNT); \
+    memset(keys_values, 0, sizeof(hashtable_bucket_key_value_t)); \
+    HASHTABLE_BUCKET(bucket_index).keys_values = keys_values; \
+}
+#else
+#define HASHTABLE_BUCKET_KEYS_VALUES_NEW(bucket_index) \
+{}
+#endif // HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
 
-#define HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(chain_ring, chain_ring_index, hash, key, key_size, value) \
-    HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_SHARED(chain_ring, chain_ring_index, hash, value); \
-    chain_ring->keys_values[chain_ring_index].flags = \
+#define HASHTABLE_BUCKET_SET_INDEX_SHARED(bucket_index, bucket_slot_index, hash, value) \
+    HASHTABLE_BUCKET(bucket_index).half_hashes[bucket_slot_index] = hash >> 32u; \
+    HASHTABLE_BUCKET(bucket_index).keys_values[bucket_slot_index].data = value;
+
+#define HASHTABLE_BUCKET_SET_INDEX_KEY_INLINE(bucket_index, bucket_slot_index, hash, key, key_size, value) \
+    HASHTABLE_BUCKET_SET_INDEX_SHARED(bucket_index, bucket_slot_index, hash, value); \
+    HASHTABLE_BUCKET(bucket_index).keys_values[bucket_slot_index].flags = \
         HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED | HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE; \
-    strncpy((char*)&chain_ring->keys_values[chain_ring_index].inline_key.data, key, HASHTABLE_KEY_INLINE_MAX_LENGTH);
+    strncpy((char*)&HASHTABLE_BUCKET(bucket_index).keys_values[bucket_slot_index].inline_key.data, key, HASHTABLE_KEY_INLINE_MAX_LENGTH);
 
-#define HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_EXTERNAL(chain_ring, chain_ring_index, hash, key, key_size, value) \
-    HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_SHARED(chain_ring, chain_ring_index, hash, value); \
-    chain_ring->keys_values[chain_ring_index].flags = \
+#define HASHTABLE_BUCKET_SET_INDEX_KEY_EXTERNAL(bucket_index, bucket_slot_index, hash, key, key_size, value) \
+    HASHTABLE_BUCKET_SET_INDEX_SHARED(bucket_index, bucket_slot_index, hash, value); \
+    HASHTABLE_BUCKET(bucket_index).keys_values[bucket_slot_index].flags = \
         HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED; \
-    chain_ring->keys_values[chain_ring_index].external_key.data = key; \
-    chain_ring->keys_values[chain_ring_index].external_key.size = key_size; \
-    chain_ring->keys_values[chain_ring_index].prefix_key.size = key_size; \
-    strncpy((char*)&chain_ring->keys_values[chain_ring_index].prefix_key.data, key, HASHTABLE_KEY_PREFIX_SIZE);
+    HASHTABLE_BUCKET(bucket_index).keys_values[bucket_slot_index].external_key.data = key; \
+    HASHTABLE_BUCKET(bucket_index).keys_values[bucket_slot_index].external_key.size = key_size; \
+    HASHTABLE_BUCKET(bucket_index).keys_values[bucket_slot_index].prefix_key.size = key_size; \
+    strncpy((char*)&HASHTABLE_BUCKET(bucket_index).keys_values[bucket_slot_index].prefix_key.data, key, HASHTABLE_KEY_PREFIX_SIZE);
 
 #define HASHTABLE_BUCKET_NEW_KEY_INLINE(bucket_index, hash, key, key_size, value) \
-    hashtable_bucket_chain_ring_t* chain_ring = HASHTABLE_BUCKET_CHAIN_RING_NEW(); \
-    HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_INLINE(chain_ring, 1, hash, key, key_size, value); \
-    hashtable->ht_current->buckets[bucket_index].chain_first_ring = chain_ring;
+    HASHTABLE_BUCKET_KEYS_VALUES_NEW(bucket_index); \
+    HASHTABLE_BUCKET_SET_INDEX_KEY_INLINE(bucket_index, 0, hash, key, key_size, value); \
 
 #define HASHTABLE_BUCKET_NEW_KEY_EXTERNAL(bucket_index, hash, key, key_size, value) \
-    hashtable_bucket_chain_ring_t* chain_ring = HASHTABLE_BUCKET_CHAIN_RING_NEW(); \
-    HASHTABLE_BUCKET_CHAIN_RING_SET_INDEX_KEY_EXTERNAL(chain_ring, 1, hash, key, key_size, value); \
-    hashtable->ht_current->buckets[bucket_index].chain_first_ring = chain_ring;
-
-#define HASHTABLE_BUCKET_NEW_CLEANUP(bucket_index) \
-    HASHTABLE_BUCKET_CHAIN_RING_FREE(hashtable->ht_current->buckets[bucket_index]->chain_first_ring);
+    HASHTABLE_BUCKET_KEYS_VALUES_NEW(bucket_index); \
+    HASHTABLE_BUCKET_SET_INDEX_KEY_EXTERNAL(bucket_index, 0, hash, key, key_size, value); \
 
 #ifdef __cplusplus
 }
