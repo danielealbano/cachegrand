@@ -206,6 +206,7 @@ bool hashtable_support_op_search_key_or_create_new(
         volatile hashtable_bucket_chain_ring_t **found_chain_ring,
         hashtable_bucket_chain_ring_index_t *found_chain_ring_index,
         volatile hashtable_bucket_key_value_t **found_bucket_key_value) {
+    hashtable_bucket_hash_half_t search_hash_half;
     volatile hashtable_key_data_t* found_bucket_key;
     hashtable_key_size_t found_bucket_key_max_compare_size;
     hashtable_bucket_index_t bucket_index;
@@ -213,9 +214,12 @@ bool hashtable_support_op_search_key_or_create_new(
     uint32_t skip_indexes_mask;
     volatile hashtable_bucket_key_value_t* bucket_key_value;
     hashtable_bucket_chain_ring_index_t ring_index;
-    volatile hashtable_bucket_chain_ring_t *ring;
+    volatile hashtable_bucket_chain_ring_t
+        *chain_ring = NULL,
+        *chain_ring_first_with_free_slots = NULL,
+        *chain_ring_last = NULL;
+
     bool bucket_newly_initialized = false;
-    bool stop_search = false;
     bool found = false;
 
     bucket_index = hashtable_support_index_from_hash(hashtable_data->buckets_count, hash);
@@ -234,23 +238,45 @@ bool hashtable_support_op_search_key_or_create_new(
 
     for(
             uint8_t searching_or_creating = 0;
-            searching_or_creating < 2 && found == false && stop_search == false;
+            (searching_or_creating < (create_new_if_missing ? 2 : 1)) && found == false;
             searching_or_creating++) {
-        ring = bucket->chain_first_ring;
-        hashtable_bucket_hash_half_t search_hash_half = searching_or_creating == 0 ? hash_half : 0;
+        if (searching_or_creating == 0) {
+            chain_ring = bucket->chain_first_ring;
+            search_hash_half = hash_half;
+        } else {
+            chain_ring = chain_ring_first_with_free_slots;
+            search_hash_half = 0;
+        }
 
         do {
             skip_indexes_mask = 0;
 
+            if (searching_or_creating == 0) {
+                chain_ring_last = chain_ring;
+
+                if (
+                        chain_ring_first_with_free_slots == NULL &&
+                        (chain_ring->flags & HASHTABLE_BUCKET_CHAIN_RING_FLAG_FULL) == 0) {
+                    chain_ring_first_with_free_slots = chain_ring;
+                }
+            }
+
+            // If an empty slot is being searched in a chain ring and the chain_ring is full skip it
+            if (
+                    searching_or_creating == 1 &&
+                    (chain_ring->flags & HASHTABLE_BUCKET_CHAIN_RING_FLAG_FULL) == HASHTABLE_BUCKET_CHAIN_RING_FLAG_FULL) {
+                continue;
+            }
+
             while ((ring_index = hashtable_support_hash_search(
                     search_hash_half,
-                    (hashtable_bucket_hash_half_atomic_t *) ring->half_hashes,
+                    (hashtable_bucket_hash_half_atomic_t *) chain_ring->half_hashes,
                     skip_indexes_mask)) != HASHTABLE_SUPPORT_HASH_SEARCH_NOT_FOUND) {
 
                 // Update the skip indexes in case of another iteration
                 skip_indexes_mask |= 1u << ring_index;
 
-                bucket_key_value = &ring->keys_values[ring_index];
+                bucket_key_value = &chain_ring->keys_values[ring_index];
 
                 if (searching_or_creating == 0) {
                     if (HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(bucket_key_value->flags,
@@ -282,33 +308,35 @@ bool hashtable_support_op_search_key_or_create_new(
                         continue;
                     }
                 } else {
-                    if (create_new_if_missing == false) {
-                        stop_search = true;
-                        break;
-                    }
-
-                    ring->half_hashes[ring_index] = hash_half;
+                    chain_ring->half_hashes[ring_index] = hash_half;
                     *created_new = true;
                 }
 
-                *found_chain_ring = ring;
+                *found_chain_ring = chain_ring;
                 *found_chain_ring_index = ring_index;
                 *found_bucket_key_value = bucket_key_value;
                 found = true;
                 break;
             }
-        } while(found == false && stop_search == false && (ring = ring->next_ring) != NULL);
+
+            if (searching_or_creating == 1 && found == false) {
+                chain_ring->flags |= HASHTABLE_BUCKET_CHAIN_RING_FLAG_FULL;
+            }
+        } while(found == false && (chain_ring = chain_ring->next_ring) != NULL);
     }
 
     // If an empty slot in one of the rings hasn't been found, a new ring gets created and the first slot assigned
     if (create_new_if_missing && found == false) {
-        hashtable_bucket_chain_ring_t* chain_next_ring;
-        chain_next_ring = (hashtable_bucket_chain_ring_t*)xalloc_alloc(sizeof(hashtable_bucket_chain_ring_t));
-        memset(chain_next_ring, 0, sizeof(hashtable_bucket_chain_ring_t));
+        hashtable_bucket_chain_ring_t* chain_ring_next;
+        chain_ring_next = (hashtable_bucket_chain_ring_t*)xalloc_alloc(sizeof(hashtable_bucket_chain_ring_t));
+        memset(chain_ring_next, 0, sizeof(hashtable_bucket_chain_ring_t));
+        chain_ring_last->next_ring = chain_ring_next;
 
-        *found_chain_ring = chain_next_ring;
+        chain_ring_next->half_hashes[0] = hash_half;
+
+        *found_chain_ring = chain_ring_next;
         *found_chain_ring_index = 0;
-        *found_bucket_key_value = &ring->keys_values[0];
+        *found_bucket_key_value = &chain_ring_next->keys_values[0];
 
         found = true;
         *created_new = true;
