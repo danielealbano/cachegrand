@@ -36,21 +36,31 @@
 
 
 #define SET_BENCH_ARGS_HT_SIZE_AND_KEYS(keys_gen_func_name) \
-    Args({1522, 1522 / 4, keys_gen_func_name})-> \
-    Args({1522, 1522 / 3, keys_gen_func_name})-> \
-    Args({1522, 1522 / 2, keys_gen_func_name})-> \
-    Args({135798, 135798 / 4, keys_gen_func_name})-> \
-    Args({135798, 135798 / 3, keys_gen_func_name})-> \
-    Args({135798, 135798 / 2, keys_gen_func_name})-> \
-    Args({1031398, 1031398 / 4, keys_gen_func_name})-> \
-    Args({1031398, 1031398 / 3, keys_gen_func_name})-> \
-    Args({1031398, 1031398 / 2, keys_gen_func_name})-> \
-    Args({11748391, 11748391U / 4, keys_gen_func_name})-> \
-    Args({11748391, 11748391U / 3, keys_gen_func_name})-> \
-    Args({11748391, 11748391U / 2, keys_gen_func_name})-> \
-    Args({133821673, 133821673 / 4, keys_gen_func_name})-> \
-    Args({133821673, 133821673 / 3, keys_gen_func_name})-> \
-    Args({133821673, 133821673 / 2, keys_gen_func_name})
+    Args({1522, (uint64_t)(1522.0 * 0.25), keys_gen_func_name})-> \
+    Args({1522, (uint64_t)(1522.0 * 0.33), keys_gen_func_name})-> \
+    Args({1522, (uint64_t)(1522.0 * 0.50), keys_gen_func_name})-> \
+    Args({1522, (uint64_t)(1522.0 * 0.75), keys_gen_func_name})-> \
+    Args({1522, (uint64_t)(1522.0 * 0.90), keys_gen_func_name})-> \
+    Args({135798, (uint64_t)(135798.0 * 0.25), keys_gen_func_name})-> \
+    Args({135798, (uint64_t)(135798.0 * 0.33), keys_gen_func_name})-> \
+    Args({135798, (uint64_t)(135798.0 * 0.50), keys_gen_func_name})-> \
+    Args({135798, (uint64_t)(135798.0 * 0.75), keys_gen_func_name})-> \
+    Args({135798, (uint64_t)(135798.0 * 0.90), keys_gen_func_name})-> \
+    Args({1031398, (uint64_t)(1031398.0 * 0.25), keys_gen_func_name})-> \
+    Args({1031398, (uint64_t)(1031398.0 * 0.33), keys_gen_func_name})-> \
+    Args({1031398, (uint64_t)(1031398.0 * 0.50), keys_gen_func_name})-> \
+    Args({1031398, (uint64_t)(1031398.0 * 0.75), keys_gen_func_name})-> \
+    Args({1031398, (uint64_t)(1031398.0 * 0.90), keys_gen_func_name})-> \
+    Args({11748391, (uint64_t)(11748391.0 * 0.25), keys_gen_func_name})-> \
+    Args({11748391, (uint64_t)(11748391.0 * 0.33), keys_gen_func_name})-> \
+    Args({11748391, (uint64_t)(11748391.0 * 0.50), keys_gen_func_name})-> \
+    Args({11748391, (uint64_t)(11748391.0 * 0.75), keys_gen_func_name})-> \
+    Args({11748391, (uint64_t)(11748391.0 * 0.90), keys_gen_func_name})-> \
+    Args({133821673, (uint64_t)(133821673.0 * 0.25), keys_gen_func_name})-> \
+    Args({133821673, (uint64_t)(133821673.0 * 0.33), keys_gen_func_name})-> \
+    Args({133821673, (uint64_t)(133821673.0 * 0.50), keys_gen_func_name})-> \
+    Args({133821673, (uint64_t)(133821673.0 * 0.75), keys_gen_func_name})-> \
+    Args({133821673, (uint64_t)(133821673.0 * 0.90), keys_gen_func_name})
 
 #define LOAD_FACTOR_BENCH_ARGS(keys_gen_func_name) \
     Args({42U, keys_gen_func_name})-> \
