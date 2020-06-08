@@ -10,8 +10,8 @@ add_library(
 )
 add_dependencies(cachegrand-internal
         __internal_refresh_cmake_config_c
-        t1ha2)
-target_link_libraries(cachegrand-internal t1ha2)
+        t1ha)
+target_link_libraries(cachegrand-internal t1ha)
 target_include_directories(cachegrand-internal PUBLIC "../3rdparty/t1ha/")
 target_include_directories(cachegrand-internal PUBLIC ".")
 
@@ -54,6 +54,6 @@ endif()
 
 # Build the executable
 add_executable(cachegrand "main.c")
-add_dependencies(cachegrand cachegrand-internal t1ha2)
-target_link_libraries(cachegrand cachegrand-internal t1ha2)
+add_dependencies(cachegrand cachegrand-internal t1ha)
+target_link_libraries(cachegrand cachegrand-internal t1ha)
 target_include_directories(cachegrand PUBLIC ".")
