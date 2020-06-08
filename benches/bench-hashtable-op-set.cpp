@@ -61,7 +61,7 @@
     Args({133821673, (uint64_t)(133821673.0 * 0.90), keys_gen_func_name})
 
 #define SET_BENCH_ITERATIONS \
-    Iterations(10)
+    Iterations(1)->Repetitions(10)->DisplayAggregatesOnly(true)
 
 #define SET_BENCH_THREADS \
     Threads(1)-> \
