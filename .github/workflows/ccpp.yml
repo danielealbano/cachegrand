@@ -18,13 +18,6 @@ jobs:
       matrix:
         config:
         - {
-            name: "Windows Latest",
-            os: windows-latest,
-            triplet: x64-windows,
-            cc: "gcc",
-            cxx: "g++"
-          }
-        - {
             name: "Ubuntu Latest",
             os: ubuntu-latest,
             triplet: x64-linux,
