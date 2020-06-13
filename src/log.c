@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <locale.h>
 
+#include "cmake_config.h"
 #include "log.h"
 
 #define LOG_MESSAGE_OUTPUT stdout
@@ -17,10 +18,12 @@
  * Implement a log producers, sink & formatters patterns
  */
 
-static log_level_t _log_level = LOG_LEVEL_DEBUG;
+static log_level_t _log_level = LOG_LEVEL_DEBUG_INTERNALS;
 
 const char* log_level_to_string(log_level_t level) {
     switch(level) {
+        case LOG_LEVEL_DEBUG_INTERNALS:
+            return "DEBUGINT";
         case LOG_LEVEL_DEBUG:
             return "DEBUG";
         case LOG_LEVEL_VERBOSE:
@@ -67,6 +70,22 @@ void log_message_internal(const char* tag, log_level_t level, const char* messag
 
 void log_set_log_level(log_level_t level) {
     _log_level = level;
+}
+
+void log_message_debug(const char* src_path, const char* src_func, int src_line, const char* message, ...) {
+#if DEBUG == 1
+    char* tag;
+
+    tag = (char*)malloc(strlen(src_path) + /*][*/ 2 + strlen(src_func) + /*():*/ 3 + 10 + 1);
+    sprintf(tag, "%s][%s():%d", src_path, src_func, src_line);
+
+    va_list args;
+    va_start(args, message);
+
+    log_message_internal(tag, LOG_LEVEL_DEBUG_INTERNALS, message, args);
+
+    va_end(args);
+#endif
 }
 
 void log_message(const char* tag, log_level_t level, const char* message, ...) {
