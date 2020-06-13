@@ -37,12 +37,13 @@ const char* log_level_to_string(log_level_t level) {
 }
 
 char* log_message_timestamp(char* t_str) {
+    struct tm tm = {0};
     time_t t = time(NULL);
-    struct tm* tm = localtime(&t);
+    gmtime_r(&t, &tm);
 
     sprintf(t_str, "%04d-%02d-%02dT%02d:%02d:%02dZ",
-            1900 + tm->tm_year, tm->tm_mon, tm->tm_mday,
-            tm->tm_hour, tm->tm_min, tm->tm_sec);
+            1900 + tm.tm_year, tm.tm_mon, tm.tm_mday,
+            tm.tm_hour, tm.tm_min, tm.tm_sec);
 
     return t_str;
 }
