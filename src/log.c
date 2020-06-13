@@ -48,7 +48,7 @@ char* log_message_timestamp(char* t_str, size_t t_str_size) {
 }
 
 void log_message_internal(const char* tag, log_level_t level, const char* message, va_list args) {
-    char t_str[LOG_MESSAGE_TIMESTAMP_MAX_LENGTH];
+    char t_str[LOG_MESSAGE_TIMESTAMP_MAX_LENGTH] = {0};
 
     if (level > _log_level) {
         return;
