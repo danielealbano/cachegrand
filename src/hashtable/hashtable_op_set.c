@@ -18,17 +18,13 @@ bool hashtable_op_set(
         hashtable_key_size_t key_size,
         hashtable_value_data_t value) {
     bool created_new;
-    hashtable_bucket_hash_t hash;
-    hashtable_bucket_hash_half_t hash_half;
-    volatile hashtable_bucket_t* bucket;
-    hashtable_bucket_index_t bucket_index;
-    hashtable_bucket_slot_index_t bucket_slot_index;
-    volatile hashtable_bucket_key_value_t* bucket_key_value;
+    hashtable_hash_t hash;
+    hashtable_half_hashes_chunk_atomic_t* half_hashes_chunk;
+    hashtable_bucket_key_value_atomic_t* bucket_key_value;
 
     hashtable_key_data_t* ht_key;
 
     hash = hashtable_support_hash_calculate(key, key_size);
-    hash_half = hashtable_support_hash_half(hash);
 
     // TODO: the resize logic has to be reviewed, the underlying hash search function has to be aware that it hasn't
     //       to create a new item if it's missing
@@ -37,20 +33,15 @@ bool hashtable_op_set(
         key,
         key_size,
         hash,
-        hash_half,
         true,
         &created_new,
-        &bucket,
-        &bucket_index,
-        &bucket_slot_index,
+        &half_hashes_chunk,
         &bucket_key_value);
 
     if (ret == false) {
-#if HASHTABLE_BUCKET_FEATURE_USE_LOCK == 1
-        if (bucket) {
-            hashtable_support_op_bucket_unlock(bucket);
+        if (half_hashes_chunk) {
+            hashtable_support_op_half_hashes_chunk_unlock(half_hashes_chunk);
         }
-#endif // HASHTABLE_BUCKET_FEATURE_USE_LOCK == 1
         return false;
     }
 
@@ -99,11 +90,7 @@ bool hashtable_op_set(
         bucket_key_value->flags = flags;
     }
 
-    HASHTABLE_MEMORY_FENCE_STORE();
-
-#if HASHTABLE_BUCKET_FEATURE_USE_LOCK == 1
-    hashtable_support_op_bucket_unlock(bucket);
-#endif // HASHTABLE_BUCKET_FEATURE_USE_LOCK == 1
+    hashtable_support_op_half_hashes_chunk_unlock(half_hashes_chunk);
 
     return true;
 }

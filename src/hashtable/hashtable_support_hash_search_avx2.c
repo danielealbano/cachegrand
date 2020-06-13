@@ -11,9 +11,9 @@
  *
  * https://stackoverflow.com/a/62123631/169278
  **/
-hashtable_bucket_slot_index_t hashtable_support_hash_search_avx2_14(
-        hashtable_bucket_hash_half_t hash,
-        hashtable_bucket_hash_half_atomic_t* hashes,
+hashtable_chunk_slot_index_t hashtable_support_hash_search_avx2_14(
+        hashtable_hash_half_t hash,
+        hashtable_hash_half_atomic_t* hashes,
         uint32_t skip_indexes_mask) {
     uint32_t compacted_result_mask = 0;
     uint32_t skip_indexes_mask_inv = ~skip_indexes_mask;
@@ -31,9 +31,9 @@ hashtable_bucket_slot_index_t hashtable_support_hash_search_avx2_14(
     return _tzcnt_u32(compacted_result_mask & skip_indexes_mask_inv);
 }
 
-hashtable_bucket_slot_index_t hashtable_support_hash_search_avx2_13(
-        hashtable_bucket_hash_half_t hash,
-        hashtable_bucket_hash_half_atomic_t* hashes,
+hashtable_chunk_slot_index_t hashtable_support_hash_search_avx2_13(
+        hashtable_hash_half_t hash,
+        hashtable_hash_half_atomic_t* hashes,
         uint32_t skip_indexes_mask) {
     uint32_t compacted_result_mask = 0;
     uint32_t skip_indexes_mask_inv = ~skip_indexes_mask;
@@ -51,9 +51,9 @@ hashtable_bucket_slot_index_t hashtable_support_hash_search_avx2_13(
     return _tzcnt_u32(compacted_result_mask & skip_indexes_mask_inv);
 }
 
-hashtable_bucket_slot_index_t hashtable_support_hash_search_avx2_8(
-        hashtable_bucket_hash_half_t hash,
-        hashtable_bucket_hash_half_atomic_t* hashes,
+hashtable_chunk_slot_index_t hashtable_support_hash_search_avx2_8(
+        hashtable_hash_half_t hash,
+        hashtable_hash_half_atomic_t* hashes,
         uint32_t skip_indexes_mask) {
     uint32_t compacted_result_mask = 0;
     uint32_t skip_indexes_mask_inv = ~skip_indexes_mask;

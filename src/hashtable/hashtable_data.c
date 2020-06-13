@@ -20,30 +20,31 @@ hashtable_data_t* hashtable_data_init(hashtable_bucket_count_t buckets_count) {
 
     hashtable_data_t* hashtable_data = (hashtable_data_t*)xalloc_alloc(sizeof(hashtable_data_t));
 
-    hashtable_data->buckets_count = buckets_count;
-    hashtable_data->buckets_size = sizeof(hashtable_bucket_t) * buckets_count;
+    hashtable_data->buckets_count =
+            buckets_count;
+    hashtable_data->buckets_count_real =
+            hashtable_data->buckets_count + (buckets_count % HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT);
+    hashtable_data->chunks_count =
+            hashtable_data->buckets_count_real / HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
 
-    hashtable_data->buckets = (hashtable_bucket_t*)xalloc_mmap_alloc(hashtable_data->buckets_size);
+    hashtable_data->half_hashes_chunk_size =
+            sizeof(hashtable_half_hashes_chunk_atomic_t) * hashtable_data->chunks_count;
+    hashtable_data->keys_values_size =
+            sizeof(hashtable_bucket_key_value_atomic_t) * hashtable_data->buckets_count_real;
+
+    hashtable_data->half_hashes_chunk =
+            (hashtable_half_hashes_chunk_atomic_t *)xalloc_mmap_alloc(hashtable_data->half_hashes_chunk_size);
+    hashtable_data->keys_values =
+            (hashtable_bucket_key_value_atomic_t *)xalloc_mmap_alloc(hashtable_data->keys_values_size);
 
     return hashtable_data;
 }
-
-#if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
-void hashtable_data_free_buckets(hashtable_data_t* hashtable_data) {
-    for(hashtable_bucket_index_t index = 0; index < hashtable_data->buckets_count; index++) {
-        if (hashtable_data->buckets[index].keys_values == NULL) {
-            continue;
-        }
-
-        xalloc_free((hashtable_bucket_key_value_t*)hashtable_data->buckets[index].keys_values);
-    }
-}
-#endif
 
 void hashtable_data_free(hashtable_data_t* hashtable_data) {
 #if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
     hashtable_data_free_buckets(hashtable_data);
 #endif
-    xalloc_mmap_free((void*)hashtable_data->buckets, hashtable_data->buckets_size);
+    xalloc_mmap_free((void*)hashtable_data->half_hashes_chunk, hashtable_data->half_hashes_chunk_size);
+    xalloc_mmap_free((void*)hashtable_data->keys_values, hashtable_data->keys_values_size);
     xalloc_free((void*)hashtable_data);
 }

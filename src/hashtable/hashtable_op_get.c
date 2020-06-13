@@ -17,18 +17,13 @@ bool hashtable_op_get(
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_value_data_t *data) {
-    hashtable_bucket_hash_t hash;
-    hashtable_bucket_hash_half_t hash_half;
-    volatile hashtable_bucket_t* bucket;
-    hashtable_bucket_index_t bucket_index;
-    hashtable_bucket_slot_index_t bucket_slot_index;
+    hashtable_hash_t hash;
     volatile hashtable_bucket_key_value_t* bucket_key_value;
 
     bool data_found = false;
     *data = 0;
 
     hash = hashtable_support_hash_calculate(key, key_size);
-    hash_half = hashtable_support_hash_half(hash);
 
     volatile hashtable_data_t* hashtable_data_list[] = {
             hashtable->ht_current,
@@ -53,10 +48,6 @@ bool hashtable_op_get(
                 key,
                 key_size,
                 hash,
-                hash_half,
-                &bucket,
-                &bucket_index,
-                &bucket_slot_index,
                 &bucket_key_value) == false) {
             continue;
         }

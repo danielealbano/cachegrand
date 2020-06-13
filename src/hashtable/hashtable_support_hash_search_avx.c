@@ -6,9 +6,9 @@
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_support_hash_search.h"
 
-hashtable_bucket_slot_index_t hashtable_support_hash_search_avx_14(
-        hashtable_bucket_hash_half_t hash,
-        hashtable_bucket_hash_half_atomic_t* hashes,
+hashtable_chunk_slot_index_t hashtable_support_hash_search_avx_14(
+        hashtable_hash_half_t hash,
+        hashtable_hash_half_atomic_t* hashes,
         uint32_t skip_indexes_mask) {
     uint32_t compacted_result_mask = 0;
     uint32_t skip_indexes_mask_inv = ~skip_indexes_mask;
@@ -26,9 +26,9 @@ hashtable_bucket_slot_index_t hashtable_support_hash_search_avx_14(
     return _tzcnt_u32(compacted_result_mask & skip_indexes_mask_inv);
 }
 
-hashtable_bucket_slot_index_t hashtable_support_hash_search_avx_13(
-        hashtable_bucket_hash_half_t hash,
-        hashtable_bucket_hash_half_atomic_t* hashes,
+hashtable_chunk_slot_index_t hashtable_support_hash_search_avx_13(
+        hashtable_hash_half_t hash,
+        hashtable_hash_half_atomic_t* hashes,
         uint32_t skip_indexes_mask) {
     uint32_t compacted_result_mask = 0;
     uint32_t skip_indexes_mask_inv = ~skip_indexes_mask;
@@ -46,9 +46,9 @@ hashtable_bucket_slot_index_t hashtable_support_hash_search_avx_13(
     return _tzcnt_u32(compacted_result_mask & skip_indexes_mask_inv);
 }
 
-hashtable_bucket_slot_index_t hashtable_support_hash_search_avx_8(
-        hashtable_bucket_hash_half_t hash,
-        hashtable_bucket_hash_half_atomic_t* hashes,
+hashtable_chunk_slot_index_t hashtable_support_hash_search_avx_8(
+        hashtable_hash_half_t hash,
+        hashtable_hash_half_atomic_t* hashes,
         uint32_t skip_indexes_mask) {
     uint32_t compacted_result_mask = 0;
     uint32_t skip_indexes_mask_inv = ~skip_indexes_mask;
