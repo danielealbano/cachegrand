@@ -33,7 +33,7 @@ enum log_level {
 typedef enum log_level log_level_t;
 
 const char* log_level_to_string(log_level_t level);
-char* log_message_timestamp(char* t_str, size_t t_str_size);
+char* log_message_timestamp(char* t_str);
 void log_message_internal(const char* tag, log_level_t level, const char* message, va_list args);
 void log_set_log_level(log_level_t level);
 void log_message(const char* tag, log_level_t level, const char* message, ...);
