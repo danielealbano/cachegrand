@@ -2,6 +2,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "cmake_config.h"
+
+#include "log.h"
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_support_hash_search.h"
 
@@ -15,13 +18,25 @@ static void *hashtable_support_hash_search_resolve(void)
 {
     __builtin_cpu_init();
 
+    LOG_DI("Selecting optimal hash search algorithm");
+
 #if defined(__x86_64__)
+    LOG_DI("CPU FOUND: %s", "X64");
+    LOG_DI("> HAS AVX:    %s", __builtin_cpu_supports("avx") ? "yes" : "no");
+    LOG_DI("> HAS AVX2:   %s", __builtin_cpu_supports("avx2") ? "yes" : "no");
+
     if (__builtin_cpu_supports("avx2")) {
+        LOG_DI("Selecting AVX2");
+
         return HASHTABLE_SUPPORT_HASH_SEARCH_METHOD_SIZE(avx2, 13);
     } else if (__builtin_cpu_supports("avx")) {
+        LOG_DI("Selecting AVX");
+
         return HASHTABLE_SUPPORT_HASH_SEARCH_METHOD_SIZE(avx, 13);
     }
 #endif
+
+    LOG_DI("No optimization available, selecting loop-based search algorithm");
 
     return HASHTABLE_SUPPORT_HASH_SEARCH_METHOD_SIZE(loop, 13);
 }
