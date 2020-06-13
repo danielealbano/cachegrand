@@ -13,6 +13,8 @@ __attribute__ ((ifunc ("hashtable_support_hash_search_resolve")));
 
 static void *hashtable_support_hash_search_resolve(void)
 {
+    __builtin_cpu_init();
+
 #if defined(__x86_64__)
     if (__builtin_cpu_supports("avx2")) {
         return HASHTABLE_SUPPORT_HASH_SEARCH_METHOD_SIZE(avx2, 13);
