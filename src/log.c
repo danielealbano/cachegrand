@@ -36,7 +36,7 @@ const char* log_level_to_string(log_level_t level) {
     }
 }
 
-char* log_message_timestamp(char* t_str, size_t t_str_size) {
+char* log_message_timestamp(char* t_str) {
     time_t t = time(NULL);
     struct tm* tm = localtime(&t);
 
