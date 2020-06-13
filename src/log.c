@@ -56,7 +56,7 @@ void log_message_internal(const char* tag, log_level_t level, const char* messag
 
     fprintf(LOG_MESSAGE_OUTPUT,
             "[%s][%-11s][%s] ",
-            log_message_timestamp(t_str, LOG_MESSAGE_TIMESTAMP_MAX_LENGTH),
+            log_message_timestamp(t_str),
             log_level_to_string(level),
             tag);
     vfprintf(LOG_MESSAGE_OUTPUT, message, args);
