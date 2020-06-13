@@ -40,10 +40,9 @@ char* log_message_timestamp(char* t_str, size_t t_str_size) {
     time_t t = time(NULL);
     struct tm* tm = localtime(&t);
 
-    if (strftime(t_str, t_str_size, LOG_MESSAGE_TIMESTAMP_FORMAT, tm) == 0) {
-        perror("Unable to format the timestamp for the logs");
-        exit(-1);
-    }
+    sprintf(t_str, "%04d-%02d-%02dT%02d:%02d:%02dZ",
+            1900 + tm.tm_year, tm.tm_mon, tm.tm_mday,
+            tm.tm_hour, tm.tm_min, tm.tm_sec);
 
     return t_str;
 }
