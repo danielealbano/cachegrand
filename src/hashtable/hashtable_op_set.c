@@ -4,7 +4,7 @@
 #include <stdatomic.h>
 #include <string.h>
 
-#include "xalloc.h"
+#include "log.h"
 #include "memory_fences.h"
 
 #include "hashtable/hashtable.h"
@@ -26,6 +26,9 @@ bool hashtable_op_set(
 
     hash = hashtable_support_hash_calculate(key, key_size);
 
+    LOG_DI("key (%d) = %s", key_size, key);
+    LOG_DI("hash = 0x%016x", hash);
+
     // TODO: the resize logic has to be reviewed, the underlying hash search function has to be aware that it hasn't
     //       to create a new item if it's missing
     bool ret = hashtable_support_op_search_key_or_create_new(
@@ -38,33 +41,41 @@ bool hashtable_op_set(
         &half_hashes_chunk,
         &key_value);
 
+    LOG_DI("created_new = %s", created_new ? "YES" : "NO");
+    LOG_DI("half_hashes_chunk = 0x%016x", half_hashes_chunk);
+    LOG_DI("key_value =  0x%016x", key_value);
+
     if (ret == false) {
-        if (half_hashes_chunk) {
-            hashtable_support_op_half_hashes_chunk_unlock(half_hashes_chunk);
-        }
+        LOG_DI("key not found or not created, continuing");
         return false;
     }
 
+    LOG_DI("key found or created");
+
     HASHTABLE_MEMORY_FENCE_LOAD();
 
-    bucket_key_value->data = value;
+    key_value->data = value;
 
-    if (!created_new) {
-        HASHTABLE_MEMORY_FENCE_LOAD();
+    LOG_DI("updating value to 0x%016x", value);
 
-        if (HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(bucket_key_value->flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED)) {
-            return false;
-        }
-    } else {
-        hashtable_bucket_key_value_flags_t flags = 0;
+    if (created_new) {
+        LOG_DI("it is a new key, updating flags and key");
+
+        hashtable_key_value_flags_t flags = 0;
+
+        LOG_DI("copying the key onto the key_value structure");
 
         // Get the destination pointer for the key
         if (key_size <= HASHTABLE_KEY_INLINE_MAX_LENGTH) {
-            HASHTABLE_BUCKET_KEY_VALUE_SET_FLAG(flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE);
+            LOG_DI("key can be inline-ed", key_size);
+
+            HASHTABLE_KEY_VALUE_SET_FLAG(flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE);
 
             ht_key = (hashtable_key_data_t *)&key_value->inline_key.data;
             strncpy((char*)ht_key, key, key_size);
         } else {
+            LOG_DI("key can't be inline-ed, max length for inlining %d", HASHTABLE_KEY_INLINE_MAX_LENGTH);
+
 #if defined(CACHEGRAND_HASHTABLE_KEY_CHECK_FULL)
             // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't be freed
             //       immediately after the bucket is freed because it can be in use and would cause a crash34567
@@ -88,7 +99,11 @@ bool hashtable_op_set(
 
         // Update the flags atomically
         key_value->flags = flags;
+
+        LOG_DI("key_value->flags = %d", key_value->flags);
     }
+
+    LOG_DI("unlocking half_hashes_chunk 0x%016x", half_hashes_chunk);
 
     hashtable_support_op_half_hashes_chunk_unlock(half_hashes_chunk);
 
