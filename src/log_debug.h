@@ -25,7 +25,11 @@ extern "C" {
 
 #define LOG_MESSAGE_DEBUG_RULES_SRC_FUNC_EXCLUDE \
         "hashtable_support_op_search_key", \
-        "hashtable_op_get",
+        "hashtable_op_get", \
+        "hashtable_support_op_search_key_or_create_new", \
+        "hashtable_op_set", \
+        "hashtable_support_op_half_hashes_chunk_lock" , \
+        "hashtable_support_op_half_hashes_chunk_unlock",
 
 #define LOG_MESSAGE_DEBUG_RULES(var, TYPE, INCLUDE_OR_EXCLUDE) \
     const char* var[] = { LOG_MESSAGE_DEBUG_RULES_##TYPE##_##INCLUDE_OR_EXCLUDE NULL }
