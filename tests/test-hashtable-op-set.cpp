@@ -8,6 +8,7 @@
 #include "hashtable/hashtable_support_index.h"
 #include "hashtable/hashtable_op_set.h"
 
+#include "test-support.h"
 #include "fixtures-hashtable.h"
 
 TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
@@ -20,29 +21,32 @@ TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
                         test_key_1_len,
                         test_value_1));
 
-                hashtable_bucket_index_t bucket_index = hashtable_support_index_from_hash(
+                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
-                        test_key_1_hash);
+                        test_key_1_hash));
+                hashtable_chunk_slot_index_t chunk_slot_index = 0;
 
-                volatile hashtable_bucket_t* bucket = &hashtable->ht_current->buckets[bucket_index];
+                hashtable_half_hashes_chunk_atomic_t* half_hashes_chunk =
+                        &hashtable->ht_current->half_hashes_chunk[chunk_index];
+                hashtable_key_value_atomic_t * key_value =
+                        &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
 
                 // Check if the write lock has been released
-                REQUIRE(bucket->write_lock == 0);
+                REQUIRE(half_hashes_chunk->metadata.write_lock == 0);
 
                 // Check if the first slot of the chain ring contains the correct key/value
-                REQUIRE(bucket->half_hashes[0] == test_key_1_hash_half);
-                REQUIRE(bucket->keys_values[0].flags ==
-                        (HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED | HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE));
+                REQUIRE(half_hashes_chunk->metadata.changes_counter == 1);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == test_key_1_hash_half);
+                REQUIRE(key_value->flags ==
+                        (HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE));
                 REQUIRE(strncmp(
-                        (char*)bucket->keys_values[0].inline_key.data,
+                        (char*)key_value->inline_key.data,
                         test_key_1,
                         test_key_1_len) == 0);
-                REQUIRE(bucket->keys_values[0].data == test_value_1);
+                REQUIRE(key_value->data == test_value_1);
 
                 // Check if the subsequent element has been affected by the changes
-                REQUIRE(bucket->half_hashes[1] == 0);
-                REQUIRE(bucket->keys_values[1].flags == 0);
-                REQUIRE(bucket->keys_values[1].inline_key.data[0] == 0);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index + 1] == 0);
             })
         }
 
@@ -60,26 +64,29 @@ TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
                         test_key_1_len,
                         test_value_1 + 1));
 
-                hashtable_bucket_index_t bucket_index = hashtable_support_index_from_hash(
+                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
-                        test_key_1_hash);
+                        test_key_1_hash));
+                hashtable_chunk_slot_index_t chunk_slot_index = 0;
 
-                volatile hashtable_bucket_t* bucket = &hashtable->ht_current->buckets[bucket_index];
+                hashtable_half_hashes_chunk_atomic_t* half_hashes_chunk =
+                        &hashtable->ht_current->half_hashes_chunk[chunk_index];
+                hashtable_key_value_atomic_t * key_value =
+                        &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
 
                 // Check if the first slot of the chain ring contains the correct key/value
-                REQUIRE(bucket->half_hashes[0] == test_key_1_hash_half);
-                REQUIRE(bucket->keys_values[0].flags ==
-                        (HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED | HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE));
+                REQUIRE(half_hashes_chunk->metadata.changes_counter == 2);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == test_key_1_hash_half);
+                REQUIRE(key_value->flags ==
+                        (HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE));
                 REQUIRE(strncmp(
-                        (char*)bucket->keys_values[0].inline_key.data,
+                        (char*)key_value->inline_key.data,
                         test_key_1,
                         test_key_1_len) == 0);
-                REQUIRE(bucket->keys_values[0].data == test_value_1 + 1);
+                REQUIRE(key_value->data == test_value_1 + 1);
 
                 // Check if the subsequent element has been affected by the changes
-                REQUIRE(bucket->half_hashes[1] == 0);
-                REQUIRE(bucket->keys_values[1].flags == 0);
-                REQUIRE(bucket->keys_values[1].inline_key.data[0] == 0);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index + 1] == 0);
             })
         }
 
@@ -97,79 +104,182 @@ TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
                         test_key_2_len,
                         test_value_2));
 
-                hashtable_bucket_index_t bucket_index1 = hashtable_support_index_from_hash(
+                // Check the first set
+                hashtable_chunk_index_t chunk_index1 = HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
-                        test_key_1_hash);
+                        test_key_1_hash));
+                hashtable_chunk_slot_index_t chunk_slot_index1 = 0;
 
-                hashtable_bucket_index_t bucket_index2 = hashtable_support_index_from_hash(
-                        hashtable->ht_current->buckets_count,
-                        test_key_2_hash);
+                hashtable_half_hashes_chunk_atomic_t* half_hashes_chunk1 =
+                        &hashtable->ht_current->half_hashes_chunk[chunk_index1];
+                hashtable_key_value_atomic_t * key_value1 =
+                        &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index1, chunk_slot_index1)];
 
-                volatile hashtable_bucket_t* bucket1 = &hashtable->ht_current->buckets[bucket_index1];
-                volatile hashtable_bucket_t* bucket2 = &hashtable->ht_current->buckets[bucket_index2];
-
-                // Check if the first slot of the chain ring contains the correct key/value
-                REQUIRE(bucket1->half_hashes[0] == test_key_1_hash_half);
-                REQUIRE(bucket1->keys_values[0].flags ==
-                        (HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED | HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE));
+                REQUIRE(half_hashes_chunk1->half_hashes[chunk_slot_index1] == test_key_1_hash_half);
+                REQUIRE(key_value1->flags ==
+                        (HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE));
                 REQUIRE(strncmp(
-                        (char*)bucket1->keys_values[0].inline_key.data,
+                        (char*)key_value1->inline_key.data,
                         test_key_1,
                         test_key_1_len) == 0);
-                REQUIRE(bucket1->keys_values[0].data == test_value_1);
+                REQUIRE(key_value1->data == test_value_1);
 
-                // Check if the first slot of the chain ring contains the correct key/value
-                REQUIRE(bucket2->half_hashes[0] == test_key_2_hash_half);
-                REQUIRE(bucket2->keys_values[0].flags ==
-                        (HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED | HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE));
+                // Check the second set
+                hashtable_chunk_index_t chunk_index2 = HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                        hashtable->ht_current->buckets_count,
+                        test_key_2_hash));
+                hashtable_chunk_slot_index_t chunk_slot_index2 = 0;
+
+                hashtable_half_hashes_chunk_atomic_t* half_hashes_chunk2 =
+                        &hashtable->ht_current->half_hashes_chunk[chunk_index2];
+                hashtable_key_value_atomic_t * key_value2 =
+                        &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index2, chunk_slot_index2)];
+
+                REQUIRE(half_hashes_chunk2->half_hashes[chunk_slot_index2] == test_key_2_hash_half);
+                REQUIRE(key_value2->flags ==
+                        (HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE));
                 REQUIRE(strncmp(
-                        (char*)bucket2->keys_values[0].inline_key.data,
+                        (char*)key_value2->inline_key.data,
                         test_key_2,
                         test_key_2_len) == 0);
-                REQUIRE(bucket2->keys_values[0].data == test_value_2);
+                REQUIRE(key_value2->data == test_value_2);
             })
         }
 
-        SECTION("fill entire bucket - key with same prefix - key not inline") {
+        SECTION("fill entire half hashes chunk - key with same prefix - key not inline") {
             HASHTABLE(buckets_initial_count_5, false, {
-                for(uint32_t i = 0; i < HASHTABLE_BUCKET_SLOTS_COUNT; i++) {
+                hashtable_chunk_slot_index_t slots_to_fill = HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
+                test_key_same_bucket_t* test_key_same_bucket = test_same_hash_mod_fixtures_generate(
+                        hashtable->ht_current->buckets_count,
+                        test_key_same_bucket_key_prefix_external,
+                        slots_to_fill);
+
+                for(hashtable_chunk_index_t i = 0; i < slots_to_fill; i++) {
                     REQUIRE(hashtable_op_set(
                             hashtable,
-                            (char*)test_key_1_same_bucket[i].key,
-                            test_key_1_same_bucket[i].key_len,
+                            (char*)test_key_same_bucket[i].key,
+                            test_key_same_bucket[i].key_len,
                             test_value_1 + i));
                 }
 
-                volatile hashtable_bucket_t* bucket = &hashtable->ht_current->buckets[test_index_1_buckets_count_42];
+                hashtable_chunk_index_t chunk_index_base =
+                        HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                                hashtable->ht_current->buckets_count,
+                                test_key_same_bucket[0].key_hash));
 
-                for(uint32_t i = 0; i < HASHTABLE_BUCKET_SLOTS_COUNT; i++) {
-                    REQUIRE(bucket->half_hashes[i] == test_key_1_same_bucket[i].key_hash_half);
-                    REQUIRE(bucket->keys_values[i].flags == HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED);
+                for(hashtable_chunk_index_t i = 0; i < slots_to_fill; i++) {
+                    hashtable_half_hashes_chunk_atomic_t* half_hashes_chunk =
+                            &hashtable->ht_current->half_hashes_chunk[chunk_index_base];
+                    hashtable_key_value_atomic_t * key_value =
+                            &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index_base, i)];
+
+                    REQUIRE(half_hashes_chunk->half_hashes[i] == test_key_same_bucket[i].key_hash_half);
+                    REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_FILLED);
                     REQUIRE(strncmp(
-                            (char*)bucket->keys_values[i].prefix_key.data,
-                            test_key_1_same_bucket[i].key,
+                            (char*)key_value->prefix_key.data,
+                            test_key_same_bucket[i].key,
                             HASHTABLE_KEY_PREFIX_SIZE) == 0);
-                    REQUIRE(bucket->keys_values[i].data == test_value_1 + i);
+                    REQUIRE(key_value->data == test_value_1 + i);
                 }
+
+                test_same_hash_mod_fixtures_free(test_key_same_bucket);
             })
         }
 
-        SECTION("bucket overflow") {
-            HASHTABLE(buckets_initial_count_5, false, {
-                for(uint32_t i = 0; i < HASHTABLE_BUCKET_SLOTS_COUNT; i++) {
-                    hashtable_op_set(
+        SECTION("overflow half hashes chunk - check hashes and key (key > INLINE, using prefix)") {
+            HASHTABLE(buckets_initial_count_305, false, {
+                hashtable_chunk_count_t chunks_to_overflow = 3;
+                hashtable_chunk_slot_index_t slots_to_fill =
+                        (HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT * chunks_to_overflow) + 3;
+                test_key_same_bucket_t* test_key_same_bucket = test_same_hash_mod_fixtures_generate(
+                        hashtable->ht_current->buckets_count,
+                        test_key_same_bucket_key_prefix_external,
+                        slots_to_fill);
+
+                for(hashtable_chunk_slot_index_t i = 0; i < slots_to_fill; i++) {
+                    REQUIRE(hashtable_op_set(
                             hashtable,
-                            (char*)test_key_1_same_bucket[i].key,
-                            test_key_1_same_bucket[i].key_len,
-                            test_value_1 + i);
+                            (char*)test_key_same_bucket[i].key,
+                            test_key_same_bucket[i].key_len,
+                            test_value_1 + i));
                 }
 
-                REQUIRE(!hashtable_op_set(
-                        hashtable,
-                        (char*)test_key_1_same_bucket[13].key,
-                        test_key_1_same_bucket[13].key_len,
-                        test_value_1 + 13));
+                hashtable_chunk_index_t chunk_index_base =
+                        HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                                hashtable->ht_current->buckets_count,
+                                test_key_same_bucket[0].key_hash));
+
+                for(uint32_t i = 0; i < slots_to_fill; i++) {
+                    hashtable_chunk_index_t chunk_index =
+                            chunk_index_base + (int)(i / HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT);
+                    hashtable_chunk_slot_index_t chunk_slot_index =
+                            i % HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
+
+                    hashtable_half_hashes_chunk_atomic_t* half_hashes_chunk =
+                            &hashtable->ht_current->half_hashes_chunk[chunk_index];
+
+                    hashtable_key_value_atomic_t * key_value =
+                            &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
+
+                    REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == test_key_same_bucket[i].key_hash_half);
+                    REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_FILLED);
+                    REQUIRE(strncmp(
+                            (char*)key_value->prefix_key.data,
+                            test_key_same_bucket[i].key,
+                            HASHTABLE_KEY_PREFIX_SIZE) == 0);
+                    REQUIRE(key_value->data == test_value_1 + i);
+                }
+
+                test_same_hash_mod_fixtures_free(test_key_same_bucket);
             })
         }
+
+        SECTION("overflow half hashes chunk - check overflowed_chunks_counter") {
+            HASHTABLE(buckets_initial_count_305, false, {
+                hashtable_chunk_count_t chunks_to_overflow = 3;
+                hashtable_chunk_slot_index_t slots_to_fill =
+                        (HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT * chunks_to_overflow) + 3;
+                test_key_same_bucket_t* test_key_same_bucket = test_same_hash_mod_fixtures_generate(
+                        hashtable->ht_current->buckets_count,
+                        test_key_same_bucket_key_prefix_external,
+                        slots_to_fill);
+
+                for(hashtable_chunk_slot_index_t i = 0; i < slots_to_fill; i++) {
+                    REQUIRE(hashtable_op_set(
+                            hashtable,
+                            (char*)test_key_same_bucket[i].key,
+                            test_key_same_bucket[i].key_len,
+                            test_value_1 + i));
+                }
+
+                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                        hashtable->ht_current->buckets_count,
+                        test_key_same_bucket[0].key_hash));
+
+                hashtable_half_hashes_chunk_atomic_t* half_hashes_chunk =
+                        &hashtable->ht_current->half_hashes_chunk[chunk_index];
+                REQUIRE(half_hashes_chunk->metadata.overflowed_chunks_counter == chunks_to_overflow);
+
+                test_same_hash_mod_fixtures_free(test_key_same_bucket);
+            })
+        }
+
+//        SECTION("parallel inserts - check storage") {
+//            HASHTABLE(1000000, false, {
+//                for(uint32_t i = 0; i < HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT; i++) {
+//                    hashtable_op_set(
+//                            hashtable,
+//                            (char*)test_key_1_same_bucket[i].key,
+//                            test_key_1_same_bucket[i].key_len,
+//                            test_value_1 + i);
+//                }
+//
+//                REQUIRE(!hashtable_op_set(
+//                        hashtable,
+//                        (char*)test_key_1_same_bucket[13].key,
+//                        test_key_1_same_bucket[13].key_len,
+//                        test_value_1 + 13));
+//            })
+//        }
     }
 }

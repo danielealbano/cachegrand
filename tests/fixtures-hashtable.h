@@ -23,14 +23,14 @@ char test_key_same_bucket_key_prefix_inline[] = "sb_key_inline_";
 
 char test_key_1[] = "test key 1";
 hashtable_key_size_t test_key_1_len = 10;
-hashtable_bucket_hash_t test_key_1_hash = (hashtable_bucket_hash_t)0xf1bdcc8aaccb614c;
-hashtable_bucket_hash_half_t test_key_1_hash_half = test_key_1_hash >> 32u;
+hashtable_hash_t test_key_1_hash = (hashtable_hash_t)0xf1bdcc8aaccb614c;
+hashtable_hash_half_t test_key_1_hash_half = (test_key_1_hash >> 32u) | 0x80000000u;
 hashtable_bucket_index_t test_index_1_buckets_count_42 = test_key_1_hash % buckets_count_42;
 
 char test_key_2[] = "test key 2";
 hashtable_key_size_t test_key_2_len = 10;
-hashtable_bucket_hash_t test_key_2_hash = (hashtable_bucket_hash_t)0x8c8b1b670da1324d;
-hashtable_bucket_hash_half_t test_key_2_hash_half = test_key_2_hash >> 32u;
+hashtable_hash_t test_key_2_hash = (hashtable_hash_t)0x8c8b1b670da1324d;
+hashtable_hash_half_t test_key_2_hash_half = (test_key_2_hash >> 32u) | 0x80000000u;
 hashtable_bucket_index_t test_index_2_buckets_count_42 = test_key_2_hash % buckets_count_42;
 
 #define HASHTABLE_DATA(buckets_count_v, ...) \
@@ -59,47 +59,38 @@ hashtable_bucket_index_t test_index_2_buckets_count_42 = test_key_2_hash % bucke
     HASHTABLE_FREE(); \
 }
 
-#define HASHTABLE_BUCKET(bucket_index) hashtable->ht_current->buckets[bucket_index]
+#define HASHTABLE_TO_CHUNK_INDEX(bucket_index) \
+    (int)(bucket_index / HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT)
+#define HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index) \
+    (chunk_index * HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index
 
-#if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
-#define HASHTABLE_BUCKET_KEYS_VALUES_NEW(bucket_index) \
-{ \
-    hashtable_bucket_key_value_t* keys_values; \
-    keys_values = (hashtable_bucket_key_value_t*)xalloc_alloc(sizeof(hashtable_bucket_key_value_t) * HASHTABLE_BUCKET_SLOTS_COUNT); \
-    memset(keys_values, 0, sizeof(hashtable_bucket_key_value_t)); \
-    HASHTABLE_BUCKET(bucket_index).keys_values = keys_values; \
-}
-#else
-#define HASHTABLE_BUCKET_KEYS_VALUES_NEW(bucket_index) \
-{}
-#endif // HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
+#define HASHTABLE_HALF_HASHES_CHUNK(chunk_index) \
+    hashtable->ht_current->half_hashes_chunk[chunk_index]
+#define HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index) \
+    hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)]
 
-#define HASHTABLE_BUCKET_SET_INDEX_SHARED(bucket_index, bucket_slot_index, hash, value) \
-    HASHTABLE_BUCKET(bucket_index).half_hashes[bucket_slot_index] = hash >> 32u; \
-    HASHTABLE_BUCKET(bucket_index).keys_values[bucket_slot_index].data = value;
+#define HASHTABLE_SET_INDEX_SHARED(chunk_index, chunk_slot_index, hash, value) \
+    HASHTABLE_HALF_HASHES_CHUNK(chunk_index).half_hashes[chunk_slot_index] = \
+        (hash >> 32u) | 0x80000000; \
+    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).data = value;
 
-#define HASHTABLE_BUCKET_SET_INDEX_KEY_INLINE(bucket_index, bucket_slot_index, hash, key, key_size, value) \
-    HASHTABLE_BUCKET_SET_INDEX_SHARED(bucket_index, bucket_slot_index, hash, value); \
-    HASHTABLE_BUCKET(bucket_index).keys_values[bucket_slot_index].flags = \
-        HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED | HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE; \
-    strncpy((char*)&HASHTABLE_BUCKET(bucket_index).keys_values[bucket_slot_index].inline_key.data, key, HASHTABLE_KEY_INLINE_MAX_LENGTH);
+#define HASHTABLE_SET_KEY_INLINE_BY_INDEX(chunk_index, chunk_slot_index, hash, key, key_size, value) \
+    HASHTABLE_SET_INDEX_SHARED(chunk_index, chunk_slot_index, hash, value); \
+    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).flags = \
+        HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE; \
+    strncpy((char*)&HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).inline_key.data, key, HASHTABLE_KEY_INLINE_MAX_LENGTH);
 
-#define HASHTABLE_BUCKET_SET_INDEX_KEY_EXTERNAL(bucket_index, bucket_slot_index, hash, key, key_size, value) \
-    HASHTABLE_BUCKET_SET_INDEX_SHARED(bucket_index, bucket_slot_index, hash, value); \
-    HASHTABLE_BUCKET(bucket_index).keys_values[bucket_slot_index].flags = \
-        HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED; \
-    HASHTABLE_BUCKET(bucket_index).keys_values[bucket_slot_index].external_key.data = key; \
-    HASHTABLE_BUCKET(bucket_index).keys_values[bucket_slot_index].external_key.size = key_size; \
-    HASHTABLE_BUCKET(bucket_index).keys_values[bucket_slot_index].prefix_key.size = key_size; \
-    strncpy((char*)&HASHTABLE_BUCKET(bucket_index).keys_values[bucket_slot_index].prefix_key.data, key, HASHTABLE_KEY_PREFIX_SIZE);
-
-#define HASHTABLE_BUCKET_NEW_KEY_INLINE(bucket_index, hash, key, key_size, value) \
-    HASHTABLE_BUCKET_KEYS_VALUES_NEW(bucket_index); \
-    HASHTABLE_BUCKET_SET_INDEX_KEY_INLINE(bucket_index, 0, hash, key, key_size, value); \
-
-#define HASHTABLE_BUCKET_NEW_KEY_EXTERNAL(bucket_index, hash, key, key_size, value) \
-    HASHTABLE_BUCKET_KEYS_VALUES_NEW(bucket_index); \
-    HASHTABLE_BUCKET_SET_INDEX_KEY_EXTERNAL(bucket_index, 0, hash, key, key_size, value); \
+#define HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(chunk_index, chunk_slot_index, hash, key, key_size, value) \
+    HASHTABLE_SET_INDEX_SHARED(chunk_index, chunk_slot_index, hash, value); \
+    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).flags = \
+        HASHTABLE_KEY_VALUE_FLAG_FILLED; \
+    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).external_key.data = \
+        key; \
+    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).external_key.size = \
+        key_size; \
+    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).prefix_key.size = \
+        key_size; \
+    strncpy((char*)&HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).prefix_key.data, key, HASHTABLE_KEY_PREFIX_SIZE);
 
 #ifdef __cplusplus
 }

@@ -28,12 +28,12 @@ TEST_CASE("hashtable.c", "[hashtable]") {
 
     SECTION("hashtable struct size") {
         SECTION("sizeof(hashtable_bucket_key_value_t) == 32") {
-            REQUIRE(sizeof(hashtable_bucket_key_value_t) == 32);
+            REQUIRE(sizeof(hashtable_key_value_t) == 32);
         }
 
 #if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
-        SECTION("sizeof(hashtable_bucket_t) == 64") {
-            REQUIRE(sizeof(hashtable_bucket_t) == 64);
+        SECTION("sizeof(hashtable_bucket_t) == 128") {
+            REQUIRE(sizeof(hashtable_half_hashes_chunk_atomic_t) == 128);
         }
 #else
         SECTION("sizeof(hashtable_bucket_t) == 512") {
