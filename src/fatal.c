@@ -3,6 +3,8 @@
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
+#include <stdbool.h>
+
 #if defined(__linux__) || defined(__APPLE__)
 #include <execinfo.h>
 #elif defined(__MINGW32__)

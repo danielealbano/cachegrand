@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include <stdarg.h>
+#include <log_debug.h>
 
 #define LOG_MESSAGE_TIMESTAMP_MAX_LENGTH 25
 
@@ -22,13 +23,6 @@ extern "C" {
 #define LOG_D(tag, message, ...) \
     log_message(tag, LOG_LEVEL_DEBUG, message, __VA_ARGS__)
 
-#if DEBUG == 1
-#define LOG_DI(...) \
-    log_message_debug(CACHEGRAND_SRC_PATH, __func__, __LINE__, __VA_ARGS__)
-#else
-#define LOG_DI(...) /* Internal debug logs disabled */
-#endif // DEBUG == 1
-
 enum log_level {
     LOG_LEVEL_ERROR,
     LOG_LEVEL_RECOVERABLE,
@@ -41,11 +35,14 @@ enum log_level {
 typedef enum log_level log_level_t;
 
 const char* log_level_to_string(log_level_t level);
-char* log_message_timestamp(char* t_str);
+char* log_message_timestamp(char* dest, size_t maxlen);
 void log_message_internal(const char* tag, log_level_t level, const char* message, va_list args);
 void log_set_log_level(log_level_t level);
-void log_message_debug(const char* src_path, const char* src_func, int src_line, const char* message, ...);
 void log_message(const char* tag, log_level_t level, const char* message, ...);
+
+#ifndef DEBUG
+#define LOG_DI(...) /* Internal debug logs disabled */
+#endif // DEBUG == 1
 
 #ifdef __cplusplus
 }
