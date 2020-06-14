@@ -8,9 +8,6 @@ extern "C" {
 hashtable_data_t* hashtable_data_init(
         hashtable_bucket_count_t buckets_count);
 
-void hashtable_data_free_buckets(
-        hashtable_data_t* hashtable_data);
-
 void hashtable_data_free(
         hashtable_data_t* hashtable_data);
 

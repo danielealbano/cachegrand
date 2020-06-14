@@ -23,27 +23,26 @@ hashtable_data_t* hashtable_data_init(hashtable_bucket_count_t buckets_count) {
     hashtable_data->buckets_count =
             buckets_count;
     hashtable_data->buckets_count_real =
-            hashtable_data->buckets_count + (buckets_count % HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT);
+            hashtable_data->buckets_count +
+            (buckets_count % HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT) +
+            (HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX * HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT);
     hashtable_data->chunks_count =
             hashtable_data->buckets_count_real / HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
 
     hashtable_data->half_hashes_chunk_size =
             sizeof(hashtable_half_hashes_chunk_atomic_t) * hashtable_data->chunks_count;
     hashtable_data->keys_values_size =
-            sizeof(hashtable_bucket_key_value_atomic_t) * hashtable_data->buckets_count_real;
+            sizeof(hashtable_key_value_atomic_t) * hashtable_data->buckets_count_real;
 
     hashtable_data->half_hashes_chunk =
             (hashtable_half_hashes_chunk_atomic_t *)xalloc_mmap_alloc(hashtable_data->half_hashes_chunk_size);
     hashtable_data->keys_values =
-            (hashtable_bucket_key_value_atomic_t *)xalloc_mmap_alloc(hashtable_data->keys_values_size);
+            (hashtable_key_value_atomic_t *)xalloc_mmap_alloc(hashtable_data->keys_values_size);
 
     return hashtable_data;
 }
 
 void hashtable_data_free(hashtable_data_t* hashtable_data) {
-#if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
-    hashtable_data_free_buckets(hashtable_data);
-#endif
     xalloc_mmap_free((void*)hashtable_data->half_hashes_chunk, hashtable_data->half_hashes_chunk_size);
     xalloc_mmap_free((void*)hashtable_data->keys_values, hashtable_data->keys_values_size);
     xalloc_free((void*)hashtable_data);
