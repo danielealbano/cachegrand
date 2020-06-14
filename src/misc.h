@@ -7,6 +7,9 @@
 #endif
 #endif
 
+#define concat_(a, b) a ## _ ## b
+#define concat(a, b) concat_(a, b)
+
 #define max(a, b) \
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \

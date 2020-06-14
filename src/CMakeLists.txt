@@ -28,51 +28,33 @@ macro(CACHEGRAND_BUILD_ADHOC_HASHTABLE_SUPPORT_OP_ARCH ARCH)
             PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR})
 
-    add_dependencies(cachegrand-internal ${hashtable_support_op_arch_target_name})
-    list(APPEND SRC_FILES_CACHEGRAND_HASHTABLE "$<TARGET_OBJECTS:${hashtable_support_op_arch_target_name}>")
+#    add_dependencies(cachegrand-internal ${hashtable_support_op_arch_target_name})
+    list(APPEND SRC_FILES_CACHEGRAND "$<TARGET_OBJECTS:${hashtable_support_op_arch_target_name}>")
 endmacro()
 
 # Build the base cachegrand library
-file(GLOB SRC_FILES_CACHEGRAND "*.c")
-file(GLOB SRC_FILES_CACHEGRAND_HASHTABLE "hashtable/*.c")
-list(APPEND SRC_FILE_CACHEGRAND "${CACHEGRAND_CMAKE_CONFIG_C_SRC}")
+file(GLOB SRC_FILES_CACHEGRAND "*.c" "hashtable/*.c")
+list(APPEND SRC_FILES_CACHEGRAND "${CACHEGRAND_CMAKE_CONFIG_C_SRC}")
 list(REMOVE_ITEM SRC_FILES_CACHEGRAND ${CMAKE_CURRENT_SOURCE_DIR}/main.c)
 
-# Remove all the architecture dependant implementation but reinclude the loop (non architecture dependant)
-list(FILTER SRC_FILES_CACHEGRAND_HASHTABLE EXCLUDE REGEX ".*hashtable_support_hash_search_[a-z0-9]+\\.c$")
-list(FILTER SRC_FILES_CACHEGRAND_HASHTABLE EXCLUDE REGEX ".*hashtable_support_op_arch\\.c$")
-list(APPEND SRC_FILES_CACHEGRAND_HASHTABLE "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_loop.c")
-
-add_library(
-        cachegrand-internal
-        ${SRC_FILES_CACHEGRAND}
-        ${SRC_FILES_CACHEGRAND_HASHTABLE}
-)
-add_dependencies(cachegrand-internal
-        __internal_refresh_cmake_config_c
-        t1ha)
-target_link_libraries(cachegrand-internal t1ha)
-target_include_directories(cachegrand-internal PUBLIC "../3rdparty/t1ha/")
-target_include_directories(cachegrand-internal PUBLIC ".")
+# Remove all the architecture dependant implementation but re-include the loop (non architecture dependant)
+list(FILTER SRC_FILES_CACHEGRAND EXCLUDE REGEX ".*hashtable_support_hash_search_[a-z0-9]+.c$")
+list(FILTER SRC_FILES_CACHEGRAND EXCLUDE REGEX ".*hashtable_support_op_arch.c$")
+list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_loop.c")
 
 # Build the ad-hoc versions of hashtable_support_op.c
-CACHEGRAND_BUILD_ADHOC_HASHTABLE_SUPPORT_OP_ARCH(
-        noopt
-        SRC_FILES_CACHEGRAND_HASHTABLE)
+CACHEGRAND_BUILD_ADHOC_HASHTABLE_SUPPORT_OP_ARCH(noopt)
 
 if(ARCH_IS_X86_64)
-    # Force GCC to emit cmpxchg16b inline (supported only on x86_64 platforms)
-    target_compile_options(cachegrand-internal PUBLIC -mcx16)
-
     message(STATUS "Enabling accelerated hash search -- avx2")
-    list(APPEND SRC_FILES_CACHEGRAND_HASHTABLE "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_avx2.c")
+    list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_avx2.c")
     set_source_files_properties(
             "hashtable/hashtable_support_hash_search_avx2.c"
             PROPERTIES COMPILE_FLAGS
             "-mno-avx256-split-unaligned-load -mavx2 -mbmi")
 
     message(STATUS "Enabling accelerated hash search -- avx")
-    list(APPEND SRC_FILES_CACHEGRAND_HASHTABLE "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_avx.c")
+    list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_avx.c")
     set_source_files_properties(
             "hashtable/hashtable_support_hash_search_avx.c"
             PROPERTIES COMPILE_FLAGS
@@ -84,16 +66,35 @@ if(ARCH_IS_X86_64)
             sse42
             genericx64)
         CACHEGRAND_BUILD_ADHOC_HASHTABLE_SUPPORT_OP_ARCH(
-                ${HASHTABLE_SUPPORT_OP_ARCH_SUFFIX}
-                SRC_FILES_CACHEGRAND_HASHTABLE)
+                ${HASHTABLE_SUPPORT_OP_ARCH_SUFFIX})
     endforeach()
 else()
     message(FATAL_ERROR "Unsupported architecture")
 endif()
 
-IF(WIN32)
+foreach(FILE ${SRC_FILES_CACHEGRAND})
+    message(${FILE})
+endforeach()
+
+add_library(
+        cachegrand-internal
+        ${SRC_FILES_CACHEGRAND}
+)
+add_dependencies(cachegrand-internal
+        __internal_refresh_cmake_config_c
+        t1ha)
+target_link_libraries(cachegrand-internal t1ha)
+target_include_directories(cachegrand-internal PUBLIC "../3rdparty/t1ha/")
+target_include_directories(cachegrand-internal PUBLIC ".")
+
+if(ARCH_IS_X86_64)
+    # Force GCC to emit cmpxchg16b inline (supported only on x86_64 platforms)
+    target_compile_options(cachegrand-internal PUBLIC -mcx16)
+endif()
+
+if(WIN32)
     target_link_libraries(cachegrand-internal imagehlp)
-ENDIF(WIN32)
+endif(WIN32)
 
 # Build the executable
 add_executable(cachegrand "main.c")

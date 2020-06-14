@@ -13,6 +13,7 @@
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_support_index.h"
 #include "hashtable/hashtable_support_hash.h"
+#include "hashtable/hashtable_support_op.h"
 #include "hashtable/hashtable_support_op_arch.h"
 #include "hashtable/hashtable_support_hash_search.h"
 
@@ -20,7 +21,7 @@
 #error "CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX not defined, unable to build"
 #endif
 
-bool hashtable_support_op_search_key_CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX(
+bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX)(
         volatile hashtable_data_t *hashtable_data,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
@@ -175,7 +176,7 @@ bool hashtable_support_op_search_key_CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX
     return found;
 }
 
-bool hashtable_support_op_half_hashes_chunk_lock_CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX(
+bool concat(hashtable_support_op_half_hashes_chunk_lock, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX)(
         hashtable_half_hashes_chunk_atomic_t * half_hashes_chunk,
         bool retry) {
     bool write_lock_set = false;
@@ -200,7 +201,7 @@ bool hashtable_support_op_half_hashes_chunk_lock_CACHEGRAND_HASHTABLE_SUPPORT_OP
     return write_lock_set;
 }
 
-void hashtable_support_op_half_hashes_chunk_unlock_CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX(
+void concat(hashtable_support_op_half_hashes_chunk_unlock, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX)(
         hashtable_half_hashes_chunk_atomic_t* half_hashes_chunk) {
     LOG_DI("unlocking half_hashes_chunk 0x%016x", half_hashes_chunk);
 
@@ -208,7 +209,7 @@ void hashtable_support_op_half_hashes_chunk_unlock_CACHEGRAND_HASHTABLE_SUPPORT_
     HASHTABLE_MEMORY_FENCE_STORE();
 }
 
-bool hashtable_support_op_search_key_or_create_new_CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX(
+bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX)(
         hashtable_data_atomic_t *hashtable_data,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
@@ -248,7 +249,7 @@ bool hashtable_support_op_search_key_or_create_new_CACHEGRAND_HASHTABLE_SUPPORT_
 
     half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index_start];
 
-    hashtable_support_op_half_hashes_chunk_lock_CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX(half_hashes_chunk, true);
+    concat(hashtable_support_op_half_hashes_chunk_lock, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX)(half_hashes_chunk, true);
     locked_up_to_chunk_index = chunk_index_start;
 
     LOG_DI("locked_up_to_chunk_index = %lu", locked_up_to_chunk_index);
@@ -303,14 +304,13 @@ bool hashtable_support_op_search_key_or_create_new_CACHEGRAND_HASHTABLE_SUPPORT_
             half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
 
             // Every time a new chunk gets processed during the search it has to be locked for safety reasons
-
             LOG_DI(">> chunk_index > locked_up_to_chunk_index = %s", chunk_index > locked_up_to_chunk_index ? "YES" : "NO");
             if (chunk_index > locked_up_to_chunk_index) {
                 LOG_DI(">> updating locked_up_to_chunk_index to %d", chunk_index);
                 locked_up_to_chunk_index = chunk_index;
 
                 LOG_DI(">> locking chunk (with retry)");
-                hashtable_support_op_half_hashes_chunk_lock_CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX(half_hashes_chunk, true);
+                concat(hashtable_support_op_half_hashes_chunk_lock, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX)(half_hashes_chunk, true);
             }
 
             if (searching_or_creating == 0) {
@@ -468,7 +468,7 @@ bool hashtable_support_op_search_key_or_create_new_CACHEGRAND_HASHTABLE_SUPPORT_
         half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
 
         LOG_DI("> unlocking chunk");
-        hashtable_support_op_half_hashes_chunk_unlock_CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX(half_hashes_chunk);
+        concat(hashtable_support_op_half_hashes_chunk_unlock, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX)(half_hashes_chunk);
     }
 
     LOG_DI("found_half_hashes_chunk = 0x%016x", *found_half_hashes_chunk);
