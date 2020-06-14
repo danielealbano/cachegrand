@@ -19,7 +19,7 @@ bool hashtable_op_delete(
         hashtable_key_size_t key_size) {
     hashtable_hash_t hash;
     hashtable_bucket_index_t bucket_index;
-    volatile hashtable_bucket_key_value_t* bucket_key_value;
+    volatile hashtable_key_value_t* bucket_key_value;
     bool deleted = false;
 /*
     hash = hashtable_support_hash_calculate(key, key_size);
