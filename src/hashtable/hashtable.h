@@ -8,7 +8,7 @@ extern "C" {
 #define _Atomic(T) T volatile
 
 #define HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT     14
-#define HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX      10
+#define HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX      32
 #define HASHTABLE_KEY_INLINE_MAX_LENGTH             23
 #define HASHTABLE_KEY_PREFIX_SIZE                   HASHTABLE_KEY_INLINE_MAX_LENGTH \
                                                     - sizeof(hashtable_key_size_t)
