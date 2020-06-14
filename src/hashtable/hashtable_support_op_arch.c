@@ -13,12 +13,10 @@
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_support_index.h"
 #include "hashtable/hashtable_support_hash.h"
-#include "hashtable/hashtable_support_op.h"
-#include "hashtable/hashtable_support_op_arch.h"
 #include "hashtable/hashtable_support_hash_search.h"
 
 #ifndef CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX
-#error "CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX not defined, unable to build"
+#define CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX defaultopt
 #endif
 
 bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX)(

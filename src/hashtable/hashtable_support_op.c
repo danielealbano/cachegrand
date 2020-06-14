@@ -1,14 +1,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdatomic.h>
 #include <string.h>
-#include <sched.h>
-#include <assert.h>
 
-#include "misc.h"
 #include "log.h"
-#include "memory_fences.h"
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_support_op.h"
@@ -21,6 +16,7 @@
         LOG_DI("Selecting optimal " #FUNC); \
         \
         LOG_DI("   CPU FOUND: %s", "X64"); \
+        LOG_DI(">   HAS SSE3: %s", __builtin_cpu_supports("sse3") ? "yes" : "no"); \
         LOG_DI("> HAS SSE4.2: %s", __builtin_cpu_supports("sse4.2") ? "yes" : "no"); \
         LOG_DI(">    HAS AVX: %s", __builtin_cpu_supports("avx") ? "yes" : "no"); \
         LOG_DI(">   HAS AVX2: %s", __builtin_cpu_supports("avx2") ? "yes" : "no"); \
@@ -34,16 +30,19 @@
         } else if (__builtin_cpu_supports("sse4.2")) { \
             LOG_DI("Selecting SSE4.2"); \
             return HASHTABLE_SUPPORT_OP_FUNC_METHOD(FUNC, sse42); \
+        } else if (__builtin_cpu_supports("sse3")) { \
+            LOG_DI("Selecting SSE3"); \
+            return HASHTABLE_SUPPORT_OP_FUNC_METHOD(FUNC, sse3); \
         } \
         \
         LOG_DI("No optimized function available for the current achitecture, switching to generic"); \
         \
-        return HASHTABLE_SUPPORT_OP_FUNC_METHOD(FUNC, genericx64); \
+        return HASHTABLE_SUPPORT_OP_FUNC_METHOD(FUNC, defaultopt); \
     }
 #else
 #define HASHTABLE_SUPPORT_OP_FUNC_RESOLVER(FUNC) \
     static void* FUNC##_resolve(void) { \
-        return HASHTABLE_SUPPORT_OP_FUNC_METHOD(FUNC, noopt); \
+        return HASHTABLE_SUPPORT_OP_FUNC_METHOD(FUNC, defaultopt); \
     }
 #endif
 

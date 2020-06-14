@@ -2,12 +2,7 @@ macro(CACHEGRAND_BUILD_ADHOC_HASHTABLE_SUPPORT_OP_ARCH ARCH)
     set(HASHTABLE_SUPPORT_OP_ARCH_OPT_avx2 -mtune=haswell)
     set(HASHTABLE_SUPPORT_OP_ARCH_OPT_avx -mno-avx256-split-unaligned-load -mno-avx2 -mavx -mbmi)
     set(HASHTABLE_SUPPORT_OP_ARCH_OPT_sse42 -msse4.2)
-    set(HASHTABLE_SUPPORT_OP_ARCH_OPT_genericx64 -mtune=k8)
-    set(HASHTABLE_SUPPORT_OP_ARCH_OPT_noopt "")
-
-    if(NOT ${ARCH} STREQUAL "noopt")
-        message(STATUS "Enabling accelerated hashtable support operations -- ${ARCH}")
-    endif()
+    set(HASHTABLE_SUPPORT_OP_ARCH_OPT_ss3 -msse3)
 
     set(hashtable_support_op_arch_target_name "cachegrand_internal_hashtable_support_op_arch_${ARCH}")
 
@@ -39,11 +34,7 @@ list(REMOVE_ITEM SRC_FILES_CACHEGRAND ${CMAKE_CURRENT_SOURCE_DIR}/main.c)
 
 # Remove all the architecture dependant implementation but re-include the loop (non architecture dependant)
 list(FILTER SRC_FILES_CACHEGRAND EXCLUDE REGEX ".*hashtable_support_hash_search_[a-z0-9]+.c$")
-list(FILTER SRC_FILES_CACHEGRAND EXCLUDE REGEX ".*hashtable_support_op_arch.c$")
 list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_loop.c")
-
-# Build the ad-hoc versions of hashtable_support_op.c
-CACHEGRAND_BUILD_ADHOC_HASHTABLE_SUPPORT_OP_ARCH(noopt)
 
 if(ARCH_IS_X86_64)
     message(STATUS "Enabling accelerated hash search -- avx2")
@@ -64,17 +55,13 @@ if(ARCH_IS_X86_64)
             avx2
             avx
             sse42
-            genericx64)
+            sse3)
         CACHEGRAND_BUILD_ADHOC_HASHTABLE_SUPPORT_OP_ARCH(
                 ${HASHTABLE_SUPPORT_OP_ARCH_SUFFIX})
     endforeach()
 else()
     message(FATAL_ERROR "Unsupported architecture")
 endif()
-
-foreach(FILE ${SRC_FILES_CACHEGRAND})
-    message(${FILE})
-endforeach()
 
 add_library(
         cachegrand-internal
