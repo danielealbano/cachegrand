@@ -2,8 +2,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "cmake_config.h"
-
 #include "log.h"
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_support_hash_search.h"
@@ -18,12 +16,12 @@ static void *hashtable_support_hash_search_resolve(void)
 {
     __builtin_cpu_init();
 
-    LOG_DI("Selecting optimal hash search algorithm");
+    LOG_DI("Selecting optimal hashtable_support_hash_search_resolve");
 
 #if defined(__x86_64__)
     LOG_DI("CPU FOUND: %s", "X64");
-    LOG_DI("> HAS AVX:    %s", __builtin_cpu_supports("avx") ? "yes" : "no");
-    LOG_DI("> HAS AVX2:   %s", __builtin_cpu_supports("avx2") ? "yes" : "no");
+    LOG_DI(">  HAS AVX: %s", __builtin_cpu_supports("avx") ? "yes" : "no");
+    LOG_DI("> HAS AVX2: %s", __builtin_cpu_supports("avx2") ? "yes" : "no");
 
     if (__builtin_cpu_supports("avx2")) {
         LOG_DI("Selecting AVX2");
