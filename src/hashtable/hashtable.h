@@ -58,11 +58,11 @@ extern "C" {
 typedef __int128 int128_t;
 typedef unsigned __int128 uint128_t;
 
-typedef uint8_t hashtable_bucket_key_value_flags_t;
+typedef uint8_t hashtable_key_value_flags_t;
 typedef uint64_t hashtable_hash_t;
 typedef uint32_t hashtable_hash_half_t;
-typedef uint32_t hashtable_bucket_index_t;
-typedef uint32_t hashtable_chunk_index_t;
+typedef uint64_t hashtable_bucket_index_t;
+typedef uint64_t hashtable_chunk_index_t;
 typedef uint8_t hashtable_chunk_slot_index_t;
 typedef hashtable_bucket_index_t hashtable_bucket_count_t;
 typedef hashtable_chunk_index_t hashtable_chunk_count_t;
@@ -76,16 +76,16 @@ typedef _Atomic(hashtable_hash_t) hashtable_hash_atomic_t;
 typedef _Atomic(hashtable_hash_half_t) hashtable_hash_half_atomic_t;
 
 enum {
-    HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED         = 0x01u,
-    HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED          = 0x02u,
-    HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE      = 0x04u,
+    HASHTABLE_KEY_VALUE_FLAG_DELETED         = 0x01u,
+    HASHTABLE_KEY_VALUE_FLAG_FILLED          = 0x02u,
+    HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE      = 0x04u,
 };
 
-#define HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(flags, flag) \
-    ((flags & (hashtable_bucket_key_value_flags_t)flag) == (hashtable_bucket_key_value_flags_t)flag)
-#define HASHTABLE_BUCKET_KEY_VALUE_SET_FLAG(flags, flag) \
-    flags |= (hashtable_bucket_key_value_flags_t)flag
-#define HASHTABLE_BUCKET_KEY_VALUE_IS_EMPTY(flags) \
+#define HASHTABLE_KEY_VALUE_HAS_FLAG(flags, flag) \
+    ((flags & (hashtable_key_value_flags_t)flag) == (hashtable_key_value_flags_t)flag)
+#define HASHTABLE_KEY_VALUE_SET_FLAG(flags, flag) \
+    flags |= (hashtable_key_value_flags_t)flag
+#define HASHTABLE_KEY_VALUE_IS_EMPTY(flags) \
     (flags == 0)
 
 /**
@@ -98,14 +98,15 @@ struct hashtable_config {
 };
 
 /**
- * Struct holding the information related to a bucket (flags, key, value).
+ * Struct holding the information related to the key/value data
  *
- * The key can be stored inlined (there are 23 bytes for it) or stored externally in ad-hoc allocated memory if needed.
- * The struct is aligned to 32 byte to ensure to fit the first half or the second half of a cacheline
+ * The key can be stored inlin-ed if short enough (there are 23 bytes for it), only the prefix can be stored and use
+ * for comparison or it can entirely be stored externally in ad-hoc allocated memory if needed.
+ * The struct is aligned to 32 byte to ensure to fit the first half or the second half of a cache-line
  */
-typedef struct hashtable_bucket_key_value hashtable_bucket_key_value_t;
-typedef _Atomic(hashtable_bucket_key_value_t) hashtable_bucket_key_value_atomic_t;
-struct hashtable_bucket_key_value {
+typedef struct hashtable_key_value hashtable_key_value_t;
+typedef _Atomic(hashtable_key_value_t) hashtable_key_value_atomic_t;
+struct hashtable_key_value {
     union {                                     // union 23 bytes (HASHTABLE_KEY_INLINE_MAX_LENGTH must match this size)
         struct {
             hashtable_key_size_t size;          // 4 bytes
@@ -120,7 +121,7 @@ struct hashtable_bucket_key_value {
         } __attribute__((packed)) inline_key;
     };
 
-    hashtable_bucket_key_value_flags_t flags;
+    hashtable_key_value_flags_t flags;
 
     hashtable_value_data_t data;                // 8 byte
 } __attribute__((aligned(32)));
@@ -159,7 +160,7 @@ struct hashtable_data {
     size_t keys_values_size;
 
     hashtable_half_hashes_chunk_atomic_t* half_hashes_chunk;
-    hashtable_bucket_key_value_atomic_t* keys_values;
+    hashtable_key_value_atomic_t* keys_values;
 };
 
 /**
