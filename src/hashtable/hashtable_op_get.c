@@ -4,11 +4,11 @@
 #include <stdatomic.h>
 #include <string.h>
 
+#include "log.h"
 #include "memory_fences.h"
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_op_get.h"
-#include "hashtable/hashtable_support_index.h"
 #include "hashtable/hashtable_support_hash.h"
 #include "hashtable/hashtable_support_op.h"
 
@@ -25,6 +25,9 @@ bool hashtable_op_get(
 
     hash = hashtable_support_hash_calculate(key, key_size);
 
+    LOG_DI("key (%d) = %s", key_size, key);
+    LOG_DI("hash = 0x%016x", hash);
+
     volatile hashtable_data_t* hashtable_data_list[] = {
             hashtable->ht_current,
             hashtable->ht_old
@@ -39,7 +42,11 @@ bool hashtable_op_get(
 
         volatile hashtable_data_t* hashtable_data = hashtable_data_list[hashtable_data_index];
 
+        LOG_DI("hashtable_data_index = %u", hashtable_data_index);
+        LOG_DI("hashtable_data = 0x%016x", hashtable_data);
+
         if (hashtable_data_index > 0 && (!hashtable->is_resizing || hashtable_data == NULL)) {
+            LOG_DI("not resizing, skipping check on the current hashtable_data");
             continue;
         }
 
@@ -49,8 +56,11 @@ bool hashtable_op_get(
                 key_size,
                 hash,
                 &key_value) == false) {
+            LOG_DI("key not found, continuing");
             continue;
         }
+
+        LOG_DI("key found, fetching value");
 
         HASHTABLE_MEMORY_FENCE_LOAD();
 
@@ -59,6 +69,9 @@ bool hashtable_op_get(
 
         break;
     }
+
+    LOG_DI("data_found = %s", data_found ? "YES" : "NO");
+    LOG_DI("data = 0x%016x", data);
 
     return data_found;
 }
