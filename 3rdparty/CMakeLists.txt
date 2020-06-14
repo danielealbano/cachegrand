@@ -32,6 +32,7 @@ add_library(
         t1ha
         ${SRC_FILES_T1HA}
 )
-target_compile_definitions(t1ha PUBLIC -DT1HA0_RUNTIME_SELECT=1 -DT1HA_USE_INDIRECT_FUNCTIONS=1)
-target_compile_options(t1ha PUBLIC -ffunction-sections -std=c99 -O3 -mtune=native -DNDEBUG -D_DEFAULT_SOURCE -fno-stack-protector -fvisibility=hidden -Dt1ha_EXPORTS)
+
+target_compile_options(t1ha PRIVATE -ffunction-sections -std=c99 -fno-stack-protector -fvisibility=hidden)
+target_compile_definitions(t1ha PUBLIC -DT1HA0_RUNTIME_SELECT=1 -DT1HA_USE_INDIRECT_FUNCTIONS=1 -Dt1ha_EXPORTS -D_DEFAULT_SOURCE)
 target_include_directories(t1ha PUBLIC t1ha/ t1ha/src)
