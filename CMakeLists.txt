@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.13)
 project(cachegrand LANGUAGES C CXX)
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
 include(tools/cmake/config.cmake)
 
 add_subdirectory(3rdparty)
