@@ -4,6 +4,8 @@ macro(CACHEGRAND_BUILD_ADHOC_HASHTABLE_SUPPORT_OP_ARCH ARCH)
     set(HASHTABLE_SUPPORT_OP_ARCH_OPT_sse42 -msse4.2)
     set(HASHTABLE_SUPPORT_OP_ARCH_OPT_ss3 -msse3)
 
+    message(STATUS "Enabling accelerated hashtable support operations -- ${ARCH}")
+    
     set(hashtable_support_op_arch_target_name "cachegrand_internal_hashtable_support_op_arch_${ARCH}")
 
     add_library(
