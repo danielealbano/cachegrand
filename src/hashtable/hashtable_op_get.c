@@ -18,7 +18,7 @@ bool hashtable_op_get(
         hashtable_key_size_t key_size,
         hashtable_value_data_t *data) {
     hashtable_hash_t hash;
-    volatile hashtable_bucket_key_value_t* bucket_key_value;
+    volatile hashtable_key_value_t* key_value = 0;
 
     bool data_found = false;
     *data = 0;
@@ -48,13 +48,13 @@ bool hashtable_op_get(
                 key,
                 key_size,
                 hash,
-                &bucket_key_value) == false) {
+                &key_value) == false) {
             continue;
         }
 
         HASHTABLE_MEMORY_FENCE_LOAD();
 
-        *data = bucket_key_value->data;
+        *data = key_value->data;
         data_found = true;
 
         break;

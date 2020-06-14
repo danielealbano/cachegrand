@@ -19,8 +19,8 @@ bool hashtable_op_set(
         hashtable_value_data_t value) {
     bool created_new;
     hashtable_hash_t hash;
-    hashtable_half_hashes_chunk_atomic_t* half_hashes_chunk;
-    hashtable_bucket_key_value_atomic_t* bucket_key_value;
+    hashtable_half_hashes_chunk_atomic_t* half_hashes_chunk = 0;
+    hashtable_key_value_atomic_t* key_value = 0;
 
     hashtable_key_data_t* ht_key;
 
@@ -36,7 +36,7 @@ bool hashtable_op_set(
         true,
         &created_new,
         &half_hashes_chunk,
-        &bucket_key_value);
+        &key_value);
 
     if (ret == false) {
         if (half_hashes_chunk) {
@@ -62,7 +62,7 @@ bool hashtable_op_set(
         if (key_size <= HASHTABLE_KEY_INLINE_MAX_LENGTH) {
             HASHTABLE_BUCKET_KEY_VALUE_SET_FLAG(flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE);
 
-            ht_key = (hashtable_key_data_t *)&bucket_key_value->inline_key.data;
+            ht_key = (hashtable_key_data_t *)&key_value->inline_key.data;
             strncpy((char*)ht_key, key, key_size);
         } else {
 #if defined(CACHEGRAND_HASHTABLE_KEY_CHECK_FULL)
@@ -73,21 +73,21 @@ bool hashtable_op_set(
             ht_key[key_size] = '\0';
             strncpy((char*)ht_key, key, key_size);
 
-            bucket_key_value->external_key.data = ht_key;
-            bucket_key_value->external_key.size = key_size;
+            key_value->external_key.data = ht_key;
+            key_value->external_key.size = key_size;
 #else
-            bucket_key_value->prefix_key.size = key_size;
-            strncpy((char*)bucket_key_value->prefix_key.data, key, HASHTABLE_KEY_PREFIX_SIZE);
+            key_value->prefix_key.size = key_size;
+            strncpy((char*)key_value->prefix_key.data, key, HASHTABLE_KEY_PREFIX_SIZE);
 #endif // CACHEGRAND_HASHTABLE_KEY_CHECK_FULL
         }
 
         // Set the FILLED flag (drops the deleted flag as well)
-        HASHTABLE_BUCKET_KEY_VALUE_SET_FLAG(flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED);
+        HASHTABLE_KEY_VALUE_SET_FLAG(flags, HASHTABLE_KEY_VALUE_FLAG_FILLED);
 
         HASHTABLE_MEMORY_FENCE_STORE();
 
         // Update the flags atomically
-        bucket_key_value->flags = flags;
+        key_value->flags = flags;
     }
 
     hashtable_support_op_half_hashes_chunk_unlock(half_hashes_chunk);
