@@ -30,17 +30,3 @@ hashtable_chunk_slot_index_t hashtable_support_hash_search_loop_14(
         uint32_t skip_indexes_mask) {
     return hashtable_support_hash_search_loop_n(hash, hashes, skip_indexes_mask, 14);
 }
-
-hashtable_chunk_slot_index_t hashtable_support_hash_search_loop_13(
-        hashtable_hash_half_t hash,
-        hashtable_hash_half_volatile_t* hashes,
-        uint32_t skip_indexes_mask) {
-    return hashtable_support_hash_search_loop_n(hash, hashes, skip_indexes_mask, 13);
-}
-
-hashtable_chunk_slot_index_t hashtable_support_hash_search_loop_8(
-        hashtable_hash_half_t hash,
-        hashtable_hash_half_volatile_t* hashes,
-        uint32_t skip_indexes_mask) {
-    return hashtable_support_hash_search_loop_n(hash, hashes, skip_indexes_mask, 8);
-}
