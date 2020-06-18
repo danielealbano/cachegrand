@@ -5,7 +5,6 @@
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_data.h"
-#include "hashtable/hashtable_support_primenumbers.h"
 
 #include "fixtures-hashtable.h"
 

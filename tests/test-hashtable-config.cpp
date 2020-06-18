@@ -5,7 +5,6 @@
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_config.h"
-#include "hashtable/hashtable_support_primenumbers.h"
 
 TEST_CASE("hashtable_config.c", "[hashtable][hashtable_config]") {
     SECTION("hashtable_config_init") {
