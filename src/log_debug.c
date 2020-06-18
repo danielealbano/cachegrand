@@ -62,6 +62,7 @@ void log_message_debug(const char* src_path, const char* src_func, const int src
     log_message_internal(tag, LOG_LEVEL_DEBUG_INTERNALS, message, args);
 
     va_end(args);
+    free(tag);
 }
 
 #endif // DEBUG == 1
