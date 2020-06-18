@@ -17,36 +17,24 @@
 
 #include "bench-support.h"
 
-
 #define SET_BENCH_ARGS_HT_SIZE_AND_KEYS(keys_gen_func_name) \
-    Args({1522, (uint64_t)(1522.0 * 0.25), keys_gen_func_name})-> \
-    Args({1522, (uint64_t)(1522.0 * 0.33), keys_gen_func_name})-> \
-    Args({1522, (uint64_t)(1522.0 * 0.50), keys_gen_func_name})-> \
-    Args({1522, (uint64_t)(1522.0 * 0.75), keys_gen_func_name})-> \
-    Args({1522, (uint64_t)(1522.0 * 0.90), keys_gen_func_name})-> \
-    Args({135798, (uint64_t)(135798.0 * 0.25), keys_gen_func_name})-> \
-    Args({135798, (uint64_t)(135798.0 * 0.33), keys_gen_func_name})-> \
-    Args({135798, (uint64_t)(135798.0 * 0.50), keys_gen_func_name})-> \
-    Args({135798, (uint64_t)(135798.0 * 0.75), keys_gen_func_name})-> \
-    Args({135798, (uint64_t)(135798.0 * 0.90), keys_gen_func_name})-> \
-    Args({1031398, (uint64_t)(1031398.0 * 0.25), keys_gen_func_name})-> \
-    Args({1031398, (uint64_t)(1031398.0 * 0.33), keys_gen_func_name})-> \
-    Args({1031398, (uint64_t)(1031398.0 * 0.50), keys_gen_func_name})-> \
-    Args({1031398, (uint64_t)(1031398.0 * 0.75), keys_gen_func_name})-> \
-    Args({1031398, (uint64_t)(1031398.0 * 0.90), keys_gen_func_name})-> \
-    Args({11748391, (uint64_t)(11748391.0 * 0.25), keys_gen_func_name})-> \
-    Args({11748391, (uint64_t)(11748391.0 * 0.33), keys_gen_func_name})-> \
-    Args({11748391, (uint64_t)(11748391.0 * 0.50), keys_gen_func_name})-> \
-    Args({11748391, (uint64_t)(11748391.0 * 0.75), keys_gen_func_name})-> \
-    Args({11748391, (uint64_t)(11748391.0 * 0.90), keys_gen_func_name})-> \
-    Args({133821673, (uint64_t)(133821673.0 * 0.25), keys_gen_func_name})-> \
-    Args({133821673, (uint64_t)(133821673.0 * 0.33), keys_gen_func_name})-> \
-    Args({133821673, (uint64_t)(133821673.0 * 0.50), keys_gen_func_name})-> \
-    Args({133821673, (uint64_t)(133821673.0 * 0.75), keys_gen_func_name})-> \
-    Args({133821673, (uint64_t)(133821673.0 * 0.90), keys_gen_func_name})
-
-#define SET_BENCH_ITERATIONS \
-    Iterations(1)->Repetitions(10)->DisplayAggregatesOnly(true)
+    Args({0x0000FFFFu, 75, keys_gen_func_name})-> \
+    Args({0x000FFFFFu, 75, keys_gen_func_name})-> \
+    Args({0x001FFFFFu, 75, keys_gen_func_name})-> \
+    Args({0x007FFFFFu, 75, keys_gen_func_name})-> \
+    Args({0x00FFFFFFu, 75, keys_gen_func_name})-> \
+    Args({0x01FFFFFFu, 50, keys_gen_func_name})-> \
+    Args({0x01FFFFFFu, 75, keys_gen_func_name})-> \
+    Args({0x07FFFFFFu, 50, keys_gen_func_name})-> \
+    Args({0x07FFFFFFu, 75, keys_gen_func_name})-> \
+    Args({0x0FFFFFFFu, 50, keys_gen_func_name})-> \
+    Args({0x0FFFFFFFu, 75, keys_gen_func_name})-> \
+    Args({0x1FFFFFFFu, 50, keys_gen_func_name})-> \
+    Args({0x1FFFFFFFu, 75, keys_gen_func_name})-> \
+    Args({0x3FFFFFFFu, 50, keys_gen_func_name})-> \
+    Args({0x3FFFFFFFu, 75, keys_gen_func_name})-> \
+    Args({0x7FFFFFFFu, 50, keys_gen_func_name})-> \
+    Args({0x7FFFFFFFu, 75, keys_gen_func_name})
 
 #define SET_BENCH_THREADS \
     Threads(1)-> \
@@ -59,6 +47,11 @@
     Threads(128)-> \
     Threads(256)
 
+#define SET_BENCH_ITERATIONS \
+    Iterations(1)->\
+    Repetitions(10)->\
+    DisplayAggregatesOnly(true)
+
 #define CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS(keys_gen_func_name) \
     UseRealTime()-> \
     SET_BENCH_ARGS_HT_SIZE_AND_KEYS(keys_gen_func_name)-> \
@@ -68,7 +61,12 @@
 static void hashtable_op_set_new(benchmark::State& state) {
     static hashtable_t* hashtable;
     static char* keys;
+    double requested_load_factor;
+    static uint64_t keys_count = 0;
     char error_message[150] = {0};
+    static uint8_t keys_generator_method = UINT8_MAX;
+    uint64_t hashtable_initial_size = state.range(0);
+    uint8_t requested_load_factor_perc = state.range(1);
 
     if (bench_support_check_if_too_many_threads_per_core(state.threads, BENCHES_MAX_THREADS_PER_CORE)) {
         sprintf(error_message, "Too many threads per core, max allowed <%d>", BENCHES_MAX_THREADS_PER_CORE);
@@ -77,20 +75,39 @@ static void hashtable_op_set_new(benchmark::State& state) {
     }
 
     if (state.thread_index == 0) {
-        keys = test_support_init_keys(state.range(0), state.range(2));
-        hashtable = test_support_init_hashtable(state.range(0));
+        hashtable = test_support_init_hashtable(hashtable_initial_size);
+        requested_load_factor = (double)requested_load_factor_perc / 100;
+        uint64_t new_keys_count = (double)hashtable->ht_current->buckets_count * requested_load_factor;
+        if (new_keys_count != keys_count || keys_generator_method != state.range(2)) {
+            if (keys_count > 0) {
+                test_support_free_keys(keys, keys_count);
+            }
+
+            keys_generator_method = state.range(2);
+
+            LOG_DI("keys_count changed, from <%lu> to <%lu>, regenerating keys with generator <%d>",
+                    keys_count,
+                    new_keys_count,
+                    keys_generator_method);
+
+            keys_count = new_keys_count;
+            keys = test_support_init_keys(keys_count, keys_generator_method);
+        }
     }
 
     test_support_set_thread_affinity(state.thread_index);
 
     for (auto _ : state) {
-        for(long int i = state.thread_index; i < state.range(1); i += state.threads) {
-            char* key = keys + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH * i);
+        for(long int i = state.thread_index; i < keys_count; i += state.threads) {
+            uint64_t keys_offset = TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i;
+            char* key = keys + keys_offset;
+
+
             bool result = hashtable_op_set(
                     hashtable,
                     key,
                     strlen(key),
-                    test_value_1);
+                    i);
 
             if (!result) {
                 sprintf(
@@ -106,16 +123,37 @@ static void hashtable_op_set_new(benchmark::State& state) {
     }
 
     if (state.thread_index == 0) {
+        for(long int i = 0; i < keys_count; i++) {
+            uint64_t value;
+            char* key = keys + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
+
+            bool result = hashtable_op_get(
+                    hashtable,
+                    key,
+                    strlen(key),
+                    (hashtable_value_data_t*)&value);
+
+            if (!result) {
+                LOG_DI("Can't find key <%s>", key);
+            } else if (value != i) {
+                LOG_DI("For the key <%s> there is a value mismatch, found <%lu> expected <%lu>", key, value, i);
+            }
+        }
+
         bench_support_collect_hashtable_stats_and_update_state(state, hashtable);
         hashtable_free(hashtable);
-        test_support_free_keys(keys, state.range(0));
     }
 }
 
 static void hashtable_op_set_update(benchmark::State& state) {
     static hashtable_t* hashtable;
     static char* keys;
+    double requested_load_factor;
+    static uint64_t keys_count = 0;
     char error_message[150] = {0};
+    static uint8_t keys_generator_method = UINT8_MAX;
+    uint64_t hashtable_initial_size = state.range(0);
+    uint8_t requested_load_factor_perc = state.range(1);
 
     if (bench_support_check_if_too_many_threads_per_core(state.threads, BENCHES_MAX_THREADS_PER_CORE)) {
         sprintf(error_message, "Too many threads per core, max allowed <%d>", BENCHES_MAX_THREADS_PER_CORE);
@@ -124,25 +162,42 @@ static void hashtable_op_set_update(benchmark::State& state) {
     }
 
     if (state.thread_index == 0) {
-        keys = test_support_init_keys(state.range(0), state.range(2));
-        hashtable = test_support_init_hashtable(state.range(0));
-        bool result = test_support_hashtable_prefill(hashtable, keys, test_value_1, state.range(1));
+        hashtable = test_support_init_hashtable(hashtable_initial_size);
+        requested_load_factor = (double)requested_load_factor_perc / 100;
+        uint64_t new_keys_count = (double)hashtable->ht_current->buckets_count * requested_load_factor;
+        if (new_keys_count != keys_count || keys_generator_method != state.range(2)) {
+            if (keys_count > 0) {
+                test_support_free_keys(keys, keys_count);
+            }
 
-        if (!result) {
-            hashtable_free(hashtable);
-            test_support_free_keys(keys, state.range(0));
+            keys_generator_method = state.range(2);
 
-            sprintf(error_message, "Unable to prefill the hashtable with <%lu> keys", state.range(1));
-            state.SkipWithError(error_message);
-            return;
+            LOG_DI("keys_count changed, from <%lu> to <%lu>, regenerating keys with generator <%d>",
+                   keys_count,
+                   new_keys_count,
+                   keys_generator_method);
+
+            keys_count = new_keys_count;
+            keys = test_support_init_keys(keys_count, keys_generator_method);
+            bool result = test_support_hashtable_prefill(hashtable, keys, test_value_1, state.range(1));
+
+            if (!result) {
+                hashtable_free(hashtable);
+                test_support_free_keys(keys, keys_count);
+
+                sprintf(error_message, "Unable to prefill the hashtable with <%lu> keys", keys_count);
+                state.SkipWithError(error_message);
+                return;
+            }
         }
     }
+
 
     test_support_set_thread_affinity(state.thread_index);
 
     for (auto _ : state) {
         for(long int i = state.thread_index; i < state.range(1); i += state.threads) {
-            char* key = keys + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH * i);
+            char* key = keys + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
 
             bool result = hashtable_op_set(
                     hashtable,
@@ -164,9 +219,25 @@ static void hashtable_op_set_update(benchmark::State& state) {
     }
 
     if (state.thread_index == 0) {
+        for(long int i = 0; i < keys_count; i++) {
+            uint64_t value;
+            char* key = keys + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
+
+            bool result = hashtable_op_get(
+                    hashtable,
+                    key,
+                    strlen(key),
+                    (hashtable_value_data_t*)&value);
+
+            if (!result) {
+                LOG_DI("Can't find key <%s>", key);
+            } else if (value != i) {
+                LOG_DI("For the key <%s> there is a value mismatch, found <%lu> expected <%lu>", key, value, i);
+            }
+        }
+
         bench_support_collect_hashtable_stats_and_update_state(state, hashtable);
         hashtable_free(hashtable);
-        test_support_free_keys(keys, state.range(0));
     }
 }
 
