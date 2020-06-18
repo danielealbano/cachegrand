@@ -56,7 +56,7 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
     LOG_DI("hashtable_data->chunks_count = %lu", hashtable_data->chunks_count);
     LOG_DI("hashtable_data->buckets_count = %lu", hashtable_data->buckets_count);
     LOG_DI("hashtable_data->buckets_count_real = %lu", hashtable_data->buckets_count_real);
-    LOG_DI("half_hashes_chunk->metadata.write_lock = %lu", half_hashes_chunk->metadata.write_lock);
+    LOG_DI("half_hashes_chunk->write_lock.lock = %d", half_hashes_chunk->write_lock.lock);
     LOG_DI("half_hashes_chunk->metadata.is_full = %lu", half_hashes_chunk->metadata.is_full);
     LOG_DI("half_hashes_chunk->metadata.changes_counter = %lu", half_hashes_chunk->metadata.changes_counter);
     LOG_DI("half_hashes_chunk->metadata.overflowed_chunks_counter = %lu", overflowed_chunks_counter);
@@ -122,7 +122,7 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
                 } else {
                     LOG_DI(">> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
-    #if defined(CACHEGRAND_HASHTABLE_KEY_CHECK_FULL)
+#if CACHEGRAND_HASHTABLE_KEY_CHECK_FULL == 1
                     LOG_DI(">> CACHEGRAND_HASHTABLE_KEY_CHECK_FULL defined, comparing full key");
 
                     // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't
@@ -136,7 +136,7 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
                                  key_size, key_value->external_key.size);
                         continue;
                     }
-    #else
+#else
                     LOG_DI(">> CACHEGRAND_HASHTABLE_KEY_CHECK_FULL not defined, comparing only key prefix");
 
                     found_key = key_value->prefix_key.data;
@@ -147,7 +147,7 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
                                 key_size, key_value->prefix_key.size);
                         continue;
                     }
-    #endif // CACHEGRAND_HASHTABLE_KEY_CHECK_FULL
+#endif // CACHEGRAND_HASHTABLE_KEY_CHECK_FULL == 1
                 }
 
                 LOG_DI(">> key fetched, comparing");
@@ -224,7 +224,7 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
 
     uint8_volatile_t overflowed_chunks_counter = half_hashes_chunk->metadata.overflowed_chunks_counter;
 
-    LOG_DI("half_hashes_chunk->metadata.write_lock = %lu", half_hashes_chunk->metadata.write_lock);
+    LOG_DI("half_hashes_chunk->write_lock.lock = %lu", half_hashes_chunk->write_lock.lock);
     LOG_DI("half_hashes_chunk->metadata.is_full = %lu", half_hashes_chunk->metadata.is_full);
     LOG_DI("half_hashes_chunk->metadata.changes_counter = %lu", half_hashes_chunk->metadata.changes_counter);
     LOG_DI("half_hashes_chunk->metadata.overflowed_chunks_counter = %lu", overflowed_chunks_counter);
@@ -237,7 +237,7 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
         // Setup the search range
         if (searching_or_creating == 0) {
             // chunk_index_start has been calculated at the beginning of the function
-            chunk_index_end = chunk_index_start + overflowed_chunks_counter;
+            chunk_index_end = chunk_index_start + overflowed_chunks_counter + 1;
         } else {
             chunk_index_start = chunk_first_with_freespace;
             chunk_index_end =
@@ -249,8 +249,8 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
         LOG_DI("> chunk_index_start = %u", chunk_index_start);
         LOG_DI("> chunk_index_end = %u", chunk_index_end);
 
-        assert(chunk_index_start < hashtable_data->chunks_count);
-        assert(chunk_index_end < hashtable_data->chunks_count);
+        assert(chunk_index_start <= hashtable_data->chunks_count);
+        assert(chunk_index_end <= hashtable_data->chunks_count);
 
         // Setup the search half hash
         if (searching_or_creating == 0) {
@@ -263,7 +263,7 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
 
         for (
                 chunk_index = chunk_index_start;
-                chunk_index <= chunk_index_end && found == false;
+                chunk_index < chunk_index_end && found == false;
                 chunk_index++) {
             assert(chunk_index < hashtable_data->chunks_count);
 
@@ -332,7 +332,7 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
                     } else {
                         LOG_DI(">>> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
-#if defined(CACHEGRAND_HASHTABLE_KEY_CHECK_FULL)
+#if CACHEGRAND_HASHTABLE_KEY_CHECK_FULL == 1
                         LOG_DI(">>> CACHEGRAND_HASHTABLE_KEY_CHECK_FULL defined, comparing full key");
 
                         // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't
@@ -441,6 +441,7 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
 
     LOG_DI("found_half_hashes_chunk = 0x%016x", *found_half_hashes_chunk);
     LOG_DI("found_key_value = 0x%016x", *found_key_value);
+    LOG_DI("created_new = %s", *created_new ? "YES" : "NO");
     LOG_DI("found = %s", found ? "YES" : "NO");
 
     return found;
