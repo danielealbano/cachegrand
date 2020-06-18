@@ -8,7 +8,7 @@
 
 #include "fixtures-hashtable.h"
 
-TEST_CASE("hashtable_data.c", "[hashtable][hashtable_data]") {
+TEST_CASE("hashtable/hashtable_data.c", "[hashtable][hashtable_data]") {
     SECTION("hashtable_data_init") {
         HASHTABLE_DATA(buckets_initial_count_5, {
             /* do nothing */

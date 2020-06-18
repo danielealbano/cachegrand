@@ -8,7 +8,7 @@
 
 #include "fixtures-hashtable.h"
 
-TEST_CASE("hashtable_support_index.c", "[hashtable][hashtable_support][hashtable_support_index]") {
+TEST_CASE("hashtable/hashtable_support_index.c", "[hashtable][hashtable_support][hashtable_support_index]") {
     SECTION("hashtable_support_index_from_hash") {
         SECTION("buckets_initial_count_5") {
             REQUIRE(hashtable_support_index_from_hash(

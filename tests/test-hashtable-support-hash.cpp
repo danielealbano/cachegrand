@@ -8,7 +8,7 @@
 
 #include "fixtures-hashtable.h"
 
-TEST_CASE("hashtable_support_hash.c", "[hashtable][hashtable_support][hashtable_support_hash]") {
+TEST_CASE("hashtable/hashtable_support_hash.c", "[hashtable][hashtable_support][hashtable_support_hash]") {
     SECTION("hashtable_support_hash_calculate") {
         SECTION("hash calculation") {
             REQUIRE(hashtable_support_hash_calculate(
