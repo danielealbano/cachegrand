@@ -54,8 +54,6 @@ extern "C" {
     3429704039U, \
     4294967291U
 
-typedef __int128 int128_t;
-typedef unsigned __int128 uint128_t;
 
 typedef uint8_t hashtable_key_value_flags_t;
 typedef uint64_t hashtable_hash_t;
