@@ -14,7 +14,7 @@
 #include "test-support.h"
 #include "fixtures-hashtable.h"
 
-TEST_CASE("hashtable/hashtable_op_get.c", "[hashtable][hashtable_op_get]") {
+TEST_CASE("hashtable/hashtable_op_get.c", "[hashtable][hashtable_op][hashtable_op_get]") {
     SECTION("hashtable_op_get") {
         hashtable_value_data_t value = 0;
 

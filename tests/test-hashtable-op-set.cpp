@@ -1,7 +1,9 @@
 #include "catch.hpp"
 
 #include <string.h>
-#include <hashtable/hashtable.h>
+
+#include "exttypes.h"
+#include "spinlock.h"
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_config.h"
@@ -11,7 +13,7 @@
 #include "test-support.h"
 #include "fixtures-hashtable.h"
 
-TEST_CASE("hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
+TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
     SECTION("hashtable_op_set") {
         SECTION("set 1 bucket") {
             HASHTABLE(buckets_initial_count_5, false, {

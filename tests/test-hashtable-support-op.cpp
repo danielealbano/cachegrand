@@ -1,14 +1,20 @@
 #include "catch.hpp"
 
+#include "atomic_extended.h"
+#include "spinlock.h"
+
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_data.h"
 #include "hashtable/hashtable_support_op.h"
 
 #include "fixtures-hashtable.h"
 
-TEST_CASE("hashtable_support_op.c", "[hashtable][hashtable_support][hashtable_support_op]") {
+TEST_CASE("hashtable/hashtable_support_op.c", "[hashtable][hashtable_support_op]") {
+    SECTION("hashtable_support_op_search_key") {
+        REQUIRE(false);
+    }
+
+    SECTION("hashtable_support_op_search_key_or_create_new") {
+        REQUIRE(false);
+    }
 }
-
-
-
-
