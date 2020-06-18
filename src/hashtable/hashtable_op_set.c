@@ -36,14 +36,14 @@ bool hashtable_op_set(
     // TODO: the resize logic has to be reviewed, the underlying hash search function has to be aware that it hasn't
     //       to create a new item if it's missing
     bool ret = hashtable_support_op_search_key_or_create_new(
-        hashtable->ht_current,
-        key,
-        key_size,
-        hash,
-        true,
-        &created_new,
-        &half_hashes_chunk,
-        &key_value);
+            hashtable->ht_current,
+            key,
+            key_size,
+            hash,
+            true,
+            &created_new,
+            &half_hashes_chunk,
+            &key_value);
 
     LOG_DI("created_new = %s", created_new ? "YES" : "NO");
     LOG_DI("half_hashes_chunk = 0x%016x", half_hashes_chunk);
@@ -53,6 +53,8 @@ bool hashtable_op_set(
         LOG_DI("key not found or not created, continuing");
         return false;
     }
+
+    assert(key_value < hashtable->ht_current->keys_values + hashtable->ht_current->keys_values_size);
 
     LOG_DI("key found or created");
 
@@ -80,7 +82,7 @@ bool hashtable_op_set(
         } else {
             LOG_DI("key can't be inline-ed, max length for inlining %d", HASHTABLE_KEY_INLINE_MAX_LENGTH);
 
-#if defined(CACHEGRAND_HASHTABLE_KEY_CHECK_FULL)
+#if CACHEGRAND_HASHTABLE_KEY_CHECK_FULL == 1
             // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't be freed
             //       immediately after the bucket is freed because it can be in use and would cause a crash34567
 
@@ -93,7 +95,7 @@ bool hashtable_op_set(
 #else
             key_value->prefix_key.size = key_size;
             strncpy((char*)key_value->prefix_key.data, key, HASHTABLE_KEY_PREFIX_SIZE);
-#endif // CACHEGRAND_HASHTABLE_KEY_CHECK_FULL
+#endif // CACHEGRAND_HASHTABLE_KEY_CHECK_FULL == 1
         }
 
         // Set the FILLED flag (drops the deleted flag as well)
@@ -107,10 +109,10 @@ bool hashtable_op_set(
         LOG_DI("key_value->flags = %d", key_value->flags);
     }
 
-    LOG_DI("unlocking half_hashes_chunk 0x%016x", half_hashes_chunk);
     // The unlock will perform the store memory fence for us
     spinlock_unlock(&half_hashes_chunk->write_lock);
 
+    LOG_DI("unlocking half_hashes_chunk 0x%016x", half_hashes_chunk);
 
     return true;
 }
