@@ -1,11 +1,11 @@
 macro(CACHEGRAND_BUILD_ADHOC_HASHTABLE_SUPPORT_OP_ARCH ARCH)
-    set(HASHTABLE_SUPPORT_OP_ARCH_OPT_avx2 -mtune=haswell)
+    set(HASHTABLE_SUPPORT_OP_ARCH_OPT_avx2 -mavx2 -mbmi -mfma -mtune=haswell)
     set(HASHTABLE_SUPPORT_OP_ARCH_OPT_avx -mno-avx256-split-unaligned-load -mno-avx2 -mavx -mbmi)
     set(HASHTABLE_SUPPORT_OP_ARCH_OPT_sse42 -msse4.2)
     set(HASHTABLE_SUPPORT_OP_ARCH_OPT_ss3 -msse3)
 
     message(STATUS "Enabling accelerated hashtable support operations -- ${ARCH}")
-    
+
     set(hashtable_support_op_arch_target_name "cachegrand_internal_hashtable_support_op_arch_${ARCH}")
 
     add_library(
@@ -44,7 +44,7 @@ if(ARCH_IS_X86_64)
     set_source_files_properties(
             "hashtable/hashtable_support_hash_search_avx2.c"
             PROPERTIES COMPILE_FLAGS
-            "-mno-avx256-split-unaligned-load -mavx2 -mbmi")
+            "-mno-avx256-split-unaligned-load -mavx2 -mbmi -mfma -mtune=haswell")
 
     message(STATUS "Enabling accelerated hash search -- avx")
     list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_avx.c")

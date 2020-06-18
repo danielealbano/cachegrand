@@ -10,7 +10,7 @@ if (CMAKE_BUILD_TYPE MATCHES Debug)
     message(STATUS "Debug build")
 else()
     add_definitions(-DNDEBUG=1)
-    add_compile_options(-O2)
+    add_compile_options(-O3)
 
     message(STATUS "Release build")
 endif()
