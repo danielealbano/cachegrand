@@ -13,10 +13,12 @@ void bench_support_collect_hashtable_stats_and_update_state(
 
 void bench_support_collect_hashtable_stats(
         hashtable_t* hashtable,
-        uint64_t* return_used_buckets,
-        double* return_load_factor_buckets,
+        uint64_t* return_used_chunks,
+        double* return_load_factor_chunks,
+        uint64_t* return_overflowed_chunks_count,
         double* return_used_avg_bucket_slots,
-        uint64_t* return_used_max_bucket_slots);
+        uint64_t* return_used_max_overflowed_chunks_counter,
+        hashtable_half_hashes_chunk_volatile_t** return_longest_half_hashes_chunk);
 
 bool bench_support_check_if_too_many_threads_per_core(
         int threads,
