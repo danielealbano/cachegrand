@@ -2,6 +2,9 @@
 #include <string.h>
 #include <benchmark/benchmark.h>
 
+#include "exttypes.h"
+#include "spinlock.h"
+
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_op_get.h"
 
@@ -11,9 +14,29 @@
 #include "bench-support.h"
 
 #define HASHTABLE_OP_GET_BENCHS_ARGS \
-   Arg(1522U)->Arg(135798U)->Arg(1031398U)->Arg(17622551U)->Arg(89214403U) \
-   ->Threads(1)->Threads(2)->Threads(4)->Threads(8)->Threads(16)->Threads(32)->Threads(64)->Threads(128)->Threads(256) \
-   ->Iterations(10000000);
+    \
+        Arg(0x0000FFFFu)-> \
+        Arg(0x000FFFFFu)-> \
+        Arg(0x001FFFFFu)-> \
+        Arg(0x007FFFFFu)-> \
+        Arg(0x01FFFFFFu)-> \
+        Arg(0x07FFFFFFu)-> \
+        Arg(0x0FFFFFFFu)-> \
+        Arg(0x1FFFFFFFu)-> \
+        Arg(0x3FFFFFFFu)-> \
+        Arg(0x7FFFFFFFu)-> \
+    \
+        Threads(1)-> \
+        Threads(2)-> \
+        Threads(4)-> \
+        Threads(8)-> \
+        Threads(16)-> \
+        Threads(32)-> \
+        Threads(64)-> \
+        Threads(128)-> \
+        Threads(256)-> \
+    \
+    Iterations(10000000);
 
 static void hashtable_op_get_not_found_key(benchmark::State& state) {
     hashtable_t* hashtable;
@@ -24,11 +47,11 @@ static void hashtable_op_get_not_found_key(benchmark::State& state) {
     test_support_set_thread_affinity(state.thread_index);
 
     for (auto _ : state) {
-        hashtable_op_get(
+        benchmark::DoNotOptimize(hashtable_op_get(
                 hashtable,
                 test_key_1,
                 test_key_1_len,
-                &value);
+                &value));
     }
 
     hashtable_free(hashtable);
@@ -66,7 +89,7 @@ static void hashtable_op_get_single_key_inline(benchmark::State& state) {
         if (!result) {
             sprintf(
                     error_message,
-                    "Unable to get the key <%s> with bucket index <%lu>, chunk index <%lu> and chunk slot index <%u> for the thread <%d>",
+                    "Unable to get the key <%s> with bucket index <%u>, chunk index <%u> and chunk slot index <%u> for the thread <%d>",
                     test_key_1,
                     bucket_index,
                     chunk_index,
@@ -113,7 +136,7 @@ static void hashtable_op_get_single_key_external(benchmark::State& state) {
         if (!result) {
             sprintf(
                     error_message,
-                    "Unable to get the key <%s> with bucket index <%lu>, chunk index <%lu> and chunk slot index <%u> for the thread <%d>",
+                    "Unable to get the key <%s> with bucket index <%u>, chunk index <%u> and chunk slot index <%u> for the thread <%d>",
                     test_key_1,
                     bucket_index,
                     chunk_index,
