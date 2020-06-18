@@ -224,6 +224,7 @@ static void hashtable_op_set_update(benchmark::State& state) {
 
         bench_support_collect_hashtable_stats_and_update_state(state, hashtable);
         hashtable_free(hashtable);
+        test_support_free_keys(keys, keys_count);
     }
 }
 
