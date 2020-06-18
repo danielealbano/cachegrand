@@ -63,7 +63,10 @@ TEST_CASE("spinlock.c", "[spinlock]") {
         spinlock_init(&lock);
 
         REQUIRE(lock.lock == SPINLOCK_UNLOCKED);
+
+#if DEBUG == 1
         REQUIRE(lock.magic == SPINLOCK_MAGIC);
+#endif
     }
 
     SECTION("spinlock_is_locked") {
@@ -73,7 +76,10 @@ TEST_CASE("spinlock.c", "[spinlock]") {
         lock.lock = SPINLOCK_LOCKED;
 
         REQUIRE(spinlock_is_locked(&lock));
+
+#if DEBUG == 1
         REQUIRE(lock.magic == SPINLOCK_MAGIC);
+#endif
     }
 
     SECTION("spinlock_try_lock") {
@@ -94,7 +100,10 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
             REQUIRE(spinlock_is_locked(&lock));
             REQUIRE(lock.lock == SPINLOCK_LOCKED);
+
+#if DEBUG == 1
             REQUIRE(lock.magic == SPINLOCK_MAGIC);
+#endif
         }
     }
 
@@ -137,7 +146,10 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             REQUIRE(!spinlock_lock(&lock, false));
 
             REQUIRE(lock.lock == SPINLOCK_LOCKED);
+
+#if DEBUG == 1
             REQUIRE(lock.magic == SPINLOCK_MAGIC);
+#endif
         }
 
         SECTION("lock with retry") {

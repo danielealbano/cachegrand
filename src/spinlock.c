@@ -15,7 +15,9 @@ static const char* TAG = "spinlock";
 void spinlock_init(
         spinlock_lock_volatile_t* spinlock) {
     spinlock->lock = SPINLOCK_UNLOCKED;
+#if DEBUG == 1
     spinlock->magic = SPINLOCK_MAGIC;
+#endif
     spinlock->spins_multi_avg = 0;
 }
 
@@ -63,14 +65,6 @@ bool spinlock_lock_internal(
         uint32_t src_line)
 {
     bool res = false;
-
-#if DEBUG == 1
-    if (spinlock->magic != SPINLOCK_MAGIC) {
-        FATAL(TAG, "Spinlock tried to locked but not initialized detected for thread %d in %s at %s:%u",
-              pthread_self(), src_func, src_path, src_line);
-
-    }
-#endif
 
     while (!(res = spinlock_try_lock(spinlock)) && retry) {
         uint64_t spins = 0;

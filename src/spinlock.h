@@ -7,13 +7,20 @@ extern "C" {
 
 #define SPINLOCK_UNLOCKED   0
 #define SPINLOCK_LOCKED     1
+
+#if DEBUG == 1
 #define SPINLOCK_MAGIC      42
+#endif
 
 typedef struct spinlock_lock spinlock_lock_t;
 typedef _Volatile(spinlock_lock_t) spinlock_lock_volatile_t;
 struct spinlock_lock {
     uint8_volatile_t lock;
+#if DEBUG == 1
     uint8_t magic;
+#else
+    uint8_t padding;
+#endif
     uint16_t spins_multi_avg;
 } __attribute__((aligned(4)));
 
