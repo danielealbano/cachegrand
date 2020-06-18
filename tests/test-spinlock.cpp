@@ -89,7 +89,10 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
             REQUIRE(spinlock_try_lock(&lock));
             REQUIRE(lock.lock == SPINLOCK_LOCKED);
+
+#if DEBUG == 1
             REQUIRE(lock.magic == SPINLOCK_MAGIC);
+#endif
         }
 
         SECTION("lock - fail already locked") {
@@ -134,7 +137,10 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             REQUIRE(spinlock_lock(&lock, false));
 
             REQUIRE(lock.lock == SPINLOCK_LOCKED);
+
+#if DEBUG == 1
             REQUIRE(lock.magic == SPINLOCK_MAGIC);
+#endif
         }
 
         SECTION("fail already locked") {
