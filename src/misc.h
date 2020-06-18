@@ -7,8 +7,11 @@
 #endif
 #endif
 
-#define concat_(a, b) a ## _ ## b
-#define concat(a, b) concat_(a, b)
+#define likely(x)      __builtin_expect(!!(x), 1)
+#define unlikely(x)    __builtin_expect(!!(x), 0)
+
+#define concat_(a, b)   a ## _ ## b
+#define concat(a, b)    concat_(a, b)
 
 #define max(a, b) \
    ({ __typeof__ (a) _a = (a); \
