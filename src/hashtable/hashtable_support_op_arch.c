@@ -174,39 +174,6 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
     return found;
 }
 
-bool concat(hashtable_support_op_half_hashes_chunk_lock, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX)(
-        hashtable_half_hashes_chunk_atomic_t * half_hashes_chunk,
-        bool retry) {
-    bool write_lock_set = false;
-
-    LOG_DI("trying to lock half_hashes_chunk 0x%016x", half_hashes_chunk);
-    LOG_DI("retry  = %s", retry ? "YES" : "NO");
-
-    do {
-        uint8_t expected_value = 0;
-
-        write_lock_set = __sync_bool_compare_and_swap(
-                &half_hashes_chunk->metadata.write_lock,
-                expected_value,
-                1);
-
-        if (!write_lock_set) {
-            LOG_DI("failed to lock, waiting");
-            sched_yield();
-        }
-    } while(retry && !write_lock_set);
-
-    return write_lock_set;
-}
-
-void concat(hashtable_support_op_half_hashes_chunk_unlock, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX)(
-        hashtable_half_hashes_chunk_atomic_t* half_hashes_chunk) {
-    LOG_DI("unlocking half_hashes_chunk 0x%016x", half_hashes_chunk);
-
-    half_hashes_chunk->metadata.write_lock = 0;
-    HASHTABLE_MEMORY_FENCE_STORE();
-}
-
 bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX)(
         hashtable_data_atomic_t *hashtable_data,
         hashtable_key_data_t *key,
@@ -247,7 +214,8 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
 
     half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index_start];
 
-    concat(hashtable_support_op_half_hashes_chunk_lock, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX)(half_hashes_chunk, true);
+
+    spinlock_lock(&half_hashes_chunk->write_lock, true);
     locked_up_to_chunk_index = chunk_index_start;
 
     LOG_DI("locked_up_to_chunk_index = %lu", locked_up_to_chunk_index);
@@ -308,7 +276,7 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
                 locked_up_to_chunk_index = chunk_index;
 
                 LOG_DI(">> locking chunk (with retry)");
-                concat(hashtable_support_op_half_hashes_chunk_lock, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX)(half_hashes_chunk, true);
+                spinlock_lock(&half_hashes_chunk->write_lock, true);
             }
 
             if (searching_or_creating == 0) {
@@ -466,7 +434,7 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
         half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
 
         LOG_DI("> unlocking chunk");
-        concat(hashtable_support_op_half_hashes_chunk_unlock, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX)(half_hashes_chunk);
+        spinlock_unlock(&half_hashes_chunk->write_lock);
     }
 
     LOG_DI("found_half_hashes_chunk = 0x%016x", *found_half_hashes_chunk);

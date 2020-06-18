@@ -104,8 +104,9 @@ bool hashtable_op_set(
     }
 
     LOG_DI("unlocking half_hashes_chunk 0x%016x", half_hashes_chunk);
+    // The unlock will perform the store memory fence for us
+    spinlock_unlock(&half_hashes_chunk->write_lock);
 
-    hashtable_support_op_half_hashes_chunk_unlock(half_hashes_chunk);
 
     return true;
 }

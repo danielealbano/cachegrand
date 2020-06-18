@@ -1,0 +1,88 @@
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdatomic.h>
+#include <pthread.h>
+
+#include "memory_fences.h"
+#include "exttypes.h"
+#include "spinlock.h"
+#include "log.h"
+#include "fatal.h"
+
+static const char* TAG = "spinlock";
+
+void spinlock_init(
+        spinlock_lock_volatile_t* spinlock) {
+    spinlock->lock = SPINLOCK_UNLOCKED;
+    spinlock->magic = SPINLOCK_MAGIC;
+    spinlock->spins_multi_avg = 0;
+}
+
+void spinlock_unlock(
+        spinlock_lock_volatile_t* spinlock) {
+    spinlock->lock = SPINLOCK_UNLOCKED;
+    HASHTABLE_MEMORY_FENCE_STORE();
+}
+
+bool spinlock_is_locked(
+        spinlock_lock_volatile_t *spinlock)
+{
+    HASHTABLE_MEMORY_FENCE_LOAD();
+    return spinlock->lock == SPINLOCK_LOCKED;
+}
+
+bool spinlock_try_lock(
+        spinlock_lock_volatile_t *spinlock)
+{
+
+#if CACHEGRAND_USE_LOCK_XCHGB == 1
+    char prev;
+
+    // Not really needed to specify the lock prefix here, the register is getting swapped with a memory location and
+    // therefore, by specs, the lock prefix is implicit but better safe than sorry.
+    __asm__ __volatile__(
+        "lock xchgb %b0,%1"
+        :"=q" (prev), "=m" (spinlock->lock)
+        :"0" (SPINLOCK_LOCKED) : "memory");
+
+    return prev != SPINLOCK_LOCKED;
+#else
+    uint8_t expected_value = SPINLOCK_UNLOCKED;
+    uint8_t new_value = SPINLOCK_LOCKED;
+
+    return __sync_bool_compare_and_swap(&spinlock->lock, expected_value, new_value);
+#endif
+}
+
+bool spinlock_lock_internal(
+        spinlock_lock_volatile_t *spinlock,
+        bool retry,
+        const char* src_path,
+        const char* src_func,
+        uint32_t src_line)
+{
+    bool res = false;
+
+#if DEBUG == 1
+    if (spinlock->magic != SPINLOCK_MAGIC) {
+        FATAL(TAG, "Spinlock tried to locked but not initialized detected for thread %d in %s at %s:%u",
+              pthread_self(), src_func, src_path, src_line);
+
+    }
+#endif
+
+    while (!(res = spinlock_try_lock(spinlock)) && retry) {
+        uint64_t spins = 0;
+        while (spinlock_is_locked(spinlock) && spins < UINT32_MAX) {
+            spins++;
+        }
+
+        if (spins == UINT32_MAX) {
+            LOG_E(TAG, "Possible stuck spinlock detected for thread %d in %s at %s:%u",
+                    pthread_self(), src_func, src_path, src_line);
+        }
+    }
+
+    return res;
+}
