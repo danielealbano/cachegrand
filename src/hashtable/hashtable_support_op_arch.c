@@ -1,14 +1,16 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdatomic.h>
 #include <string.h>
-#include <sched.h>
+#include <stdatomic.h>
 #include <assert.h>
 
+#include "cmake_config.h"
+#include "exttypes.h"
+#include "memory_fences.h"
 #include "misc.h"
 #include "log.h"
-#include "memory_fences.h"
+#include "spinlock.h"
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_support_index.h"
@@ -20,17 +22,17 @@
 #endif
 
 bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX)(
-        volatile hashtable_data_t *hashtable_data,
+        hashtable_data_volatile_t *hashtable_data,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_hash_t hash,
-        volatile hashtable_key_value_t **found_key_value) {
+        hashtable_key_value_volatile_t **found_key_value) {
     hashtable_hash_half_t hash_half;
     hashtable_bucket_index_t bucket_index;
     hashtable_chunk_index_t chunk_index, chunk_index_start;
     hashtable_chunk_slot_index_t chunk_slot_index;
-    hashtable_half_hashes_chunk_atomic_t * half_hashes_chunk;
-    volatile hashtable_key_value_t* key_value;
+    hashtable_half_hashes_chunk_volatile_t * half_hashes_chunk;
+    hashtable_key_value_volatile_t* key_value;
     volatile hashtable_key_data_t* found_key;
     hashtable_key_size_t found_key_max_compare_size;
     uint32_t skip_indexes_mask;
@@ -46,7 +48,7 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
     HASHTABLE_MEMORY_FENCE_LOAD();
 
     half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index_start];
-    uint8_atomic_t overflowed_chunks_counter = half_hashes_chunk->metadata.overflowed_chunks_counter;
+    uint8_volatile_t overflowed_chunks_counter = half_hashes_chunk->metadata.overflowed_chunks_counter;
 
     LOG_DI("hash_half = %lu", hash_half);
     LOG_DI("bucket_index = %lu", bucket_index);
@@ -76,7 +78,7 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
 
             chunk_slot_index = hashtable_support_hash_search(
                 hash_half,
-                (hashtable_hash_half_atomic_t*)half_hashes_chunk->half_hashes,
+                (hashtable_hash_half_volatile_t*)half_hashes_chunk->half_hashes,
                 skip_indexes_mask);
 
             LOG_DI(">> chunk_slot_index = %lu", chunk_slot_index);
@@ -175,22 +177,22 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
 }
 
 bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARCH_SUFFIX)(
-        hashtable_data_atomic_t *hashtable_data,
+        hashtable_data_volatile_t *hashtable_data,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_hash_t hash,
         bool create_new_if_missing,
         bool *created_new,
-        hashtable_half_hashes_chunk_atomic_t **found_half_hashes_chunk,
-        volatile hashtable_key_value_t **found_key_value) {
+        hashtable_half_hashes_chunk_volatile_t **found_half_hashes_chunk,
+        hashtable_key_value_volatile_t **found_key_value) {
     hashtable_hash_half_t hash_half;
     hashtable_hash_half_t search_hash_half;
     hashtable_bucket_index_t bucket_index;
     hashtable_chunk_index_t chunk_index, chunk_index_start, chunk_index_start_initial, chunk_index_end,
         chunk_first_with_freespace, found_chunk_index = 0, locked_up_to_chunk_index = 0;
     hashtable_chunk_slot_index_t chunk_slot_index;
-    hashtable_half_hashes_chunk_atomic_t* half_hashes_chunk;
-    volatile hashtable_key_value_t* key_value;
+    hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
+    hashtable_key_value_volatile_t* key_value;
     volatile hashtable_key_data_t* found_key;
     hashtable_key_size_t found_key_max_compare_size;
     uint32_t skip_indexes_mask;
@@ -220,7 +222,7 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
 
     LOG_DI("locked_up_to_chunk_index = %lu", locked_up_to_chunk_index);
 
-    uint8_atomic_t overflowed_chunks_counter = half_hashes_chunk->metadata.overflowed_chunks_counter;
+    uint8_volatile_t overflowed_chunks_counter = half_hashes_chunk->metadata.overflowed_chunks_counter;
 
     LOG_DI("half_hashes_chunk->metadata.write_lock = %lu", half_hashes_chunk->metadata.write_lock);
     LOG_DI("half_hashes_chunk->metadata.is_full = %lu", half_hashes_chunk->metadata.is_full);
@@ -299,7 +301,7 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
                 // write lock and a full barrier is issued by the lock operation
                 chunk_slot_index = hashtable_support_hash_search(
                         search_hash_half,
-                        (hashtable_hash_half_atomic_t*)half_hashes_chunk->half_hashes,
+                        (hashtable_hash_half_volatile_t*)half_hashes_chunk->half_hashes,
                         skip_indexes_mask);
 
                 LOG_DI(">>> chunk_slot_index = %lu", chunk_slot_index);
@@ -391,10 +393,10 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
                 LOG_DI(">>> updating found_chunk_index and found_key_value");
 
                 // Update the overflowed_chunks_counter if necessary
-                uint8_atomic_t overflowed_chunks_counter_new = (uint8_t)(found_chunk_index - chunk_index_start_initial);
-                uint8_atomic_t overflowed_chunks_counter_current =
+                uint8_volatile_t overflowed_chunks_counter_new = (uint8_t)(found_chunk_index - chunk_index_start_initial);
+                uint8_volatile_t overflowed_chunks_counter_current =
                         hashtable_data->half_hashes_chunk[chunk_index_start_initial].metadata.overflowed_chunks_counter;
-                uint8_atomic_t overflowed_chunks_counter_update = max(
+                uint8_volatile_t overflowed_chunks_counter_update = max(
                         overflowed_chunks_counter_new, overflowed_chunks_counter_current);
 
                 hashtable_data->half_hashes_chunk[chunk_index_start_initial].metadata.overflowed_chunks_counter =

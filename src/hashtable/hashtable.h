@@ -5,7 +5,6 @@
 extern "C" {
 #endif
 
-#define _Atomic(T) T volatile
 
 #define HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT     14
 #define HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX      32
@@ -70,10 +69,7 @@ typedef uint32_t hashtable_key_size_t;
 typedef char hashtable_key_data_t;
 typedef uintptr_t hashtable_value_data_t;
 
-typedef _Atomic(uint8_t) uint8_atomic_t;
-typedef _Atomic(uint64_t) uint64_atomic_t;
-typedef _Atomic(hashtable_hash_t) hashtable_hash_atomic_t;
-typedef _Atomic(hashtable_hash_half_t) hashtable_hash_half_atomic_t;
+typedef _Volatile(hashtable_hash_half_t) hashtable_hash_half_volatile_t;
 
 enum {
     HASHTABLE_KEY_VALUE_FLAG_DELETED         = 0x01u,
@@ -105,7 +101,7 @@ struct hashtable_config {
  * The struct is aligned to 32 byte to ensure to fit the first half or the second half of a cache-line
  */
 typedef struct hashtable_key_value hashtable_key_value_t;
-typedef _Atomic(hashtable_key_value_t) hashtable_key_value_atomic_t;
+typedef _Volatile(hashtable_key_value_t) hashtable_key_value_volatile_t;
 struct hashtable_key_value {
     union {                                     // union 23 bytes (HASHTABLE_KEY_INLINE_MAX_LENGTH must match this size)
         struct {
@@ -131,26 +127,25 @@ struct hashtable_key_value {
  * borrowed from F14, as well the number of slots in the half hashes chunk
  */
 typedef struct hashtable_half_hashes_chunk hashtable_half_hashes_chunk_t;
-typedef _Atomic(hashtable_half_hashes_chunk_t) hashtable_half_hashes_chunk_atomic_t;
+typedef _Volatile(hashtable_half_hashes_chunk_t) hashtable_half_hashes_chunk_volatile_t;
 struct hashtable_half_hashes_chunk {
+    spinlock_lock_volatile_t write_lock;
     union {
-        uint64_atomic_t _internal_cmpxchg;
+        uint32_t padding;
         struct {
-            uint8_atomic_t write_lock;
-            uint8_atomic_t overflowed_chunks_counter;
-            uint8_atomic_t changes_counter;
-            uint8_atomic_t is_full;
-            uint8_atomic_t padding[5];
-        } __attribute__((aligned(8)));
+            uint8_volatile_t overflowed_chunks_counter;
+            uint8_volatile_t changes_counter;
+            uint8_volatile_t is_full;
+        };
     } metadata;
-    hashtable_hash_half_atomic_t half_hashes[HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT];
+    hashtable_hash_half_volatile_t half_hashes[HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT];
 } __attribute__((aligned(64)));
 
 /**
  * Struct holding the hashtable data
  **/
 typedef struct hashtable_data hashtable_data_t;
-typedef _Atomic(hashtable_data_t) hashtable_data_atomic_t;
+typedef _Volatile(hashtable_data_t) hashtable_data_volatile_t;
 struct hashtable_data {
     hashtable_bucket_count_t buckets_count;
     hashtable_bucket_count_t buckets_count_real;
@@ -159,8 +154,8 @@ struct hashtable_data {
     size_t half_hashes_chunk_size;
     size_t keys_values_size;
 
-    hashtable_half_hashes_chunk_atomic_t* half_hashes_chunk;
-    hashtable_key_value_atomic_t* keys_values;
+    hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
+    hashtable_key_value_volatile_t* keys_values;
 };
 
 /**
@@ -181,8 +176,8 @@ struct hashtable {
     hashtable_config_t* config;
     bool is_shutdowning;
     bool is_resizing;
-    volatile hashtable_data_t* ht_current;
-    volatile hashtable_data_t* ht_old;
+    hashtable_data_volatile_t* ht_current;
+    hashtable_data_volatile_t* ht_old;
 };
 
 hashtable_t* hashtable_init(hashtable_config_t* hashtable_config);

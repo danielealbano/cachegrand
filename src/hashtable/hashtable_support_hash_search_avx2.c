@@ -3,6 +3,9 @@
 #include <stdbool.h>
 #include <immintrin.h>
 
+#include "exttypes.h"
+#include "spinlock.h"
+
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_support_hash_search.h"
 
@@ -13,7 +16,7 @@
  **/
 hashtable_chunk_slot_index_t hashtable_support_hash_search_avx2_14(
         hashtable_hash_half_t hash,
-        hashtable_hash_half_atomic_t* hashes,
+        hashtable_hash_half_volatile_t* hashes,
         uint32_t skip_indexes_mask) {
     uint32_t compacted_result_mask = 0;
     uint32_t skip_indexes_mask_inv = ~skip_indexes_mask;
@@ -33,7 +36,7 @@ hashtable_chunk_slot_index_t hashtable_support_hash_search_avx2_14(
 
 hashtable_chunk_slot_index_t hashtable_support_hash_search_avx2_13(
         hashtable_hash_half_t hash,
-        hashtable_hash_half_atomic_t* hashes,
+        hashtable_hash_half_volatile_t* hashes,
         uint32_t skip_indexes_mask) {
     uint32_t compacted_result_mask = 0;
     uint32_t skip_indexes_mask_inv = ~skip_indexes_mask;
@@ -53,7 +56,7 @@ hashtable_chunk_slot_index_t hashtable_support_hash_search_avx2_13(
 
 hashtable_chunk_slot_index_t hashtable_support_hash_search_avx2_8(
         hashtable_hash_half_t hash,
-        hashtable_hash_half_atomic_t* hashes,
+        hashtable_hash_half_volatile_t* hashes,
         uint32_t skip_indexes_mask) {
     uint32_t compacted_result_mask = 0;
     uint32_t skip_indexes_mask_inv = ~skip_indexes_mask;

@@ -2,6 +2,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "exttypes.h"
+#include "spinlock.h"
+
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_support_index.h"
 #include "hashtable/hashtable_support_primenumbers.h"

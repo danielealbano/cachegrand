@@ -1,5 +1,8 @@
 #include "catch.hpp"
 
+#include "exttypes.h"
+#include "spinlock.h"
+
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_config.h"
 #include "hashtable/hashtable_support_primenumbers.h"

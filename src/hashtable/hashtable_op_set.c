@@ -3,9 +3,13 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 #include <string.h>
+#include <assert.h>
 
-#include "log.h"
 #include "memory_fences.h"
+#include "exttypes.h"
+#include "spinlock.h"
+#include "log.h"
+#include "xalloc.h"
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_op_set.h"
@@ -19,8 +23,8 @@ bool hashtable_op_set(
         hashtable_value_data_t value) {
     bool created_new;
     hashtable_hash_t hash;
-    hashtable_half_hashes_chunk_atomic_t* half_hashes_chunk = 0;
-    hashtable_key_value_atomic_t* key_value = 0;
+    hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk = 0;
+    hashtable_key_value_volatile_t* key_value = 0;
 
     hashtable_key_data_t* ht_key;
 

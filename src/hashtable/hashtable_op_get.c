@@ -4,8 +4,10 @@
 #include <stdatomic.h>
 #include <string.h>
 
-#include "log.h"
 #include "memory_fences.h"
+#include "exttypes.h"
+#include "spinlock.h"
+#include "log.h"
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_op_get.h"
@@ -18,7 +20,7 @@ bool hashtable_op_get(
         hashtable_key_size_t key_size,
         hashtable_value_data_t *data) {
     hashtable_hash_t hash;
-    volatile hashtable_key_value_t* key_value = 0;
+    hashtable_key_value_volatile_t* key_value = 0;
 
     bool data_found = false;
     *data = 0;
@@ -28,7 +30,7 @@ bool hashtable_op_get(
     LOG_DI("key (%d) = %s", key_size, key);
     LOG_DI("hash = 0x%016x", hash);
 
-    volatile hashtable_data_t* hashtable_data_list[] = {
+    hashtable_data_volatile_t* hashtable_data_list[] = {
             hashtable->ht_current,
             hashtable->ht_old
     };
@@ -40,7 +42,7 @@ bool hashtable_op_get(
             hashtable_data_index++) {
         HASHTABLE_MEMORY_FENCE_LOAD();
 
-        volatile hashtable_data_t* hashtable_data = hashtable_data_list[hashtable_data_index];
+        hashtable_data_volatile_t* hashtable_data = hashtable_data_list[hashtable_data_index];
 
         LOG_DI("hashtable_data_index = %u", hashtable_data_index);
         LOG_DI("hashtable_data = 0x%016x", hashtable_data);

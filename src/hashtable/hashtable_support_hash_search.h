@@ -13,7 +13,7 @@ extern "C" {
 #define HASHTABLE_SUPPORT_HASH_SEARCH_METHOD_SIZE_SIGNATURE(METHOD, SIZE) \
     extern hashtable_chunk_slot_index_t HASHTABLE_SUPPORT_HASH_SEARCH_METHOD_SIZE(METHOD, SIZE)( \
         hashtable_hash_half_t hash, \
-        hashtable_hash_half_atomic_t* hashes, \
+        hashtable_hash_half_volatile_t* hashes, \
         uint32_t skip_indexes)
 
 HASHTABLE_SUPPORT_HASH_SEARCH_METHOD_SIZE_SIGNATURE(avx2, 14);
@@ -28,7 +28,7 @@ HASHTABLE_SUPPORT_HASH_SEARCH_METHOD_SIZE_SIGNATURE(loop, 8);
 
 extern hashtable_chunk_slot_index_t hashtable_support_hash_search(
         hashtable_hash_half_t hash,
-        hashtable_hash_half_atomic_t* hashes,
+        hashtable_hash_half_volatile_t* hashes,
         uint32_t skip_indexes);
 
 #ifdef __cplusplus

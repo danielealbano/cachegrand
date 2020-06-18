@@ -2,6 +2,9 @@
 #include <stdbool.h>
 #include <t1ha.h>
 
+#include "exttypes.h"
+#include "spinlock.h"
+
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_support_hash.h"
 

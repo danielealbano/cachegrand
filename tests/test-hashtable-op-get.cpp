@@ -2,7 +2,10 @@
 
 #include <string.h>
 
+#include "exttypes.h"
+#include "spinlock.h"
 #include "xalloc.h"
+
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_config.h"
 #include "hashtable/hashtable_support_index.h"

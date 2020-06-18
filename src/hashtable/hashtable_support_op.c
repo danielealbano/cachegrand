@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "exttypes.h"
+#include "spinlock.h"
 #include "log.h"
 
 #include "hashtable/hashtable.h"
@@ -51,7 +53,7 @@ bool hashtable_support_op_search_key(
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_hash_t hash,
-        volatile hashtable_key_value_t **found_key_value)
+        hashtable_key_value_volatile_t **found_key_value)
 __attribute__ ((ifunc ("hashtable_support_op_search_key_resolve")));
 HASHTABLE_SUPPORT_OP_FUNC_RESOLVER(hashtable_support_op_search_key)
 
@@ -62,18 +64,7 @@ bool hashtable_support_op_search_key_or_create_new(
         hashtable_hash_t hash,
         bool create_new_if_missing,
         bool *created_new,
-        hashtable_half_hashes_chunk_atomic_t **found_half_hashes_chunk,
-        volatile hashtable_key_value_t **found_key_value)
+        hashtable_half_hashes_chunk_volatile_t **found_half_hashes_chunk,
+        hashtable_key_value_volatile_t **found_key_value)
 __attribute__ ((ifunc ("hashtable_support_op_search_key_or_create_new_resolve")));
 HASHTABLE_SUPPORT_OP_FUNC_RESOLVER(hashtable_support_op_search_key_or_create_new)
-
-bool hashtable_support_op_half_hashes_chunk_lock(
-        hashtable_half_hashes_chunk_atomic_t *half_hashes_chunk,
-        bool retry)
-__attribute__ ((ifunc ("hashtable_support_op_half_hashes_chunk_lock_resolve")));
-HASHTABLE_SUPPORT_OP_FUNC_RESOLVER(hashtable_support_op_half_hashes_chunk_lock)
-
-void hashtable_support_op_half_hashes_chunk_unlock(
-        hashtable_half_hashes_chunk_atomic_t *half_hashes_chunk)
-__attribute__ ((ifunc ("hashtable_support_op_half_hashes_chunk_unlock_resolve")));
-HASHTABLE_SUPPORT_OP_FUNC_RESOLVER(hashtable_support_op_half_hashes_chunk_unlock)

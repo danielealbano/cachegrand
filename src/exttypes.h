@@ -7,6 +7,9 @@ extern "C" {
 
 #define _Volatile(T)    volatile T
 
+typedef __int128 int128_t;
+typedef unsigned __int128 uint128_t;
+
 typedef _Volatile(uint8_t)  uint8_volatile_t;
 
 #ifdef __cplusplus

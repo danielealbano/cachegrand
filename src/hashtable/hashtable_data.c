@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "exttypes.h"
+#include "spinlock.h"
 #include "xalloc.h"
 #include "log.h"
 
@@ -30,14 +32,14 @@ hashtable_data_t* hashtable_data_init(hashtable_bucket_count_t buckets_count) {
             hashtable_data->buckets_count_real / HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
 
     hashtable_data->half_hashes_chunk_size =
-            sizeof(hashtable_half_hashes_chunk_atomic_t) * hashtable_data->chunks_count;
+            sizeof(hashtable_half_hashes_chunk_volatile_t) * hashtable_data->chunks_count;
     hashtable_data->keys_values_size =
-            sizeof(hashtable_key_value_atomic_t) * hashtable_data->buckets_count_real;
+            sizeof(hashtable_key_value_volatile_t) * hashtable_data->buckets_count_real;
 
     hashtable_data->half_hashes_chunk =
-            (hashtable_half_hashes_chunk_atomic_t *)xalloc_mmap_alloc(hashtable_data->half_hashes_chunk_size);
+            (hashtable_half_hashes_chunk_volatile_t *)xalloc_mmap_alloc(hashtable_data->half_hashes_chunk_size);
     hashtable_data->keys_values =
-            (hashtable_key_value_atomic_t *)xalloc_mmap_alloc(hashtable_data->keys_values_size);
+            (hashtable_key_value_volatile_t *)xalloc_mmap_alloc(hashtable_data->keys_values_size);
 
     return hashtable_data;
 }

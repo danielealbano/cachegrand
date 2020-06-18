@@ -10,28 +10,21 @@ extern "C" {
 
 #define HASHTABLE_SUPPORT_OP_ARCH(SUFFIX) \
     bool HASHTABLE_SUPPORT_OP_FUNC_METHOD(hashtable_support_op_search_key, SUFFIX)( \
-            volatile hashtable_data_t *hashtable_data, \
+            hashtable_data_volatile_t *hashtable_data, \
             hashtable_key_data_t *key, \
             hashtable_key_size_t key_size, \
             hashtable_hash_t hash, \
-            volatile hashtable_key_value_t **found_key_value); \
+            hashtable_key_value_volatile_t); \
      \
     bool HASHTABLE_SUPPORT_OP_FUNC_METHOD(hashtable_support_op_search_key_or_create_new, SUFFIX)( \
-            volatile hashtable_data_t *hashtable_data, \
+            hashtable_data_t *hashtable_data, \
             hashtable_key_data_t *key, \
             hashtable_key_size_t key_size, \
             hashtable_hash_t hash, \
             bool create_new_if_missing, \
             bool *created_new, \
-            hashtable_half_hashes_chunk_atomic_t **found_half_hashes_chunk, \
-            volatile hashtable_key_value_t **found_key_value); \
-     \
-    bool HASHTABLE_SUPPORT_OP_FUNC_METHOD(hashtable_support_op_half_hashes_chunk_lock, SUFFIX)( \
-            hashtable_half_hashes_chunk_atomic_t *half_hashes_chunk, \
-            bool retry); \
-     \
-    void HASHTABLE_SUPPORT_OP_FUNC_METHOD(hashtable_support_op_half_hashes_chunk_unlock, SUFFIX)( \
-            hashtable_half_hashes_chunk_atomic_t *half_hashes_chunk); \
+            hashtable_half_hashes_chunk_volatile_t **found_half_hashes_chunk, \
+            hashtable_key_value_volatile_t);
 
 #if defined(__x86_64__)
 HASHTABLE_SUPPORT_OP_ARCH(avx2)
