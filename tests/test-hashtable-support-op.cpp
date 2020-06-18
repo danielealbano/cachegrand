@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include "atomic_extended.h"
+#include "exttypes.h"
 #include "spinlock.h"
 
 #include "hashtable/hashtable.h"
