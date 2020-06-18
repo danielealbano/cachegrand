@@ -61,8 +61,8 @@ extern "C" {
 typedef uint8_t hashtable_key_value_flags_t;
 typedef uint64_t hashtable_hash_t;
 typedef uint32_t hashtable_hash_half_t;
-typedef uint64_t hashtable_bucket_index_t;
-typedef uint64_t hashtable_chunk_index_t;
+typedef uint32_t hashtable_bucket_index_t;
+typedef uint32_t hashtable_chunk_index_t;
 typedef uint8_t hashtable_chunk_slot_index_t;
 typedef hashtable_bucket_index_t hashtable_bucket_count_t;
 typedef hashtable_chunk_index_t hashtable_chunk_count_t;
@@ -90,7 +90,7 @@ enum {
  */
 typedef struct hashtable_config hashtable_config_t;
 struct hashtable_config {
-    uint64_t initial_size;
+    hashtable_bucket_count_t initial_size;
     bool can_auto_resize;
 };
 

@@ -10,13 +10,16 @@
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_data.h"
-#include "hashtable/hashtable_support_primenumbers.h"
 
 static const char* TAG = "hashtable/data";
 
+bool is_power_of_2(uint32_t x) {
+    return x && (!(x&(x-1)));
+}
+
 hashtable_data_t* hashtable_data_init(hashtable_bucket_count_t buckets_count) {
-    if (hashtable_support_primenumbers_valid(buckets_count) == false) {
-        LOG_E(TAG, "The buckets_count is greater than the maximum allowed value %lu", HASHTABLE_PRIMENUMBERS_MAX);
+    if (is_power_of_2(buckets_count) == false) {
+        LOG_E(TAG, "The buckets_count %lu is not power of 2", buckets_count);
         return NULL;
     }
 
