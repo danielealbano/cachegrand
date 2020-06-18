@@ -85,7 +85,7 @@ bool hashtable_op_set(
             //       immediately after the bucket is freed because it can be in use and would cause a crash34567
 
             ht_key = xalloc_alloc(key_size + 1);
-            ht_key[key_size] = '\0';
+            ((char*)ht_key)[key_size] = '\0';
             strncpy((char*)ht_key, key, key_size);
 
             key_value->external_key.data = ht_key;
