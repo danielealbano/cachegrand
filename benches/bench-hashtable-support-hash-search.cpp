@@ -5,6 +5,9 @@
 
 #include <benchmark/benchmark.h>
 
+#include "exttypes.h"
+#include "spinlock.h"
+
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_support_hash_search.h"
 

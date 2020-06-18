@@ -1,10 +1,16 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 
 #include <benchmark/benchmark.h>
 
+#include "exttypes.h"
+#include "spinlock.h"
+#include "log.h"
+
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_op_set.h"
+#include "hashtable/hashtable_op_get.h"
 
 #include "../tests/test-support.h"
 #include "../tests/fixtures-hashtable.h"
