@@ -52,7 +52,7 @@
 
 #define SET_BENCH_ITERATIONS \
     Iterations(1)->\
-    Repetitions(10)->\
+    Repetitions(25)->\
     DisplayAggregatesOnly(true)
 
 #define CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS() \
