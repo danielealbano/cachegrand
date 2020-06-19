@@ -315,7 +315,16 @@ static void* test_support_build_keys_random_random_length_thread_func(
     char* keys_character_set_list = thread_info->keys_character_set_list;
     char* keys = thread_info->keys;
 
-    for (uint64_t i = thread_info->thread_num; i < count; i += thread_info->threads_count) {
+    // Not perfect calcs but spread the load, this approach will reduce cache lines collisions and let the threads to
+    // work sequentially on their "chunk" of memory to work on
+    uint64_t window_len = (count / thread_info->threads_count) + 1;
+    uint64_t start = thread_info->thread_num * window_len;
+    uint64_t end = start + window_len;
+    if (end > count) {
+        end = count;
+    }
+
+    for (uint64_t i = start; i < end; i++) {
         keys_generated++;
         char* keys_current = keys + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
 
