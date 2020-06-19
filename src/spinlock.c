@@ -5,6 +5,7 @@
 #include <pthread.h>
 
 #include "memory_fences.h"
+#include "misc.h"
 #include "exttypes.h"
 #include "spinlock.h"
 #include "log.h"
@@ -66,9 +67,9 @@ bool spinlock_lock_internal(
 {
     bool res = false;
 
-    while (!(res = spinlock_try_lock(spinlock)) && retry) {
+    while (unlikely(!(res = spinlock_try_lock(spinlock)) && retry)) {
         uint64_t spins = 0;
-        while (spinlock_is_locked(spinlock) && spins < UINT32_MAX) {
+        while (unlikely(spinlock_is_locked(spinlock) && spins < UINT32_MAX)) {
             spins++;
         }
 
