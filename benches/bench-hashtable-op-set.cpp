@@ -140,23 +140,6 @@ static void hashtable_op_set_new(benchmark::State& state) {
     }
 
     if (state.thread_index == 0) {
-        for(long int i = 0; i < keys_count; i++) {
-            uint64_t value;
-            char* key = keys + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
-
-            bool result = hashtable_op_get(
-                    hashtable,
-                    key,
-                    strlen(key),
-                    (hashtable_value_data_t*)&value);
-
-            if (!result) {
-                LOG_DI("Can't find key <%s>", key);
-            } else if (value != i) {
-                LOG_DI("For the key <%s> there is a value mismatch, found <%lu> expected <%lu>", key, value, i);
-            }
-        }
-
         bench_support_collect_hashtable_stats_and_update_state(state, hashtable);
         hashtable_free(hashtable);
     }
@@ -229,34 +212,16 @@ static void hashtable_op_set_update(benchmark::State& state) {
     }
 
     if (state.thread_index == 0) {
-        for(long int i = 0; i < keys_count; i++) {
-            uint64_t value;
-            char* key = keys + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
-
-            bool result = hashtable_op_get(
-                    hashtable,
-                    key,
-                    strlen(key),
-                    (hashtable_value_data_t*)&value);
-
-            if (!result) {
-                LOG_DI("Can't find key <%s>", key);
-            } else if (value != i) {
-                LOG_DI("For the key <%s> there is a value mismatch, found <%lu> expected <%lu>", key, value, i);
-            }
-        }
-
         bench_support_collect_hashtable_stats_and_update_state(state, hashtable);
         hashtable_free(hashtable);
-        test_support_free_keys(keys, keys_count);
     }
 }
 
 BENCHMARK(hashtable_op_set_keyset_init_notatest)->Iterations(1)->Threads(1)->Repetitions(1);
 
 BENCHMARK(hashtable_op_set_new)
-    ->CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS(RANDOM_KEYS_GEN_FUNC_RANDOM_LENGTH);
+    ->CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS();
 BENCHMARK(hashtable_op_set_update)
-    ->CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS(RANDOM_KEYS_GEN_FUNC_RANDOM_LENGTH);
+    ->CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS();
 
 BENCHMARK(hashtable_op_set_keyset_cleanup_notatest)->Iterations(1)->Threads(1)->Repetitions(1);
