@@ -558,7 +558,7 @@ bool test_support_hashtable_prefill(
                 hashtable,
                 key,
                 strlen(key),
-                value);
+                value + i);
 
         if (!result) {
             return false;
