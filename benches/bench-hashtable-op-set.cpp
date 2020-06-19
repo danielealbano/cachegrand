@@ -35,6 +35,9 @@
     Args({0x3FFFFFFFu, 75, keys_gen_func_name})-> \
     Args({0x7FFFFFFFu, 50, keys_gen_func_name})-> \
     Args({0x7FFFFFFFu, 75, keys_gen_func_name})
+#define KEYSET_MAX_SIZE             (double)0x7FFFFFFFu * (double)0.75
+#define KEYSET_GENERATOR_METHOD     TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_RANDOM_LENGTH
+
 
 #define SET_BENCH_THREADS \
     Threads(1)-> \
@@ -57,6 +60,27 @@
     SET_BENCH_ARGS_HT_SIZE_AND_KEYS(keys_gen_func_name)-> \
     SET_BENCH_ITERATIONS-> \
     SET_BENCH_THREADS
+
+
+static char* keyset = NULL;
+static uint64_t keyset_size = 0;
+
+static void hashtable_op_set_keyset_init_notatest(benchmark::State& state) {
+    keyset_size = KEYSET_MAX_SIZE + 1;
+
+    keyset = test_support_init_keys(keyset_size, KEYSET_GENERATOR_METHOD);
+
+    state.SkipWithError("Not a test, skipping");
+}
+
+static void hashtable_op_set_keyset_cleanup_notatest(benchmark::State& state) {
+    test_support_free_keys(keyset, keyset_size);
+
+    keyset = NULL;
+    keyset_size = 0;
+
+    state.SkipWithError("Not a test, skipping");
+}
 
 static void hashtable_op_set_new(benchmark::State& state) {
     static hashtable_t* hashtable;
@@ -242,8 +266,11 @@ static void hashtable_op_set_update(benchmark::State& state) {
     }
 }
 
+BENCHMARK(hashtable_op_set_keyset_init_notatest)->Iterations(1)->Threads(1)->Repetitions(1);
+
 BENCHMARK(hashtable_op_set_new)
     ->CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS(RANDOM_KEYS_GEN_FUNC_RANDOM_LENGTH);
 BENCHMARK(hashtable_op_set_update)
     ->CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS(RANDOM_KEYS_GEN_FUNC_RANDOM_LENGTH);
 
+BENCHMARK(hashtable_op_set_keyset_cleanup_notatest)->Iterations(1)->Threads(1)->Repetitions(1);
