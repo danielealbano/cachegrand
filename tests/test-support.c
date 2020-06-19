@@ -352,7 +352,7 @@ char* test_support_build_keys_random_random_length(
 
     uint32_t threads_count = psnip_cpu_count();
 
-    fprintf(stdout, "Generating keyset using <%u> threads\n", threads_count);
+    LOG_DI("generating keyset using <%u> threads", threads_count);
 
     res = pthread_attr_init(&attr);
     if (res != 0) {
@@ -402,7 +402,7 @@ char* test_support_build_keys_random_random_length(
     LOG_DI("generation completed");
     free(threads_info);
 
-    fprintf(stdout, "Keyset generated\n");
+    LOG_DI("keyset generated");
 
     return keys;
 }
