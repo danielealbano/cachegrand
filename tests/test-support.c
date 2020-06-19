@@ -13,6 +13,7 @@
 #include <stdatomic.h>
 #include <openssl/bn.h>
 #include <sched.h>
+#include <immintrin.h>
 
 #include "cmake_config.h"
 
