@@ -566,3 +566,23 @@ bool test_support_hashtable_prefill(
 
     return true;
 }
+
+void test_support_flush_data_cache(
+        void *start,
+        size_t len)
+{
+    // TODO: the cacheline size is currently hardcoded, should be determined at build type and a macro should be used
+    //       to properly keep track of it
+    uint32_t cacheline_size = 64;
+    void *end = start + len;
+    void *p;
+
+    // clflushopt is unordered, needs a full memory fence
+    HASHTABLE_MEMORY_FENCE_LOAD_STORE();
+
+    for (p = start; p < end; p += cacheline_size) {
+        _mm_clflushopt(p);
+    }
+
+    HASHTABLE_MEMORY_FENCE_LOAD_STORE();
+}

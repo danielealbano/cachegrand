@@ -12,5 +12,5 @@ target_link_libraries(cachegrand-tests PRIVATE cachegrand-internal t1ha catch2 p
 target_include_directories(cachegrand-tests PUBLIC ".")
 target_include_directories(cachegrand-tests PUBLIC "../src")
 target_include_directories(cachegrand-tests PUBLIC ${OPENSSL_INCLUDE_DIR})
-target_compile_options(cachegrand-tests PRIVATE -fpermissive)
+target_compile_options(cachegrand-tests PRIVATE -mclflushopt -fpermissive)
 add_test(NAME cachegrand-tests COMMAND cachegrand-tests)

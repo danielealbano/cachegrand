@@ -105,6 +105,10 @@ bool test_support_hashtable_prefill(
         uint64_t value,
         uint64_t insert_count);
 
+void test_support_flush_data_cache(
+        void *start,
+        size_t len);
+
 #ifdef __cplusplus
 }
 #endif

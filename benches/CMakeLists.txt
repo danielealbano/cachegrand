@@ -33,7 +33,7 @@ add_executable(cachegrand-benches main.cpp ../tests/test-support.c ${SRC_CACHEGR
 add_dependencies(cachegrand-benches cachegrand-internal __internal_refresh_cmake_config_c)
 set_target_properties(cachegrand-benches PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(cachegrand-benches PRIVATE cachegrand-internal t1ha pthread benchmark::benchmark OpenSSL::SSL)
-target_compile_options(cachegrand-benches PRIVATE -mtune=native)
+target_compile_options(cachegrand-benches PRIVATE -mclflushopt -march=native)
 target_include_directories(cachegrand-benches PUBLIC ".")
 target_include_directories(cachegrand-benches PUBLIC "../src")
 target_include_directories(cachegrand-benches PUBLIC "../tests")
