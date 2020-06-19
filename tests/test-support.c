@@ -338,11 +338,6 @@ static void* test_support_build_keys_random_random_length_thread_func(
         }
 
         *keys_current = 0;
-
-//        LOG_DI("[Thread <%u>] key <%s> (%lu)",
-//                thread_info->thread_num,
-//                keys_current - length,
-//                strlen(keys_current - length));
     }
 
     LOG_DI("[Thread <%u>] key generation completed, generated <%lu> keys", thread_info->thread_num, keys_generated);
