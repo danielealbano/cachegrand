@@ -259,7 +259,14 @@ void test_support_set_thread_affinity(
     pthread_t thread;
 
     uint32_t logical_core_count = psnip_cpu_count();
-    uint32_t logical_core_index = thread_index % logical_core_count;
+    uint32_t physical_core_count = logical_core_count >> 1;
+    uint32_t logical_core_index = (thread_index % logical_core_count) * 2;
+
+    if (logical_core_index >= logical_core_count) {
+        logical_core_index = logical_core_index - logical_core_count + 1;
+    }
+
+    LOG_DI("Thread <%u> on core <%u>", thread_index, logical_core_index);
 
     CPU_ZERO(&cpuset);
     CPU_SET(logical_core_index, &cpuset);
