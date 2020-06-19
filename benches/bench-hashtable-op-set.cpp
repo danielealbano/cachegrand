@@ -77,15 +77,22 @@ static void hashtable_op_set_new(benchmark::State& state) {
     if (state.thread_index == 0) {
         hashtable = test_support_init_hashtable(hashtable_initial_size);
         requested_load_factor = (double)requested_load_factor_perc / 100;
-        keys_count = (double)hashtable->ht_current->buckets_count * requested_load_factor;
-        keys_generator_method = state.range(2);
+        uint64_t new_keys_count = (double)hashtable->ht_current->buckets_count * requested_load_factor;
+        if (new_keys_count != keys_count || keys_generator_method != state.range(2)) {
+            if (keys_count > 0) {
+                test_support_free_keys(keys, keys_count);
+            }
 
-        LOG_DI("Generating <%lu> keys for a load factor of <%.02f> with generator <%d>",
-                keys_count,
-                requested_load_factor,
-                keys_generator_method);
+            keys_generator_method = state.range(2);
 
-        keys = test_support_init_keys(keys_count, keys_generator_method);
+            LOG_DI("keys_count changed, from <%lu> to <%lu>, regenerating keys with generator <%d>",
+                    keys_count,
+                    new_keys_count,
+                    keys_generator_method);
+
+            keys_count = new_keys_count;
+            keys = test_support_init_keys(keys_count, keys_generator_method);
+        }
     }
 
     test_support_set_thread_affinity(state.thread_index);
@@ -135,7 +142,6 @@ static void hashtable_op_set_new(benchmark::State& state) {
 
         bench_support_collect_hashtable_stats_and_update_state(state, hashtable);
         hashtable_free(hashtable);
-        test_support_free_keys(keys, keys_count);
     }
 }
 
@@ -158,26 +164,34 @@ static void hashtable_op_set_update(benchmark::State& state) {
     if (state.thread_index == 0) {
         hashtable = test_support_init_hashtable(hashtable_initial_size);
         requested_load_factor = (double)requested_load_factor_perc / 100;
-        keys_count = (double)hashtable->ht_current->buckets_count * requested_load_factor;
-        keys_generator_method = state.range(2);
+        uint64_t new_keys_count = (double)hashtable->ht_current->buckets_count * requested_load_factor;
+        if (new_keys_count != keys_count || keys_generator_method != state.range(2)) {
+            if (keys_count > 0) {
+                test_support_free_keys(keys, keys_count);
+            }
 
-        LOG_DI("Generating <%lu> keys for a load factor of <%.02f> with generator <%d>",
-               keys_count,
-               requested_load_factor,
-               keys_generator_method);
+            keys_generator_method = state.range(2);
 
-        keys = test_support_init_keys(keys_count, keys_generator_method);
-        bool result = test_support_hashtable_prefill(hashtable, keys, test_value_1, state.range(1));
+            LOG_DI("keys_count changed, from <%lu> to <%lu>, regenerating keys with generator <%d>",
+                   keys_count,
+                   new_keys_count,
+                   keys_generator_method);
 
-        if (!result) {
-            hashtable_free(hashtable);
-            test_support_free_keys(keys, keys_count);
+            keys_count = new_keys_count;
+            keys = test_support_init_keys(keys_count, keys_generator_method);
+            bool result = test_support_hashtable_prefill(hashtable, keys, test_value_1, state.range(1));
 
-            sprintf(error_message, "Unable to pre-fill the hashtable with <%lu> keys", keys_count);
-            state.SkipWithError(error_message);
-            return;
+            if (!result) {
+                hashtable_free(hashtable);
+                test_support_free_keys(keys, keys_count);
+
+                sprintf(error_message, "Unable to prefill the hashtable with <%lu> keys", keys_count);
+                state.SkipWithError(error_message);
+                return;
+            }
         }
     }
+
 
     test_support_set_thread_affinity(state.thread_index);
 
