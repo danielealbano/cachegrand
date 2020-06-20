@@ -80,7 +80,6 @@ hashtable_bucket_index_t test_index_2_buckets_count_42 = test_key_2_hash % bucke
         HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE; \
     strncpy((char*)&HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).inline_key.data, key, HASHTABLE_KEY_INLINE_MAX_LENGTH);
 
-#if CACHEGRAND_HASHTABLE_KEY_CHECK_FULL == 1
 #define HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(chunk_index, chunk_slot_index, hash, key, key_size, value) \
     HASHTABLE_SET_INDEX_SHARED(chunk_index, chunk_slot_index, hash, value); \
     HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).flags = \
@@ -89,15 +88,6 @@ hashtable_bucket_index_t test_index_2_buckets_count_42 = test_key_2_hash % bucke
         key; \
     HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).external_key.size = \
         key_size;
-#else
-#define HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(chunk_index, chunk_slot_index, hash, key, key_size, value) \
-    HASHTABLE_SET_INDEX_SHARED(chunk_index, chunk_slot_index, hash, value); \
-    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).flags = \
-        HASHTABLE_KEY_VALUE_FLAG_FILLED; \
-    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).prefix_key.size = \
-        key_size; \
-    strncpy((char*)&HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).prefix_key.data, key, HASHTABLE_KEY_PREFIX_SIZE);
-#endif
 
 #ifdef __cplusplus
 }

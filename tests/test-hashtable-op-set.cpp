@@ -177,17 +177,12 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
 
                     REQUIRE(half_hashes_chunk->half_hashes[i] == test_key_same_bucket[i].key_hash_half);
                     REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_FILLED);
-#if CACHEGRAND_HASHTABLE_KEY_CHECK_FULL == 1
+
                     REQUIRE(strncmp(
                             (char*)key_value->external_key.data,
                             test_key_same_bucket[i].key,
                             key_value->external_key.size) == 0);
-#else
-                    REQUIRE(strncmp(
-                            (char*)key_value->prefix_key.data,
-                            test_key_same_bucket[i].key,
-                            HASHTABLE_KEY_PREFIX_SIZE) == 0);
-#endif
+
                     REQUIRE(key_value->data == test_value_1 + i);
                 }
 
@@ -232,17 +227,12 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
 
                     REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == test_key_same_bucket[i].key_hash_half);
                     REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_FILLED);
-#if CACHEGRAND_HASHTABLE_KEY_CHECK_FULL == 1
+
                     REQUIRE(strncmp(
                             (char*)key_value->external_key.data,
                             test_key_same_bucket[i].key,
                             key_value->external_key.size) == 0);
-#else
-                    REQUIRE(strncmp(
-                            (char*)key_value->prefix_key.data,
-                            test_key_same_bucket[i].key,
-                            HASHTABLE_KEY_PREFIX_SIZE) == 0);
-#endif
+
                     REQUIRE(key_value->data == test_value_1 + i);
                 }
 

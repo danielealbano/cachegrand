@@ -82,20 +82,14 @@ bool hashtable_op_set(
         } else {
             LOG_DI("key can't be inline-ed, max length for inlining %d", HASHTABLE_KEY_INLINE_MAX_LENGTH);
 
-#if CACHEGRAND_HASHTABLE_KEY_CHECK_FULL == 1
             // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't be freed
             //       immediately after the bucket is freed because it can be in use and would cause a crash34567
-
             ht_key = xalloc_alloc(key_size + 1);
             ((char*)ht_key)[key_size] = '\0';
             strncpy((char*)ht_key, key, key_size);
 
             key_value->external_key.data = ht_key;
             key_value->external_key.size = key_size;
-#else
-            key_value->prefix_key.size = key_size;
-            strncpy((char*)key_value->prefix_key.data, key, HASHTABLE_KEY_PREFIX_SIZE);
-#endif // CACHEGRAND_HASHTABLE_KEY_CHECK_FULL == 1
         }
 
         // Set the FILLED flag
