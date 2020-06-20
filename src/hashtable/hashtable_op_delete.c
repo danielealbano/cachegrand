@@ -23,6 +23,7 @@ bool hashtable_op_delete(
     hashtable_hash_t hash;
     hashtable_chunk_index_t chunk_index = 0;
     hashtable_chunk_slot_index_t chunk_slot_index = 0;
+    hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
     hashtable_key_value_volatile_t* key_value;
     bool deleted = false;
 
@@ -65,12 +66,15 @@ bool hashtable_op_delete(
 
         LOG_DI("key found, deleting hash and setting flags to deleted");
 
-        // It first sets the half hash to zero and only after it resets the flags to deleted.
-        hashtable_data->half_hashes_chunk[chunk_index].half_hashes[chunk_slot_index] = 0;
-        HASHTABLE_MEMORY_FENCE_STORE();
+        half_hashes_chunk = hashtable_data->half_hashes_chunk[chunk_index];
 
+        spinlock_lock(&half_hashes_chunk->write_lock, true);
+
+        half_hashes_chunk->half_hashes[chunk_slot_index] = 0;
+        half_hashes_chunk->metadata.is_full = 0;
         key_value->flags = HASHTABLE_KEY_VALUE_FLAG_DELETED;
-        HASHTABLE_MEMORY_FENCE_STORE();
+
+        spinlock_unlock(&half_hashes_chunk->write_lock);
 
         deleted = true;
     }
