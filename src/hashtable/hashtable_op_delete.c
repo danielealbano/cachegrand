@@ -4,6 +4,7 @@
 #include <stdatomic.h>
 #include <string.h>
 
+#include "cmake_config.h"
 #include "memory_fences.h"
 #include "log.h"
 #include "exttypes.h"
