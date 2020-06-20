@@ -101,7 +101,7 @@ void bench_support_set_thread_affinity(
 
 bool test_support_hashtable_prefill(
         hashtable_t* hashtable,
-        char* keys,
+        char* keyset,
         uint64_t value,
         uint64_t insert_count);
 

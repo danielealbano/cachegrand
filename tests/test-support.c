@@ -559,7 +559,7 @@ hashtable_t* test_support_init_hashtable(
 
 bool test_support_hashtable_prefill(
         hashtable_t* hashtable,
-        char* keys,
+        char* keyset,
         uint64_t value,
         uint64_t insert_count) {
     for(long int i = 0; i < insert_count; i++) {
