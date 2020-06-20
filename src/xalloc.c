@@ -10,7 +10,7 @@
 
 #include "fatal.h"
 
-static const char* TAG = "xalloc_alloc";
+static const char* TAG = "xalloc";
 
 void* xalloc_alloc(size_t size) {
     void* memptr;

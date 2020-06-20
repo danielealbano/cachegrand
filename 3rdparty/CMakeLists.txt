@@ -7,7 +7,7 @@ if(ARCH_IS_X86_64)
         set_source_files_properties(
                 "t1ha/src/t1ha0_ia32aes_avx2.c"
                 PROPERTIES COMPILE_FLAGS
-                "-mno-avx256-split-unaligned-load -mavx2 -mbmi -maes")
+                "-mno-avx256-split-unaligned-load -maes -mavx2 -mbmi -mfma -mtune=haswell")
 
         message(STATUS "Enabling accelerated t1ha0 -- aes-ni + avx")
         list(APPEND SRC_FILES_T1HA "${CMAKE_CURRENT_SOURCE_DIR}/t1ha/src/t1ha0_ia32aes_avx.c")
@@ -32,6 +32,7 @@ add_library(
         t1ha
         ${SRC_FILES_T1HA}
 )
-target_compile_definitions(t1ha PUBLIC -DT1HA0_RUNTIME_SELECT=1 -DT1HA_USE_INDIRECT_FUNCTIONS=1)
-target_compile_options(t1ha PUBLIC -ffunction-sections -std=c99 -O3 -mtune=native -DNDEBUG -D_DEFAULT_SOURCE -fno-stack-protector -fvisibility=hidden -Dt1ha_EXPORTS)
+
+target_compile_options(t1ha PRIVATE -ffunction-sections -std=c99 -O3 -D_DEFAULT_SOURCE -DNDEBUG -fno-stack-protector -fvisibility=hidden)
+target_compile_definitions(t1ha PUBLIC -DT1HA0_RUNTIME_SELECT=1 -DT1HA_USE_INDIRECT_FUNCTIONS=1 -Dt1ha_EXPORTS)
 target_include_directories(t1ha PUBLIC t1ha/ t1ha/src)

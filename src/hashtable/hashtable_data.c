@@ -3,47 +3,52 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "exttypes.h"
+#include "spinlock.h"
 #include "xalloc.h"
 #include "log.h"
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_data.h"
-#include "hashtable/hashtable_support_primenumbers.h"
 
 static const char* TAG = "hashtable/data";
 
+bool is_power_of_2(uint32_t x) {
+    return x && (!(x&(x-1)));
+}
+
 hashtable_data_t* hashtable_data_init(hashtable_bucket_count_t buckets_count) {
-    if (hashtable_support_primenumbers_valid(buckets_count) == false) {
-        LOG_E(TAG, "The buckets_count is greater than the maximum allowed value %lu", HASHTABLE_PRIMENUMBERS_MAX);
+    if (is_power_of_2(buckets_count) == false) {
+        LOG_E(TAG, "The buckets_count %lu is not power of 2", buckets_count);
         return NULL;
     }
 
     hashtable_data_t* hashtable_data = (hashtable_data_t*)xalloc_alloc(sizeof(hashtable_data_t));
 
-    hashtable_data->buckets_count = buckets_count;
-    hashtable_data->buckets_size = sizeof(hashtable_bucket_t) * buckets_count;
+    hashtable_data->buckets_count =
+            buckets_count;
+    hashtable_data->buckets_count_real =
+            hashtable_data->buckets_count +
+            (buckets_count % HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT) +
+            (HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX * HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT);
+    hashtable_data->chunks_count =
+            hashtable_data->buckets_count_real / HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
 
-    hashtable_data->buckets = (hashtable_bucket_t*)xalloc_mmap_alloc(hashtable_data->buckets_size);
+    hashtable_data->half_hashes_chunk_size =
+            sizeof(hashtable_half_hashes_chunk_volatile_t) * hashtable_data->chunks_count;
+    hashtable_data->keys_values_size =
+            sizeof(hashtable_key_value_volatile_t) * hashtable_data->buckets_count_real;
+
+    hashtable_data->half_hashes_chunk =
+            (hashtable_half_hashes_chunk_volatile_t *)xalloc_mmap_alloc(hashtable_data->half_hashes_chunk_size);
+    hashtable_data->keys_values =
+            (hashtable_key_value_volatile_t *)xalloc_mmap_alloc(hashtable_data->keys_values_size);
 
     return hashtable_data;
 }
 
-#if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
-void hashtable_data_free_buckets(hashtable_data_t* hashtable_data) {
-    for(hashtable_bucket_index_t index = 0; index < hashtable_data->buckets_count; index++) {
-        if (hashtable_data->buckets[index].keys_values == NULL) {
-            continue;
-        }
-
-        xalloc_free((hashtable_bucket_key_value_t*)hashtable_data->buckets[index].keys_values);
-    }
-}
-#endif
-
 void hashtable_data_free(hashtable_data_t* hashtable_data) {
-#if HASHTABLE_BUCKET_FEATURE_EMBED_KEYS_VALUES == 0
-    hashtable_data_free_buckets(hashtable_data);
-#endif
-    xalloc_mmap_free((void*)hashtable_data->buckets, hashtable_data->buckets_size);
+    xalloc_mmap_free((void*)hashtable_data->half_hashes_chunk, hashtable_data->half_hashes_chunk_size);
+    xalloc_mmap_free((void*)hashtable_data->keys_values, hashtable_data->keys_values_size);
     xalloc_free((void*)hashtable_data);
 }

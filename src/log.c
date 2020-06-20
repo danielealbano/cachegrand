@@ -1,13 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
+#include <stdbool.h>
 #include <time.h>
-#include <errno.h>
-#include <string.h>
-#include <signal.h>
 #include <locale.h>
 
-#include "cmake_config.h"
 #include "log.h"
 
 #define LOG_MESSAGE_OUTPUT stdout
@@ -39,16 +35,16 @@ const char* log_level_to_string(log_level_t level) {
     }
 }
 
-char* log_message_timestamp(char* t_str) {
+char* log_message_timestamp(char* dest, size_t maxlen) {
     struct tm tm = {0};
     time_t t = time(NULL);
     gmtime_r(&t, &tm);
 
-    sprintf(t_str, "%04d-%02d-%02dT%02d:%02d:%02dZ",
+    snprintf(dest, maxlen, "%04d-%02d-%02dT%02d:%02d:%02dZ",
             1900 + tm.tm_year, tm.tm_mon, tm.tm_mday,
-            tm.tm_hour, tm.tm_min, tm.tm_sec);
+             tm.tm_hour, tm.tm_min, tm.tm_sec);
 
-    return t_str;
+    return dest;
 }
 
 void log_message_internal(const char* tag, log_level_t level, const char* message, va_list args) {
@@ -60,7 +56,7 @@ void log_message_internal(const char* tag, log_level_t level, const char* messag
 
     fprintf(LOG_MESSAGE_OUTPUT,
             "[%s][%-11s][%s] ",
-            log_message_timestamp(t_str),
+            log_message_timestamp(t_str, LOG_MESSAGE_TIMESTAMP_MAX_LENGTH),
             log_level_to_string(level),
             tag);
     vfprintf(LOG_MESSAGE_OUTPUT, message, args);
@@ -70,22 +66,6 @@ void log_message_internal(const char* tag, log_level_t level, const char* messag
 
 void log_set_log_level(log_level_t level) {
     _log_level = level;
-}
-
-void log_message_debug(const char* src_path, const char* src_func, int src_line, const char* message, ...) {
-#if DEBUG == 1
-    char* tag;
-
-    tag = (char*)malloc(strlen(src_path) + /*][*/ 2 + strlen(src_func) + /*():*/ 3 + 10 + 1);
-    sprintf(tag, "%s][%s():%d", src_path, src_func, src_line);
-
-    va_list args;
-    va_start(args, message);
-
-    log_message_internal(tag, LOG_LEVEL_DEBUG_INTERNALS, message, args);
-
-    va_end(args);
-#endif
 }
 
 void log_message(const char* tag, log_level_t level, const char* message, ...) {

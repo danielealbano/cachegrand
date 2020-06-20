@@ -5,10 +5,12 @@
 #include <string.h>
 
 #include "memory_fences.h"
+#include "exttypes.h"
+#include "spinlock.h"
+#include "log.h"
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_op_get.h"
-#include "hashtable/hashtable_support_index.h"
 #include "hashtable/hashtable_support_hash.h"
 #include "hashtable/hashtable_support_op.h"
 
@@ -17,20 +19,20 @@ bool hashtable_op_get(
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_value_data_t *data) {
-    hashtable_bucket_hash_t hash;
-    hashtable_bucket_hash_half_t hash_half;
-    volatile hashtable_bucket_t* bucket;
-    hashtable_bucket_index_t bucket_index;
-    hashtable_bucket_slot_index_t bucket_slot_index;
-    volatile hashtable_bucket_key_value_t* bucket_key_value;
+    hashtable_hash_t hash;
+    hashtable_chunk_index_t chunk_index = 0;
+    hashtable_chunk_slot_index_t chunk_slot_index = 0;
+    hashtable_key_value_volatile_t* key_value = 0;
 
     bool data_found = false;
     *data = 0;
 
     hash = hashtable_support_hash_calculate(key, key_size);
-    hash_half = hashtable_support_hash_half(hash);
 
-    volatile hashtable_data_t* hashtable_data_list[] = {
+    LOG_DI("key (%d) = %s", key_size, key);
+    LOG_DI("hash = 0x%016x", hash);
+
+    hashtable_data_volatile_t* hashtable_data_list[] = {
             hashtable->ht_current,
             hashtable->ht_old
     };
@@ -42,9 +44,13 @@ bool hashtable_op_get(
             hashtable_data_index++) {
         HASHTABLE_MEMORY_FENCE_LOAD();
 
-        volatile hashtable_data_t* hashtable_data = hashtable_data_list[hashtable_data_index];
+        hashtable_data_volatile_t* hashtable_data = hashtable_data_list[hashtable_data_index];
+
+        LOG_DI("hashtable_data_index = %u", hashtable_data_index);
+        LOG_DI("hashtable_data = 0x%016x", hashtable_data);
 
         if (hashtable_data_index > 0 && (!hashtable->is_resizing || hashtable_data == NULL)) {
+            LOG_DI("not resizing, skipping check on the current hashtable_data");
             continue;
         }
 
@@ -53,21 +59,34 @@ bool hashtable_op_get(
                 key,
                 key_size,
                 hash,
-                hash_half,
-                &bucket,
-                &bucket_index,
-                &bucket_slot_index,
-                &bucket_key_value) == false) {
+                &chunk_index,
+                &chunk_slot_index,
+                &key_value) == false) {
+            LOG_DI("key not found, continuing");
             continue;
         }
 
+        LOG_DI("key found, fetching value");
+
         HASHTABLE_MEMORY_FENCE_LOAD();
 
-        *data = bucket_key_value->data;
+        *data = key_value->data;
+
+        // Note for the future
+        // ---
+        // At this point, the code can end-up returning a value of a key that has been deleted.
+        // While this is a non problem, this is something that would happen anyway in a context of a network platform
+        // that receives un-syncronized requests from the caller and that if it's necessary the caller has to implement
+        // the required sync mechanism to ensure it's not going to issue get/delete commands in the wrong order, if it
+        // will be necessary to avoid returning deleted data a check on flags can be introduced in this point
+
         data_found = true;
 
         break;
     }
+
+    LOG_DI("data_found = %s", data_found ? "YES" : "NO");
+    LOG_DI("data = 0x%016x", data);
 
     return data_found;
 }

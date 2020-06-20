@@ -7,11 +7,11 @@ extern "C" {
 
 #define HASHTABLE_T1HA_SEED    42U
 
-hashtable_bucket_hash_t hashtable_support_hash_calculate(
+hashtable_hash_t hashtable_support_hash_calculate(
         hashtable_key_data_t *key, hashtable_key_size_t key_size);
 
-hashtable_bucket_hash_half_t hashtable_support_hash_half(
-        hashtable_bucket_hash_t hash);
+hashtable_hash_half_t hashtable_support_hash_half(
+        hashtable_hash_t hash);
 
 #ifdef __cplusplus
 }

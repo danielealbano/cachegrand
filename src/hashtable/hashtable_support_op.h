@@ -5,42 +5,31 @@
 extern "C" {
 #endif
 
-bool hashtable_support_op_search_key(
-        volatile hashtable_data_t *hashtable_data,
+extern bool hashtable_support_op_search_key(
+        hashtable_data_volatile_t *hashtable_data,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
-        hashtable_bucket_hash_t hash,
-        hashtable_bucket_hash_half_t hash_half,
-        volatile hashtable_bucket_t **found_bucket,
-        hashtable_bucket_index_t *found_bucket_index,
-        hashtable_bucket_slot_index_t *found_bucket_slot_index,
-        volatile hashtable_bucket_key_value_t **found_bucket_key_value);
+        hashtable_hash_t hash,
+        hashtable_chunk_index_t *found_chunk_index,
+        hashtable_chunk_slot_index_t *found_chunk_slot_index,
+        hashtable_key_value_volatile_t **found_key_value);
 
-bool hashtable_support_op_search_key_or_create_new(
-        volatile hashtable_data_t *hashtable_data,
+extern bool hashtable_support_op_search_key_or_create_new(
+        hashtable_data_volatile_t *hashtable_data,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
-        hashtable_bucket_hash_t hash,
-        hashtable_bucket_hash_half_t hash_half,
+        hashtable_hash_t hash,
         bool create_new_if_missing,
         bool *created_new,
-        volatile hashtable_bucket_t **found_bucket,
-        hashtable_bucket_index_t *found_bucket_index,
-        hashtable_bucket_slot_index_t *found_bucket_slot_index,
-        volatile hashtable_bucket_key_value_t **found_bucket_key_value);
+        hashtable_half_hashes_chunk_volatile_t **found_half_hashes_chunk,
+        hashtable_key_value_volatile_t **found_key_value);
 
-bool hashtable_support_op_bucket_lock(
-        volatile hashtable_bucket_t* bucket,
+extern bool hashtable_support_op_half_hashes_chunk_lock(
+        hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk,
         bool retry);
 
-void hashtable_support_op_bucket_unlock(
-        volatile hashtable_bucket_t* bucket);
-
-volatile hashtable_bucket_t* hashtable_support_op_bucket_fetch_and_write_lock(
-        volatile hashtable_data_t *hashtable_data,
-        hashtable_bucket_index_t bucket_index,
-        bool initialize_new_if_missing,
-        bool *initialized);
+extern void hashtable_support_op_half_hashes_chunk_unlock(
+        hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk);
 
 #ifdef __cplusplus
 }

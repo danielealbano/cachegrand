@@ -3,9 +3,13 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 #include <string.h>
+#include <assert.h>
 
-#include "xalloc.h"
 #include "memory_fences.h"
+#include "exttypes.h"
+#include "spinlock.h"
+#include "log.h"
+#include "xalloc.h"
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_op_set.h"
@@ -18,92 +22,91 @@ bool hashtable_op_set(
         hashtable_key_size_t key_size,
         hashtable_value_data_t value) {
     bool created_new;
-    hashtable_bucket_hash_t hash;
-    hashtable_bucket_hash_half_t hash_half;
-    volatile hashtable_bucket_t* bucket;
-    hashtable_bucket_index_t bucket_index;
-    hashtable_bucket_slot_index_t bucket_slot_index;
-    volatile hashtable_bucket_key_value_t* bucket_key_value;
+    hashtable_hash_t hash;
+    hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk = 0;
+    hashtable_key_value_volatile_t* key_value = 0;
 
     hashtable_key_data_t* ht_key;
 
     hash = hashtable_support_hash_calculate(key, key_size);
-    hash_half = hashtable_support_hash_half(hash);
+
+    LOG_DI("key (%d) = %s", key_size, key);
+    LOG_DI("hash = 0x%016x", hash);
 
     // TODO: the resize logic has to be reviewed, the underlying hash search function has to be aware that it hasn't
     //       to create a new item if it's missing
     bool ret = hashtable_support_op_search_key_or_create_new(
-        hashtable->ht_current,
-        key,
-        key_size,
-        hash,
-        hash_half,
-        true,
-        &created_new,
-        &bucket,
-        &bucket_index,
-        &bucket_slot_index,
-        &bucket_key_value);
+            hashtable->ht_current,
+            key,
+            key_size,
+            hash,
+            true,
+            &created_new,
+            &half_hashes_chunk,
+            &key_value);
+
+    LOG_DI("created_new = %s", created_new ? "YES" : "NO");
+    LOG_DI("half_hashes_chunk = 0x%016x", half_hashes_chunk);
+    LOG_DI("key_value =  0x%016x", key_value);
 
     if (ret == false) {
-#if HASHTABLE_BUCKET_FEATURE_USE_LOCK == 1
-        if (bucket) {
-            hashtable_support_op_bucket_unlock(bucket);
-        }
-#endif // HASHTABLE_BUCKET_FEATURE_USE_LOCK == 1
+        LOG_DI("key not found or not created, continuing");
         return false;
     }
 
+    assert(key_value < hashtable->ht_current->keys_values + hashtable->ht_current->keys_values_size);
+
+    LOG_DI("key found or created");
+
     HASHTABLE_MEMORY_FENCE_LOAD();
 
-    bucket_key_value->data = value;
+    key_value->data = value;
 
-    if (!created_new) {
-        HASHTABLE_MEMORY_FENCE_LOAD();
+    LOG_DI("updating value to 0x%016x", value);
 
-        if (HASHTABLE_BUCKET_KEY_VALUE_HAS_FLAG(bucket_key_value->flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED)) {
-            return false;
-        }
-    } else {
-        hashtable_bucket_key_value_flags_t flags = 0;
+    if (created_new) {
+        LOG_DI("it is a new key, updating flags and key");
+
+        hashtable_key_value_flags_t flags = 0;
+
+        LOG_DI("copying the key onto the key_value structure");
 
         // Get the destination pointer for the key
         if (key_size <= HASHTABLE_KEY_INLINE_MAX_LENGTH) {
-            HASHTABLE_BUCKET_KEY_VALUE_SET_FLAG(flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE);
+            LOG_DI("key can be inline-ed", key_size);
 
-            ht_key = (hashtable_key_data_t *)&bucket_key_value->inline_key.data;
+            HASHTABLE_KEY_VALUE_SET_FLAG(flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE);
+
+            ht_key = (hashtable_key_data_t *)&key_value->inline_key.data;
             strncpy((char*)ht_key, key, key_size);
         } else {
-#if defined(CACHEGRAND_HASHTABLE_KEY_CHECK_FULL)
-            // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't be freed
-            //       immediately after the bucket is freed because it can be in use and would cause a crash34567
+            LOG_DI("key can't be inline-ed, max length for inlining %d", HASHTABLE_KEY_INLINE_MAX_LENGTH);
 
+            // TODO: The keys must be stored in an append-only store because potentially a get operation can be affected
+            //       by a delete, never happened so far (under very high contention) but it can potentially happen and
+            //       needs to be fixed.
             ht_key = xalloc_alloc(key_size + 1);
-            ht_key[key_size] = '\0';
+            ((char*)ht_key)[key_size] = '\0';
             strncpy((char*)ht_key, key, key_size);
 
-            bucket_key_value->external_key.data = ht_key;
-            bucket_key_value->external_key.size = key_size;
-#else
-            bucket_key_value->prefix_key.size = key_size;
-            strncpy((char*)bucket_key_value->prefix_key.data, key, HASHTABLE_KEY_PREFIX_SIZE);
-#endif // CACHEGRAND_HASHTABLE_KEY_CHECK_FULL
+            key_value->external_key.data = ht_key;
+            key_value->external_key.size = key_size;
         }
 
-        // Set the FILLED flag (drops the deleted flag as well)
-        HASHTABLE_BUCKET_KEY_VALUE_SET_FLAG(flags, HASHTABLE_BUCKET_KEY_VALUE_FLAG_FILLED);
+        // Set the FILLED flag
+        HASHTABLE_KEY_VALUE_SET_FLAG(flags, HASHTABLE_KEY_VALUE_FLAG_FILLED);
 
         HASHTABLE_MEMORY_FENCE_STORE();
 
-        // Update the flags atomically
-        bucket_key_value->flags = flags;
+        key_value->flags = flags;
+
+        LOG_DI("key_value->flags = %d", key_value->flags);
     }
 
-    HASHTABLE_MEMORY_FENCE_STORE();
+    // The unlock will perform the memory fence for us
+    spinlock_unlock(&half_hashes_chunk->write_lock);
 
-#if HASHTABLE_BUCKET_FEATURE_USE_LOCK == 1
-    hashtable_support_op_bucket_unlock(bucket);
-#endif // HASHTABLE_BUCKET_FEATURE_USE_LOCK == 1
+    LOG_DI("unlocking half_hashes_chunk 0x%016x", half_hashes_chunk);
 
     return true;
 }
