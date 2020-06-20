@@ -328,9 +328,6 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
                 key_value = &hashtable_data->keys_values[
                         (chunk_index * HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index];
 
-                // Ensure that the fresh-est flags value is going to be read in the next code block
-                HASHTABLE_MEMORY_FENCE_LOAD();
-
                 LOG_DI(">>> key_value->flags = 0x%08x", key_value->flags);
 
                 if (searching_or_creating == 0) {
@@ -343,11 +340,6 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
                     } else {
                         LOG_DI(">>> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
-                        LOG_DI(">>> CACHEGRAND_HASHTABLE_KEY_CHECK_FULL defined, comparing full key");
-
-                        // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't
-                        //       be freed immediately after the bucket is freed because it can be in use and would cause a
-                        //       crash
                         found_key = key_value->external_key.data;
                         found_key_max_compare_size = key_value->external_key.size;
 
@@ -356,19 +348,6 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
                                      key_size, key_value->external_key.size);
                             continue;
                         }
-                    }
-
-                    // Ensure that the fresh-est flags value is going to be read to avoid that the deleted flag has
-                    // been set after they key pointer has been read
-                    HASHTABLE_MEMORY_FENCE_LOAD();
-
-                    // Check the flags after it fetches the key, if DELETED is set the flag that specifies the
-                    // inline of the key is not reliable anymore and therefore we may read from some memory not owned
-                    // by the software.
-                    if (unlikely(HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
-                            HASHTABLE_KEY_VALUE_FLAG_DELETED))) {
-                        LOG_DI(">> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED - continuing");
-                        continue;
                     }
 
                     LOG_DI(">>> key fetched, comparing");
