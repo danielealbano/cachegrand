@@ -563,7 +563,7 @@ bool test_support_hashtable_prefill(
         uint64_t value,
         uint64_t insert_count) {
     for(long int i = 0; i < insert_count; i++) {
-        char* key = keys + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH * i);
+        char* key = keyset + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
 
         bool result = hashtable_op_set(
                 hashtable,
