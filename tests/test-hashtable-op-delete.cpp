@@ -1,143 +1,199 @@
-//#include "catch.hpp"
-//
-//#include <string.h>
-//#include <hashtable/hashtable.h>
-//
-//#include "hashtable/hashtable.h"
-//#include "hashtable/hashtable_config.h"
-//#include "hashtable/hashtable_support_index.h"
-//#include "hashtable/hashtable_op_set.h"
-//#include "hashtable/hashtable_op_delete.h"
-//
-//#include "fixtures-hashtable.h"
-//
-//TEST_CASE("hashtable_op_delete.c", "[hashtable][hashtable_op][hashtable_op_delete]") {
-//    SECTION("hashtable_op_delete") {
-//        SECTION("set and delete 1 bucket") {
-//            HASHTABLE(buckets_initial_count_5, false, {
-//                hashtable_bucket_index_t index_neighborhood_begin, index_neighborhood_end;
-//
-//                hashtable_support_index_calculate_neighborhood_from_hash(
-//                        hashtable->ht_current->buckets_count,
-//                        test_key_1_hash,
-//                        hashtable->ht_current->cachelines_to_probe,
-//                        &index_neighborhood_begin,
-//                        &index_neighborhood_end);
-//
-//                REQUIRE(hashtable_op_set(
-//                        hashtable,
-//                        test_key_1,
-//                        test_key_1_len,
-//                        test_value_1));
-//
-//                REQUIRE(hashtable->ht_current->hashes[index_neighborhood_begin] == test_key_1_hash);
-//
-//                REQUIRE(hashtable_op_delete(
-//                        hashtable,
-//                        test_key_1,
-//                        test_key_1_len));
-//
-//                REQUIRE(hashtable->ht_current->hashes[index_neighborhood_begin] == 0);
-//                REQUIRE(hashtable->ht_current->keys_values[index_neighborhood_begin].flags ==
-//                        (HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED));
-//            })
-//        }
-//
-//        SECTION("set and delete 1 bucket - twice to reuse") {
-//            HASHTABLE(buckets_initial_count_5, false, {
-//                hashtable_bucket_index_t index_neighborhood_begin, index_neighborhood_end;
-//
-//                hashtable_support_index_calculate_neighborhood_from_hash(
-//                        hashtable->ht_current->buckets_count,
-//                        test_key_1_hash,
-//                        hashtable->ht_current->cachelines_to_probe,
-//                        &index_neighborhood_begin,
-//                        &index_neighborhood_end);
-//
-//                REQUIRE(hashtable_op_set(
-//                        hashtable,
-//                        test_key_1,
-//                        test_key_1_len,
-//                        test_value_1));
-//
-//                REQUIRE(hashtable->ht_current->hashes[index_neighborhood_begin] == test_key_1_hash);
-//
-//                REQUIRE(hashtable_op_delete(
-//                        hashtable,
-//                        test_key_1,
-//                        test_key_1_len));
-//
-//                REQUIRE(hashtable->ht_current->hashes[index_neighborhood_begin] == 0);
-//                REQUIRE(hashtable->ht_current->keys_values[index_neighborhood_begin].flags ==
-//                        (HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED));
-//
-//                REQUIRE(hashtable_op_set(
-//                        hashtable,
-//                        test_key_1,
-//                        test_key_1_len,
-//                        test_value_1));
-//
-//                REQUIRE(hashtable->ht_current->hashes[index_neighborhood_begin] == test_key_1_hash);
-//
-//                REQUIRE(hashtable_op_delete(
-//                        hashtable,
-//                        test_key_1,
-//                        test_key_1_len));
-//
-//                REQUIRE(hashtable->ht_current->hashes[index_neighborhood_begin] == 0);
-//                REQUIRE(hashtable->ht_current->keys_values[index_neighborhood_begin].flags ==
-//                        (HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED));
-//            })
-//        }
-//
-//        SECTION("set 2 buckets delete second") {
-//            HASHTABLE(buckets_initial_count_5, false, {
-//                hashtable_bucket_index_t index_1_neighborhood_begin, index_1_neighborhood_end;
-//                hashtable_bucket_index_t index_2_neighborhood_begin, index_2_neighborhood_end;
-//
-//                hashtable_support_index_calculate_neighborhood_from_hash(
-//                        hashtable->ht_current->buckets_count,
-//                        test_key_1_hash,
-//                        hashtable->ht_current->cachelines_to_probe,
-//                        &index_1_neighborhood_begin,
-//                        &index_1_neighborhood_end);
-//
-//                hashtable_support_index_calculate_neighborhood_from_hash(
-//                        hashtable->ht_current->buckets_count,
-//                        test_key_2_hash,
-//                        hashtable->ht_current->cachelines_to_probe,
-//                        &index_2_neighborhood_begin,
-//                        &index_2_neighborhood_end);
-//
-//                if (index_1_neighborhood_begin == index_2_neighborhood_begin) {
-//                    index_2_neighborhood_begin++;
-//                }
-//
-//                REQUIRE(hashtable_op_set(
-//                        hashtable,
-//                        test_key_1,
-//                        test_key_1_len,
-//                        test_value_1));
-//
-//                REQUIRE(hashtable_op_set(
-//                        hashtable,
-//                        test_key_2,
-//                        test_key_2_len,
-//                        test_value_2));
-//
-//                REQUIRE(hashtable->ht_current->hashes[index_1_neighborhood_begin] == test_key_1_hash);
-//                REQUIRE(hashtable->ht_current->hashes[index_2_neighborhood_begin] == test_key_2_hash);
-//
-//                REQUIRE(hashtable_op_delete(
-//                        hashtable,
-//                        test_key_2,
-//                        test_key_2_len));
-//
-//                REQUIRE(hashtable->ht_current->hashes[index_2_neighborhood_begin] == 0);
-//                REQUIRE(hashtable->ht_current->keys_values[index_2_neighborhood_begin].flags ==
-//                        (HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED));
-//
-//            })
-//        }
-//    }
-//}
+#include "catch.hpp"
+
+#include <string.h>
+
+#include "exttypes.h"
+#include "spinlock.h"
+#include "random.h"
+
+#include "hashtable/hashtable.h"
+#include "hashtable/hashtable_config.h"
+#include "hashtable/hashtable_support_index.h"
+#include "hashtable/hashtable_op_set.h"
+#include "hashtable/hashtable_op_delete.h"
+
+#include "test-support.h"
+#include "fixtures-hashtable.h"
+
+TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtable_op_delete]") {
+    SECTION("hashtable_op_delete") {
+        SECTION("delete non-existing") {
+            HASHTABLE(0x7FFF, false, {
+                REQUIRE(!hashtable_op_delete(
+                        hashtable,
+                        test_key_1,
+                        test_key_1_len));
+            })
+        }
+
+        SECTION("set and delete 1 bucket") {
+            HASHTABLE(0x7FFF, false, {
+                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                        hashtable->ht_current->buckets_count,
+                        test_key_1_hash));
+                hashtable_chunk_slot_index_t chunk_slot_index = 0;
+
+                hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
+                        &hashtable->ht_current->half_hashes_chunk[chunk_index];
+                hashtable_key_value_volatile_t *key_value =
+                        &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
+
+                REQUIRE(hashtable_op_set(
+                        hashtable,
+                        test_key_1,
+                        test_key_1_len,
+                        test_value_1));
+
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == test_key_1_hash_half);
+                REQUIRE(key_value->flags != HASHTABLE_KEY_VALUE_FLAG_DELETED);
+
+                REQUIRE(hashtable_op_delete(
+                        hashtable,
+                        test_key_1,
+                        test_key_1_len));
+
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == 0);
+                REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
+            })
+        }
+
+        SECTION("set and delete 1 bucket - twice to reuse") {
+            HASHTABLE(0x7FFF, false, {
+                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                        hashtable->ht_current->buckets_count,
+                        test_key_1_hash));
+                hashtable_chunk_slot_index_t chunk_slot_index = 0;
+
+                hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
+                        &hashtable->ht_current->half_hashes_chunk[chunk_index];
+                hashtable_key_value_volatile_t *key_value =
+                        &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
+
+                REQUIRE(hashtable_op_set(
+                        hashtable,
+                        test_key_1,
+                        test_key_1_len,
+                        test_value_1));
+
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == test_key_1_hash_half);
+                REQUIRE(key_value->flags != HASHTABLE_KEY_VALUE_FLAG_DELETED);
+
+                REQUIRE(hashtable_op_delete(
+                        hashtable,
+                        test_key_1,
+                        test_key_1_len));
+
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == 0);
+                REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
+
+                REQUIRE(hashtable_op_set(
+                        hashtable,
+                        test_key_1,
+                        test_key_1_len,
+                        test_value_1));
+
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == test_key_1_hash_half);
+                REQUIRE(key_value->flags != HASHTABLE_KEY_VALUE_FLAG_DELETED);
+
+                REQUIRE(hashtable_op_delete(
+                        hashtable,
+                        test_key_1,
+                        test_key_1_len));
+
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == 0);
+                REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
+            })
+        }
+
+        SECTION("set N buckets delete random") {
+            HASHTABLE(0x7FFF, false, {
+                hashtable_chunk_slot_index_t slots_to_fill = 8;
+                test_key_same_bucket_t* test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
+                        hashtable->ht_current->buckets_count,
+                        test_key_same_bucket_key_prefix_external,
+                        slots_to_fill);
+
+                for(hashtable_chunk_index_t i = 0; i < slots_to_fill; i++) {
+                    REQUIRE(hashtable_op_set(
+                            hashtable,
+                            (char*)test_key_same_bucket[i].key,
+                            test_key_same_bucket[i].key_len,
+                            test_value_1 + i));
+                }
+
+                hashtable_chunk_slot_index_t random_slot_index = random_generate() % slots_to_fill;
+
+                REQUIRE(hashtable_op_delete(
+                        hashtable,
+                        test_key_same_bucket[random_slot_index].key,
+                        test_key_same_bucket[random_slot_index].key_len));
+
+                hashtable_chunk_index_t chunk_index_base =
+                        HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                                hashtable->ht_current->buckets_count,
+                                test_key_same_bucket[0].key_hash));
+                hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk =
+                        &hashtable->ht_current->half_hashes_chunk[chunk_index_base];
+                hashtable_key_value_volatile_t * key_value =
+                        &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index_base, random_slot_index)];
+
+                REQUIRE(half_hashes_chunk->half_hashes[random_slot_index] == 0);
+                REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
+                REQUIRE(key_value->data == test_value_1 + random_slot_index);
+
+                test_support_same_hash_mod_fixtures_free(test_key_same_bucket);
+            })
+        }
+
+        SECTION("set N buckets delete random and re-insert") {
+            HASHTABLE(0x7FFF, false, {
+                hashtable_chunk_slot_index_t slots_to_fill = 8;
+                test_key_same_bucket_t* test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
+                        hashtable->ht_current->buckets_count,
+                        test_key_same_bucket_key_prefix_external,
+                        slots_to_fill);
+
+                for(hashtable_chunk_index_t i = 0; i < slots_to_fill - 1; i++) {
+                    REQUIRE(hashtable_op_set(
+                            hashtable,
+                            (char*)test_key_same_bucket[i].key,
+                            test_key_same_bucket[i].key_len,
+                            test_value_1 + i));
+                }
+
+                hashtable_chunk_slot_index_t random_slot_index = random_generate() % slots_to_fill;
+
+                REQUIRE(hashtable_op_delete(
+                        hashtable,
+                        test_key_same_bucket[random_slot_index].key,
+                        test_key_same_bucket[random_slot_index].key_len));
+
+                hashtable_chunk_index_t chunk_index_base =
+                        HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                                hashtable->ht_current->buckets_count,
+                                test_key_same_bucket[0].key_hash));
+                hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk =
+                        &hashtable->ht_current->half_hashes_chunk[chunk_index_base];
+                hashtable_key_value_volatile_t * key_value =
+                        &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index_base, random_slot_index)];
+
+                REQUIRE(half_hashes_chunk->half_hashes[random_slot_index] == 0);
+                REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
+                REQUIRE(key_value->data == test_value_1 + random_slot_index);
+
+                REQUIRE(hashtable_op_set(
+                        hashtable,
+                        (char*)test_key_same_bucket[slots_to_fill - 1].key,
+                        test_key_same_bucket[slots_to_fill - 1].key_len,
+                        test_value_1 + slots_to_fill - 1));
+
+                REQUIRE(half_hashes_chunk->half_hashes[random_slot_index] ==
+                    test_key_same_bucket[slots_to_fill - 1].key_hash_half);
+                REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_FILLED);
+                REQUIRE(key_value->data == test_value_1 + slots_to_fill - 1);
+
+                test_support_same_hash_mod_fixtures_free(test_key_same_bucket);
+            })
+        }
+    }
+}
