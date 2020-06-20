@@ -48,7 +48,10 @@
     Threads(32)-> \
     Threads(64)-> \
     Threads(128)-> \
-    Threads(256)
+    Threads(256)-> \
+    Threads(512)-> \
+    Threads(1024)-> \
+    Threads(2048)
 
 #define SET_BENCH_ITERATIONS \
     Iterations(1)->\

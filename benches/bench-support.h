@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#define BENCHES_MAX_THREADS_PER_CORE        4
+#define BENCHES_MAX_THREADS_PER_CORE        32
 
 void bench_support_collect_hashtable_stats_and_update_state(
     benchmark::State& state,
