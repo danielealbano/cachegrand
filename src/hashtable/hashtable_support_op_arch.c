@@ -76,6 +76,7 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
         skip_indexes_mask = 0;
 
         while(true) {
+            // Ensure that the fresh-est half_hashes are going to be read
             HASHTABLE_MEMORY_FENCE_LOAD();
 
             chunk_slot_index = hashtable_support_hash_search(
@@ -100,68 +101,70 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
             key_value = &hashtable_data->keys_values[
                     (chunk_index * HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index];
 
+            // Ensure that the fresh-est flags value is going to be read in the next code block
+            HASHTABLE_MEMORY_FENCE_LOAD();
+
             LOG_DI(">> key_value->flags = 0x%08x", key_value->flags);
 
             // Stop if hash found but bucket being filled, edge case because of parallelism.
-            if (HASHTABLE_KEY_VALUE_IS_EMPTY(key_value->flags)) {
+            if (unlikely(HASHTABLE_KEY_VALUE_IS_EMPTY(key_value->flags))) {
                 LOG_DI(">> key_value->flags = 0 - terminating loop");
                 break;
-            } else if (HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
-                                                    HASHTABLE_KEY_VALUE_FLAG_DELETED)) {
+            } else if (unlikely(HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
+                    HASHTABLE_KEY_VALUE_FLAG_DELETED))) {
                 LOG_DI(">> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED - continuing");
                 continue;
+            }
+
+            LOG_DI(">> checking key");
+
+            // The key may potentially change if the item is first deleted and then recreated, if it's inline it
+            // doesn't really matter because the key will mismatch and the execution will continue but if the key is
+            // stored externally and the allocated memory is freed it may crash.
+            if (HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
+                    HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
+                LOG_DI(">> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
+
+                found_key = key_value->inline_key.data;
+                found_key_max_compare_size = HASHTABLE_KEY_INLINE_MAX_LENGTH;
             } else {
-                LOG_DI(">> checking key");
-                // The key may potentially change if the item is first deleted and then recreated, if it's inline it
-                // doesn't really matter because the key will mismatch and the execution will continue but if the key is
-                // stored externally and the allocated memory is freed it may crash.
-                if (HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
-                                                 HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
-                    LOG_DI(">> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
+                LOG_DI(">> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
-                    found_key = key_value->inline_key.data;
-                    found_key_max_compare_size = HASHTABLE_KEY_INLINE_MAX_LENGTH;
-                } else {
-                    LOG_DI(">> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
+                // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't
+                //       be freed immediately after the bucket is freed because it can be in use and would cause a
+                //       crash
+                found_key = key_value->external_key.data;
+                found_key_max_compare_size = key_value->external_key.size;
 
-#if CACHEGRAND_HASHTABLE_KEY_CHECK_FULL == 1
-                    LOG_DI(">> CACHEGRAND_HASHTABLE_KEY_CHECK_FULL defined, comparing full key");
-
-                    // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't
-                    //       be freed immediately after the bucket is freed because it can be in use and would cause a
-                    //       crash
-                    found_key = key_value->external_key.data;
-                    found_key_max_compare_size = key_value->external_key.size;
-
-                    if (key_value->external_key.size != key_size) {
-                        LOG_DI(">> key have different length (%lu != %lu), continuing",
-                                 key_size, key_value->external_key.size);
-                        continue;
-                    }
-#else
-                    LOG_DI(">> CACHEGRAND_HASHTABLE_KEY_CHECK_FULL not defined, comparing only key prefix");
-
-                    found_key = key_value->prefix_key.data;
-                    found_key_max_compare_size = HASHTABLE_KEY_PREFIX_SIZE;
-
-                    if (key_value->prefix_key.size != key_size) {
-                        LOG_DI(">> key have different length (%lu != %lu), continuing",
-                                key_size, key_value->prefix_key.size);
-                        continue;
-                    }
-#endif // CACHEGRAND_HASHTABLE_KEY_CHECK_FULL == 1
-                }
-
-                LOG_DI(">> key fetched, comparing");
-
-                if (strncmp(key, (const char *) found_key, found_key_max_compare_size) != 0) {
-                    char* temp_found_key = (char*)malloc(found_key_max_compare_size + 1);
-                    temp_found_key[found_key_max_compare_size] = 0;
-                    strncpy(temp_found_key, (char*)found_key, found_key_max_compare_size);
-
-                    LOG_DI(">> key different (%s != %s), unable to continue", key, found_key);
+                if (key_value->external_key.size != key_size) {
+                    LOG_DI(">> key have different length (%lu != %lu), continuing",
+                           key_size, key_value->external_key.size);
                     continue;
                 }
+            }
+
+            // Ensure that the fresh-est flags value is going to be read to avoid that the deleted flag has
+            // been set after they key pointer has been read
+            HASHTABLE_MEMORY_FENCE_LOAD();
+
+            // Check the flags after it fetches the key, if DELETED is set the flag that specifies the
+            // inline of the key is not reliable anymore and therefore we may read from some memory not owned
+            // by the software.
+            if (unlikely(HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
+                    HASHTABLE_KEY_VALUE_FLAG_DELETED))) {
+                LOG_DI(">> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED - continuing");
+                continue;
+            }
+
+            LOG_DI(">> key fetched, comparing");
+
+            if (unlikely(strncmp(key, (const char *) found_key, found_key_max_compare_size) != 0)) {
+                char* temp_found_key = (char*)malloc(found_key_max_compare_size + 1);
+                temp_found_key[found_key_max_compare_size] = 0;
+                strncpy(temp_found_key, (char*)found_key, found_key_max_compare_size);
+
+                LOG_DI(">> key different (%s != %s), unable to continue", key, found_key);
+                continue;
             }
 
             *found_chunk_index = chunk_index;
@@ -221,7 +224,6 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
     LOG_DI("hashtable_data->buckets_count_real = %lu", hashtable_data->buckets_count_real);
 
     half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index_start];
-
 
     spinlock_lock(&half_hashes_chunk->write_lock, true);
     locked_up_to_chunk_index = chunk_index_start;
@@ -326,6 +328,9 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
                 key_value = &hashtable_data->keys_values[
                         (chunk_index * HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index];
 
+                // Ensure that the fresh-est flags value is going to be read in the next code block
+                HASHTABLE_MEMORY_FENCE_LOAD();
+
                 LOG_DI(">>> key_value->flags = 0x%08x", key_value->flags);
 
                 if (searching_or_creating == 0) {
@@ -338,7 +343,6 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
                     } else {
                         LOG_DI(">>> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
-#if CACHEGRAND_HASHTABLE_KEY_CHECK_FULL == 1
                         LOG_DI(">>> CACHEGRAND_HASHTABLE_KEY_CHECK_FULL defined, comparing full key");
 
                         // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't
@@ -347,28 +351,29 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
                         found_key = key_value->external_key.data;
                         found_key_max_compare_size = key_value->external_key.size;
 
-                        if (key_value->external_key.size != key_size) {
+                        if (unlikely(key_value->external_key.size != key_size)) {
                             LOG_DI(">>> key have different length (%lu != %lu), continuing",
                                      key_size, key_value->external_key.size);
                             continue;
                         }
-#else
-                        LOG_DI(">>> CACHEGRAND_HASHTABLE_KEY_CHECK_FULL not defined, comparing only key prefix");
+                    }
 
-                        found_key = key_value->prefix_key.data;
-                        found_key_max_compare_size = HASHTABLE_KEY_PREFIX_SIZE;
+                    // Ensure that the fresh-est flags value is going to be read to avoid that the deleted flag has
+                    // been set after they key pointer has been read
+                    HASHTABLE_MEMORY_FENCE_LOAD();
 
-                        if (key_value->prefix_key.size != key_size) {
-                            LOG_DI(">>> key have different length (%lu != %lu), continuing",
-                                   key_size, key_value->prefix_key.size);
-                            continue;
-                        }
-#endif // CACHEGRAND_HASHTABLE_KEY_CHECK_FULL
+                    // Check the flags after it fetches the key, if DELETED is set the flag that specifies the
+                    // inline of the key is not reliable anymore and therefore we may read from some memory not owned
+                    // by the software.
+                    if (unlikely(HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
+                            HASHTABLE_KEY_VALUE_FLAG_DELETED))) {
+                        LOG_DI(">> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED - continuing");
+                        continue;
                     }
 
                     LOG_DI(">>> key fetched, comparing");
 
-                    if (strncmp(key, (const char *)found_key, found_key_max_compare_size) != 0) {
+                    if (unlikely(strncmp(key, (const char *)found_key, found_key_max_compare_size) != 0)) {
                         char* temp_found_key = (char*)malloc(found_key_max_compare_size + 1);
                         temp_found_key[found_key_max_compare_size] = 0;
                         strncpy(temp_found_key, (char*)found_key, found_key_max_compare_size);
