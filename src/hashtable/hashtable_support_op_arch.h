@@ -14,7 +14,9 @@ extern "C" {
             hashtable_key_data_t *key, \
             hashtable_key_size_t key_size, \
             hashtable_hash_t hash, \
-            hashtable_key_value_volatile_t); \
+            hashtable_chunk_index_t *found_chunk_index, \
+            hashtable_chunk_slot_index_t *found_chunk_slot_index, \
+            hashtable_key_value_volatile_t **found_key_value); \
      \
     bool HASHTABLE_SUPPORT_OP_FUNC_METHOD(hashtable_support_op_search_key_or_create_new, SUFFIX)( \
             hashtable_data_t *hashtable_data, \
@@ -24,7 +26,7 @@ extern "C" {
             bool create_new_if_missing, \
             bool *created_new, \
             hashtable_half_hashes_chunk_volatile_t **found_half_hashes_chunk, \
-            hashtable_key_value_volatile_t);
+            hashtable_key_value_volatile_t **found_key_value);
 
 #if defined(__x86_64__)
 HASHTABLE_SUPPORT_OP_ARCH(avx2)

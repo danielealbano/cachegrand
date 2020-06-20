@@ -53,6 +53,8 @@ bool hashtable_support_op_search_key(
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_hash_t hash,
+        hashtable_chunk_index_t *found_chunk_index,
+        hashtable_chunk_slot_index_t *found_chunk_slot_index,
         hashtable_key_value_volatile_t **found_key_value)
 __attribute__ ((ifunc ("hashtable_support_op_search_key_resolve")));
 HASHTABLE_SUPPORT_OP_FUNC_RESOLVER(hashtable_support_op_search_key)

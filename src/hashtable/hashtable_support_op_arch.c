@@ -26,6 +26,8 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_hash_t hash,
+        hashtable_chunk_index_t *found_chunk_index,
+        hashtable_chunk_slot_index_t *found_chunk_slot_index,
         hashtable_key_value_volatile_t **found_key_value) {
     hashtable_hash_half_t hash_half;
     hashtable_bucket_index_t bucket_index;
@@ -162,6 +164,8 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
                 }
             }
 
+            *found_chunk_index = chunk_index;
+            *found_chunk_slot_index = chunk_slot_index;
             *found_key_value = key_value;
             found = true;
 
@@ -170,6 +174,8 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
         }
     }
 
+    LOG_DI("found_chunk_index = %lu", *found_chunk_index);
+    LOG_DI("found_chunk_slot_index = %lu", *found_chunk_slot_index);
     LOG_DI("found_key_value = 0x%016x", *found_key_value);
     LOG_DI("found = %s", found ? "YES" : "NO");
 
