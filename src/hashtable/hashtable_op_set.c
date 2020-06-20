@@ -98,18 +98,17 @@ bool hashtable_op_set(
 #endif // CACHEGRAND_HASHTABLE_KEY_CHECK_FULL == 1
         }
 
-        // Set the FILLED flag (drops the deleted flag as well)
+        // Set the FILLED flag
         HASHTABLE_KEY_VALUE_SET_FLAG(flags, HASHTABLE_KEY_VALUE_FLAG_FILLED);
 
         HASHTABLE_MEMORY_FENCE_STORE();
 
-        // Update the flags atomically
         key_value->flags = flags;
 
         LOG_DI("key_value->flags = %d", key_value->flags);
     }
 
-    // The unlock will perform the store memory fence for us
+    // The unlock will perform the memory fence for us
     spinlock_unlock(&half_hashes_chunk->write_lock);
 
     LOG_DI("unlocking half_hashes_chunk 0x%016x", half_hashes_chunk);

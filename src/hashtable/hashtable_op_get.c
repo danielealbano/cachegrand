@@ -71,6 +71,15 @@ bool hashtable_op_get(
         HASHTABLE_MEMORY_FENCE_LOAD();
 
         *data = key_value->data;
+
+        // Note for the future
+        // ---
+        // At this point, the code can end-up returning a value of a key that has been deleted.
+        // While this is a non problem, this is something that would happen anyway in a context of a network platform
+        // that receives un-syncronized requests from the caller and that if it's necessary the caller has to implement
+        // the required sync mechanism to ensure it's not going to issue get/delete commands in the wrong order, if it
+        // will be necessary to avoid returning deleted data a check on flags can be introduced in this point
+
         data_found = true;
 
         break;
