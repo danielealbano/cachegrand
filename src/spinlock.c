@@ -19,7 +19,7 @@ void spinlock_init(
 #if DEBUG == 1
     spinlock->magic = SPINLOCK_MAGIC;
 #endif
-    spinlock->spins_multi_avg = 0;
+    spinlock->predicted_spins = 0;
 }
 
 void spinlock_unlock(
@@ -72,6 +72,8 @@ bool spinlock_lock_internal(
         while (unlikely(spinlock_is_locked(spinlock) && spins < UINT32_MAX)) {
             spins++;
         }
+
+        // TODO: implement spinlock auto balancing using the predicted_spins property of the lock struct
 
         if (spins == UINT32_MAX) {
             LOG_E(TAG, "Possible stuck spinlock detected for thread %d in %s at %s:%u",

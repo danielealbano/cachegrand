@@ -21,7 +21,7 @@ struct spinlock_lock {
 #else
     uint8_t padding;
 #endif
-    uint16_t spins_multi_avg;
+    uint16_t predicted_spins;
 } __attribute__((aligned(4)));
 
 void spinlock_init(
