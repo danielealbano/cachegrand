@@ -82,8 +82,9 @@ bool hashtable_op_set(
         } else {
             LOG_DI("key can't be inline-ed, max length for inlining %d", HASHTABLE_KEY_INLINE_MAX_LENGTH);
 
-            // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't be freed
-            //       immediately after the bucket is freed because it can be in use and would cause a crash34567
+            // TODO: The keys must be stored in an append-only store because potentially a get operation can be affected
+            //       by a delete, never happened so far (under very high contention) but it can potentially happen and
+            //       needs to be fixed.
             ht_key = xalloc_alloc(key_size + 1);
             ((char*)ht_key)[key_size] = '\0';
             strncpy((char*)ht_key, key, key_size);

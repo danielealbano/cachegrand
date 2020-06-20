@@ -332,7 +332,7 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
 
                 if (searching_or_creating == 0) {
                     if (HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
-                                                     HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
+                            HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
                         LOG_DI(">>> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
                         found_key = key_value->inline_key.data;
@@ -416,6 +416,8 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
         LOG_DI("chunk %lu will not be unlocked, it has to be returned to the caller", found_chunk_index);
     }
 
+    // TODO: refactor the code to have a sliding locking window, if the algorithm is not finding free slots there are
+    //       no reasons to keep a chunk locked
     LOG_DI("unlocking chunks from %lu to %lu", chunk_index_start_initial, locked_up_to_chunk_index);
     for (chunk_index = chunk_index_start_initial; chunk_index <= locked_up_to_chunk_index; chunk_index++) {
         LOG_DI("> processing chunk %lu", chunk_index);
