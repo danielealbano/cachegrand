@@ -5,6 +5,10 @@
 extern "C" {
 #endif
 
+#ifndef HASHTABLE_USE_UINT64
+#define HASHTABLE_USE_UINT64    1
+#endif
+
 #define HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT     14
 #define HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX      32
 #define HASHTABLE_KEY_INLINE_MAX_LENGTH             23
@@ -12,8 +16,13 @@ extern "C" {
 typedef uint8_t hashtable_key_value_flags_t;
 typedef uint64_t hashtable_hash_t;
 typedef uint32_t hashtable_hash_half_t;
+#if HASHTABLE_USE_UINT64 == 1
+typedef uint64_t hashtable_bucket_index_t;
+typedef uint64_t hashtable_chunk_index_t;
+#else
 typedef uint32_t hashtable_bucket_index_t;
 typedef uint32_t hashtable_chunk_index_t;
+#endif
 typedef uint8_t hashtable_chunk_slot_index_t;
 typedef hashtable_bucket_index_t hashtable_bucket_count_t;
 typedef hashtable_chunk_index_t hashtable_chunk_count_t;
