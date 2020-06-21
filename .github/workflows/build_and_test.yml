@@ -52,11 +52,12 @@ jobs:
       shell: bash
       run: tests/cachegrand-tests
 
-    - name: Code Coverage
-      uses: codecov/codecov-action@v1
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        env_vars: OS
-        name: cachegrand-tests
-        fail_ci_if_error: true
+    - name: Generage Code Coverage
+      working-directory: ${{runner.workspace}}/build
+      shell: bash
+      run: cmake --target generage-cachegrand-internal-code-coverage
+
+    - name: Upload Code Coverage to codecov.io
+      shell: bash
+      working-directory: ${{runner.workspace}}/build
+      run: wget <(curl -s https://codecov.io/bash) -o codecov.sh && chmod 700 codecov.sh && codecov.sh -s code-coverage
