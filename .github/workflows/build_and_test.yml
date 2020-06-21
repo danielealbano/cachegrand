@@ -50,4 +50,4 @@ jobs:
     - name: Test
       working-directory: ${{runner.workspace}}/build
       shell: bash
-      run: tests/cachegrand-tests -s
+      run: tests/cachegrand-tests
