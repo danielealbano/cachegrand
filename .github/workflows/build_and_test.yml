@@ -51,3 +51,11 @@ jobs:
       working-directory: ${{runner.workspace}}/build
       shell: bash
       run: tests/cachegrand-tests
+
+    - name: Code Coverage
+      uses: codecov/codecov-action@v1
+      with:
+        file: ./coverage.xml
+        flags: cachegrand-tests
+        name: cachegrand-tests
+        fail_ci_if_error: true
