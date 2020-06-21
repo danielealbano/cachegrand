@@ -270,6 +270,34 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
             })
         }
 
+        SECTION("fill entire hashtable and fail") {
+            HASHTABLE(0x7F, false, {
+                uint32_t slots_to_fill = 448 + 1;
+                test_key_same_bucket_t* test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
+                        hashtable->ht_current->buckets_count,
+                        test_key_same_bucket_key_prefix_external,
+                        slots_to_fill);
+
+                uint32_t i = 0;
+                for(; i < slots_to_fill - 1; i++) {
+                    REQUIRE(hashtable_op_set(
+                            hashtable,
+                            (char*)test_key_same_bucket[i].key,
+                            test_key_same_bucket[i].key_len,
+                            test_value_1 + i));
+                }
+
+                REQUIRE(!hashtable_op_set(
+                        hashtable,
+                        (char*)test_key_same_bucket[i].key,
+                        test_key_same_bucket[i].key_len,
+                        test_value_1 + i));
+
+                test_support_same_hash_mod_fixtures_free(test_key_same_bucket);
+            })
+        }
+
+
 //        SECTION("parallel inserts - check storage") {
 //            HASHTABLE(1000000, false, {
 //                for(uint32_t i = 0; i < HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT; i++) {
