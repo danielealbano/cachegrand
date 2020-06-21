@@ -60,4 +60,4 @@ jobs:
     - name: Upload Code Coverage to codecov.io
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: wget <(curl -s https://codecov.io/bash) -o codecov.sh && chmod 700 codecov.sh && codecov.sh -s code-coverage
+      run: curl -s https://codecov.io/bash -o codecov.sh && chmod 700 codecov.sh && codecov.sh -n cachegrand-tests -e OS -F unittests -Z -s code-coverage
