@@ -57,8 +57,12 @@
 TEST_CASE("hashtable/hashtable_support_hash_search.c",
         "[hashtable][hashtable_support][hashtable_support_hash][hashtable_support_hash_search]") {
 #if defined(__x86_64__)
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_AVX2 == 1
     TEST_HASHTABLE_SUPPORT_HASH_SEARCH_PLATFORM_DEPENDENT(avx2)
+#endif
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_AVX == 1
     TEST_HASHTABLE_SUPPORT_HASH_SEARCH_PLATFORM_DEPENDENT(avx)
+#endif
 #endif
     TEST_HASHTABLE_SUPPORT_HASH_SEARCH_PLATFORM_DEPENDENT(loop)
 }
