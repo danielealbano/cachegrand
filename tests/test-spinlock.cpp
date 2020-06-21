@@ -212,7 +212,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
             // Magic numbers to run enough thread in parallel for 1-2s after the thread creation.
             // The test can be quite time consuming when with an attached debugger.
-            increments_per_thread = 100000 /  (threads_count / 48);
+            increments_per_thread = (uint64_t)(100000 /  (threads_count / 48.0));
 
             REQUIRE(pthread_attr_init(&attr) == 0);
 
