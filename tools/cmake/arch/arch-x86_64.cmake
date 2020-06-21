@@ -54,7 +54,7 @@ endif()
 
 if (COMPILER_HAS_CLFLUSHOPT_FLAG)
     set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
-    list(APPEND CMAKE_REQUIRED_FLAGS "-mclflushopt -march=native")
+    list(APPEND CMAKE_REQUIRED_FLAGS "-mclflushopt")
     check_cxx_source_compiles("
 #include <immintrin.h>
 int main() {
