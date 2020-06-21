@@ -1,5 +1,6 @@
 include(CheckCCompilerFlag)
-include(CheckCXXSourceCompiles)
+include(CheckCSourceCompiles)
+include(CheckCSourceRuns)
 
 check_c_compiler_flag(-mavx2                              COMPILER_HAS_MAVX2_FLAG)
 check_c_compiler_flag(-mavx                               COMPILER_HAS_MAVX_FLAG)
@@ -11,7 +12,7 @@ check_c_compiler_flag(-mclflushopt                        COMPILER_HAS_CLFLUSHOP
 if (COMPILER_HAS_MAVX2_FLAG)
     set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
     list(APPEND CMAKE_REQUIRED_FLAGS "-mavx2")
-    check_cxx_source_compiles("
+    check_c_source_runs("
 #include <stdint.h>
 #include <immintrin.h>
 int main() {
@@ -33,7 +34,7 @@ endif()
 if (COMPILER_HAS_MAVX_FLAG)
     set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
     list(APPEND CMAKE_REQUIRED_FLAGS "-mavx -mno-avx2")
-    check_cxx_source_compiles("
+    check_c_source_runs("
 #include <stdint.h>
 #include <immintrin.h>
 int main() {
@@ -55,7 +56,7 @@ endif()
 if (COMPILER_HAS_CLFLUSHOPT_FLAG)
     set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
     list(APPEND CMAKE_REQUIRED_FLAGS "-mclflushopt")
-    check_cxx_source_compiles("
+    check_c_source_runs("
 #include <immintrin.h>
 int main() {
     char temp[64] = {0};
