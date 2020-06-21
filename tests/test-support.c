@@ -11,16 +11,19 @@
 #include <math.h>
 #include <pthread.h>
 #include <stdatomic.h>
-#include <openssl/bn.h>
 #include <sched.h>
 #include <immintrin.h>
 
+#if CACHEGRAND_CMAKE_CONFIG_DEPS_OPENSSL_FOUND == 1
+#include <openssl/bn.h>
+#endif
 
 #include "memory_fences.h"
 #include "exttypes.h"
 #include "spinlock.h"
 #include "misc.h"
 #include "log.h"
+#include "fatal.h"
 #include "cpu.h"
 #include "xalloc.h"
 #include "random.h"
@@ -31,6 +34,8 @@
 #include "hashtable/hashtable_op_set.h"
 
 #include "test-support.h"
+
+static const char* TAG = "test-support";
 
 void test_support_hashtable_print_heatmap(
         hashtable_t* hashtable,
@@ -417,6 +422,7 @@ char* test_support_build_keys_random_random_length(
     return keys;
 }
 
+#if CACHEGRAND_CMAKE_CONFIG_DEPS_OPENSSL_FOUND == 1
 char* test_support_build_keys_repeatible_set_min_max_length(
         uint64_t count) {
     uint64_t charset_size = TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_UNIQUE_SIZE;
@@ -520,6 +526,7 @@ char* test_support_build_keys_repeatible_set_min_max_length(
 
     return keys;
 }
+#endif
 
 void test_support_free_keys(
         char* keys,
@@ -533,15 +540,19 @@ char* test_support_init_keys(
     char* keys;
     switch (keys_generator_method) {
         default:
+            FATAL(TAG, "Keyset genererator method <%d> unsupported", keys_generator_method);
+            break;
         case TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_MAX_LENGTH:
             keys = test_support_build_keys_random_max_length(keys_count);
             break;
         case TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_RANDOM_LENGTH:
             keys = test_support_build_keys_random_random_length(keys_count);
             break;
-        case TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_REPETIBLE_STR_ALTERNATEMINMAX_LENGTH:
+#if CACHEGRAND_CMAKE_CONFIG_DEPS_OPENSSL_FOUND == 1
+            case TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_REPETIBLE_STR_ALTERNATEMINMAX_LENGTH:
             keys = test_support_build_keys_repeatible_set_min_max_length(keys_count);
             break;
+#endif
     }
 
     return keys;
