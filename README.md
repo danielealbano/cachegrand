@@ -48,6 +48,20 @@ git clone https://github.com/danielealbano/cachegrand.git
 git submodule update --init --recursive
 ```
 
+#### Build - Requirements
+
+| Package | Min. Version |   |
+| - | - | - |
+| pkg-config | | **mandatory** |
+| kernel | >= 5.7.0 | **mandatory** |
+| liburing | >= 0.7 | **mandatory** |
+| openssl | >= 1.1 | optional |
+
+cachegrand depends (will depend) on liburing for the I/O and the networking therefore to build the code it's necessary
+to have an up-to-date kernel (5.7.0 minimum) and an up-to-date liburing (0.7) installed in the system.
+
+Although it's probably matter of days, the liburing 0.7 version hasn't been released yet, so it's necessary to compile
+it from the repository and install the package locally.
 #### Build
 ```bash
 mkdir cmake-build-debug
