@@ -40,9 +40,6 @@
             hashtable_hash_half_t hash = 234; \
             uint32_t skip_indexes_mask = 0; \
         \
-            fprintf(stdout, "%d\n", hashtable_support_hash_search_##INSTRUCTION_SET##_14(hash, hashes, skip_indexes_mask)); \
-            fflush(stdout); \
-        \
             REQUIRE(hashtable_support_hash_search_##INSTRUCTION_SET##_14(hash, hashes, skip_indexes_mask) == 1); \
         } \
         \
@@ -52,9 +49,6 @@
             }; \
             hashtable_hash_half_t hash = 234; \
             uint32_t skip_indexes_mask = 1 << 1; \
-        \
-            fprintf(stdout, "%d\n", hashtable_support_hash_search_##INSTRUCTION_SET##_14(hash, hashes, skip_indexes_mask)); \
-            fflush(stdout); \
         \
             REQUIRE(hashtable_support_hash_search_##INSTRUCTION_SET##_14(hash, hashes, skip_indexes_mask) == 5); \
         } \
