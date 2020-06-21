@@ -162,9 +162,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                             test_value_1 + i));
                 }
 
-                hashtable_chunk_slot_index_t random_slot_index = random_generate() % slots_to_fill;
-
-                LOG_DI("Trying to delete bucket <%lu>", random_slot_index);
+                hashtable_chunk_slot_index_t random_slot_index = random_generate() % (slots_to_fill - 1);
 
                 REQUIRE(hashtable_op_delete(
                         hashtable,
@@ -183,9 +181,6 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                 REQUIRE(half_hashes_chunk->half_hashes[random_slot_index] == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
                 REQUIRE(key_value->data == test_value_1 + random_slot_index);
-
-
-                LOG_DI("Trying to re-use the bucket <%lu>", random_slot_index);
 
                 REQUIRE(hashtable_op_set(
                         hashtable,
