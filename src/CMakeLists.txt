@@ -76,10 +76,10 @@ add_dependencies(
         __internal_refresh_cmake_config
         t1ha)
 
-target_link_libraries(
+target_link_directories(
         cachegrand-internal
         PUBLIC
-        "${DEPS_LIST_LIBRARIES_DIRS}")
+        "${DEPS_LIST_LIBRARY_DIRS}")
 
 target_link_libraries(
         cachegrand-internal
