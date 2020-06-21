@@ -12,7 +12,12 @@
 #include <pthread.h>
 #include <stdatomic.h>
 #include <sched.h>
+
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_MM_CLFLUSHOPT == 1
 #include <immintrin.h>
+#else
+#include <emmintrin.h>
+#endif
 
 #if CACHEGRAND_CMAKE_CONFIG_DEPS_OPENSSL_FOUND == 1
 #include <openssl/bn.h>
