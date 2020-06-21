@@ -57,5 +57,6 @@ jobs:
       with:
         file: ./coverage.xml
         flags: unittests
+        env_vars: OS
         name: cachegrand-tests
         fail_ci_if_error: true
