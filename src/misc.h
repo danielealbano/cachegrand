@@ -1,6 +1,10 @@
 #ifndef CACHEGRAND_MISC_H
 #define CACHEGRAND_MISC_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef DEBUG
 #ifdef NDEBUG
 #error "Can't define at the same time DEBUG and NDEBUG"
@@ -22,5 +26,9 @@
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //CACHEGRAND_MISC_H

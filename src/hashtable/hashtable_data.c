@@ -7,18 +7,15 @@
 #include "spinlock.h"
 #include "xalloc.h"
 #include "log.h"
+#include "pow2.h"
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_data.h"
 
 static const char* TAG = "hashtable/data";
 
-bool is_power_of_2(uint32_t x) {
-    return x && (!(x&(x-1)));
-}
-
 hashtable_data_t* hashtable_data_init(hashtable_bucket_count_t buckets_count) {
-    if (is_power_of_2(buckets_count) == false) {
+    if (pow2_is(buckets_count) == false) {
         LOG_E(TAG, "The buckets_count %lu is not power of 2", buckets_count);
         return NULL;
     }
