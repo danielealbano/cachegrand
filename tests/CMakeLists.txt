@@ -11,7 +11,7 @@ target_compile_options(
         cachegrand-tests
         PRIVATE
         -fpermissive)
-if(HOST_HAS_MM_CLFLUSHOPT)
+if(HOST_HAS_CLFLUSHOPT)
     target_compile_options(
             cachegrand-tests
             PRIVATE

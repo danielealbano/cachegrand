@@ -13,7 +13,7 @@
 #include <stdatomic.h>
 #include <sched.h>
 
-#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_MM_CLFLUSHOPT == 1
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_CLFLUSHOPT == 1
 #include <immintrin.h>
 #else
 #include <emmintrin.h>
@@ -608,7 +608,7 @@ void test_support_flush_data_cache(
     HASHTABLE_MEMORY_FENCE_LOAD_STORE();
 
     for (p = start; p < end; p += cacheline_size) {
-#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_MM_CLFLUSHOPT == 1
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_CLFLUSHOPT == 1
         _mm_clflushopt(p);
 #else
         _mm_clflush(p);
