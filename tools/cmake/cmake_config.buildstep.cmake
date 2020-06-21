@@ -26,6 +26,6 @@ message(STATUS "Build date/time: ${CACHEGRAND_BUILD_DATE_TIME}")
 message(STATUS "Updating cmake_config.c")
 configure_file(
         "${CACHEGRAND_CMAKE_SOURCE_DIR}/src/cmake_config.c.in"
-        "${CACHEGRAND_CMAKE_BINARY_DIR}/cmake_config.c"
+        "${CACHEGRAND_CMAKE_BINARY_DIR}/cmake_config/cmake_config.c"
         @ONLY)
 message(STATUS "Updating cmake_config.c -- done")

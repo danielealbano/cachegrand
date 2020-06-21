@@ -18,10 +18,13 @@ add_custom_target(__internal_refresh_cmake_config
 message(STATUS "Updating cmake_config.h")
 configure_file(
         "${CACHEGRAND_CMAKE_SOURCE_DIR}/src/cmake_config.h.in"
-        "${CACHEGRAND_CMAKE_BINARY_DIR}/cmake_config.h"
+        "${CACHEGRAND_CMAKE_BINARY_DIR}/cmake_config/cmake_config.h"
         @ONLY)
 message(STATUS "Updating cmake_config.h -- done")
 
 # Automatically include cmake_config.c and cmake_config.h in the build
-set(CACHEGRAND_CMAKE_CONFIG_C_SRC ${CMAKE_CURRENT_BINARY_DIR}/cmake_config.c)
-add_compile_options(-include ${CACHEGRAND_CMAKE_BINARY_DIR}/cmake_config.h)
+set(CACHEGRAND_CMAKE_CONFIG_C_SRC ${CMAKE_CURRENT_BINARY_DIR}/cmake_config/cmake_config.c)
+add_compile_options(-include ${CACHEGRAND_CMAKE_BINARY_DIR}/cmake_config/cmake_config.h)
+
+# Add to the list of include directories for the dependencies the one containing cmake_config.h
+list(APPEND DEPS_LIST_INCLUDE_DIRS "${CACHEGRAND_CMAKE_BINARY_DIR}/cmake_config/")

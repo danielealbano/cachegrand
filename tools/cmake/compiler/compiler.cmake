@@ -26,7 +26,4 @@ else()
     message(STATUS "Cross-compiling: no")
 endif()
 
-string(LENGTH "${CMAKE_SOURCE_DIR}/" CACHEGRAND_CMAKE_CONFIG_SOURCE_PATH_SIZE)
-add_definitions("-DCACHEGRAND_CMAKE_CONFIG_SOURCE_PATH_SIZE=${CACHEGRAND_CMAKE_CONFIG_SOURCE_PATH_SIZE}")
-
 include(compiler-ccache)
