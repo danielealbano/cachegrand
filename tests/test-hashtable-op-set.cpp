@@ -4,7 +4,6 @@
 
 #include "exttypes.h"
 #include "spinlock.h"
-#include "log.h"
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_config.h"
