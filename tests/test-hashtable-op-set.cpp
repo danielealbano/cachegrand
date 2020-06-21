@@ -278,7 +278,6 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                         test_key_same_bucket_key_prefix_external,
                         slots_to_fill);
 
-                LOG_DI("slots_to_fill = %d", slots_to_fill);
                 uint32_t i = 0;
                 for(; i < slots_to_fill - 1; i++) {
                     REQUIRE(hashtable_op_set(
