@@ -117,3 +117,5 @@ add_dependencies(
 target_link_libraries(
         cachegrand
         cachegrand-internal t1ha)
+
+target_add_code_coverage(cachegrand-internal)
