@@ -1,4 +1,4 @@
-name: C/C++ CI
+name: Build & Test
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 env:
-  BUILD_TYPE: Release
+  BUILD_TYPE: Debug
 
 jobs:
   build:
@@ -40,14 +40,14 @@ jobs:
     - name: Configure CMake
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$ENV{BUILD_TYPE} -DBUILD_TESTS=1 -DBUILD_BENCHES=1 -G "Unix Makefiles"
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCACHEGRAND_BUILD_TESTS=1 -DCACHEGRAND_BUILD_BENCHES=1 -G "Unix Makefiles"
 
     - name: Build All
       working-directory: ${{runner.workspace}}/build
       shell: bash
-      run: cmake --build . -- -j 4
+      run: cmake --build . --target cachegrand-tests -- -j 4
 
     - name: Test
       working-directory: ${{runner.workspace}}/build
       shell: bash
-      run: ctest
+      run: tests/cachegrand-tests
