@@ -11,11 +11,9 @@ set_target_properties(cachegrand-tests PROPERTIES LINKER_LANGUAGE CXX)
 
 add_dependencies(cachegrand-tests cachegrand-internal catch2)
 
-target_link_libraries(cachegrand-tests PRIVATE cachegrand-internal t1ha catch2)
-target_link_libraries(cachegrand-tests PRIVATE ${DEPS_LIST_LIBRARIES})
-
-target_include_directories(cachegrand-tests PRIVATE ".")
-target_include_directories(cachegrand-tests PRIVATE "../src")
-target_include_directories(cachegrand-tests PRIVATE ${LIBURING_INCLUDE_DIRS})
+target_link_libraries(
+        cachegrand-tests
+        PUBLIC
+        cachegrand-internal)
 
 add_test(NAME cachegrand-tests COMMAND cachegrand-tests)

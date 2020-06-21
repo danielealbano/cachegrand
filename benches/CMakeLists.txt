@@ -35,11 +35,12 @@ add_dependencies(cachegrand-benches cachegrand-internal)
 target_compile_options(cachegrand-benches PRIVATE -mclflushopt -march=native)
 set_target_properties(cachegrand-benches PROPERTIES LINKER_LANGUAGE CXX)
 
-target_link_libraries(cachegrand-benches PRIVATE cachegrand-internal t1ha benchmark::benchmark)
-target_link_libraries(cachegrand-benches PRIVATE ${DEPS_LIST_LIBRARIES})
+target_link_libraries(
+        cachegrand-benches
+        PRIVATE
+        cachegrand-internal benchmark::benchmark)
 
-target_include_directories(cachegrand-benches PRIVATE ".")
-target_include_directories(cachegrand-benches PRIVATE "../src")
-target_include_directories(cachegrand-benches PRIVATE "../tests")
-target_include_directories(cachegrand-benches PRIVATE "${CMAKE_BINARY_DIR}/benchmark-install/include")
-target_include_directories(cachegrand-benches PRIVATE ${LIBURING_INCLUDE_DIRS})
+target_include_directories(
+        cachegrand-benches
+        PRIVATE
+        ../tests ${CMAKE_BINARY_DIR}/benchmark-install/include)
