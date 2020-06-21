@@ -82,9 +82,6 @@ do
       exit 1
     fi
 
-    echo "${OBJECT_SOURCE_PATH}"
-    echo "${OBJECT_PATH}"
-
     OUTPUT=$(gcov -xlpb "${OBJECT_SOURCE_PATH}" -o "${OBJECT_PATH}" 2>&1)
     res=$?
 
