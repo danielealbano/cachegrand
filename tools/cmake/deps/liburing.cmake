@@ -1,6 +1,6 @@
 include(FindPkgConfig)
 
-pkg_check_modules(LIBURING liburing>=0.7)
+pkg_check_modules(LIBURING REQUIRED liburing>=0.7)
 
 if (LIBURING_FOUND)
     list(APPEND DEPS_LIST_INCLUDE_DIRS ${LIBURING_INCLUDE_DIRS})
