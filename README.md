@@ -62,6 +62,10 @@ to have an up-to-date kernel (5.7.0 minimum) and an up-to-date liburing (0.7) in
 
 Although it's probably matter of days, the liburing 0.7 version hasn't been released yet, so it's necessary to compile
 it from the repository and install the package locally.
+
+On Ubuntu 20.04 it's possible to use
+ - [ubuntu-mainline-kernel.sh](https://github.com/pimlie/ubuntu-mainline-kernel.sh) to update the kernel to an official 
+   build for the 5.7.4 version
 #### Build
 ```bash
 mkdir cmake-build-debug
