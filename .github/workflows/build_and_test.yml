@@ -45,7 +45,7 @@ jobs:
     - name: Build All
       working-directory: ${{runner.workspace}}/build
       shell: bash
-      run: cmake --build . -- -j 4
+      run: cmake --build . --target cachegrand-tests -- -j 4
 
     - name: Test
       working-directory: ${{runner.workspace}}/build
