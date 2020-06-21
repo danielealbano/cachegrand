@@ -9,8 +9,6 @@ check_c_compiler_flag(-mlzcnt                             COMPILER_HAS_MLZCNT_FL
 check_c_compiler_flag(-mclflushopt                        COMPILER_HAS_CLFLUSHOPT_FLAG)
 
 if (COMPILER_HAS_CLFLUSHOPT_FLAG)
-    message(STATUS "Compiler has -mclflushopt -- yes")
-
     set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
     list(APPEND CMAKE_REQUIRED_FLAGS "-mclflushopt -march=native")
     check_cxx_source_compiles("
@@ -23,11 +21,7 @@ int main() {
             HOST_HAS_MM_CLFLUSHOPT)
     set(CMAKE_REQUIRED_FLAGS ${OLD_CMAKE_REQUIRED_FLAGS})
 
-    if (HOST_HAS_MM_CLFLUSHOPT)
-        message(STATUS "Host supports _mm_clflushopt -- yes")
-    else()
-        message(STATUS "Host supports _mm_clflushopt -- no")
+    if (NOT HOST_HAS_MM_CLFLUSHOPT)
+        set(HOST_HAS_MM_CLFLUSHOPT 0)
     endif()
-else()
-    message(STATUS "Compiler has -mclflushopt -- no")
 endif()
