@@ -41,7 +41,7 @@ jobs:
       id: prepare-deps-liburing
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: $GITHUB_WORKSPACE/tools/gh_build_and_test_support/install_liburing.sh -o $(pwd)/deps/liburing -c 94ba6378bea8db499bedeabb54ab20fcf41555cf && echo ::set-env name=PKG_CONFIG_PATH::$(pwd)/deps/liburing/install/lib/pkgconfig:${PKG_CONFIG_PATH}
+      run: chmod 700 $GITHUB_WORKSPACE/tools/gh_build_and_test_support/install_liburing.sh && $GITHUB_WORKSPACE/tools/gh_build_and_test_support/install_liburing.sh -o $(pwd)/deps/liburing -c 94ba6378bea8db499bedeabb54ab20fcf41555cf && echo ::set-env name=PKG_CONFIG_PATH::$(pwd)/deps/liburing/install/lib/pkgconfig:${PKG_CONFIG_PATH}
 
     - name: Configure CMake
       shell: bash
