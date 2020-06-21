@@ -16,7 +16,6 @@
 #include "hashtable/hashtable_support_hash.h"
 #include "hashtable/hashtable_support_op.h"
 
-// TODO: support the new data structure
 bool hashtable_op_delete(
         hashtable_t* hashtable,
         hashtable_key_data_t* key,
