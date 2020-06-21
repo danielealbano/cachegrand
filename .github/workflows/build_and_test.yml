@@ -52,14 +52,9 @@ jobs:
       shell: bash
       run: tests/cachegrand-tests
 
-    - name: Generage Code Coverage
-      working-directory: ${{runner.workspace}}/build
-      shell: bash
-      run: cmake --build . --target generate-cachegrand-internal-code-coverage
-
-    - name: Upload Code Coverage to codecov.io
+    - name: Generate and upload Code Coverage to codecov.io
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: curl -s https://codecov.io/bash -o codecov.sh && chmod 700 codecov.sh && ./codecov.sh -X gcov -n cachegrand-tests -F unittests -Z -s code-coverage -t ${CODECOV_TOKEN}
+      run: curl -s https://codecov.io/bash -o codecov.sh && chmod 700 codecov.sh && ./codecov.sh -n cachegrand-tests -F unittests -Z -c -G \*cachegrand-internal\* -t ${CODECOV_TOKEN}

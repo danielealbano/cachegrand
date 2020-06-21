@@ -1,3 +1,5 @@
+![Build & Test](https://github.com/danielealbano/cachegrand/workflows/Build%20&%20Test/badge.svg) [![codecov](https://codecov.io/gh/danielealbano/cachegrand/branch/master/graph/badge.svg)](https://codecov.io/gh/danielealbano/cachegrand)
+
 cachegrand
 ==========
 

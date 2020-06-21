@@ -5,6 +5,7 @@
 #include "exttypes.h"
 #include "spinlock.h"
 #include "random.h"
+#include "log.h"
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_config.h"
@@ -161,7 +162,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                             test_value_1 + i));
                 }
 
-                hashtable_chunk_slot_index_t random_slot_index = random_generate() % slots_to_fill;
+                hashtable_chunk_slot_index_t random_slot_index = random_generate() % (slots_to_fill - 1);
 
                 REQUIRE(hashtable_op_delete(
                         hashtable,
