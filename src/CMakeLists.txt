@@ -25,7 +25,6 @@ macro(CACHEGRAND_BUILD_ADHOC_HASHTABLE_SUPPORT_OP_ARCH ARCH)
             PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR})
 
-#    add_dependencies(cachegrand-internal ${hashtable_support_op_arch_target_name})
     list(APPEND SRC_FILES_CACHEGRAND "$<TARGET_OBJECTS:${hashtable_support_op_arch_target_name}>")
 endmacro()
 
@@ -70,11 +69,15 @@ add_library(
         ${SRC_FILES_CACHEGRAND}
 )
 add_dependencies(cachegrand-internal
-        __internal_refresh_cmake_config_c
+        __internal_refresh_cmake_config
         t1ha)
+
 target_link_libraries(cachegrand-internal t1ha)
+target_link_libraries(cachegrand-internal ${DEPS_LIST_LIBRARIES})
+
 target_include_directories(cachegrand-internal PUBLIC "../3rdparty/t1ha/")
 target_include_directories(cachegrand-internal PUBLIC ".")
+target_include_directories(cachegrand-internal PUBLIC ${LIBURING_INCLUDE_DIRS})
 
 if(ARCH_IS_X86_64)
     # Force GCC to emit cmpxchg16b inline (supported only on x86_64 platforms)
