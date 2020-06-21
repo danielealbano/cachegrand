@@ -56,6 +56,6 @@ jobs:
       uses: codecov/codecov-action@v1
       with:
         file: ./coverage.xml
-        flags: cachegrand-tests
+        flags: unittests
         name: cachegrand-tests
         fail_ci_if_error: true
