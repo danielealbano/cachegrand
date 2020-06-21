@@ -62,10 +62,10 @@ int main() {
     _mm_clflushopt(&temp);
     return 0;
 }"
-            HOST_HAS_MM_CLFLUSHOPT)
+            HOST_HAS_CLFLUSHOPT)
     set(CMAKE_REQUIRED_FLAGS ${OLD_CMAKE_REQUIRED_FLAGS})
 
-    if (NOT HOST_HAS_MM_CLFLUSHOPT)
-        set(HOST_HAS_MM_CLFLUSHOPT 0)
+    if (NOT HOST_HAS_CLFLUSHOPT)
+        set(HOST_HAS_CLFLUSHOPT 0)
     endif()
 endif()
