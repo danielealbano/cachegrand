@@ -57,4 +57,4 @@ jobs:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: curl -s https://codecov.io/bash -o codecov.sh && chmod 700 codecov.sh && ./codecov.sh -n cachegrand-tests -F unittests -Z -c -t ${CODECOV_TOKEN}
+      run: curl -s https://codecov.io/bash -o codecov.sh && chmod 700 codecov.sh && ./codecov.sh -n cachegrand-tests -F unittests -Z -c -G \*cachegrand-internal\* -t ${CODECOV_TOKEN}
