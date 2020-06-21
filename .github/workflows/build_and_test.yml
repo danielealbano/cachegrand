@@ -55,7 +55,7 @@ jobs:
     - name: Generage Code Coverage
       working-directory: ${{runner.workspace}}/build
       shell: bash
-      run: cmake --build . --target generage-cachegrand-internal-code-coverage
+      run: cmake --build . --target generate-cachegrand-internal-code-coverage
 
     - name: Upload Code Coverage to codecov.io
       shell: bash
