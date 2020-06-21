@@ -5,7 +5,6 @@
 #include <stdatomic.h>
 #include <assert.h>
 
-#include "cmake_config.h"
 #include "exttypes.h"
 #include "memory_fences.h"
 #include "misc.h"

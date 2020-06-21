@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include "cmake_config.h"
+
 #define SPINLOCK_UNLOCKED   0
 #define SPINLOCK_LOCKED     1
 

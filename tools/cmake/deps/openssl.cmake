@@ -1,8 +1,10 @@
-include(FindOpenSSL)
+include(FindPkgConfig)
 
-if (NOT OPENSSL_FOUND)
-    message(FATAL "OpenSSL not found, unable to continue")
+pkg_check_modules(OPENSSL REQUIRED openssl>=1.1)
+
+if (OPENSSL_FOUND)
+    list(APPEND DEPS_LIST_INCLUDE_DIRS ${OPENSSL_INCLUDE_DIRS})
+    list(APPEND DEPS_LIST_LIBRARIES ${OPENSSL_LIBRARIES})
+else()
+    set(OPENSSL_FOUND "0")
 endif()
-
-message(STATUS "OpenSSL found")
-message(STATUS "OpenSSL version: ${OPENSSL_VERSION}")

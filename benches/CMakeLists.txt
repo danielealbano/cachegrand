@@ -29,13 +29,18 @@ ENDIF(WIN32)
 
 # Build benches
 file(GLOB SRC_CACHEGRAND_BENCHES "bench-*.cpp")
+
 add_executable(cachegrand-benches main.cpp ../tests/test-support.c ${SRC_CACHEGRAND_BENCHES})
-add_dependencies(cachegrand-benches cachegrand-internal __internal_refresh_cmake_config_c)
-set_target_properties(cachegrand-benches PROPERTIES LINKER_LANGUAGE CXX)
-target_link_libraries(cachegrand-benches PRIVATE cachegrand-internal t1ha pthread benchmark::benchmark OpenSSL::SSL)
+add_dependencies(cachegrand-benches cachegrand-internal)
 target_compile_options(cachegrand-benches PRIVATE -mclflushopt -march=native)
-target_include_directories(cachegrand-benches PUBLIC ".")
-target_include_directories(cachegrand-benches PUBLIC "../src")
-target_include_directories(cachegrand-benches PUBLIC "../tests")
-target_include_directories(cachegrand-benches PUBLIC "${CMAKE_BINARY_DIR}/benchmark-install/include")
-target_include_directories(cachegrand-benches PUBLIC ${OPENSSL_INCLUDE_DIR})
+set_target_properties(cachegrand-benches PROPERTIES LINKER_LANGUAGE CXX)
+
+target_link_libraries(
+        cachegrand-benches
+        PRIVATE
+        cachegrand-internal benchmark::benchmark)
+
+target_include_directories(
+        cachegrand-benches
+        PRIVATE
+        ../tests ${CMAKE_BINARY_DIR}/benchmark-install/include)

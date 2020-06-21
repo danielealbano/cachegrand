@@ -7,5 +7,6 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/deps/")
 
 include(arch)
 include(compiler)
-include(cmake_config.c)
 include(deps)
+
+include(cmake_config)

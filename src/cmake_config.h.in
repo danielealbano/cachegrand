@@ -1,0 +1,23 @@
+#ifndef CACHEGRAND_CMAKE_CONFIG
+#define CACHEGRAND_CMAKE_CONFIG
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define CACHEGRAND_SRC_PATH                                     ((const char*)__FILE__ + @CMAKE_SOURCE_DIR_LENGTH@)
+
+#define CACHEGRAND_CMAKE_CONFIG_ARCH_TARGET                     "@CACHEGRAND_ARCH_TARGET@"
+#define CACHEGRAND_CMAKE_CONFIG_BUILD_TYPE                      "@CMAKE_BUILD_TYPE@"
+
+#define CACHEGRAND_CMAKE_CONFIG_DEPS_OPENSSL_FOUND              @OPENSSL_FOUND@
+#define CACHEGRAND_CMAKE_CONFIG_DEPS_OPENSSL_VERSION_STR        "@OPENSSL_VERSION@"
+
+extern const char *CACHEGRAND_CMAKE_CONFIG_VERSION_GIT;
+extern const char *CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif //CACHEGRAND_CMAKE_CONFIG

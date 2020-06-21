@@ -9,7 +9,6 @@ using namespace std;
 #include "exttypes.h"
 #include "memory_fences.h"
 #include "spinlock.h"
-#include "cmake_config.h"
 #include "cpu.h"
 
 // Returns 1 if it can do the initial lock, 2 instead if it's able to reach the point in which has

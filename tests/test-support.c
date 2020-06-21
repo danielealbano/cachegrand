@@ -15,7 +15,6 @@
 #include <sched.h>
 #include <immintrin.h>
 
-#include "cmake_config.h"
 
 #include "memory_fences.h"
 #include "exttypes.h"
