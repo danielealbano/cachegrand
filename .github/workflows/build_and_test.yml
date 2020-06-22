@@ -52,17 +52,17 @@ jobs:
       shell: bash
       run: tests/cachegrand-tests
 
-    - name: Generage Code Coverage
-      uses: danielealbano/lcov-action@v0.1
+    - name: Code Coverage - Initial generation
+      uses: danielealbano/lcov-action@v0.1.1
       with:
         params: -c --directory ${{runner.workspace}}/build --output-file coverage.info
 
-    - name: Generage Code Coverage - Remove unwanted coverage
-      uses: danielealbano/lcov-action@v0.1
+    - name: Code Coverage - Cleanup
+      uses: danielealbano/lcov-action@v0.1.1
       with:
         params: --remove coverage.info '/usr/include/*' '/usr/lib/*' '/usr/include/*' '/mnt/d/src/cachegrand/tests/*' '/mnt/d/src/cachegrand/3rdparty/*' -o coverage-filtered.info
 
-    - name: Upload Code Coverage to codecov.io
+    - name: Code Coverage - Upload to codecov.io
       shell: bash
       working-directory: ${{runner.workspace}}/build
       run: bash <(curl -s https://codecov.io/bash) -X gcov -Z -f coverage-filtered.info
