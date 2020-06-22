@@ -53,12 +53,12 @@ jobs:
       run: tests/cachegrand-tests
 
     - name: Code Coverage - Initial generation
-      uses: danielealbano/lcov-action@v0.1.4
+      uses: danielealbano/lcov-action@v0.1.4-debug
       with:
         params: -i -c --no-external -d . -b /github/workspace -o coverage.info
 
     - name: Code Coverage - Cleanup
-      uses: danielealbano/lcov-action@v0.1.4
+      uses: danielealbano/lcov-action@v0.1.4-debug
       with:
         params: -r coverage.info '/usr/include/*' '/usr/lib/*' '/usr/include/*' 'tests/*' '3rdparty/*' -b /github/workspace -o coverage-filtered.info
 
