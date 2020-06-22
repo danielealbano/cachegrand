@@ -66,4 +66,4 @@ jobs:
     - name: Code Coverage - Upload to codecov.io
       shell: bash
       working-directory: ${{github.workspace}}/build
-      run: bash <(curl -s https://codecov.io/bash) -X gcov -Z -f coverage-filtered.info
+      run: bash <(curl -s https://codecov.io/bash) -X gcov -Z -f build/coverage-filtered.info
