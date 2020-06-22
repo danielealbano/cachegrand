@@ -53,9 +53,14 @@ jobs:
       run: tests/cachegrand-tests
 
     - name: Generage Code Coverage
-      working-directory: ${{runner.workspace}}/build
-      shell: bash
-      run: lcov -c --directory ${{runner.workspace}}/build --output-file coverage.info && lcov --remove coverage.info '/usr/include/*' '/usr/lib/*' '/usr/include/*' '/mnt/d/src/cachegrand/tests/*' '/mnt/d/src/cachegrand/3rdparty/*' -o coverage-filtered.info
+      uses: daalbano/lcov-action@v0.1
+      with:
+        params: -c --directory ${{runner.workspace}}/build --output-file coverage.info
+
+    - name: Generage Code Coverage - Remove unwanted coverage
+      uses: daalbano/lcov-action@v0.1
+      with:
+        params: --remove coverage.info '/usr/include/*' '/usr/lib/*' '/usr/include/*' '/mnt/d/src/cachegrand/tests/*' '/mnt/d/src/cachegrand/3rdparty/*' -o coverage-filtered.info
 
     - name: Upload Code Coverage to codecov.io
       shell: bash
