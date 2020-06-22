@@ -101,7 +101,7 @@ DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -b -us -uc -rfakeroot
 # In the parent directory there will be now a number of deb files that can be installed
 # To install the packages it's necessary to use sudo
 cd ..
-sudo dpkg -o liburing-dev_0.7-1_amd64.deb liburing1_0.7-1_amd64.deb
+sudo dpkg -i liburing-dev_0.7-1_amd64.deb liburing1_0.7-1_amd64.deb
 ```
 
 For pratical reasons liburing is internally marked as optional but once the network layer will be implemented it will
