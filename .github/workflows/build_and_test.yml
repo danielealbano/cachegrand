@@ -52,22 +52,12 @@ jobs:
       shell: bash
       run: tests/cachegrand-tests
 
-    - name: Code Coverage - Initial generation
-      uses: danielealbano/lcov-action@v0.1.8
+    - name: Code Coverage - Generation
+      uses: danielealbano/lcov-action@v0.2.0-dev-1
       with:
-        params: -i -c -d . -o coverage.info
-
-    - name: Code Coverage - Cleanup
-      uses: danielealbano/lcov-action@v0.1.8
-      with:
-        params: -r coverage.info '/usr/*' '/home/runner/work/cachegrand/cachegrand/3rdparty/*' '/home/runner/work/cachegrand/cachegrand/tests/*' -o coverage-filtered.info
-
-    - name: Code Coverage - Debug
-      uses: danielealbano/lcov-action@v0.1.8
-      with:
-        params: -l coverage-filtered.info
+        remove_patterns: 3rdparty,tests
 
     - name: Code Coverage - Upload to codecov.io
       shell: bash
       working-directory: ${{github.workspace}}
-      run: bash <(curl -s https://codecov.io/bash) -X gcov -Z -f coverage-filtered.info
+      run: bash <(curl -s https://codecov.io/bash) -X gcov -Z -f coverage.info
