@@ -55,7 +55,7 @@ jobs:
     - name: Code Coverage - Initial generation
       uses: danielealbano/lcov-action@v0.1.3
       with:
-        params: -c --directory ${{runner.workspace}}/build --output-file coverage.info
+        params: -c --directory . --output-file coverage.info
 
     - name: Code Coverage - Cleanup
       uses: danielealbano/lcov-action@v0.1.3
