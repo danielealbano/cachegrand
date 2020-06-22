@@ -60,7 +60,7 @@ jobs:
     - name: Code Coverage - Cleanup
       uses: danielealbano/lcov-action@v0.1.7
       with:
-        params: -r coverage.info /usr/\\\* /home/runner/work/cachegrand/cachegrand/3rdparty/\\\* /home/runner/work/cachegrand/cachegrand/3rdparty/tests/\\\* -o coverage-filtered.info
+        params: -r coverage.info /usr/\* /home/runner/work/cachegrand/cachegrand/3rdparty/\* /home/runner/work/cachegrand/cachegrand/3rdparty/tests/\* -o coverage-filtered.info
 
     - name: Code Coverage - Debug
       uses: danielealbano/lcov-action@v0.1.7
