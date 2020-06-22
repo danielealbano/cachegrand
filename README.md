@@ -69,6 +69,9 @@ On Ubuntu 20.04 it's possible to use
  - the below snippet to download, patch, compile and install liburing from the repository 
 
 ```bash
+# Install dh-make to be able to build the deb packages
+sudo apt -y install dh-make
+
 # Create a temporary directory and move inside it
 mkdir temp && cd temp
 
