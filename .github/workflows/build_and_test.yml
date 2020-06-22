@@ -55,12 +55,12 @@ jobs:
     - name: Code Coverage - Initial generation
       uses: danielealbano/lcov-action@v0.1.4
       with:
-        params: -c --directory . --output-file coverage.info
+        params: -i -c --no-external -d . -b /github/workspace -o coverage.info
 
     - name: Code Coverage - Cleanup
       uses: danielealbano/lcov-action@v0.1.4
       with:
-        params: --remove coverage.info '/usr/include/*' '/usr/lib/*' '/usr/include/*' '/mnt/d/src/cachegrand/tests/*' '/mnt/d/src/cachegrand/3rdparty/*' -o coverage-filtered.info
+        params: -r coverage.info '/usr/include/*' '/usr/lib/*' '/usr/include/*' 'tests/*' '3rdparty/*' -b /github/workspace -o coverage-filtered.info
 
     - name: Code Coverage - Upload to codecov.io
       shell: bash
