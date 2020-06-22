@@ -53,8 +53,6 @@ jobs:
       run: tests/cachegrand-tests
 
     - name: Generate and upload Code Coverage to codecov.io
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       shell: bash
       working-directory: ${{runner.workspace}}/build
       run: bash <(curl -s https://codecov.io/bash) -n cachegrand-tests -F unittests -Z -c -G \*cachegrand-internal\*
