@@ -52,7 +52,12 @@ jobs:
       shell: bash
       run: tests/cachegrand-tests
 
-    - name: Generate and upload Code Coverage to codecov.io
+    - name: Generage Code Coverage
+      working-directory: ${{runner.workspace}}/build
+      shell: bash
+      run: cmake --build . --target generate-cachegrand-internal-code-coverage
+
+    - name: Upload Code Coverage to codecov.io
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: bash <(curl -s https://codecov.io/bash) -c -G \*cachegrand-internal\*
+      run: bash <(curl -s https://codecov.io/bash) -X gcov -c -s code-coverage *
