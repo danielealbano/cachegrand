@@ -63,7 +63,7 @@ jobs:
         params: -r coverage.info /usr/include/* /usr/lib/* /usr/include/* $GITHUB_WORKSPACE/tests/* $GITHUB_WORKSPACE/3rdparty/* -o coverage-filtered.info
 
     - name: Code Coverage - Debug
-      uses: danielealbano/lcov-action@v0.1.6
+      uses: danielealbano/lcov-action@v0.1.7
       with:
         params: -l coverage-filtered.info
 
