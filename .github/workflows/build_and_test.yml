@@ -41,6 +41,7 @@ jobs:
       shell: bash
       working-directory: ${{github.workspace}}/build
       run: cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCACHEGRAND_BUILD_TESTS=1 -DCACHEGRAND_BUILD_BENCHES=1
+      run: CC=/usr/bin/gcc-8 CXX=/usr/bin/g++-8 cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCACHEGRAND_BUILD_TESTS=1 -DCACHEGRAND_BUILD_BENCHES=1
 
     - name: Build All
       working-directory: ${{github.workspace}}/build
@@ -55,13 +56,11 @@ jobs:
     - name: Code Coverage - Initial generation
       uses: danielealbano/lcov-action@v0.1.4
       with:
-        gcov_path: /usr/bin/gcov-7
         params: -c --directory . --output-file coverage.info
 
     - name: Code Coverage - Cleanup
       uses: danielealbano/lcov-action@v0.1.4
       with:
-        gcov_path: /usr/bin/gcov-7
         params: --remove coverage.info '/usr/include/*' '/usr/lib/*' '/usr/include/*' '/mnt/d/src/cachegrand/tests/*' '/mnt/d/src/cachegrand/3rdparty/*' -o coverage-filtered.info
 
     - name: Code Coverage - Upload to codecov.io
