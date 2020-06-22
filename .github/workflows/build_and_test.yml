@@ -55,4 +55,4 @@ jobs:
     - name: Generate and upload Code Coverage to codecov.io
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: bash <(curl -s https://codecov.io/bash) -n cachegrand-tests -F unittests -Z -c -G \*cachegrand-internal\*
+      run: bash <(curl -s https://codecov.io/bash) -c -G \*cachegrand-internal\*
