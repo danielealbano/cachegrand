@@ -53,17 +53,17 @@ jobs:
       run: tests/cachegrand-tests
 
     - name: Code Coverage - Initial generation
-      uses: danielealbano/lcov-action@v0.1.7
+      uses: danielealbano/lcov-action@v0.1.8
       with:
         params: -i -c -d . -o coverage.info
 
     - name: Code Coverage - Cleanup
-      uses: danielealbano/lcov-action@v0.1.7
+      uses: danielealbano/lcov-action@v0.1.8
       with:
         params: -r coverage.info \'/usr/*\' \'/home/runner/work/cachegrand/cachegrand/3rdparty/*\' \'/home/runner/work/cachegrand/cachegrand/3rdparty/tests/*\' -o coverage-filtered.info
 
     - name: Code Coverage - Debug
-      uses: danielealbano/lcov-action@v0.1.7
+      uses: danielealbano/lcov-action@v0.1.8
       with:
         params: -l coverage-filtered.info
 
