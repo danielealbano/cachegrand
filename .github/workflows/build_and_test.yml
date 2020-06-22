@@ -40,7 +40,7 @@ jobs:
     - name: Configure CMake
       shell: bash
       working-directory: ${{github.workspace}}/build
-      run: CC=/usr/bin/gcc-8 CXX=/usr/bin/g++-8 cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCACHEGRAND_BUILD_TESTS=1 -DCACHEGRAND_BUILD_BENCHES=1
+      run: CC=/usr/bin/gcc-9 CXX=/usr/bin/g++-9 cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCACHEGRAND_BUILD_TESTS=1 -DCACHEGRAND_BUILD_BENCHES=1
 
     - name: Build All
       working-directory: ${{github.workspace}}/build
@@ -53,12 +53,12 @@ jobs:
       run: tests/cachegrand-tests
 
     - name: Code Coverage - Initial generation
-      uses: danielealbano/lcov-action@v0.1.6
+      uses: danielealbano/lcov-action@v0.1.7
       with:
         params: -i -c -d . -o coverage.info
 
     - name: Code Coverage - Cleanup
-      uses: danielealbano/lcov-action@v0.1.6
+      uses: danielealbano/lcov-action@v0.1.7
       with:
         params: -r coverage.info /usr/include/* /usr/lib/* /usr/include/* $GITHUB_WORKSPACE/tests/* $GITHUB_WORKSPACE/3rdparty/* -o coverage-filtered.info
 
