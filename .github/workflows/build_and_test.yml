@@ -60,9 +60,14 @@ jobs:
     - name: Code Coverage - Cleanup
       uses: danielealbano/lcov-action@v0.1.6
       with:
-        params: -r coverage.info '/usr/include/*' '/usr/lib/*' '/usr/include/*' "$GITHUB_WORKSPACE/build/tests/\*" "$GITHUB_WORKSPACE/build/3rdparty/\*" -o coverage-filtered.info
+        params: -r coverage.info '/usr/include/*' '/usr/lib/*' '/usr/include/*' "$GITHUB_WORKSPACE/build/tests/*" "$GITHUB_WORKSPACE/build/3rdparty/*" -o coverage-filtered.info
+
+    - name: Code Coverage - Debug
+      uses: danielealbano/lcov-action@v0.1.6
+      with:
+        params: -l coverage-filtered.info
 
     - name: Code Coverage - Upload to codecov.io
       shell: bash
-      working-directory: ${{github.workspace}}/build
-      run: bash <(curl -s https://codecov.io/bash) -X gcov -Z -f build/coverage-filtered.info
+      working-directory: ${{github.workspace}}
+      run: bash <(curl -s https://codecov.io/bash) -X gcov -Z -f coverage-filtered.info
