@@ -53,7 +53,7 @@ jobs:
       run: tests/cachegrand-tests
 
     - name: Code Coverage - Generation
-      uses: danielealbano/lcov-action@v0.2.0-dev-1
+      uses: danielealbano/lcov-action@v1
       with:
         remove_patterns: 3rdparty,tests
 
