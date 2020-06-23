@@ -60,7 +60,7 @@ void log_message(log_producer_t* tag, log_level_t level, const char* message, ..
     va_list args;
     va_start(args, message);
 
-    for(int i =0; i<= log_service->size; ++i){
+    for(int i =0; i<= log_service->size-1; ++i){
         log_sink_t* sink = log_service->sinks[i];
         if (level > sink->min_level) {
             continue;
@@ -80,6 +80,7 @@ void __attribute__((constructor)) init_log_service() {
     log_service = (log_service_t*)malloc(sizeof(log_service));
     //init console out
     log_sink_t* console = init_log_sink(stdout, LOG_LEVEL_INFO);
+    log_service->sinks = malloc(sizeof(log_sink_t));
     *log_service->sinks = console;
     log_service->size = 1;
 }

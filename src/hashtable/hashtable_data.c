@@ -12,11 +12,10 @@
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_data.h"
 
-static const char* TAG = "hashtable/data";
 
 hashtable_data_t* hashtable_data_init(hashtable_bucket_count_t buckets_count) {
     if (pow2_is(buckets_count) == false) {
-        LOG_E(TAG, "The buckets_count %lu is not power of 2", buckets_count);
+        LOG_E(hashmap_log_producer, "The buckets_count %lu is not power of 2", buckets_count);
         return NULL;
     }
 
