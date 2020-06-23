@@ -35,14 +35,19 @@
         Threads(64)-> \
         Threads(128)-> \
         Threads(256)-> \
+        Threads(512)-> \
+        Threads(1024)-> \
+        Threads(2048)-> \
     \
     Iterations(10000000);
 
 static void hashtable_op_get_not_found_key(benchmark::State& state) {
-    hashtable_t* hashtable;
+    static hashtable_t* hashtable;
     hashtable_value_data_t value;
 
-    hashtable = test_support_init_hashtable(state.range(0));
+    if (state.thread_index == 0) {
+        hashtable = test_support_init_hashtable(state.range(0));
+    }
 
     test_support_set_thread_affinity(state.thread_index);
 
@@ -54,28 +59,35 @@ static void hashtable_op_get_not_found_key(benchmark::State& state) {
                 &value));
     }
 
-    hashtable_free(hashtable);
+    if (state.thread_index == 0) {
+        hashtable_free(hashtable);
+    }
 }
 
 static void hashtable_op_get_single_key_inline(benchmark::State& state) {
-    hashtable_t* hashtable;
+    static hashtable_t* hashtable;
+    static hashtable_bucket_index_t bucket_index;
+    static hashtable_chunk_index_t chunk_index;
+    static hashtable_chunk_slot_index_t chunk_slot_index;
     hashtable_value_data_t value;
     bool result;
     char error_message[150] = {0};
 
-    hashtable = test_support_init_hashtable(state.range(0));
+    if (state.thread_index == 0) {
+        hashtable = test_support_init_hashtable(state.range(0));
 
-    hashtable_bucket_index_t bucket_index = test_key_1_hash % hashtable->ht_current->buckets_count;
-    hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(bucket_index);
-    hashtable_chunk_slot_index_t chunk_slot_index = 0;
+        bucket_index = test_key_1_hash % hashtable->ht_current->buckets_count;
+        chunk_index = HASHTABLE_TO_CHUNK_INDEX(bucket_index);
+        chunk_slot_index = 0;
 
-    HASHTABLE_SET_KEY_INLINE_BY_INDEX(
-            chunk_index,
-            chunk_slot_index,
-            test_key_1_hash,
-            test_key_1,
-            test_key_1_len,
-            test_value_1);
+        HASHTABLE_SET_KEY_INLINE_BY_INDEX(
+                chunk_index,
+                chunk_slot_index,
+                test_key_1_hash,
+                test_key_1,
+                test_key_1_len,
+                test_value_1);
+    }
 
     test_support_set_thread_affinity(state.thread_index);
 
@@ -100,29 +112,35 @@ static void hashtable_op_get_single_key_inline(benchmark::State& state) {
         }
     }
 
-    hashtable_free(hashtable);
+    if (state.thread_index == 0) {
+        hashtable_free(hashtable);
+    }
 }
 
-
 static void hashtable_op_get_single_key_external(benchmark::State& state) {
-    hashtable_t* hashtable;
+    static hashtable_t* hashtable;
+    static hashtable_bucket_index_t bucket_index;
+    static hashtable_chunk_index_t chunk_index;
+    static hashtable_chunk_slot_index_t chunk_slot_index;
     hashtable_value_data_t value;
     bool result;
     char error_message[150] = {0};
 
-    hashtable = test_support_init_hashtable(state.range(0));
+    if (state.thread_index == 0) {
+        hashtable = test_support_init_hashtable(state.range(0));
 
-    hashtable_bucket_index_t bucket_index = test_key_1_hash % hashtable->ht_current->buckets_count;
-    hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(bucket_index);
-    hashtable_chunk_slot_index_t chunk_slot_index = 0;
+        bucket_index = test_key_1_hash % hashtable->ht_current->buckets_count;
+        chunk_index = HASHTABLE_TO_CHUNK_INDEX(bucket_index);
+        chunk_slot_index = 0;
 
-    HASHTABLE_SET_KEY_INLINE_BY_INDEX(
-            chunk_index,
-            chunk_slot_index,
-            test_key_1_hash,
-            test_key_1,
-            test_key_1_len,
-            test_value_1);
+        HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(
+                chunk_index,
+                chunk_slot_index,
+                test_key_1_hash,
+                test_key_1,
+                test_key_1_len,
+                test_value_1);
+    }
 
     test_support_set_thread_affinity(state.thread_index);
 
@@ -147,7 +165,9 @@ static void hashtable_op_get_single_key_external(benchmark::State& state) {
         }
     }
 
-    hashtable_free(hashtable);
+    if (state.thread_index == 0) {
+        hashtable_free(hashtable);
+    }
 }
 
 BENCHMARK(hashtable_op_get_not_found_key)->HASHTABLE_OP_GET_BENCHS_ARGS;
