@@ -7,6 +7,7 @@ extern "C" {
 
 #include <stdarg.h>
 #include <log_debug.h>
+#include <stdio.h>
 
 #define LOG_MESSAGE_TIMESTAMP_MAX_LENGTH 25
 
@@ -40,7 +41,7 @@ typedef struct {
 } log_sink_t;
 
 typedef struct {
-    log_sink_t* sinks;
+    log_sink_t** sinks;
     int size;
 } log_service_t;
 
@@ -48,12 +49,20 @@ typedef struct{
     log_service_t* service;
     char* tag;
 } log_producer_t;
+
+log_producer_t* init_log_producer(char* tag);
+log_sink_t* init_log_sink(FILE* out, log_level_t min_level);
 const char* log_level_to_string(log_level_t level);
 char* log_message_timestamp(char* dest, size_t maxlen);
-void log_message_internal(const char* tag, log_level_t level, const char* message, va_list args);
-void log_set_log_level(log_level_t level);
-void log_message(const char* tag, log_level_t level, const char* message, ...);
+void log_message_internal(const char* tag, log_level_t level, const char* message, va_list args, FILE* out);
+void log_message(log_producer_t* tag, log_level_t level, const char* message, ...);
 
+static log_service_t* log_service;
+
+void __attribute__((constructor)) init_log_service();
+void __attribute__((destructor)) deinit_log_service();
+
+void register_sink(log_sink_t* sink);
 #ifndef DEBUG
 #define LOG_DI(...) /* Internal debug logs disabled */
 #endif // DEBUG == 1
