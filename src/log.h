@@ -34,6 +34,20 @@ enum log_level {
 };
 typedef enum log_level log_level_t;
 
+typedef struct {
+    FILE* out;
+    log_level_t min_level;
+} log_sink_t;
+
+typedef struct {
+    log_sink_t* sinks;
+    int size;
+} log_service_t;
+
+typedef struct{
+    log_service_t* service;
+    char* tag;
+} log_producer_t;
 const char* log_level_to_string(log_level_t level);
 char* log_message_timestamp(char* dest, size_t maxlen);
 void log_message_internal(const char* tag, log_level_t level, const char* message, va_list args);
