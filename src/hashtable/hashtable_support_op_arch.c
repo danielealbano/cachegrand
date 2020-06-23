@@ -158,10 +158,6 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
             LOG_DI(">> key fetched, comparing");
 
             if (unlikely(strncmp(key, (const char *) found_key, found_key_max_compare_size) != 0)) {
-                char* temp_found_key = (char*)malloc(found_key_max_compare_size + 1);
-                temp_found_key[found_key_max_compare_size] = 0;
-                strncpy(temp_found_key, (char*)found_key, found_key_max_compare_size);
-
                 LOG_DI(">> key different (%s != %s), unable to continue", key, found_key);
                 continue;
             }
@@ -352,10 +348,6 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
                     LOG_DI(">>> key fetched, comparing");
 
                     if (unlikely(strncmp(key, (const char *)found_key, found_key_max_compare_size) != 0)) {
-                        char* temp_found_key = (char*)malloc(found_key_max_compare_size + 1);
-                        temp_found_key[found_key_max_compare_size] = 0;
-                        strncpy(temp_found_key, (char*)found_key, found_key_max_compare_size);
-
                         LOG_DI(">>> key different (%s != %s), unable to continue", key, found_key);
                         continue;
                     }
