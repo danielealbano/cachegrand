@@ -15,11 +15,10 @@ hashtable_chunk_slot_index_t hashtable_support_hash_search(
         uint32_t skip_indexes)
 __attribute__ ((ifunc ("hashtable_support_hash_search_resolve")));
 
-static void *hashtable_support_hash_search_resolve(void)
-{
+static void *hashtable_support_hash_search_resolve(void) {
     __builtin_cpu_init();
 
-    LOG_DI("Selecting optimal hashtable_support_hash_search_resolve");
+    LOG_DI("Selecting optimal hashtable_support_hash_search");
 
 #if defined(__x86_64__)
     LOG_DI("CPU FOUND: %s", "X64");
