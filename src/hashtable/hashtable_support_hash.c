@@ -10,9 +10,9 @@
 #include "hashtable/hashtable_support_hash.h"
 
 hashtable_hash_t hashtable_support_hash_calculate(hashtable_key_data_t *key, hashtable_key_size_t key_size) {
-#if HASHTABLE_HASH_ALGORITHM_SELECTED == HASHTABLE_HASH_ALGORITHM_T1HA2
+#if CACHEGRAND_CMAKE_CONFIG_HASHTABLE_HASH_ALGORITHM == HASHTABLE_HASH_ALGORITHM_T1HA2
     return (hashtable_hash_t)t1ha2_atonce(key, key_size, HASHTABLE_SUPPORT_HASH_SEED);
-#elif HASHTABLE_HASH_ALGORITHM_SELECTED == HASHTABLE_HASH_ALGORITHM_CRC32C
+#elif CACHEGRAND_CMAKE_CONFIG_HASHTABLE_HASH_ALGORITHM == HASHTABLE_HASH_ALGORITHM_CRC32C
     uint32_t crc32 = hash_crc32c(key, key_size, HASHTABLE_SUPPORT_HASH_SEED);
     hashtable_hash_t hash = ((uint64_t)hash_crc32c(key, key_size, crc32) << 32u) | crc32;
 
