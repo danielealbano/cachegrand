@@ -53,9 +53,9 @@ uint32_t hash_crc32c_common_gf2_matrix_times(
 
     sum = 0;
     while (vec) {
-        if (vec & 1)
+        if (vec & 1u)
             sum ^= *mat;
-        vec >>= 1;
+        vec >>= 1u;
         mat++;
     }
     return sum;
@@ -82,7 +82,7 @@ void hash_crc32c_common_zeros_op(
     row = 1;
     for (n = 1; n < 32; n++) {
         odd[n] = row;
-        row <<= 1;
+        row <<= 1u;
     }
 
     /* put operator for two zero bits in even */
@@ -96,11 +96,11 @@ void hash_crc32c_common_zeros_op(
        on, until len has been rotated down to zero */
     do {
         hash_crc32c_common_gf2_matrix_square(even, odd);
-        len >>= 1;
+        len >>= 1u;
         if (len == 0)
             return;
         hash_crc32c_common_gf2_matrix_square(odd, even);
-        len >>= 1;
+        len >>= 1u;
     } while (len);
 
     /* answer ended up in odd -- copy to even */
@@ -118,9 +118,9 @@ void hash_crc32c_common_zeros(
     hash_crc32c_common_zeros_op(op, len);
     for (n = 0; n < 256; n++) {
         zeros[0][n] = hash_crc32c_common_gf2_matrix_times(op, n);
-        zeros[1][n] = hash_crc32c_common_gf2_matrix_times(op, n << 8);
-        zeros[2][n] = hash_crc32c_common_gf2_matrix_times(op, n << 16);
-        zeros[3][n] = hash_crc32c_common_gf2_matrix_times(op, n << 24);
+        zeros[1][n] = hash_crc32c_common_gf2_matrix_times(op, n << 8u);
+        zeros[2][n] = hash_crc32c_common_gf2_matrix_times(op, n << 16u);
+        zeros[3][n] = hash_crc32c_common_gf2_matrix_times(op, n << 24u);
     }
 }
 
@@ -128,7 +128,6 @@ uint32_t hash_crc32c_common_shift(
         uint32_t zeros[][256],
         uint32_t crc)
 {
-    return zeros[0][crc & 0xff] ^ zeros[1][(crc >> 8) & 0xff] ^
-           zeros[2][(crc >> 16) & 0xff] ^ zeros[3][crc >> 24];
+    return zeros[0][crc & 0xffu] ^ zeros[1][(crc >> 8u) & 0xffu] ^
+           zeros[2][(crc >> 16u) & 0xffu] ^ zeros[3][crc >> 24u];
 }
-

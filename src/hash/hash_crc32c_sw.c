@@ -54,21 +54,21 @@ static void hash_crc32c_sw_init() {
 
     for (n = 0; n < 256; n++) {
         crc = n;
-        crc = crc & 1 ? (crc >> 1) ^ HASH_CRC32C_POLY : crc >> 1;
-        crc = crc & 1 ? (crc >> 1) ^ HASH_CRC32C_POLY : crc >> 1;
-        crc = crc & 1 ? (crc >> 1) ^ HASH_CRC32C_POLY : crc >> 1;
-        crc = crc & 1 ? (crc >> 1) ^ HASH_CRC32C_POLY : crc >> 1;
-        crc = crc & 1 ? (crc >> 1) ^ HASH_CRC32C_POLY : crc >> 1;
-        crc = crc & 1 ? (crc >> 1) ^ HASH_CRC32C_POLY : crc >> 1;
-        crc = crc & 1 ? (crc >> 1) ^ HASH_CRC32C_POLY : crc >> 1;
-        crc = crc & 1 ? (crc >> 1) ^ HASH_CRC32C_POLY : crc >> 1;
+        crc = crc & 1u ? (crc >> 1u) ^ HASH_CRC32C_POLY : crc >> 1u;
+        crc = crc & 1u ? (crc >> 1u) ^ HASH_CRC32C_POLY : crc >> 1u;
+        crc = crc & 1u ? (crc >> 1u) ^ HASH_CRC32C_POLY : crc >> 1u;
+        crc = crc & 1u ? (crc >> 1u) ^ HASH_CRC32C_POLY : crc >> 1u;
+        crc = crc & 1u ? (crc >> 1u) ^ HASH_CRC32C_POLY : crc >> 1u;
+        crc = crc & 1u ? (crc >> 1u) ^ HASH_CRC32C_POLY : crc >> 1u;
+        crc = crc & 1u ? (crc >> 1u) ^ HASH_CRC32C_POLY : crc >> 1u;
+        crc = crc & 1u ? (crc >> 1u) ^ HASH_CRC32C_POLY : crc >> 1u;
         crc32c_table[0][n] = crc;
     }
 
     for (n = 0; n < 256; n++) {
         crc = crc32c_table[0][n];
         for (k = 1; k < 8; k++) {
-            crc = crc32c_table[0][crc & 0xff] ^ (crc >> 8);
+            crc = crc32c_table[0][crc & 0xffu] ^ (crc >> 8u);
             crc32c_table[k][n] = crc;
         }
     }
@@ -82,25 +82,25 @@ uint32_t hash_crc32c_sw(
     uint64_t crc;
 
     crc = seed ^ 0xffffffff;
-    while (data_len && ((uintptr_t)next & 7) != 0) {
-        crc = crc32c_table[0][(crc ^ *next++) & 0xff] ^ (crc >> 8);
+    while (data_len && ((uintptr_t)next & 7u) != 0) {
+        crc = crc32c_table[0][(crc ^ *next++) & 0xffu] ^ (crc >> 8u);
         data_len--;
     }
     while (data_len >= 8) {
         crc ^= *(uint64_t *)next;
-        crc = crc32c_table[7][crc & 0xff] ^
-              crc32c_table[6][(crc >> 8) & 0xff] ^
-              crc32c_table[5][(crc >> 16) & 0xff] ^
-              crc32c_table[4][(crc >> 24) & 0xff] ^
-              crc32c_table[3][(crc >> 32) & 0xff] ^
-              crc32c_table[2][(crc >> 40) & 0xff] ^
-              crc32c_table[1][(crc >> 48) & 0xff] ^
-              crc32c_table[0][crc >> 56];
+        crc = crc32c_table[7][crc & 0xffu] ^
+              crc32c_table[6][(crc >> 8u) & 0xffu] ^
+              crc32c_table[5][(crc >> 16u) & 0xffu] ^
+              crc32c_table[4][(crc >> 24u) & 0xffu] ^
+              crc32c_table[3][(crc >> 32u) & 0xffu] ^
+              crc32c_table[2][(crc >> 40u) & 0xffu] ^
+              crc32c_table[1][(crc >> 48u) & 0xffu] ^
+              crc32c_table[0][crc >> 56u];
         next += 8;
         data_len -= 8;
     }
     while (data_len) {
-        crc = crc32c_table[0][(crc ^ *next++) & 0xff] ^ (crc >> 8);
+        crc = crc32c_table[0][(crc ^ *next++) & 0xffu] ^ (crc >> 8u);
         data_len--;
     }
     return (uint32_t)crc ^ 0xffffffff;

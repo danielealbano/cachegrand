@@ -76,7 +76,7 @@ uint32_t hash_crc32c_sse42(
 
     /* compute the crc for up to seven leading bytes to bring the data pointer
        to an eight-byte boundary */
-    while (data_len && ((uintptr_t)next & 7) != 0) {
+    while (data_len && ((uintptr_t)next & 7u) != 0) {
         __asm__("crc32b\t" "(%1), %0"
         : "=r"(crc0)
         : "r"(next), "0"(crc0));
@@ -128,14 +128,14 @@ uint32_t hash_crc32c_sse42(
 
     /* compute the crc on the remaining eight-byte units less than a SHORT*3
        block */
-    end = next + (data_len - (data_len & 7));
+    end = next + (data_len - (data_len & 7u));
     while (next < end) {
         __asm__("crc32q\t" "(%1), %0"
         : "=r"(crc0)
         : "r"(next), "0"(crc0));
         next += 8;
     }
-    data_len &= 7;
+    data_len &= 7u;
 
     /* compute the crc for up to seven trailing bytes */
     while (data_len) {
