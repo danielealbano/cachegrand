@@ -8,16 +8,16 @@ if (CMAKE_BUILD_TYPE MATCHES Debug)
     endif()
 
     message(STATUS "Release build")
+elseif (CMAKE_BUILD_TYPE MATCHES ReleaseBench)
+    add_definitions(-DNDEBUG=1)
+    add_definitions(-DHASHTABLE_HASH_ALGORITHM_SELECTED=2)
+    add_compile_options(-g -O3)
+
+    message(STATUS "Release Benches build (using CRC32C algorithm)")
 elseif (CMAKE_BUILD_TYPE MATCHES Release)
     add_definitions(-DNDEBUG=1)
     add_definitions(-DHASHTABLE_HASH_ALGORITHM_SELECTED=1)
     add_compile_options(-g -O3)
 
     message(STATUS "Release build")
-elseif (CMAKE_BUILD_TYPE MATCHES ReleaseBench)
-    add_definitions(-DNDEBUG=1)
-    add_definitions(-DHASHTABLE_HASH_ALGORITHM_SELECTED=2)
-    add_compile_options(-g -O3)
-
-    message(STATUS "Release for Benches build (using CRC32 algorithm)")
 endif()
