@@ -1,4 +1,5 @@
-![Build & Test](https://github.com/danielealbano/cachegrand/workflows/Build%20&%20Test/badge.svg) [![codecov](https://codecov.io/gh/danielealbano/cachegrand/branch/master/graph/badge.svg)](https://codecov.io/gh/danielealbano/cachegrand)
+[![Build & Test](https://github.com/danielealbano/cachegrand/workflows/Build%20&%20Test/badge.svg)](https://github.com/danielealbano/cachegrand/actions?query=branch%3Amaster+workflow%3A%22Build+%26+Test%22)
+[![Code Coverage](https://img.shields.io/codecov/c/gh/danielealbano/cachegrand?label=code%20coverage)](https://codecov.io/gh/danielealbano/cachegrand)
 
 cachegrand
 ==========

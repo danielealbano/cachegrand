@@ -26,13 +26,13 @@ jobs:
           }
 
     steps:
-    - name: Setup cmake
+    - name: Setup - cmake
       uses: lukka/get-cmake@latest
 
     - name: Checkout
       uses: actions/checkout@v2
       with:
-        submodules: true
+        submodules: recursive
 
     - name: Create Build Environment
       run: cmake -E make_directory ${{github.workspace}}/build
