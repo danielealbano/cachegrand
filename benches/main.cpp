@@ -1,6 +1,12 @@
 #include <benchmark/benchmark.h>
 
+#include "exttypes.h"
+#include "spinlock.h"
+#include "misc.h"
 #include "signal_handler_sigsegv.h"
+
+#include "hashtable/hashtable.h"
+#include "hashtable/hashtable_support_hash.h"
 
 int main(int argc, char** argv) {
     signal_handler_sigsegv_init();
@@ -12,6 +18,9 @@ int main(int argc, char** argv) {
     fprintf(stdout, "  although the test keyset by default contains 1610612736 (1.610bln) with a size of 46.5GB\n");
     fprintf(stdout, "  so there is no chance to fit it in the cpu cache.\n");
     fprintf(stdout, "\n");
+
+    fprintf(stdout, "The benchmarks are running using the following hash algorithm:\n  %s\n",
+            HASHTABLE_SUPPORT_HASH_NAME);
     fflush(stdout);
 
     ::benchmark::Initialize(&argc, argv);
