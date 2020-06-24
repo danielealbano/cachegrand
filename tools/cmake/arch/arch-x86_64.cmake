@@ -2,13 +2,17 @@ include(CheckCCompilerFlag)
 include(CheckCSourceCompiles)
 include(CheckCSourceRuns)
 
+EXEC_PROGRAM(cat ARGS "/proc/cpuinfo" OUTPUT_VARIABLE CPUINFO)
+
 check_c_compiler_flag(-mavx2                              COMPILER_HAS_MAVX2_FLAG)
 check_c_compiler_flag(-mavx                               COMPILER_HAS_MAVX_FLAG)
+check_c_compiler_flag(-msse42                             COMPILER_HAS_MSSE42_FLAG)
 check_c_compiler_flag(-mno-avx256-split-unaligned-load    COMPILER_HAS_MNO_AVX256_SPLIT_UNALIGNED_LOAD_FLAG)
 check_c_compiler_flag(-mbmi                               COMPILER_HAS_MBMI_FLAG)
 check_c_compiler_flag(-mlzcnt                             COMPILER_HAS_MLZCNT_FLAG)
 check_c_compiler_flag(-mclflushopt                        COMPILER_HAS_CLFLUSHOPT_FLAG)
 
+# Check if the host has AVX2
 if (COMPILER_HAS_MAVX2_FLAG)
     set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
     list(APPEND CMAKE_REQUIRED_FLAGS "-mavx2")
@@ -31,6 +35,7 @@ int main() {
     endif()
 endif()
 
+# Check if the host has AVX
 if (COMPILER_HAS_MAVX_FLAG)
     set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
     list(APPEND CMAKE_REQUIRED_FLAGS "-mavx -mno-avx2")
@@ -53,6 +58,7 @@ int main() {
     endif()
 endif()
 
+# Check if the host has CLFLUSHOPT
 if (COMPILER_HAS_CLFLUSHOPT_FLAG)
     set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
     list(APPEND CMAKE_REQUIRED_FLAGS "-mclflushopt")
@@ -70,3 +76,12 @@ int main() {
         set(HOST_HAS_CLFLUSHOPT 0)
     endif()
 endif()
+
+# Check if the host has SSE4.2
+STRING(REGEX REPLACE "^.*(sse4_2).*$" "¥¥1" SSE_THERE ${CPUINFO})
+STRING(COMPARE EQUAL "sse4_2" "${SSE_THERE}" SSE42_TRUE)
+IF (SSE42_TRUE)
+    set(HOST_HAS_SSE42 1)
+ELSE (SSE42_TRUE)
+    set(HOST_HAS_SSE42 0)
+ENDIF (SSE42_TRUE)
