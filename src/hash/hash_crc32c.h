@@ -27,6 +27,3 @@ uint32_t hash_crc32c(
 #endif
 
 #endif //CACHEGRAND_HASH_CRC32C_H
-
-
-
