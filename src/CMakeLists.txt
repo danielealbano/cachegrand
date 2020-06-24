@@ -36,11 +36,10 @@ file(GLOB_RECURSE SRC_FILES_CACHEGRAND "*.c")
 list(APPEND SRC_FILES_CACHEGRAND "${CACHEGRAND_CMAKE_CONFIG_C_SRC}")
 list(REMOVE_ITEM SRC_FILES_CACHEGRAND ${CMAKE_CURRENT_SOURCE_DIR}/main.c)
 
-# Remove all the architecture dependant implementation but re-include the loop (non architecture dependant)
-list(FILTER SRC_FILES_CACHEGRAND EXCLUDE REGEX ".*hash_crc32c_[a-z0-9]+.c$")
-list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hash/hash_crc32c_sw.c")
+# Remove all the architecture dependant implementation of the hash crc32 algorithm
+list(REMOVE_ITEM SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hash/hash_crc32c_sse42.c")
 
-# Remove all the architecture dependant implementation but re-include the loop (non architecture dependant)
+# Remove all the architecture dependant implementation of the search loop and re-inglude it
 list(FILTER SRC_FILES_CACHEGRAND EXCLUDE REGEX ".*hashtable_support_hash_search_[a-z0-9]+.c$")
 list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_loop.c")
 
