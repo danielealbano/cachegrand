@@ -78,7 +78,7 @@ int main() {
 endif()
 
 # Check if the host has SSE4.2
-STRING(REGEX REPLACE "^.*(sse4_2).*$" "¥¥1" SSE_THERE ${CPUINFO})
+string(REGEX REPLACE "^.*(sse4_2).*$" "\\1" SSE_THERE ${CPUINFO})
 STRING(COMPARE EQUAL "sse4_2" "${SSE_THERE}" SSE42_TRUE)
 IF (SSE42_TRUE)
     set(HOST_HAS_SSE42 1)
