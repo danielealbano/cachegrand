@@ -45,6 +45,8 @@ list(FILTER SRC_FILES_CACHEGRAND EXCLUDE REGEX ".*hashtable_support_hash_search_
 list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_loop.c")
 
 if(ARCH_IS_X86_64)
+    message(STATUS "Enabling accelerated crc32c hash")
+
     # hash/hash_crc32c_sse42.c
     message(STATUS "Enabling accelerated crc32c hash -- sse4.2")
     list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hash/hash_crc32c_sse42.c")
@@ -52,6 +54,8 @@ if(ARCH_IS_X86_64)
             "hash/hash_crc32c_sse42.c"
             PROPERTIES COMPILE_FLAGS
             "-msse4.2 -mpclmul")
+
+    message(STATUS "Enabling accelerated hash search")
 
     # hashtable/hashtable_support_hash_search_avx2.c
     message(STATUS "Enabling accelerated hash search -- avx2")
@@ -69,6 +73,7 @@ if(ARCH_IS_X86_64)
             PROPERTIES COMPILE_FLAGS
             "-mno-avx256-split-unaligned-load -mno-avx2 -mavx -mbmi")
 
+    message(STATUS "Enabling accelerated hashtable support operations")
     foreach(HASHTABLE_SUPPORT_OP_ARCH_SUFFIX
             avx2
             avx
@@ -81,6 +86,10 @@ else()
     message(FATAL_ERROR "Unsupported architecture")
 endif()
 
+add_library(
+        cachegrand-internal
+        ${SRC_FILES_CACHEGRAND})
+
 if(CMAKE_BUILD_TYPE MATCHES ReleaseBench)
     target_compile_definitions(
             cachegrand-internal
@@ -92,10 +101,6 @@ else()
             PRIVATE
             -DHASHTABLE_HASH_ALGORITHM_SELECTED=2)
 endif()
-
-add_library(
-        cachegrand-internal
-        ${SRC_FILES_CACHEGRAND})
 
 add_dependencies(
         cachegrand-internal
