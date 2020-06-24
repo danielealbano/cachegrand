@@ -74,7 +74,7 @@ static void hash_crc32c_sw_init() {
     }
 }
 
-static uint32_t hash_crc32c_sw(
+uint32_t hash_crc32c_sw(
         const char* data,
         size_t data_len,
         uint32_t seed) {

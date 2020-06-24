@@ -46,7 +46,7 @@
 
 #include "hash_crc32c_common.h"
 
-static inline uint32_t hash_crc32c_common_gf2_matrix_times(
+uint32_t hash_crc32c_common_gf2_matrix_times(
         uint32_t *mat,
         uint32_t vec) {
     uint32_t sum;
@@ -61,7 +61,7 @@ static inline uint32_t hash_crc32c_common_gf2_matrix_times(
     return sum;
 }
 
-static inline void hash_crc32c_common_gf2_matrix_square(
+void hash_crc32c_common_gf2_matrix_square(
         uint32_t *square,
         uint32_t *mat) {
     int n;
@@ -70,7 +70,7 @@ static inline void hash_crc32c_common_gf2_matrix_square(
         square[n] = hash_crc32c_common_gf2_matrix_times(mat, mat[n]);
 }
 
-static void hash_crc32c_common_zeros_op(
+void hash_crc32c_common_zeros_op(
         uint32_t *even,
         size_t len) {
     int n;
@@ -108,7 +108,7 @@ static void hash_crc32c_common_zeros_op(
         even[n] = odd[n];
 }
 
-static void hash_crc32c_common_zeros(
+void hash_crc32c_common_zeros(
         uint32_t zeros[][256],
         size_t len)
 {
@@ -124,7 +124,7 @@ static void hash_crc32c_common_zeros(
     }
 }
 
-static inline uint32_t hash_crc32c_common_shift(
+uint32_t hash_crc32c_common_shift(
         uint32_t zeros[][256],
         uint32_t crc)
 {
