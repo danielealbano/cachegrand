@@ -93,12 +93,12 @@ if(CMAKE_BUILD_TYPE MATCHES ReleaseBench)
     target_compile_definitions(
             cachegrand-internal
             PRIVATE
-            -DHASHTABLE_HASH_ALGORITHM_SELECTED=1)
+            -DHASHTABLE_HASH_ALGORITHM_SELECTED=2)
 else()
     target_compile_definitions(
             cachegrand-internal
             PRIVATE
-            -DHASHTABLE_HASH_ALGORITHM_SELECTED=2)
+            -DHASHTABLE_HASH_ALGORITHM_SELECTED=1)
 endif()
 
 add_dependencies(
