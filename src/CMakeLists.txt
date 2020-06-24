@@ -34,6 +34,8 @@ endmacro()
 # Check the selected hash algorithm
 if(USE_HASHTABLE_HASH_ALGORITHM_T1HA2 AND USE_HASHTABLE_HASH_ALGORITHM_CRC32C)
     message(FATAL_ERROR "Can't enable at the same time T1HA2 and CRC32C for the hashtable")
+elseif(NOT USE_HASHTABLE_HASH_ALGORITHM_T1HA2 AND NOT USE_HASHTABLE_HASH_ALGORITHM_CRC32C)
+    message(FATAL_ERROR "Please select T1HA2 and CRC32C as hashing algorithm for the hashtable")
 else()
     message(STATUS "Hashtable hashing algorithm")
     if (USE_HASHTABLE_HASH_ALGORITHM_T1HA2)
