@@ -116,7 +116,7 @@ cachegrand is still under heavy development, the goals for the 0.1 milestone are
 
 Because it aims to be a modern platform, the goal is to have the features mentioned below by the time of it's first
 stable release:
-- Add support for Windows and Mac OS X, the code is already being written with this goal in mind;
+- Add support for Windows and Mac OS X, the code is already being written whenever possible with this goal in mind;
 - Commands batching, to be able to perform multiple set of operations at the same time;
 - TLS, to encrypt the data on-transit;
 - Authentication and ACLs, to limit who has access and which data are accessible;
