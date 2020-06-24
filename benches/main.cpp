@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
     fprintf(stdout, "  so there is no chance to fit it in the cpu cache.\n");
     fprintf(stdout, "\n");
 
-    fprintf(stdout, "The benchmarks are running using the following algorithm:\n  %s\n", hashtable_support_hash_name);
+    fprintf(stdout, "The benchmarks are running using the following algorithm:\n  %s\n", HASHTABLE_SUPPORT_HASH_NAME);
     fflush(stdout);
 
     ::benchmark::Initialize(&argc, argv);
