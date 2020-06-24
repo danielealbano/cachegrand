@@ -12,6 +12,12 @@ extern "C" {
 #define HASHTABLE_HASH_ALGORITHM_CRC32C         2
 #define HASHTABLE_HASH_ALGORITHM_CRC32C_STR     "CRC32C"
 
+#if HASHTABLE_HASH_ALGORITHM_SELECTED == HASHTABLE_HASH_ALGORITHM_T1HA2
+const char* hashtable_support_hash_name = HASHTABLE_HASH_ALGORITHM_T1HA2_STR;
+#elif HASHTABLE_HASH_ALGORITHM_SELECTED == HASHTABLE_HASH_ALGORITHM_CRC32C
+const char* hashtable_support_hash_name = HASHTABLE_HASH_ALGORITHM_CRC32C_STR;
+#endif
+
 hashtable_hash_t hashtable_support_hash_calculate(
         hashtable_key_data_t *key, hashtable_key_size_t key_size);
 
