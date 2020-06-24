@@ -31,11 +31,16 @@ macro(CACHEGRAND_BUILD_ADHOC_HASHTABLE_SUPPORT_OP_ARCH ARCH)
     list(APPEND SRC_FILES_CACHEGRAND "$<TARGET_OBJECTS:${hashtable_support_op_arch_target_name}>")
 endmacro()
 
-option(USE_HASHTABLE_HASH_ALGORITHM_T1HA2 "Use T1HA2 as hash algorithm for the hashtable" ON)
-option(USE_HASHTABLE_HASH_ALGORITHM_CRC32C "Use CRC32C as hash algorithm for the hashtable" OFF)
-
+# Check the selected hash algorithm
 if(USE_HASHTABLE_HASH_ALGORITHM_T1HA2 AND USE_HASHTABLE_HASH_ALGORITHM_CRC32C)
     message(FATAL_ERROR "Can't enable at the same time T1HA2 and CRC32C for the hashtable")
+else()
+    message(STATUS "Hashtable hashing algorithm")
+    if (USE_HASHTABLE_HASH_ALGORITHM_T1HA2)
+        message(STATUS "Hashtable hashing algorithm - t1ha2")
+    elseif (USE_HASHTABLE_HASH_ALGORITHM_CRC32C)
+        message(STATUS "Hashtable hashing algorithm - crc32c")
+    endif()
 endif()
 
 # Build the base cachegrand library
@@ -115,13 +120,6 @@ target_include_directories(
         cachegrand-internal
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR} ${DEPS_LIST_INCLUDE_DIRS})
-
-
-if (USE_HASHTABLE_HASH_ALGORITHM_T1HA2)
-    target_compile_definitions(cachegrand-internal PUBLIC "-DHASHTABLE_HASH_ALGORITHM=1")
-elseif (USE_HASHTABLE_HASH_ALGORITHM_CRC32C)
-    target_compile_definitions(cachegrand-internal PUBLIC "-DHASHTABLE_HASH_ALGORITHM=2")
-endif()
 
 if(ARCH_IS_X86_64)
     # Force GCC to emit cmpxchg16b inline (supported only on x86_64 platforms)

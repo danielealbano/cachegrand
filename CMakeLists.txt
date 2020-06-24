@@ -8,11 +8,11 @@ include(tools/cmake/config.cmake)
 add_subdirectory(3rdparty)
 add_subdirectory(src)
 
-if (CACHEGRAND_BUILD_TESTS)
+if (BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
 
-if (CACHEGRAND_BUILD_BENCHES)
+if (BUILD_INTERNAL_BENCHES)
     add_subdirectory(benches)
 endif()
