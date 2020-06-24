@@ -7,8 +7,10 @@ extern "C" {
 
 #define HASHTABLE_SUPPORT_HASH_SEED    42U
 
-#define HASHTABLE_HASH_ALGORITHM_T1HA2      1
-#define HASHTABLE_HASH_ALGORITHM_CRC32C     2
+#define HASHTABLE_HASH_ALGORITHM_T1HA2          1
+#define HASHTABLE_HASH_ALGORITHM_T1HA2_STR      "T1HA2"
+#define HASHTABLE_HASH_ALGORITHM_CRC32C         2
+#define HASHTABLE_HASH_ALGORITHM_CRC32C_STR     "CRC32C"
 
 hashtable_hash_t hashtable_support_hash_calculate(
         hashtable_key_data_t *key, hashtable_key_size_t key_size);
