@@ -37,10 +37,23 @@ list(APPEND SRC_FILES_CACHEGRAND "${CACHEGRAND_CMAKE_CONFIG_C_SRC}")
 list(REMOVE_ITEM SRC_FILES_CACHEGRAND ${CMAKE_CURRENT_SOURCE_DIR}/main.c)
 
 # Remove all the architecture dependant implementation but re-include the loop (non architecture dependant)
+list(FILTER SRC_FILES_CACHEGRAND EXCLUDE REGEX ".*hash_crc32c_[a-z0-9]+.c$")
+list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hash/hash_crc32c_sw.c")
+
+# Remove all the architecture dependant implementation but re-include the loop (non architecture dependant)
 list(FILTER SRC_FILES_CACHEGRAND EXCLUDE REGEX ".*hashtable_support_hash_search_[a-z0-9]+.c$")
 list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_loop.c")
 
 if(ARCH_IS_X86_64)
+    # hash/hash_crc32c_sse42.c
+    message(STATUS "Enabling accelerated crc32c hash -- sse4.2")
+    list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hash/hash_crc32c_sse42.c")
+    set_source_files_properties(
+            "hash/hash_crc32c_sse42.c"
+            PROPERTIES COMPILE_FLAGS
+            "-msse4.2 -mpclmul")
+
+    # hashtable/hashtable_support_hash_search_avx2.c
     message(STATUS "Enabling accelerated hash search -- avx2")
     list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_avx2.c")
     set_source_files_properties(
@@ -48,6 +61,7 @@ if(ARCH_IS_X86_64)
             PROPERTIES COMPILE_FLAGS
             "-mno-avx256-split-unaligned-load -mavx2 -mbmi -mfma -mtune=haswell")
 
+    # hashtable/hashtable_support_hash_search_avx.c
     message(STATUS "Enabling accelerated hash search -- avx")
     list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hashtable/hashtable_support_hash_search_avx.c")
     set_source_files_properties(
@@ -65,6 +79,18 @@ if(ARCH_IS_X86_64)
     endforeach()
 else()
     message(FATAL_ERROR "Unsupported architecture")
+endif()
+
+if(CMAKE_BUILD_TYPE MATCHES ReleaseBench)
+    target_compile_definitions(
+            cachegrand-internal
+            PRIVATE
+            -DHASHTABLE_HASH_ALGORITHM_SELECTED=1)
+else()
+    target_compile_definitions(
+            cachegrand-internal
+            PRIVATE
+            -DHASHTABLE_HASH_ALGORITHM_SELECTED=2)
 endif()
 
 add_library(
@@ -117,5 +143,3 @@ add_dependencies(
 target_link_libraries(
         cachegrand
         cachegrand-internal t1ha)
-
-target_add_code_coverage(cachegrand-internal)
