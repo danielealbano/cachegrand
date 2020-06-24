@@ -54,16 +54,16 @@
 #define SHORTx1 "256"
 #define SHORTx2 "512"
 
-static uint32_t crc32c_sse42_tables_long[4][256];
-static uint32_t crc32c_sse42_tables_short[4][256];
+static uint32_t hash_crc32c_sse42_tables_long[4][256];
+static uint32_t hash_crc32c_sse42_tables_short[4][256];
 
 __attribute__((constructor))
-static void crc32c_sse42_init() {
-    hash_crc32c_common_zeros(crc32c_sse42_tables_long, LONG);
-    hash_crc32c_common_zeros(crc32c_sse42_tables_short, SHORT);
+static void hash_crc32c_sse42_init() {
+    hash_crc32c_common_zeros(hash_crc32c_sse42_tables_long, LONG);
+    hash_crc32c_common_zeros(hash_crc32c_sse42_tables_short, SHORT);
 }
 
-uint32_t crc32c_sse42(
+uint32_t hash_crc32c_sse42(
         const char* data,
         size_t data_len,
         uint32_t seed) {
@@ -100,8 +100,8 @@ uint32_t crc32c_sse42(
             : "r"(next), "0"(crc0), "1"(crc1), "2"(crc2));
             next += 8;
         } while (next < end);
-        crc0 = hash_crc32c_common_shift(crc32c_sse42_tables_long, crc0) ^ crc1;
-        crc0 = hash_crc32c_common_shift(crc32c_sse42_tables_long, crc0) ^ crc2;
+        crc0 = hash_crc32c_common_shift(hash_crc32c_sse42_tables_long, crc0) ^ crc1;
+        crc0 = hash_crc32c_common_shift(hash_crc32c_sse42_tables_long, crc0) ^ crc2;
         next += LONG*2;
         data_len -= LONG * 3;
     }
@@ -120,8 +120,8 @@ uint32_t crc32c_sse42(
             : "r"(next), "0"(crc0), "1"(crc1), "2"(crc2));
             next += 8;
         } while (next < end);
-        crc0 = hash_crc32c_common_shift(crc32c_sse42_tables_short, crc0) ^ crc1;
-        crc0 = hash_crc32c_common_shift(crc32c_sse42_tables_short, crc0) ^ crc2;
+        crc0 = hash_crc32c_common_shift(hash_crc32c_sse42_tables_short, crc0) ^ crc1;
+        crc0 = hash_crc32c_common_shift(hash_crc32c_sse42_tables_short, crc0) ^ crc2;
         next += SHORT*2;
         data_len -= SHORT * 3;
     }

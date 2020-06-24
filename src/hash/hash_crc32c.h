@@ -9,7 +9,10 @@ extern "C" {
     hash_crc32c_##METHOD
 
 #define HASH_CRC32C_SIGNATURE(METHOD) \
-    extern uint32_t HASH_CRC32C(METHOD)(uint32_t crc, const char *data, size_t data_size);
+    extern uint32_t HASH_CRC32C(METHOD)( \
+            const char* data, \
+            size_t data_len, \
+            uint32_t seed);
 
 HASH_CRC32C_SIGNATURE(sw);
 HASH_CRC32C_SIGNATURE(sse42);

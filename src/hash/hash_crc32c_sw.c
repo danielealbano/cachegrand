@@ -49,7 +49,7 @@
 static uint32_t crc32c_table[8][256];
 
 __attribute__((constructor))
-static void crc32c_sw_init() {
+static void hash_crc32c_sw_init() {
     uint32_t n, crc, k;
 
     for (n = 0; n < 256; n++) {
@@ -74,7 +74,7 @@ static void crc32c_sw_init() {
     }
 }
 
-static uint32_t crc32c_sw(
+static uint32_t hash_crc32c_sw(
         const char* data,
         size_t data_len,
         uint32_t seed) {
