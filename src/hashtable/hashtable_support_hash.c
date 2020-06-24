@@ -5,11 +5,21 @@
 #include "exttypes.h"
 #include "spinlock.h"
 
+#include "hash/hash_crc32c.h"
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_support_hash.h"
 
 hashtable_hash_t hashtable_support_hash_calculate(hashtable_key_data_t *key, hashtable_key_size_t key_size) {
-    return (hashtable_hash_t)t1ha2_atonce(key, key_size, HASHTABLE_T1HA_SEED);
+#if HASHTABLE_HASH_ALGORITHM_SELECTED == 1
+    return (hashtable_hash_t)t1ha2_atonce(key, key_size, HASHTABLE_SUPPORT_HASH_SEED);
+#elif HASHTABLE_HASH_ALGORITHM_SELECTED == 2
+    uint32_t crc32 = hash_crc32c(key, key_size, HASHTABLE_SUPPORT_HASH_SEED);
+    hashtable_hash_t hash = ((uint64_t)hash_crc32c(key, key_size, crc32) << 32u) | crc32;
+
+   return hash;
+#else
+#error "Unsupported hash algorithm"
+#endif
 }
 
 hashtable_hash_half_t hashtable_support_hash_half(hashtable_hash_t hash) {

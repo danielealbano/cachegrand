@@ -5,7 +5,10 @@
 extern "C" {
 #endif
 
-#define HASHTABLE_T1HA_SEED    42U
+#define HASHTABLE_SUPPORT_HASH_SEED    42U
+
+#define HASHTABLE_HASH_ALGORITHM_T1HA2      1
+#define HASHTABLE_HASH_ALGORITHM_CRC32C     2
 
 hashtable_hash_t hashtable_support_hash_calculate(
         hashtable_key_data_t *key, hashtable_key_size_t key_size);
