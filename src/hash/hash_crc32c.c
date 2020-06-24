@@ -13,8 +13,7 @@ uint32_t hash_crc32c(
         uint32_t seed)
 __attribute__ ((ifunc ("hash_crc32c_resolve")));
 
-static void *hash_crc32c_resolve(void)
-{
+static void *hash_crc32c_resolve(void) {
     __builtin_cpu_init();
 
     LOG_DI("Selecting optimal hash_crc32c");
