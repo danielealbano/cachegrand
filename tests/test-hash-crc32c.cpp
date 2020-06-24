@@ -1,34 +1,30 @@
 #include "catch.hpp"
 
-#include "pow2.h"
+#include "misc.h"
+#include "hash/hash_crc32c.h"
 
-TEST_CASE("pow2.c", "[pow2]") {
-    SECTION("pow2_is") {
-        SECTION("valid power of 2 numbers") {
-            REQUIRE(pow2_is(0x000Fu + 1u));
-            REQUIRE(pow2_is(0x00FFu + 1u));
-            REQUIRE(pow2_is(0x0FFFu + 1u));
-            REQUIRE(pow2_is(0xFFFFu + 1u));
-        }
-        SECTION("invalid power of 2 numbers") {
-            REQUIRE(!pow2_is(0x000Fu));
-            REQUIRE(!pow2_is(0x00FFu));
-            REQUIRE(!pow2_is(0x0FFFu));
-            REQUIRE(!pow2_is(0xFFFFu));
-        }
+char test_key_1[] = "test key 1";
+size_t test_key_1_len = 10;
+
+#define TEST_HASH_CRC32C_PLATFORM_DEPENDENT(SUFFIX) \
+    SECTION("hash_crc32c" STRINGIZE(SUFFIX)) { \
+        SECTION("valid crc32") { \
+            REQUIRE(hash_crc32c##SUFFIX(test_key_1, test_key_1_len, 0x0000002AU) == 184302627); \
+        } \
+        SECTION("seed 0") { \
+            REQUIRE(hash_crc32c##SUFFIX(test_key_1, test_key_1_len, 0x00000000U) == 3252784223); \
+        } \
+        SECTION("seed 0xFFFFFFFF") { \
+            REQUIRE(hash_crc32c##SUFFIX(test_key_1, test_key_1_len, 0xFFFFFFFFU) == 3720577995); \
+        } \
     }
 
-    SECTION("pow2_next_pow2m1") {
-        REQUIRE(pow2_next_pow2m1(0x000Fu - 1u) == 0x000Fu);
-        REQUIRE(pow2_next_pow2m1(0x00FFu - 1u) == 0x00FFu);
-        REQUIRE(pow2_next_pow2m1(0x0FFFu - 1u) == 0x0FFFu);
-        REQUIRE(pow2_next_pow2m1(0xFFFFu - 1u) == 0xFFFFu);
-    }
-
-    SECTION("pow2_next") {
-        REQUIRE(pow2_next(0x000Fu) == 0x000Fu + 1u);
-        REQUIRE(pow2_next(0x00FFu) == 0x00FFu + 1u);
-        REQUIRE(pow2_next(0x0FFFu) == 0x0FFFu + 1u);
-        REQUIRE(pow2_next(0xFFFFu) == 0xFFFFu + 1u);
-    }
+TEST_CASE("hash/hash_crc32c.c", "[hash][hash_crc32c]") {
+#if defined(__x86_64__)
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_SSE42 == 1
+    TEST_HASH_CRC32C_PLATFORM_DEPENDENT(_sse42)
+#endif
+#endif
+    TEST_HASH_CRC32C_PLATFORM_DEPENDENT(_sw)
+    TEST_HASH_CRC32C_PLATFORM_DEPENDENT()
 }
