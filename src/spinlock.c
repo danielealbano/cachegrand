@@ -11,6 +11,16 @@
 #include "log.h"
 #include "fatal.h"
 
+static log_producer_t* spinlock_log_producer;
+
+static void __attribute__((constructor)) init_spinlock_log(){
+    spinlock_log_producer = init_log_producer("spinlock");
+}
+
+static void __attribute__((constructor)) deinit_spinlock_log(){
+    free(spinlock_log_producer);
+}
+
 void spinlock_init(
         spinlock_lock_volatile_t* spinlock) {
     spinlock->lock = SPINLOCK_UNLOCKED;

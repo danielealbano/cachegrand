@@ -1,8 +1,6 @@
 #ifndef CACHEGRAND_SPINLOCK_H
 #define CACHEGRAND_SPINLOCK_H
 
-#include "log.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -46,16 +44,6 @@ bool spinlock_lock_internal(
 
 void spinlock_unlock(
         spinlock_lock_volatile_t* spinlock);
-
-static log_producer_t* spinlock_log_producer;
-
-static void __attribute__((constructor)) init_spinlock_log(){
-    spinlock_log_producer = init_log_producer("spinlock");
-}
-
-static void __attribute__((constructor)) deinit_spinlock_log(){
-    free(spinlock_log_producer);
-}
 
 /**
  * Uses a macro to wrap _spinlock_lock to automatically define the path, func and line args

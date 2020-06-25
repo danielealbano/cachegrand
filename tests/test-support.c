@@ -40,6 +40,15 @@
 
 #include "test-support.h"
 
+static log_producer_t* support_log_producer;
+static void __attribute__((constructor)) init_support_log(){
+    support_log_producer = init_log_producer("test-support");
+}
+static void __attribute__((constructor)) deinit_support_log(){
+    free(support_log_producer);
+}
+
+
 void test_support_hashtable_print_heatmap(
         hashtable_t* hashtable,
         uint8_t columns) {

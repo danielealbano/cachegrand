@@ -85,7 +85,7 @@ void __attribute__((constructor)) init_log_service() {
     log_service->size = 1;
 }
 
-void register_sink(log_sink_t *sink) {
+void log_sink_register(log_sink_t *sink) {
     ++log_service->size;
     log_service->sinks = realloc(log_service->sinks, sizeof(log_sink_t)*log_service->size);
     *(log_service->sinks + log_service->size - 1) = sink;

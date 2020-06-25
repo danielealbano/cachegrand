@@ -62,7 +62,7 @@ static log_service_t* log_service;
 void __attribute__((constructor)) init_log_service();
 void __attribute__((destructor)) deinit_log_service();
 
-void register_sink(log_sink_t* sink);
+void log_sink_register(log_sink_t *sink);
 #ifndef DEBUG
 #define LOG_DI(...) /* Internal debug logs disabled */
 #endif // DEBUG == 1
