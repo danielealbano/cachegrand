@@ -55,11 +55,7 @@ void log_message_internal(const char* tag, log_level_t level, const char* messag
     fprintf(out, "\n");
     fflush(out);
 }
-
-void log_message(log_producer_t* tag, log_level_t level, const char* message, ...) {
-    va_list args;
-    va_start(args, message);
-
+void log_message_vargs(log_producer_t *tag, log_level_t level, const char *message, va_list args) {
     for(int i =0; i<= log_service->size-1; ++i){
         log_sink_t* sink = log_service->sinks[i];
         if (level > sink->min_level) {
@@ -67,6 +63,12 @@ void log_message(log_producer_t* tag, log_level_t level, const char* message, ..
         }
         log_message_internal(tag->tag, level, message, args,sink->out);
     }
+}
+void log_message(log_producer_t* tag, log_level_t level, const char* message, ...) {
+    va_list args;
+    va_start(args, message);
+
+    log_message_vargs(tag,level,message,args);
 
     va_end(args);
 }

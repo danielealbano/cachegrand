@@ -47,6 +47,7 @@ enum {
 #define HASHTABLE_KEY_VALUE_IS_EMPTY(flags) \
     (flags == 0)
 
+
 /**
  * Configuration of the hashtable
  */
@@ -63,6 +64,15 @@ struct hashtable_config {
  * in ad-hoc allocated memory if needed.
  * The struct is aligned to 32 byte to ensure to fit the first half or the second half of a cache-line
  */
+static log_producer_t* hashmap_log_producer;
+static void __attribute__((constructor)) init_hashmap_log(){
+    hashmap_log_producer = init_log_producer("hashtable");
+}
+
+static void __attribute__((destructor)) deinit_hashmap_log(){
+    free(hashmap_log_producer);
+}
+
 typedef struct hashtable_key_value hashtable_key_value_t;
 typedef _Volatile(hashtable_key_value_t) hashtable_key_value_volatile_t;
 struct hashtable_key_value {

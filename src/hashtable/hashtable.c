@@ -11,15 +11,6 @@
 #include "hashtable/hashtable_config.h"
 #include "hashtable/hashtable_data.h"
 
-static log_producer_t* hashmap_log_producer;
-static void __attribute__((constructor)) init_hashmap_log(){
-    hashmap_log_producer = init_log_producer("hashtable");
-}
-
-static void __attribute__((destructor)) deinit_hashmap_log(){
-    free(hashmap_log_producer);
-}
-
 hashtable_t* hashtable_init(hashtable_config_t* hashtable_config) {
     hashtable_bucket_count_t buckets_count = pow2_next(hashtable_config->initial_size);
     hashtable_t* hashtable = (hashtable_t*)xalloc_alloc(sizeof(hashtable_t));
