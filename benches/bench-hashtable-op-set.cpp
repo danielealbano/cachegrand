@@ -71,7 +71,10 @@ static uint64_t keyset_size = 0;
 static void hashtable_op_set_keyset_init_notatest(benchmark::State& state) {
     keyset_size = KEYSET_MAX_SIZE + 1;
 
-    keyset = test_support_init_keys(keyset_size, KEYSET_GENERATOR_METHOD);
+    keyset = test_support_init_keys(
+            keyset_size,
+            KEYSET_GENERATOR_METHOD,
+            544498304);
 
     state.SkipWithError("Not a test, skipping");
 }
