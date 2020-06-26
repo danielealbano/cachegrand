@@ -78,7 +78,7 @@ void test_support_hashtable_print_heatmap(
             chunk_index++) {
         fprintf(
                 stdout,
-                " %*u |",
+                " %*lu |",
                 2 + 1 + overflowed_chunks_counter_digits_max,
                 chunk_index);
     }
@@ -115,7 +115,7 @@ void test_support_hashtable_print_heatmap(
         }
 
         if (chunk_index > 0 && chunk_index % columns == 0) {
-            fprintf(stdout, " from <%05u> -> to <%05u>\n",
+            fprintf(stdout, " from <%05lu> -> to <%05lu>\n",
                     chunk_index - columns, chunk_index - 1);
             fprintf(stdout, " %5u |",
                     (int)chunk_index / columns);
@@ -180,9 +180,10 @@ void test_support_hashtable_print_heatmap(
 
     if (chunk_index > 0 && chunk_index % columns != 0) {
         fprintf(stdout, "%*s",
-                (6 + overflowed_chunks_counter_digits_max) * (columns - (chunk_index % columns)), "");
+                (int)((6 + overflowed_chunks_counter_digits_max) * (columns - (chunk_index % columns))),
+                "");
     }
-    fprintf(stdout, " from <%05u> -> tp <%05u>\n",
+    fprintf(stdout, " from <%05lu> -> tp <%05lu>\n",
             chunk_index - (chunk_index % columns), ht_data->chunks_count - 1);
 
     fprintf(stdout, "-------------------\n");
@@ -275,7 +276,6 @@ void test_support_set_thread_affinity(
     pthread_t thread;
 
     uint32_t logical_core_count = psnip_cpu_count();
-    uint32_t physical_core_count = logical_core_count >> 1;
     uint32_t logical_core_index = (thread_index % logical_core_count) * 2;
 
     if (logical_core_index >= logical_core_count) {
