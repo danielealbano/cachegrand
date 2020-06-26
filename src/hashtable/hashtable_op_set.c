@@ -23,6 +23,7 @@ bool hashtable_op_set(
         hashtable_value_data_t value) {
     bool created_new;
     hashtable_hash_t hash;
+    hashtable_chunk_index_t chunk_index = 0, chunk_index_start = 0;
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk = 0;
     hashtable_key_value_volatile_t* key_value = 0;
 
@@ -42,6 +43,8 @@ bool hashtable_op_set(
             hash,
             true,
             &created_new,
+            &chunk_index_start,
+            &chunk_index,
             &half_hashes_chunk,
             &key_value);
 

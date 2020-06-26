@@ -20,7 +20,7 @@ bool hashtable_op_get(
         hashtable_key_size_t key_size,
         hashtable_value_data_t *data) {
     hashtable_hash_t hash;
-    hashtable_chunk_index_t chunk_index = 0;
+    hashtable_chunk_index_t chunk_index = 0, chunk_index_start = 0;
     hashtable_chunk_slot_index_t chunk_slot_index = 0;
     hashtable_key_value_volatile_t* key_value = 0;
 
@@ -59,6 +59,7 @@ bool hashtable_op_get(
                 key,
                 key_size,
                 hash,
+                &chunk_index_start,
                 &chunk_index,
                 &chunk_slot_index,
                 &key_value) == false) {

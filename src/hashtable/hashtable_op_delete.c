@@ -22,7 +22,7 @@ bool hashtable_op_delete(
         hashtable_key_size_t key_size) {
     hashtable_hash_t hash;
     hashtable_key_value_flags_t key_value_flags = 0;
-    hashtable_chunk_index_t chunk_index = 0;
+    hashtable_chunk_index_t chunk_index = 0, chunk_index_start = 0;
     hashtable_chunk_slot_index_t chunk_slot_index = 0;
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
     hashtable_key_value_volatile_t* key_value;
@@ -58,6 +58,7 @@ bool hashtable_op_delete(
                 key,
                 key_size,
                 hash,
+                &chunk_index_start,
                 &chunk_index,
                 &chunk_slot_index,
                 &key_value) == false) {
