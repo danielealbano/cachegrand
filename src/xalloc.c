@@ -8,9 +8,11 @@
 #include <windows.h>
 #endif
 
+#include "log.h"
+#include "misc.h"
 #include "fatal.h"
 
-static const char* TAG = "xalloc";
+LOG_PRODUCER_CREATE_LOCAL_DEFAULT("xalloc", xalloc)
 
 void* xalloc_alloc(size_t size) {
     void* memptr;
@@ -18,7 +20,7 @@ void* xalloc_alloc(size_t size) {
     memptr = malloc(size);
 
     if (memptr == NULL) {
-        FATAL(TAG, "Unable to allocate the requested memory %d", size);
+        FATAL(LOG_PRODUCER_DEFAULT, "Unable to allocate the requested memory %d", size);
     }
 
     return memptr;
@@ -49,7 +51,7 @@ void* xalloc_alloc_aligned(size_t alignment, size_t size) {
 #endif
 
     if (failed) {
-        FATAL(TAG, "Unable to allocate the requested memory %d aligned to %d", size, alignment);
+        FATAL(LOG_PRODUCER_DEFAULT, "Unable to allocate the requested memory %d aligned to %d", size, alignment);
     }
 
     return memptr;
@@ -130,7 +132,7 @@ void* xalloc_mmap_alloc(size_t size) {
 #endif
 
     if (failed) {
-        FATAL(TAG, "Unable to allocate the requested memory %d", size);
+        FATAL(LOG_PRODUCER_DEFAULT, "Unable to allocate the requested memory %d", size);
     }
 
     return memptr;
