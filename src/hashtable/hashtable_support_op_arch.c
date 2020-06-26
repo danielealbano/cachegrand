@@ -25,6 +25,7 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_hash_t hash,
+        hashtable_chunk_index_t *found_chunk_index_start,
         hashtable_chunk_index_t *found_chunk_index,
         hashtable_chunk_slot_index_t *found_chunk_slot_index,
         hashtable_key_value_volatile_t **found_key_value) {
@@ -40,7 +41,7 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
     bool found = false;
 
     bucket_index = hashtable_support_index_from_hash(hashtable_data->buckets_count, hash);
-    chunk_index_start = bucket_index / HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
+    *found_chunk_index_start = chunk_index_start = bucket_index / HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
     hash_half = hashtable_support_hash_half(hash);
 
     assert(bucket_index < hashtable_data->buckets_count);
@@ -172,6 +173,7 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
         }
     }
 
+    LOG_DI("found_chunk_index_start = %lu", *found_chunk_index_start);
     LOG_DI("found_chunk_index = %lu", *found_chunk_index);
     LOG_DI("found_chunk_slot_index = %lu", *found_chunk_slot_index);
     LOG_DI("found_key_value = 0x%016x", *found_key_value);
@@ -187,13 +189,15 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
         hashtable_hash_t hash,
         bool create_new_if_missing,
         bool *created_new,
+        hashtable_chunk_index_t *found_chunk_index_start,
+        hashtable_chunk_index_t *found_chunk_index,
         hashtable_half_hashes_chunk_volatile_t **found_half_hashes_chunk,
         hashtable_key_value_volatile_t **found_key_value) {
     hashtable_hash_half_t hash_half;
     hashtable_hash_half_t search_hash_half;
     hashtable_bucket_index_t bucket_index;
     hashtable_chunk_index_t chunk_index, chunk_index_start, chunk_index_start_initial, chunk_index_end,
-        chunk_first_with_freespace, found_chunk_index = 0, locked_up_to_chunk_index = 0;
+            chunk_first_with_freespace, locked_up_to_chunk_index = 0;
     hashtable_chunk_slot_index_t chunk_slot_index;
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
     hashtable_key_value_volatile_t* key_value;
@@ -204,7 +208,7 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
     bool found_chunk_with_freespace = false;
 
     bucket_index = hashtable_support_index_from_hash(hashtable_data->buckets_count, hash);
-    chunk_index_start = chunk_index_start_initial = bucket_index / HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
+    *found_chunk_index_start = chunk_index_start = chunk_index_start_initial = bucket_index / HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
 
     assert(bucket_index < hashtable_data->buckets_count);
     assert(chunk_index_start < hashtable_data->chunks_count);
@@ -366,15 +370,15 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
                 half_hashes_chunk->metadata.changes_counter++;
                 LOG_DI(">>> incrementing the changes counter to %d", half_hashes_chunk->metadata.changes_counter);
 
+                *found_chunk_index = chunk_index;
                 *found_half_hashes_chunk = half_hashes_chunk;
                 *found_key_value = key_value;
-                found_chunk_index = chunk_index;
                 found = true;
 
                 LOG_DI(">>> updating found_chunk_index and found_key_value");
 
                 // Update the overflowed_chunks_counter if necessary
-                uint8_volatile_t overflowed_chunks_counter_new = (uint8_t)(found_chunk_index - chunk_index_start_initial);
+                uint8_volatile_t overflowed_chunks_counter_new = (uint8_t)(chunk_index - chunk_index_start_initial);
                 uint8_volatile_t overflowed_chunks_counter_current =
                         hashtable_data->half_hashes_chunk[chunk_index_start_initial].metadata.overflowed_chunks_counter;
                 uint8_volatile_t overflowed_chunks_counter_update = max(
@@ -411,17 +415,19 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
     //       no reasons to keep a chunk locked
     LOG_DI("unlocking chunks from %lu to %lu", chunk_index_start_initial, locked_up_to_chunk_index);
     for (chunk_index = chunk_index_start_initial; chunk_index <= locked_up_to_chunk_index; chunk_index++) {
-        LOG_DI("> processing chunk %lu", chunk_index);
-        if (found == true && chunk_index == found_chunk_index) {
+        LOG_DI("> checking locks on chunk %lu", chunk_index);
+        if ((found == true && chunk_index == *found_chunk_index) || (chunk_index == *found_chunk_index_start)) {
             LOG_DI("> chunk to return to the caller, keeping it locked");
             continue;
         }
         half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
 
-        LOG_DI("> unlocking chunk");
+        LOG_DI("> Unlocking chunk %lu", chunk_index);
         spinlock_unlock(&half_hashes_chunk->write_lock);
     }
 
+    LOG_DI("found_chunk_index_start = %lu", *found_chunk_index_start);
+    LOG_DI("found_chunk_index = %lu", *found_chunk_index);
     LOG_DI("found_half_hashes_chunk = 0x%016x", *found_half_hashes_chunk);
     LOG_DI("found_key_value = 0x%016x", *found_key_value);
     LOG_DI("created_new = %s", *created_new ? "YES" : "NO");
