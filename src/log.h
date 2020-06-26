@@ -24,6 +24,20 @@ extern "C" {
 #define LOG_D(tag, message, ...) \
     log_message(tag, LOG_LEVEL_DEBUG, message, __VA_ARGS__)
 
+#define LOG_PRODUCER_DEFAULT PRODUCER
+
+#define LOG_PRODUCER_CREATE_LOCAL(TAG, SUFFIX, VAR) \
+    static log_producer_t* VAR; \
+    FUNCTION_CTOR(concat(log_producer_local_init, SUFFIX), { \
+        VAR = log_producer_init(TAG); \
+    }) \
+    FUNCTION_DTOR(concat(log_producer_local_free, SUFFIX), { \
+        log_producer_free(VAR); \
+    })
+
+#define LOG_PRODUCER_CREATE_LOCAL_DEFAULT(TAG, SUFFIX) \
+    LOG_PRODUCER_CREATE_LOCAL(TAG, SUFFIX, LOG_PRODUCER_DEFAULT)
+    
 enum log_level {
     LOG_LEVEL_ERROR,
     LOG_LEVEL_RECOVERABLE,
