@@ -62,9 +62,6 @@ struct hashtable_config {
  * in ad-hoc allocated memory if needed.
  * The struct is aligned to 32 byte to ensure to fit the first half or the second half of a cache-line
  */
-extern log_producer_t* hashmap_log_producer;
-
-
 typedef struct hashtable_key_value hashtable_key_value_t;
 typedef _Volatile(hashtable_key_value_t) hashtable_key_value_volatile_t;
 struct hashtable_key_value {
