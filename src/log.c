@@ -44,6 +44,8 @@ const char* log_level_to_string(log_level_t level) {
             return "RECOVERABLE";
         case LOG_LEVEL_ERROR:
             return "ERROR";
+        default:
+            return "UNKNOWN";
     }
 }
 
