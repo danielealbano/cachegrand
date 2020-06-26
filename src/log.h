@@ -56,13 +56,7 @@ typedef struct {
     log_level_t levels;
 } log_sink_t;
 
-typedef struct {
-    log_sink_t** sinks;
-    int size;
-} log_service_t;
-
 typedef struct{
-    log_service_t* service;
     char* tag;
 } log_producer_t;
 
@@ -73,11 +67,6 @@ char* log_message_timestamp(char* dest, size_t maxlen);
 void log_message_internal_printer(const char* tag, log_level_t level, const char* message, va_list args, FILE* out);
 void log_message_internal(log_producer_t *tag, log_level_t level, const char *message, va_list args);
 void log_message(log_producer_t* tag, log_level_t level, const char* message, ...);
-
-static log_service_t* log_service;
-
-void __attribute__((constructor)) init_log_service();
-void __attribute__((destructor)) deinit_log_service();
 
 void log_sink_register(log_sink_t *sink);
 #ifndef DEBUG
