@@ -9,11 +9,6 @@
 #include "log.h"
 #include "xalloc.h"
 
-/**
- * TODO:
- *
- * Implement a log producers, sink & formatters patterns
- */
 static log_sink_t log_sinks_registered_list[LOG_SINK_REGISTERED_MAX] = {0};
 static uint8_t log_sinks_registered_count = 0;
 
