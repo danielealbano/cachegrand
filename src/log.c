@@ -1,10 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
 #include <locale.h>
 
+#include "misc.h"
 #include "log.h"
+#include "xalloc.h"
 
 /**
  * TODO:
