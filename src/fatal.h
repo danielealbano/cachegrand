@@ -1,7 +1,6 @@
 #ifndef CACHEGRAND_FATAL_H
 #define CACHEGRAND_FATAL_H
 
-#include <log.h>
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -1,8 +1,6 @@
 #ifndef CACHEGRAND_HASHTABLE_H
 #define CACHEGRAND_HASHTABLE_H
 
-#include <log.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
