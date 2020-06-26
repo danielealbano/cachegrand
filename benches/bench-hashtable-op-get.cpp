@@ -101,7 +101,7 @@ static void hashtable_op_get_single_key_inline(benchmark::State& state) {
         if (!result) {
             sprintf(
                     error_message,
-                    "Unable to get the key <%s> with bucket index <%lu>, chunk index <%u> and chunk slot index <%lu> for the thread <%d>",
+                    "Unable to get the key <%s> with bucket index <%lu>, chunk index <%lu> and chunk slot index <%u> for the thread <%d>",
                     test_key_1,
                     bucket_index,
                     chunk_index,
@@ -154,7 +154,7 @@ static void hashtable_op_get_single_key_external(benchmark::State& state) {
         if (!result) {
             sprintf(
                     error_message,
-                    "Unable to get the key <%s> with bucket index <%lu>, chunk index <%u> and chunk slot index <%lu> for the thread <%d>",
+                    "Unable to get the key <%s> with bucket index <%lu>, chunk index <%lu> and chunk slot index <%u> for the thread <%d>",
                     test_key_1,
                     bucket_index,
                     chunk_index,
