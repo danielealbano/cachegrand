@@ -1,20 +1,20 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <malloc.h>
 
 #include "log.h"
 #include "fatal.h"
 #include "random.h"
 
-static const char* TAG = "main";
 
 int main()
 {
+    log_producer_t* TAG = init_log_producer("main");
     LOG_D(TAG, "Debug log message: %d", 999);
     LOG_V(TAG, "Verbose log message: %d", 888);
     LOG_I(TAG, "Info log message: %d", 777);
 
-    log_set_log_level(LOG_LEVEL_WARNING);
 
     LOG_D(TAG, "Debug log message: %d", 666);
     LOG_V(TAG, "Verbose log message: %d", 555);
@@ -24,6 +24,6 @@ int main()
     LOG_E(TAG, "Error log message: %d", 111);
 
     FATAL(TAG, "KAbooommmmm %d", 000);
-
+    free(TAG);
     return 0;
 }

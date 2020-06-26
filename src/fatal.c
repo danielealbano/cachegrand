@@ -36,7 +36,7 @@ void fatal_trigger_debugger() {
 #if defined(__MINGW32__)
 void fatal_log_message(const char* tag, DWORD last_error, const char* message, va_list args) {
 #else
-void fatal_log_message(const char* tag, const char* message, va_list args) {
+void fatal_log_message(log_producer_t* tag, const char* message, va_list args) {
 #endif
 #if defined(__linux__) || defined(__APPLE__)
     char buf[1024];
@@ -62,7 +62,7 @@ void fatal_log_message(const char* tag, const char* message, va_list args) {
 
     log_message(tag, LOG_LEVEL_ERROR, "A fatal error has been throw, unable to continue.");
     log_message(tag, LOG_LEVEL_ERROR, "Please, review the details below.");
-    log_message_internal(tag, LOG_LEVEL_ERROR, message, args);
+    log_message_vargs(tag, LOG_LEVEL_ERROR, message, args);
     log_message(tag, LOG_LEVEL_ERROR, "OS Error: %s (%d)", error_message, errno);
 
 #if defined(__MINGW32__)
@@ -70,7 +70,7 @@ void fatal_log_message(const char* tag, const char* message, va_list args) {
 #endif
 }
 
-void fatal(const char* tag, const char* message, ...) {
+void fatal(log_producer_t* tag, const char* message, ...) {
     va_list args;
 
 #if defined(__MINGW32__)

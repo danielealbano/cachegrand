@@ -11,7 +11,15 @@
 #include "log.h"
 #include "fatal.h"
 
-static const char* TAG = "spinlock";
+static log_producer_t* spinlock_log_producer;
+
+static void __attribute__((constructor)) init_spinlock_log(){
+    spinlock_log_producer = init_log_producer("spinlock");
+}
+
+static void __attribute__((constructor)) deinit_spinlock_log(){
+    free(spinlock_log_producer);
+}
 
 void spinlock_init(
         spinlock_lock_volatile_t* spinlock) {
@@ -76,7 +84,7 @@ bool spinlock_lock_internal(
         // TODO: implement spinlock auto balancing using the predicted_spins property of the lock struct
 
         if (spins == UINT32_MAX) {
-            LOG_E(TAG, "Possible stuck spinlock detected for thread %d in %s at %s:%u",
+            LOG_E(spinlock_log_producer, "Possible stuck spinlock detected for thread %d in %s at %s:%u",
                     pthread_self(), src_func, src_path, src_line);
         }
     }
