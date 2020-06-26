@@ -70,7 +70,11 @@ bool hashtable_op_delete(
 
         half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
 
-        // The get operation is not using locks so the memory fences are needed as well
+        // The lock has to be applied on the initial chunk and not on the chunk containing the key to ensure the
+        // serialization of the write / delete operations and not only on the chunk that is going to be modified
+        if (chunk_index_start != chunk_index) {
+            spinlock_lock(&hashtable_data->half_hashes_chunk[chunk_index_start].write_lock, true);
+        }
         spinlock_lock(&half_hashes_chunk->write_lock, true);
 
         half_hashes_chunk->metadata.is_full = 0;
@@ -96,6 +100,9 @@ bool hashtable_op_delete(
         }
 
         spinlock_unlock(&half_hashes_chunk->write_lock);
+        if (chunk_index_start != chunk_index) {
+            spinlock_unlock(&hashtable_data->half_hashes_chunk[chunk_index_start].write_lock);
+        }
 
         deleted = true;
     }
