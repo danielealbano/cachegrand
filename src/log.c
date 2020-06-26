@@ -56,7 +56,7 @@ char* log_message_timestamp(char* dest, size_t maxlen) {
     return dest;
 }
 
-void log_message_internal(const char* tag, log_level_t level, const char* message, va_list args, FILE* out) {
+void log_message_internal_printer(const char* tag, log_level_t level, const char* message, va_list args, FILE* out) {
     char t_str[LOG_MESSAGE_TIMESTAMP_MAX_LENGTH] = {0};
 
     fprintf(out,

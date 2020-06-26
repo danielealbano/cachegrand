@@ -10,6 +10,7 @@ extern "C" {
 #include <stdio.h>
 
 #define LOG_MESSAGE_TIMESTAMP_MAX_LENGTH 25
+#define LOG_SINK_REGISTERED_MAX             10
 
 #define LOG_E(tag, message, ...) \
     log_message(tag, LOG_LEVEL_ERROR, message, __VA_ARGS__)
@@ -37,7 +38,7 @@ extern "C" {
 
 #define LOG_PRODUCER_CREATE_LOCAL_DEFAULT(TAG, SUFFIX) \
     LOG_PRODUCER_CREATE_LOCAL(TAG, SUFFIX, LOG_PRODUCER_DEFAULT)
-    
+
 enum log_level {
     LOG_LEVEL_ERROR = 1u << 6u,
     LOG_LEVEL_RECOVERABLE = 1u << 5u,
@@ -60,8 +61,10 @@ typedef struct{
     char* tag;
 } log_producer_t;
 
-log_producer_t* init_log_producer(char* tag);
-log_sink_t* init_log_sink(FILE* out, log_level_t min_level);
+log_producer_t* log_producer_init(char* tag);
+log_producer_t* log_producer_free(log_producer_t* log_producer);
+log_sink_t* log_sink_init(FILE* out, log_level_t levels);
+log_sink_t* log_sink_free(log_sink_t* log_sink);
 const char* log_level_to_string(log_level_t level);
 char* log_message_timestamp(char* dest, size_t maxlen);
 void log_message_internal_printer(const char* tag, log_level_t level, const char* message, va_list args, FILE* out);
