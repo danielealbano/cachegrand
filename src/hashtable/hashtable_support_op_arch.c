@@ -58,7 +58,6 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
     LOG_DI("hashtable_data->chunks_count = %lu", hashtable_data->chunks_count);
     LOG_DI("hashtable_data->buckets_count = %lu", hashtable_data->buckets_count);
     LOG_DI("hashtable_data->buckets_count_real = %lu", hashtable_data->buckets_count_real);
-    LOG_DI("half_hashes_chunk->write_lock.lock = %d", half_hashes_chunk->write_lock.lock);
     LOG_DI("half_hashes_chunk->metadata.is_full = %lu", half_hashes_chunk->metadata.is_full);
     LOG_DI("half_hashes_chunk->metadata.changes_counter = %lu", half_hashes_chunk->metadata.changes_counter);
     LOG_DI("half_hashes_chunk->metadata.overflowed_chunks_counter = %lu", overflowed_chunks_counter);
@@ -80,9 +79,9 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
             HASHTABLE_MEMORY_FENCE_LOAD();
 
             chunk_slot_index = hashtable_support_hash_search(
-                hash_half,
-                (hashtable_hash_half_volatile_t*)half_hashes_chunk->half_hashes,
-                skip_indexes_mask);
+                    hash_half,
+                    (hashtable_hash_half_volatile_t*)half_hashes_chunk->half_hashes,
+                    skip_indexes_mask);
 
             LOG_DI(">> chunk_slot_index = %lu", chunk_slot_index);
 
@@ -96,7 +95,7 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
 
             LOG_DI(">> skip_indexes_mask = 0x%08x", skip_indexes_mask);
             LOG_DI(">> fetching key_value at bucket index = %lu",
-                    (chunk_index * HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index);
+                   (chunk_index * HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index);
 
             key_value = &hashtable_data->keys_values[
                     (chunk_index * HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index];
@@ -111,7 +110,7 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
                 LOG_DI(">> key_value->flags = 0 - terminating loop");
                 break;
             } else if (unlikely(HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
-                    HASHTABLE_KEY_VALUE_FLAG_DELETED))) {
+                                                             HASHTABLE_KEY_VALUE_FLAG_DELETED))) {
                 LOG_DI(">> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED - continuing");
                 continue;
             }
@@ -122,7 +121,7 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
             // doesn't really matter because the key will mismatch and the execution will continue but if the key is
             // stored externally and the allocated memory is freed it may crash.
             if (HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
-                    HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
+                                             HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
                 LOG_DI(">> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
                 found_key = key_value->inline_key.data;
@@ -151,7 +150,7 @@ bool concat(hashtable_support_op_search_key, CACHEGRAND_HASHTABLE_SUPPORT_OP_ARC
             // inline of the key is not reliable anymore and therefore we may read from some memory not owned
             // by the software.
             if (unlikely(HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
-                    HASHTABLE_KEY_VALUE_FLAG_DELETED))) {
+                                                      HASHTABLE_KEY_VALUE_FLAG_DELETED))) {
                 LOG_DI(">> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED - continuing");
                 continue;
             }
@@ -231,7 +230,6 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
 
     uint8_volatile_t overflowed_chunks_counter = half_hashes_chunk->metadata.overflowed_chunks_counter;
 
-    LOG_DI("half_hashes_chunk->write_lock.lock = %lu", half_hashes_chunk->write_lock.lock);
     LOG_DI("half_hashes_chunk->metadata.is_full = %lu", half_hashes_chunk->metadata.is_full);
     LOG_DI("half_hashes_chunk->metadata.changes_counter = %lu", half_hashes_chunk->metadata.changes_counter);
     LOG_DI("half_hashes_chunk->metadata.overflowed_chunks_counter = %lu", overflowed_chunks_counter);
@@ -246,6 +244,7 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
             // chunk_index_start has been calculated at the beginning of the function
             chunk_index_end = chunk_index_start + overflowed_chunks_counter + 1;
         } else {
+            // Update the chunk index start / end to search where to write
             chunk_index_start = chunk_first_with_freespace;
             chunk_index_end =
                     chunk_index_start_initial +
@@ -331,7 +330,7 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
 
                 if (searching_or_creating == 0) {
                     if (HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
-                            HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
+                                                     HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
                         LOG_DI(">>> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
                         found_key = key_value->inline_key.data;
@@ -344,7 +343,7 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
 
                         if (unlikely(key_value->external_key.size != key_size)) {
                             LOG_DI(">>> key have different length (%lu != %lu), continuing",
-                                     key_size, key_value->external_key.size);
+                                   key_size, key_value->external_key.size);
                             continue;
                         }
                     }
@@ -405,14 +404,6 @@ bool concat(hashtable_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_
         }
     }
 
-    // Iterate of the chunks to remove the place locks, the only lock not removed is if the chunk holding the hash
-
-    if (found) {
-        LOG_DI("chunk %lu will not be unlocked, it has to be returned to the caller", found_chunk_index);
-    }
-
-    // TODO: refactor the code to have a sliding locking window, if the algorithm is not finding free slots there are
-    //       no reasons to keep a chunk locked
     LOG_DI("unlocking chunks from %lu to %lu", chunk_index_start_initial, locked_up_to_chunk_index);
     for (chunk_index = chunk_index_start_initial; chunk_index <= locked_up_to_chunk_index; chunk_index++) {
         LOG_DI("> checking locks on chunk %lu", chunk_index);
