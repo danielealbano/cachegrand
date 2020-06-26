@@ -62,7 +62,7 @@ void fatal_log_message(log_producer_t* tag, const char* message, va_list args) {
 
     log_message(tag, LOG_LEVEL_ERROR, "A fatal error has been throw, unable to continue.");
     log_message(tag, LOG_LEVEL_ERROR, "Please, review the details below.");
-    log_message_vargs(tag, LOG_LEVEL_ERROR, message, args);
+    log_message_internal(tag, LOG_LEVEL_ERROR, message, args);
     log_message(tag, LOG_LEVEL_ERROR, "OS Error: %s (%d)", error_message, errno);
 
 #if defined(__MINGW32__)
