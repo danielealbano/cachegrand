@@ -108,6 +108,9 @@ bool hashtable_op_set(
 
     // The unlock will perform the memory fence for us
     spinlock_unlock(&half_hashes_chunk->write_lock);
+    if (chunk_index_start != chunk_index) {
+        spinlock_unlock(&hashtable->ht_current->half_hashes_chunk[chunk_index_start].write_lock);
+    }
 
     LOG_DI("unlocking half_hashes_chunk 0x%016x", half_hashes_chunk);
 
