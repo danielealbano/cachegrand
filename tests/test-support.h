@@ -8,7 +8,7 @@ extern "C" {
 #define TEST_SUPPORT_RANDOM_KEYS_MIN_LENGTH             11
 #define TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH             19
 #define TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL   (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH + 1)
-#define TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_RANDOM_LIST \
+#define TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_REPEATED_LIST \
     'q','w','e','r','t','y','u','i','o','p','a','s','d','f','g','h','j','k', 'l','z','x','c','v','b','n','m', \
     'q','w','e','r','t','y','u','i','o','p','a','s','d','f','g','h','j','k', 'l','z','x','c','v','b','n','m', \
     'Q','W','E','R','T','Y','U','I','O','P','A','S','D','F','G','H','J','K', 'L','Z','X','C','V','B','N','M', \
@@ -22,7 +22,7 @@ extern "C" {
     '1','2','3','4','5','6','7','8','9','0', \
     '.',',','/','|','\'',';',']','[','<','>','?',':','"','{','}','!','@','$','%','^','&','*','(',')','_','-','=','+','#'
 
-#define TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_RANDOM_SIZE  sizeof((char[]){TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_RANDOM_LIST})
+#define TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_REPEATED_SIZE  sizeof((char[]){TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_REPEATED_LIST})
 #define TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_UNIQUE_SIZE  sizeof((char[]){TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_UNIQUE_LIST})
 
 #define TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_MAX_LENGTH                 1
@@ -37,15 +37,19 @@ struct test_key_same_bucket {
     hashtable_hash_half_t key_hash_half;
 };
 
-typedef struct keys_generator_thread_info keys_generator_thread_info_t;
-struct keys_generator_thread_info {
+typedef struct keyset_generator_thread_info keyset_generator_thread_info_t;
+struct keyset_generator_thread_info {
+    char* charset_list;
+    size_t charset_size;
+    uint64_t random_seed_base;
     uint8_t* start_flag;
     pthread_t thread_id;
-    uint32_t thread_num;
-    uint32_t threads_count;
-    uint64_t count;
-    char* keys_character_set_list;
-    char* keys;
+    uint16_t thread_num;
+    uint16_t threads_count;
+    uint64_t keyset_size;
+    char* keyset;
+    uint64_t start;
+    uint64_t end;
 };
 
 void test_support_hashtable_print_heatmap(
@@ -63,31 +67,14 @@ void test_support_same_hash_mod_fixtures_free(
 void test_support_set_thread_affinity(
         int thread_index);
 
-static void* test_support_build_keys_random_max_length_thread_func(
-        void *arg);
-
-static void* test_support_build_keys_random_random_length_thread_func(
-        void *arg);
-
-static void* test_support_build_keys_repeatible_set_min_max_length_thread_func(
-        void *arg);
-
-char* test_support_build_keys_random_max_length(
-        uint64_t count);
-
-char* test_support_build_keys_random_random_length(
-        uint64_t count);
-
-char* test_support_build_keys_repeatible_set_min_max_length(
-        uint64_t count);
-
 void test_support_free_keys(
         char* keys,
         uint64_t count);
 
 char* test_support_init_keys(
         uint64_t keys_count,
-        uint8_t keys_generator_method);
+        uint8_t keys_generator_method,
+        uint64_t random_seed_base);
 
 hashtable_t* test_support_init_hashtable(
         uint64_t initial_size);
