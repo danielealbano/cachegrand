@@ -1,15 +1,21 @@
 #include "catch.hpp"
 
 #include "exttypes.h"
-#include "spinlock.h"
-
-#include "hashtable/hashtable.h"
-#include "hashtable/hashtable_config.h"
-
-#include "fixtures-hashtable.h"
 
 TEST_CASE("exttypes.h", "[exttypes]") {
-    SECTION("sizeof(uint8_atomic_t) == 1") {
+    SECTION("sizeof(uint8_volatile_t) == 1") {
         REQUIRE(sizeof(uint8_volatile_t) == 1);
+    }
+
+    SECTION("sizeof(uint16_volatile_t) == 2") {
+        REQUIRE(sizeof(uint16_volatile_t) == 2);
+    }
+
+    SECTION("sizeof(uint32_volatile_t) == 4") {
+        REQUIRE(sizeof(uint32_volatile_t) == 4);
+    }
+
+    SECTION("sizeof(uint64_volatile_t) == 8") {
+        REQUIRE(sizeof(uint64_volatile_t) == 8);
     }
 }
