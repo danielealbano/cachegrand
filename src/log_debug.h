@@ -2,7 +2,7 @@
 #define CACHEGRAND_LOG_DEBUG_H
 
 #if DEBUG == 1
-
+#include <stdbool.h>
 #ifdef __cplusplus
 extern "C" {
 #endif

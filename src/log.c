@@ -6,15 +6,11 @@
 
 #include "log.h"
 
-#define LOG_MESSAGE_OUTPUT stdout
-
 /**
  * TODO:
  *
  * Implement a log producers, sink & formatters patterns
  */
-
-static log_level_t _log_level = LOG_LEVEL_DEBUG_INTERNALS;
 
 const char* log_level_to_string(log_level_t level) {
     switch(level) {
@@ -47,32 +43,66 @@ char* log_message_timestamp(char* dest, size_t maxlen) {
     return dest;
 }
 
-void log_message_internal(const char* tag, log_level_t level, const char* message, va_list args) {
+void log_message_internal(const char* tag, log_level_t level, const char* message, va_list args, FILE* out) {
     char t_str[LOG_MESSAGE_TIMESTAMP_MAX_LENGTH] = {0};
 
-    if (level > _log_level) {
-        return;
-    }
-
-    fprintf(LOG_MESSAGE_OUTPUT,
+    fprintf(out,
             "[%s][%-11s][%s] ",
             log_message_timestamp(t_str, LOG_MESSAGE_TIMESTAMP_MAX_LENGTH),
             log_level_to_string(level),
             tag);
-    vfprintf(LOG_MESSAGE_OUTPUT, message, args);
-    fprintf(LOG_MESSAGE_OUTPUT, "\n");
-    fflush(LOG_MESSAGE_OUTPUT);
+    vfprintf(out, message, args);
+    fprintf(out, "\n");
+    fflush(out);
 }
-
-void log_set_log_level(log_level_t level) {
-    _log_level = level;
+void log_message_vargs(log_producer_t *tag, log_level_t level, const char *message, va_list args) {
+    for(int i =0; i<= log_service->size-1; ++i){
+        log_sink_t* sink = log_service->sinks[i];
+        if (level > sink->min_level) {
+            continue;
+        }
+        log_message_internal(tag->tag, level, message, args,sink->out);
+    }
 }
-
-void log_message(const char* tag, log_level_t level, const char* message, ...) {
+void log_message(log_producer_t* tag, log_level_t level, const char* message, ...) {
     va_list args;
     va_start(args, message);
 
-    log_message_internal(tag, level, message, args);
+    log_message_vargs(tag,level,message,args);
 
     va_end(args);
+}
+
+void __attribute__((destructor)) deinit_log_service() {
+    free(log_service->sinks);
+    free(log_service);
+}
+
+void __attribute__((constructor)) init_log_service() {
+    log_service = (log_service_t*)malloc(sizeof(log_service));
+    //init console out
+    log_sink_t* console = init_log_sink(stdout, LOG_LEVEL_INFO);
+    log_service->sinks = malloc(sizeof(log_sink_t));
+    *log_service->sinks = console;
+    log_service->size = 1;
+}
+
+void log_sink_register(log_sink_t *sink) {
+    ++log_service->size;
+    log_service->sinks = realloc(log_service->sinks, sizeof(log_sink_t)*log_service->size);
+    *(log_service->sinks + log_service->size - 1) = sink;
+}
+
+log_sink_t *init_log_sink(FILE *out, log_level_t min_level) {
+    log_sink_t* result = (log_sink_t*)malloc(sizeof(log_sink_t));
+    result->out = out;
+    result->min_level = min_level;
+    return result;
+}
+
+log_producer_t *init_log_producer(char *tag) {
+    log_producer_t* result = malloc(sizeof(log_producer_t));
+    result->service = log_service;
+    result->tag = tag;
+    return result;
 }

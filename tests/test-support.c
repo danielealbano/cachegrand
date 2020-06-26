@@ -40,7 +40,14 @@
 
 #include "test-support.h"
 
-static const char* TAG = "test-support";
+static log_producer_t* support_log_producer;
+static void __attribute__((constructor)) init_support_log(){
+    support_log_producer = init_log_producer("test-support");
+}
+static void __attribute__((constructor)) deinit_support_log(){
+    free(support_log_producer);
+}
+
 
 void test_support_hashtable_print_heatmap(
         hashtable_t* hashtable,
@@ -545,7 +552,7 @@ char* test_support_init_keys(
     char* keys;
     switch (keys_generator_method) {
         default:
-            FATAL(TAG, "Keyset genererator method <%d> unsupported", keys_generator_method);
+            FATAL(support_log_producer, "Keyset genererator method <%d> unsupported", keys_generator_method);
             break;
         case TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_MAX_LENGTH:
             keys = test_support_build_keys_random_max_length(keys_count);
