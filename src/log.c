@@ -58,7 +58,7 @@ void log_message_internal(const char* tag, log_level_t level, const char* messag
 void log_message_vargs(log_producer_t *tag, log_level_t level, const char *message, va_list args) {
     for(int i =0; i<= log_service->size-1; ++i){
         log_sink_t* sink = log_service->sinks[i];
-        if (level > sink->min_level) {
+        if ((level & sink->levels) != level) {
             continue;
         }
         log_message_internal(tag->tag, level, message, args,sink->out);
@@ -96,7 +96,7 @@ void log_sink_register(log_sink_t *sink) {
 log_sink_t *init_log_sink(FILE *out, log_level_t min_level) {
     log_sink_t* result = (log_sink_t*)malloc(sizeof(log_sink_t));
     result->out = out;
-    result->min_level = min_level;
+    result->levels = levels;
     return result;
 }
 

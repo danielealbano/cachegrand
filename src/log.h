@@ -39,19 +39,21 @@ extern "C" {
     LOG_PRODUCER_CREATE_LOCAL(TAG, SUFFIX, LOG_PRODUCER_DEFAULT)
     
 enum log_level {
-    LOG_LEVEL_ERROR,
-    LOG_LEVEL_RECOVERABLE,
-    LOG_LEVEL_WARNING,
-    LOG_LEVEL_INFO,
-    LOG_LEVEL_VERBOSE,
-    LOG_LEVEL_DEBUG,
-    LOG_LEVEL_DEBUG_INTERNALS,
+    LOG_LEVEL_ERROR = 1u << 6u,
+    LOG_LEVEL_RECOVERABLE = 1u << 5u,
+    LOG_LEVEL_WARNING = 1u << 4u,
+    LOG_LEVEL_INFO = 1u << 3u,
+    LOG_LEVEL_VERBOSE = 1u << 2u,
+    LOG_LEVEL_DEBUG = 1u << 1u,
+    LOG_LEVEL_DEBUG_INTERNALS = 1u << 0u,
 };
 typedef enum log_level log_level_t;
 
+#define LOG_LEVEL_ALL ((uint8_t)LOG_LEVEL_ERROR << 1u) - 1u
+
 typedef struct {
     FILE* out;
-    log_level_t min_level;
+    log_level_t levels;
 } log_sink_t;
 
 typedef struct {
