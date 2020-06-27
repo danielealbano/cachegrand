@@ -16,6 +16,7 @@ extern "C" {
 typedef uint8_t hashtable_key_value_flags_t;
 typedef uint64_t hashtable_hash_t;
 typedef uint32_t hashtable_hash_half_t;
+typedef uint16_t hashtable_hash_quarter_t;
 #if HASHTABLE_USE_UINT64 == 1
 typedef uint64_t hashtable_bucket_index_t;
 typedef uint64_t hashtable_chunk_index_t;
@@ -30,7 +31,9 @@ typedef uint32_t hashtable_key_size_t;
 typedef char hashtable_key_data_t;
 typedef uintptr_t hashtable_value_data_t;
 
+typedef _Volatile(uint32_t) hashtable_slot_id_volatile_t;
 typedef _Volatile(hashtable_hash_half_t) hashtable_hash_half_volatile_t;
+typedef _Volatile(hashtable_hash_quarter_t) hashtable_hash_quarter_volatile_t;
 
 enum {
     HASHTABLE_KEY_VALUE_FLAG_DELETED         = 0x01u,
@@ -84,6 +87,15 @@ struct hashtable_key_value {
  * Struct holding the chunks used to store the half hashes end the metadata. The overflowed_keys_count has been
  * borrowed from F14, as well the number of slots in the half hashes chunk
  */
+typedef union {
+    hashtable_slot_id_volatile_t slot_id;
+    struct {
+        bool filled;
+        uint8_t distance;
+        hashtable_hash_quarter_volatile_t quarter_hash;
+    };
+} hashtable_slot_id_wrapper_t;
+
 typedef struct hashtable_half_hashes_chunk hashtable_half_hashes_chunk_t;
 typedef _Volatile(hashtable_half_hashes_chunk_t) hashtable_half_hashes_chunk_volatile_t;
 struct hashtable_half_hashes_chunk {
@@ -96,7 +108,7 @@ struct hashtable_half_hashes_chunk {
             uint8_volatile_t is_full;
         };
     } metadata;
-    hashtable_hash_half_volatile_t half_hashes[HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT];
+    hashtable_slot_id_wrapper_t half_hashes[HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT];
 } __attribute__((aligned(64)));
 
 /**
