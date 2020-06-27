@@ -74,7 +74,7 @@ bool hashtable_op_delete(
 
         half_hashes_chunk->metadata.is_full = 0;
 
-        half_hashes_chunk->half_hashes[chunk_slot_index] = 0;
+        half_hashes_chunk->half_hashes[chunk_slot_index].slot_id = 0;
 
         HASHTABLE_MEMORY_FENCE_STORE();
 
