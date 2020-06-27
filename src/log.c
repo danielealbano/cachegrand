@@ -71,12 +71,16 @@ void log_message_internal_printer(const char* tag, log_level_t level, const char
 
 void log_message_internal(log_producer_t *producer, log_level_t level, const char *message, va_list args) {
     for(uint8_t i = 0; i < log_sinks_registered_count && i < LOG_SINK_REGISTERED_MAX; ++i){
-        log_sink_t* sink = &log_sinks_registered_list[i];
-        if ((level & sink->levels) != level) {
+        if ((level & log_sinks_registered_list[i].levels) != level) {
             continue;
         }
 
-        log_message_internal_printer(producer->tag, level, message, args,sink->out);
+        log_message_internal_printer(
+                producer->tag,
+                level,
+                message,
+                args,
+                log_sinks_registered_list[i].out);
     }
 }
 
