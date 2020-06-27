@@ -37,7 +37,7 @@ extern "C" {
         FUNC_BODY \
     } \
     \
-    static void (*concat(concat(NAME, SECTION_TYPE), fp))(void) ELF_SECTION(SECTION_TYPE_STR) = \
+    void (*concat(concat(NAME, SECTION_TYPE), fp))(void) ELF_SECTION(SECTION_TYPE_STR) = \
         concat(NAME, SECTION_TYPE); \
 
 #define FUNCTION_CTOR(NAME, ...) FUNCTION_CTOR_DTOR(ctors, ".ctors", NAME, __VA_ARGS__)
