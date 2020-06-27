@@ -22,6 +22,9 @@ hashtable_hash_t hashtable_support_hash_calculate(
 hashtable_hash_half_t hashtable_support_hash_half(
         hashtable_hash_t hash);
 
+hashtable_hash_quarter_t hashtable_support_hash_quarter(
+        hashtable_hash_half_t hash_half);
+
 #ifdef __cplusplus
 }
 #endif
