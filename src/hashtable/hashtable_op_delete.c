@@ -28,6 +28,14 @@ bool hashtable_op_delete(
     hashtable_key_value_volatile_t* key_value;
     bool deleted = false;
 
+    // TODO: the deletion algorithm needs to be updated to compact the keys stored in further away slots relying on the
+    //       distance.
+    //       Once a slot has been empty-ed, it has to use the AVX2/AVX instructions if available, if not a simple loop,
+    //       to search if chunks ahead (within the overflowed_chunks_counter margin) contain keys that can be moved
+    //       back to fill the slot.
+    //       At the end it has to update the original over overflowed_chunks_counter to restrict the search range if
+    //       there was any compaction.
+
     hash = hashtable_support_hash_calculate(key, key_size);
 
     LOG_DI("key (%d) = %s", key_size, key);
