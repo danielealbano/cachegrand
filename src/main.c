@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <malloc.h>
 
+#include "misc.h"
 #include "log.h"
 #include "fatal.h"
 #include "random.h"
