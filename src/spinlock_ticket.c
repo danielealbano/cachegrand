@@ -14,15 +14,7 @@
 #include "fatal.h"
 #include "spinlock_ticket.h"
 
-static log_producer_t* spinlock_ticket_log_producer;
-
-static void __attribute__((constructor)) init_spinlock_log(){
-    spinlock_ticket_log_producer = init_log_producer("spinlock_ticket");
-}
-
-static void __attribute__((constructor)) deinit_spinlock_log(){
-    free(spinlock_ticket_log_producer);
-}
+LOG_PRODUCER_CREATE_LOCAL_DEFAULT("spinlock_ticket", spinlock_ticket)
 
 static inline spinlock_ticket_number_t spinlock_ticket_acquire(
         spinlock_ticket_lock_volatile_t *spinlock_ticket)
@@ -64,7 +56,7 @@ spinlock_ticket_number_t spinlock_ticket_lock_internal(
         }
 
         if (spins++ == UINT32_MAX) {
-            LOG_E(spinlock_ticket_log_producer, "Possible stuck spinlock detected for thread %d in %s at %s:%u",
+            LOG_E(LOG_PRODUCER_DEFAULT, "Possible stuck spinlock detected for thread %d in %s at %s:%u",
                   pthread_self(), src_func, src_path, src_line);
         }
     }

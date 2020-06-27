@@ -59,7 +59,7 @@ void log_message_debug(const char* src_path, const char* src_func, const int src
     va_list args;
     va_start(args, message);
 
-    log_message_internal(tag, LOG_LEVEL_DEBUG_INTERNALS, message, args, stdout);
+    log_message_internal_printer(tag, LOG_LEVEL_DEBUG_INTERNALS, message, args, stdout);
 
     va_end(args);
     free(tag);
