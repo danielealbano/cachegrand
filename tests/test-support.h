@@ -35,6 +35,7 @@ struct test_key_same_bucket {
     hashtable_key_size_t key_len;
     hashtable_hash_t key_hash;
     hashtable_hash_half_t key_hash_half;
+    hashtable_hash_quarter_t key_hash_quarter;
 };
 
 typedef struct keyset_generator_thread_info keyset_generator_thread_info_t;

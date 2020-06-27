@@ -44,7 +44,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                         test_key_1_len,
                         test_value_1));
 
-                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == test_key_1_hash_half);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
                 REQUIRE(key_value->flags != HASHTABLE_KEY_VALUE_FLAG_DELETED);
 
                 REQUIRE(hashtable_op_delete(
@@ -52,7 +52,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                         test_key_1,
                         test_key_1_len));
 
-                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == 0);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
             })
         }
@@ -75,7 +75,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                         test_key_1_len,
                         test_value_1));
 
-                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == test_key_1_hash_half);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
                 REQUIRE(key_value->flags != HASHTABLE_KEY_VALUE_FLAG_DELETED);
 
                 REQUIRE(hashtable_op_delete(
@@ -83,7 +83,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                         test_key_1,
                         test_key_1_len));
 
-                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == 0);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
 
                 REQUIRE(hashtable_op_set(
@@ -92,7 +92,9 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                         test_key_1_len,
                         test_value_1));
 
-                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == test_key_1_hash_half);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].distance == 0);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
                 REQUIRE(key_value->flags != HASHTABLE_KEY_VALUE_FLAG_DELETED);
 
                 REQUIRE(hashtable_op_delete(
@@ -100,7 +102,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                         test_key_1,
                         test_key_1_len));
 
-                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == 0);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
             })
         }
@@ -137,7 +139,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                 hashtable_key_value_volatile_t * key_value =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index_base, random_slot_index)];
 
-                REQUIRE(half_hashes_chunk->half_hashes[random_slot_index] == 0);
+                REQUIRE(half_hashes_chunk->half_hashes[random_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
                 REQUIRE(key_value->data == test_value_1 + random_slot_index);
 
@@ -177,7 +179,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                 hashtable_key_value_volatile_t * key_value =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index_base, random_slot_index)];
 
-                REQUIRE(half_hashes_chunk->half_hashes[random_slot_index] == 0);
+                REQUIRE(half_hashes_chunk->half_hashes[random_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
                 REQUIRE(key_value->data == test_value_1 + random_slot_index);
 
@@ -187,8 +189,10 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                         test_key_same_bucket[slots_to_fill - 1].key_len,
                         test_value_1 + slots_to_fill - 1));
 
-                REQUIRE(half_hashes_chunk->half_hashes[random_slot_index] ==
-                    test_key_same_bucket[slots_to_fill - 1].key_hash_half);
+                REQUIRE(half_hashes_chunk->half_hashes[random_slot_index].filled == true);
+                REQUIRE(half_hashes_chunk->half_hashes[random_slot_index].distance == 0);
+                REQUIRE(half_hashes_chunk->half_hashes[random_slot_index].quarter_hash ==
+                        test_key_same_bucket[slots_to_fill - 1].key_hash_quarter);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_FILLED);
                 REQUIRE(key_value->data == test_value_1 + slots_to_fill - 1);
 

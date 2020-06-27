@@ -101,7 +101,7 @@ void test_support_hashtable_print_heatmap(
                 hashtable_chunk_slot_index_t chunk_slot_index = 0;
                 chunk_slot_index < HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
                 chunk_slot_index++) {
-            if (ht_data->half_hashes_chunk[chunk_index].half_hashes[chunk_slot_index] == 0) {
+            if (ht_data->half_hashes_chunk[chunk_index].half_hashes[chunk_slot_index].slot_id == 0) {
                 continue;
             }
             slots_used++;
@@ -231,7 +231,9 @@ test_key_same_bucket_t* test_support_same_hash_mod_fixtures_generate(
             test_key_same_bucket_fixtures[matches_counter].key_len = strlen(key_test);
             test_key_same_bucket_fixtures[matches_counter].key_hash = hash_test;
             test_key_same_bucket_fixtures[matches_counter].key_hash_half =
-                    hashtable_support_hash_half(hash_test) | 0x80000000;
+                    hashtable_support_hash_half(hash_test);
+            test_key_same_bucket_fixtures[matches_counter].key_hash_quarter =
+                    hashtable_support_hash_quarter(hashtable_support_hash_half(hash_test));
 
             matches_counter++;
 
