@@ -9,7 +9,7 @@ extern "C" {
 #include <log_debug.h>
 #include <stdio.h>
 
-#define LOG_SINK_REGISTERED_MAX             5
+#define LOG_SINK_REGISTERED_MAX             4
 #define LOG_MESSAGE_TIMESTAMP_MAX_LENGTH    50
 
 #define LOG_E(tag, message, ...) \
