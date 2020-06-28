@@ -25,13 +25,13 @@ char test_key_1[] = "test key 1";
 hashtable_key_size_t test_key_1_len = 10;
 hashtable_hash_t test_key_1_hash = (hashtable_hash_t)0xf1bdcc8aaccb614c;
 hashtable_hash_half_t test_key_1_hash_half = (test_key_1_hash >> 32u) | 0x80000000u;
-hashtable_bucket_index_t test_index_1_buckets_count_42 = test_key_1_hash % buckets_count_42;
+hashtable_hash_quarter_t test_key_1_hash_quarter = test_key_1_hash_half & 0xFFFF;
 
 char test_key_2[] = "test key 2";
 hashtable_key_size_t test_key_2_len = 10;
 hashtable_hash_t test_key_2_hash = (hashtable_hash_t)0x8c8b1b670da1324d;
 hashtable_hash_half_t test_key_2_hash_half = (test_key_2_hash >> 32u) | 0x80000000u;
-hashtable_bucket_index_t test_index_2_buckets_count_42 = test_key_2_hash % buckets_count_42;
+hashtable_hash_quarter_t test_key_2_hash_quarter = test_key_2_hash_half & 0xFFFF;
 
 #define HASHTABLE_DATA(buckets_count_v, ...) \
 { \
@@ -70,8 +70,10 @@ hashtable_bucket_index_t test_index_2_buckets_count_42 = test_key_2_hash % bucke
     hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)]
 
 #define HASHTABLE_SET_INDEX_SHARED(chunk_index, chunk_slot_index, hash, value) \
-    HASHTABLE_HALF_HASHES_CHUNK(chunk_index).half_hashes[chunk_slot_index] = \
-        (hash >> 32u) | 0x80000000; \
+    HASHTABLE_HALF_HASHES_CHUNK(chunk_index).half_hashes[chunk_slot_index].quarter_hash = \
+        (hash >> 32u) & 0xFFFFu; \
+    HASHTABLE_HALF_HASHES_CHUNK(chunk_index).half_hashes[chunk_slot_index].distance = 0; \
+    HASHTABLE_HALF_HASHES_CHUNK(chunk_index).half_hashes[chunk_slot_index].filled = true; \
     HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).data = value;
 
 #define HASHTABLE_SET_KEY_INLINE_BY_INDEX(chunk_index, chunk_slot_index, hash, key, key_size, value) \

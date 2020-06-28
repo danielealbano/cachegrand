@@ -25,3 +25,7 @@ hashtable_hash_t hashtable_support_hash_calculate(hashtable_key_data_t *key, has
 hashtable_hash_half_t hashtable_support_hash_half(hashtable_hash_t hash) {
     return (hash >> 32u) | 0x80000000u;
 }
+
+hashtable_hash_quarter_t hashtable_support_hash_quarter(hashtable_hash_half_t hash_half) {
+    return hash_half & 0xFFFFu;
+}

@@ -193,6 +193,7 @@ TEST_CASE("hashtable/hashtable_op_get.c", "[hashtable][hashtable_op][hashtable_o
                 hashtable->ht_current->half_hashes_chunk[chunk_index_base].metadata.overflowed_chunks_counter =
                         ceil((double)slots_to_fill / HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT);
 
+
                 for(hashtable_chunk_slot_index_t i = 0; i < slots_to_fill; i++) {
                     hashtable_chunk_index_t chunk_index =
                             chunk_index_base + (int)(i / HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT);
@@ -206,6 +207,8 @@ TEST_CASE("hashtable/hashtable_op_get.c", "[hashtable][hashtable_op][hashtable_o
                             test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i);
+                    HASHTABLE_HALF_HASHES_CHUNK(chunk_index).half_hashes[chunk_slot_index].distance =
+                            chunk_index - chunk_index_base;
                 }
 
                 for(hashtable_chunk_slot_index_t i = 0; i < slots_to_fill; i++) {
