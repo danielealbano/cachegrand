@@ -37,7 +37,7 @@ void bench_support_collect_hashtable_stats(
     *return_overflowed_chunks_count = 0;
 
     for(hashtable_chunk_index_t chunk_index = 0; chunk_index < ht_data->chunks_count; chunk_index++) {
-        if (ht_data->half_hashes_chunk[chunk_index].half_hashes[0] == 0) {
+        if (ht_data->half_hashes_chunk[chunk_index].half_hashes[0].slot_id == 0) {
             continue;
         }
 

@@ -2,7 +2,7 @@
 #define CACHEGRAND_LOG_DEBUG_H
 
 #if DEBUG == 1
-
+#include <stdbool.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -19,33 +19,25 @@ extern "C" {
 
 #define LOG_MESSAGE_DEBUG_RULES_SRC_PATH_INCLUDE
 
-#define LOG_MESSAGE_DEBUG_RULES_SRC_PATH_EXCLUDE
+#define LOG_MESSAGE_DEBUG_RULES_SRC_PATH_EXCLUDE \
+        "tests/test-support.c",
 
 #define LOG_MESSAGE_DEBUG_RULES_SRC_FUNC_INCLUDE
 
 #define LOG_MESSAGE_DEBUG_RULES_SRC_FUNC_EXCLUDE \
         "hashtable_op_get", \
         "hashtable_op_set", \
+        "hashtable_op_delete", \
         "hashtable_support_op_search_key_avx2", \
         "hashtable_support_op_search_key_or_create_new_avx2", \
-        "hashtable_support_op_half_hashes_chunk_lock_avx2", \
-        "hashtable_support_op_half_hashes_chunk_unlock_avx2", \
         "hashtable_support_op_search_key_avx", \
         "hashtable_support_op_search_key_or_create_new_avx", \
-        "hashtable_support_op_half_hashes_chunk_lock_avx", \
-        "hashtable_support_op_half_hashes_chunk_unlock_avx", \
         "hashtable_support_op_search_key_sse42", \
         "hashtable_support_op_search_key_or_create_new_sse42", \
-        "hashtable_support_op_half_hashes_chunk_lock_sse42", \
-        "hashtable_support_op_half_hashes_chunk_unlock_sse42", \
         "hashtable_support_op_search_key_genericx86", \
         "hashtable_support_op_search_key_or_create_new_genericx86", \
-        "hashtable_support_op_half_hashes_chunk_lock_genericx86", \
-        "hashtable_support_op_half_hashes_chunk_unlock_genericx86", \
         "hashtable_support_op_search_key_defaultopt", \
-        "hashtable_support_op_search_key_or_create_new_defaultopt", \
-        "hashtable_support_op_half_hashes_chunk_lock_defaultopt", \
-        "hashtable_support_op_half_hashes_chunk_unlock_defaultopt",
+        "hashtable_support_op_search_key_or_create_new_defaultopt",
 
 #define LOG_MESSAGE_DEBUG_RULES(var, TYPE, INCLUDE_OR_EXCLUDE) \
     const char* var[] = { LOG_MESSAGE_DEBUG_RULES_##TYPE##_##INCLUDE_OR_EXCLUDE NULL }

@@ -40,7 +40,7 @@
 
 #include "test-support.h"
 
-static const char* TAG = "test-support";
+LOG_PRODUCER_CREATE_LOCAL_DEFAULT("test-support", test_support)
 
 void test_support_hashtable_print_heatmap(
         hashtable_t* hashtable,
@@ -71,7 +71,7 @@ void test_support_hashtable_print_heatmap(
             chunk_index++) {
         fprintf(
                 stdout,
-                " %*u |",
+                " %*lu |",
                 2 + 1 + overflowed_chunks_counter_digits_max,
                 chunk_index);
     }
@@ -101,14 +101,14 @@ void test_support_hashtable_print_heatmap(
                 hashtable_chunk_slot_index_t chunk_slot_index = 0;
                 chunk_slot_index < HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
                 chunk_slot_index++) {
-            if (ht_data->half_hashes_chunk[chunk_index].half_hashes[chunk_slot_index] == 0) {
+            if (ht_data->half_hashes_chunk[chunk_index].half_hashes[chunk_slot_index].slot_id == 0) {
                 continue;
             }
             slots_used++;
         }
 
         if (chunk_index > 0 && chunk_index % columns == 0) {
-            fprintf(stdout, " from <%05u> -> to <%05u>\n",
+            fprintf(stdout, " from <%05lu> -> to <%05lu>\n",
                     chunk_index - columns, chunk_index - 1);
             fprintf(stdout, " %5u |",
                     (int)chunk_index / columns);
@@ -173,9 +173,10 @@ void test_support_hashtable_print_heatmap(
 
     if (chunk_index > 0 && chunk_index % columns != 0) {
         fprintf(stdout, "%*s",
-                (6 + overflowed_chunks_counter_digits_max) * (columns - (chunk_index % columns)), "");
+                (int)((6 + overflowed_chunks_counter_digits_max) * (columns - (chunk_index % columns))),
+                "");
     }
-    fprintf(stdout, " from <%05u> -> tp <%05u>\n",
+    fprintf(stdout, " from <%05lu> -> tp <%05lu>\n",
             chunk_index - (chunk_index % columns), ht_data->chunks_count - 1);
 
     fprintf(stdout, "-------------------\n");
@@ -230,7 +231,9 @@ test_key_same_bucket_t* test_support_same_hash_mod_fixtures_generate(
             test_key_same_bucket_fixtures[matches_counter].key_len = strlen(key_test);
             test_key_same_bucket_fixtures[matches_counter].key_hash = hash_test;
             test_key_same_bucket_fixtures[matches_counter].key_hash_half =
-                    hashtable_support_hash_half(hash_test) | 0x80000000;
+                    hashtable_support_hash_half(hash_test);
+            test_key_same_bucket_fixtures[matches_counter].key_hash_quarter =
+                    hashtable_support_hash_quarter(hashtable_support_hash_half(hash_test));
 
             matches_counter++;
 
@@ -268,7 +271,6 @@ void test_support_set_thread_affinity(
     pthread_t thread;
 
     uint32_t logical_core_count = psnip_cpu_count();
-    uint32_t physical_core_count = logical_core_count >> 1;
     uint32_t logical_core_index = (thread_index % logical_core_count) * 2;
 
     if (logical_core_index >= logical_core_count) {
@@ -288,88 +290,247 @@ void test_support_set_thread_affinity(
 #endif
 }
 
-char* test_support_build_keys_random_max_length(
-        uint64_t count) {
-    char keys_character_set_list[] = {TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_RANDOM_LIST };
-    char *keys = (char *) xalloc_mmap_alloc(count * TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL);
+static void* test_support_build_keys_random_max_length_thread_func(
+        void *arg) {
+    uint64_t keys_generated = 0;
+    keyset_generator_thread_info_t* ti = (keyset_generator_thread_info_t*)arg;
 
-    char* keys_current = keys;
-    for(uint64_t i = 0; i < count; i++) {
-        uint8_t i2;
-        uint8_t length = TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH - 1;
+    // Pre-initialize the seed to always generate the same sequence of random numbers
+    random_init(ti->random_seed_base + ti->thread_num);
 
-        for(i2 = 0; i2 < TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH - 1; i2++) {
-            *keys_current = keys_character_set_list[random_generate() % TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_RANDOM_SIZE];
+    test_support_set_thread_affinity(ti->thread_num);
+    LOG_DI("[Thread <%u>] waiting for start_flag", ti->thread_num);
+
+    do {
+        HASHTABLE_MEMORY_FENCE_LOAD();
+    } while (*ti->start_flag == 0);
+
+    LOG_DI("[Thread <%u>] start_flag == 1", ti->thread_num);
+
+    for (uint64_t i = ti->start; i < ti->end; i++) {
+        keys_generated++;
+        char* keys_current = ti->keyset + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
+        uint8_t length =TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH;
+
+        for (uint8_t i2 = 0; i2 < length; i2++) {
+            *keys_current = ti->charset_list[random_generate() % TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_REPEATED_SIZE];
             keys_current++;
         }
-
         *keys_current = 0;
-        keys_current -= length;
-        keys_current += TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL;
-
-        assert((keys_current - keys) % TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL == 0);
     }
 
-    return keys;
+    LOG_DI("[Thread <%u>] key generation completed, generated <%lu> keys", ti->thread_num, keys_generated);
+
+    return 0;
 }
 
 static void* test_support_build_keys_random_random_length_thread_func(
         void *arg) {
     uint64_t keys_generated = 0;
-    keys_generator_thread_info_t* thread_info = (keys_generator_thread_info_t*)arg;
+    keyset_generator_thread_info_t* ti = (keyset_generator_thread_info_t*)arg;
 
-    test_support_set_thread_affinity(thread_info->thread_num);
-    LOG_DI("[Thread <%u>] waiting for start_flag", thread_info->thread_num);
+    // Pre-initialize the seed to always generate the same sequence of random numbers
+    random_init(ti->random_seed_base + ti->thread_num);
+
+    test_support_set_thread_affinity(ti->thread_num);
+    LOG_DI("[Thread <%u>] waiting for start_flag", ti->thread_num);
 
     do {
         HASHTABLE_MEMORY_FENCE_LOAD();
-    } while (*thread_info->start_flag == 0);
+    } while (*ti->start_flag == 0);
 
-    LOG_DI("[Thread <%u>] start_flag == 1", thread_info->thread_num);
+    LOG_DI("[Thread <%u>] start_flag == 1", ti->thread_num);
 
-    uint64_t count = thread_info->count;
-    char* keys_character_set_list = thread_info->keys_character_set_list;
-    char* keys = thread_info->keys;
-
-    // Not perfect calcs but spread the load, this approach will reduce cache lines collisions and let the threads to
-    // work sequentially on their "chunk" of memory to work on
-    uint64_t window_len = (count / thread_info->threads_count) + 1;
-    uint64_t start = thread_info->thread_num * window_len;
-    uint64_t end = start + window_len;
-    if (end > count) {
-        end = count;
-    }
-
-    for (uint64_t i = start; i < end; i++) {
+    for (uint64_t i = ti->start; i < ti->end; i++) {
         keys_generated++;
-        char* keys_current = keys + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
+        char* keys_current = ti->keyset + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
 
         uint8_t length =
                 ((random_generate() % (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH - TEST_SUPPORT_RANDOM_KEYS_MIN_LENGTH)) + TEST_SUPPORT_RANDOM_KEYS_MIN_LENGTH) -
                 1;
 
         for (uint8_t i2 = 0; i2 < length; i2++) {
-            *keys_current = keys_character_set_list[random_generate() % TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_RANDOM_SIZE];
+            *keys_current = ti->charset_list[random_generate() % TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_REPEATED_SIZE];
             keys_current++;
         }
 
         *keys_current = 0;
     }
 
-    LOG_DI("[Thread <%u>] key generation completed, generated <%lu> keys", thread_info->thread_num, keys_generated);
+    LOG_DI("[Thread <%u>] key generation completed, generated <%lu> keys", ti->thread_num, keys_generated);
 
     return 0;
 }
 
-char* test_support_build_keys_random_random_length(
+#if CACHEGRAND_CMAKE_CONFIG_DEPS_OPENSSL_FOUND == 1
+static void* test_support_build_keys_repeatible_set_min_max_length_thread_func(
+        void *arg) {
+    uint64_t keys_generated = 0;
+    keyset_generator_thread_info_t* ti = (keyset_generator_thread_info_t*)arg;
+
+    // Pre-initialize the seed to always generate the same sequence of random numbers
+    random_init(ti->random_seed_base + ti->thread_num);
+
+    test_support_set_thread_affinity(ti->thread_num);
+    LOG_DI("[Thread <%u>] waiting for start_flag", ti->thread_num);
+
+    do {
+        HASHTABLE_MEMORY_FENCE_LOAD();
+    } while (*ti->start_flag == 0);
+
+    LOG_DI("[Thread <%u>] start_flag == 1", ti->thread_num);
+
+    BN_CTX* bn_ctx = BN_CTX_new();
+    BIGNUM* charset_size_big = BN_new();
+    BIGNUM* beginning_key_index_big = BN_new();
+    BIGNUM* beginning_key_length_big = BN_new();
+    BIGNUM* ending_key_index_big = BN_new();
+    BIGNUM* ending_key_length_big = BN_new();
+
+    BN_set_word(charset_size_big, strlen(ti->charset_list));
+    BN_set_word(beginning_key_index_big, 0);
+    BN_set_word(beginning_key_length_big, TEST_SUPPORT_RANDOM_KEYS_MIN_LENGTH);
+    BN_set_word(ending_key_length_big, TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH);
+    BN_exp(ending_key_index_big, charset_size_big, ending_key_length_big, bn_ctx);
+    BN_sub_word(ending_key_index_big, 1);
+
+    for (uint64_t i = ti->start; i < ti->end; i++) {
+        keys_generated++;
+        char* keys_current = ti->keyset + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
+
+        bool is_key_from_beginning_of_set = (i & 0x01u) == 0;
+
+        BIGNUM* key_length_big = is_key_from_beginning_of_set ? beginning_key_length_big : ending_key_length_big;
+        BIGNUM* key_index_big = is_key_from_beginning_of_set ? beginning_key_index_big : ending_key_index_big;
+
+        uint32_t key_length = BN_get_word(key_length_big);
+
+        for (uint32_t key_char_index = 0; key_char_index < key_length; key_char_index++) {
+            uint32_t charset_index = 0;
+            uint32_t pos_from_end = (key_length - key_char_index) - 1;
+
+            BIGNUM* pos_from_end_big = BN_new();
+            BIGNUM* divisor_big = BN_new();
+            BIGNUM* value_to_mod_big = BN_new();
+            BIGNUM* charset_index_big = BN_new();
+
+            BN_set_word(pos_from_end_big, pos_from_end);
+
+            if (pos_from_end == 0) {
+                BN_set_word(divisor_big, 1);
+            } else {
+                BN_exp(divisor_big, charset_size_big, pos_from_end_big, bn_ctx);
+            }
+
+            BN_div(value_to_mod_big, NULL, key_index_big, divisor_big, bn_ctx);
+            BN_mod(charset_index_big, value_to_mod_big, charset_size_big, bn_ctx);
+            charset_index = BN_get_word(charset_index_big);
+
+            *keys_current = ti->charset_list[charset_index];
+            keys_current++;
+
+            BN_free(divisor_big);
+            BN_free(pos_from_end_big);
+            BN_free(value_to_mod_big);
+            BN_free(charset_index_big);
+        }
+
+        *keys_current = 0;
+
+        if (is_key_from_beginning_of_set) {
+            BIGNUM* current_keyset_max_index_big = BN_new();
+            BN_exp(current_keyset_max_index_big, charset_size_big, key_length_big, bn_ctx);
+
+            BN_add_word(beginning_key_index_big, 1);
+            if (BN_cmp(beginning_key_index_big, current_keyset_max_index_big) >= 0) {
+                BN_set_word(beginning_key_index_big, 0);
+                BN_add_word(beginning_key_length_big, 1);
+            }
+
+            BN_free(current_keyset_max_index_big);
+        } else {
+            if (BN_is_one(ending_key_index_big) == 1) {
+                BN_sub_word(ending_key_length_big, 1);
+                BN_exp(ending_key_index_big, charset_size_big, ending_key_length_big, bn_ctx);
+            } else {
+                BN_sub_word(ending_key_index_big, 1);
+            }
+        }
+
+        if (BN_cmp(beginning_key_length_big, ending_key_length_big) == 0) {
+            assert(false);
+        }
+    }
+
+    BN_free(charset_size_big);
+    BN_free(beginning_key_index_big);
+    BN_free(beginning_key_length_big);
+    BN_free(ending_key_index_big);
+    BN_free(ending_key_length_big);
+
+    BN_CTX_free(bn_ctx);
+
+    LOG_DI("[Thread <%u>] key generation completed, generated <%lu> keys", ti->thread_num, keys_generated);
+
+    return 0;
+}
+#endif
+
+void test_support_free_keys(
+        char* keys,
         uint64_t count) {
+    xalloc_mmap_free(keys, count * (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH + 1));
+}
+
+char* test_support_init_keys(
+        uint64_t keyset_size,
+        uint8_t keys_generator_method,
+        uint64_t random_seed_base) {
     int res;
     void* ret;
     uint8_t start_flag;
     pthread_attr_t attr;
-    char keys_character_set_list[] = {TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_RANDOM_LIST};
-    char* keys = (char*) xalloc_mmap_alloc(count * TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL);
+    char *keyset;
+    char *charset_list;
+    size_t charset_size;
+    void *(*keyset_generator_fp) (void *);
 
+    char charset_list_repeated[] = {TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_REPEATED_LIST};
+    char charset_list_unique[] = {TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_UNIQUE_LIST};
+
+    switch (keys_generator_method) {
+        default:
+            FATAL(LOG_PRODUCER_DEFAULT, "Keyset genererator method <%d> unsupported", keys_generator_method);
+            break;
+
+        case TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_MAX_LENGTH:
+            keyset_generator_fp = test_support_build_keys_random_max_length_thread_func;
+            charset_size = TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_REPEATED_SIZE;
+            charset_list = (char*)malloc(charset_size);
+            memset(charset_list, 0, charset_size);
+            memcpy(charset_list, charset_list_repeated, charset_size);
+            break;
+
+        case TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_RANDOM_LENGTH:
+            keyset_generator_fp = test_support_build_keys_random_random_length_thread_func;
+            charset_size = TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_REPEATED_SIZE;
+            charset_list = (char*)malloc(charset_size);
+            memset(charset_list, 0, charset_size);
+            memcpy(charset_list, charset_list_repeated, charset_size);
+            break;
+
+#if CACHEGRAND_CMAKE_CONFIG_DEPS_OPENSSL_FOUND == 1
+        case TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_REPETIBLE_STR_ALTERNATEMINMAX_LENGTH:
+            keyset_generator_fp = test_support_build_keys_repeatible_set_min_max_length_thread_func;
+            charset_size = TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_UNIQUE_SIZE;
+            charset_list = (char*)malloc(charset_size);
+            memset(charset_list, 0, charset_size);
+            memcpy(charset_list, charset_list_unique, charset_size);
+            break;
+#endif
+    }
+
+    keyset = (char*) xalloc_mmap_alloc(keyset_size * TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL);
     uint32_t threads_count = psnip_cpu_count();
 
     LOG_DI("generating keyset using <%u> threads", threads_count);
@@ -379,8 +540,8 @@ char* test_support_build_keys_random_random_length(
         perror("pthread_attr_init");
     }
 
-    keys_generator_thread_info_t* threads_info =
-            (keys_generator_thread_info_t*)calloc(threads_count, sizeof(keys_generator_thread_info_t));
+    keyset_generator_thread_info_t* threads_info =
+            (keyset_generator_thread_info_t*)calloc(threads_count, sizeof(keyset_generator_thread_info_t));
     if (threads_info == NULL) {
         perror("calloc");
     }
@@ -388,21 +549,32 @@ char* test_support_build_keys_random_random_length(
     LOG_DI("generating keys using <%u> threads", threads_count);
 
     start_flag = 0;
+    uint64_t window_len = (keyset_size / threads_count) + 1;
     for(uint32_t thread_num = 0; thread_num < threads_count; thread_num++) {
+        // Not perfect calc but spread the load, this approach will reduce cache lines collisions and let the threads to
+        // work sequentially on their "chunk" of memory to work on
+        uint64_t start = thread_num * window_len;
+        uint64_t end = start + window_len;
+        if (end > keyset_size) {
+            end = keyset_size;
+        }
+
+        threads_info[thread_num].charset_list = charset_list;
+        threads_info[thread_num].charset_size = charset_size;
+        threads_info[thread_num].random_seed_base = random_seed_base;
         threads_info[thread_num].start_flag = &start_flag;
         threads_info[thread_num].thread_num = thread_num;
         threads_info[thread_num].threads_count = threads_count;
-        threads_info[thread_num].count = count;
-        threads_info[thread_num].keys_character_set_list = keys_character_set_list;
-        threads_info[thread_num].keys = keys;
+        threads_info[thread_num].keyset_size = keyset_size;
+        threads_info[thread_num].keyset = keyset;
+        threads_info[thread_num].start = start;
+        threads_info[thread_num].end = end;
 
-        int res = pthread_create(
+        if (pthread_create(
                 &threads_info[thread_num].thread_id,
                 &attr,
-                &test_support_build_keys_random_random_length_thread_func,
-                &threads_info[thread_num]);
-
-        if (res != 0) {
+                keyset_generator_fp,
+                &threads_info[thread_num]) != 0) {
             perror("pthread_create");
         }
     }
@@ -424,143 +596,7 @@ char* test_support_build_keys_random_random_length(
 
     LOG_DI("keyset generated");
 
-    return keys;
-}
-
-#if CACHEGRAND_CMAKE_CONFIG_DEPS_OPENSSL_FOUND == 1
-char* test_support_build_keys_repeatible_set_min_max_length(
-        uint64_t count) {
-    uint64_t charset_size = TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_UNIQUE_SIZE;
-    char keys_character_set_list[] = {TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_UNIQUE_LIST};
-
-    BN_CTX* bn_ctx = BN_CTX_new();
-    BIGNUM* charset_size_big = BN_new();
-    BIGNUM* beginning_key_index_big = BN_new();
-    BIGNUM* beginning_key_length_big = BN_new();
-    BIGNUM* ending_key_index_big = BN_new();
-    BIGNUM* ending_key_length_big = BN_new();
-
-    char *keys = (char *)xalloc_mmap_alloc(count * TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL);
-    char *keys_current = (char *)keys;
-
-    BN_set_word(charset_size_big, charset_size);
-    BN_set_word(beginning_key_index_big, 0);
-    BN_set_word(beginning_key_length_big, TEST_SUPPORT_RANDOM_KEYS_MIN_LENGTH);
-    BN_set_word(ending_key_length_big, TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH);
-    BN_exp(ending_key_index_big, charset_size_big, ending_key_length_big, bn_ctx);
-    BN_sub_word(ending_key_index_big, 1);
-
-    for (uint64_t i = 0; i < count; i++) {
-        bool is_key_from_beginning_of_set = (i & 0x01u) == 0;
-
-        BIGNUM* key_lenght_big = is_key_from_beginning_of_set ? beginning_key_length_big : ending_key_length_big;
-        BIGNUM* key_index_big = is_key_from_beginning_of_set ? beginning_key_index_big : ending_key_index_big;
-
-        uint32_t key_lenght = BN_get_word(key_lenght_big);
-
-        for (uint32_t key_char_index = 0; key_char_index < key_lenght; key_char_index++) {
-            uint32_t charset_index = 0;
-            uint32_t pos_from_end = (key_lenght - key_char_index) - 1;
-
-            BIGNUM* pos_from_end_big = BN_new();
-            BIGNUM* divisor_big = BN_new();
-            BIGNUM* value_to_mod_big = BN_new();
-            BIGNUM* charset_index_big = BN_new();
-
-            BN_set_word(pos_from_end_big, pos_from_end);
-
-            if (pos_from_end == 0) {
-                BN_set_word(divisor_big, 1);
-            } else {
-                BN_exp(divisor_big, charset_size_big, pos_from_end_big, bn_ctx);
-            }
-
-            BN_div(value_to_mod_big, NULL, key_index_big, divisor_big, bn_ctx);
-            BN_mod(charset_index_big, value_to_mod_big, charset_size_big, bn_ctx);
-            charset_index = BN_get_word(charset_index_big);
-
-            *keys_current = keys_character_set_list[charset_index];
-            keys_current++;
-
-            BN_free(divisor_big);
-            BN_free(pos_from_end_big);
-            BN_free(value_to_mod_big);
-            BN_free(charset_index_big);
-        }
-
-        *keys_current = 0;
-        keys_current -= key_lenght;
-        keys_current += TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL;
-
-        if (is_key_from_beginning_of_set) {
-            BIGNUM* current_keyset_max_index_big = BN_new();
-            BN_exp(current_keyset_max_index_big, charset_size_big, key_lenght_big, bn_ctx);
-
-            BN_add_word(beginning_key_index_big, 1);
-            if (BN_cmp(beginning_key_index_big, current_keyset_max_index_big) >= 0) {
-                BN_set_word(beginning_key_index_big, 0);
-                BN_add_word(beginning_key_length_big, 1);
-            }
-
-            BN_free(current_keyset_max_index_big);
-        } else {
-            if (BN_is_one(ending_key_index_big) == 1) {
-                BN_sub_word(ending_key_length_big, 1);
-                BN_exp(ending_key_index_big, charset_size_big, ending_key_length_big, bn_ctx);
-            } else {
-                BN_sub_word(ending_key_index_big, 1);
-            }
-        }
-
-        if (BN_cmp(beginning_key_length_big, ending_key_length_big) == 0) {
-            assert(false);
-            xalloc_mmap_free(keys, count * (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH + 1));
-            return NULL;
-        }
-
-        assert((keys_current - keys) % TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL == 0);
-    }
-
-    BN_free(charset_size_big);
-    BN_free(beginning_key_index_big);
-    BN_free(beginning_key_length_big);
-    BN_free(ending_key_index_big);
-    BN_free(ending_key_length_big);
-
-    BN_CTX_free(bn_ctx);
-
-    return keys;
-}
-#endif
-
-void test_support_free_keys(
-        char* keys,
-        uint64_t count) {
-    xalloc_mmap_free(keys, count * (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH + 1));
-}
-
-char* test_support_init_keys(
-        uint64_t keys_count,
-        uint8_t keys_generator_method) {
-    char* keys;
-    switch (keys_generator_method) {
-        default:
-            FATAL(TAG, "Keyset genererator method <%d> unsupported", keys_generator_method);
-            break;
-        case TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_MAX_LENGTH:
-            keys = test_support_build_keys_random_max_length(keys_count);
-            break;
-        case TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_RANDOM_LENGTH:
-            keys = test_support_build_keys_random_random_length(keys_count);
-            break;
-#if CACHEGRAND_CMAKE_CONFIG_DEPS_OPENSSL_FOUND == 1
-            case TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_REPETIBLE_STR_ALTERNATEMINMAX_LENGTH:
-            keys = test_support_build_keys_repeatible_set_min_max_length(keys_count);
-            break;
-#endif
-    }
-
-    return keys;
+    return keyset;
 }
 
 hashtable_t* test_support_init_hashtable(

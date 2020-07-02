@@ -1,19 +1,6 @@
-function(target_add_code_coverage TARGET)
-    get_target_property(
-            CODECOVERAGE_TARGET_BINARY_DIRECTORY
-            ${TARGET}
-            BINARY_DIR)
-
-    set(CODECOVERAGE_TARGET_NAME "generate-${TARGET}-code-coverage")
-    set(CODECOVERAGE_OUTPUT_PATH "${CMAKE_BINARY_DIR}/code-coverage")
-
-    add_custom_target(
-            ${CODECOVERAGE_TARGET_NAME}
-            COMMAND test -d code-coverage && rm -rf code-coverage || true
-            COMMAND mkdir -p code-coverage
-            COMMAND chmod 700 ${PROJECT_SOURCE_DIR}/tools/code_coverage_cmake_support/code_coverage_cmake_support.sh
-            COMMAND ${PROJECT_SOURCE_DIR}/tools/code_coverage_cmake_support/code_coverage_cmake_support.sh -o ${CODECOVERAGE_TARGET_BINARY_DIRECTORY} -c ${CODECOVERAGE_OUTPUT_PATH}
-            COMMAND echo "-- Code coverage files have been output to ${CODECOVERAGE_OUTPUT_PATH}"
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    )
-endfunction()
+if (CMAKE_BUILD_TYPE MATCHES Debug)
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fprofile-generate -fprofile-arcs -ftest-coverage --coverage")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fprofile-generate -fprofile-arcs -ftest-coverage --coverage")
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fprofile-generate -fprofile-arcs -ftest-coverage --coverage")
+    set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fprofile-generate -fprofile-arcs -ftest-coverage --coverage")
+endif()

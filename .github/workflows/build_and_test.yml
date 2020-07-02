@@ -26,16 +26,16 @@ jobs:
           }
 
     steps:
-    - name: Setup cmake
+    - name: Setup - cmake
       uses: lukka/get-cmake@latest
 
     - name: Checkout
       uses: actions/checkout@v2
       with:
-        submodules: true
+        submodules: recursive
 
     - name: Create Build Environment
-      run: cmake -E make_directory ${{runner.workspace}}/build
+      run: cmake -E make_directory ${{github.workspace}}/build
 
     - name: Prepare deps - liburing
       id: prepare-deps-liburing
@@ -45,22 +45,25 @@ jobs:
 
     - name: Configure CMake
       shell: bash
-      working-directory: ${{runner.workspace}}/build
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCACHEGRAND_BUILD_TESTS=1 -DCACHEGRAND_BUILD_BENCHES=1 -G "Unix Makefiles"
+      working-directory: ${{github.workspace}}/build
+      run: CC=/usr/bin/gcc-9 CXX=/usr/bin/g++-9 cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_HASHTABLE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
 
     - name: Build All
-      working-directory: ${{runner.workspace}}/build
+      working-directory: ${{github.workspace}}/build
       shell: bash
       run: cmake --build . --target cachegrand-tests -- -j 4
 
     - name: Test
-      working-directory: ${{runner.workspace}}/build
+      working-directory: ${{github.workspace}}/build
       shell: bash
       run: tests/cachegrand-tests
 
-    - name: Generate and upload Code Coverage to codecov.io
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    - name: Code Coverage - Generation
+      uses: danielealbano/lcov-action@v1
+      with:
+        remove_patterns: 3rdparty,tests
+
+    - name: Code Coverage - Upload to codecov.io
       shell: bash
-      working-directory: ${{runner.workspace}}/build
-      run: curl -s https://codecov.io/bash -o codecov.sh && chmod 700 codecov.sh && ./codecov.sh -n cachegrand-tests -F unittests -Z -c -G \*cachegrand-internal\* -t ${CODECOV_TOKEN}
+      working-directory: ${{github.workspace}}
+      run: bash <(curl -s https://codecov.io/bash) -X gcov -Z -f coverage.info

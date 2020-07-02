@@ -1,20 +1,27 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
 #include <locale.h>
 
+#include "misc.h"
 #include "log.h"
+#include "xalloc.h"
 
-#define LOG_MESSAGE_OUTPUT stdout
+static log_sink_t log_sinks_registered_list[LOG_SINK_REGISTERED_MAX] = {0};
+static uint8_t log_sinks_registered_count = 0;
 
-/**
- * TODO:
- *
- * Implement a log producers, sink & formatters patterns
- */
+static log_sink_t *log_sink_default_console;
 
-static log_level_t _log_level = LOG_LEVEL_DEBUG_INTERNALS;
+FUNCTION_CTOR(log_sink_init_console, {
+    log_sink_default_console = log_sink_init(stdout, LOG_LEVEL_ALL);
+    log_sink_register(log_sink_default_console);
+})
+
+FUNCTION_DTOR(log_sink_free_console, {
+    log_sink_free(log_sink_default_console);
+})
 
 const char* log_level_to_string(log_level_t level) {
     switch(level) {
@@ -32,6 +39,8 @@ const char* log_level_to_string(log_level_t level) {
             return "RECOVERABLE";
         case LOG_LEVEL_ERROR:
             return "ERROR";
+        default:
+            return "UNKNOWN";
     }
 }
 
@@ -47,32 +56,65 @@ char* log_message_timestamp(char* dest, size_t maxlen) {
     return dest;
 }
 
-void log_message_internal(const char* tag, log_level_t level, const char* message, va_list args) {
+void log_message_internal_printer(const char* tag, log_level_t level, const char* message, va_list args, FILE* out) {
     char t_str[LOG_MESSAGE_TIMESTAMP_MAX_LENGTH] = {0};
 
-    if (level > _log_level) {
-        return;
-    }
-
-    fprintf(LOG_MESSAGE_OUTPUT,
+    fprintf(out,
             "[%s][%-11s][%s] ",
             log_message_timestamp(t_str, LOG_MESSAGE_TIMESTAMP_MAX_LENGTH),
             log_level_to_string(level),
             tag);
-    vfprintf(LOG_MESSAGE_OUTPUT, message, args);
-    fprintf(LOG_MESSAGE_OUTPUT, "\n");
-    fflush(LOG_MESSAGE_OUTPUT);
+    vfprintf(out, message, args);
+    fprintf(out, "\n");
+    fflush(out);
 }
 
-void log_set_log_level(log_level_t level) {
-    _log_level = level;
+void log_message_internal(log_producer_t *producer, log_level_t level, const char *message, va_list args) {
+    for(uint8_t i = 0; i < log_sinks_registered_count && i < LOG_SINK_REGISTERED_MAX; ++i){
+        if ((level & log_sinks_registered_list[i].levels) != level) {
+            continue;
+        }
+
+        log_message_internal_printer(
+                producer->tag,
+                level,
+                message,
+                args,
+                log_sinks_registered_list[i].out);
+    }
 }
 
-void log_message(const char* tag, log_level_t level, const char* message, ...) {
+void log_message(log_producer_t* producer, log_level_t level, const char* message, ...) {
     va_list args;
     va_start(args, message);
 
-    log_message_internal(tag, level, message, args);
+    log_message_internal(producer, level,message,args);
 
     va_end(args);
+}
+
+void log_sink_register(log_sink_t *sink) {
+    log_sinks_registered_list[log_sinks_registered_count] = *sink;
+    log_sinks_registered_count++;
+}
+
+log_sink_t *log_sink_init(FILE *out, log_level_t levels) {
+    log_sink_t* result = (log_sink_t*)xalloc_alloc(sizeof(log_sink_t));
+    result->out = out;
+    result->levels = levels;
+    return result;
+}
+
+log_sink_t* log_sink_free(log_sink_t* log_sink) {
+    xalloc_free(log_sink);
+}
+
+log_producer_t *log_producer_init(char *tag) {
+    log_producer_t* result = xalloc_alloc(sizeof(log_producer_t));
+    result->tag = tag;
+    return result;
+}
+
+log_producer_t* log_producer_free(log_producer_t* log_producer) {
+    xalloc_free(log_producer);
 }

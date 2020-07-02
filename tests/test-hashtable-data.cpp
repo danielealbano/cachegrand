@@ -25,7 +25,7 @@ TEST_CASE("hashtable/hashtable_data.c", "[hashtable][hashtable_data]") {
                         hashtable_chunk_slot_index_t chunk_slot_index = 0;
                         chunk_slot_index < HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
                         chunk_slot_index++) {
-                    REQUIRE(hashtable_data->half_hashes_chunk[chunk_index].half_hashes[chunk_slot_index] == 0);
+                    REQUIRE(hashtable_data->half_hashes_chunk[chunk_index].half_hashes[chunk_slot_index].slot_id == 0);
                 }
             }
 

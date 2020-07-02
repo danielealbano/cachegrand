@@ -4,6 +4,8 @@
 
 #include "exttypes.h"
 #include "spinlock.h"
+#include "misc.h"
+#include "log.h"
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_config.h"
@@ -22,7 +24,7 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                         test_key_1_hash));
                 hashtable_chunk_slot_index_t chunk_slot_index = 0;
 
-                hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk =
+                hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
                         &hashtable->ht_current->half_hashes_chunk[chunk_index];
                 hashtable_key_value_volatile_t * key_value =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
@@ -38,7 +40,9 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
 
                 // Check if the first slot of the chain ring contains the correct key/value
                 REQUIRE(half_hashes_chunk->metadata.changes_counter == 1);
-                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == test_key_1_hash_half);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].distance == 0);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
                 REQUIRE(key_value->flags ==
                         (HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE));
                 REQUIRE(strncmp(
@@ -48,7 +52,7 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                 REQUIRE(key_value->data == test_value_1);
 
                 // Check if the subsequent element has been affected by the changes
-                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index + 1] == 0);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index + 1].slot_id == 0);
             })
         }
 
@@ -59,7 +63,7 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                         test_key_1_hash));
                 hashtable_chunk_slot_index_t chunk_slot_index = 0;
 
-                hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk =
+                hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
                         &hashtable->ht_current->half_hashes_chunk[chunk_index];
                 hashtable_key_value_volatile_t * key_value =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
@@ -77,7 +81,9 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                         test_value_1 + 1));
                 // Check if the first slot of the chain ring contains the correct key/value
                 REQUIRE(half_hashes_chunk->metadata.changes_counter == 2);
-                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == test_key_1_hash_half);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].distance == 0);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
                 REQUIRE(key_value->flags ==
                         (HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE));
                 REQUIRE(strncmp(
@@ -87,7 +93,7 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                 REQUIRE(key_value->data == test_value_1 + 1);
 
                 // Check if the subsequent element has been affected by the changes
-                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index + 1] == 0);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index + 1].slot_id == 0);
             })
         }
 
@@ -98,7 +104,7 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                         test_key_1_hash));
                 hashtable_chunk_slot_index_t chunk_slot_index1 = 0;
 
-                hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk1 =
+                hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk1 =
                         &hashtable->ht_current->half_hashes_chunk[chunk_index1];
                 hashtable_key_value_volatile_t * key_value1 =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index1, chunk_slot_index1)];
@@ -109,7 +115,7 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                         test_key_2_hash));
                 hashtable_chunk_slot_index_t chunk_slot_index2 = 0;
 
-                hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk2 =
+                hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk2 =
                         &hashtable->ht_current->half_hashes_chunk[chunk_index2];
                 hashtable_key_value_volatile_t * key_value2 =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index2, chunk_slot_index2)];
@@ -127,7 +133,9 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                         test_value_2));
 
                 // Check the first set
-                REQUIRE(half_hashes_chunk1->half_hashes[chunk_slot_index1] == test_key_1_hash_half);
+                REQUIRE(half_hashes_chunk1->half_hashes[chunk_slot_index1].filled == true);
+                REQUIRE(half_hashes_chunk1->half_hashes[chunk_slot_index1].distance == 0);
+                REQUIRE(half_hashes_chunk1->half_hashes[chunk_slot_index1].quarter_hash == test_key_1_hash_quarter);
                 REQUIRE(key_value1->flags ==
                         (HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE));
                 REQUIRE(strncmp(
@@ -137,7 +145,9 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                 REQUIRE(key_value1->data == test_value_1);
 
                 // Check the second set
-                REQUIRE(half_hashes_chunk2->half_hashes[chunk_slot_index2] == test_key_2_hash_half);
+                REQUIRE(half_hashes_chunk2->half_hashes[chunk_slot_index2].filled == true);
+                REQUIRE(half_hashes_chunk2->half_hashes[chunk_slot_index2].distance == 0);
+                REQUIRE(half_hashes_chunk2->half_hashes[chunk_slot_index2].quarter_hash == test_key_2_hash_quarter);
                 REQUIRE(key_value2->flags ==
                         (HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE));
                 REQUIRE(strncmp(
@@ -151,7 +161,7 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
         SECTION("fill entire half hashes chunk - key with same prefix - key not inline") {
             HASHTABLE(0x7FFF, false, {
                 hashtable_chunk_slot_index_t slots_to_fill = HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
-                test_key_same_bucket_t* test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
+                test_key_same_bucket_t *test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
                         hashtable->ht_current->buckets_count,
                         test_key_same_bucket_key_prefix_external,
                         slots_to_fill);
@@ -170,12 +180,14 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                                 test_key_same_bucket[0].key_hash));
 
                 for(hashtable_chunk_index_t i = 0; i < slots_to_fill; i++) {
-                    hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk =
+                    hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
                             &hashtable->ht_current->half_hashes_chunk[chunk_index_base];
                     hashtable_key_value_volatile_t * key_value =
                             &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index_base, i)];
 
-                    REQUIRE(half_hashes_chunk->half_hashes[i] == test_key_same_bucket[i].key_hash_half);
+                    REQUIRE(half_hashes_chunk->half_hashes[i].filled == true);
+                    REQUIRE(half_hashes_chunk->half_hashes[i].distance == 0);
+                    REQUIRE(half_hashes_chunk->half_hashes[i].quarter_hash == test_key_same_bucket[i].key_hash_quarter);
                     REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_FILLED);
 
                     REQUIRE(strncmp(
@@ -195,7 +207,7 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                 hashtable_chunk_count_t chunks_to_overflow = 3;
                 hashtable_chunk_slot_index_t slots_to_fill =
                         (HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT * chunks_to_overflow) + 3;
-                test_key_same_bucket_t* test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
+                test_key_same_bucket_t *test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
                         hashtable->ht_current->buckets_count,
                         test_key_same_bucket_key_prefix_external,
                         slots_to_fill);
@@ -213,19 +225,27 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                                 hashtable->ht_current->buckets_count,
                                 test_key_same_bucket[0].key_hash));
 
+                LOG_DI("chunk_index_base = %lu", chunk_index_base);
                 for(uint32_t i = 0; i < slots_to_fill; i++) {
                     hashtable_chunk_index_t chunk_index =
                             chunk_index_base + (int)(i / HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT);
                     hashtable_chunk_slot_index_t chunk_slot_index =
                             i % HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
 
-                    hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk =
+                    hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
                             &hashtable->ht_current->half_hashes_chunk[chunk_index];
 
-                    hashtable_key_value_volatile_t * key_value =
+                    hashtable_key_value_volatile_t *key_value =
                             &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
 
-                    REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index] == test_key_same_bucket[i].key_hash_half);
+                    LOG_DI("chunk_index = %lu", chunk_index);
+                    LOG_DI("chunk_slot_index = %lu", chunk_slot_index);
+                    LOG_DI("slot_id_wrapper.filled = %lu", half_hashes_chunk->half_hashes[chunk_slot_index].filled);
+                    LOG_DI("slot_id_wrapper.distance = %lu", half_hashes_chunk->half_hashes[chunk_slot_index].distance);
+                    LOG_DI("slot_id_wrapper.quarter_hash = %lu", half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash);
+                    REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
+                    REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].distance == chunk_index - chunk_index_base);
+                    REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_same_bucket[i].key_hash_quarter);
                     REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_FILLED);
 
                     REQUIRE(strncmp(
@@ -245,7 +265,7 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                 hashtable_chunk_count_t chunks_to_overflow = 3;
                 hashtable_chunk_slot_index_t slots_to_fill =
                         (HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT * chunks_to_overflow) + 3;
-                test_key_same_bucket_t* test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
+                test_key_same_bucket_t *test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
                         hashtable->ht_current->buckets_count,
                         test_key_same_bucket_key_prefix_external,
                         slots_to_fill);
@@ -262,7 +282,7 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                         hashtable->ht_current->buckets_count,
                         test_key_same_bucket[0].key_hash));
 
-                hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk =
+                hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
                         &hashtable->ht_current->half_hashes_chunk[chunk_index];
                 REQUIRE(half_hashes_chunk->metadata.overflowed_chunks_counter == chunks_to_overflow);
 
@@ -273,7 +293,7 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
         SECTION("fill entire hashtable and fail") {
             HASHTABLE(0x7F, false, {
                 uint32_t slots_to_fill = 448 + 1;
-                test_key_same_bucket_t* test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
+                test_key_same_bucket_t *test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
                         hashtable->ht_current->buckets_count,
                         test_key_same_bucket_key_prefix_external,
                         slots_to_fill);

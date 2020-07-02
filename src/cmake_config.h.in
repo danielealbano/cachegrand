@@ -10,6 +10,11 @@ extern const char *CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME;
 
 #define CACHEGRAND_SRC_PATH                                     ((const char*)__FILE__ + @CMAKE_SOURCE_DIR_LENGTH@)
 
+#define CACHEGRAND_CMAKE_CONFIG_USE_HASHTABLE_HASH_ALGORITHM_T1HA2 \
+                                                                @USE_HASHTABLE_HASH_ALGORITHM_T1HA2@
+#define CACHEGRAND_CMAKE_CONFIG_USE_HASHTABLE_HASH_ALGORITHM_CRC32C \
+                                                                @USE_HASHTABLE_HASH_ALGORITHM_CRC32C@
+
 #define CACHEGRAND_CMAKE_CONFIG_ARCH_TARGET                     "@CACHEGRAND_ARCH_TARGET@"
 #define CACHEGRAND_CMAKE_CONFIG_BUILD_TYPE                      "@CMAKE_BUILD_TYPE@"
 
@@ -27,6 +32,7 @@ extern const char *CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME;
 #define CACHEGRAND_CMAKE_CONFIG_HOST_HAS_AVX2                   @HOST_HAS_AVX2@
 #define CACHEGRAND_CMAKE_CONFIG_HOST_HAS_AVX                    @HOST_HAS_AVX@
 #define CACHEGRAND_CMAKE_CONFIG_HOST_HAS_CLFLUSHOPT             @HOST_HAS_CLFLUSHOPT@
+#define CACHEGRAND_CMAKE_CONFIG_HOST_HAS_SSE42                  @HOST_HAS_SSE42@
 
 #ifdef __cplusplus
 }
