@@ -70,7 +70,7 @@ char* log_message_timestamp(char *dest, size_t maxlen);
 void log_message_internal_printer(const char *tag, log_level_t level, const char *message, va_list args, FILE *out);
 void log_message_internal(log_producer_t *producer, log_level_t level, const char *message, va_list args);
 void log_message(log_producer_t *producer, log_level_t level, const char *message, ...);
-
+void log_message_print_os_error(log_producer_t* producer);
 void log_sink_register(log_sink_t *sink);
 #ifndef DEBUG
 #define LOG_DI(...) /* Internal debug logs disabled */

@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <time.h>
 #include <locale.h>
+#include <errno.h>
+#include <string.h>
 
 #include "misc.h"
 #include "log.h"
@@ -91,6 +93,40 @@ void log_message(log_producer_t* producer, log_level_t level, const char* messag
     log_message_internal(producer, level,message,args);
 
     va_end(args);
+}
+
+void log_message_print_os_error(log_producer_t* producer) {
+    int error_code;
+#if defined(__linux__) || defined(__APPLE__)
+    char buf[1024];
+    char *error_message;
+    error_code = errno;
+    error_message = (char*)(uintptr_t)strerror_r(error_code, buf, sizeof(buf));
+#elif defined(__MINGW32__)
+    DWORD last_error = GetLastError();
+    error_code = last_error;
+    LPVOID error_message;
+
+    FormatMessage(
+            (DWORD)FORMAT_MESSAGE_ALLOCATE_BUFFER |
+            (DWORD)FORMAT_MESSAGE_FROM_SYSTEM |
+            (DWORD)FORMAT_MESSAGE_IGNORE_INSERTS,
+            NULL,
+            last_error,
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            (LPTSTR) &error_message,
+            0,
+            NULL
+            );
+#else
+#error Platform not supported
+#endif
+
+    log_message(producer, LOG_LEVEL_ERROR, "OS Error: %s (%d)", error_message, error_code);
+
+#if defined(__MINGW32__)
+    LocalFree(error_message);
+#endif
 }
 
 void log_sink_register(log_sink_t *sink) {
