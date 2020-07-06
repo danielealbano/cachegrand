@@ -24,6 +24,8 @@ extern "C" {
     log_message(producer, LOG_LEVEL_VERBOSE, message, __VA_ARGS__)
 #define LOG_D(producer, message, ...) \
     log_message(producer, LOG_LEVEL_DEBUG, message, __VA_ARGS__)
+#define LOG_E_OS_ERROR(producer) \
+    log_message_print_os_error(producer);
 
 #define LOG_PRODUCER_DEFAULT PRODUCER
 
