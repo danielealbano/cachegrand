@@ -12,20 +12,20 @@ extern "C" {
 #define LOG_SINK_REGISTERED_MAX             4
 #define LOG_MESSAGE_TIMESTAMP_MAX_LENGTH    50
 
-#define LOG_E(producer, message, ...) \
-    log_message(producer, LOG_LEVEL_ERROR, message, __VA_ARGS__)
-#define LOG_R(producer, message, ...) \
-    log_message(producer, LOG_LEVEL_RECOVERABLE, message, __VA_ARGS__)
-#define LOG_W(producer, message, ...) \
-    log_message(producer, LOG_LEVEL_WARNING, message, __VA_ARGS__)
-#define LOG_I(producer, message, ...) \
-    log_message(producer, LOG_LEVEL_INFO, message, __VA_ARGS__)
-#define LOG_V(producer, message, ...) \
-    log_message(producer, LOG_LEVEL_VERBOSE, message, __VA_ARGS__)
-#define LOG_D(producer, message, ...) \
-    log_message(producer, LOG_LEVEL_DEBUG, message, __VA_ARGS__)
 #define LOG_E_OS_ERROR(producer) \
     log_message_print_os_error(producer);
+#define LOG_E(producer, ...) \
+    log_message(producer, LOG_LEVEL_ERROR, __VA_ARGS__)
+#define LOG_R(producer, ...) \
+    log_message(producer, LOG_LEVEL_RECOVERABLE, __VA_ARGS__)
+#define LOG_W(producer, ...) \
+    log_message(producer, LOG_LEVEL_WARNING, __VA_ARGS__)
+#define LOG_I(producer, ...) \
+    log_message(producer, LOG_LEVEL_INFO, __VA_ARGS__)
+#define LOG_V(producer, ...) \
+    log_message(producer, LOG_LEVEL_VERBOSE, __VA_ARGS__)
+#define LOG_D(producer, ...) \
+    log_message(producer, LOG_LEVEL_DEBUG, __VA_ARGS__)
 
 #define LOG_PRODUCER_DEFAULT PRODUCER
 
