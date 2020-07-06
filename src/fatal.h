@@ -5,10 +5,10 @@
 extern "C" {
 #endif
 
-#define FATAL(tag, message, ...) \
-    { fatal(tag, message, __VA_ARGS__); }
+#define FATAL(producer, ...) \
+    { fatal(producer, __VA_ARGS__); }
 
-void fatal(log_producer_t *tag, const char *message, ...);
+void fatal(log_producer_t *producer, const char *message, ...);
 
 #ifdef __cplusplus
 }

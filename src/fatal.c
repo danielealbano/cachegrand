@@ -70,7 +70,7 @@ void fatal_log_message(log_producer_t* tag, const char* message, va_list args) {
 #endif
 }
 
-void fatal(log_producer_t* tag, const char* message, ...) {
+void fatal(log_producer_t* producer, const char* message, ...) {
     va_list args;
 
 #if defined(__MINGW32__)
@@ -81,8 +81,8 @@ void fatal(log_producer_t* tag, const char* message, ...) {
     fatal_log_message(
         tag,
 #if defined(__MINGW32__)
-        last_error,
 #endif
+        producer,
         message,
         args);
     va_end(args);
