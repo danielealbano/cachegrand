@@ -14,7 +14,7 @@ io_uring_t* network_io_iouring_init(
         uint32_t entries,
         io_uring_params_t *io_uring_params,
         uint32_t *features);
-io_uring_t* network_io_iouring_probe_feature(
+bool network_io_iouring_probe_feature(
         uint32_t features,
         uint32_t feature);
 bool network_io_iouring_probe_opcode(

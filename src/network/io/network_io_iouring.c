@@ -39,7 +39,7 @@ io_uring_t* network_io_iouring_init(
     return io_uring;
 }
 
-io_uring_t* network_io_iouring_probe_feature(
+bool network_io_iouring_probe_feature(
         uint32_t features,
         uint32_t feature) {
     return (features & feature) == feature;
