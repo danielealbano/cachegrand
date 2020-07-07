@@ -12,7 +12,7 @@
 #include "hashtable/hashtable_support_index.h"
 #include "hashtable/hashtable_op_set.h"
 
-#include "test-support.h"
+#include "support.h"
 #include "fixtures-hashtable.h"
 
 TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {

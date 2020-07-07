@@ -13,7 +13,7 @@
 #include "hashtable/hashtable.h"
 
 #include "bench-support.h"
-#include "test-support.h"
+#include "support.h"
 
 const char* tag = "bench/support";
 

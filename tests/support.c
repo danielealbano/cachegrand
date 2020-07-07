@@ -38,7 +38,7 @@
 #include "hashtable/hashtable_support_hash.h"
 #include "hashtable/hashtable_op_set.h"
 
-#include "test-support.h"
+#include "support.h"
 
 LOG_PRODUCER_CREATE_LOCAL_DEFAULT("test-support", test_support)
 
