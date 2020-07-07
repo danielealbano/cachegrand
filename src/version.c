@@ -15,20 +15,15 @@ LOG_PRODUCER_CREATE_LOCAL_DEFAULT("version", misc)
 int version_parse(
         char version_string[],
         long *version,
-        size_t version_size) {
+        uint8_t version_parts_count) {
     char *token, *saveptr = NULL;
-    int version_parts_count_max, version_part_index = 0;
-
-    version_parts_count_max = (int)(version_size / sizeof(long));
-    if (version_parts_count_max > UINT8_MAX) {
-        version_parts_count_max = UINT8_MAX;
-    }
+    uint8_t version_part_index = 0;
 
     char *str = xalloc_alloc(strlen(version_string) + 1);
     strcpy(str, version_string);
 
     for(token = strtok_r(str, ".-", &saveptr);
-        (token != NULL) && (version_part_index < version_parts_count_max);
+        (token != NULL) && (version_part_index < version_parts_count);
         token = strtok_r(NULL, ".-", &saveptr)) {
         char *number_out = NULL;
         long number = strtol(token, &number_out, 10);
@@ -37,8 +32,7 @@ int version_parse(
             break;
         }
 
-        version[version_part_index] = number;
-        version_part_index++;
+        version[version_part_index++] = number;
     }
 
     xalloc_free(str);
@@ -66,7 +60,7 @@ int version_compare(
 
 bool version_kernel(
         long *kernel_version,
-        int parts_count) {
+        uint8_t version_parts_count) {
     uint8_t versions_count;
     struct utsname utsname;
 
@@ -75,7 +69,7 @@ bool version_kernel(
     if ((versions_count = version_parse(
             utsname.release,
             kernel_version,
-            sizeof(long) * parts_count)) < 3) {
+            version_parts_count)) < 3) {
         LOG_E(
                 LOG_PRODUCER_DEFAULT,
                 "Error parsing the version string <%s>, expected at least <3> parts in the version, found <%u>",
@@ -89,17 +83,17 @@ bool version_kernel(
 
 bool version_kernel_min(
         long *min_kernel_version,
-        int parts_count) {
+        uint8_t version_parts_count) {
     long kernel_version[4];
 
     if (!version_kernel(
             (long*)&kernel_version,
-            parts_count)) {
+            version_parts_count)) {
         return false;
     }
 
     return version_compare(
             min_kernel_version,
             kernel_version,
-            parts_count) >= 0;
+            version_parts_count) >= 0;
 }
