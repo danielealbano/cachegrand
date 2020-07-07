@@ -98,10 +98,11 @@ void log_message(log_producer_t* producer, log_level_t level, const char* messag
 void log_message_print_os_error(log_producer_t* producer) {
     int error_code;
 #if defined(__linux__) || defined(__APPLE__)
-    char buf[1024];
+    char buf[1024] = {0};
     char *error_message;
     error_code = errno;
-    error_message = (char*)(uintptr_t)strerror_r(error_code, buf, sizeof(buf));
+    strerror_r(error_code, buf, sizeof(buf));
+    error_message = buf;
 #elif defined(__MINGW32__)
     DWORD last_error = GetLastError();
     error_code = last_error;
