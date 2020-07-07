@@ -1,5 +1,5 @@
-#ifndef CACHEGRAND_MISC_H
-#define CACHEGRAND_MISC_H
+#ifndef CACHEGRAND_POW2_H
+#define CACHEGRAND_POW2_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,4 +13,4 @@ bool pow2_is(uint64_t x);
 }
 #endif
 
-#endif //CACHEGRAND_MISC_H
+#endif //CACHEGRAND_POW2_H
