@@ -171,6 +171,142 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
         }
     }
 
+    SECTION("network_io_common_socket_set_reuse_address") {
+        SECTION("valid socket fd") {
+            int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(network_io_common_socket_set_reuse_address(fd, true));
+
+            close(fd);
+        }
+
+        SECTION("invalid socket fd") {
+            REQUIRE(!network_io_common_socket_set_reuse_address(-1, true));
+        }
+    }
+
+    SECTION("network_io_common_socket_set_linger") {
+        SECTION("valid socket fd") {
+            int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(network_io_common_socket_set_linger(fd, true, 1));
+
+            close(fd);
+        }
+
+        SECTION("invalid socket fd") {
+            REQUIRE(!network_io_common_socket_set_linger(-1, true, 1));
+        }
+    }
+
+    SECTION("network_io_common_socket_set_keepalive") {
+        SECTION("valid socket fd") {
+            int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(network_io_common_socket_set_keepalive(fd, true));
+
+            close(fd);
+        }
+
+        SECTION("invalid socket fd") {
+            REQUIRE(!network_io_common_socket_set_keepalive(-1, true));
+        }
+    }
+
+    SECTION("network_io_common_socket_set_incoming_cpu") {
+        SECTION("valid socket fd") {
+            int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(network_io_common_socket_set_incoming_cpu(fd, 1));
+
+            close(fd);
+        }
+
+        SECTION("invalid socket fd") {
+            REQUIRE(!network_io_common_socket_set_incoming_cpu(-1, 1));
+        }
+    }
+
+    SECTION("network_io_common_socket_set_receive_buffer") {
+        SECTION("valid socket fd") {
+            int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(network_io_common_socket_set_receive_buffer(fd, 8192));
+
+            close(fd);
+        }
+
+        SECTION("invalid socket fd") {
+            REQUIRE(!network_io_common_socket_set_receive_buffer(-1, 8192));
+        }
+    }
+
+    SECTION("network_io_common_socket_set_send_buffer") {
+        SECTION("valid socket fd") {
+            int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(network_io_common_socket_set_send_buffer(fd, 8192));
+
+            close(fd);
+        }
+
+        SECTION("invalid socket fd") {
+            REQUIRE(!network_io_common_socket_set_send_buffer(-1, 8192));
+        }
+    }
+
+    SECTION("network_io_common_socket_set_receive_timeout") {
+        SECTION("valid socket fd") {
+            int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(network_io_common_socket_set_receive_timeout(fd, 1, 0));
+
+            close(fd);
+        }
+
+        SECTION("invalid socket fd") {
+            REQUIRE(!network_io_common_socket_set_receive_timeout(-1, 1, 0));
+        }
+    }
+
+    SECTION("network_io_common_socket_set_send_timeout") {
+        SECTION("valid socket fd") {
+            int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(network_io_common_socket_set_send_timeout(fd, 1, 0));
+
+            close(fd);
+        }
+
+        SECTION("invalid socket fd") {
+            REQUIRE(!network_io_common_socket_set_send_timeout(-1, 1, 0));
+        }
+    }
+
+    SECTION("network_io_common_socket_set_ipv6_only") {
+        SECTION("valid socket fd") {
+            int fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(fd > 0);
+            REQUIRE(network_io_common_socket_set_ipv6_only(fd, true));
+
+            close(fd);
+        }
+
+        SECTION("invalid socket fd") {
+            REQUIRE(!network_io_common_socket_set_ipv6_only(-1, true));
+        }
+
+        SECTION("not ipv6 socket fd") {
+            int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(fd > 0);
+            REQUIRE(!network_io_common_socket_set_ipv6_only(fd, true));
+
+            close(fd);
+        }
+    }
+
     SECTION("network_io_common_socket_bind") {
         SECTION("valid ipv4 address and port") {
             int val = 1;
@@ -248,6 +384,7 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
     SECTION("network_io_common_socket_listen") {
         SECTION("valid ipv4 address and port") {
             int val = 1;
+            socklen_t val_size = sizeof(val);
             struct sockaddr_in address = {0};
 
             int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -257,15 +394,20 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
             address.sin_addr.s_addr = loopback_ipv4.s_addr;
 
             REQUIRE(fd > 0);
-            REQUIRE(network_io_common_socket_set_option(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)));
+            REQUIRE(network_io_common_socket_set_option(fd, SOL_SOCKET, SO_REUSEADDR, &val, val_size));
             REQUIRE(network_io_common_socket_bind(fd, (struct sockaddr*)&address, sizeof(address)));
             REQUIRE(network_io_common_socket_listen(fd, 10));
+            REQUIRE(getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, &val, &val_size) == 0);
+            REQUIRE(val == 1);
 
+            shutdown(fd, SHUT_RDWR);
             close(fd);
         }
 
         SECTION("valid ipv6 address and port") {
             int val = 1;
+            socklen_t val_size = sizeof(val);
+
             struct sockaddr_in6 address = {0};
 
             int fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
@@ -275,11 +417,14 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
             memcpy(&(address.sin6_addr), (void*)&loopback_ipv6, sizeof(loopback_ipv6));
 
             REQUIRE(fd > 0);
-            REQUIRE(network_io_common_socket_set_option(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)));
-            REQUIRE(network_io_common_socket_set_option(fd, IPPROTO_IPV6, IPV6_V6ONLY, &val, sizeof(val)));
+            REQUIRE(network_io_common_socket_set_option(fd, SOL_SOCKET, SO_REUSEADDR, &val, val_size));
+            REQUIRE(network_io_common_socket_set_option(fd, IPPROTO_IPV6, IPV6_V6ONLY, &val, val_size));
             REQUIRE(network_io_common_socket_bind(fd, (struct sockaddr*)&address, sizeof(address)));
             REQUIRE(network_io_common_socket_listen(fd, 10));
+            REQUIRE(getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, &val, &val_size) == 0);
+            REQUIRE(val == 1);
 
+            shutdown(fd, SHUT_RDWR);
             close(fd);
         }
 
@@ -303,6 +448,7 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
             REQUIRE(network_io_common_socket_set_option(fd2, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)));
             REQUIRE(!network_io_common_socket_bind(fd2, (struct sockaddr*)&address, sizeof(address)));
 
+            shutdown(fd1, SHUT_RDWR);
             close(fd1);
             close(fd2);
         }
@@ -324,6 +470,7 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
                     sizeof(address),
                     10));
 
+            shutdown(fd, SHUT_RDWR);
             close(fd);
         }
 
@@ -342,6 +489,7 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
                     sizeof(address),
                     10));
 
+            shutdown(fd, SHUT_RDWR);
             close(fd);
         }
     }
@@ -360,7 +508,10 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
         address.sin_addr.s_addr = loopback_ipv4.s_addr;
 
         fd = network_io_common_socket_tcp4_new_server(&address, 10);
+
         REQUIRE(fd > 0);
+
+        shutdown(fd, SHUT_RDWR);
         close(fd);
     }
 
@@ -378,7 +529,10 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
         memcpy(&(address.sin6_addr), (void*)&loopback_ipv6, sizeof(loopback_ipv6));
 
         fd = network_io_common_socket_tcp6_new_server(&address, 10);
+
         REQUIRE(fd > 0);
+
+        shutdown(fd, SHUT_RDWR);
         close(fd);
     }
 
@@ -395,8 +549,10 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
                     (struct sockaddr*)&address,
                     socket_port_free_ipv4,
                     10);
+
             REQUIRE(fd > 0);
 
+            shutdown(fd, SHUT_RDWR);
             close(fd);
         }
 
@@ -412,9 +568,45 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
                     (struct sockaddr*)&address,
                     socket_port_free_ipv6,
                     10);
+
             REQUIRE(fd > 0);
 
+            shutdown(fd, SHUT_RDWR);
             close(fd);
+        }
+    }
+
+    SECTION("network_io_common_socket_close") {
+        SECTION("valid socket") {
+            int fd;
+            struct sockaddr_in address = {0};
+
+            address.sin_family = AF_INET;
+            address.sin_addr.s_addr = loopback_ipv4.s_addr;
+
+            fd = network_io_common_socket_new_server(
+                    AF_INET,
+                    (struct sockaddr*)&address,
+                    socket_port_free_ipv4,
+                    10);
+
+            REQUIRE(fd > 0);
+            REQUIRE(network_io_common_socket_close(fd, false));
+
+            close(fd);
+        }
+
+        SECTION("not connected socket") {
+            int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(fd > 0);
+            REQUIRE(network_io_common_socket_close(fd, true));
+
+            close(fd);
+        }
+
+        SECTION("invalid socket") {
+            REQUIRE(!network_io_common_socket_close(-1, false));
         }
     }
 
