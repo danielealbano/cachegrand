@@ -18,6 +18,37 @@ bool network_io_common_socket_set_option(
         int option,
         void* value,
         socklen_t value_size);
+bool network_io_common_socket_set_reuse_address(
+        int fd,
+        bool enable);
+bool network_io_common_socket_set_linger(
+        int fd,
+        bool enable,
+        int seconds);
+bool network_io_common_socket_set_keepalive(
+        int fd,
+        bool enable);
+bool network_io_common_socket_set_incoming_cpu(
+        int fd,
+        int cpu);
+bool network_io_common_socket_set_receive_buffer(
+        int fd,
+        int size);
+bool network_io_common_socket_set_send_buffer(
+        int fd,
+        int size);
+bool network_io_common_socket_set_receive_timeout(
+        int fd,
+        long seconds,
+        long useconds);
+bool network_io_common_socket_set_send_timeout(
+        int fd,
+        long seconds,
+        long useconds);
+bool network_io_common_socket_set_ipv6_only(
+        int fd,
+        bool enable);
+
 bool network_io_common_socket_bind(
         int fd,
         struct sockaddr *address,
@@ -25,6 +56,10 @@ bool network_io_common_socket_bind(
 bool network_io_common_socket_listen(
         int fd,
         uint16_t backlog);
+bool network_io_common_socket_close(
+        int fd,
+        bool shutdown_may_fail);
+
 bool network_io_common_socket_setup_server(
         int fd,
         struct sockaddr *address,

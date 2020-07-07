@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <unistd.h>
 
 #include "misc.h"
 #include "log.h"
@@ -25,6 +26,69 @@ bool network_io_common_socket_set_option(
     }
 
     return true;
+}
+
+bool network_io_common_socket_set_reuse_address(
+        int fd,
+        bool enable) {
+    int val = enable ? 1 : 0;
+    return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+}
+
+bool network_io_common_socket_set_linger(
+        int fd,
+        bool enable,
+        int seconds) {
+    struct linger linger = { enable ? 1 : 0, seconds };
+    return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger));
+}
+
+bool network_io_common_socket_set_keepalive(
+        int fd,
+        bool enable) {
+    int val = enable ? 1 : 0;
+    return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val));
+}
+
+bool network_io_common_socket_set_incoming_cpu(
+        int fd,
+        int cpu) {
+    return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
+}
+
+bool network_io_common_socket_set_receive_buffer(
+        int fd,
+        int size) {
+    return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+}
+
+bool network_io_common_socket_set_send_buffer(
+        int fd,
+        int size) {
+    return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
+}
+
+bool network_io_common_socket_set_receive_timeout(
+        int fd,
+        long seconds,
+        long useconds) {
+    struct timeval timeout = { seconds, useconds };
+    return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_SNDBUF, &timeout, sizeof(timeout));
+}
+
+bool network_io_common_socket_set_send_timeout(
+        int fd,
+        long seconds,
+        long useconds) {
+    struct timeval timeout = { seconds, useconds };
+    return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_SNDBUF, &timeout, sizeof(timeout));
+}
+
+bool network_io_common_socket_set_ipv6_only(
+        int fd,
+        bool enable) {
+    int val = enable ? 1 : 0;
+    return network_io_common_socket_set_option(fd, IPPROTO_IPV6, IPV6_V6ONLY, &val, sizeof(val));
 }
 
 bool network_io_common_socket_bind(
@@ -53,6 +117,26 @@ bool network_io_common_socket_listen(
     return true;
 }
 
+bool network_io_common_socket_close(
+        int fd,
+        bool shutdown_may_fail) {
+    bool ret = true;
+    if (shutdown(fd, SHUT_RDWR) < 0 && !shutdown_may_fail) {
+        LOG_E(LOG_PRODUCER_DEFAULT, "Error shutting-down the socket with fd <%d>", fd);
+        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        ret = false;
+    }
+
+    // Try to close the socket anyway if the shutdown fails
+    if (close(fd)) {
+        LOG_E(LOG_PRODUCER_DEFAULT, "Error closing the socket with fd <%d>", fd);
+        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        ret = false;
+    }
+
+    return ret;
+}
+
 bool network_io_common_socket_setup_server(
         int fd,
         struct sockaddr *address,
@@ -60,12 +144,7 @@ bool network_io_common_socket_setup_server(
         uint16_t backlog) {
     int val = 1;
 
-    if (!network_io_common_socket_set_option(
-            fd,
-            SOL_SOCKET,
-            SO_REUSEADDR,
-            &val,
-            sizeof(val))) {
+    if (!network_io_common_socket_set_reuse_address(fd, true)) {
         return false;
     }
 
