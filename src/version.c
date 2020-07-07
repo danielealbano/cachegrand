@@ -13,7 +13,7 @@
 LOG_PRODUCER_CREATE_LOCAL_DEFAULT("version", misc)
 
 int version_parse(
-        char release_string[],
+        char version_string[],
         long *version,
         size_t version_size) {
     char *token, *saveptr = NULL;
@@ -24,8 +24,8 @@ int version_parse(
         version_parts_count_max = UINT8_MAX;
     }
 
-    char *str = xalloc_alloc(strlen(release_string) + 1);
-    strcpy(str, release_string);
+    char *str = xalloc_alloc(strlen(version_string) + 1);
+    strcpy(str, version_string);
 
     for(token = strtok_r(str, ".-", &saveptr);
         (token != NULL) && (version_part_index < version_parts_count_max);

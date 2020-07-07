@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 int version_parse(
-        char *release_string,
+        char *version_string,
         long *version,
         size_t version_size);
 int version_compare(
