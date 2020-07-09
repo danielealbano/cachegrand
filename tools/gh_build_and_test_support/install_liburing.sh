@@ -63,5 +63,5 @@ then
   exit 1
 fi
 
-echo "::set-env name=PKG_CONFIG_PATH::$(pwd)/deps/liburing/install/lib/pkgconfig:${PKG_CONFIG_PATH}"
-echo "::set-env name=LD_LIBRARY_PATH::$(pwd)/deps/liburing/install/lib:${LD_LIBRARY_PATH}"
+echo "::set-env name=PKG_CONFIG_PATH::${OUTPUT_DIR}install/lib/pkgconfig:${PKG_CONFIG_PATH}"
+echo "::set-env name=LD_LIBRARY_PATH::${OUTPUT_DIR}install/lib:${LD_LIBRARY_PATH}"
