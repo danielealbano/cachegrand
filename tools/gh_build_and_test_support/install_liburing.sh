@@ -34,7 +34,7 @@ fi
 mkdir -p "${OUTPUT_DIR}"
 
 cd "${OUTPUT_DIR}" || (echo "Unable to access <${OUTPUT_DIR}>, failing!" >&2; exit 1)
- 
+
 echo "Fetching sources..."
 if ! (git clone https://github.com/axboe/liburing && cd liburing && git checkout "${COMMIT_ID}");
 then
@@ -62,3 +62,6 @@ then
   echo "Unable to install liburing, failing!" >&2
   exit 1
 fi
+
+echo "::set-env name=PKG_CONFIG_PATH::$(pwd)/deps/liburing/install/lib/pkgconfig:${PKG_CONFIG_PATH}"
+echo "::set-env name=LD_LIBRARY_PATH::$(pwd)/deps/liburing/install/lib:${LD_LIBRARY_PATH}"

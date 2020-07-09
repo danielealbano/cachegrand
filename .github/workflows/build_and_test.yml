@@ -41,14 +41,10 @@ jobs:
     - name: Prepare deps - liburing
       id: prepare-deps-liburing
       shell: bash
-      working-directory: ${{runner.workspace}}/build
+      working-directory: ${{github.workspace}}/build
       run: |
-        echo $GITHUB_WORKSPACE
-        echo $RUNNER_WORKSPACE
         chmod 700 $GITHUB_WORKSPACE/tools/gh_build_and_test_support/install_liburing.sh
-        V=1 CFLAGS="-g -O0 -fno-inline -DDEBUG=1" $GITHUB_WORKSPACE/tools/gh_build_and_test_support/install_liburing.sh -o $(pwd)/deps/liburing -c $LIBURING_COMMIT_ID
-        echo ::set-env name=PKG_CONFIG_PATH::$(pwd)/deps/liburing/install/lib/pkgconfig:${PKG_CONFIG_PATH}
-        echo ::set-env name=LD_LIBRARY_PATH::$(pwd)/deps/liburing/install/lib:${LD_LIBRARY_PATH}
+        V=1 CFLAGS="-g -O0 -fno-inline -DDEBUG=1" $GITHUB_WORKSPACE/tools/gh_build_and_test_support/install_liburing.sh -o $(pwd)/_deps/liburing -c $LIBURING_COMMIT_ID
 
     - name: Configure CMake
       shell: bash
@@ -74,4 +70,3 @@ jobs:
       shell: bash
       working-directory: ${{github.workspace}}
       run: bash <(curl -s https://codecov.io/bash) -X gcov -Z -f coverage.info
- 
