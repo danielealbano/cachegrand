@@ -14,6 +14,8 @@
 
 #include "network/io/network_io_common.h"
 
+#pragma GCC diagnostic ignored "-Wwrite-strings"
+
 uint16_t test_network_io_common_bind_search_free_port_ipv4(
         uint16_t start_port) {
     uint16_t port;
