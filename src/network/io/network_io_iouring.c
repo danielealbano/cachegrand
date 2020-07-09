@@ -75,41 +75,75 @@ bool network_io_iouring_probe_opcode(
     return res;
 }
 
-void network_io_iouring_sqe_enqueue_accept(
+io_uring_sqe_t* network_io_iouring_get_sqe(
+        io_uring_t *ring) {
+    io_uring_sqe_t *sqe = io_uring_get_sqe(ring);
+    if (sqe == NULL) {
+        LOG_E(LOG_PRODUCER_DEFAULT, "Failed to fetch an sqe, queue full");
+    }
+
+    return sqe;
+}
+
+void network_io_iouring_cq_advance(
+        io_uring_t *ring,
+        uint32_t count) {
+    io_uring_cq_advance(ring, count);
+}
+
+bool network_io_iouring_sqe_enqueue_accept(
         io_uring_t *ring,
         int fd,
         struct sockaddr *socket_address,
         socklen_t *socket_address_size,
         unsigned flags,
         uint64_t user_data) {
-    io_uring_sqe_t *sqe = io_uring_get_sqe(ring);
+    io_uring_sqe_t *sqe = network_io_iouring_get_sqe(ring);
+    if (sqe == NULL) {
+        return false;
+    }
+
     io_uring_prep_accept(sqe, fd, socket_address, socket_address_size, 0);
     io_uring_sqe_set_flags(sqe, flags);
     sqe->user_data = user_data;
+
+    return true;
 }
 
-void network_io_iouring_sqe_enqueue_recv(
+bool network_io_iouring_sqe_enqueue_recv(
         io_uring_t *ring,
         int fd,
         void *buffer,
         size_t buffer_size,
         uint64_t user_data) {
-    io_uring_sqe_t *sqe = io_uring_get_sqe(ring);
+    io_uring_sqe_t *sqe = network_io_iouring_get_sqe(ring);
+    if (sqe == NULL) {
+        return false;
+    }
+
     io_uring_prep_recv(sqe, fd, buffer, buffer_size, 0);
     io_uring_sqe_set_flags(sqe, 0);
     sqe->user_data = user_data;
+
+    return true;
 }
 
-void network_io_iouring_sqe_enqueue_send(
+bool network_io_iouring_sqe_enqueue_send(
         io_uring_t *ring,
         int fd,
         void *buffer,
         size_t buffer_size,
         uint64_t user_data) {
-    io_uring_sqe_t *sqe = io_uring_get_sqe(ring);
+    io_uring_sqe_t *sqe = network_io_iouring_get_sqe(ring);
+    if (sqe == NULL) {
+        return false;
+    }
+
     io_uring_prep_send(sqe, fd, buffer, buffer_size, 0);
     io_uring_sqe_set_flags(sqe, 0);
     sqe->user_data = user_data;
+
+    return true;
 }
 
 bool network_io_iouring_sqe_submit(

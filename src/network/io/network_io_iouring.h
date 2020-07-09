@@ -22,20 +22,25 @@ bool network_io_iouring_probe_feature(
 bool network_io_iouring_probe_opcode(
         io_uring_t *io_uring,
         uint8_t opcode);
-void network_io_iouring_sqe_enqueue_accept(
+io_uring_sqe_t* network_io_iouring_get_sqe(
+        io_uring_t *ring);
+void network_io_iouring_cq_advance(
+        io_uring_t *ring,
+        uint32_t count);
+bool network_io_iouring_sqe_enqueue_accept(
         io_uring_t *ring,
         int fd,
         struct sockaddr *socket_address,
         socklen_t *socket_address_size,
         unsigned flags,
         uint64_t user_data);
-void network_io_iouring_sqe_enqueue_recv(
+bool network_io_iouring_sqe_enqueue_recv(
         io_uring_t *ring,
         int fd,
         void *buffer,
         size_t buffer_size,
         uint64_t user_data);
-void network_io_iouring_sqe_enqueue_send(
+bool network_io_iouring_sqe_enqueue_send(
         io_uring_t *ring,
         int fd,
         void *buffer,
