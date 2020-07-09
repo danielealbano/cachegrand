@@ -43,6 +43,8 @@ jobs:
       shell: bash
       working-directory: ${{runner.workspace}}/build
       run: |
+        echo $GITHUB_WORKSPACE
+        echo $RUNNER_WORKSPACE
         chmod 700 $GITHUB_WORKSPACE/tools/gh_build_and_test_support/install_liburing.sh
         V=1 CFLAGS="-g -O0 -fno-inline -DDEBUG=1" $GITHUB_WORKSPACE/tools/gh_build_and_test_support/install_liburing.sh -o $(pwd)/deps/liburing -c $LIBURING_COMMIT_ID
         echo ::set-env name=PKG_CONFIG_PATH::$(pwd)/deps/liburing/install/lib/pkgconfig:${PKG_CONFIG_PATH}
