@@ -263,7 +263,6 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             REQUIRE(cqe->res > 0);
             REQUIRE(cqe->user_data == 1234);
             REQUIRE(client_address_len == sizeof(client_accept_address));
-            REQUIRE(client_accept_address.sin_addr.s_addr == client_connect_address.sin_addr.s_addr);
 
             acceptedfd = cqe->res;
             io_uring_cqe_seen(ring, cqe);
