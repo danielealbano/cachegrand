@@ -20,7 +20,7 @@ jobs:
         config:
         - {
             name: "Ubuntu Latest",
-            os: ubuntu-latest,
+            os: [self-hosted, linux, X64],
             triplet: x64-linux,
             cc: "gcc",
             cxx: "g++"
