@@ -69,11 +69,12 @@ bool version_kernel(
     if ((versions_count = version_parse(
             utsname.release,
             kernel_version,
-            version_parts_count)) < 3) {
+            version_parts_count)) != version_parts_count) {
         LOG_E(
                 LOG_PRODUCER_DEFAULT,
-                "Error parsing the version string <%s>, expected at least <3> parts in the version, found <%u>",
+                "Error parsing the version string <%s>, expected at <%d> parts in the version, found <%u>",
                 utsname.release,
+                version_parts_count,
                 versions_count);
         return false;
     }
@@ -84,16 +85,23 @@ bool version_kernel(
 bool version_kernel_min(
         long *min_kernel_version,
         uint8_t version_parts_count) {
-    long kernel_version[4];
+    int res;
+    long *kernel_version;
+
+    kernel_version = xalloc_alloc_zero(sizeof(long) * version_parts_count);
 
     if (!version_kernel(
-            (long*)&kernel_version,
+            kernel_version,
             version_parts_count)) {
         return false;
     }
 
-    return version_compare(
-            min_kernel_version,
+    res = version_compare(
             kernel_version,
+            min_kernel_version,
             version_parts_count) >= 0;
+
+    xalloc_free(kernel_version);
+
+    return res;
 }
