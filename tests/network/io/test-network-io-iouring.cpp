@@ -151,6 +151,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
 
     SECTION("network_io_iouring_sqe_enqueue_accept") {
         SECTION("enqueue accept on valid socket ipv4") {
+            io_uring_t *ring;
             io_uring_cqe_t *cqe;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_address = {0};
@@ -165,7 +166,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     &server_address,
                     10);
 
-            io_uring_t *ring = network_io_iouring_init(10, NULL, NULL);
+            ring = network_io_iouring_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
@@ -174,10 +175,10 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     fd,
                     (sockaddr *)&client_address,
                     &client_address_len,
-                    0,
+                    SOCK_NONBLOCK,
                     1234));
 
-            network_io_iouring_sqe_submit_and_wait(ring, 1);
+            network_io_iouring_sqe_submit(ring);
 
             io_uring_wait_cqe(ring, &cqe);
             REQUIRE(cqe->flags == 0);
@@ -191,11 +192,12 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
         }
 
         SECTION("enqueue accept on invalid socket fd") {
+            io_uring_t *ring;
             io_uring_cqe_t *cqe;
             struct sockaddr_in client_address = {0};
             socklen_t client_address_len = 0;
 
-            io_uring_t *ring = network_io_iouring_init(10, NULL, NULL);
+            ring = network_io_iouring_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
@@ -207,7 +209,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     0,
                     1234);
 
-            network_io_iouring_sqe_submit_and_wait(ring, 1);
+            network_io_iouring_sqe_submit(ring);
 
             io_uring_wait_cqe(ring, &cqe);
             REQUIRE(cqe->flags == 0);
@@ -219,8 +221,9 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
         }
 
         SECTION("enqueue accept and accept connection ipv4") {
-            int clientfd, serverfd, acceptedfd;
+            io_uring_t *ring;
             io_uring_cqe_t *cqe;
+            int clientfd, serverfd, acceptedfd;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_accept_address = {0};
             struct sockaddr_in client_connect_address = {0};
@@ -239,7 +242,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     &server_address,
                     10);
 
-            io_uring_t *ring = network_io_iouring_init(10, NULL, NULL);
+            ring = network_io_iouring_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
@@ -277,8 +280,9 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
 
     SECTION("network_io_iouring_sqe_enqueue_recv") {
         SECTION("receive message") {
-            int clientfd, serverfd, acceptedfd;
+            io_uring_t *ring;
             io_uring_cqe_t *cqe;
+            int clientfd, serverfd, acceptedfd;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_accept_address = {0};
             struct sockaddr_in client_connect_address = {0};
@@ -300,7 +304,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     &server_address,
                     10);
 
-            io_uring_t *ring = network_io_iouring_init(10, NULL, NULL);
+            ring = network_io_iouring_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
@@ -356,8 +360,9 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
         }
 
         SECTION("close socket") {
-            int clientfd, serverfd, acceptedfd;
+            io_uring_t *ring;
             io_uring_cqe_t *cqe;
+            int clientfd, serverfd, acceptedfd;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_accept_address = {0};
             struct sockaddr_in client_connect_address = {0};
@@ -377,7 +382,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     &server_address,
                     10);
 
-            io_uring_t *ring = network_io_iouring_init(10, NULL, NULL);
+            ring = network_io_iouring_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
@@ -429,8 +434,9 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
 
     SECTION("network_io_iouring_sqe_enqueue_send") {
         SECTION("send message") {
-            int clientfd, serverfd, acceptedfd;
+            io_uring_t *ring;
             io_uring_cqe_t *cqe;
+            int clientfd, serverfd, acceptedfd;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_accept_address = {0};
             struct sockaddr_in client_connect_address = {0};
@@ -452,7 +458,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     &server_address,
                     10);
 
-            io_uring_t *ring = network_io_iouring_init(10, NULL, NULL);
+            ring = network_io_iouring_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
