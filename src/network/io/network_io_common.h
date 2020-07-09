@@ -66,13 +66,17 @@ bool network_io_common_socket_setup_server(
         socklen_t address_size,
         uint16_t backlog);
 
-int network_io_common_socket_tcp4_new();
+int network_io_common_socket_tcp4_new(
+        int flags);
 int network_io_common_socket_tcp4_new_server(
+        int flags,
         struct sockaddr_in *address,
         uint16_t backlog);
 
-int network_io_common_socket_tcp6_new();
+int network_io_common_socket_tcp6_new(
+        int flags);
 int network_io_common_socket_tcp6_new_server(
+        int flags,
         struct sockaddr_in6 *address,
         uint16_t backlog);
 

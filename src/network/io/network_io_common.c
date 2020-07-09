@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <netinet/in.h>
@@ -175,10 +176,11 @@ bool network_io_common_socket_setup_server(
     return true;
 }
 
-int network_io_common_socket_tcp4_new() {
+int network_io_common_socket_tcp4_new(
+        int flags) {
     int fd;
 
-    if ((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+    if ((fd = socket(AF_INET, SOCK_STREAM | flags, IPPROTO_TCP)) < 0) {
         LOG_E(LOG_PRODUCER_DEFAULT, "Unable to create a new IPv4 TCP/IP socket");
         LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
     }
@@ -187,11 +189,12 @@ int network_io_common_socket_tcp4_new() {
 }
 
 int network_io_common_socket_tcp4_new_server(
+        int flags,
         struct sockaddr_in *address,
         uint16_t backlog) {
     int fd;
 
-    fd = network_io_common_socket_tcp4_new();
+    fd = network_io_common_socket_tcp4_new(flags);
 
     if (!network_io_common_socket_setup_server(
             fd,
@@ -204,10 +207,11 @@ int network_io_common_socket_tcp4_new_server(
     return fd;
 }
 
-int network_io_common_socket_tcp6_new() {
+int network_io_common_socket_tcp6_new(
+        int flags) {
     int fd;
 
-    if ((fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+    if ((fd = socket(AF_INET6, SOCK_STREAM | flags, IPPROTO_TCP)) < 0) {
         LOG_E(LOG_PRODUCER_DEFAULT, "Unable to create a new IPv6 TCP/IP socket");
         LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
     }
@@ -216,12 +220,13 @@ int network_io_common_socket_tcp6_new() {
 }
 
 int network_io_common_socket_tcp6_new_server(
+        int flags,
         struct sockaddr_in6 *address,
         uint16_t backlog) {
     int fd;
     int val = 1;
 
-    fd = network_io_common_socket_tcp6_new();
+    fd = network_io_common_socket_tcp6_new(flags);
 
     if (!network_io_common_socket_setup_server(
             fd,
@@ -245,12 +250,14 @@ int network_io_common_socket_new_server(
         struct sockaddr_in* socket_address_ipv4 = (struct sockaddr_in*)socket_address;
         socket_address_ipv4->sin_port = htons(port);
         fd = network_io_common_socket_tcp4_new_server(
+                0,
                 socket_address_ipv4,
                 backlog);
     } else if (family == AF_INET6) {
         struct sockaddr_in6* socket_address_ipv6 = (struct sockaddr_in6*)socket_address;
         socket_address_ipv6->sin6_port = htons(port);
         fd = network_io_common_socket_tcp6_new_server(
+                0,
                 socket_address_ipv6,
                 backlog);
     } else {
