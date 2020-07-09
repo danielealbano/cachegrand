@@ -37,7 +37,11 @@ extern "C" {
         "hashtable_support_op_search_key_genericx86", \
         "hashtable_support_op_search_key_or_create_new_genericx86", \
         "hashtable_support_op_search_key_defaultopt", \
-        "hashtable_support_op_search_key_or_create_new_defaultopt",
+        "hashtable_support_op_search_key_or_create_new_defaultopt", \
+        "hash_crc32c_resolve", \
+        "hashtable_support_hash_search_resolve", \
+        "hashtable_support_op_search_key_or_create_new_resolve", \
+        "hashtable_support_op_search_key_resolve", \
 
 #define LOG_MESSAGE_DEBUG_RULES(var, TYPE, INCLUDE_OR_EXCLUDE) \
     const char* var[] = { LOG_MESSAGE_DEBUG_RULES_##TYPE##_##INCLUDE_OR_EXCLUDE NULL }
