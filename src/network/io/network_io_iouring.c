@@ -14,16 +14,23 @@ io_uring_t* network_io_iouring_init(
         uint32_t entries,
         io_uring_params_t *io_uring_params,
         uint32_t *features) {
+    int res;
     io_uring_t *io_uring;
     io_uring_params_t temp_io_uring_params = {0};
 
     io_uring = xalloc_alloc(sizeof(io_uring_t));
 
-    if (io_uring_params == NULL) {
+    if (io_uring_params == NULL && features != NULL) {
         io_uring_params = &temp_io_uring_params;
     }
 
-    if (io_uring_queue_init_params(entries, io_uring, io_uring_params) < 0) {
+    if (io_uring_params) {
+        res = io_uring_queue_init_params(entries, io_uring, io_uring_params);
+    } else {
+        res = io_uring_queue_init(entries, io_uring, 0);
+    }
+
+    if (res < 0) {
         LOG_E(LOG_PRODUCER_DEFAULT, "Unable to allocate io_uring using the given params");
         LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
 
