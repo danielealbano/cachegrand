@@ -208,11 +208,11 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             uint64_t increments_per_thread_sum = 0, increments_per_thread;
 
             uint32_t cores_count = psnip_cpu_count();
-            uint32_t threads_count = cores_count * 4;
+            uint32_t threads_count = cores_count * 2;
 
             // Magic numbers to run enough thread in parallel for 1-2s after the thread creation.
             // The test can be quite time consuming when with an attached debugger.
-            increments_per_thread = (uint64_t)(100000 /  ((float)threads_count / 48.0));
+            increments_per_thread = (uint64_t)(20000 /  ((float)threads_count / 48.0));
 
             REQUIRE(pthread_attr_init(&attr) == 0);
 
