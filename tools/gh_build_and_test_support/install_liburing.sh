@@ -34,7 +34,7 @@ fi
 mkdir -p "${OUTPUT_DIR}"
 
 cd "${OUTPUT_DIR}" || (echo "Unable to access <${OUTPUT_DIR}>, failing!" >&2; exit 1)
-
+ 
 echo "Fetching sources..."
 if ! (git clone https://github.com/axboe/liburing && cd liburing && git checkout "${COMMIT_ID}");
 then
