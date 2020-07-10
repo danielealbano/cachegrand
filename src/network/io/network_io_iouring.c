@@ -4,6 +4,7 @@
 
 #include "misc.h"
 #include "log.h"
+#include "fatal.h"
 #include "xalloc.h"
 
 #include "network_io_iouring.h"
@@ -31,8 +32,13 @@ io_uring_t* network_io_iouring_init(
     }
 
     if (res < 0) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Unable to allocate io_uring using the given params");
-        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        // If there isn't enough memory hard fail
+        if (errno == -ENOMEM) {
+            FATAL(LOG_PRODUCER_DEFAULT, "Unable to allocate or lock enough memory to initialize io_uring, please check the available memory and/or increase the memlock ulimit.");
+        } else {
+            LOG_E(LOG_PRODUCER_DEFAULT, "Unable to allocate io_uring using the given params");
+            LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        }
 
         xalloc_free(io_uring);
 
