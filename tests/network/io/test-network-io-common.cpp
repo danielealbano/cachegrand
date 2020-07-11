@@ -135,11 +135,36 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
         }
     }
 
-    SECTION("network_io_common_socket_set_linger") {
+    SECTION("network_io_common_socket_set_reuse_port") {
         SECTION("valid socket fd") {
+            int val;
+            socklen_t val_size = sizeof(val);
             int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-            REQUIRE(network_io_common_socket_set_linger(fd, true, 1));
+            REQUIRE(fd > 0);
+            REQUIRE(network_io_common_socket_set_reuse_port(fd, true));
+            REQUIRE(getsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &val, &val_size) == 0);
+            REQUIRE(val == 1);
+
+            close(fd);
+        }
+
+        SECTION("invalid socket fd") {
+            REQUIRE(!network_io_common_socket_set_reuse_port(-1, true));
+        }
+    }
+
+    SECTION("network_io_common_socket_set_linger") {
+        SECTION("valid socket fd") {
+            struct linger val = { 0 };
+            socklen_t val_size = sizeof(val);
+            int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(fd > 0);
+            REQUIRE(network_io_common_socket_set_linger(fd, true, 2));
+            REQUIRE(getsockopt(fd, SOL_SOCKET, SO_LINGER, &val, &val_size) == 0);
+            REQUIRE(val.l_onoff == 1);
+            REQUIRE(val.l_linger == 2);
 
             close(fd);
         }
