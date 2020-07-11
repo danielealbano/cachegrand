@@ -164,7 +164,8 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             int fd = network_io_common_socket_tcp4_new_server(
                     SOCK_NONBLOCK,
                     &server_address,
-                    10);
+                    10,
+                    NULL);
 
             ring = network_io_iouring_init(10, NULL, NULL);
 
@@ -240,7 +241,8 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             serverfd = network_io_common_socket_tcp4_new_server(
                     0,
                     &server_address,
-                    10);
+                    10,
+                    NULL);
 
             ring = network_io_iouring_init(10, NULL, NULL);
 
@@ -301,7 +303,8 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             serverfd = network_io_common_socket_tcp4_new_server(
                     0,
                     &server_address,
-                    10);
+                    10,
+                    NULL);
 
             ring = network_io_iouring_init(10, NULL, NULL);
 
@@ -379,7 +382,8 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             serverfd = network_io_common_socket_tcp4_new_server(
                     0,
                     &server_address,
-                    10);
+                    10,
+                    NULL);
 
             ring = network_io_iouring_init(10, NULL, NULL);
 
@@ -455,7 +459,8 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             serverfd = network_io_common_socket_tcp4_new_server(
                     0,
                     &server_address,
-                    10);
+                    10,
+                    NULL);
 
             ring = network_io_iouring_init(10, NULL, NULL);
 
