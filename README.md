@@ -111,7 +111,7 @@ Here the general grand-plan:
         - [x] Implement a network io layer based on io_uring nad liburing
         - [ ] Implement a network channel layer based on top of the network io iouirng layer
         - [ ] Implement network workers
-        - [ ] Implement a basic support for the redis protocol;
+        - [ ] Implement a basic support for the redis protocol
             - [ ] GET
             - [ ] SET
             - [ ] DELETE
@@ -120,12 +120,14 @@ Here the general grand-plan:
         - [ ] Implement a storage io layer based on io_uring and liburing
     - [ ] Configuration:
         - [ ] Implement a YAML based configuration
+
 - v0.2
     - [ ] Hashtable
         - [ ] Implement adaptative spinlocks
         - [ ] Implement a sliding spinlock window to release locked chunks in advance if possible
         - [ ] Add support for LRU
-            - [ ] 
+            - [ ] Implement a separate LRU structure to hold the necessary data for the hashtable
+            - [ ] Implement an LRU linked-list
             - [ ] Implement an LRU Promote and GC worker
         - [ ] Ops
             - [ ] RESIZE
@@ -137,25 +139,39 @@ Here the general grand-plan:
         - [ ] Switch to use the SLAB allocator
     - [ ] Storage:
         - [ ] Implement garbage collection
+
 - v0.3
     - [ ] Hashtable
         - [ ] Add NUMA support
-    - [ ] Write documentation;
+    - [ ] Write documentation
     - [ ] Storage
         - [ ] Optmize for SSD (LSMTrees?) 
     - [ ] Networking
         - [ ] Implement a basic http webserver to provide general stats
         - [ ] Implement a basic http webserver to provide simple CRUD operations 
+        - [ ] Expand redis protocol support
+            - [ ] Pipelining
+
 - v0.4
     - [ ] Add AARCH64 support
+    - [ ] Storage
+        - [ ] Add support for epoll
+    - [ ] Networking
+        - [ ] Add support for epoll
 
-### FUTURE TODO
+- v0.5
+    - [ ] Authentication
+    - [ ] Networking
+        - [ ] Add TLS support (ktls? mbedtls? openssl?)
+            - [ ] Connection encryption
+            - [ ] Client authentication
 
-Because it aims to be a modern platform, the goal is to have the features mentioned below by the time of it's first
-stable release:
-- Add support for Windows and Mac OS X, the code is already being written whenever possible with this goal in mind;
-- Commands batching, to be able to perform multiple set of operations at the same time;
-- TLS, to encrypt the data on-transit;
-- Authentication and ACLs, to limit who has access and which data are accessible;
-- On-memory and On-disk data encryption;
-- Multi database.
+- v0.6
+    - [ ]
+    - [ ] Storage
+        - [ ] Add transparent data encryption / decryption
+
+- Somewhere before the v1.0
+    - [ ] Add support for Windows (IO via support IOCP)
+    - [ ] Add support for Mac OS X (IO via epoll)
+    - [ ] Add support for FreeBSD (IO via kqueue/kevent)
