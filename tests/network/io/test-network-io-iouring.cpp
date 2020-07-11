@@ -223,7 +223,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
 
             network_io_iouring_free(ring);
 
-            network_io_common_socket_close(fd, false);
+            REQUIRE(network_io_common_socket_close(fd, false));
         }
 
         SECTION("enqueue accept on invalid socket fd") {
@@ -307,9 +307,9 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
 
             // Normally wouldn't really necessary to close both the accepted connection and the originating one because
             // we own both and are closing one end but let's just cover all the cases
-            network_io_common_socket_close(acceptedfd, false);
-            network_io_common_socket_close(clientfd, false);
-            network_io_common_socket_close(serverfd, false);
+            REQUIRE(network_io_common_socket_close(acceptedfd, false));
+            REQUIRE(network_io_common_socket_close(clientfd, false));
+            REQUIRE(network_io_common_socket_close(serverfd, false));
         }
 
         SECTION("enqueue accept fail too many sqe") {
@@ -346,7 +346,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
 
             network_io_iouring_free(ring);
 
-            network_io_common_socket_close(fd, false);
+            REQUIRE(network_io_common_socket_close(fd, false));
         }
     }
 
@@ -427,9 +427,9 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
 
             // Normally wouldn't really necessary to close both the accepted connection and the originating one because
             // we own both and are closing one end but let's just cover all the cases
-            network_io_common_socket_close(acceptedfd, false);
-            network_io_common_socket_close(clientfd, false);
-            network_io_common_socket_close(serverfd, false);
+            REQUIRE(network_io_common_socket_close(acceptedfd, false));
+            REQUIRE(network_io_common_socket_close(clientfd, false));
+            REQUIRE(network_io_common_socket_close(serverfd, false));
         }
 
         SECTION("close socket") {
@@ -489,7 +489,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     4321));
             network_io_iouring_sqe_submit(ring);
 
-            network_io_common_socket_close(clientfd, false);
+            REQUIRE(network_io_common_socket_close(clientfd, false));
 
             io_uring_wait_cqe(ring, &cqe);
             REQUIRE(cqe->flags == 0);
@@ -501,8 +501,8 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
 
             // Normally wouldn't really necessary to close both the accepted connection and the originating one because
             // we own both and are closing one end but let's just cover all the cases
-            network_io_common_socket_close(acceptedfd, false);
-            network_io_common_socket_close(serverfd, false);
+            REQUIRE(network_io_common_socket_close(acceptedfd, false));
+            REQUIRE(network_io_common_socket_close(serverfd, false));
         }
 
         SECTION("enqueue recv fail too many sqe") {
@@ -528,8 +528,6 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     4321));
 
             network_io_iouring_free(ring);
-
-            network_io_common_socket_close(fd, false);
         }
     }
 
@@ -610,9 +608,9 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
 
             // Normally wouldn't really necessary to close both the accepted connection and the originating one because
             // we own both and are closing one end but let's just cover all the cases
-            network_io_common_socket_close(acceptedfd, false);
-            network_io_common_socket_close(clientfd, false);
-            network_io_common_socket_close(serverfd, false);
+            REQUIRE(network_io_common_socket_close(acceptedfd, false));
+            REQUIRE(network_io_common_socket_close(clientfd, false));
+            REQUIRE(network_io_common_socket_close(serverfd, false));
         }
 
         SECTION("enqueue send fail too many sqe") {
