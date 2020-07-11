@@ -634,14 +634,14 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
             REQUIRE(network_io_common_parse_addresses_foreach(
                     "127.0.0.1",
                     test_network_io_common_parse_addresses_foreach_callback_loopback_ipv4_address,
-                    NULL));
+                    NULL) == 1);
         }
 
         SECTION("loopback ipv6 address") {
             REQUIRE(network_io_common_parse_addresses_foreach(
                     "::1",
                     test_network_io_common_parse_addresses_foreach_callback_loopback_ipv6_address,
-                    NULL));
+                    NULL) == 1);
         }
 
         SECTION("localhost ipv4 and ipv6 addresses") {
@@ -649,10 +649,17 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
             REQUIRE(network_io_common_parse_addresses_foreach(
                     "www.google.it",
                     test_network_io_common_parse_addresses_foreach_callback_localhost_ipv4_ipv6_addresses,
-                    &res));
+                    &res) == 2);
 
             REQUIRE(res[0] == 1);
             REQUIRE(res[1] == 1);
+        }
+
+        SECTION("invalid address") {
+            REQUIRE(network_io_common_parse_addresses_foreach(
+                    "this is an invalid address! should return -1",
+                    test_network_io_common_parse_addresses_foreach_callback_loopback_ipv6_address,
+                    NULL) == -1);
         }
     }
 }
