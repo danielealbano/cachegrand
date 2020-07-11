@@ -638,8 +638,100 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     4321));
 
             network_io_iouring_free(ring);
+        }
+    }
 
-            network_io_common_socket_close(fd, false);
+    SECTION("network_io_iouring_sqe_enqueue_close") {
+        SECTION("open and close socket") {
+            io_uring_t *ring;
+            io_uring_cqe_t *cqe;
+            int clientfd, serverfd, acceptedfd;
+            struct sockaddr_in server_address = {0};
+            struct sockaddr_in client_accept_address = {0};
+            struct sockaddr_in client_connect_address = {0};
+            socklen_t client_address_len = 0;
+            size_t buffer_send_data_len;
+            char buffer_recv[64] = {0};
+            char buffer_send[64] = {0};
+
+            server_address.sin_family = AF_INET;
+            server_address.sin_port = htons(socket_port_free_ipv4);
+            server_address.sin_addr.s_addr = loopback_ipv4.s_addr;
+            client_connect_address.sin_family = AF_INET;
+            client_connect_address.sin_port = htons(socket_port_free_ipv4);
+            client_connect_address.sin_addr.s_addr = loopback_ipv4.s_addr;
+
+            clientfd = network_io_common_socket_tcp4_new(0);
+            serverfd = network_io_common_socket_tcp4_new_server(
+                    0,
+                    &server_address,
+                    10,
+                    NULL);
+
+            ring = network_io_iouring_init(10, NULL, NULL);
+
+            REQUIRE(ring != NULL);
+
+            REQUIRE(network_io_iouring_sqe_enqueue_accept(
+                    ring,
+                    serverfd,
+                    (sockaddr *)&client_accept_address,
+                    &client_address_len,
+                    0,
+                    1234));
+
+            // Submit first the sqe and then performs a blocking connection (shouldn't block unless there is a problem)
+            network_io_iouring_sqe_submit(ring);
+            REQUIRE(connect(clientfd, (struct sockaddr*)&client_connect_address, sizeof(client_connect_address)) == 0);
+
+            io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe->flags == 0);
+            REQUIRE(cqe->res > 0);
+            REQUIRE(cqe->user_data == 1234);
+
+            acceptedfd = cqe->res;
+            io_uring_cqe_seen(ring, cqe);
+
+            // Enqueue a close sqe
+            REQUIRE(network_io_iouring_sqe_enqueue_close(
+                    ring,
+                    acceptedfd,
+                    4321));
+            network_io_iouring_sqe_submit(ring);
+
+            io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe->flags == 0);
+            REQUIRE(cqe->user_data == 4321);
+            io_uring_cqe_seen(ring, cqe);
+
+            network_io_iouring_free(ring);
+
+            // Normally wouldn't really necessary to close both the accepted connection and the originating one because
+            // we own both and are closing one end but let's just cover all the cases
+            REQUIRE(network_io_common_socket_close(clientfd, false));
+            REQUIRE(network_io_common_socket_close(serverfd, false));
+        }
+
+        SECTION("enqueue close fail too many sqe") {
+            io_uring_t *ring;
+            io_uring_cqe_t *cqe;
+            ring = network_io_iouring_init(10, NULL, NULL);
+
+            REQUIRE(ring != NULL);
+
+            for(uint8_t i = 0; i < 16; i++) {
+                REQUIRE(network_io_iouring_get_sqe(ring) != NULL);
+            }
+
+            int fd = network_io_common_socket_tcp4_new(
+                    SOCK_NONBLOCK);
+
+            REQUIRE(!network_io_iouring_sqe_enqueue_close(
+                    ring,
+                    fd,
+                    4321));
+
+            network_io_iouring_free(ring);
         }
     }
 }
