@@ -294,7 +294,7 @@ int network_io_common_socket_new_server(
     return fd;
 }
 
-bool network_io_common_parse_addresses_foreach(
+uint32_t network_io_common_parse_addresses_foreach(
         char *address,
         network_io_common_parse_addresses_foreach_callback_t callback,
         void* user_data) {
@@ -312,7 +312,7 @@ bool network_io_common_parse_addresses_foreach(
                 "Unable to resolve the address <%s> because <%s>",
                 address,
                 gai_strerror(res));
-        return false;
+        return -1;
     }
 
     uint16_t socket_address_index = 0;
@@ -320,6 +320,7 @@ bool network_io_common_parse_addresses_foreach(
         if(rp->ai_family != AF_INET && rp->ai_family != AF_INET6) {
             continue;
         }
+
         callback(
                 rp->ai_family,
                 rp->ai_addr,
@@ -329,4 +330,6 @@ bool network_io_common_parse_addresses_foreach(
     }
 
     freeaddrinfo(result);
+
+    return socket_address_index;
 }
