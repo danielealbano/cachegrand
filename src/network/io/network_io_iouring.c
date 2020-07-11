@@ -166,8 +166,13 @@ bool network_io_iouring_sqe_submit(
 bool network_io_iouring_sqe_submit_and_wait(
         io_uring_t *ring,
         int wait_nr) {
-    if (io_uring_submit_and_wait(ring, wait_nr) < 0) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Failed to submit the io_uring sqes");
+    int res;
+    if ((res = io_uring_submit_and_wait(ring, wait_nr)) < 0) {
+        LOG_E(
+                LOG_PRODUCER_DEFAULT,
+                "Failed to submit the io_uring sqes, error code <%s (%d)>",
+                strerror(res),
+                res);
 
         return false;
     }
