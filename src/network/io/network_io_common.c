@@ -36,6 +36,13 @@ bool network_io_common_socket_set_reuse_address(
     return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 }
 
+bool network_io_common_socket_set_reuse_port(
+        int fd,
+        bool enable) {
+    int val = enable ? 1 : 0;
+    return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
+}
+
 bool network_io_common_socket_set_linger(
         int fd,
         bool enable,
