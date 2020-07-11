@@ -95,21 +95,59 @@ make cachegrand-benches
 
 ### TODO
 
-cachegrand is still under heavy development, the goals for the 0.1 milestone are the following:
-- [ ] implement self-balancing spinlocks to minimise the memory accesses when there is high contention;
-- [ ] implement a sliding spinlock window to release locked chunks in advance if possible;
-- [ ] implement the networking
-    - [x] using io_uring and liburing for the IO
-    - [x] implementing a network channel and network protocol components to be able to support a number of different
-          protocols with minimal overhead
-    - [ ] implement a basic support for the redis protocol;
-    - [ ] implement a basic http webserver to provide general stats;
-    - [ ] implement a basic http webserver to provide simple CRUD operations; 
-- [ ] implement the data backing layer, with per-thread sharding in-memory and on-disk: 
-    - [ ] liburing and io_uring;
-    - [ ] append only;
-    - [ ] block-based with a variable block size;
-- [ ] write documentation;
+cachegrand is still under heavy development!
+
+The goal is to implement a PoC for the v0.1 and a basic working caching server with by the v0.3.
+
+Here the general grand-plan:
+- v0.1 
+    - [x] Hashtable
+        - [x] Ops
+            - [x] GET, lock-free, atomic-free and wait-free
+            - [x] SET, chunk-based (14 slots) locking using spin-locks
+            - [x] DELETE, chunk-based (14 slots) locking using spin-locks
+    - [ ] Networking
+        - [x] Implement a network stack able to support multiple io libraries and multiple protocols 
+        - [x] Implement a network io layer based on io_uring nad liburing
+        - [ ] Implement a network channel layer based on top of the network io iouirng layer
+        - [ ] Implement network workers
+        - [ ] Implement a basic support for the redis protocol;
+            - [ ] GET
+            - [ ] SET
+            - [ ] DELETE
+    - [ ] Storage: 
+        - [ ] Implement a storage stack able to support multiple io libraries 
+        - [ ] Implement a storage io layer based on io_uring and liburing
+    - [ ] Configuration:
+        - [ ] Implement a YAML based configuration
+- v0.2
+    - [ ] Hashtable
+        - [ ] Implement adaptative spinlocks
+        - [ ] Implement a sliding spinlock window to release locked chunks in advance if possible
+        - [ ] Add support for LRU
+            - [ ] 
+            - [ ] Implement an LRU Promote and GC worker
+        - [ ] Ops
+            - [ ] RESIZE
+            - [ ] ITERATE
+            - [ ] DELETE, when deleting move back the far-est key of the chunk usind the distance
+    - [ ] Memory Management
+        - [ ] Implement a SLAB allocator        
+    - [ ] Networking
+        - [ ] Switch to use the SLAB allocator
+    - [ ] Storage:
+        - [ ] Implement garbage collection
+- v0.3
+    - [ ] Hashtable
+        - [ ] Add NUMA support
+    - [ ] Write documentation;
+    - [ ] Storage
+        - [ ] Optmize for SSD (LSMTrees?) 
+    - [ ] Networking
+        - [ ] Implement a basic http webserver to provide general stats
+        - [ ] Implement a basic http webserver to provide simple CRUD operations 
+- v0.4
+    - [ ] Add AARCH64 support
 
 ### FUTURE TODO
 
