@@ -74,7 +74,7 @@ bool network_io_common_socket_set_receive_timeout(
         long seconds,
         long useconds) {
     struct timeval timeout = { seconds, useconds };
-    return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_SNDBUF, &timeout, sizeof(timeout));
+    return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 }
 
 bool network_io_common_socket_set_send_timeout(
@@ -82,7 +82,7 @@ bool network_io_common_socket_set_send_timeout(
         long seconds,
         long useconds) {
     struct timeval timeout = { seconds, useconds };
-    return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_SNDBUF, &timeout, sizeof(timeout));
+    return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 }
 
 bool network_io_common_socket_set_ipv6_only(
