@@ -64,7 +64,7 @@ jobs:
     - name: Code Coverage - Generation
       uses: danielealbano/lcov-action@v1
       with:
-        remove_patterns: 3rdparty,tests
+        remove_patterns: 3rdparty,tests,build/_deps
 
     - name: Code Coverage - Upload to codecov.io
       shell: bash
