@@ -462,6 +462,14 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
             close(fd1);
             close(fd2);
         }
+
+        SECTION("invalid fd") {
+            REQUIRE(!network_io_common_socket_listen(-1, 10));
+        }
+
+        SECTION("not socket fd") {
+            REQUIRE(!network_io_common_socket_listen(1, 10));
+        }
     }
 
     SECTION("network_io_common_socket_setup_server") {
@@ -504,12 +512,33 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
             shutdown(fd, SHUT_RDWR);
             close(fd);
         }
+
+        SECTION("invalid fd") {
+            struct sockaddr_in address = {0};
+
+            address.sin_family = AF_INET;
+            address.sin_port = htons(socket_port_free_ipv4);
+            address.sin_addr.s_addr = loopback_ipv4.s_addr;
+
+            REQUIRE(!network_io_common_socket_setup_server(
+                    -1,
+                    (struct sockaddr*)&address,
+                    sizeof(address),
+                    10,
+                    NULL));
+        }
     }
 
     SECTION("network_io_common_socket_tcp4_new") {
-        int fd = network_io_common_socket_tcp4_new(0);
-        REQUIRE(fd > 0);
-        close(fd);
+        SECTION("allowed flags") {
+            int fd = network_io_common_socket_tcp4_new(0);
+            REQUIRE(fd > 0);
+            close(fd);
+        }
+
+        SECTION("invalid flags") {
+            REQUIRE(network_io_common_socket_tcp4_new(-1) < 0);
+        }
     }
 
     SECTION("network_io_common_socket_tcp4_new_server") {
@@ -528,9 +557,15 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
     }
 
     SECTION("network_io_common_socket_tcp6_new") {
-        int fd = network_io_common_socket_tcp6_new(0);
-        REQUIRE(fd > 0);
-        close(fd);
+        SECTION("allowed flags") {
+            int fd = network_io_common_socket_tcp6_new(0);
+            REQUIRE(fd > 0);
+            close(fd);
+        }
+
+        SECTION("invalid flags") {
+            REQUIRE(network_io_common_socket_tcp6_new(-1) < 0);
+        }
     }
 
     SECTION("network_io_common_socket_tcp6_new_server") {
@@ -589,6 +624,16 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
 
             shutdown(fd, SHUT_RDWR);
             close(fd);
+        }
+
+        SECTION("invalid family") {
+            REQUIRE(network_io_common_socket_new_server(
+                    12345,
+                    0,
+                    NULL,
+                    0,
+                    10,
+                    NULL) == -1);
         }
     }
 
