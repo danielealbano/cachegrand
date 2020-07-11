@@ -59,9 +59,11 @@ bool network_io_iouring_supported() {
     long kernel_version[4] = {0};
     FILE *fd;
 
-    // Check kernel minimum version, the io_uring probe op has been introduced in the kernel version 5.6
+    // Check kernel minimum version, the io_uring probe op has been introduced in the kernel version 5.7
     version_parse("5.7.0", (long*)kernel_version, sizeof(kernel_version));
-    version_kernel_min(kernel_version, 3);
+    if (!version_kernel_min(kernel_version, 3)) {
+        return false;
+    }
 
     // Check that the io_uring symbols are exposes by the kernel
     if ((fd = network_io_iouring_supported_open_kallsyms()) == NULL) {
