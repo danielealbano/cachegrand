@@ -73,10 +73,12 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
     SECTION("network_io_common_socket_set_option") {
         SECTION("valid option") {
             int val = 1;
+            socklen_t val_size = sizeof(val);
             int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
             REQUIRE(fd > 0);
             REQUIRE(network_io_common_socket_set_option(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)));
+            REQUIRE(getsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, &val_size) == 0);
 
             close(fd);
         }
@@ -116,9 +118,14 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
 
     SECTION("network_io_common_socket_set_reuse_address") {
         SECTION("valid socket fd") {
+            int val;
+            socklen_t val_size = sizeof(val);
             int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
+            REQUIRE(fd > 0);
             REQUIRE(network_io_common_socket_set_reuse_address(fd, true));
+            REQUIRE(getsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, &val_size) == 0);
+            REQUIRE(val == 1);
 
             close(fd);
         }
@@ -144,9 +151,14 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
 
     SECTION("network_io_common_socket_set_keepalive") {
         SECTION("valid socket fd") {
+            int val;
+            socklen_t val_size = sizeof(val);
             int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
+            REQUIRE(fd > 0);
             REQUIRE(network_io_common_socket_set_keepalive(fd, true));
+            REQUIRE(getsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &val, &val_size) == 0);
+            REQUIRE(val == 1);
 
             close(fd);
         }
@@ -158,9 +170,14 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
 
     SECTION("network_io_common_socket_set_incoming_cpu") {
         SECTION("valid socket fd") {
+            int val;
+            socklen_t val_size = sizeof(val);
             int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
+            REQUIRE(fd > 0);
             REQUIRE(network_io_common_socket_set_incoming_cpu(fd, 1));
+            REQUIRE(getsockopt(fd, SOL_SOCKET, SO_INCOMING_CPU, &val, &val_size) == 0);
+            REQUIRE(val == 1);
 
             close(fd);
         }
@@ -172,9 +189,14 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
 
     SECTION("network_io_common_socket_set_receive_buffer") {
         SECTION("valid socket fd") {
+            int val;
+            socklen_t val_size = sizeof(val);
             int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
+            REQUIRE(fd > 0);
             REQUIRE(network_io_common_socket_set_receive_buffer(fd, 8192));
+            REQUIRE(getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &val, &val_size) == 0);
+            REQUIRE(val == 8192 * 2);
 
             close(fd);
         }
@@ -186,9 +208,14 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
 
     SECTION("network_io_common_socket_set_send_buffer") {
         SECTION("valid socket fd") {
+            int val;
+            socklen_t val_size = sizeof(val);
             int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
+            REQUIRE(fd > 0);
             REQUIRE(network_io_common_socket_set_send_buffer(fd, 8192));
+            REQUIRE(getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &val, &val_size) == 0);
+            REQUIRE(val == 8192 * 2);
 
             close(fd);
         }
@@ -200,9 +227,15 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
 
     SECTION("network_io_common_socket_set_receive_timeout") {
         SECTION("valid socket fd") {
+            struct timeval val = { 0 };
+            socklen_t val_size = sizeof(val);
             int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-            REQUIRE(network_io_common_socket_set_receive_timeout(fd, 1, 0));
+            REQUIRE(fd > 0);
+            REQUIRE(network_io_common_socket_set_receive_timeout(fd, 2, 10000));
+            REQUIRE(getsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &val, &val_size) == 0);
+            REQUIRE(val.tv_sec == 2);
+            REQUIRE(val.tv_usec == 10000);
 
             close(fd);
         }
@@ -214,9 +247,15 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
 
     SECTION("network_io_common_socket_set_send_timeout") {
         SECTION("valid socket fd") {
+            struct timeval val = { 0 };
+            socklen_t val_size = sizeof(val);
             int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-            REQUIRE(network_io_common_socket_set_send_timeout(fd, 1, 0));
+            REQUIRE(fd > 0);
+            REQUIRE(network_io_common_socket_set_send_timeout(fd, 2, 10000));
+            REQUIRE(getsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &val, &val_size) == 0);
+            REQUIRE(val.tv_sec == 2);
+            REQUIRE(val.tv_usec == 10000);
 
             close(fd);
         }
@@ -228,10 +267,14 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
 
     SECTION("network_io_common_socket_set_ipv6_only") {
         SECTION("valid socket fd") {
+            int val;
+            socklen_t val_size = sizeof(val);
             int fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
 
             REQUIRE(fd > 0);
             REQUIRE(network_io_common_socket_set_ipv6_only(fd, true));
+            REQUIRE(getsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &val, &val_size) == 0);
+            REQUIRE(val == 1);
 
             close(fd);
         }
