@@ -10,7 +10,7 @@
 #include "network_io_iouring_supported.h"
 
 const char* kallsyms_path = "/proc/kallsyms";
-const char* expected_symbol_name = "io_uring_create";
+const char* expected_symbol_name = "io_uring_setup";
 
 LOG_PRODUCER_CREATE_LOCAL_DEFAULT("network_io_iouring_supported", network_io_iouring_supported)
 
@@ -39,7 +39,7 @@ bool network_io_iouring_supported_fetch_kallsyms_symbol_name(
 bool network_io_iouring_supported_is_expected_symbol_name(
         char* buffer,
         size_t buffer_size) {
-    return strncmp(buffer, expected_symbol_name, buffer_size) == 0;
+    return strstr(buffer, expected_symbol_name) != NULL;
 }
 
 FILE* network_io_iouring_supported_open_kallsyms() {
