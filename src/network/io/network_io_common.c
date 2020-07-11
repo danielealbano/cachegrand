@@ -151,9 +151,10 @@ bool network_io_common_socket_setup_server(
         socklen_t address_size,
         uint16_t backlog) {
     int val = 1;
+    bool error = false;
 
     if (!network_io_common_socket_set_reuse_address(fd, true)) {
-        return false;
+        error = true;
     }
 
     if (address->sa_family == AF_INET6) {
@@ -163,24 +164,28 @@ bool network_io_common_socket_setup_server(
                 IPV6_V6ONLY,
                 &val,
                 sizeof(val))) {
-            return false;
+            error = true;
         }
     }
 
-    if (!network_io_common_socket_bind(
+    if (!error && !network_io_common_socket_bind(
             fd,
             (struct sockaddr *)address,
             address_size)) {
-        return false;
+        error = true;
     }
 
-    if (!network_io_common_socket_listen(
+    if (!error && !network_io_common_socket_listen(
             fd,
             backlog)) {
-        return false;
+        error = true;
     }
 
-    return true;
+    if (error) {
+        network_io_common_socket_close(fd, true);
+    }
+
+    return !error;
 }
 
 int network_io_common_socket_tcp4_new(
