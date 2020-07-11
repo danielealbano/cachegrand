@@ -3,12 +3,13 @@
 #include <stdint.h>
 #include <string.h>
 #include <strings.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 #include <unistd.h>
-#include <assert.h>
-#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/socket.h>
 #include <arpa/inet.h>
+#include <errno.h>
+#include <assert.h>
 
 #include "log.h"
 
