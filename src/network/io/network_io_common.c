@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <netinet/in.h>
-#include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
 
