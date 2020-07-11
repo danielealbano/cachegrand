@@ -46,6 +46,10 @@ bool network_io_iouring_sqe_enqueue_send(
         void *buffer,
         size_t buffer_size,
         uint64_t user_data);
+bool network_io_iouring_sqe_enqueue_close(
+        io_uring_t *ring,
+        int fd,
+        uint64_t user_data);
 bool network_io_iouring_sqe_submit(
         io_uring_t *ring);
 bool network_io_iouring_sqe_submit_and_wait(

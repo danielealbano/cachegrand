@@ -152,6 +152,22 @@ bool network_io_iouring_sqe_enqueue_send(
     return true;
 }
 
+bool network_io_iouring_sqe_enqueue_close(
+        io_uring_t *ring,
+        int fd,
+        uint64_t user_data) {
+    io_uring_sqe_t *sqe = network_io_iouring_get_sqe(ring);
+    if (sqe == NULL) {
+        return false;
+    }
+
+    io_uring_prep_close(sqe, fd);
+    io_uring_sqe_set_flags(sqe, 0);
+    sqe->user_data = user_data;
+
+    return true;
+}
+
 bool network_io_iouring_sqe_submit(
         io_uring_t *ring) {
     if (io_uring_submit(ring) < 0) {
