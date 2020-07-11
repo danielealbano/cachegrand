@@ -258,10 +258,9 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
             int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
             REQUIRE(fd > 0);
-            REQUIRE(network_io_common_socket_set_receive_timeout(fd, 2, 10000));
+            REQUIRE(network_io_common_socket_set_receive_timeout(fd, 2, 0));
             REQUIRE(getsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &val, &val_size) == 0);
             REQUIRE(val.tv_sec == 2);
-            REQUIRE(val.tv_usec == 10000);
 
             close(fd);
         }
@@ -278,10 +277,9 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
             int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
             REQUIRE(fd > 0);
-            REQUIRE(network_io_common_socket_set_send_timeout(fd, 2, 10000));
+            REQUIRE(network_io_common_socket_set_send_timeout(fd, 2, 0));
             REQUIRE(getsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &val, &val_size) == 0);
             REQUIRE(val.tv_sec == 2);
-            REQUIRE(val.tv_usec == 10000);
 
             close(fd);
         }
