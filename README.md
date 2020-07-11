@@ -96,21 +96,20 @@ make cachegrand-benches
 ### TODO
 
 cachegrand is still under heavy development, the goals for the 0.1 milestone are the following:
-- implement self-balancing spinlocks to minimise the memory accesses when there is high contention;
-- implement a sliding spinlock window to release locked chunks in advance if possible;
-- implement an lock-free, atomic-free, ring-buffer queue for the internal threadpool implementation;
-- implement the networking
-    - using io_uring and liburing for the IO
-    - implementing a network channel and network protocol components to be able to support a number of different 
-      protocols with minimal overhead
-    - implement a basic support for the redis protocol;
-    - implement a basic http webserver to provide general stats;
-    - implement a basic http webserver to provide simple CRUD operations; 
-- implement the data backing layer, with per-thread sharding in-memory and on-disk: 
-    - liburing and io_uring;
-    - append only;
-    - block-based with a variable block size;
-- write documentation;
+- [ ] implement self-balancing spinlocks to minimise the memory accesses when there is high contention;
+- [ ] implement a sliding spinlock window to release locked chunks in advance if possible;
+- [ ] implement the networking
+    - [x] using io_uring and liburing for the IO
+    - [x] implementing a network channel and network protocol components to be able to support a number of different
+          protocols with minimal overhead
+    - [ ] implement a basic support for the redis protocol;
+    - [ ] implement a basic http webserver to provide general stats;
+    - [ ] implement a basic http webserver to provide simple CRUD operations; 
+- [ ] implement the data backing layer, with per-thread sharding in-memory and on-disk: 
+    - [ ] liburing and io_uring;
+    - [ ] append only;
+    - [ ] block-based with a variable block size;
+- [ ] write documentation;
 
 ### FUTURE TODO
 
