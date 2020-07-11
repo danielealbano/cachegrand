@@ -43,6 +43,34 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
 
             network_io_iouring_free(ring);
         }
+
+        SECTION("with params and features") {
+            io_uring_params_t params = {0};
+            uint32_t features = 0;
+            io_uring_t *ring = network_io_iouring_init(10, &params, &features);
+
+            REQUIRE(ring != NULL);
+            REQUIRE(params.features != 0);
+            REQUIRE(params.features == features);
+
+            network_io_iouring_free(ring);
+        }
+
+        SECTION("without params but with features") {
+            uint32_t features = 0;
+            io_uring_t *ring = network_io_iouring_init(10, NULL, &features);
+
+            REQUIRE(ring != NULL);
+            REQUIRE(features != 0);
+
+            network_io_iouring_free(ring);
+        }
+
+        SECTION("fail because too many entries") {
+            io_uring_t *ring = network_io_iouring_init(64000, NULL, NULL);
+
+            REQUIRE(ring == NULL);
+        }
     }
 
     SECTION("network_io_iouring_probe_feature") {
@@ -105,6 +133,8 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
 
         io_uring_t *ring = network_io_iouring_init(10, NULL, NULL);
 
+        REQUIRE(ring != NULL);
+
         sqe = network_io_iouring_get_sqe(ring);
         REQUIRE(sqe != NULL);
         io_uring_prep_nop(sqe);
@@ -121,32 +151,36 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
     }
 
     SECTION("network_io_iouring_sqe_submit_and_wait") {
-        io_uring_sqe_t *sqe;
-        io_uring_cqe_t *cqe;
-        uint32_t head;
-        uint32_t count;
+        SECTION("valid ring") {
+            io_uring_sqe_t *sqe;
+            io_uring_cqe_t *cqe;
+            uint32_t head;
+            uint32_t count;
 
-        io_uring_t *ring = network_io_iouring_init(10, NULL, NULL);
+            io_uring_t *ring = network_io_iouring_init(10, NULL, NULL);
 
-        sqe = network_io_iouring_get_sqe(ring);
-        REQUIRE(sqe != NULL);
-        io_uring_prep_nop(sqe);
-        sqe->user_data = 1234;
+            REQUIRE(ring != NULL);
 
-        network_io_iouring_sqe_submit_and_wait(ring, 1);
+            sqe = network_io_iouring_get_sqe(ring);
+            REQUIRE(sqe != NULL);
+            io_uring_prep_nop(sqe);
+            sqe->user_data = 1234;
 
-        count = 0;
-        network_io_iouring_cqe_foreach(ring, head, cqe) {
-            REQUIRE(cqe->flags == 0);
-            REQUIRE(cqe->res == 0);
-            REQUIRE(cqe->user_data == 1234);
-            count++;
+            REQUIRE(network_io_iouring_sqe_submit_and_wait(ring, 1));
+
+            count = 0;
+                    network_io_iouring_cqe_foreach(ring, head, cqe) {
+                REQUIRE(cqe->flags == 0);
+                REQUIRE(cqe->res == 0);
+                REQUIRE(cqe->user_data == 1234);
+                count++;
+            }
+            REQUIRE(count == 1);
+
+            network_io_iouring_cq_advance(ring, count);
+
+            network_io_iouring_free(ring);
         }
-        REQUIRE(count == 1);
-
-        network_io_iouring_cq_advance(ring, count);
-
-        network_io_iouring_free(ring);
     }
 
     SECTION("network_io_iouring_sqe_enqueue_accept") {
@@ -276,6 +310,43 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             network_io_common_socket_close(acceptedfd, false);
             network_io_common_socket_close(clientfd, false);
             network_io_common_socket_close(serverfd, false);
+        }
+
+        SECTION("enqueue accept fail too many sqe") {
+            io_uring_t *ring;
+            io_uring_cqe_t *cqe;
+            struct sockaddr_in server_address = {0};
+            struct sockaddr_in client_address = {0};
+            socklen_t client_address_len = 0;
+            ring = network_io_iouring_init(10, NULL, NULL);
+
+            REQUIRE(ring != NULL);
+
+            for(uint8_t i = 0; i < 16; i++) {
+                REQUIRE(network_io_iouring_get_sqe(ring) != NULL);
+            }
+
+            server_address.sin_family = AF_INET;
+            server_address.sin_port = htons(socket_port_free_ipv4);
+            server_address.sin_addr.s_addr = loopback_ipv4.s_addr;
+
+            int fd = network_io_common_socket_tcp4_new_server(
+                    SOCK_NONBLOCK,
+                    &server_address,
+                    10,
+                    NULL);
+
+            REQUIRE(!network_io_iouring_sqe_enqueue_accept(
+                    ring,
+                    fd,
+                    (sockaddr *)&client_address,
+                    &client_address_len,
+                    SOCK_NONBLOCK,
+                    1234));
+
+            network_io_iouring_free(ring);
+
+            network_io_common_socket_close(fd, false);
         }
     }
 
@@ -433,6 +504,33 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             network_io_common_socket_close(acceptedfd, false);
             network_io_common_socket_close(serverfd, false);
         }
+
+        SECTION("enqueue recv fail too many sqe") {
+            io_uring_t *ring;
+            io_uring_cqe_t *cqe;
+            char buffer_recv[64] = {0};
+            ring = network_io_iouring_init(10, NULL, NULL);
+
+            REQUIRE(ring != NULL);
+
+            for(uint8_t i = 0; i < 16; i++) {
+                REQUIRE(network_io_iouring_get_sqe(ring) != NULL);
+            }
+
+            int fd = network_io_common_socket_tcp4_new(
+                    SOCK_NONBLOCK);
+
+            REQUIRE(!network_io_iouring_sqe_enqueue_recv(
+                    ring,
+                    fd,
+                    &buffer_recv,
+                    sizeof(buffer_recv),
+                    4321));
+
+            network_io_iouring_free(ring);
+
+            network_io_common_socket_close(fd, false);
+        }
     }
 
     SECTION("network_io_iouring_sqe_enqueue_send") {
@@ -515,6 +613,33 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             network_io_common_socket_close(acceptedfd, false);
             network_io_common_socket_close(clientfd, false);
             network_io_common_socket_close(serverfd, false);
+        }
+
+        SECTION("enqueue send fail too many sqe") {
+            io_uring_t *ring;
+            io_uring_cqe_t *cqe;
+            char buffer_recv[64] = {0};
+            ring = network_io_iouring_init(10, NULL, NULL);
+
+            REQUIRE(ring != NULL);
+
+            for(uint8_t i = 0; i < 16; i++) {
+                REQUIRE(network_io_iouring_get_sqe(ring) != NULL);
+            }
+
+            int fd = network_io_common_socket_tcp4_new(
+                    SOCK_NONBLOCK);
+
+            REQUIRE(!network_io_iouring_sqe_enqueue_send(
+                    ring,
+                    fd,
+                    &buffer_recv,
+                    sizeof(buffer_recv),
+                    4321));
+
+            network_io_iouring_free(ring);
+
+            network_io_common_socket_close(fd, false);
         }
     }
 }
