@@ -5,6 +5,9 @@
 extern "C" {
 #endif
 
+typedef bool (*network_io_common_socket_setup_server_cb_t)(
+        int fd);
+
 typedef void (*network_io_common_parse_addresses_foreach_callback_t)(
         int family,
         struct sockaddr *socket_address,
@@ -19,6 +22,9 @@ bool network_io_common_socket_set_option(
         void* value,
         socklen_t value_size);
 bool network_io_common_socket_set_reuse_address(
+        int fd,
+        bool enable);
+bool network_io_common_socket_set_reuse_port(
         int fd,
         bool enable);
 bool network_io_common_socket_set_linger(
@@ -64,29 +70,34 @@ bool network_io_common_socket_setup_server(
         int fd,
         struct sockaddr *address,
         socklen_t address_size,
-        uint16_t backlog);
+        uint16_t backlog,
+        network_io_common_socket_setup_server_cb_t socket_setup_server_cb);
 
 int network_io_common_socket_tcp4_new(
         int flags);
 int network_io_common_socket_tcp4_new_server(
         int flags,
         struct sockaddr_in *address,
-        uint16_t backlog);
+        uint16_t backlog,
+        network_io_common_socket_setup_server_cb_t socket_setup_server_cb);
 
 int network_io_common_socket_tcp6_new(
         int flags);
 int network_io_common_socket_tcp6_new_server(
         int flags,
         struct sockaddr_in6 *address,
-        uint16_t backlog);
+        uint16_t backlog,
+        network_io_common_socket_setup_server_cb_t socket_setup_server_cb);
 
 int network_io_common_socket_new_server(
         int family,
+        int flags,
         struct sockaddr *socket_address,
         uint16_t port,
-        uint16_t backlog);
+        uint16_t backlog,
+        network_io_common_socket_setup_server_cb_t socket_setup_server_cb);
 
-bool network_io_common_parse_addresses_foreach(
+uint32_t network_io_common_parse_addresses_foreach(
         char *address,
         network_io_common_parse_addresses_foreach_callback_t callback,
         void* user_data);
