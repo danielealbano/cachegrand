@@ -305,7 +305,7 @@ bool network_io_common_parse_addresses_foreach(
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
 
-    res = getaddrinfo(address, NULL, &hints, &result);
+    res = getaddrinfo(address, "0", &hints, &result);
     if (res != 0) {
         LOG_E(
                 LOG_PRODUCER_DEFAULT,
