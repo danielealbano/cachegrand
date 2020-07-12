@@ -115,6 +115,7 @@ Here the general grand-plan:
             - [ ] GET
             - [ ] SET
             - [ ] DELETE
+            - [ ] PING
     - [ ] Storage: 
         - [ ] Implement a storage stack able to support multiple io libraries 
         - [ ] Implement a storage io layer based on io_uring and liburing
