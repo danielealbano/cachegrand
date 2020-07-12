@@ -5,19 +5,46 @@
 extern "C" {
 #endif
 
-typedef struct network_channel_config network_channel_config_t;
-struct network_channel_config {
-    in_port_t port;
-    in_addr_t addr;
+#define NETWORK_CHANNEL_PACKET_BUFFER_SIZE  2048
+#define NETWORK_CHANNEL_LISTENERS_MAX       16
+
+typedef struct network_channel_address network_channel_address_t;
+struct network_channel_address {
+    char* address;
+    uint16_t port;
 };
 
-typedef struct network_channel network_channel_t;
-struct network_channel {
-    network_channel_config_t* config;
+typedef struct network_channel_listener network_channel_listener_t;
+struct network_channel_listener {
+    int fd;
     union {
-        network_channel_iouring_t iouring;
-    };
+        struct sockaddr base;
+        struct sockaddr_in ipv4;
+        struct sockaddr_in6 ipv6;
+    } address;
+    socklen_t address_size;
 };
+
+// TODO: decouple the list of listeners from the listener new callback user_data
+typedef struct network_create_lister_new_user_data network_channel_listener_new_callback_user_data_t;
+struct network_create_lister_new_user_data {
+    uint16_t port;
+    uint16_t backlog;
+    uint8_t core_index;
+    uint8_t listeners_count;
+    network_channel_listener_t listeners[NETWORK_CHANNEL_LISTENERS_MAX];
+};
+
+void network_channel_listener_new_callback(
+        int family,
+        struct sockaddr *socket_address,
+        socklen_t socket_address_size,
+        uint16_t socket_address_index,
+        void* user_data);
+void network_channel_listener_new(
+        char* address,
+        uint16_t port,
+        network_channel_listener_new_callback_user_data_t *user_data);
 
 #ifdef __cplusplus
 }
