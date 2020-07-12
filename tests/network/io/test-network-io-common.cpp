@@ -63,7 +63,7 @@ bool test_network_io_common_parse_addresses_foreach_callback_localhost_ipv4_ipv6
     return true;
 }
 
-TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_common]") {
+TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_common]") {
     struct in_addr loopback_ipv4 = {0};
     struct in_addr loopback_ipv6 = {0};
 

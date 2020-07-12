@@ -17,7 +17,7 @@
 #include "network/channel/network_channel.h"
 #include "worker/worker.h"
 
-TEST_CASE("worker/worker", "[worker][worker]") {
+TEST_CASE("worker/worker.c", "[worker][worker]") {
     SECTION("worker_publish_stats") {
         worker_stats_t worker_stats_cmp = {0};
         worker_stats_t worker_stats_new = {0};

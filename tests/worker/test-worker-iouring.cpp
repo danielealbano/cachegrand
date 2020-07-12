@@ -20,7 +20,7 @@
 
 #include "worker/worker_iouring.h"
 
-TEST_CASE("worker/worker_iouring", "[worker][worker_iouring]") {
+TEST_CASE("worker/worker_iouring.c", "[worker][worker_iouring]") {
     // TODO: write tests when the worker interface will stabile, do not test anything right now, the worker needs to be
     //       heavily refactored and most of the code will be split, shuffled, rewritten and re-organized.
     //       The target would be to have these tests by time we will implement a second kind of worker (ie. for epoll).
