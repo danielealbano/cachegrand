@@ -15,7 +15,7 @@ it from the repository and install the package locally.
 
 On Ubuntu 20.04 it's possible to use
  - [ubuntu-mainline-kernel.sh](https://github.com/pimlie/ubuntu-mainline-kernel.sh) to update the kernel to an official 
-   build for the 5.7.6 version
+   build for the 5.7.0 or newer version
  - the below snippet to download, patch, compile and install liburing from the repository 
 
 ```bash
