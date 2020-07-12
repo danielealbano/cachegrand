@@ -3,6 +3,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
 list(APPEND DEPS_LIST_LIBRARIES "pthread")
 
 include("liburing")
+include("openssl")
 include("t1ha")
 
 set(DEPS_LIST_LIBRARIES "${DEPS_LIST_LIBRARIES}" PARENT_SCOPE)
