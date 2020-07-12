@@ -50,10 +50,14 @@ void worker_iouring_network_listeners_initialize(
             uint32_t address_index = 0;
             address_index < worker_user_data->addresses_count;
             address_index++) {
-        network_channel_listener_new(
+        if (network_channel_listener_new(
                 worker_user_data->addresses[address_index].address,
                 worker_user_data->addresses[address_index].port,
-                listener_new_cb_user_data);
+                listener_new_cb_user_data) == false) {
+            LOG_E(LOG_PRODUCER_DEFAULT, "Unable to setup listener for <%s:%u>",
+                  worker_user_data->addresses[address_index].address,
+                  worker_user_data->addresses[address_index].port);
+        }
     }
 }
 
