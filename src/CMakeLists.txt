@@ -108,6 +108,11 @@ add_dependencies(
         __internal_refresh_cmake_config
         t1ha)
 
+target_compile_options(
+        cachegrand-internal
+        PUBLIC
+        -include cmake_config.h)
+
 target_link_directories(
         cachegrand-internal
         PUBLIC
