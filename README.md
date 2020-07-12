@@ -109,8 +109,8 @@ Here the general grand-plan:
     - [ ] Networking
         - [x] Implement a network stack able to support multiple io libraries and multiple protocols 
         - [x] Implement a network io layer based on io_uring nad liburing
-        - [ ] Implement a network channel layer based on top of the network io iouirng layer
-        - [ ] Implement network workers
+        - [x] Implement a network channel layer based on top of the network io iouring layer
+        - [x] Implement network workers
         - [ ] Implement a basic support for the redis protocol
             - [ ] GET
             - [ ] SET
@@ -148,6 +148,8 @@ Here the general grand-plan:
     - [ ] Storage
         - [ ] Optmize for SSD (LSMTrees?) 
     - [ ] Networking
+        - [ ] Add support for multiple protocols
+        - [ ] Add a protobuf-based rpc based protocol
         - [ ] Implement a basic http webserver to provide general stats
         - [ ] Implement a basic http webserver to provide simple CRUD operations 
         - [ ] Expand redis protocol support
