@@ -121,6 +121,8 @@ int program_main() {
         return 1;
     }
 
+    // TODO: should be possible to pinpoint in the config which cores can be utilized, very handy for benchmarking in
+    //       in combination with the isolcpus kernel init parameter
     workers_count = psnip_cpu_count();
 
     if ((workers_user_data = program_workers_initialize(
