@@ -67,7 +67,7 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
     struct in_addr loopback_ipv6 = {0};
 
     inet_pton(AF_INET, "127.0.0.1", &loopback_ipv4);
-    inet_pton(AF_INET, "::1", &loopback_ipv6);
+    inet_pton(AF_INET6, "::1", &loopback_ipv6);
 
     SECTION("network_io_common_socket_set_option") {
         SECTION("valid option") {
