@@ -1,10 +1,11 @@
 #include <stdbool.h>
 #include <stdint.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 #include <unistd.h>
 #include <string.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #include "misc.h"
 #include "log.h"
@@ -41,6 +42,20 @@ bool network_io_common_socket_set_reuse_port(
         bool enable) {
     int val = enable ? 1 : 0;
     return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
+}
+
+bool network_io_common_socket_set_nodelay(
+        int fd,
+        bool enable) {
+    int val = enable ? 1 : 0;
+    return network_io_common_socket_set_option(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val));
+}
+
+bool network_io_common_socket_set_quickack(
+        int fd,
+        bool enable) {
+    int val = enable ? 1 : 0;
+    return network_io_common_socket_set_option(fd, IPPROTO_TCP, TCP_QUICKACK, &val, sizeof(val));
 }
 
 bool network_io_common_socket_set_linger(

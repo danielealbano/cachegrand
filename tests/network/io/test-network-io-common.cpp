@@ -5,9 +5,10 @@
 #include <stdbool.h>
 #include <strings.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <errno.h>
+#include <netinet/tcp.h>
 
 #include "network/io/network_io_common.h"
 
@@ -150,6 +151,44 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
 
         SECTION("invalid socket fd") {
             REQUIRE(!network_io_common_socket_set_reuse_port(-1, true));
+        }
+    }
+
+    SECTION("network_io_common_socket_set_nodelay") {
+        SECTION("valid socket fd") {
+            int val;
+            socklen_t val_size = sizeof(val);
+            int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(fd > 0);
+            REQUIRE(network_io_common_socket_set_nodelay(fd, true));
+            REQUIRE(getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, &val_size) == 0);
+            REQUIRE(val == 1);
+
+            close(fd);
+        }
+
+        SECTION("invalid socket fd") {
+            REQUIRE(!network_io_common_socket_set_nodelay(-1, true));
+        }
+    }
+
+    SECTION("network_io_common_socket_set_quickack") {
+        SECTION("valid socket fd") {
+            int val;
+            socklen_t val_size = sizeof(val);
+            int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(fd > 0);
+            REQUIRE(network_io_common_socket_set_quickack(fd, true));
+            REQUIRE(getsockopt(fd, IPPROTO_TCP, TCP_QUICKACK, &val, &val_size) == 0);
+            REQUIRE(val == 1);
+
+            close(fd);
+        }
+
+        SECTION("invalid socket fd") {
+            REQUIRE(!network_io_common_socket_set_quickack(-1, true));
         }
     }
 

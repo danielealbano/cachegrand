@@ -28,6 +28,12 @@ bool network_io_common_socket_set_reuse_address(
 bool network_io_common_socket_set_reuse_port(
         int fd,
         bool enable);
+bool network_io_common_socket_set_nodelay(
+        int fd,
+        bool enable);
+bool network_io_common_socket_set_quickack(
+        int fd,
+        bool enable);
 bool network_io_common_socket_set_linger(
         int fd,
         bool enable,
