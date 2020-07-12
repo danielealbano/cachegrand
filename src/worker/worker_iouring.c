@@ -143,6 +143,7 @@ bool worker_iouring_process_op_accept(
         worker_stats_t* stats,
         io_uring_t* ring,
         io_uring_cqe_t *cqe) {
+    int new_fd;
     network_channel_iouring_entry_user_data_t *iouring_userdata_current, *iouring_userdata_new;
     iouring_userdata_current = (network_channel_iouring_entry_user_data_t*)cqe->user_data;
 
@@ -156,13 +157,42 @@ bool worker_iouring_process_op_accept(
         return false;
     }
 
+    new_fd = cqe->res;
+
     iouring_userdata_new = network_channel_iouring_entry_user_data_new_with_fd(
             NETWORK_IO_IOURING_OP_RECV,
-            cqe->res);
+            new_fd);
     network_io_common_socket_address_str(
             &iouring_userdata_current->new_socket_address.base,
             (char *)&iouring_userdata_new->address_str,
             sizeof(iouring_userdata_new->address_str));
+
+    io_uring_support_sqe_enqueue_accept(
+            ring,
+            iouring_userdata_current->fd,
+            &iouring_userdata_current->new_socket_address.base,
+            &iouring_userdata_current->address_size,
+            0,
+            (uintptr_t)iouring_userdata_current);
+
+    // Because potentially network_channel_client_setup may fail, the address of new connection must be extracted and the
+    // accept operation on the lister must be enqueue-ed. If the operation fails the newly created iouring_userdata_new
+    // will be freed and the operation marked as failed.
+    // Currently the main loop of the worker is ignoring the return value because there isn't anything really that
+    // should be done apart continuing the execution and freeing up any allocated memory.
+    if (network_channel_client_setup(
+            new_fd,
+            worker_user_data->core_index) == false) {
+        // TODO: implement ad hoc function to free the iouring_entry_user_data (when will implement the SLAB allocator
+        //       that function will have to rely on it)
+        xalloc_free(iouring_userdata_new);
+
+        return false;
+    }
+
+    stats->network.active_connections++;
+    stats->network.accepted_connections_total++;
+    stats->network.accepted_connections_per_second++;
 
     // Use SLAB allocator to fetch a new buffer
     iouring_userdata_new->buffer = (char *) xalloc_alloc(NETWORK_CHANNEL_PACKET_BUFFER_SIZE);
@@ -179,18 +209,6 @@ bool worker_iouring_process_op_accept(
             iouring_userdata_new->buffer,
             NETWORK_CHANNEL_PACKET_BUFFER_SIZE,
             (uintptr_t)iouring_userdata_new);
-
-    io_uring_support_sqe_enqueue_accept(
-            ring,
-            iouring_userdata_current->fd,
-            &iouring_userdata_current->new_socket_address.base,
-            &iouring_userdata_current->address_size,
-            0,
-            (uintptr_t)iouring_userdata_current);
-
-    stats->network.active_connections++;
-    stats->network.accepted_connections_total++;
-    stats->network.accepted_connections_per_second++;
 
     return true;
 }
