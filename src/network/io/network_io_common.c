@@ -216,9 +216,12 @@ int network_io_common_socket_tcp4_new_server(
         void *socket_setup_server_cb_user_data) {
     int fd;
 
-    fd = network_io_common_socket_tcp4_new(flags);
+    if ((fd = network_io_common_socket_tcp4_new(flags)) < 0) {
+        return -1;
+    }
 
     if (!network_io_common_socket_setup_server(
+
             fd,
             (struct sockaddr*)address,
             sizeof(struct sockaddr_in),
@@ -251,7 +254,9 @@ int network_io_common_socket_tcp6_new_server(
         void *socket_setup_server_cb_user_data) {
     int fd;
 
-    fd = network_io_common_socket_tcp6_new(flags);
+    if ((fd = network_io_common_socket_tcp6_new(flags)) < 0) {
+        return -1;
+    }
 
     if (!network_io_common_socket_setup_server(
             fd,
