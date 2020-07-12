@@ -4,7 +4,7 @@
 #include <pthread.h>
 #include <sched.h>
 
-#include "cpu.h"
+#include "utils_cpu.h"
 #include "misc.h"
 #include "log.h"
 
@@ -18,7 +18,7 @@ uint32_t thread_current_set_affinity(
     cpu_set_t cpuset;
     pthread_t thread;
 
-    uint32_t logical_core_count = psnip_cpu_count();
+    uint32_t logical_core_count = utils_cpu_count();
     uint32_t logical_core_index = (thread_index % logical_core_count) * 2;
 
     if (logical_core_index >= logical_core_count) {

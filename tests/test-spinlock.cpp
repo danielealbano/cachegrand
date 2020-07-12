@@ -9,7 +9,7 @@ using namespace std;
 #include "exttypes.h"
 #include "memory_fences.h"
 #include "spinlock.h"
-#include "cpu.h"
+#include "utils_cpu.h"
 
 // Returns 1 if it can do the initial lock, 2 instead if it's able to reach the point in which has
 // to wait for the spinlock to become free
@@ -207,7 +207,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             pthread_attr_t attr;
             uint64_t increments_per_thread_sum = 0, increments_per_thread;
 
-            uint32_t cores_count = psnip_cpu_count();
+            uint32_t cores_count = utils_cpu_count();
             uint32_t threads_count = cores_count * 2;
 
             // Magic numbers to run enough thread in parallel for 1-2s after the thread creation.

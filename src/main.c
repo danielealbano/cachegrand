@@ -13,7 +13,7 @@
 #include <unistd.h>
 #include <liburing.h>
 
-#include "cpu.h"
+#include "utils_cpu.h"
 #include "exttypes.h"
 #include "misc.h"
 #include "xalloc.h"
@@ -123,7 +123,7 @@ int program_main() {
 
     // TODO: should be possible to pinpoint in the config which cores can be utilized, very handy for benchmarking in
     //       in combination with the isolcpus kernel init parameter
-    workers_count = psnip_cpu_count();
+    workers_count = utils_cpu_count();
 
     if ((workers_user_data = program_workers_initialize(
             &terminate_event_loop,

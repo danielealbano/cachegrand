@@ -27,7 +27,7 @@
 #include "misc.h"
 #include "log.h"
 #include "fatal.h"
-#include "cpu.h"
+#include "utils_cpu.h"
 #include "xalloc.h"
 #include "random.h"
 
@@ -268,7 +268,7 @@ void test_support_set_thread_affinity(
     cpu_set_t cpuset;
     pthread_t thread;
 
-    uint32_t logical_core_count = psnip_cpu_count();
+    uint32_t logical_core_count = utils_cpu_count();
     uint32_t logical_core_index = (thread_index % logical_core_count) * 2;
 
     if (logical_core_index >= logical_core_count) {
@@ -525,7 +525,7 @@ char* test_support_init_keys(
     }
 
     keyset = (char*) xalloc_mmap_alloc(keyset_size * TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL);
-    uint32_t threads_count = psnip_cpu_count();
+    uint32_t threads_count = utils_cpu_count();
 
     LOG_DI("generating keyset using <%u> threads", threads_count);
 
