@@ -2,6 +2,7 @@
 #define CACHEGRAND_MEMORY_FENCES_H
 
 #ifdef __cplusplus
+using namespace std;
 extern "C" {
 #endif
 
