@@ -9,6 +9,7 @@
 #include "fatal.h"
 #include "xalloc.h"
 #include "thread.h"
+#include "memory_fences.h"
 #include "io_uring_support.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
@@ -153,6 +154,7 @@ bool worker_iouring_process_op_accept(
                 "Error while waiting for connections on listener <%s>",
                 "TODO");
         *worker_user_data->terminate_event_loop = true;
+        HASHTABLE_MEMORY_FENCE_STORE();
 
         return false;
     }
@@ -340,6 +342,7 @@ void worker_iouring_thread_process_ops_loop(
                         iouring_userdata_current->op,
                         iouring_userdata_current->address_str);
                 *worker_user_data->terminate_event_loop = true;
+                HASHTABLE_MEMORY_FENCE_STORE();
                 break;
             }
         }
@@ -351,7 +354,9 @@ void worker_iouring_thread_process_ops_loop(
                     stats,
                     &worker_user_data->stats);
         }
-    } while(!(*worker_user_data->terminate_event_loop));
+
+        HASHTABLE_MEMORY_FENCE_LOAD();
+    } while(*worker_user_data->terminate_event_loop == false);
 }
 
 void worker_iouring_cleanup(
