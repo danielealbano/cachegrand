@@ -1,8 +1,6 @@
 #include <netinet/in.h>
-#include <liburing.h>
 
 #include "xalloc.h"
-#include "io_uring_support.h"
 
 #include "network_channel_iouring.h"
 
