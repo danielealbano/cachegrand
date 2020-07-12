@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <stdatomic.h>
 #include <sched.h>
+#include <openssl/bn.h>
 
 #if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_CLFLUSHOPT == 1
 #include <immintrin.h>
@@ -19,9 +20,6 @@
 #include <emmintrin.h>
 #endif
 
-#if CACHEGRAND_CMAKE_CONFIG_DEPS_OPENSSL_FOUND == 1
-#include <openssl/bn.h>
-#endif
 
 #include "memory_fences.h"
 #include "exttypes.h"
@@ -362,7 +360,6 @@ static void* test_support_build_keys_random_random_length_thread_func(
     return 0;
 }
 
-#if CACHEGRAND_CMAKE_CONFIG_DEPS_OPENSSL_FOUND == 1
 static void* test_support_build_keys_repeatible_set_min_max_length_thread_func(
         void *arg) {
     uint64_t keys_generated = 0;
@@ -474,7 +471,6 @@ static void* test_support_build_keys_repeatible_set_min_max_length_thread_func(
 
     return 0;
 }
-#endif
 
 void test_support_free_keys(
         char* keys,
@@ -519,7 +515,6 @@ char* test_support_init_keys(
             memcpy(charset_list, charset_list_repeated, charset_size);
             break;
 
-#if CACHEGRAND_CMAKE_CONFIG_DEPS_OPENSSL_FOUND == 1
         case TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_REPETIBLE_STR_ALTERNATEMINMAX_LENGTH:
             keyset_generator_fp = test_support_build_keys_repeatible_set_min_max_length_thread_func;
             charset_size = TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_UNIQUE_SIZE;
@@ -527,7 +522,6 @@ char* test_support_init_keys(
             memset(charset_list, 0, charset_size);
             memcpy(charset_list, charset_list_unique, charset_size);
             break;
-#endif
     }
 
     keyset = (char*) xalloc_mmap_alloc(keyset_size * TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL);
