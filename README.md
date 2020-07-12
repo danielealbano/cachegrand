@@ -123,6 +123,12 @@ Here the general grand-plan:
         - [ ] Implement a YAML based configuration
 
 - v0.2
+    - [ ] Memory Management
+        - [ ] Implement a SLAB allocator
+    - [ ] Logging
+        - [ ] Add the ability to perform multi-threaded logging via a ring buffer per thread processed by the logger
+              thread (if too many messages are submitted the caller has to wait for space in the ring).
+        - [ ] Add logging to disk sink
     - [ ] Hashtable
         - [ ] Implement adaptative spinlocks
         - [ ] Implement a sliding spinlock window to release locked chunks in advance if possible
@@ -134,8 +140,6 @@ Here the general grand-plan:
             - [ ] RESIZE
             - [ ] ITERATE
             - [ ] DELETE, when deleting move back the far-est key of the chunk usind the distance
-    - [ ] Memory Management
-        - [ ] Implement a SLAB allocator        
     - [ ] Networking
         - [ ] Switch to use the SLAB allocator
     - [ ] Storage:
