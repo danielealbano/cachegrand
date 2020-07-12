@@ -63,14 +63,14 @@ void worker_iouring_network_listeners_initialize(
 
 void worker_iouring_listeners_enqueue(
         io_uring_t *ring,
-        network_channel_listener_new_callback_user_data_t *create_listener_user_data) {
+        network_channel_listener_new_callback_user_data_t *listener_new_cb_user_data) {
     network_channel_iouring_entry_user_data_t *iouring_user_data;
 
     for(
             uint32_t listener_index = 0;
-            listener_index < create_listener_user_data->listeners_count;
+            listener_index < listener_new_cb_user_data->listeners_count;
             listener_index++) {
-        network_channel_listener_t *listener = &create_listener_user_data->listeners[listener_index];
+        network_channel_listener_t *listener = &listener_new_cb_user_data->listeners[listener_index];
 
         iouring_user_data = network_channel_iouring_entry_user_data_new_with_fd(
                 NETWORK_IO_IOURING_OP_ACCEPT,
@@ -337,14 +337,14 @@ void worker_iouring_thread_process_ops_loop(
 }
 
 void worker_iouring_cleanup(
-        network_channel_listener_new_callback_user_data_t *create_listener_user_data,
+        network_channel_listener_new_callback_user_data_t *listener_new_cb_user_data,
         io_uring_t *ring) {
     for(
             uint32_t listener_index = 0;
-            listener_index < create_listener_user_data->listeners_count;
+            listener_index < listener_new_cb_user_data->listeners_count;
             listener_index++) {
         network_io_common_socket_close(
-                create_listener_user_data->listeners[listener_index].fd,
+                listener_new_cb_user_data->listeners[listener_index].fd,
                 false);
     }
 
@@ -355,7 +355,7 @@ void* worker_iouring_thread_func(
         void* user_data) {
     io_uring_t *ring;
     worker_stats_t stats = {0};
-    network_channel_listener_new_callback_user_data_t create_listener_user_data = {0};
+    network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = {0};
     worker_user_data_t *worker_user_data = user_data;
 
     log_producer_local_init_worker_iouring();
@@ -369,11 +369,11 @@ void* worker_iouring_thread_func(
     // TODO: The listeners have to be initialized by the caller, each listener has to be paired up with a protocol parser
     //       and a protocol state machine and this code has to be shared across the different kind of workers (io_uring,
     //       epoll, iocp, kqueue/kevent, dpdk, etc.)
-    create_listener_user_data.backlog = worker_user_data->backlog;
-    create_listener_user_data.core_index = worker_user_data->core_index;
+    listener_new_cb_user_data.backlog = worker_user_data->backlog;
+    listener_new_cb_user_data.core_index = worker_user_data->core_index;
     worker_iouring_network_listeners_initialize(
             worker_user_data,
-            &create_listener_user_data);
+            &listener_new_cb_user_data);
 
     // Reports the available features in io_uring
     if (worker_user_data->worker_index == 0) {
@@ -390,7 +390,7 @@ void* worker_iouring_thread_func(
 
     worker_iouring_listeners_enqueue(
             ring,
-            &create_listener_user_data);
+            &listener_new_cb_user_data);
 
     worker_iouring_thread_process_ops_loop(
             worker_user_data,
@@ -398,7 +398,7 @@ void* worker_iouring_thread_func(
             ring);
 
     worker_iouring_cleanup(
-            &create_listener_user_data,
+            &listener_new_cb_user_data,
             ring);
 
     log_producer_local_free_worker_iouring();
