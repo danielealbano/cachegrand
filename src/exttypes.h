@@ -1,5 +1,5 @@
-#ifndef CACHEGRAND_MISC_ATOMIC_H
-#define CACHEGRAND_MISC_ATOMIC_H
+#ifndef CACHEGRAND_EXTTYPES_H
+#define CACHEGRAND_EXTTYPES_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,4 +22,4 @@ typedef _Volatile(uint128_t)  uint128_volatile_t;
 }
 #endif
 
-#endif //CACHEGRAND_MISC_ATOMIC_H
+#endif //CACHEGRAND_EXTTYPES_H
