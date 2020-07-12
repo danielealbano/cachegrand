@@ -73,16 +73,6 @@ TEST_CASE("io_uring_support", "[io_uring_support]") {
         }
     }
 
-    SECTION("io_uring_support_probe_feature") {
-        SECTION("existing feature") {
-            REQUIRE(io_uring_support_probe_feature(0x01 | 0x02 | 0x08, 0x01));
-        }
-
-        SECTION("non-existing feature") {
-            REQUIRE(!io_uring_support_probe_feature(0x01 | 0x02 | 0x08, 0x04));
-        }
-    }
-
     SECTION("io_uring_support_probe_opcode") {
         SECTION("valid opcode") {
             io_uring_t *ring = io_uring_support_init(10, NULL, NULL);
