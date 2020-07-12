@@ -1,5 +1,5 @@
-#ifndef CACHEGRAND_NETWORK_IO_IOURING_H
-#define CACHEGRAND_NETWORK_IO_IOURING_H
+#ifndef CACHEGRAND_IO_URING_SUPPORT_H
+#define CACHEGRAND_IO_URING_SUPPORT_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -10,56 +10,60 @@ typedef struct io_uring_params io_uring_params_t;
 typedef struct io_uring_sqe io_uring_sqe_t;
 typedef struct io_uring_cqe io_uring_cqe_t;
 
-io_uring_t* network_io_iouring_init(
+typedef struct io_uring_support_feature io_uring_support_feature_t;
+struct io_uring_support_feature {
+    char* name;
+    uint32_t id;
+};
+
+io_uring_t* io_uring_support_init(
         uint32_t entries,
         io_uring_params_t *io_uring_params,
         uint32_t *features);
-void network_io_iouring_free(
+void io_uring_support_free(
         io_uring_t *io_uring);
-bool network_io_iouring_probe_feature(
-        uint32_t features,
-        uint32_t feature);
-bool network_io_iouring_probe_opcode(
+bool io_uring_support_probe_opcode(
         io_uring_t *io_uring,
         uint8_t opcode);
-io_uring_sqe_t* network_io_iouring_get_sqe(
+char* io_uring_support_features_str(
+        char* buffer,
+        size_t buffer_size);
+io_uring_sqe_t* io_uring_support_get_sqe(
         io_uring_t *ring);
-void network_io_iouring_cq_advance(
+void io_uring_support_cq_advance(
         io_uring_t *ring,
         uint32_t count);
-bool network_io_iouring_sqe_enqueue_accept(
+bool io_uring_support_sqe_enqueue_accept(
         io_uring_t *ring,
         int fd,
         struct sockaddr *socket_address,
         socklen_t *socket_address_size,
         unsigned flags,
         uint64_t user_data);
-bool network_io_iouring_sqe_enqueue_recv(
+bool io_uring_support_sqe_enqueue_recv(
         io_uring_t *ring,
         int fd,
         void *buffer,
         size_t buffer_size,
         uint64_t user_data);
-bool network_io_iouring_sqe_enqueue_send(
+bool io_uring_support_sqe_enqueue_send(
         io_uring_t *ring,
         int fd,
         void *buffer,
         size_t buffer_size,
         uint64_t user_data);
-bool network_io_iouring_sqe_enqueue_close(
+bool io_uring_support_sqe_enqueue_close(
         io_uring_t *ring,
         int fd,
         uint64_t user_data);
-bool network_io_iouring_sqe_submit(
+bool io_uring_support_sqe_submit(
         io_uring_t *ring);
-bool network_io_iouring_sqe_submit_and_wait(
+bool io_uring_support_sqe_submit_and_wait(
         io_uring_t *ring,
         int wait_nr);
-
-#define network_io_iouring_cqe_foreach io_uring_for_each_cqe
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif //CACHEGRAND_NETWORK_IO_IOURING_H
+#endif //CACHEGRAND_IO_URING_SUPPORT_H

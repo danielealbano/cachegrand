@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <liburing.h>
 
 #include "misc.h"
@@ -7,11 +8,22 @@
 #include "fatal.h"
 #include "xalloc.h"
 
-#include "network_io_iouring.h"
+#include "io_uring_support.h"
 
-LOG_PRODUCER_CREATE_LOCAL_DEFAULT("network_io_iouring", network_io_iouring)
+LOG_PRODUCER_CREATE_DEFAULT("io_uring_support", io_uring_support)
 
-io_uring_t* network_io_iouring_init(
+io_uring_support_feature_t io_uring_support_features[] = {
+        { "IORING_FEAT_SINGLE_MMAP",    IORING_FEAT_SINGLE_MMAP },
+        { "IORING_FEAT_NODROP",         IORING_FEAT_NODROP },
+        { "IORING_FEAT_SUBMIT_STABLE",  IORING_FEAT_SUBMIT_STABLE },
+        { "IORING_FEAT_RW_CUR_POS",     IORING_FEAT_RW_CUR_POS },
+        { "IORING_FEAT_CUR_PERSONALITY",IORING_FEAT_CUR_PERSONALITY },
+        { "IORING_FEAT_FAST_POLL",      IORING_FEAT_FAST_POLL }
+};
+#define IO_URING_SUPPORT_FEATURES_COUNT \
+    (sizeof(io_uring_support_features) / sizeof(io_uring_support_feature_t))
+
+io_uring_t* io_uring_support_init(
         uint32_t entries,
         io_uring_params_t *io_uring_params,
         uint32_t *features) {
@@ -52,18 +64,12 @@ io_uring_t* network_io_iouring_init(
     return io_uring;
 }
 
-void network_io_iouring_free(
+void io_uring_support_free(
         io_uring_t *io_uring) {
     io_uring_queue_exit(io_uring);
 }
 
-bool network_io_iouring_probe_feature(
-        uint32_t features,
-        uint32_t feature) {
-    return (features & feature) == feature;
-}
-
-bool network_io_iouring_probe_opcode(
+bool io_uring_support_probe_opcode(
         io_uring_t *io_uring,
         uint8_t opcode) {
     struct io_uring_probe *probe;
@@ -81,7 +87,42 @@ bool network_io_iouring_probe_opcode(
     return res;
 }
 
-io_uring_sqe_t* network_io_iouring_get_sqe(
+char* io_uring_support_features_str(
+        char* buffer,
+        size_t buffer_size) {
+    io_uring_params_t params = {0};
+    io_uring_t* ring = io_uring_support_init(10, &params, NULL);
+
+    if (ring == NULL) {
+        return NULL;
+    }
+
+    for(
+            uint32_t feature_index = 0;
+            feature_index < IO_URING_SUPPORT_FEATURES_COUNT;
+            feature_index++) {
+        if ((params.features & io_uring_support_features[feature_index].id)) {
+            if (strlen(buffer) > 0) {
+                strncat(
+                        buffer,
+                        ", ",
+                        buffer_size - strlen(buffer) - 1);
+            }
+
+            strncat(
+                    buffer,
+                    io_uring_support_features[feature_index].name,
+                    buffer_size - strlen(buffer) - 1);
+
+        }
+    }
+
+    io_uring_support_free(ring);
+
+    return buffer;
+}
+
+io_uring_sqe_t* io_uring_support_get_sqe(
         io_uring_t *ring) {
     io_uring_sqe_t *sqe = io_uring_get_sqe(ring);
     if (sqe == NULL) {
@@ -91,20 +132,20 @@ io_uring_sqe_t* network_io_iouring_get_sqe(
     return sqe;
 }
 
-void network_io_iouring_cq_advance(
+void io_uring_support_cq_advance(
         io_uring_t *ring,
         uint32_t count) {
     io_uring_cq_advance(ring, count);
 }
 
-bool network_io_iouring_sqe_enqueue_accept(
+bool io_uring_support_sqe_enqueue_accept(
         io_uring_t *ring,
         int fd,
         struct sockaddr *socket_address,
         socklen_t *socket_address_size,
         unsigned flags,
         uint64_t user_data) {
-    io_uring_sqe_t *sqe = network_io_iouring_get_sqe(ring);
+    io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
     if (sqe == NULL) {
         return false;
     }
@@ -116,13 +157,31 @@ bool network_io_iouring_sqe_enqueue_accept(
     return true;
 }
 
-bool network_io_iouring_sqe_enqueue_recv(
+bool io_uring_support_sqe_enqueue_pollin(
         io_uring_t *ring,
         int fd,
         void *buffer,
         size_t buffer_size,
         uint64_t user_data) {
-    io_uring_sqe_t *sqe = network_io_iouring_get_sqe(ring);
+    io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
+    if (sqe == NULL) {
+        return false;
+    }
+
+    io_uring_prep_poll_add(sqe, fd, POLL_IN);
+    io_uring_sqe_set_flags(sqe, 0);
+    sqe->user_data = user_data;
+
+    return true;
+}
+
+bool io_uring_support_sqe_enqueue_recv(
+        io_uring_t *ring,
+        int fd,
+        void *buffer,
+        size_t buffer_size,
+        uint64_t user_data) {
+    io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
     if (sqe == NULL) {
         return false;
     }
@@ -134,13 +193,13 @@ bool network_io_iouring_sqe_enqueue_recv(
     return true;
 }
 
-bool network_io_iouring_sqe_enqueue_send(
+bool io_uring_support_sqe_enqueue_send(
         io_uring_t *ring,
         int fd,
         void *buffer,
         size_t buffer_size,
         uint64_t user_data) {
-    io_uring_sqe_t *sqe = network_io_iouring_get_sqe(ring);
+    io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
     if (sqe == NULL) {
         return false;
     }
@@ -152,11 +211,11 @@ bool network_io_iouring_sqe_enqueue_send(
     return true;
 }
 
-bool network_io_iouring_sqe_enqueue_close(
+bool io_uring_support_sqe_enqueue_close(
         io_uring_t *ring,
         int fd,
         uint64_t user_data) {
-    io_uring_sqe_t *sqe = network_io_iouring_get_sqe(ring);
+    io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
     if (sqe == NULL) {
         return false;
     }
@@ -168,7 +227,7 @@ bool network_io_iouring_sqe_enqueue_close(
     return true;
 }
 
-bool network_io_iouring_sqe_submit(
+bool io_uring_support_sqe_submit(
         io_uring_t *ring) {
     if (io_uring_submit(ring) < 0) {
         LOG_E(LOG_PRODUCER_DEFAULT, "Failed to submit the io_uring sqes");
@@ -179,7 +238,7 @@ bool network_io_iouring_sqe_submit(
     return true;
 }
 
-bool network_io_iouring_sqe_submit_and_wait(
+bool io_uring_support_sqe_submit_and_wait(
         io_uring_t *ring,
         int wait_nr) {
     int res;

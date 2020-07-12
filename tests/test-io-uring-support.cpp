@@ -1,4 +1,4 @@
-#include "../../catch.hpp"
+#include "catch.hpp"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -9,12 +9,12 @@
 #include <arpa/inet.h>
 #include <liburing.h>
 
+#include "io_uring_support.h"
 #include "network/io/network_io_common.h"
-#include "network/io/network_io_iouring.h"
 
-#include "network_io_tests_support.h"
+#include "network/io/network_io_tests_support.h"
 
-TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring]") {
+TEST_CASE("io_uring_support", "[io_uring_support]") {
     struct in_addr loopback_ipv4 = {0};
     struct in_addr loopback_ipv6 = {0};
     uint16_t socket_port_free_ipv4 =
@@ -25,151 +25,151 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
     inet_pton(AF_INET, "127.0.0.1", &loopback_ipv4);
     inet_pton(AF_INET, "::1", &loopback_ipv6);
 
-    SECTION("network_io_iouring_init") {
+    SECTION("io_uring_support_init") {
         SECTION("null params") {
-            io_uring_t *ring = network_io_iouring_init(10, NULL, NULL);
+            io_uring_t *ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
         }
 
         SECTION("with params") {
             io_uring_params_t params = {0};
-            io_uring_t *ring = network_io_iouring_init(10, &params, NULL);
+            io_uring_t *ring = io_uring_support_init(10, &params, NULL);
 
             REQUIRE(ring != NULL);
             REQUIRE(params.features != 0);
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
         }
 
         SECTION("with params and features") {
             io_uring_params_t params = {0};
             uint32_t features = 0;
-            io_uring_t *ring = network_io_iouring_init(10, &params, &features);
+            io_uring_t *ring = io_uring_support_init(10, &params, &features);
 
             REQUIRE(ring != NULL);
             REQUIRE(params.features != 0);
             REQUIRE(params.features == features);
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
         }
 
         SECTION("without params but with features") {
             uint32_t features = 0;
-            io_uring_t *ring = network_io_iouring_init(10, NULL, &features);
+            io_uring_t *ring = io_uring_support_init(10, NULL, &features);
 
             REQUIRE(ring != NULL);
             REQUIRE(features != 0);
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
         }
 
         SECTION("fail because too many entries") {
-            io_uring_t *ring = network_io_iouring_init(64000, NULL, NULL);
+            io_uring_t *ring = io_uring_support_init(64000, NULL, NULL);
 
             REQUIRE(ring == NULL);
         }
     }
 
-    SECTION("network_io_iouring_probe_feature") {
+    SECTION("io_uring_support_probe_feature") {
         SECTION("existing feature") {
-            REQUIRE(network_io_iouring_probe_feature(0x01 | 0x02 | 0x08, 0x01));
+            REQUIRE(io_uring_support_probe_feature(0x01 | 0x02 | 0x08, 0x01));
         }
 
         SECTION("non-existing feature") {
-            REQUIRE(!network_io_iouring_probe_feature(0x01 | 0x02 | 0x08, 0x04));
+            REQUIRE(!io_uring_support_probe_feature(0x01 | 0x02 | 0x08, 0x04));
         }
     }
 
-    SECTION("network_io_iouring_probe_opcode") {
+    SECTION("io_uring_support_probe_opcode") {
         SECTION("valid opcode") {
-            io_uring_t *ring = network_io_iouring_init(10, NULL, NULL);
+            io_uring_t *ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
-            REQUIRE(network_io_iouring_probe_opcode(ring, IORING_OP_READV));
+            REQUIRE(io_uring_support_probe_opcode(ring, IORING_OP_READV));
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
         }
 
         SECTION("invalid opcode") {
-            io_uring_t *ring = network_io_iouring_init(10, NULL, NULL);
+            io_uring_t *ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
-            REQUIRE(!network_io_iouring_probe_opcode(ring, IORING_OP_LAST));
+            REQUIRE(!io_uring_support_probe_opcode(ring, IORING_OP_LAST));
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
         }
     }
 
-    SECTION("network_io_iouring_get_sqe") {
+    SECTION("io_uring_support_get_sqe") {
         SECTION("fetch one") {
-            io_uring_t *ring = network_io_iouring_init(10, NULL, NULL);
+            io_uring_t *ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
-            REQUIRE(network_io_iouring_get_sqe(ring) != NULL);
+            REQUIRE(io_uring_support_get_sqe(ring) != NULL);
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
         }
 
         SECTION("overflow") {
-            io_uring_t *ring = network_io_iouring_init(10, NULL, NULL);
+            io_uring_t *ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
             for(uint8_t i = 0; i < 16; i++) {
-                REQUIRE(network_io_iouring_get_sqe(ring) != NULL);
+                REQUIRE(io_uring_support_get_sqe(ring) != NULL);
             }
-            REQUIRE(network_io_iouring_get_sqe(ring) == NULL);
+            REQUIRE(io_uring_support_get_sqe(ring) == NULL);
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
         }
     }
 
-    SECTION("network_io_iouring_sqe_submit") {
+    SECTION("io_uring_support_sqe_submit") {
         io_uring_sqe_t *sqe;
         io_uring_cqe_t *cqe;
 
-        io_uring_t *ring = network_io_iouring_init(10, NULL, NULL);
+        io_uring_t *ring = io_uring_support_init(10, NULL, NULL);
 
         REQUIRE(ring != NULL);
 
-        sqe = network_io_iouring_get_sqe(ring);
+        sqe = io_uring_support_get_sqe(ring);
         REQUIRE(sqe != NULL);
         io_uring_prep_nop(sqe);
         sqe->user_data = 1234;
 
-        network_io_iouring_sqe_submit(ring);
+        io_uring_support_sqe_submit(ring);
 
         io_uring_wait_cqe(ring, &cqe);
         REQUIRE(cqe->flags == 0);
         REQUIRE(cqe->res == 0);
         REQUIRE(cqe->user_data == 1234);
 
-        network_io_iouring_free(ring);
+        io_uring_support_free(ring);
     }
 
-    SECTION("network_io_iouring_sqe_submit_and_wait") {
+    SECTION("io_uring_support_sqe_submit_and_wait") {
         SECTION("valid ring") {
             io_uring_sqe_t *sqe;
             io_uring_cqe_t *cqe;
             uint32_t head;
             uint32_t count;
 
-            io_uring_t *ring = network_io_iouring_init(10, NULL, NULL);
+            io_uring_t *ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
-            sqe = network_io_iouring_get_sqe(ring);
+            sqe = io_uring_support_get_sqe(ring);
             REQUIRE(sqe != NULL);
             io_uring_prep_nop(sqe);
             sqe->user_data = 1234;
 
-            REQUIRE(network_io_iouring_sqe_submit_and_wait(ring, 1));
+            REQUIRE(io_uring_support_sqe_submit_and_wait(ring, 1));
 
             count = 0;
-                    network_io_iouring_cqe_foreach(ring, head, cqe) {
+            io_uring_for_each_cqe(ring, head, cqe) {
                 REQUIRE(cqe->flags == 0);
                 REQUIRE(cqe->res == 0);
                 REQUIRE(cqe->user_data == 1234);
@@ -177,13 +177,13 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             }
             REQUIRE(count == 1);
 
-            network_io_iouring_cq_advance(ring, count);
+            io_uring_support_cq_advance(ring, count);
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
         }
     }
 
-    SECTION("network_io_iouring_sqe_enqueue_accept") {
+    SECTION("io_uring_support_sqe_enqueue_accept") {
         SECTION("enqueue accept on valid socket ipv4") {
             io_uring_t *ring;
             io_uring_cqe_t *cqe;
@@ -199,13 +199,14 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     SOCK_NONBLOCK,
                     &server_address,
                     10,
+                    NULL,
                     NULL);
 
-            ring = network_io_iouring_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
-            REQUIRE(network_io_iouring_sqe_enqueue_accept(
+            REQUIRE(io_uring_support_sqe_enqueue_accept(
                     ring,
                     fd,
                     (sockaddr *)&client_address,
@@ -213,7 +214,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     SOCK_NONBLOCK,
                     1234));
 
-            network_io_iouring_sqe_submit(ring);
+            io_uring_support_sqe_submit(ring);
 
             io_uring_wait_cqe(ring, &cqe);
             REQUIRE(cqe->flags == 0);
@@ -221,7 +222,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             REQUIRE(cqe->user_data == 1234);
             io_uring_cqe_seen(ring, cqe);
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
 
             REQUIRE(network_io_common_socket_close(fd, false));
         }
@@ -232,11 +233,11 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             struct sockaddr_in client_address = {0};
             socklen_t client_address_len = 0;
 
-            ring = network_io_iouring_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
-            network_io_iouring_sqe_enqueue_accept(
+            io_uring_support_sqe_enqueue_accept(
                     ring,
                     -1,
                     (sockaddr *)&client_address,
@@ -244,7 +245,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     0,
                     1234);
 
-            network_io_iouring_sqe_submit(ring);
+            io_uring_support_sqe_submit(ring);
 
             io_uring_wait_cqe(ring, &cqe);
             REQUIRE(cqe->flags == 0);
@@ -252,7 +253,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             REQUIRE(cqe->user_data == 1234);
             io_uring_cqe_seen(ring, cqe);
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
         }
 
         SECTION("enqueue accept and accept connection ipv4") {
@@ -276,13 +277,14 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     0,
                     &server_address,
                     10,
+                    NULL,
                     NULL);
 
-            ring = network_io_iouring_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
-            REQUIRE(network_io_iouring_sqe_enqueue_accept(
+            REQUIRE(io_uring_support_sqe_enqueue_accept(
                     ring,
                     serverfd,
                     (sockaddr *)&client_accept_address,
@@ -291,7 +293,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     1234));
 
             // Submit first the sqe and then performs a blocking connection (shouldn't block unless there is a problem)
-            network_io_iouring_sqe_submit(ring);
+            io_uring_support_sqe_submit(ring);
             REQUIRE(connect(clientfd, (struct sockaddr*)&client_connect_address, sizeof(client_connect_address)) == 0);
 
             io_uring_wait_cqe(ring, &cqe);
@@ -303,7 +305,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             acceptedfd = cqe->res;
             io_uring_cqe_seen(ring, cqe);
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
 
             // Normally wouldn't really necessary to close both the accepted connection and the originating one because
             // we own both and are closing one end but let's just cover all the cases
@@ -318,12 +320,12 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_address = {0};
             socklen_t client_address_len = 0;
-            ring = network_io_iouring_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
             for(uint8_t i = 0; i < 16; i++) {
-                REQUIRE(network_io_iouring_get_sqe(ring) != NULL);
+                REQUIRE(io_uring_support_get_sqe(ring) != NULL);
             }
 
             server_address.sin_family = AF_INET;
@@ -334,9 +336,10 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     SOCK_NONBLOCK,
                     &server_address,
                     10,
+                    NULL,
                     NULL);
 
-            REQUIRE(!network_io_iouring_sqe_enqueue_accept(
+            REQUIRE(!io_uring_support_sqe_enqueue_accept(
                     ring,
                     fd,
                     (sockaddr *)&client_address,
@@ -344,13 +347,13 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     SOCK_NONBLOCK,
                     1234));
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
 
             REQUIRE(network_io_common_socket_close(fd, false));
         }
     }
 
-    SECTION("network_io_iouring_sqe_enqueue_recv") {
+    SECTION("io_uring_support_sqe_enqueue_recv") {
         SECTION("receive message") {
             io_uring_t *ring;
             io_uring_cqe_t *cqe;
@@ -375,13 +378,14 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     0,
                     &server_address,
                     10,
+                    NULL,
                     NULL);
 
-            ring = network_io_iouring_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
-            REQUIRE(network_io_iouring_sqe_enqueue_accept(
+            REQUIRE(io_uring_support_sqe_enqueue_accept(
                     ring,
                     serverfd,
                     (sockaddr *)&client_accept_address,
@@ -390,7 +394,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     1234));
 
             // Submit first the sqe and then performs a blocking connection (shouldn't block unless there is a problem)
-            network_io_iouring_sqe_submit(ring);
+            io_uring_support_sqe_submit(ring);
             REQUIRE(connect(clientfd, (struct sockaddr*)&client_connect_address, sizeof(client_connect_address)) == 0);
 
             io_uring_wait_cqe(ring, &cqe);
@@ -402,13 +406,13 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             io_uring_cqe_seen(ring, cqe);
 
             // Enqueue a recv sqe
-            REQUIRE(network_io_iouring_sqe_enqueue_recv(
+            REQUIRE(io_uring_support_sqe_enqueue_recv(
                     ring,
                     acceptedfd,
                     &buffer_recv,
                     sizeof(buffer_recv),
                     4321));
-            network_io_iouring_sqe_submit(ring);
+            io_uring_support_sqe_submit(ring);
 
             // Send data from client fd and wait them on acceptedfd
             snprintf(buffer_send, 63, "RECV on io_uring");
@@ -423,7 +427,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             REQUIRE(strncmp(buffer_recv, "RECV on io_uring", buffer_send_data_len) == 0);
             io_uring_cqe_seen(ring, cqe);
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
 
             // Normally wouldn't really necessary to close both the accepted connection and the originating one because
             // we own both and are closing one end but let's just cover all the cases
@@ -454,13 +458,14 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     0,
                     &server_address,
                     10,
+                    NULL,
                     NULL);
 
-            ring = network_io_iouring_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
-            REQUIRE(network_io_iouring_sqe_enqueue_accept(
+            REQUIRE(io_uring_support_sqe_enqueue_accept(
                     ring,
                     serverfd,
                     (sockaddr *)&client_accept_address,
@@ -469,7 +474,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     1234));
 
             // Submit first the sqe and then performs a blocking connection (shouldn't block unless there is a problem)
-            network_io_iouring_sqe_submit(ring);
+            io_uring_support_sqe_submit(ring);
             REQUIRE(connect(clientfd, (struct sockaddr*)&client_connect_address, sizeof(client_connect_address)) == 0);
 
             io_uring_wait_cqe(ring, &cqe);
@@ -481,13 +486,13 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             io_uring_cqe_seen(ring, cqe);
 
             // Enqueue a recv sqe
-            REQUIRE(network_io_iouring_sqe_enqueue_recv(
+            REQUIRE(io_uring_support_sqe_enqueue_recv(
                     ring,
                     acceptedfd,
                     &buffer_recv,
                     sizeof(buffer_recv),
                     4321));
-            network_io_iouring_sqe_submit(ring);
+            io_uring_support_sqe_submit(ring);
 
             REQUIRE(network_io_common_socket_close(clientfd, false));
 
@@ -497,7 +502,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             REQUIRE(cqe->user_data == 4321);
             io_uring_cqe_seen(ring, cqe);
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
 
             // Normally wouldn't really necessary to close both the accepted connection and the originating one because
             // we own both and are closing one end but let's just cover all the cases
@@ -509,29 +514,29 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             io_uring_t *ring;
             io_uring_cqe_t *cqe;
             char buffer_recv[64] = {0};
-            ring = network_io_iouring_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
             for(uint8_t i = 0; i < 16; i++) {
-                REQUIRE(network_io_iouring_get_sqe(ring) != NULL);
+                REQUIRE(io_uring_support_get_sqe(ring) != NULL);
             }
 
             int fd = network_io_common_socket_tcp4_new(
                     SOCK_NONBLOCK);
 
-            REQUIRE(!network_io_iouring_sqe_enqueue_recv(
+            REQUIRE(!io_uring_support_sqe_enqueue_recv(
                     ring,
                     fd,
                     &buffer_recv,
                     sizeof(buffer_recv),
                     4321));
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
         }
     }
 
-    SECTION("network_io_iouring_sqe_enqueue_send") {
+    SECTION("io_uring_support_sqe_enqueue_send") {
         SECTION("send message") {
             io_uring_t *ring;
             io_uring_cqe_t *cqe;
@@ -556,13 +561,14 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     0,
                     &server_address,
                     10,
+                    NULL,
                     NULL);
 
-            ring = network_io_iouring_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
-            REQUIRE(network_io_iouring_sqe_enqueue_accept(
+            REQUIRE(io_uring_support_sqe_enqueue_accept(
                     ring,
                     serverfd,
                     (sockaddr *)&client_accept_address,
@@ -571,7 +577,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     1234));
 
             // Submit first the sqe and then performs a blocking connection (shouldn't block unless there is a problem)
-            network_io_iouring_sqe_submit(ring);
+            io_uring_support_sqe_submit(ring);
             REQUIRE(connect(clientfd, (struct sockaddr*)&client_connect_address, sizeof(client_connect_address)) == 0);
 
             io_uring_wait_cqe(ring, &cqe);
@@ -586,13 +592,13 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             buffer_send_data_len = strlen(buffer_send) + 1;
 
             // Enqueue a send sqe
-            REQUIRE(network_io_iouring_sqe_enqueue_send(
+            REQUIRE(io_uring_support_sqe_enqueue_send(
                     ring,
                     acceptedfd,
                     &buffer_send,
                     buffer_send_data_len,
                     4321));
-            network_io_iouring_sqe_submit(ring);
+            io_uring_support_sqe_submit(ring);
 
             io_uring_wait_cqe(ring, &cqe);
             REQUIRE(cqe->flags == 0);
@@ -604,7 +610,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
 
             REQUIRE(strncmp(buffer_recv, "SEND on io_uring", buffer_send_data_len) == 0);
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
 
             // Normally wouldn't really necessary to close both the accepted connection and the originating one because
             // we own both and are closing one end but let's just cover all the cases
@@ -617,29 +623,29 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             io_uring_t *ring;
             io_uring_cqe_t *cqe;
             char buffer_recv[64] = {0};
-            ring = network_io_iouring_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
             for(uint8_t i = 0; i < 16; i++) {
-                REQUIRE(network_io_iouring_get_sqe(ring) != NULL);
+                REQUIRE(io_uring_support_get_sqe(ring) != NULL);
             }
 
             int fd = network_io_common_socket_tcp4_new(
                     SOCK_NONBLOCK);
 
-            REQUIRE(!network_io_iouring_sqe_enqueue_send(
+            REQUIRE(!io_uring_support_sqe_enqueue_send(
                     ring,
                     fd,
                     &buffer_recv,
                     sizeof(buffer_recv),
                     4321));
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
         }
     }
 
-    SECTION("network_io_iouring_sqe_enqueue_close") {
+    SECTION("io_uring_support_sqe_enqueue_close") {
         SECTION("open and close socket") {
             io_uring_t *ring;
             io_uring_cqe_t *cqe;
@@ -664,13 +670,14 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     0,
                     &server_address,
                     10,
+                    NULL,
                     NULL);
 
-            ring = network_io_iouring_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
-            REQUIRE(network_io_iouring_sqe_enqueue_accept(
+            REQUIRE(io_uring_support_sqe_enqueue_accept(
                     ring,
                     serverfd,
                     (sockaddr *)&client_accept_address,
@@ -679,7 +686,7 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
                     1234));
 
             // Submit first the sqe and then performs a blocking connection (shouldn't block unless there is a problem)
-            network_io_iouring_sqe_submit(ring);
+            io_uring_support_sqe_submit(ring);
             REQUIRE(connect(clientfd, (struct sockaddr*)&client_connect_address, sizeof(client_connect_address)) == 0);
 
             io_uring_wait_cqe(ring, &cqe);
@@ -691,18 +698,18 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
             io_uring_cqe_seen(ring, cqe);
 
             // Enqueue a close sqe
-            REQUIRE(network_io_iouring_sqe_enqueue_close(
+            REQUIRE(io_uring_support_sqe_enqueue_close(
                     ring,
                     acceptedfd,
                     4321));
-            network_io_iouring_sqe_submit(ring);
+            io_uring_support_sqe_submit(ring);
 
             io_uring_wait_cqe(ring, &cqe);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->user_data == 4321);
             io_uring_cqe_seen(ring, cqe);
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
 
             // Normally wouldn't really necessary to close both the accepted connection and the originating one because
             // we own both and are closing one end but let's just cover all the cases
@@ -713,23 +720,23 @@ TEST_CASE("network/io/network_io_uring", "[network][network_io][network_io_uring
         SECTION("enqueue close fail too many sqe") {
             io_uring_t *ring;
             io_uring_cqe_t *cqe;
-            ring = network_io_iouring_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, NULL, NULL);
 
             REQUIRE(ring != NULL);
 
             for(uint8_t i = 0; i < 16; i++) {
-                REQUIRE(network_io_iouring_get_sqe(ring) != NULL);
+                REQUIRE(io_uring_support_get_sqe(ring) != NULL);
             }
 
             int fd = network_io_common_socket_tcp4_new(
                     SOCK_NONBLOCK);
 
-            REQUIRE(!network_io_iouring_sqe_enqueue_close(
+            REQUIRE(!io_uring_support_sqe_enqueue_close(
                     ring,
                     fd,
                     4321));
 
-            network_io_iouring_free(ring);
+            io_uring_support_free(ring);
         }
     }
 }

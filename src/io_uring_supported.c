@@ -7,14 +7,14 @@
 #include "log.h"
 #include "version.h"
 
-#include "network_io_iouring_supported.h"
+#include "io_uring_supported.h"
 
 const char* kallsyms_path = "/proc/kallsyms";
 const char* expected_symbol_name = "io_uring_setup";
 
-LOG_PRODUCER_CREATE_LOCAL_DEFAULT("network_io_iouring_supported", network_io_iouring_supported)
+LOG_PRODUCER_CREATE_DEFAULT("io_uring_supported", io_uring_supported)
 
-bool network_io_iouring_supported_fetch_kallsyms_symbol_name(
+bool io_uring_supported_fetch_kallsyms_symbol_name(
         FILE* fd,
         char* buffer,
         size_t buffer_size) {
@@ -36,13 +36,13 @@ bool network_io_iouring_supported_fetch_kallsyms_symbol_name(
     return true;
 }
 
-bool network_io_iouring_supported_is_expected_symbol_name(
+bool io_uring_supported_is_expected_symbol_name(
         char* buffer,
         size_t buffer_size) {
     return strstr(buffer, expected_symbol_name) != NULL;
 }
 
-FILE* network_io_iouring_supported_open_kallsyms() {
+FILE* io_uring_supported_open_kallsyms() {
     FILE *fd = fopen(kallsyms_path, "r");
 
     if (fd == NULL) {
@@ -53,7 +53,7 @@ FILE* network_io_iouring_supported_open_kallsyms() {
     return fd;
 }
 
-bool network_io_iouring_supported() {
+bool io_uring_supported() {
     bool ret = false;
     char name[500] = {0};
     long kernel_version[4] = {0};
@@ -66,19 +66,19 @@ bool network_io_iouring_supported() {
     }
 
     // Check that the io_uring symbols are exposes by the kernel
-    if ((fd = network_io_iouring_supported_open_kallsyms()) == NULL) {
+    if ((fd = io_uring_supported_open_kallsyms()) == NULL) {
         return ret;
     }
 
     while(!feof(fd)) {
-        if (network_io_iouring_supported_fetch_kallsyms_symbol_name(
+        if (io_uring_supported_fetch_kallsyms_symbol_name(
                 fd,
                 name,
                 sizeof(name)) == false) {
             break;
         }
 
-        if (network_io_iouring_supported_is_expected_symbol_name(
+        if (io_uring_supported_is_expected_symbol_name(
                 name,
                 sizeof(name))) {
             ret = true;
