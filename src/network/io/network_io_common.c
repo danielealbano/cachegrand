@@ -236,7 +236,6 @@ int network_io_common_socket_tcp4_new_server(
     }
 
     if (!network_io_common_socket_setup_server(
-
             fd,
             (struct sockaddr*)address,
             sizeof(struct sockaddr_in),
