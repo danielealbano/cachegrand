@@ -35,13 +35,13 @@ struct network_create_lister_new_user_data {
     network_channel_listener_t listeners[NETWORK_CHANNEL_LISTENERS_MAX];
 };
 
-void network_channel_listener_new_callback(
+bool network_channel_listener_new_callback(
         int family,
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
         uint16_t socket_address_index,
         void* user_data);
-void network_channel_listener_new(
+bool network_channel_listener_new(
         char* address,
         uint16_t port,
         network_channel_listener_new_callback_user_data_t *user_data);

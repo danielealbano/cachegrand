@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <stdbool.h>
 #include <strings.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -14,7 +15,7 @@
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
-void test_network_io_common_parse_addresses_foreach_callback_loopback_ipv4_address(
+bool test_network_io_common_parse_addresses_foreach_callback_loopback_ipv4_address(
         int family,
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
@@ -23,9 +24,11 @@ void test_network_io_common_parse_addresses_foreach_callback_loopback_ipv4_addre
     REQUIRE(socket_address_index == 0);
     REQUIRE(socket_address->sa_family == AF_INET);
     REQUIRE(((struct sockaddr_in*)socket_address)->sin_addr.s_addr == inet_addr("127.0.0.1"));
+
+    return true;
 }
 
-void test_network_io_common_parse_addresses_foreach_callback_loopback_ipv6_address(
+bool test_network_io_common_parse_addresses_foreach_callback_loopback_ipv6_address(
         int family,
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
@@ -40,9 +43,11 @@ void test_network_io_common_parse_addresses_foreach_callback_loopback_ipv6_addre
             (void*)&addr,
             (void*)(&(((struct sockaddr_in6*)socket_address)->sin6_addr)),
             sizeof(addr)) == 0);
+
+    return true;
 }
 
-void test_network_io_common_parse_addresses_foreach_callback_localhost_ipv4_ipv6_addresses(
+bool test_network_io_common_parse_addresses_foreach_callback_localhost_ipv4_ipv6_addresses(
         int family,
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
@@ -53,6 +58,8 @@ void test_network_io_common_parse_addresses_foreach_callback_localhost_ipv4_ipv6
     } else if (socket_address->sa_family == AF_INET6) {
         ((uint8_t*)user_data)[1] = 1;
     }
+
+    return true;
 }
 
 TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_common]") {

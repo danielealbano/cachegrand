@@ -9,7 +9,7 @@ typedef bool (*network_io_common_socket_setup_server_cb_t)(
         int fd,
         void* user_data);
 
-typedef void (*network_io_common_parse_addresses_foreach_callback_t)(
+typedef bool (*network_io_common_parse_addresses_foreach_callback_t)(
         int family,
         struct sockaddr *socket_address,
         socklen_t socket_address_size,

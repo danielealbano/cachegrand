@@ -329,12 +329,14 @@ uint32_t network_io_common_parse_addresses_foreach(
             continue;
         }
 
-        callback(
+        if (callback(
                 rp->ai_family,
                 rp->ai_addr,
                 rp->ai_addrlen,
-                socket_address_index++,
-                user_data);
+                socket_address_index,
+                user_data)) {
+            socket_address_index++;
+        }
     }
 
     freeaddrinfo(result);

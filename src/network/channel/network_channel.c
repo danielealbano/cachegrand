@@ -53,7 +53,7 @@ bool network_channel_listener_new_callback_socket_setup_server_cb(
     return !error;
 }
 
-void network_channel_listener_new_callback(
+bool network_channel_listener_new_callback(
         int family,
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
@@ -73,6 +73,10 @@ void network_channel_listener_new_callback(
             cb_user_data->backlog,
             network_channel_listener_new_callback_socket_setup_server_cb,
             user_data);
+
+    if (fd == -1) {
+        return false;
+    }
 
     uint32_t listener_id = cb_user_data->listeners_count + socket_address_index;
 
@@ -97,19 +101,30 @@ void network_channel_listener_new_callback(
     }
 
     LOG_V(LOG_PRODUCER_DEFAULT, "Created listener for <%s:%d>", address_str, ntohs(port));
+
+    return true;
 }
 
-void network_channel_listener_new(
+bool network_channel_listener_new(
         char* address,
         uint16_t port,
         network_channel_listener_new_callback_user_data_t *user_data) {
-
+    int res;
     LOG_V(LOG_PRODUCER_DEFAULT, "Creating listener for <%s:%d>", address, port);
 
     user_data->port = port;
-    user_data->listeners_count += network_io_common_parse_addresses_foreach(
+
+    res = network_io_common_parse_addresses_foreach(
             address,
             network_channel_listener_new_callback,
             user_data);
+
+    if (res == -1) {
+        return false;
+    }
+
+    user_data->listeners_count += res;
+
+    return true;
 }
 
