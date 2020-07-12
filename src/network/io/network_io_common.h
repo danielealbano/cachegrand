@@ -102,6 +102,11 @@ uint32_t network_io_common_parse_addresses_foreach(
         network_io_common_parse_addresses_foreach_callback_t callback,
         void* user_data);
 
+char* network_io_common_socket_address_str(
+        struct sockaddr* address,
+        char* buffer,
+        size_t buffer_len);
+
 #ifdef __cplusplus
 }
 #endif

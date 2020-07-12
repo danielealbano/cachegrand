@@ -332,3 +332,38 @@ uint32_t network_io_common_parse_addresses_foreach(
 
     return socket_address_index;
 }
+
+char* network_io_common_socket_address_str(
+        struct sockaddr* address,
+        char* buffer,
+        size_t buffer_len) {
+    in_port_t port;
+
+    if (address->sa_family == AF_INET) {
+        if (buffer_len < INET_ADDRSTRLEN + 1) {
+            return NULL;
+        }
+
+        struct sockaddr_in *address_ipv4 = (struct sockaddr_in *)address;
+        inet_ntop(AF_INET, &address_ipv4->sin_addr, buffer, INET_ADDRSTRLEN);
+        port = address_ipv4->sin_port;
+    } else if (address->sa_family == AF_INET6) {
+        if (buffer_len < INET6_ADDRSTRLEN + 1) {
+            return NULL;
+        }
+
+        struct sockaddr_in6 *address_ipv6 = (struct sockaddr_in6 *)address;
+        inet_ntop(AF_INET6, &address_ipv6->sin6_addr, buffer, INET6_ADDRSTRLEN);
+        port = address_ipv6->sin6_port;
+    } else {
+        return NULL;
+    }
+
+    snprintf(
+            buffer + strlen(buffer),
+            buffer_len - strlen(buffer) - 1,
+            ":%u",
+            ntohs(port));
+
+    return buffer;
+}
