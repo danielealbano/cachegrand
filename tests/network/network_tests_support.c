@@ -9,7 +9,7 @@
 
 #include "log.h"
 
-uint16_t network_io_tests_support_search_free_port_ipv4(
+uint16_t network_tests_support_search_free_port_ipv4(
         uint16_t start_port) {
     uint16_t port;
     int val = 1;
@@ -39,7 +39,7 @@ uint16_t network_io_tests_support_search_free_port_ipv4(
     return port;
 }
 
-uint16_t network_io_tests_support_search_free_port_ipv6(
+uint16_t network_tests_support_search_free_port_ipv6(
         uint16_t start_port) {
     uint16_t port;
     int val = 1;

@@ -10,7 +10,7 @@
 
 #include "network/io/network_io_common.h"
 
-#include "network_io_tests_support.h"
+#include "../network_tests_support.h"
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
