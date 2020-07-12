@@ -169,13 +169,6 @@ bool worker_iouring_process_op_accept(
             iouring_userdata_current->address_str,
             iouring_userdata_new->address_str);
 
-//    io_uring_support_sqe_enqueue_pollin(
-//            ring,
-//            iouring_userdata_new->fd,
-//            iouring_userdata_new->buffer,
-//            NETWORK_CHANNEL_PACKET_BUFFER_SIZE,
-//            (uintptr_t)iouring_userdata_new);
-
     io_uring_support_sqe_enqueue_recv(
             ring,
             iouring_userdata_new->fd,
