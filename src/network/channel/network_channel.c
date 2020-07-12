@@ -88,6 +88,7 @@ bool network_channel_listener_new_callback(
             socket_address,
             socket_address_size);
 
+    // TODO: should store the address within the listener structure
     char address_str[INET6_ADDRSTRLEN + 1] = {0};
     in_port_t port;
     if (family == AF_INET) {
