@@ -41,7 +41,7 @@ bool worker_should_publish_stats(
         return false;
     }
 
-    return worker_stats_public->last_update_timestamp.tv_sec > last_update_timestamp.tv_sec;
+    return last_update_timestamp.tv_sec >= worker_stats_public->last_update_timestamp.tv_sec + WORKER_PUBLISH_STATS_DELAY_SEC;
 }
 
 char* worker_log_producer_set_early_prefix_thread(
