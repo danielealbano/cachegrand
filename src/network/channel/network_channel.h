@@ -35,6 +35,9 @@ struct network_create_lister_new_user_data {
     network_channel_listener_t listeners[NETWORK_CHANNEL_LISTENERS_MAX];
 };
 
+bool network_channel_client_setup(
+        int fd,
+        int incoming_cpu);
 bool network_channel_server_setup(
         int fd,
         int incoming_cpu);

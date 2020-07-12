@@ -23,6 +23,28 @@ TEST_CASE("network/channel/network_channel", "[network][channel][network_channel
     char* any_ipv6_str = "::";
     inet_pton(AF_INET6, "::1", &loopback_ipv6);
 
+    SECTION("network_channel_client_setup") {
+        SECTION("ipv4 socket") {
+            int fd = network_io_common_socket_tcp4_new(0);
+
+            REQUIRE(network_channel_client_setup(fd, 0));
+
+            REQUIRE(network_io_common_socket_close(fd, true));
+        }
+
+        SECTION("ipv6 socket") {
+            int fd = network_io_common_socket_tcp6_new(0);
+
+            REQUIRE(network_channel_client_setup(fd, 0));
+
+            REQUIRE(network_io_common_socket_close(fd, true));
+        }
+
+        SECTION("invalid fd") {
+            REQUIRE(!network_channel_client_setup(-1, 0));
+        }
+    }
+
     SECTION("network_channel_server_setup") {
         SECTION("ipv4 socket") {
             int fd = network_io_common_socket_tcp4_new(0);

@@ -13,24 +13,23 @@
 
 LOG_PRODUCER_CREATE_DEFAULT("network_channel", network_channel)
 
-bool network_channel_listener_new_callback_socket_setup_server_cb(
+bool network_channel_client_setup(
         int fd,
-        void *user_data) {
+        int incoming_cpu) {
     bool error = false;
-    network_channel_listener_new_callback_user_data_t *cb_user_data = user_data;
 
-    // TODO: Replace with an eBPF reuseport program, example:
-    /**
-            // A = raw_smp_processor_id()
-            code[0] = new sock_filter { code = BPF_LD | BPF_W | BPF_ABS, k = SKF_AD_OFF + SKF_AD_CPU };
-            // return A
-            code[1] = new sock_filter { code = BPF_RET | BPF_A };
-     */
-    if (network_io_common_socket_set_incoming_cpu(fd, cb_user_data->core_index) == false) {
+    if (!error && network_io_common_socket_set_incoming_cpu(fd, incoming_cpu) == false) {
         error = true;
     }
 
-    if (!error && network_io_common_socket_set_reuse_port(fd, true) == false) {
+    // Nagle is being disabled but it's safe to do, the supported protocols have sequential/serialized messaging therefore
+    // if a small packet has to be sent it's pointless to wait for the packet size to grow because it will not.
+    // Anyway, potentially this may be made configurable by the protocol parser / state machine attached to the listener.
+    if (!error && network_io_common_socket_set_nodelay(fd, true) == false) {
+        error = true;
+    }
+
+    if (!error && network_io_common_socket_set_quickack(fd, true) == false) {
         error = true;
     }
 
