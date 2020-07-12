@@ -1,9 +1,10 @@
 #include <stdbool.h>
 #include <stdint.h>
-#include <string.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "misc.h"
 #include "log.h"
@@ -149,7 +150,8 @@ bool network_io_common_socket_setup_server(
         struct sockaddr *address,
         socklen_t address_size,
         uint16_t backlog,
-        network_io_common_socket_setup_server_cb_t socket_setup_server_cb) {
+        network_io_common_socket_setup_server_cb_t socket_setup_server_cb,
+        void *socket_setup_server_cb_user_data) {
     int val = 1;
     bool error = false;
 
@@ -169,7 +171,7 @@ bool network_io_common_socket_setup_server(
     }
 
     if (!error && socket_setup_server_cb != NULL) {
-        if (!socket_setup_server_cb(fd)) {
+        if (!socket_setup_server_cb(fd, socket_setup_server_cb_user_data)) {
             error = true;
         }
     }
@@ -210,7 +212,8 @@ int network_io_common_socket_tcp4_new_server(
         int flags,
         struct sockaddr_in *address,
         uint16_t backlog,
-        network_io_common_socket_setup_server_cb_t socket_setup_server_cb) {
+        network_io_common_socket_setup_server_cb_t socket_setup_server_cb,
+        void *socket_setup_server_cb_user_data) {
     int fd;
 
     fd = network_io_common_socket_tcp4_new(flags);
@@ -220,7 +223,8 @@ int network_io_common_socket_tcp4_new_server(
             (struct sockaddr*)address,
             sizeof(struct sockaddr_in),
             backlog,
-            socket_setup_server_cb)) {
+            socket_setup_server_cb,
+            socket_setup_server_cb_user_data)) {
         return -1;
     }
 
@@ -243,7 +247,8 @@ int network_io_common_socket_tcp6_new_server(
         int flags,
         struct sockaddr_in6 *address,
         uint16_t backlog,
-        network_io_common_socket_setup_server_cb_t socket_setup_server_cb) {
+        network_io_common_socket_setup_server_cb_t socket_setup_server_cb,
+        void *socket_setup_server_cb_user_data) {
     int fd;
 
     fd = network_io_common_socket_tcp6_new(flags);
@@ -253,7 +258,8 @@ int network_io_common_socket_tcp6_new_server(
             (struct sockaddr*)address,
             sizeof(struct sockaddr_in6),
             backlog,
-            socket_setup_server_cb)) {
+            socket_setup_server_cb,
+            socket_setup_server_cb_user_data)) {
         return -1;
     }
 
@@ -266,7 +272,8 @@ int network_io_common_socket_new_server(
         struct sockaddr *socket_address,
         uint16_t port,
         uint16_t backlog,
-        network_io_common_socket_setup_server_cb_t socket_setup_server_cb) {
+        network_io_common_socket_setup_server_cb_t socket_setup_server_cb,
+        void *socket_setup_server_cb_user_data) {
     int fd;
 
     if (family == AF_INET) {
@@ -276,7 +283,8 @@ int network_io_common_socket_new_server(
                 flags,
                 socket_address_ipv4,
                 backlog,
-                socket_setup_server_cb);
+                socket_setup_server_cb,
+                socket_setup_server_cb_user_data);
     } else if (family == AF_INET6) {
         struct sockaddr_in6* socket_address_ipv6 = (struct sockaddr_in6*)socket_address;
         socket_address_ipv6->sin6_port = htons(port);
@@ -284,7 +292,8 @@ int network_io_common_socket_new_server(
                 flags,
                 socket_address_ipv6,
                 backlog,
-                socket_setup_server_cb);
+                socket_setup_server_cb,
+                socket_setup_server_cb_user_data);
     } else {
         LOG_E(LOG_PRODUCER_DEFAULT, "Unknown socket family <%d>", family);
         fd = -1;

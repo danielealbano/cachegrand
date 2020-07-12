@@ -4,14 +4,9 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <errno.h>
-#include <assert.h>
-
-#include "log.h"
 
 #include "network/io/network_io_common.h"
 
@@ -487,6 +482,7 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
                     (struct sockaddr*)&address,
                     sizeof(address),
                     10,
+                    NULL,
                     NULL));
 
             shutdown(fd, SHUT_RDWR);
@@ -507,6 +503,7 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
                     (struct sockaddr*)&address,
                     sizeof(address),
                     10,
+                    NULL,
                     NULL));
 
             shutdown(fd, SHUT_RDWR);
@@ -525,6 +522,7 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
                     (struct sockaddr*)&address,
                     sizeof(address),
                     10,
+                    NULL,
                     NULL));
         }
     }
@@ -548,7 +546,12 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
         address.sin_port = htons(socket_port_free_ipv4);
         address.sin_addr.s_addr = loopback_ipv4.s_addr;
 
-        fd = network_io_common_socket_tcp4_new_server(0, &address, 10, NULL);
+        fd = network_io_common_socket_tcp4_new_server(
+                0,
+                &address,
+                10,
+                NULL,
+                NULL);
 
         REQUIRE(fd > 0);
 
@@ -575,7 +578,12 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
         address.sin6_port = htons(socket_port_free_ipv6);
         memcpy(&(address.sin6_addr), (void*)&loopback_ipv6, sizeof(loopback_ipv6));
 
-        fd = network_io_common_socket_tcp6_new_server(0, &address, 10, NULL);
+        fd = network_io_common_socket_tcp6_new_server(
+                0,
+                &address,
+                10,
+                NULL,
+                NULL);
 
         REQUIRE(fd > 0);
 
@@ -597,6 +605,7 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
                     (struct sockaddr*)&address,
                     socket_port_free_ipv4,
                     10,
+                    NULL,
                     NULL);
 
             REQUIRE(fd > 0);
@@ -618,6 +627,7 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
                     (struct sockaddr*)&address,
                     socket_port_free_ipv6,
                     10,
+                    NULL,
                     NULL);
 
             REQUIRE(fd > 0);
@@ -633,6 +643,7 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
                     NULL,
                     0,
                     10,
+                    NULL,
                     NULL) == -1);
         }
     }
@@ -651,6 +662,7 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
                     (struct sockaddr*)&address,
                     socket_port_free_ipv4,
                     10,
+                    NULL,
                     NULL);
 
             REQUIRE(fd > 0);
