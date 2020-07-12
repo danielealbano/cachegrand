@@ -79,6 +79,8 @@ struct log_producer {
 
 void log_producer_set_early_prefix_thread(
         char* prefix);
+char* log_producer_get_early_prefix_thread();
+void log_producer_unset_early_prefix_thread();
 log_producer_t* log_producer_init(
         char *tag);
 log_producer_t* log_producer_free(

@@ -53,6 +53,14 @@ void log_producer_set_early_prefix_thread(
     log_producer_early_prefix_thread = prefix;
 }
 
+char* log_producer_get_early_prefix_thread() {
+    return log_producer_early_prefix_thread;
+}
+
+void log_producer_unset_early_prefix_thread() {
+    log_producer_early_prefix_thread = NULL;
+}
+
 char* log_message_timestamp(
         char* dest,
         size_t maxlen) {
