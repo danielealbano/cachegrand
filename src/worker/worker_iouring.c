@@ -124,14 +124,14 @@ void worker_iouring_cqe_report_error(
 
     LOG_E(
             LOG_PRODUCER_DEFAULT,
-            "[CQE][OP:%u][FD:%u] cqe->user_data = <0x%08lx>, cqe->res = <%s (%d)>, cqe->flags >> 16 = <%d>, cqe->flags >> 16 = <%d>",
+            "[OP:%u][FD:%u] cqe->user_data = <0x%08lx>, cqe->res = <%s (%d)>, cqe->flags >> 16 = <%d>, cqe->flags >> 16 = <%d>",
             iouring_userdata->op,
             iouring_userdata->fd,
             cqe->user_data,
             strerror(cqe->res * -1),
             cqe->res,
-            cqe->flags >> 16,
-            cqe->flags & 0xFFFF);
+            cqe->flags >> 16u,
+            cqe->flags & 0xFFFFu);
 }
 
 bool worker_iouring_process_op_accept(
