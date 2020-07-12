@@ -10,7 +10,7 @@
 
 #include "network_io_common.h"
 
-LOG_PRODUCER_CREATE_LOCAL_DEFAULT("network_io_common", network_io_common)
+LOG_PRODUCER_CREATE_DEFAULT("network_io_common", network_io_common)
 
 bool network_io_common_socket_set_option(
         int fd,

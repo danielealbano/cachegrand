@@ -40,7 +40,7 @@
 
 #include "support.h"
 
-LOG_PRODUCER_CREATE_LOCAL_DEFAULT("test-support", test_support)
+LOG_PRODUCER_CREATE_DEFAULT("test-support", test_support)
 
 void test_support_hashtable_print_heatmap(
         hashtable_t* hashtable,

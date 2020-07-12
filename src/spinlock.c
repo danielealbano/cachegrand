@@ -11,7 +11,7 @@
 #include "log.h"
 #include "fatal.h"
 
-LOG_PRODUCER_CREATE_LOCAL_DEFAULT("spinlock", spinlock)
+LOG_PRODUCER_CREATE_DEFAULT("spinlock", spinlock)
 
 void spinlock_init(
         spinlock_lock_volatile_t* spinlock) {

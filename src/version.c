@@ -10,7 +10,7 @@
 
 #include "version.h"
 
-LOG_PRODUCER_CREATE_LOCAL_DEFAULT("version", misc)
+LOG_PRODUCER_CREATE_DEFAULT("version", misc)
 
 int version_parse(
         char version_string[],

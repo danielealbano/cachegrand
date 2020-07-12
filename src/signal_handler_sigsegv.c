@@ -6,7 +6,7 @@
 #include "fatal.h"
 #include "signal_handler_sigsegv.h"
 
-LOG_PRODUCER_CREATE_LOCAL_DEFAULT("signal_handler/sigsegv", signal_handler_sigsegv)
+LOG_PRODUCER_CREATE_DEFAULT("signal_handler/sigsegv", signal_handler_sigsegv)
 
 void signal_handler_sigsegv_handler(int sig) {
     fatal(LOG_PRODUCER_DEFAULT, "Error: signal %d:\n", sig);

@@ -13,7 +13,7 @@
 #include "misc.h"
 #include "fatal.h"
 
-LOG_PRODUCER_CREATE_LOCAL_DEFAULT("xalloc", xalloc)
+LOG_PRODUCER_CREATE_DEFAULT("xalloc", xalloc)
 
 void* xalloc_alloc(size_t size) {
     void* memptr;
