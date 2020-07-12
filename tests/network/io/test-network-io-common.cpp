@@ -58,10 +58,6 @@ void test_network_io_common_parse_addresses_foreach_callback_localhost_ipv4_ipv6
 TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_common]") {
     struct in_addr loopback_ipv4 = {0};
     struct in_addr loopback_ipv6 = {0};
-    uint16_t socket_port_free_ipv4 =
-            network_io_tests_support_search_free_port_ipv4(9999);
-    uint16_t socket_port_free_ipv6 =
-            network_io_tests_support_search_free_port_ipv6(9999);
 
     inet_pton(AF_INET, "127.0.0.1", &loopback_ipv4);
     inet_pton(AF_INET, "::1", &loopback_ipv6);
@@ -313,6 +309,11 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
     }
 
     SECTION("network_io_common_socket_bind") {
+        uint16_t socket_port_free_ipv4 =
+                network_tests_support_search_free_port_ipv4(9999);
+        uint16_t socket_port_free_ipv6 =
+                network_tests_support_search_free_port_ipv6(9999);
+
         SECTION("valid ipv4 address and port") {
             int val = 1;
             struct sockaddr_in address = {0};
@@ -387,6 +388,11 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
     }
 
     SECTION("network_io_common_socket_listen") {
+        uint16_t socket_port_free_ipv4 =
+                network_tests_support_search_free_port_ipv4(9999);
+        uint16_t socket_port_free_ipv6 =
+                network_tests_support_search_free_port_ipv6(9999);
+
         SECTION("valid ipv4 address and port") {
             int val = 1;
             socklen_t val_size = sizeof(val);
@@ -468,6 +474,11 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
     }
 
     SECTION("network_io_common_socket_setup_server") {
+        uint16_t socket_port_free_ipv4 =
+                network_tests_support_search_free_port_ipv4(9999);
+        uint16_t socket_port_free_ipv6 =
+                network_tests_support_search_free_port_ipv6(9999);
+
         SECTION("valid ipv4 address and port") {
             struct sockaddr_in address = {0};
 
@@ -540,6 +551,11 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
     }
 
     SECTION("network_io_common_socket_tcp4_new_server") {
+        uint16_t socket_port_free_ipv4 =
+                network_tests_support_search_free_port_ipv4(9999);
+        uint16_t socket_port_free_ipv6 =
+                network_tests_support_search_free_port_ipv6(9999);
+
         int fd;
         struct sockaddr_in address = {0};
         address.sin_family = AF_INET;
@@ -572,6 +588,11 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
     }
 
     SECTION("network_io_common_socket_tcp6_new_server") {
+        uint16_t socket_port_free_ipv4 =
+                network_tests_support_search_free_port_ipv4(9999);
+        uint16_t socket_port_free_ipv6 =
+                network_tests_support_search_free_port_ipv6(9999);
+
         int fd;
         struct sockaddr_in6 address = {0};
         address.sin6_family = AF_INET6;
@@ -592,6 +613,11 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
     }
 
     SECTION("network_io_common_socket_new_server") {
+        uint16_t socket_port_free_ipv4 =
+                network_tests_support_search_free_port_ipv4(9999);
+        uint16_t socket_port_free_ipv6 =
+                network_tests_support_search_free_port_ipv6(9999);
+
         SECTION("valid ipv4 address and port") {
             int fd;
             struct sockaddr_in address = {0};
@@ -649,6 +675,11 @@ TEST_CASE("network/io/network_io_common", "[network][network_io][network_io_comm
     }
 
     SECTION("network_io_common_socket_close") {
+        uint16_t socket_port_free_ipv4 =
+                network_tests_support_search_free_port_ipv4(9999);
+        uint16_t socket_port_free_ipv6 =
+                network_tests_support_search_free_port_ipv6(9999);
+
         SECTION("valid socket") {
             int fd;
             struct sockaddr_in address = {0};

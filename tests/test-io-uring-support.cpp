@@ -17,10 +17,6 @@
 TEST_CASE("io_uring_support", "[io_uring_support]") {
     struct in_addr loopback_ipv4 = {0};
     struct in_addr loopback_ipv6 = {0};
-    uint16_t socket_port_free_ipv4 =
-            network_io_tests_support_search_free_port_ipv4(9999);
-    uint16_t socket_port_free_ipv6 =
-            network_io_tests_support_search_free_port_ipv6(9999);
 
     inet_pton(AF_INET, "127.0.0.1", &loopback_ipv4);
     inet_pton(AF_INET, "::1", &loopback_ipv6);
@@ -174,6 +170,11 @@ TEST_CASE("io_uring_support", "[io_uring_support]") {
     }
 
     SECTION("io_uring_support_sqe_enqueue_accept") {
+        uint16_t socket_port_free_ipv4 =
+                network_tests_support_search_free_port_ipv4(9999);
+        uint16_t socket_port_free_ipv6 =
+                network_tests_support_search_free_port_ipv6(9999);
+
         SECTION("enqueue accept on valid socket ipv4") {
             io_uring_t *ring;
             io_uring_cqe_t *cqe;
@@ -344,6 +345,11 @@ TEST_CASE("io_uring_support", "[io_uring_support]") {
     }
 
     SECTION("io_uring_support_sqe_enqueue_recv") {
+        uint16_t socket_port_free_ipv4 =
+                network_tests_support_search_free_port_ipv4(9999);
+        uint16_t socket_port_free_ipv6 =
+                network_tests_support_search_free_port_ipv6(9999);
+
         SECTION("receive message") {
             io_uring_t *ring;
             io_uring_cqe_t *cqe;
@@ -527,6 +533,11 @@ TEST_CASE("io_uring_support", "[io_uring_support]") {
     }
 
     SECTION("io_uring_support_sqe_enqueue_send") {
+        uint16_t socket_port_free_ipv4 =
+                network_tests_support_search_free_port_ipv4(9999);
+        uint16_t socket_port_free_ipv6 =
+                network_tests_support_search_free_port_ipv6(9999);
+
         SECTION("send message") {
             io_uring_t *ring;
             io_uring_cqe_t *cqe;
@@ -636,6 +647,11 @@ TEST_CASE("io_uring_support", "[io_uring_support]") {
     }
 
     SECTION("io_uring_support_sqe_enqueue_close") {
+        uint16_t socket_port_free_ipv4 =
+                network_tests_support_search_free_port_ipv4(9999);
+        uint16_t socket_port_free_ipv6 =
+                network_tests_support_search_free_port_ipv6(9999);
+
         SECTION("open and close socket") {
             io_uring_t *ring;
             io_uring_cqe_t *cqe;
