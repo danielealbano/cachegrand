@@ -38,14 +38,6 @@ jobs:
     - name: Create Build Environment
       run: cmake -E make_directory ${{github.workspace}}/build
 
-    - name: Prepare deps - liburing
-      id: prepare-deps-liburing
-      shell: bash
-      working-directory: ${{github.workspace}}/build
-      run: |
-        chmod 700 $GITHUB_WORKSPACE/tools/gh_build_and_test_support/install_liburing.sh
-        V=1 CFLAGS="-g -O0 -fno-inline -DDEBUG=1" $GITHUB_WORKSPACE/tools/gh_build_and_test_support/install_liburing.sh -o $(pwd)/_deps/liburing -c $LIBURING_COMMIT_ID
-
     - name: Configure CMake
       shell: bash
       working-directory: ${{github.workspace}}/build
