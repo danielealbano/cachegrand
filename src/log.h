@@ -27,9 +27,9 @@ extern "C" {
 #define LOG_D(producer, ...) \
     log_message(producer, LOG_LEVEL_DEBUG, __VA_ARGS__)
 
-#define LOG_PRODUCER_DEFAULT PRODUCER
+#define LOG_PRODUCER_DEFAULT LOG_PRODUCER_DEFAULT_VAR
 
-#define LOG_PRODUCER_CREATE_LOCAL(TAG, SUFFIX, VAR) \
+#define LOG_PRODUCER_CREATE(TAG, SUFFIX, VAR) \
     static log_producer_t* VAR; \
     FUNCTION_CTOR(concat(log_producer_local_init, SUFFIX), { \
         VAR = log_producer_init(TAG); \
@@ -38,8 +38,20 @@ extern "C" {
         log_producer_free(VAR); \
     })
 
-#define LOG_PRODUCER_CREATE_LOCAL_DEFAULT(TAG, SUFFIX) \
-    LOG_PRODUCER_CREATE_LOCAL(TAG, SUFFIX, LOG_PRODUCER_DEFAULT)
+#define LOG_PRODUCER_CREATE_DEFAULT(TAG, SUFFIX) \
+    LOG_PRODUCER_CREATE(TAG, SUFFIX, LOG_PRODUCER_DEFAULT)
+
+#define LOG_PRODUCER_CREATE_THREAD_LOCAL(TAG, SUFFIX, VAR) \
+    thread_local log_producer_t* VAR; \
+    FUNCTION_STATIC(concat(log_producer_local_init, SUFFIX), { \
+        VAR = log_producer_init(TAG); \
+    }) \
+    FUNCTION_STATIC(concat(log_producer_local_free, SUFFIX), { \
+        log_producer_free(VAR); \
+    })
+
+#define LOG_PRODUCER_CREATE_THREAD_LOCAL_DEFAULT(TAG, SUFFIX) \
+    LOG_PRODUCER_CREATE_THREAD_LOCAL(TAG, SUFFIX, LOG_PRODUCER_DEFAULT)
 
 enum log_level {
     LOG_LEVEL_ERROR = 0x40,
@@ -54,26 +66,53 @@ typedef enum log_level log_level_t;
 
 #define LOG_LEVEL_ALL ((uint8_t)LOG_LEVEL_ERROR << 1u) - 1u
 
-typedef struct {
+typedef struct log_sink log_sink_t;
+struct log_sink {
     FILE* out;
     log_level_t levels;
-} log_sink_t;
+};
 
-typedef struct{
+typedef struct log_producer log_producer_t;
+struct log_producer {
     char* tag;
-} log_producer_t;
+};
 
-log_producer_t* log_producer_init(char *tag);
-log_producer_t* log_producer_free(log_producer_t *log_producer);
-log_sink_t* log_sink_init(FILE* out, log_level_t levels);
-log_sink_t* log_sink_free(log_sink_t *log_sink);
-const char* log_level_to_string(log_level_t level);
-char* log_message_timestamp(char *dest, size_t maxlen);
-void log_message_internal_printer(const char *tag, log_level_t level, const char *message, va_list args, FILE *out);
-void log_message_internal(log_producer_t *producer, log_level_t level, const char *message, va_list args);
-void log_message(log_producer_t *producer, log_level_t level, const char *message, ...);
-void log_message_print_os_error(log_producer_t* producer);
-void log_sink_register(log_sink_t *sink);
+void log_producer_set_early_prefix_thread(
+        char* prefix);
+log_producer_t* log_producer_init(
+        char *tag);
+log_producer_t* log_producer_free(
+        log_producer_t *log_producer);
+log_sink_t* log_sink_init(
+        FILE* out,
+        log_level_t levels);
+log_sink_t* log_sink_free(
+        log_sink_t *log_sink);
+const char* log_level_to_string(
+        log_level_t level);
+char* log_message_timestamp(
+        char *dest,
+        size_t maxlen);
+void log_message_internal_printer(
+        const char *tag,
+        log_level_t level,
+        const char *message,
+        va_list args,
+        FILE *out);
+void log_message_internal(
+        log_producer_t *producer,
+        log_level_t level,
+        const char *message,
+        va_list args);
+void log_message(
+        log_producer_t *producer,
+        log_level_t level,
+        const char *message,
+        ...);
+void log_message_print_os_error(
+        log_producer_t* producer);
+void log_sink_register(
+        log_sink_t *sink);
 #ifndef DEBUG
 #define LOG_DI(...) /* Internal debug logs disabled */
 #endif // DEBUG == 1
