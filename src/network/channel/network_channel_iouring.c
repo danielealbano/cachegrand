@@ -11,6 +11,7 @@ network_channel_iouring_entry_user_data_t* network_channel_iouring_entry_user_da
     network_channel_iouring_entry_user_data_t *userdata =
             xalloc_alloc_zero(sizeof(network_channel_iouring_entry_user_data_t));
     userdata->op = op;
+    userdata->fd = -1;
 
     return userdata;
 }
