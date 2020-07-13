@@ -95,14 +95,14 @@ TEST_CASE("program.c", "[program]") {
     SECTION("program_register_signal_handlers") {
         program_register_signal_handlers();
 
-        SECTION("supported signal") {
-            bool *program_terminate_event_loop = program_get_terminate_event_loop();
-            *program_terminate_event_loop = false;
-
-            REQUIRE(kill(0, SIGUSR1) == 0);
-
-            REQUIRE(program_should_terminate(program_terminate_event_loop));
-        }
+//        SECTION("supported signal") {
+//            bool *program_terminate_event_loop = program_get_terminate_event_loop();
+//            *program_terminate_event_loop = false;
+//
+//            REQUIRE(kill(0, SIGUSR1) == 0);
+//
+//            REQUIRE(program_should_terminate(program_terminate_event_loop));
+//        }
 
         SECTION("ignored signal") {
             bool *program_terminate_event_loop = program_get_terminate_event_loop();

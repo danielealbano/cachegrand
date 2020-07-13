@@ -51,7 +51,7 @@ jobs:
     - name: Test
       working-directory: ${{github.workspace}}/build
       shell: bash
-      run: /bin/bash -m -c tests/cachegrand-tests
+      run: tests/cachegrand-tests
 
     - name: Code Coverage - Generation
       uses: danielealbano/lcov-action@v1
