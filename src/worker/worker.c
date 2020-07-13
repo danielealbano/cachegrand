@@ -4,13 +4,11 @@
 #include <string.h>
 #include <time.h>
 #include <arpa/inet.h>
-#include <pthread.h>
-#include <sys/types.h>
-#include <sys/syscall.h>
 
 #include "exttypes.h"
 #include "misc.h"
 #include "xalloc.h"
+#include "thread.h"
 #include "memory_fences.h"
 #include "log.h"
 #include "network/channel/network_channel.h"
@@ -48,16 +46,15 @@ bool worker_should_publish_stats(
 
 char* worker_log_producer_set_early_prefix_thread(
         worker_user_data_t *worker_user_data) {
-    pid_t tid = syscall(SYS_gettid);
     size_t prefix_size = strlen(WORKER_LOG_PRODUCER_PREFIX_FORMAT_STRING) + 50 + 1;
     char *prefix = xalloc_alloc_zero(prefix_size);
 
-    int res = snprintf(
+    snprintf(
             prefix,
             prefix_size,
             WORKER_LOG_PRODUCER_PREFIX_FORMAT_STRING,
             worker_user_data->worker_index,
-            tid);
+            thread_current_get_id());
     log_producer_set_early_prefix_thread(prefix);
 
     return prefix;
