@@ -174,7 +174,6 @@ Here the general grand-plan:
             - [ ] Client authentication
 
 - v0.6
-    - [ ]
     - [ ] Storage
         - [ ] Add transparent data encryption / decryption
 
