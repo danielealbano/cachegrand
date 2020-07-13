@@ -353,7 +353,7 @@ void worker_iouring_thread_process_ops_loop(
                     &worker_user_data->stats);
         }
 
-    } while(worker_should_terminate(worker_user_data));
+    } while(!worker_should_terminate(worker_user_data));
 }
 
 void worker_iouring_cleanup(
