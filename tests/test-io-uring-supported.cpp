@@ -50,7 +50,7 @@ TEST_CASE("io_uring_supported.c", "[io_uring_supported]") {
             close(fd);
         }
 
-        SECTION("fetch multiple symbols") {
+        SECTION("fetch multiple symbols") { 
             char name[500] = {0};
             char symbol_name_to_cmp_format[] = "symbol_test_name_%d";
             char line_to_write_format[] = "0000000000000000 T symbol_test_name_%d\n";
