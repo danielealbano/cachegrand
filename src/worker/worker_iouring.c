@@ -139,7 +139,7 @@ bool worker_iouring_process_op_timeout_ensure_loop(
     // Has to be static, it will be use AFTER the function will end and we need to preserve the memory
     static struct __kernel_timespec ts = {
             0,
-            250 * 1000000
+            WORKER_LOOP_MAX_WAIT_TIME_MS * 1000000
     };
 
     if (cqe == NULL) {
