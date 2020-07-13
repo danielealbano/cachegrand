@@ -95,30 +95,89 @@ make cachegrand-benches
 
 ### TODO
 
-cachegrand is still under heavy development, the goals for the 0.1 milestone are the following:
-- implement self-balancing spinlocks to minimise the memory accesses when there is high contention;
-- implement a sliding spinlock window to release locked chunks in advance if possible;
-- implement an lock-free, atomic-free, ring-buffer queue for the internal threadpool implementation;
-- implement the networking
-    - using io_uring and liburing for the IO
-    - implementing a network channel and network protocol components to be able to support a number of different 
-      protocols with minimal overhead
-    - implement a basic support for the redis protocol;
-    - implement a basic http webserver to provide general stats;
-    - implement a basic http webserver to provide simple CRUD operations; 
-- implement the data backing layer, with per-thread sharding in-memory and on-disk: 
-    - liburing and io_uring;
-    - append only;
-    - block-based with a variable block size;
-- write documentation;
+cachegrand is still under heavy development!
 
-### FUTURE TODO
+The goal is to implement a PoC for the v0.1 and a basic working caching server with by the v0.3.
 
-Because it aims to be a modern platform, the goal is to have the features mentioned below by the time of it's first
-stable release:
-- Add support for Windows and Mac OS X, the code is already being written whenever possible with this goal in mind;
-- Commands batching, to be able to perform multiple set of operations at the same time;
-- TLS, to encrypt the data on-transit;
-- Authentication and ACLs, to limit who has access and which data are accessible;
-- On-memory and On-disk data encryption;
-- Multi database.
+Here the general grand-plan:
+- v0.1 
+    - [x] Hashtable
+        - [x] Ops
+            - [x] GET, lock-free, atomic-free and wait-free
+            - [x] SET, chunk-based (14 slots) locking using spin-locks
+            - [x] DELETE, chunk-based (14 slots) locking using spin-locks
+    - [ ] Networking
+        - [x] Implement a network stack able to support multiple io libraries and multiple protocols 
+        - [x] Implement a network io layer based on io_uring nad liburing
+        - [x] Implement a network channel layer based on top of the network io iouring layer
+        - [x] Implement network workers
+        - [ ] Implement a basic support for the redis protocol
+            - [ ] GET
+            - [ ] SET
+            - [ ] DELETE
+            - [ ] PING
+    - [ ] Storage: 
+        - [ ] Implement a storage stack able to support multiple io libraries 
+        - [ ] Implement a storage io layer based on io_uring and liburing
+    - [ ] Configuration:
+        - [ ] Implement a YAML based configuration
+
+- v0.2
+    - [ ] Memory Management
+        - [ ] Implement a SLAB allocator
+    - [ ] Logging
+        - [ ] Add the ability to perform multi-threaded logging via a ring buffer per thread processed by the logger
+              thread (if too many messages are submitted the caller has to wait for space in the ring).
+        - [ ] Add logging to disk sink
+    - [ ] Hashtable
+        - [ ] Implement adaptative spinlocks
+        - [ ] Implement a sliding spinlock window to release locked chunks in advance if possible
+        - [ ] Add support for LRU
+            - [ ] Implement a separate LRU structure to hold the necessary data for the hashtable
+            - [ ] Implement an LRU linked-list
+            - [ ] Implement an LRU Promote and GC worker
+        - [ ] Ops
+            - [ ] RESIZE
+            - [ ] ITERATE
+            - [ ] DELETE, when deleting move back the far-est key of the chunk usind the distance
+    - [ ] Networking
+        - [ ] Switch to use the SLAB allocator
+    - [ ] Storage:
+        - [ ] Implement garbage collection
+
+- v0.3
+    - [ ] Hashtable
+        - [ ] Add NUMA support
+    - [ ] Write documentation
+    - [ ] Storage
+        - [ ] Optmize for SSD (LSMTrees?) 
+    - [ ] Networking
+        - [ ] Add support for multiple protocols
+        - [ ] Add a protobuf-based rpc based protocol
+        - [ ] Implement a basic http webserver to provide general stats
+        - [ ] Implement a basic http webserver to provide simple CRUD operations 
+        - [ ] Expand redis protocol support
+            - [ ] Pipelining
+
+- v0.4
+    - [ ] Add AARCH64 support
+    - [ ] Storage
+        - [ ] Add support for epoll
+    - [ ] Networking
+        - [ ] Add support for epoll
+
+- v0.5
+    - [ ] Authentication
+    - [ ] Networking
+        - [ ] Add TLS support (ktls? mbedtls? openssl?)
+            - [ ] Connection encryption
+            - [ ] Client authentication
+
+- v0.6
+    - [ ] Storage
+        - [ ] Add transparent data encryption / decryption
+
+- Somewhere before the v1.0
+    - [ ] Add support for Windows (IO via support IOCP)
+    - [ ] Add support for Mac OS X (IO via epoll)
+    - [ ] Add support for FreeBSD (IO via kqueue/kevent)
