@@ -33,10 +33,7 @@ void* test_program_wait_loop_terminate(
         void* user_data) {
     volatile bool *terminate_event_loop = (volatile bool *)user_data;
 
-    sleep(1);
-
-    *terminate_event_loop = true;
-    HASHTABLE_MEMORY_FENCE_STORE();
+    program_request_terminate(terminate_event_loop);
 
     return NULL;
 }
