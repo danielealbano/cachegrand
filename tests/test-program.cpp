@@ -10,6 +10,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <sys/types.h>
 
 #include "exttypes.h"
 #include "xalloc.h"
@@ -59,10 +60,67 @@ TEST_CASE("program.c", "[program]") {
         }
     }
 
+    SECTION("program_get_terminate_event_loop") {
+        SECTION("false") {
+            REQUIRE(!*program_get_terminate_event_loop());
+        }
+
+        SECTION("true") {
+            bool *program_terminate_event_loop = program_get_terminate_event_loop();
+            program_request_terminate(program_terminate_event_loop);
+            REQUIRE(*program_get_terminate_event_loop());
+        }
+    }
+
+    SECTION("program_signal_handlers") {
+        SECTION("supported signal") {
+            bool *program_terminate_event_loop = program_get_terminate_event_loop();
+            *program_terminate_event_loop = false;
+
+            program_signal_handlers(SIGUSR1);
+
+            REQUIRE(program_should_terminate(program_terminate_event_loop));
+        }
+
+        SECTION("ignored signal") {
+            bool *program_terminate_event_loop = program_get_terminate_event_loop();
+            *program_terminate_event_loop = false;
+
+            program_signal_handlers(SIGCHLD);
+
+            REQUIRE(!program_should_terminate(program_terminate_event_loop));
+        }
+    }
+
+    SECTION("program_register_signal_handlers") {
+        program_register_signal_handlers();
+
+        SECTION("supported signal") {
+            bool *program_terminate_event_loop = program_get_terminate_event_loop();
+            *program_terminate_event_loop = false;
+
+            REQUIRE(kill(0, SIGUSR1) == 0);
+
+            REQUIRE(program_should_terminate(program_terminate_event_loop));
+        }
+
+        SECTION("ignored signal") {
+            bool *program_terminate_event_loop = program_get_terminate_event_loop();
+            *program_terminate_event_loop = false;
+
+            REQUIRE(kill(0, SIGCHLD) == 0);
+
+            REQUIRE(!program_should_terminate(program_terminate_event_loop));
+        }
+    }
+
     SECTION("program_wait_loop") {
         volatile bool terminate_event_loop = false;
         pthread_t pthread_wait, pthread_terminate;
         pthread_attr_t attr;
+
+        bool *program_terminate_event_loop = program_get_terminate_event_loop();
+        *program_terminate_event_loop = false;
 
         REQUIRE(pthread_attr_init(&attr) == 0);
         REQUIRE(pthread_create(&pthread_wait, &attr, test_program_wait_loop_wait, (void*)&terminate_event_loop) == 0);
