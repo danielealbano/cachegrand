@@ -22,6 +22,7 @@ worker_user_data_t* program_workers_initialize(
         pthread_attr_t *attr,
         uint32_t workers_count);
 
+bool* program_get_terminate_event_loop();
 void program_request_terminate(
         volatile bool *terminate_event_loop);
 bool program_should_terminate(

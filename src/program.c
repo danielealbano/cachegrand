@@ -132,6 +132,10 @@ worker_user_data_t* program_workers_initialize(
     return workers_user_data;
 }
 
+bool* program_get_terminate_event_loop() {
+    return &program_terminate_event_loop;
+}
+
 void program_request_terminate(
         volatile bool *terminate_event_loop) {
     *terminate_event_loop = true;
