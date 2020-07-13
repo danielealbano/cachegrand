@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 enum {
-    WORKER_IOURING_OP_TIMEOUT_ENSURE_LOOP
+    WORKER_IOURING_OP_TIMEOUT_ENSURE_LOOP = NETWORK_IO_IOURING_OP_LAST + 1u,
 };
 
 uint32_t worker_thread_set_affinity(
@@ -16,6 +16,7 @@ uint32_t worker_iouring_calculate_entries(
         uint32_t max_connections,
         uint32_t network_addresses_count);
 io_uring_t* worker_iouring_initialize_iouring(
+        uint32_t core_index,
         uint32_t max_connections,
         uint32_t network_addresses_count);
 
@@ -30,7 +31,7 @@ bool worker_iouring_cqe_is_error_any(
         io_uring_cqe_t *cqe);
 bool worker_iouring_cqe_is_error(
         io_uring_cqe_t *cqe);
-void worker_iouring_cqe_report_error(
+void worker_iouring_cqe_log(
         worker_user_data_t *worker_user_data,
         io_uring_cqe_t *cqe);
 
