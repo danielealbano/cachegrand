@@ -22,13 +22,6 @@ bool network_channel_client_setup(
         error = true;
     }
 
-    // Nagle is being disabled but it's safe to do, the supported protocols have sequential/serialized messaging therefore
-    // if a small packet has to be sent it's pointless to wait for the packet size to grow because it will not.
-    // Anyway, potentially this may be made configurable by the protocol parser / state machine attached to the listener.
-    if (!error && network_io_common_socket_set_nodelay(fd, true) == false) {
-        error = true;
-    }
-
     if (!error && network_io_common_socket_set_quickack(fd, true) == false) {
         error = true;
     }
@@ -69,13 +62,6 @@ bool network_channel_server_setup(
     }
 
     if (!error && network_io_common_socket_set_reuse_port(fd, true) == false) {
-        error = true;
-    }
-
-    // Nagle is being disabled but it's safe to do, the supported protocols have sequential/serialized messaging therefore
-    // if a small packet has to be sent it's pointless to wait for the packet size to grow because it will not.
-    // Anyway, potentially this may be made configurable by the protocol parser / state machine attached to the listener.
-    if (!error && network_io_common_socket_set_nodelay(fd, true) == false) {
         error = true;
     }
 
