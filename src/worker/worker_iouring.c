@@ -136,6 +136,12 @@ bool worker_iouring_process_op_timeout(
         io_uring_cqe_t *cqe) {
     network_channel_iouring_entry_user_data_t *iouring_userdata_current;
 
+    // Has to be static, it will be use AFTER the function will end and we need to preserve the memory
+    static struct __kernel_timespec ts = {
+            0,
+            250 * 1000000
+    };
+
     if (cqe == NULL) {
         iouring_userdata_current = network_channel_iouring_entry_user_data_new(NETWORK_IO_IOURING_OP_TIMEOUT);
     } else {
@@ -145,8 +151,7 @@ bool worker_iouring_process_op_timeout(
     return io_uring_support_sqe_enqueue_timeout(
             ring,
             1,
-            1,
-            0,
+            &ts,
             (uintptr_t)iouring_userdata_current);
 }
 
