@@ -34,6 +34,14 @@ io_uring_sqe_t* io_uring_support_get_sqe(
 void io_uring_support_cq_advance(
         io_uring_t *ring,
         uint32_t count);
+
+bool io_uring_support_sqe_enqueue_files_update(
+        io_uring_t *ring,
+        int *fds,
+        uint32_t fds_count,
+        uint32_t offset,
+        uint8_t flags,
+        uint64_t user_data);
 bool io_uring_support_sqe_enqueue_timeout(
         io_uring_t *ring,
         uint64_t count,

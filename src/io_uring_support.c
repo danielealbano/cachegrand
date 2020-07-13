@@ -156,6 +156,22 @@ bool io_uring_support_sqe_enqueue_timeout(
 
     return true;
 }
+
+// WARNING: getting operation cancelled error when using it, currently not in use
+bool io_uring_support_sqe_enqueue_files_update(
+        io_uring_t *ring,
+        int *fds,
+        uint32_t fds_count,
+        uint32_t offset,
+        uint8_t flags,
+        uint64_t user_data) {
+    io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
+    if (sqe == NULL) {
+        return false;
+    }
+
+    io_uring_prep_files_update(sqe, fds, fds_count, offset);
+    io_uring_sqe_set_flags(sqe, flags);
     sqe->user_data = user_data;
 
     return true;
