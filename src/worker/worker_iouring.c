@@ -101,16 +101,6 @@ void worker_iouring_listeners_enqueue(
     }
 }
 
-void worker_iouring_enqueue_timeout(
-        io_uring_t* ring,
-        network_channel_iouring_entry_user_data_t *iouring_userdata_timeout) {
-    io_uring_sqe_t *sqe = io_uring_get_sqe(ring);
-    struct __kernel_timespec ts = {0};
-    ts.tv_sec = 1;
-    io_uring_prep_timeout(sqe, &ts, 1, 0);
-    sqe->user_data = (uintptr_t)iouring_userdata_timeout;
-}
-
 bool worker_iouring_cqe_is_error_any(
         io_uring_cqe_t *cqe) {
     return cqe->res < 0;
@@ -137,6 +127,27 @@ void worker_iouring_cqe_report_error(
             cqe->res,
             cqe->flags >> 16u,
             cqe->flags & 0xFFFFu);
+}
+
+bool worker_iouring_process_op_timeout(
+        worker_user_data_t *worker_user_data,
+        worker_stats_t* stats,
+        io_uring_t* ring,
+        io_uring_cqe_t *cqe) {
+    network_channel_iouring_entry_user_data_t *iouring_userdata_current;
+
+    if (cqe == NULL) {
+        iouring_userdata_current = network_channel_iouring_entry_user_data_new(NETWORK_IO_IOURING_OP_TIMEOUT);
+    } else {
+        iouring_userdata_current = (network_channel_iouring_entry_user_data_t *)cqe->user_data;
+    }
+
+    return io_uring_support_sqe_enqueue_timeout(
+            ring,
+            1,
+            1,
+            0,
+            (uintptr_t)iouring_userdata_current);
 }
 
 bool worker_iouring_process_op_accept(
@@ -290,11 +301,11 @@ void worker_iouring_thread_process_ops_loop(
         ) {
     network_channel_iouring_entry_user_data_t *iouring_userdata_current, *iouring_userdata_timeout;
 
-    iouring_userdata_timeout = network_channel_iouring_entry_user_data_new(NETWORK_IO_IOURING_OP_TIMEOUT);
-
-    worker_iouring_enqueue_timeout(
+    worker_iouring_process_op_timeout(
+            worker_user_data,
+            stats,
             ring,
-            iouring_userdata_timeout);
+            NULL);
 
     do {
         io_uring_cqe_t *cqe;
@@ -312,9 +323,11 @@ void worker_iouring_thread_process_ops_loop(
             iouring_userdata_current = (network_channel_iouring_entry_user_data_t*)cqe->user_data;
 
             if (iouring_userdata_current->op == NETWORK_IO_IOURING_OP_TIMEOUT) {
-                worker_iouring_enqueue_timeout(
+                worker_iouring_process_op_timeout(
+                        worker_user_data,
+                        stats,
                         ring,
-                        iouring_userdata_timeout);
+                        cqe);
                 // do nothing
             } else if (iouring_userdata_current->op == NETWORK_IO_IOURING_OP_ACCEPT) {
                 worker_iouring_process_op_accept(
