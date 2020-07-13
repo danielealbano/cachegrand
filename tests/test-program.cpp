@@ -114,11 +114,10 @@ TEST_CASE("program.c", "[program]") {
         HASHTABLE_MEMORY_FENCE_STORE();
 
         // Wait for the thread to end
-        sleep(2);
+        sleep(3);
 
         // Check if the worker terminated
-        int res = pthread_kill(worker_user_data->pthread, 0);
-        REQUIRE(((res == 0) || (res == ESRCH)));
+        REQUIRE(pthread_kill(worker_user_data->pthread, 0) == ESRCH);
 
         // Cleanup
         REQUIRE(pthread_join(worker_user_data->pthread, NULL) == 0);
@@ -145,7 +144,7 @@ TEST_CASE("program.c", "[program]") {
         HASHTABLE_MEMORY_FENCE_STORE();
 
         // Wait for the thread to end
-        sleep(2);
+        sleep(3);
 
         program_workers_cleanup(
                 worker_user_data,
