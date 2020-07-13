@@ -190,7 +190,7 @@ int program_main() {
     // TODO: start the worker threads and invoke the worker thread main func
 
     if (io_uring_supported() == false) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "io_uring isn't supported, update the kernel to at least version 5.8.0 and enable io_uring");
+        LOG_E(LOG_PRODUCER_DEFAULT, "io_uring isn't supported, update the kernel to at least version 5.7.0 and enable io_uring");
         return 1;
     }
 
