@@ -97,7 +97,7 @@ void program_wait_loop(
 
     // Wait for the software to terminate
     do {
-        sleep(1);
+        usleep(200 * 1000);
     } while(!program_should_terminate(terminate_event_loop));
 
     LOG_V(LOG_PRODUCER_DEFAULT, "Program loop terminated");
