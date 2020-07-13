@@ -1,7 +1,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <pthread.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 
+#include "exttypes.h"
+
+#include "network/channel/network_channel.h"
 #include "worker/worker.h"
 
 #include "program.h"
