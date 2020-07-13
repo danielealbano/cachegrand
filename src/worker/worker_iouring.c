@@ -378,10 +378,11 @@ void* worker_iouring_thread_func(
     network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = {0};
     worker_user_data_t *worker_user_data = user_data;
 
+    // Initialize the log producer for the worker and set the thread prefix
     log_producer_local_init_worker_iouring();
-
-    // Initialize the log producer for the worker, we want different prefixes
     char* log_producer_early_prefix_thread = worker_log_producer_set_early_prefix_thread(worker_user_data);
+
+    LOG_V(LOG_PRODUCER_DEFAULT, "Worker starting");
 
     // TODO: The affinity has to be set by the caller
     worker_user_data->core_index = worker_thread_set_affinity(worker_user_data->worker_index);
@@ -389,6 +390,7 @@ void* worker_iouring_thread_func(
     // TODO: The listeners have to be initialized by the caller, each listener has to be paired up with a protocol parser
     //       and a protocol state machine and this code has to be shared across the different kind of workers (io_uring,
     //       epoll, iocp, kqueue/kevent, dpdk, etc.)
+    LOG_V(LOG_PRODUCER_DEFAULT, "Initializing listeners");
     listener_new_cb_user_data.backlog = worker_user_data->backlog;
     listener_new_cb_user_data.core_index = worker_user_data->core_index;
     worker_iouring_network_listeners_initialize(
@@ -404,22 +406,32 @@ void* worker_iouring_thread_func(
                 io_uring_support_features_str(available_features_str, sizeof(available_features_str)));
     }
 
+    LOG_V(LOG_PRODUCER_DEFAULT, "Initializing local ring for io_uring");
+
     ring = worker_iouring_initialize_iouring(
             worker_user_data->max_connections,
             worker_user_data->addresses_count);
 
+    LOG_V(LOG_PRODUCER_DEFAULT, "Enqueing listeners");
+
     worker_iouring_listeners_enqueue(
             ring,
             &listener_new_cb_user_data);
+
+    LOG_V(LOG_PRODUCER_DEFAULT, "Starting process ops loop");
 
     worker_iouring_thread_process_ops_loop(
             worker_user_data,
             &stats,
             ring);
 
+    LOG_V(LOG_PRODUCER_DEFAULT, "Process ops loop ended, cleaning up worker");
+
     worker_iouring_cleanup(
             &listener_new_cb_user_data,
             ring);
+
+    LOG_V(LOG_PRODUCER_DEFAULT, "Tearing down worker");
 
     log_producer_local_free_worker_iouring();
     xalloc_free(log_producer_early_prefix_thread);

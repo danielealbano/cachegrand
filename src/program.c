@@ -91,11 +91,15 @@ bool program_should_terminate(
 
 void program_wait_loop(
         volatile bool *terminate_event_loop) {
+    LOG_V(LOG_PRODUCER_DEFAULT, "Program loop started");
+
     // Wait for the software to terminate
     do {
         HASHTABLE_MEMORY_FENCE_LOAD();
         sleep(1);
     } while(!program_should_terminate(terminate_event_loop));
+
+    LOG_V(LOG_PRODUCER_DEFAULT, "Program loop terminated");
 }
 
 void program_workers_cleanup(
@@ -103,14 +107,17 @@ void program_workers_cleanup(
         uint32_t workers_count) {
     int res;
     int ret;
+    LOG_V(LOG_PRODUCER_DEFAULT, "Cleaning up workers");
 
     for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
+        LOG_V(LOG_PRODUCER_DEFAULT, "Waiting for worker <%lu> to terminate", worker_index);
         res = pthread_join(workers_user_data[worker_index].pthread, (void**)&ret);
         if (res != 0) {
-            LOG_E(LOG_PRODUCER_DEFAULT, "Unable to join the thread <%u>", worker_index);
+            LOG_E(LOG_PRODUCER_DEFAULT, "Error while joining the worker <%u>", worker_index);
             LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        } else {
+            LOG_V(LOG_PRODUCER_DEFAULT, "Worker terminated", worker_index);
         }
-        LOG_V(LOG_PRODUCER_DEFAULT, "Worker <%u> ret <%u>", worker_index, ret);
     }
 
     xalloc_free(workers_user_data);
