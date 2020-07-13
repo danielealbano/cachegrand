@@ -101,10 +101,6 @@ TEST_CASE("program.c", "[program]") {
         REQUIRE(worker_user_data->max_connections == PROGRAM_NETWORK_MAX_CONNECTIONS_PER_WORKER);
         REQUIRE(worker_user_data->backlog == PROGRAM_NETWORK_CONNECTIONS_BACKLOG);
         REQUIRE(worker_user_data->addresses_count == PROGRAM_NETWORK_ADDRESSES_COUNT);
-//        REQUIRE(memcmp(
-//                worker_user_data->addresses,
-//                &addresses,
-//                sizeof(network_channel_address_t)) == 0);
         REQUIRE(worker_user_data->pthread != 0);
 
         sleep(1);
