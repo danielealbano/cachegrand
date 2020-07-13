@@ -81,13 +81,14 @@ worker_user_data_t* program_workers_initialize(
 
 void program_request_terminate(
         volatile bool *terminate_event_loop) {
-    bool val = true;
-    atomic_store(terminate_event_loop, val);
+    *terminate_event_loop = true;
+    HASHTABLE_MEMORY_FENCE_STORE();
 }
 
 bool program_should_terminate(
         volatile bool *terminate_event_loop) {
-    return atomic_load(terminate_event_loop);
+    HASHTABLE_MEMORY_FENCE_LOAD();
+    return *terminate_event_loop;
 }
 
 void program_wait_loop(

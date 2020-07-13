@@ -81,11 +81,12 @@ void worker_setup_user_data(
 
 bool worker_should_terminate(
         worker_user_data_t *worker_user_data) {
-    return atomic_load(worker_user_data->terminate_event_loop);
+    HASHTABLE_MEMORY_FENCE_LOAD();
+    return *worker_user_data->terminate_event_loop;
 }
 
 void worker_request_terminate(
         worker_user_data_t *worker_user_data) {
-    bool val = true;
-    atomic_store(worker_user_data->terminate_event_loop, val);
+    *worker_user_data->terminate_event_loop = true;
+    HASHTABLE_MEMORY_FENCE_STORE();
 }
