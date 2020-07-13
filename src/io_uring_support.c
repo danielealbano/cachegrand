@@ -138,6 +138,25 @@ void io_uring_support_cq_advance(
     io_uring_cq_advance(ring, count);
 }
 
+bool io_uring_support_sqe_enqueue_timeout(
+        io_uring_t *ring,
+        int fd,
+        uint64_t sec,
+        uint64_t nsec,
+        uint64_t user_data) {
+    struct __kernel_timespec ts = { sec, nsec };
+    io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
+    if (sqe == NULL) {
+        return false;
+    }
+
+    io_uring_prep_timeout(sqe, &ts, 0, 0);
+    io_uring_sqe_set_flags(sqe, 0);
+    sqe->user_data = user_data;
+
+    return true;
+}
+
 bool io_uring_support_sqe_enqueue_accept(
         io_uring_t *ring,
         int fd,
@@ -152,24 +171,6 @@ bool io_uring_support_sqe_enqueue_accept(
 
     io_uring_prep_accept(sqe, fd, socket_address, socket_address_size, 0);
     io_uring_sqe_set_flags(sqe, flags);
-    sqe->user_data = user_data;
-
-    return true;
-}
-
-bool io_uring_support_sqe_enqueue_pollin(
-        io_uring_t *ring,
-        int fd,
-        void *buffer,
-        size_t buffer_size,
-        uint64_t user_data) {
-    io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
-    if (sqe == NULL) {
-        return false;
-    }
-
-    io_uring_prep_poll_add(sqe, fd, POLL_IN);
-    io_uring_sqe_set_flags(sqe, 0);
     sqe->user_data = user_data;
 
     return true;
