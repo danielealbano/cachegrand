@@ -259,6 +259,7 @@ void worker_iouring_listeners_enqueue(
                 iouring_user_data->fd,
                 &iouring_user_data->new_socket_address.base,
                 &iouring_user_data->address_size,
+                0,
                 IOSQE_FIXED_FILE,
                 (uintptr_t)iouring_user_data) == false) {
 
@@ -382,6 +383,7 @@ bool worker_iouring_process_op_accept(
             iouring_userdata_current->fd,
             &iouring_userdata_current->new_socket_address.base,
             &iouring_userdata_current->address_size,
+            0,
             IOSQE_FIXED_FILE,
             (uintptr_t)iouring_userdata_current) == false) {
         LOG_E(
@@ -446,6 +448,7 @@ bool worker_iouring_process_op_accept(
             iouring_userdata_new->fd,
             iouring_userdata_new->buffer,
             NETWORK_CHANNEL_PACKET_BUFFER_SIZE,
+            0,
             IOSQE_FIXED_FILE,
             (uintptr_t)iouring_userdata_new) == false) {
         LOG_E(
@@ -517,6 +520,7 @@ bool worker_iouring_process_op_recv(
             iouring_userdata_current->buffer,
 //            cqe->res,
             len,
+            0,
             IOSQE_FIXED_FILE,
             (uintptr_t)iouring_userdata_current);
 
@@ -560,6 +564,7 @@ bool worker_iouring_process_op_send(
             iouring_userdata_current->fd,
             iouring_userdata_current->buffer,
             NETWORK_CHANNEL_PACKET_BUFFER_SIZE,
+            0,
             IOSQE_FIXED_FILE,
             (uintptr_t)iouring_userdata_current);
 
