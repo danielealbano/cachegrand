@@ -8,7 +8,7 @@
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_op_get.h"
 
-#include "../tests/test-support.h"
+#include "../tests/support.h"
 #include "../tests/fixtures-hashtable.h"
 
 #include "bench-support.h"

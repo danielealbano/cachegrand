@@ -14,7 +14,7 @@
 #include "fatal.h"
 #include "spinlock_ticket.h"
 
-LOG_PRODUCER_CREATE_LOCAL_DEFAULT("spinlock_ticket", spinlock_ticket)
+LOG_PRODUCER_CREATE_DEFAULT("spinlock_ticket", spinlock_ticket)
 
 static inline spinlock_ticket_number_t spinlock_ticket_acquire(
         spinlock_ticket_lock_volatile_t *spinlock_ticket)

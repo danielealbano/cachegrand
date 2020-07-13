@@ -11,6 +11,17 @@ extern "C" {
 #endif
 #endif
 
+/* gcc doesn't know _Thread_local from C11 yet */
+#ifdef __GNUC__
+# define thread_local __thread
+#elif __STDC_VERSION__ >= 201112L
+# define thread_local _Thread_local
+#elif defined(_MSC_VER)
+# define thread_local __declspec(thread)
+#else
+# error Cannot define thread_local
+#endif
+
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 
@@ -31,6 +42,11 @@ extern "C" {
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
+
+#define FUNCTION_STATIC(NAME, ...) \
+    static void NAME () { \
+        __VA_ARGS__ \
+    }
 
 #define FUNCTION_CTOR_DTOR(SECTION_TYPE, SECTION_TYPE_STR, NAME, FUNC_BODY) \
     static void concat(NAME, SECTION_TYPE) (){ \

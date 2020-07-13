@@ -1,0 +1,222 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdatomic.h>
+#include <malloc.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <sched.h>
+#include <pthread.h>
+#include <string.h>
+#include <strings.h>
+#include <unistd.h>
+#include <liburing.h>
+
+#include "utils_cpu.h"
+#include "exttypes.h"
+#include "misc.h"
+#include "xalloc.h"
+#include "log.h"
+#include "signal_handler_sigsegv.h"
+#include "memory_fences.h"
+#include "io_uring_support.h"
+#include "io_uring_supported.h"
+#include "network/channel/network_channel.h"
+#include "network/channel/network_channel_iouring.h"
+#include "worker/worker.h"
+#include "worker/worker_iouring.h"
+
+#include "program.h"
+
+LOG_PRODUCER_CREATE_DEFAULT("program", program)
+
+volatile bool program_terminate_event_loop = false;
+
+network_channel_address_t program_addresses[] = { PROGRAM_NETWORK_ADDRESSES };
+uint32_t program_addresses_count = PROGRAM_NETWORK_ADDRESSES_COUNT;
+
+int program_signals[] =         {  SIGUSR1,   SIGINT,   SIGHUP,   SIGTERM,   SIGQUIT  };
+char* program_signals_names[] = { "SIGUSR1", "SIGINT", "SIGHUP", "SIGTERM", "SIGQUIT" };
+uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
+
+void program_signal_handlers(
+        int sig) {
+    int found_sig_index = -1;
+    for(uint8_t i = 0; i < program_signals_count; i++) {
+        if (program_signals[i] == sig) {
+            found_sig_index = i;
+        }
+    }
+
+    if (found_sig_index == -1) {
+        LOG_V(
+                LOG_PRODUCER_DEFAULT,
+                "Received unmanaged signal <%d>, ignoring",
+                program_signals[found_sig_index]);
+        return;
+    }
+
+    LOG_V(
+            LOG_PRODUCER_DEFAULT,
+            "Received signal <%s (%d)>, requesting loop termination",
+            program_signals_names[found_sig_index],
+            program_signals[found_sig_index]);
+    program_request_terminate(&program_terminate_event_loop);
+}
+
+void program_register_signal_handlers() {
+    struct sigaction action;
+    action.sa_handler = program_signal_handlers;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = 0;
+
+    signal_handler_sigsegv_init();
+    signal(SIGCHLD, SIG_IGN);
+
+    for(uint8_t i = 0; i < program_signals_count; i++) {
+        if (sigaction(program_signals[i], &action, NULL) < 0) {
+            LOG_E(
+                    LOG_PRODUCER_DEFAULT,
+                    "Unable to set the handler for <%s (%d)>",
+                    program_signals_names[i],
+                    program_signals[i]);
+            LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        }
+    }
+}
+
+worker_user_data_t* program_workers_initialize(
+        volatile bool *terminate_event_loop,
+        pthread_attr_t *attr,
+        uint32_t workers_count) {
+    int res;
+    worker_user_data_t *workers_user_data;
+
+    // TODO: implement a thread manager
+    res = pthread_attr_init(attr);
+    if (res != 0) {
+        LOG_E(LOG_PRODUCER_DEFAULT, "Unable to start initialize the thread attributes");
+        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        return NULL;
+    }
+
+    workers_user_data = xalloc_alloc_zero(sizeof(worker_user_data_t) * workers_count);
+
+    for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
+        worker_user_data_t *worker_user_data = &workers_user_data[worker_index];
+
+        worker_setup_user_data(
+                worker_user_data,
+                worker_index,
+                terminate_event_loop,
+                PROGRAM_NETWORK_MAX_CONNECTIONS_PER_WORKER,
+                PROGRAM_NETWORK_CONNECTIONS_BACKLOG,
+                program_addresses,
+                program_addresses_count);
+
+        LOG_V(LOG_PRODUCER_DEFAULT, "Creating worker <%u>", worker_index);
+
+        // TODO: decide dynamically which kind of worker should start
+        if (pthread_create(
+                &worker_user_data->pthread,
+                attr,
+                worker_iouring_thread_func,
+                worker_user_data) != 0) {
+            LOG_E(LOG_PRODUCER_DEFAULT, "Unable to start the worker <%u>", worker_index);
+            LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        }
+    }
+
+    return workers_user_data;
+}
+
+bool* program_get_terminate_event_loop() {
+    return &program_terminate_event_loop;
+}
+
+void program_request_terminate(
+        volatile bool *terminate_event_loop) {
+    *terminate_event_loop = true;
+    HASHTABLE_MEMORY_FENCE_STORE();
+}
+
+bool program_should_terminate(
+        volatile bool *terminate_event_loop) {
+    HASHTABLE_MEMORY_FENCE_LOAD();
+    return *terminate_event_loop;
+}
+
+void program_wait_loop(
+        volatile bool *terminate_event_loop) {
+    LOG_V(LOG_PRODUCER_DEFAULT, "Program loop started");
+
+    // Wait for the software to terminate
+    do {
+        usleep(WORKER_LOOP_MAX_WAIT_TIME_MS * 1000);
+    } while(!program_should_terminate(terminate_event_loop));
+
+    LOG_V(LOG_PRODUCER_DEFAULT, "Program loop terminated");
+}
+
+void program_workers_cleanup(
+        worker_user_data_t* workers_user_data,
+        uint32_t workers_count) {
+    int res;
+    LOG_V(LOG_PRODUCER_DEFAULT, "Cleaning up workers");
+
+    for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
+        LOG_V(LOG_PRODUCER_DEFAULT, "Waiting for worker <%lu> to terminate", worker_index);
+        res = pthread_join(workers_user_data[worker_index].pthread, NULL);
+        if (res != 0) {
+            LOG_E(LOG_PRODUCER_DEFAULT, "Error while joining the worker <%u>", worker_index);
+            LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        } else {
+            LOG_V(LOG_PRODUCER_DEFAULT, "Worker terminated", worker_index);
+        }
+    }
+
+    xalloc_free(workers_user_data);
+}
+
+int program_main() {
+    uint32_t workers_count;
+    worker_user_data_t* workers_user_data;
+    pthread_attr_t attr = {0};
+
+    // TODO: refactor this function to make it actually testable
+    // TODO: load the config
+    // TODO: initialize the log sinks
+    // TODO: initialize the hashtable(s) (with or without LRU, when the support will be added)
+    // TODO: initialize the storage
+    // TODO: initialize the protocol parsers
+    // TODO: initialize the network listeners and the protocol state machines
+    // TODO: start the worker threads and invoke the worker thread main func
+
+    if (io_uring_supported() == false) {
+        LOG_E(LOG_PRODUCER_DEFAULT, "io_uring isn't supported, update the kernel to at least version 5.7.0 and enable io_uring");
+        return 1;
+    }
+
+    program_register_signal_handlers();
+
+    // TODO: should be possible to pinpoint in the config which cores can be utilized, very handy for benchmarking in
+    //       in combination with the isolcpus kernel init parameter
+    workers_count = utils_cpu_count();
+
+    if ((workers_user_data = program_workers_initialize(
+            &program_terminate_event_loop,
+            &attr,
+            workers_count)) == NULL) {
+        return 1;
+    }
+
+    program_wait_loop(&program_terminate_event_loop);
+
+    program_workers_cleanup(
+            workers_user_data,
+            workers_count);
+
+    return 0;
+}

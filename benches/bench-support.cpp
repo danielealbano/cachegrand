@@ -6,19 +6,19 @@
 #include "stdint.h"
 #include "exttypes.h"
 #include "spinlock.h"
-#include "cpu.h"
+#include "utils_cpu.h"
 #include "misc.h"
 #include "log.h"
 
 #include "hashtable/hashtable.h"
 
 #include "bench-support.h"
-#include "test-support.h"
+#include "support.h"
 
 const char* tag = "bench/support";
 
 bool bench_support_check_if_too_many_threads_per_core(int threads, int max_threads_per_core) {
-    return (threads / psnip_cpu_count()) > max_threads_per_core;
+    return (threads / utils_cpu_count()) > max_threads_per_core;
 }
 
 void bench_support_collect_hashtable_stats(

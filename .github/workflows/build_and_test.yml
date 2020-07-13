@@ -8,6 +8,7 @@ on:
 
 env:
   BUILD_TYPE: Debug
+  LIBURING_COMMIT_ID: 20a7c0108734f01264fb4edadefe7bc96ac58855
 
 jobs:
   build:
@@ -19,7 +20,7 @@ jobs:
         config:
         - {
             name: "Ubuntu Latest",
-            os: ubuntu-latest,
+            os: [self-hosted, linux, X64],
             triplet: x64-linux,
             cc: "gcc",
             cxx: "g++"
@@ -55,7 +56,7 @@ jobs:
     - name: Code Coverage - Generation
       uses: danielealbano/lcov-action@v1
       with:
-        remove_patterns: 3rdparty,tests
+        remove_patterns: 3rdparty,tests,build/_deps
 
     - name: Code Coverage - Upload to codecov.io
       shell: bash

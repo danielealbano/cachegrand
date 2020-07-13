@@ -11,7 +11,7 @@
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_support_hash_search.h"
 
-#include "../tests/test-support.h"
+#include "../tests/support.h"
 
 #include "bench-support.h"
 

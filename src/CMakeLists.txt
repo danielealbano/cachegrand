@@ -105,23 +105,27 @@ add_library(
 
 add_dependencies(
         cachegrand-internal
-        __internal_refresh_cmake_config
-        t1ha)
+        __internal_refresh_cmake_config t1ha uring)
+
+target_compile_options(
+        cachegrand-internal
+        PUBLIC
+        -include cmake_config.h)
+
+target_link_directories(
+        cachegrand-internal
+        PUBLIC
+        ${DEPS_LIST_LIBRARY_DIRS})
 
 target_link_libraries(
         cachegrand-internal
         PUBLIC
-        "${DEPS_LIST_LIBRARIES_DIRS}")
-
-target_link_libraries(
-        cachegrand-internal
-        PUBLIC
-        t1ha "${DEPS_LIST_LIBRARIES}")
+        ${DEPS_LIST_LIBRARIES})
 
 target_include_directories(
         cachegrand-internal
         PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR} ${DEPS_LIST_INCLUDE_DIRS})
+        "${CMAKE_CURRENT_SOURCE_DIR}" ${DEPS_LIST_INCLUDE_DIRS})
 
 if(ARCH_IS_X86_64)
     # Force GCC to emit cmpxchg16b inline (supported only on x86_64 platforms)

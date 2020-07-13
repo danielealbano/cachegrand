@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <string.h>
 
 #if defined(__APPLE__) || defined(__linux__)
 #include <sys/mman.h>
@@ -12,7 +13,7 @@
 #include "misc.h"
 #include "fatal.h"
 
-LOG_PRODUCER_CREATE_LOCAL_DEFAULT("xalloc", xalloc)
+LOG_PRODUCER_CREATE_DEFAULT("xalloc", xalloc)
 
 void* xalloc_alloc(size_t size) {
     void* memptr;
@@ -21,6 +22,17 @@ void* xalloc_alloc(size_t size) {
 
     if (memptr == NULL) {
         FATAL(LOG_PRODUCER_DEFAULT, "Unable to allocate the requested memory %d", size);
+    }
+
+    return memptr;
+}
+
+void* xalloc_alloc_zero(size_t size) {
+    void* memptr;
+
+    memptr = xalloc_alloc(size);
+    if (memset(memptr, 0, size) != memptr) {
+        FATAL(LOG_PRODUCER_DEFAULT, "Unable to zero the requested memory %d", size);
     }
 
     return memptr;
@@ -52,6 +64,17 @@ void* xalloc_alloc_aligned(size_t alignment, size_t size) {
 
     if (failed) {
         FATAL(LOG_PRODUCER_DEFAULT, "Unable to allocate the requested memory %d aligned to %d", size, alignment);
+    }
+
+    return memptr;
+}
+
+void* xalloc_alloc_aligned_zero(size_t alignment, size_t size) {
+    void* memptr;
+
+    memptr = xalloc_alloc_aligned(alignment, size);
+    if (memset(memptr, 0, size) != memptr) {
+        FATAL(LOG_PRODUCER_DEFAULT, "Unable to zero the requested memory %d", size);
     }
 
     return memptr;

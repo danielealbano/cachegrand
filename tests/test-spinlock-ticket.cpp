@@ -10,7 +10,7 @@ using namespace std;
 #include "exttypes.h"
 #include "memory_fences.h"
 #include "spinlock_ticket.h"
-#include "cpu.h"
+#include "utils_cpu.h"
 #include "log_debug.h"
 
 void* test_spinlock_ticket_lock_lock_retry_try_lock_thread_func(void* rawdata) {
@@ -137,12 +137,12 @@ TEST_CASE("spinlock_ticket.c", "[spinlock_ticket]") {
             pthread_attr_t attr;
             uint64_t increments_per_thread_sum = 0, increments_per_thread;
 
-            uint32_t cores_count = psnip_cpu_count();
-            uint32_t threads_count = cores_count * 2;
+            uint32_t cores_count = utils_cpu_count();
+            uint32_t threads_count = cores_count;
 
             // Magic numbers to run enough thread in parallel for 1-2s after the thread creation.
             // The test can be quite time consuming when with an attached debugger.
-            increments_per_thread = (uint64_t)(100 /  ((float)threads_count / 24.0));
+            increments_per_thread = (uint64_t)(50 /  ((float)threads_count / 24.0));
 
             REQUIRE(pthread_attr_init(&attr) == 0);
 

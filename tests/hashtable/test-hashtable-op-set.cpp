@@ -1,4 +1,4 @@
-#include "catch.hpp"
+#include "../catch.hpp"
 
 #include <string.h>
 
@@ -12,7 +12,7 @@
 #include "hashtable/hashtable_support_index.h"
 #include "hashtable/hashtable_op_set.h"
 
-#include "test-support.h"
+#include "../support.h"
 #include "fixtures-hashtable.h"
 
 TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
@@ -225,7 +225,6 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                                 hashtable->ht_current->buckets_count,
                                 test_key_same_bucket[0].key_hash));
 
-                LOG_DI("chunk_index_base = %lu", chunk_index_base);
                 for(uint32_t i = 0; i < slots_to_fill; i++) {
                     hashtable_chunk_index_t chunk_index =
                             chunk_index_base + (int)(i / HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT);
@@ -238,11 +237,6 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                     hashtable_key_value_volatile_t *key_value =
                             &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
 
-                    LOG_DI("chunk_index = %lu", chunk_index);
-                    LOG_DI("chunk_slot_index = %lu", chunk_slot_index);
-                    LOG_DI("slot_id_wrapper.filled = %lu", half_hashes_chunk->half_hashes[chunk_slot_index].filled);
-                    LOG_DI("slot_id_wrapper.distance = %lu", half_hashes_chunk->half_hashes[chunk_slot_index].distance);
-                    LOG_DI("slot_id_wrapper.quarter_hash = %lu", half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash);
                     REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
                     REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].distance == chunk_index - chunk_index_base);
                     REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_same_bucket[i].key_hash_quarter);

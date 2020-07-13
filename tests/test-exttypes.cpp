@@ -18,4 +18,8 @@ TEST_CASE("exttypes.h", "[exttypes]") {
     SECTION("sizeof(uint64_volatile_t) == 8") {
         REQUIRE(sizeof(uint64_volatile_t) == 8);
     }
+
+    SECTION("sizeof(uint128_volatile_t) == 16") {
+        REQUIRE(sizeof(uint128_volatile_t) == 16);
+    }
 }

@@ -4,7 +4,7 @@ target_include_directories(catch2 INTERFACE ${CMAKE_BINARY_DIR}/3rdparty/catch2)
 add_library(catch2::catch ALIAS catch2)
 
 # Build tests
-file(GLOB SRC_CACHEGRAND_TESTS "test-*.cpp" "*.c")
+file(GLOB_RECURSE SRC_CACHEGRAND_TESTS "test-*.cpp" "*.c")
 add_executable(cachegrand-tests main.cpp ${SRC_CACHEGRAND_TESTS})
 
 target_compile_options(
