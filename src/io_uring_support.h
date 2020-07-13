@@ -28,6 +28,7 @@ bool io_uring_support_probe_opcode(
 char* io_uring_support_features_str(
         char* buffer,
         size_t buffer_size);
+
 io_uring_sqe_t* io_uring_support_get_sqe(
         io_uring_t *ring);
 void io_uring_support_cq_advance(
@@ -37,30 +38,35 @@ bool io_uring_support_sqe_enqueue_timeout(
         io_uring_t *ring,
         uint64_t count,
         struct __kernel_timespec *ts,
+        uint8_t flags,
         uint64_t user_data);
 bool io_uring_support_sqe_enqueue_accept(
         io_uring_t *ring,
         int fd,
         struct sockaddr *socket_address,
         socklen_t *socket_address_size,
-        unsigned flags,
+        uint8_t flags,
         uint64_t user_data);
 bool io_uring_support_sqe_enqueue_recv(
         io_uring_t *ring,
         int fd,
         void *buffer,
         size_t buffer_size,
+        uint8_t flags,
         uint64_t user_data);
 bool io_uring_support_sqe_enqueue_send(
         io_uring_t *ring,
         int fd,
         void *buffer,
         size_t buffer_size,
+        uint8_t flags,
         uint64_t user_data);
 bool io_uring_support_sqe_enqueue_close(
         io_uring_t *ring,
         int fd,
+        uint8_t flags,
         uint64_t user_data);
+
 bool io_uring_support_sqe_submit(
         io_uring_t *ring);
 bool io_uring_support_sqe_submit_and_wait(
