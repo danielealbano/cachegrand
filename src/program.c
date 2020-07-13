@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdatomic.h>
 #include <malloc.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -95,7 +96,6 @@ void program_wait_loop(
 
     // Wait for the software to terminate
     do {
-        HASHTABLE_MEMORY_FENCE_LOAD();
         sleep(1);
     } while(!program_should_terminate(terminate_event_loop));
 
