@@ -70,12 +70,11 @@ void io_uring_support_free(
 }
 
 bool io_uring_support_probe_opcode(
-        io_uring_t *io_uring,
         uint8_t opcode) {
     struct io_uring_probe *probe;
     bool res = true;
 
-    probe = io_uring_get_probe_ring(io_uring);
+    probe = io_uring_get_probe();
     if (!probe) {
         LOG_E(LOG_PRODUCER_DEFAULT, "Unable to allocate or fetch the supported io_uring opcodes");
         res = false;

@@ -23,7 +23,6 @@ io_uring_t* io_uring_support_init(
 void io_uring_support_free(
         io_uring_t *io_uring);
 bool io_uring_support_probe_opcode(
-        io_uring_t *io_uring,
         uint8_t opcode);
 char* io_uring_support_features_str(
         char* buffer,
