@@ -179,13 +179,16 @@ bool worker_iouring_process_op_accept(
             (char *)&iouring_userdata_new->address_str,
             sizeof(iouring_userdata_new->address_str));
 
-    io_uring_support_sqe_enqueue_accept(
+    if (io_uring_support_sqe_enqueue_accept(
             ring,
             iouring_userdata_current->fd,
             &iouring_userdata_current->new_socket_address.base,
             &iouring_userdata_current->address_size,
             0,
-            (uintptr_t)iouring_userdata_current);
+            (uintptr_t)iouring_userdata_current) == false) {
+        // TODO: handle failure in a more appropriate way (ie. the world has ended, let other worker know)
+        return false;
+    }
 
     // Because potentially network_channel_client_setup may fail, the address of new connection must be extracted and the
     // accept operation on the lister must be enqueue-ed. If the operation fails the newly created iouring_userdata_new
@@ -215,14 +218,12 @@ bool worker_iouring_process_op_accept(
             iouring_userdata_current->address_str,
             iouring_userdata_new->address_str);
 
-    io_uring_support_sqe_enqueue_recv(
+    return io_uring_support_sqe_enqueue_recv(
             ring,
             iouring_userdata_new->fd,
             iouring_userdata_new->buffer,
             NETWORK_CHANNEL_PACKET_BUFFER_SIZE,
             (uintptr_t)iouring_userdata_new);
-
-    return true;
 }
 
 bool worker_iouring_process_op_recv(
@@ -252,12 +253,14 @@ bool worker_iouring_process_op_recv(
     int len = snprintf(iouring_userdata_current->buffer, NETWORK_CHANNEL_PACKET_BUFFER_SIZE, "+PONG\r\n");
 
     iouring_userdata_current->op = NETWORK_IO_IOURING_OP_SEND;
+
+    // TODO: handle errors (ie. close the connection)
     io_uring_support_sqe_enqueue_send(
             ring,
             iouring_userdata_current->fd,
             iouring_userdata_current->buffer,
             len,
-            (uintptr_t) iouring_userdata_current);
+            (uintptr_t)iouring_userdata_current);
 
     stats->network.received_packets_total++;
     stats->network.received_packets_per_second++;
@@ -281,6 +284,8 @@ bool worker_iouring_process_op_send(
     }
 
     iouring_userdata_current->op = NETWORK_IO_IOURING_OP_RECV;
+
+    // TODO: handle errors (ie. close the connection)
     io_uring_support_sqe_enqueue_recv(
             ring,
             iouring_userdata_current->fd,
