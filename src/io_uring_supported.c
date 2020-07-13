@@ -2,11 +2,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <liburing.h>
 
 #include "misc.h"
 #include "log.h"
 #include "version.h"
 
+#include "io_uring_support.h"
 #include "io_uring_supported.h"
 
 const char* kallsyms_path = "/proc/kallsyms";
@@ -87,6 +89,10 @@ bool io_uring_supported() {
     }
 
     fclose(fd);
+
+    if (ret) {
+        ret = io_uring_support_probe_opcode(IORING_FEAT_FAST_POLL);
+    }
 
     return ret;
 }
