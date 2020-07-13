@@ -14,6 +14,7 @@
 #include "exttypes.h"
 #include "xalloc.h"
 #include "memory_fences.h"
+#include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "worker/worker.h"
 #include "program.h"
@@ -70,7 +71,7 @@ TEST_CASE("program.c", "[program]") {
 
         REQUIRE(pthread_create(&pthread_terminate, &attr, test_program_wait_loop_terminate, (void*)&terminate_event_loop) == 0);
 
-        sleep(2);
+        sleep(3);
 
         REQUIRE(pthread_kill(pthread_terminate, 0) == ESRCH);
         REQUIRE(pthread_kill(pthread_wait, 0) == ESRCH);
@@ -132,6 +133,55 @@ TEST_CASE("program.c", "[program]") {
         worker_pthread = worker_user_data->pthread;
 
         sleep(1);
+
+        terminate_event_loop = true;
+        HASHTABLE_MEMORY_FENCE_STORE();
+
+        // Wait for the thread to end
+        sleep(3);
+
+        program_workers_cleanup(
+                worker_user_data,
+                1);
+
+        REQUIRE(pthread_kill(worker_pthread, 0) == ESRCH);
+
+        REQUIRE(mprobe(worker_user_data) == -MCHECK_FREE);
+    }
+
+    SECTION("test redis ping/pong") {
+        pthread_t worker_pthread;
+        pthread_attr_t attr;
+        worker_user_data_t* worker_user_data;
+        struct sockaddr_in address = {0};
+        size_t buffer_send_data_len;
+        char buffer_send[64] = {0};
+        char buffer_recv[64] = {0};
+        volatile bool terminate_event_loop = false;
+
+        worker_user_data = program_workers_initialize(
+                &terminate_event_loop,
+                &attr,
+                1);
+
+        // Terminate running thread
+        worker_pthread = worker_user_data->pthread;
+
+        sleep(1);
+
+        int clientfd = network_io_common_socket_tcp4_new(0);
+
+        address.sin_family = AF_INET;
+        address.sin_port = htons(12345);
+        address.sin_addr.s_addr = inet_addr("127.0.0.1");
+        snprintf(buffer_send, sizeof(buffer_send) - 1, "PING\r\n");
+        buffer_send_data_len = strlen(buffer_send);
+
+        REQUIRE(connect(clientfd, (struct sockaddr*)&address, sizeof(address)) == 0);
+        REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+        REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 7);
+        REQUIRE(strncmp(buffer_recv, "+PONG\r\n", strlen("+PONG\r\n")) == 0);
+        REQUIRE(network_io_common_socket_close(clientfd, false));
 
         terminate_event_loop = true;
         HASHTABLE_MEMORY_FENCE_STORE();
