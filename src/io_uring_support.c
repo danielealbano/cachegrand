@@ -138,9 +138,10 @@ void io_uring_support_cq_advance(
     io_uring_cq_advance(ring, count);
 }
 
+// TODO: implement test
 bool io_uring_support_sqe_enqueue_timeout(
         io_uring_t *ring,
-        int fd,
+        uint64_t count,
         uint64_t sec,
         uint64_t nsec,
         uint64_t user_data) {
