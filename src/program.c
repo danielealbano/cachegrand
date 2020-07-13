@@ -41,7 +41,8 @@ int program_signals[] =         {  SIGUSR1,   SIGINT,   SIGHUP,   SIGTERM,   SIG
 char* program_signals_names[] = { "SIGUSR1", "SIGINT", "SIGHUP", "SIGTERM", "SIGQUIT" };
 uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
 
-void program_signal_handler_sigquit_handler(int sig) {
+void program_signal_handlers(
+        int sig) {
     int found_sig_index = -1;
     for(uint8_t i = 0; i < program_signals_count; i++) {
         if (program_signals[i] == sig) {
@@ -67,7 +68,7 @@ void program_signal_handler_sigquit_handler(int sig) {
 
 void program_register_signal_handlers() {
     struct sigaction action;
-    action.sa_handler = program_signal_handler_sigquit_handler;
+    action.sa_handler = program_signal_handlers;
     sigemptyset(&action.sa_mask);
     action.sa_flags = 0;
 

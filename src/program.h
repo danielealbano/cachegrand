@@ -13,6 +13,10 @@ extern "C" {
 #define PROGRAM_NETWORK_ADDRESSES_COUNT \
         (sizeof(((network_channel_address_t[]){ PROGRAM_NETWORK_ADDRESSES })) / sizeof(network_channel_address_t))
 
+void program_signal_handlers(
+        int sig);
+void program_register_signal_handlers();
+
 worker_user_data_t* program_workers_initialize(
         volatile bool *terminate_event_loop,
         pthread_attr_t *attr,
