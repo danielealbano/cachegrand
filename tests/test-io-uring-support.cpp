@@ -71,21 +71,11 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
 
     SECTION("io_uring_support_probe_opcode") {
         SECTION("valid opcode") {
-            io_uring_t *ring = io_uring_support_init(10, NULL, NULL);
-
-            REQUIRE(ring != NULL);
-            REQUIRE(io_uring_support_probe_opcode(ring, IORING_OP_READV));
-
-            io_uring_support_free(ring);
+            REQUIRE(io_uring_support_probe_opcode(IORING_OP_READV));
         }
 
         SECTION("invalid opcode") {
-            io_uring_t *ring = io_uring_support_init(10, NULL, NULL);
-
-            REQUIRE(ring != NULL);
-            REQUIRE(!io_uring_support_probe_opcode(ring, IORING_OP_LAST));
-
-            io_uring_support_free(ring);
+            REQUIRE(!io_uring_support_probe_opcode(IORING_OP_LAST));
         }
     }
 
@@ -177,7 +167,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
 
         SECTION("enqueue accept on valid socket ipv4") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe;
+            io_uring_cqe_t *cqe = NULL;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_address = {0};
             socklen_t client_address_len = 0;
@@ -202,12 +192,14 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
                     fd,
                     (sockaddr *)&client_address,
                     &client_address_len,
-                    SOCK_NONBLOCK,
+                    0,
+                    0,
                     1234));
 
             io_uring_support_sqe_submit(ring);
 
             io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res == -EAGAIN);
             REQUIRE(cqe->user_data == 1234);
@@ -220,7 +212,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
 
         SECTION("enqueue accept on invalid socket fd") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe;
+            io_uring_cqe_t *cqe = NULL;
             struct sockaddr_in client_address = {0};
             socklen_t client_address_len = 0;
 
@@ -234,11 +226,13 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
                     (sockaddr *)&client_address,
                     &client_address_len,
                     0,
+                    0,
                     1234);
 
             io_uring_support_sqe_submit(ring);
 
             io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res == -EBADF);
             REQUIRE(cqe->user_data == 1234);
@@ -249,7 +243,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
 
         SECTION("enqueue accept and accept connection ipv4") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe;
+            io_uring_cqe_t *cqe = NULL;
             int clientfd, serverfd, acceptedfd;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_accept_address = {0};
@@ -281,6 +275,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
                     (sockaddr *)&client_accept_address,
                     &client_address_len,
                     0,
+                    0,
                     1234));
 
             // Submit first the sqe and then performs a blocking connection (shouldn't block unless there is a problem)
@@ -288,6 +283,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
             REQUIRE(connect(clientfd, (struct sockaddr*)&client_connect_address, sizeof(client_connect_address)) == 0);
 
             io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res > 0);
             REQUIRE(cqe->user_data == 1234);
@@ -307,7 +303,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
 
         SECTION("enqueue accept fail too many sqe") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe;
+            io_uring_cqe_t *cqe = NULL;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_address = {0};
             socklen_t client_address_len = 0;
@@ -335,7 +331,8 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
                     fd,
                     (sockaddr *)&client_address,
                     &client_address_len,
-                    SOCK_NONBLOCK,
+                    0,
+                    0,
                     1234));
 
             io_uring_support_free(ring);
@@ -387,6 +384,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
                     (sockaddr *)&client_accept_address,
                     &client_address_len,
                     0,
+                    0,
                     1234));
 
             // Submit first the sqe and then performs a blocking connection (shouldn't block unless there is a problem)
@@ -394,6 +392,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
             REQUIRE(connect(clientfd, (struct sockaddr*)&client_connect_address, sizeof(client_connect_address)) == 0);
 
             io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res > 0);
             REQUIRE(cqe->user_data == 1234);
@@ -407,6 +406,8 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
                     acceptedfd,
                     &buffer_recv,
                     sizeof(buffer_recv),
+                    0,
+                    0,
                     4321));
             io_uring_support_sqe_submit(ring);
 
@@ -416,7 +417,9 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
 
+            cqe = NULL;
             io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res == buffer_send_data_len);
             REQUIRE(cqe->user_data == 4321);
@@ -434,7 +437,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
 
         SECTION("close socket") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe;
+            io_uring_cqe_t *cqe = NULL;
             int clientfd, serverfd, acceptedfd;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_accept_address = {0};
@@ -467,6 +470,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
                     (sockaddr *)&client_accept_address,
                     &client_address_len,
                     0,
+                    0,
                     1234));
 
             // Submit first the sqe and then performs a blocking connection (shouldn't block unless there is a problem)
@@ -474,6 +478,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
             REQUIRE(connect(clientfd, (struct sockaddr*)&client_connect_address, sizeof(client_connect_address)) == 0);
 
             io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res > 0);
             REQUIRE(cqe->user_data == 1234);
@@ -487,12 +492,16 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
                     acceptedfd,
                     &buffer_recv,
                     sizeof(buffer_recv),
+                    0,
+                    0,
                     4321));
             io_uring_support_sqe_submit(ring);
 
             REQUIRE(network_io_common_socket_close(clientfd, false));
 
+            cqe = NULL;
             io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res == 0);
             REQUIRE(cqe->user_data == 4321);
@@ -508,7 +517,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
 
         SECTION("enqueue recv fail too many sqe") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe;
+            io_uring_cqe_t *cqe = NULL;
             char buffer_recv[64] = {0};
             ring = io_uring_support_init(10, NULL, NULL);
 
@@ -526,6 +535,8 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
                     fd,
                     &buffer_recv,
                     sizeof(buffer_recv),
+                    0,
+                    0,
                     4321));
 
             io_uring_support_free(ring);
@@ -540,7 +551,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
 
         SECTION("send message") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe;
+            io_uring_cqe_t *cqe = NULL;
             int clientfd, serverfd, acceptedfd;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_accept_address = {0};
@@ -575,6 +586,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
                     (sockaddr *)&client_accept_address,
                     &client_address_len,
                     0,
+                    0,
                     1234));
 
             // Submit first the sqe and then performs a blocking connection (shouldn't block unless there is a problem)
@@ -582,6 +594,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
             REQUIRE(connect(clientfd, (struct sockaddr*)&client_connect_address, sizeof(client_connect_address)) == 0);
 
             io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res > 0);
             REQUIRE(cqe->user_data == 1234);
@@ -598,10 +611,14 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
                     acceptedfd,
                     &buffer_send,
                     buffer_send_data_len,
+                    0,
+                    0,
                     4321));
             io_uring_support_sqe_submit(ring);
 
+            cqe = NULL;
             io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res == buffer_send_data_len);
             REQUIRE(cqe->user_data == 4321);
@@ -622,7 +639,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
 
         SECTION("enqueue send fail too many sqe") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe;
+            io_uring_cqe_t *cqe = NULL;
             char buffer_recv[64] = {0};
             ring = io_uring_support_init(10, NULL, NULL);
 
@@ -640,6 +657,8 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
                     fd,
                     &buffer_recv,
                     sizeof(buffer_recv),
+                    0,
+                    0,
                     4321));
 
             io_uring_support_free(ring);
@@ -654,7 +673,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
 
         SECTION("open and close socket") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe;
+            io_uring_cqe_t *cqe = NULL;
             int clientfd, serverfd, acceptedfd;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_accept_address = {0};
@@ -689,6 +708,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
                     (sockaddr *)&client_accept_address,
                     &client_address_len,
                     0,
+                    0,
                     1234));
 
             // Submit first the sqe and then performs a blocking connection (shouldn't block unless there is a problem)
@@ -696,6 +716,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
             REQUIRE(connect(clientfd, (struct sockaddr*)&client_connect_address, sizeof(client_connect_address)) == 0);
 
             io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res > 0);
             REQUIRE(cqe->user_data == 1234);
@@ -707,10 +728,13 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
             REQUIRE(io_uring_support_sqe_enqueue_close(
                     ring,
                     acceptedfd,
+                    0,
                     4321));
             io_uring_support_sqe_submit(ring);
 
+            cqe = NULL;
             io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->user_data == 4321);
             io_uring_cqe_seen(ring, cqe);
@@ -740,6 +764,7 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
             REQUIRE(!io_uring_support_sqe_enqueue_close(
                     ring,
                     fd,
+                    0,
                     4321));
 
             io_uring_support_free(ring);
