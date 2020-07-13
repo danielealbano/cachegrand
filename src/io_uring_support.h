@@ -36,8 +36,7 @@ void io_uring_support_cq_advance(
 bool io_uring_support_sqe_enqueue_timeout(
         io_uring_t *ring,
         uint64_t count,
-        uint64_t sec,
-        uint64_t nsec,
+        struct __kernel_timespec *ts,
         uint64_t user_data);
 bool io_uring_support_sqe_enqueue_accept(
         io_uring_t *ring,
