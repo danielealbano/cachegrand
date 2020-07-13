@@ -22,10 +22,6 @@ void worker_iouring_listeners_enqueue(
         io_uring_t *ring,
         network_channel_listener_new_callback_user_data_t *create_listener_user_data);
 
-void worker_iouring_enqueue_timeout(
-        io_uring_t* ring,
-        network_channel_iouring_entry_user_data_t *iouring_userdata_timeout);
-
 bool worker_iouring_cqe_is_error_any(
         io_uring_cqe_t *cqe);
 bool worker_iouring_cqe_is_error(
@@ -34,6 +30,11 @@ void worker_iouring_cqe_report_error(
         worker_user_data_t *worker_user_data,
         io_uring_cqe_t *cqe);
 
+bool worker_iouring_process_op_timeout(
+        worker_user_data_t *worker_user_data,
+        worker_stats_t* stats,
+        io_uring_t* ring,
+        io_uring_cqe_t *cqe);
 bool worker_iouring_process_op_accept(
         worker_user_data_t *worker_user_data,
         worker_stats_t* stats,
