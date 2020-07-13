@@ -96,4 +96,33 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
         REQUIRE(worker_user_data.addresses_count == 1);
         REQUIRE(worker_user_data.addresses == addresses);
     }
+
+    SECTION("worker_request_terminate") {
+        volatile bool terminate_event_loop = false;
+        worker_user_data_t worker_user_data = {0};
+        worker_user_data.terminate_event_loop = &terminate_event_loop;
+
+        worker_request_terminate(&worker_user_data);
+
+        REQUIRE(terminate_event_loop);
+        REQUIRE(*worker_user_data.terminate_event_loop);
+    }
+
+    SECTION("worker_should_terminate") {
+        SECTION("should") {
+            volatile bool terminate_event_loop = true;
+            worker_user_data_t worker_user_data = {0};
+            worker_user_data.terminate_event_loop = &terminate_event_loop;
+
+            REQUIRE(worker_should_terminate(&worker_user_data));
+        }
+
+        SECTION("should not") {
+            volatile bool terminate_event_loop = false;
+            worker_user_data_t worker_user_data = {0};
+            worker_user_data.terminate_event_loop = &terminate_event_loop;
+
+            REQUIRE(!worker_should_terminate(&worker_user_data));
+        }
+    }
 }

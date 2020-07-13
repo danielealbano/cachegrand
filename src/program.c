@@ -78,13 +78,24 @@ worker_user_data_t* program_workers_initialize(
     return workers_user_data;
 }
 
+void program_request_terminate(
+        volatile bool *terminate_event_loop) {
+    bool val = true;
+    atomic_store(terminate_event_loop, val);
+}
+
+bool program_should_terminate(
+        volatile bool *terminate_event_loop) {
+    return atomic_load(terminate_event_loop);
+}
+
 void program_wait_loop(
         volatile bool *terminate_event_loop) {
     // Wait for the software to terminate
     do {
         HASHTABLE_MEMORY_FENCE_LOAD();
         sleep(1);
-    } while(*terminate_event_loop == false);
+    } while(!program_should_terminate(terminate_event_loop));
 }
 
 void program_workers_cleanup(

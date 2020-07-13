@@ -55,6 +55,11 @@ void worker_setup_user_data(
         network_channel_address_t* addresses,
         uint32_t addresses_count);
 
+bool worker_should_terminate(
+        worker_user_data_t *worker_user_data);
+void worker_request_terminate(
+        worker_user_data_t *worker_user_data);
+
 #ifdef __cplusplus
 }
 #endif

@@ -153,8 +153,7 @@ bool worker_iouring_process_op_accept(
                 LOG_PRODUCER_DEFAULT,
                 "Error while waiting for connections on listener <%s>",
                 "TODO");
-        *worker_user_data->terminate_event_loop = true;
-        HASHTABLE_MEMORY_FENCE_STORE();
+        worker_request_terminate(worker_user_data);
 
         return false;
     }
@@ -341,8 +340,7 @@ void worker_iouring_thread_process_ops_loop(
                         "Unknown operation <%u> on <%s>",
                         iouring_userdata_current->op,
                         iouring_userdata_current->address_str);
-                *worker_user_data->terminate_event_loop = true;
-                HASHTABLE_MEMORY_FENCE_STORE();
+                worker_request_terminate(worker_user_data);
                 break;
             }
         }
@@ -355,8 +353,7 @@ void worker_iouring_thread_process_ops_loop(
                     &worker_user_data->stats);
         }
 
-        HASHTABLE_MEMORY_FENCE_LOAD();
-    } while(*worker_user_data->terminate_event_loop == false);
+    } while(worker_should_terminate(worker_user_data));
 }
 
 void worker_iouring_cleanup(

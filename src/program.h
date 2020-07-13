@@ -17,8 +17,14 @@ worker_user_data_t* program_workers_initialize(
         volatile bool *terminate_event_loop,
         pthread_attr_t *attr,
         uint32_t workers_count);
+
+void program_request_terminate(
+        volatile bool *terminate_event_loop);
+bool program_should_terminate(
+        volatile bool *terminate_event_loop);
 void program_wait_loop(
         volatile bool *terminate_event_loop);
+
 void program_workers_cleanup(
         worker_user_data_t* workers_user_data,
         uint32_t workers_count);

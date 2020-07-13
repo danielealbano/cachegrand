@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdatomic.h>
 #include <string.h>
 #include <time.h>
 #include <arpa/inet.h>
@@ -10,6 +11,7 @@
 #include "exttypes.h"
 #include "misc.h"
 #include "xalloc.h"
+#include "memory_fences.h"
 #include "log.h"
 #include "network/channel/network_channel.h"
 
@@ -75,4 +77,15 @@ void worker_setup_user_data(
     worker_user_data->backlog = backlog;
     worker_user_data->addresses_count = addresses_count;
     worker_user_data->addresses = (network_channel_address_t*)addresses;
+}
+
+bool worker_should_terminate(
+        worker_user_data_t *worker_user_data) {
+    return atomic_load(worker_user_data->terminate_event_loop);
+}
+
+void worker_request_terminate(
+        worker_user_data_t *worker_user_data) {
+    bool val = true;
+    atomic_store(worker_user_data->terminate_event_loop, val);
 }
