@@ -19,6 +19,7 @@
 #include "misc.h"
 #include "xalloc.h"
 #include "log.h"
+#include "signal_handler_sigsegv.h"
 #include "memory_fences.h"
 #include "io_uring_support.h"
 #include "io_uring_supported.h"
@@ -31,8 +32,59 @@
 
 LOG_PRODUCER_CREATE_DEFAULT("program", program)
 
-network_channel_address_t addresses[] = { PROGRAM_NETWORK_ADDRESSES };
-uint32_t addresses_count = PROGRAM_NETWORK_ADDRESSES_COUNT;
+volatile bool program_terminate_event_loop = false;
+
+network_channel_address_t program_addresses[] = { PROGRAM_NETWORK_ADDRESSES };
+uint32_t program_addresses_count = PROGRAM_NETWORK_ADDRESSES_COUNT;
+
+int program_signals[] =         {  SIGUSR1,   SIGINT,   SIGHUP,   SIGTERM,   SIGQUIT  };
+char* program_signals_names[] = { "SIGUSR1", "SIGINT", "SIGHUP", "SIGTERM", "SIGQUIT" };
+uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
+
+void program_signal_handler_sigquit_handler(int sig) {
+    int found_sig_index = -1;
+    for(uint8_t i = 0; i < program_signals_count; i++) {
+        if (program_signals[i] == sig) {
+            found_sig_index = i;
+        }
+    }
+
+    if (found_sig_index == -1) {
+        LOG_V(
+                LOG_PRODUCER_DEFAULT,
+                "Received unmanaged signal <%d>, ignoring",
+                program_signals[found_sig_index]);
+        return;
+    }
+
+    LOG_V(
+            LOG_PRODUCER_DEFAULT,
+            "Received signal <%s (%d)>, requesting loop termination",
+            program_signals_names[found_sig_index],
+            program_signals[found_sig_index]);
+    program_request_terminate(&program_terminate_event_loop);
+}
+
+void program_register_signal_handlers() {
+    struct sigaction action;
+    action.sa_handler = program_signal_handler_sigquit_handler;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = 0;
+
+    signal_handler_sigsegv_init();
+    signal(SIGCHLD, SIG_IGN);
+
+    for(uint8_t i = 0; i < program_signals_count; i++) {
+        if (sigaction(program_signals[i], &action, NULL) < 0) {
+            LOG_E(
+                    LOG_PRODUCER_DEFAULT,
+                    "Unable to set the handler for <%s (%d)>",
+                    program_signals_names[i],
+                    program_signals[i]);
+            LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        }
+    }
+}
 
 worker_user_data_t* program_workers_initialize(
         volatile bool *terminate_event_loop,
@@ -60,8 +112,8 @@ worker_user_data_t* program_workers_initialize(
                 terminate_event_loop,
                 PROGRAM_NETWORK_MAX_CONNECTIONS_PER_WORKER,
                 PROGRAM_NETWORK_CONNECTIONS_BACKLOG,
-                addresses,
-                addresses_count);
+                program_addresses,
+                program_addresses_count);
 
         LOG_V(LOG_PRODUCER_DEFAULT, "Creating worker <%u>", worker_index);
 
@@ -127,7 +179,6 @@ int program_main() {
     uint32_t workers_count;
     worker_user_data_t* workers_user_data;
     pthread_attr_t attr = {0};
-    volatile bool terminate_event_loop = false;
 
     // TODO: refactor this function to make it actually testable
     // TODO: load the config
@@ -143,18 +194,20 @@ int program_main() {
         return 1;
     }
 
+    program_register_signal_handlers();
+
     // TODO: should be possible to pinpoint in the config which cores can be utilized, very handy for benchmarking in
     //       in combination with the isolcpus kernel init parameter
-    workers_count = utils_cpu_count();
+    workers_count = 1; //utils_cpu_count();
 
     if ((workers_user_data = program_workers_initialize(
-            &terminate_event_loop,
+            &program_terminate_event_loop,
             &attr,
             workers_count)) == NULL) {
         return 1;
     }
 
-    program_wait_loop(&terminate_event_loop);
+    program_wait_loop(&program_terminate_event_loop);
 
     program_workers_cleanup(
             workers_user_data,
