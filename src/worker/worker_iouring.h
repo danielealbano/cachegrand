@@ -5,6 +5,10 @@
 extern "C" {
 #endif
 
+enum {
+    WORKER_IOURING_OP_TIMEOUT_ENSURE_LOOP
+};
+
 uint32_t worker_thread_set_affinity(
         uint32_t worker_index);
 
@@ -30,7 +34,7 @@ void worker_iouring_cqe_report_error(
         worker_user_data_t *worker_user_data,
         io_uring_cqe_t *cqe);
 
-bool worker_iouring_process_op_timeout(
+bool worker_iouring_process_op_timeout_ensure_loop(
         worker_user_data_t *worker_user_data,
         worker_stats_t* stats,
         io_uring_t* ring,

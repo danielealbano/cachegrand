@@ -129,7 +129,7 @@ void worker_iouring_cqe_report_error(
             cqe->flags & 0xFFFFu);
 }
 
-bool worker_iouring_process_op_timeout(
+bool worker_iouring_process_op_timeout_ensure_loop(
         worker_user_data_t *worker_user_data,
         worker_stats_t* stats,
         io_uring_t* ring,
@@ -143,7 +143,7 @@ bool worker_iouring_process_op_timeout(
     };
 
     if (cqe == NULL) {
-        iouring_userdata_current = network_channel_iouring_entry_user_data_new(NETWORK_IO_IOURING_OP_TIMEOUT);
+        iouring_userdata_current = network_channel_iouring_entry_user_data_new(WORKER_IOURING_OP_TIMEOUT_ENSURE_LOOP);
     } else {
         iouring_userdata_current = (network_channel_iouring_entry_user_data_t *)cqe->user_data;
     }
@@ -311,7 +311,7 @@ void worker_iouring_thread_process_ops_loop(
         ) {
     network_channel_iouring_entry_user_data_t *iouring_userdata_current, *iouring_userdata_timeout;
 
-    worker_iouring_process_op_timeout(
+    worker_iouring_process_op_timeout_ensure_loop(
             worker_user_data,
             stats,
             ring,
@@ -332,8 +332,8 @@ void worker_iouring_thread_process_ops_loop(
 
             iouring_userdata_current = (network_channel_iouring_entry_user_data_t*)cqe->user_data;
 
-            if (iouring_userdata_current->op == NETWORK_IO_IOURING_OP_TIMEOUT) {
-                worker_iouring_process_op_timeout(
+            if (iouring_userdata_current->op == WORKER_IOURING_OP_TIMEOUT_ENSURE_LOOP) {
+                worker_iouring_process_op_timeout_ensure_loop(
                         worker_user_data,
                         stats,
                         ring,
