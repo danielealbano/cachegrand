@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <sched.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 
 #include "utils_cpu.h"
 #include "misc.h"
@@ -12,8 +14,12 @@
 
 LOG_PRODUCER_CREATE_DEFAULT("thread", thread)
 
+long thread_current_get_id() {
+    return syscall(SYS_gettid);
+}
+
 uint32_t thread_current_set_affinity(
-        int thread_index) {
+        uint32_t thread_index) {
     int res;
     cpu_set_t cpuset;
     pthread_t thread;
@@ -31,8 +37,13 @@ uint32_t thread_current_set_affinity(
     thread = pthread_self();
     res = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
     if (res != 0) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Unable to set current thread <%u> affinity to core <%u>", thread, logical_core_index);
+        LOG_E(
+                LOG_PRODUCER_DEFAULT,
+                "Unable to set current thread <%u> affinity to core <%u>",
+                thread_current_get_id(),
+                logical_core_index);
         LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        logical_core_index = 0;
     }
 
     return logical_core_index;

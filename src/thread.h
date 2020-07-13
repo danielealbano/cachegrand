@@ -5,8 +5,9 @@
 extern "C" {
 #endif
 
+long thread_current_get_id();
 uint32_t thread_current_set_affinity(
-        int thread_index);
+        uint32_t thread_index);
 
 #ifdef __cplusplus
 }
