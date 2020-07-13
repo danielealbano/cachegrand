@@ -39,39 +39,42 @@ bool io_uring_support_sqe_enqueue_files_update(
         int *fds,
         uint32_t fds_count,
         uint32_t offset,
-        uint8_t flags,
+        uint8_t sqe_flags,
         uint64_t user_data);
 bool io_uring_support_sqe_enqueue_timeout(
         io_uring_t *ring,
         uint64_t count,
         struct __kernel_timespec *ts,
-        uint8_t flags,
+        uint8_t sqe_flags,
         uint64_t user_data);
 bool io_uring_support_sqe_enqueue_accept(
         io_uring_t *ring,
         int fd,
         struct sockaddr *socket_address,
         socklen_t *socket_address_size,
-        uint8_t flags,
+        int op_flags,
+        uint8_t sqe_flags,
         uint64_t user_data);
 bool io_uring_support_sqe_enqueue_recv(
         io_uring_t *ring,
         int fd,
         void *buffer,
         size_t buffer_size,
-        uint8_t flags,
+        int op_flags,
+        uint8_t sqe_flags,
         uint64_t user_data);
 bool io_uring_support_sqe_enqueue_send(
         io_uring_t *ring,
         int fd,
         void *buffer,
         size_t buffer_size,
-        uint8_t flags,
+        int op_flags,
+        uint8_t sqe_flags,
         uint64_t user_data);
 bool io_uring_support_sqe_enqueue_close(
         io_uring_t *ring,
         int fd,
-        uint8_t flags,
+        uint8_t sqe_flags,
         uint64_t user_data);
 
 bool io_uring_support_sqe_submit(

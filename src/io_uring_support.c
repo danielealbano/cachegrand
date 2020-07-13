@@ -142,7 +142,7 @@ bool io_uring_support_sqe_enqueue_timeout(
         io_uring_t *ring,
         uint64_t count,
         struct __kernel_timespec *ts,
-        uint8_t flags,
+        uint8_t sqe_flags,
         uint64_t user_data) {
     io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
     if (sqe == NULL) {
@@ -150,7 +150,7 @@ bool io_uring_support_sqe_enqueue_timeout(
     }
 
     io_uring_prep_timeout(sqe, ts, count, 0);
-    io_uring_sqe_set_flags(sqe, flags);
+    io_uring_sqe_set_flags(sqe, sqe_flags);
     sqe->user_data = user_data;
 
     return true;
@@ -162,7 +162,7 @@ bool io_uring_support_sqe_enqueue_files_update(
         int *fds,
         uint32_t fds_count,
         uint32_t offset,
-        uint8_t flags,
+        uint8_t sqe_flags,
         uint64_t user_data) {
     io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
     if (sqe == NULL) {
@@ -170,7 +170,7 @@ bool io_uring_support_sqe_enqueue_files_update(
     }
 
     io_uring_prep_files_update(sqe, fds, fds_count, offset);
-    io_uring_sqe_set_flags(sqe, flags);
+    io_uring_sqe_set_flags(sqe, sqe_flags);
     sqe->user_data = user_data;
 
     return true;
@@ -181,15 +181,16 @@ bool io_uring_support_sqe_enqueue_accept(
         int fd,
         struct sockaddr *socket_address,
         socklen_t *socket_address_size,
-        uint8_t flags,
+        int op_flags,
+        uint8_t sqe_flags,
         uint64_t user_data) {
     io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
     if (sqe == NULL) {
         return false;
     }
 
-    io_uring_prep_accept(sqe, fd, socket_address, socket_address_size, 0);
-    io_uring_sqe_set_flags(sqe, flags);
+    io_uring_prep_accept(sqe, fd, socket_address, socket_address_size, op_flags);
+    io_uring_sqe_set_flags(sqe, sqe_flags);
     sqe->user_data = user_data;
 
     return true;
@@ -200,15 +201,16 @@ bool io_uring_support_sqe_enqueue_recv(
         int fd,
         void *buffer,
         size_t buffer_size,
-        uint8_t flags,
+        int op_flags,
+        uint8_t sqe_flags,
         uint64_t user_data) {
     io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
     if (sqe == NULL) {
         return false;
     }
 
-    io_uring_prep_recv(sqe, fd, buffer, buffer_size, 0);
-    io_uring_sqe_set_flags(sqe, flags);
+    io_uring_prep_recv(sqe, fd, buffer, buffer_size, op_flags);
+    io_uring_sqe_set_flags(sqe, sqe_flags);
     sqe->user_data = user_data;
 
     return true;
@@ -219,15 +221,16 @@ bool io_uring_support_sqe_enqueue_send(
         int fd,
         void *buffer,
         size_t buffer_size,
-        uint8_t flags,
+        int op_flags,
+        uint8_t sqe_flags,
         uint64_t user_data) {
     io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
     if (sqe == NULL) {
         return false;
     }
 
-    io_uring_prep_send(sqe, fd, buffer, buffer_size, 0);
-    io_uring_sqe_set_flags(sqe, flags);
+    io_uring_prep_send(sqe, fd, buffer, buffer_size, op_flags);
+    io_uring_sqe_set_flags(sqe, sqe_flags);
     sqe->user_data = user_data;
 
     return true;
@@ -236,7 +239,7 @@ bool io_uring_support_sqe_enqueue_send(
 bool io_uring_support_sqe_enqueue_close(
         io_uring_t *ring,
         int fd,
-        uint8_t flags,
+        uint8_t sqe_flags,
         uint64_t user_data) {
     io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
     if (sqe == NULL) {
@@ -244,7 +247,7 @@ bool io_uring_support_sqe_enqueue_close(
     }
 
     io_uring_prep_close(sqe, fd);
-    io_uring_sqe_set_flags(sqe, flags);
+    io_uring_sqe_set_flags(sqe, sqe_flags);
     sqe->user_data = user_data;
 
     return true;
