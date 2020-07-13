@@ -107,12 +107,11 @@ void program_workers_cleanup(
         worker_user_data_t* workers_user_data,
         uint32_t workers_count) {
     int res;
-    int ret;
     LOG_V(LOG_PRODUCER_DEFAULT, "Cleaning up workers");
 
     for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
         LOG_V(LOG_PRODUCER_DEFAULT, "Waiting for worker <%lu> to terminate", worker_index);
-        res = pthread_join(workers_user_data[worker_index].pthread, (void**)&ret);
+        res = pthread_join(workers_user_data[worker_index].pthread, NULL);
         if (res != 0) {
             LOG_E(LOG_PRODUCER_DEFAULT, "Error while joining the worker <%u>", worker_index);
             LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
