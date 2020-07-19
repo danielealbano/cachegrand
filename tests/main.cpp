@@ -1,12 +1,12 @@
 #define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
 
-#include "signal_handler_sigsegv.h"
+#include "signals_support.h"
 
 int main(int argc, char* argv[]) {
     Catch::Session session;
 
-    signal_handler_sigsegv_init();
+    signals_support_register_sigsegv_fatal_handler();
 
     int returnCode = session.applyCommandLine( argc, argv );
     if( returnCode != 0 ) {
