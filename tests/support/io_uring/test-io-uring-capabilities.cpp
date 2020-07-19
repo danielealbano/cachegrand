@@ -1,10 +1,10 @@
-#include "catch.hpp"
+#include "../../catch.hpp"
 
 #include <unistd.h>
 #include <string.h>
 #include <sys/mman.h>
 
-#include "io_uring_capabilities.h"
+#include "support/io_uring/io_uring_capabilities.h"
 
 TEST_CASE("io_uring_capabilities_is_supported.c", "[io_uring_capabilities_is_supported]") {
     SECTION("io_uring_capabilities_kallsyms_fetch_symbol_name") {

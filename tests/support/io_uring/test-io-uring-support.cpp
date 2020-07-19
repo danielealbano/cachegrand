@@ -1,4 +1,4 @@
-#include "catch.hpp"
+#include "../../catch.hpp"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -9,10 +9,10 @@
 #include <arpa/inet.h>
 #include <liburing.h>
 
-#include "io_uring_support.h"
+#include "support/io_uring/io_uring_support.h"
 #include "network/io/network_io_common.h"
 
-#include "network/network_tests_support.h"
+#include "../../network/network_tests_support.h"
 
 TEST_CASE("io_uring_support.c", "[io_uring_support]") {
     struct in_addr loopback_ipv4 = {0};
