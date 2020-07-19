@@ -67,6 +67,7 @@ io_uring_t* io_uring_support_init(
 void io_uring_support_free(
         io_uring_t *io_uring) {
     io_uring_queue_exit(io_uring);
+    xalloc_free(io_uring);
 }
 
 bool io_uring_support_probe_opcode(
@@ -137,7 +138,6 @@ void io_uring_support_cq_advance(
     io_uring_cq_advance(ring, count);
 }
 
-// TODO: implement test
 bool io_uring_support_sqe_enqueue_timeout(
         io_uring_t *ring,
         uint64_t count,
@@ -156,7 +156,22 @@ bool io_uring_support_sqe_enqueue_timeout(
     return true;
 }
 
-// WARNING: getting operation cancelled error when using it, currently not in use
+bool io_uring_support_sqe_enqueue_nop(
+        io_uring_t *ring,
+        uint8_t sqe_flags,
+        uint64_t user_data) {
+    io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
+    if (sqe == NULL) {
+        return false;
+    }
+
+    io_uring_prep_nop(sqe);
+    io_uring_sqe_set_flags(sqe, sqe_flags);
+    sqe->user_data = user_data;
+
+    return true;
+}
+
 bool io_uring_support_sqe_enqueue_files_update(
         io_uring_t *ring,
         int *fds,

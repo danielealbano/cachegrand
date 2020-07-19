@@ -1,4 +1,4 @@
-#include "catch.hpp"
+#include "../../catch.hpp"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -9,12 +9,12 @@
 #include <arpa/inet.h>
 #include <liburing.h>
 
-#include "io_uring_support.h"
+#include "support/io_uring/io_uring_support.h"
 #include "network/io/network_io_common.h"
 
-#include "network/network_tests_support.h"
+#include "../../network/network_tests_support.h"
 
-TEST_CASE("io_uring_support.c", "[io_uring_support]") {
+TEST_CASE("support/io_uring/io_uring_support.c", "[io_uring_support]") {
     struct in_addr loopback_ipv4 = {0};
     struct in_addr loopback_ipv6 = {0};
 
@@ -152,6 +152,101 @@ TEST_CASE("io_uring_support.c", "[io_uring_support]") {
                 count++;
             }
             REQUIRE(count == 1);
+
+            io_uring_support_cq_advance(ring, count);
+
+            io_uring_support_free(ring);
+        }
+    }
+
+    SECTION("io_uring_support_sqe_enqueue_nop") {
+        io_uring_t *ring;
+        io_uring_cqe_t *cqe = NULL;
+
+        ring = io_uring_support_init(10, NULL, NULL);
+
+        REQUIRE(ring != NULL);
+
+        REQUIRE(io_uring_support_sqe_enqueue_nop(
+                ring,
+                0,
+                1234));
+
+        io_uring_support_sqe_submit(ring);
+
+        io_uring_wait_cqe(ring, &cqe);
+        REQUIRE(cqe != NULL);
+        REQUIRE(cqe->flags == 0);
+        REQUIRE(cqe->res == 0);
+        REQUIRE(cqe->user_data == 1234);
+        io_uring_cqe_seen(ring, cqe);
+
+        io_uring_support_free(ring);
+    }
+
+    SECTION("io_uring_support_sqe_enqueue_timeout") {
+        SECTION("simple timer") {
+            io_uring_t *ring;
+            io_uring_cqe_t *cqe = NULL;
+
+            struct __kernel_timespec ts = { 1, 0 };
+
+            ring = io_uring_support_init(10, NULL, NULL);
+
+            REQUIRE(ring != NULL);
+
+            REQUIRE(io_uring_support_sqe_enqueue_timeout(
+                    ring,
+                    0,
+                    &ts,
+                    0,
+                    1234));
+
+            io_uring_support_sqe_submit(ring);
+
+            io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
+            REQUIRE(cqe->flags == 0);
+            REQUIRE(cqe->res == -ETIME);
+            REQUIRE(cqe->user_data == 1234);
+            io_uring_cqe_seen(ring, cqe);
+
+            io_uring_support_free(ring);
+        }
+
+        SECTION("no timeout if ops processed") {
+            io_uring_t *ring;
+            io_uring_cqe_t *cqe = NULL;
+            uint32_t head, count;
+
+            struct __kernel_timespec ts = { 1, 0 };
+
+            ring = io_uring_support_init(10, NULL, NULL);
+
+            REQUIRE(ring != NULL);
+
+            REQUIRE(io_uring_support_sqe_enqueue_timeout(
+                    ring,
+                    1,
+                    &ts,
+                    0,
+                    1234));
+            REQUIRE(io_uring_support_sqe_enqueue_nop(
+                    ring,
+                    0,
+                    1234));
+
+            io_uring_support_sqe_submit_and_wait(ring, 2);
+
+            count = 0;
+            io_uring_for_each_cqe(ring, head, cqe) {
+                REQUIRE(cqe->flags == 0);
+                REQUIRE(cqe->res == 0);
+                REQUIRE(cqe->user_data == 1234);
+                REQUIRE(count < 2);
+                count++;
+            }
+            REQUIRE(count == 2);
 
             io_uring_support_cq_advance(ring, count);
 
