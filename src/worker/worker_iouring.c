@@ -11,6 +11,7 @@
 #include "thread.h"
 #include "memory_fences.h"
 #include "io_uring_support.h"
+#include "io_uring_capabilities.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
@@ -27,35 +28,33 @@ static thread_local uint32_t fds_map_count = 0;
 static thread_local uint32_t fds_map_mask = 0;
 static thread_local uint32_t fds_map_last_free = 0;
 
-static thread_local network_channel_iouring_entry_user_data_t iouring_userdata_nop = {
-        -1,
-        NETWORK_IO_IOURING_OP_NOP
-};
+static thread_local bool op_files_update_link_support = false;
 
 bool worker_fds_map_files_update(
         io_uring_t *ring,
         uint32_t index,
         int fd) {
+
     bool ret;
 
     fds_map[index] = fd;
 
-    if (false) {
-        // TODO: not really working, keep getting an operation cancelled by io_uring when the ops are linked but it's
-        //       mandatory to chain ops otherwise it may be possible to perform an OP on an FD that hasn't been registered
-        //       yet
+    if (likely(op_files_update_link_support)) {
         // TODO: use slab allocator
         network_channel_iouring_entry_user_data_t *iouring_userdata_new = network_channel_iouring_entry_user_data_new_with_fd(
                 NETWORK_IO_IOURING_OP_FILES_UPDATE,
                 index);
 
-        ret = io_uring_support_sqe_enqueue_files_update(
-                ring,
-                fds_map,
-                1,
-                index,
-                IOSQE_IO_LINK,
-                (uintptr_t)iouring_userdata_new);
+        io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
+        if (sqe != NULL) {
+            io_uring_prep_files_update(sqe, &fds_map[index], 1, index);
+            io_uring_sqe_set_flags(sqe, IOSQE_IO_LINK);
+            sqe->user_data = (uintptr_t)iouring_userdata_new;
+
+            ret = true;
+        } else {
+            ret = false;
+        }
     } else {
         ret = io_uring_register_files_update(ring, index, &fds_map[index], 1) == 1;
     }
@@ -256,11 +255,11 @@ void worker_iouring_listeners_enqueue(
 
         if (io_uring_support_sqe_enqueue_accept(
                 ring,
-                iouring_user_data->fd,
+                listener->fd,
                 &iouring_user_data->new_socket_address.base,
                 &iouring_user_data->address_size,
                 0,
-                IOSQE_FIXED_FILE,
+                0,
                 (uintptr_t)iouring_user_data) == false) {
 
             // TODO: handle error
@@ -445,11 +444,11 @@ bool worker_iouring_process_op_accept(
 
     if (io_uring_support_sqe_enqueue_recv(
             ring,
-            iouring_userdata_new->fd,
+            new_fd,
             iouring_userdata_new->buffer,
             NETWORK_CHANNEL_PACKET_BUFFER_SIZE,
             0,
-            IOSQE_FIXED_FILE,
+            0,
             (uintptr_t)iouring_userdata_new) == false) {
         LOG_E(
                 LOG_PRODUCER_DEFAULT,
@@ -718,7 +717,14 @@ void* worker_iouring_thread_func(
             worker_user_data->addresses_count);
 
     if (ring != NULL) {
-        LOG_V(LOG_PRODUCER_DEFAULT, "Enqueing listeners");
+        LOG_I(LOG_PRODUCER_DEFAULT, "Checking if io_uring can link file updates ops");
+        if ((op_files_update_link_support = io_uring_capabilities_is_linked_op_files_update_supported())) {
+            LOG_I(LOG_PRODUCER_DEFAULT, "> linking supported");
+        } else {
+            LOG_W(LOG_PRODUCER_DEFAULT, "> linking not supported, accepting new connections will incur in a performance penalty");
+        }
+
+        LOG_I(LOG_PRODUCER_DEFAULT, "Enqueing listeners");
 
         worker_iouring_listeners_enqueue(
                 ring,
