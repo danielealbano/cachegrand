@@ -683,7 +683,7 @@ void* worker_iouring_thread_func(
     log_producer_local_init_worker_iouring();
     char* log_producer_early_prefix_thread = worker_log_producer_set_early_prefix_thread(worker_user_data);
 
-    LOG_V(LOG_PRODUCER_DEFAULT, "Worker starting");
+    LOG_I(LOG_PRODUCER_DEFAULT, "Worker starting");
 
     // TODO: The affinity has to be set by the caller
     worker_user_data->core_index = worker_thread_set_affinity(worker_user_data->worker_index);
@@ -691,7 +691,7 @@ void* worker_iouring_thread_func(
     // TODO: The listeners have to be initialized by the caller, each listener has to be paired up with a protocol parser
     //       and a protocol state machine and this code has to be shared across the different kind of workers (io_uring,
     //       epoll, iocp, kqueue/kevent, dpdk, etc.)
-    LOG_V(LOG_PRODUCER_DEFAULT, "Initializing listeners");
+    LOG_I(LOG_PRODUCER_DEFAULT, "Initializing listeners");
     listener_new_cb_user_data.backlog = worker_user_data->backlog;
     listener_new_cb_user_data.core_index = worker_user_data->core_index;
     worker_iouring_network_listeners_initialize(
@@ -728,20 +728,20 @@ void* worker_iouring_thread_func(
                 ring,
                 &listener_new_cb_user_data);
 
-        LOG_V(LOG_PRODUCER_DEFAULT, "Starting process ops loop");
+        LOG_I(LOG_PRODUCER_DEFAULT, "Starting events process loop");
 
         worker_iouring_thread_process_ops_loop(
                 worker_user_data,
                 &stats,
                 ring);
 
-        LOG_V(LOG_PRODUCER_DEFAULT, "Process ops loop ended, cleaning up worker");
+        LOG_I(LOG_PRODUCER_DEFAULT, "Process events loop ended, cleaning up worker");
 
         worker_iouring_cleanup(
                 &listener_new_cb_user_data,
                 ring);
 
-        LOG_V(LOG_PRODUCER_DEFAULT, "Tearing down worker");
+        LOG_I(LOG_PRODUCER_DEFAULT, "Tearing down worker");
     }
 
     log_producer_local_free_worker_iouring();
