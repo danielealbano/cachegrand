@@ -13,6 +13,7 @@ bool io_uring_capabilities_kallsyms_is_expected_symbol_name(
         char* buffer,
         size_t buffer_size);
 FILE* io_uring_capabilities_kallsyms_open();
+bool io_uring_capabilities_kallsyms_ensure_iouring_available();
 bool io_uring_capabilities_is_linked_op_files_update_supported();
 bool io_uring_capabilities_is_supported();
 

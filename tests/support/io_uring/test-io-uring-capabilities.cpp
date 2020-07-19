@@ -138,9 +138,17 @@ TEST_CASE("support/io_uring/io_uring_capabilities.c", "[io_uring_capabilities_is
         REQUIRE(ret == io_uring_capabilities_is_linked_op_files_update_supported());
     }
 
+    SECTION("io_uring_capabilities_kallsyms_ensure_iouring_available") {
+        // Currently dummy test to expose problems, io_uring is always expected to be supported because is the only
+        // I/O library currently implemented
+        io_uring_capabilities_kallsyms_ensure_iouring_available();
+        REQUIRE(true);
+    }
+
     SECTION("io_uring_capabilities_is_supported") {
         // Currently dummy test to expose problems, io_uring is always expected to be supported because is the only
         // I/O library currently implemented
-        REQUIRE(io_uring_capabilities_is_supported());
+        io_uring_capabilities_is_supported();
+        REQUIRE(true);
     }
 }
