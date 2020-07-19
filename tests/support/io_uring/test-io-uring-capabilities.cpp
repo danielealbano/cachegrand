@@ -3,7 +3,9 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <liburing.h>
 
+#include "support/io_uring/io_uring_support.h"
 #include "support/io_uring/io_uring_capabilities.h"
 
 TEST_CASE("support/io_uring/io_uring_capabilities.c", "[io_uring_capabilities_is_supported]") {
@@ -103,6 +105,37 @@ TEST_CASE("support/io_uring/io_uring_capabilities.c", "[io_uring_capabilities_is
         FILE *f = io_uring_capabilities_kallsyms_open();
         REQUIRE(f != NULL);
         fclose(f);
+    }
+
+    SECTION("io_uring_capabilities_is_linked_op_files_update_supported") {
+        io_uring_t *ring;
+        io_uring_sqe_t *sqe = NULL;
+        io_uring_cqe_t *cqe = NULL;
+        bool ret;
+        int fd = 1;
+        uint32_t files_map_count = 16;
+        const int files_map_registered[16] = {0};
+
+        ring = io_uring_support_init(16, NULL, NULL);
+
+        REQUIRE(ring != NULL);
+        REQUIRE(io_uring_register_files(ring, files_map_registered, files_map_count) >= 0);
+
+        sqe = io_uring_support_get_sqe(ring);
+        REQUIRE(sqe != NULL);
+        io_uring_prep_files_update(sqe, &fd, 1, 10);
+        io_uring_sqe_set_flags(sqe, IOSQE_IO_LINK);
+
+        REQUIRE(io_uring_support_sqe_enqueue_nop(ring, 0, 0));
+        REQUIRE(io_uring_support_sqe_submit(ring));
+
+        io_uring_wait_cqe(ring, &cqe);
+
+        ret = cqe->res == 1;
+
+        io_uring_support_free(ring);
+
+        REQUIRE(ret == io_uring_capabilities_is_linked_op_files_update_supported());
     }
 
     SECTION("io_uring_capabilities_is_supported") {
