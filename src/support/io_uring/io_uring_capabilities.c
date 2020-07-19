@@ -89,26 +89,21 @@ bool io_uring_capabilities_kallsyms_ensure_iouring_available() {
 }
 
 bool io_uring_capabilities_is_linked_op_files_update_supported() {
-    int fd;
-    FILE* file;
-    bool ret = false;
     io_uring_t *ring;
     io_uring_sqe_t *sqe = NULL;
-    io_uring_cqe_t *cqe = NULL;
+    io_uring_cqe_t *cqe1 = NULL, *cqe2 = NULL;
+    int fd = 1;
+    bool ret = false;
     uint32_t files_map_count = 16;
-
-    const int *files_map_registered = xalloc_alloc(sizeof(int) * files_map_count);
-    memset((void*)files_map_registered, 0, sizeof(int) * files_map_count);
-
-    file = tmpfile();
-    fd = fileno(file);
+    const int *files_map_registered = xalloc_alloc_zero(sizeof(int) * files_map_count);
 
     if ((ring = io_uring_support_init(16, NULL, NULL)) == NULL) {
-        goto cleanup_after_free;
+        return false;
     }
 
     if (io_uring_register_files(ring, files_map_registered, files_map_count) < 0) {
-        goto cleanup;
+        io_uring_support_free(ring);
+        return false;
     }
 
     sqe = io_uring_support_get_sqe(ring);
@@ -118,18 +113,12 @@ bool io_uring_capabilities_is_linked_op_files_update_supported() {
     io_uring_support_sqe_enqueue_nop(ring, 0, 0);
     io_uring_support_sqe_submit(ring);
 
-    io_uring_wait_cqe(ring, &cqe);
+    io_uring_wait_cqe(ring, &cqe1);
+    io_uring_cqe_seen(ring, cqe1);
+    io_uring_wait_cqe(ring, &cqe2);
+    io_uring_cqe_seen(ring, cqe2);
 
-    ret = (cqe->res == 1);
-
-cleanup:
-
-    io_uring_support_free(ring);
-
-cleanup_after_free:
-    fclose(file);
-
-    return ret;
+    return cqe1->res == 1 && cqe2->res == 0;
 }
 
 bool io_uring_capabilities_is_supported() {
