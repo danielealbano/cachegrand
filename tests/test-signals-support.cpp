@@ -109,6 +109,16 @@ TEST_CASE("signals_support.c", "[signals_support]") {
                     test_signals_support_signal_handler,
                     &previous_action));
         }
+
+        SECTION("invalid signal number") {
+            struct sigaction previous_action = {0};
+            bool res = signals_support_register_signal_handler(
+                    NSIG,
+                    test_signals_support_signal_handler,
+                    &previous_action);
+
+            REQUIRE(!res);
+        }
     }
 
     SECTION("signals_support_handler_sigsegv_fatal") {
