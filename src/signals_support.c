@@ -25,9 +25,10 @@ void signals_support_handler_sigsegv_fatal(int signal_number) {
 }
 
 void signals_support_register_sigsegv_fatal_handler() {
-#ifndef DEBUG
-    signal(SIGSEGV, signals_support_handler_sigsegv_fatal);
-#endif
+    signals_support_register_signal_handler(
+            SIGSEGV,
+            signals_support_handler_sigsegv_fatal,
+            NULL);
 }
 
 char* signals_support_name(
