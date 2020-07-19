@@ -19,7 +19,7 @@
 #include "misc.h"
 #include "xalloc.h"
 #include "log.h"
-#include "signal_handler_sigsegv.h"
+#include "signals_support.h"
 #include "memory_fences.h"
 #include "support/io_uring/io_uring_support.h"
 #include "support/io_uring/io_uring_capabilities.h"
@@ -38,31 +38,34 @@ network_channel_address_t program_addresses[] = { PROGRAM_NETWORK_ADDRESSES };
 uint32_t program_addresses_count = PROGRAM_NETWORK_ADDRESSES_COUNT;
 
 int program_signals[] =         {  SIGUSR1,   SIGINT,   SIGHUP,   SIGTERM,   SIGQUIT  };
-char* program_signals_names[] = { "SIGUSR1", "SIGINT", "SIGHUP", "SIGTERM", "SIGQUIT" };
 uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
 
 void program_signal_handlers(
-        int sig) {
+        int signal_number) {
+    char *signal_name = SIGNALS_SUPPORT_NAME_WRAPPER(signal_number);
+
     int found_sig_index = -1;
     for(uint8_t i = 0; i < program_signals_count; i++) {
-        if (program_signals[i] == sig) {
+        if (program_signals[i] == signal_number) {
             found_sig_index = i;
+            break;
         }
     }
 
     if (found_sig_index == -1) {
         LOG_V(
                 LOG_PRODUCER_DEFAULT,
-                "Received unmanaged signal <%d>, ignoring",
-                program_signals[found_sig_index]);
+                "Received un-managed signal <%s (%d)>, ignoring",
+                signal_name,
+                signal_number);
         return;
     }
 
     LOG_V(
             LOG_PRODUCER_DEFAULT,
             "Received signal <%s (%d)>, requesting loop termination",
-            program_signals_names[found_sig_index],
-            program_signals[found_sig_index]);
+            signal_name,
+            signal_number);
     program_request_terminate(&program_terminate_event_loop);
 }
 
@@ -72,18 +75,13 @@ void program_register_signal_handlers() {
     sigemptyset(&action.sa_mask);
     action.sa_flags = 0;
 
-    signal_handler_sigsegv_init();
+#ifndef DEBUG
+    signals_support_register_sigsegv_fatal_handler();
+#endif
     signal(SIGCHLD, SIG_IGN);
 
     for(uint8_t i = 0; i < program_signals_count; i++) {
-        if (sigaction(program_signals[i], &action, NULL) < 0) {
-            LOG_E(
-                    LOG_PRODUCER_DEFAULT,
-                    "Unable to set the handler for <%s (%d)>",
-                    program_signals_names[i],
-                    program_signals[i]);
-            LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
-        }
+        signals_support_register_signal_handler(program_signals[i], program_signal_handlers, NULL);
     }
 }
 
@@ -133,7 +131,7 @@ worker_user_data_t* program_workers_initialize(
 }
 
 bool* program_get_terminate_event_loop() {
-    return &program_terminate_event_loop;
+    return (bool*)&program_terminate_event_loop;
 }
 
 void program_request_terminate(

@@ -3,14 +3,14 @@
 #include "exttypes.h"
 #include "spinlock.h"
 #include "misc.h"
-#include "signal_handler_sigsegv.h"
+#include "signals_support.h"
 
 #include "hashtable/hashtable.h"
 #include "hashtable/hashtable_support_hash.h"
 
 int main(int argc, char** argv) {
-    signal_handler_sigsegv_init();
-
+    signals_support_register_sigsegv_fatal_handler();
+    
     fprintf(stdout, "Be aware, benchmarking is configured to:\n");
     fprintf(stdout, "- spin up to 16 threads per core (with a limit to 2048 threads), pinning the threads to the cores\n");
     fprintf(stdout, "- consume up to *120GB* of memory when testing the 2bln key hashtable size\n");
