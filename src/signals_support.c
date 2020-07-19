@@ -43,12 +43,6 @@ char* signals_support_name(
     strncpy(buffer, signal_name, buffer_size - 1);
     buffer[buffer_size - 1] = 0;
 
-    char* s = buffer;
-    while (*s) {
-        *s = toupper(*s);
-        s++;
-    }
-
     return buffer;
 }
 
