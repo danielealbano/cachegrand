@@ -8,7 +8,7 @@
 #include "support/io_uring/io_uring_support.h"
 #include "support/io_uring/io_uring_capabilities.h"
 
-TEST_CASE("support/io_uring/io_uring_capabilities.c", "[io_uring_capabilities_is_supported]") {
+TEST_CASE("support/io_uring/io_uring_capabilities.c", "[support][io_uring][io_uring_capabilities_is_supported]") {
     SECTION("io_uring_capabilities_kallsyms_fetch_symbol_name") {
         SECTION("fetch symbol") {
             char name[500] = {0};
