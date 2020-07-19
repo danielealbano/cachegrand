@@ -22,7 +22,7 @@
 #include "signal_handler_sigsegv.h"
 #include "memory_fences.h"
 #include "io_uring_support.h"
-#include "io_uring_supported.h"
+#include "io_uring_capabilities.h"
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
 #include "worker/worker.h"
@@ -194,7 +194,7 @@ int program_main() {
     // TODO: initialize the network listeners and the protocol state machines
     // TODO: start the worker threads and invoke the worker thread main func
 
-    if (io_uring_supported() == false) {
+    if (io_uring_capabilities_is_supported() == false) {
         LOG_E(LOG_PRODUCER_DEFAULT, "io_uring isn't supported, update the kernel to at least version 5.7.0 and enable io_uring");
         return 1;
     }
