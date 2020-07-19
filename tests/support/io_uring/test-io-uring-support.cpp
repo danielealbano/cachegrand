@@ -159,6 +159,31 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[io_uring_support]") {
         }
     }
 
+    SECTION("io_uring_support_sqe_enqueue_nop") {
+        io_uring_t *ring;
+        io_uring_cqe_t *cqe = NULL;
+
+        ring = io_uring_support_init(10, NULL, NULL);
+
+        REQUIRE(ring != NULL);
+
+        REQUIRE(io_uring_support_sqe_enqueue_nop(
+                ring,
+                0,
+                1234));
+
+        io_uring_support_sqe_submit(ring);
+
+        io_uring_wait_cqe(ring, &cqe);
+        REQUIRE(cqe != NULL);
+        REQUIRE(cqe->flags == 0);
+        REQUIRE(cqe->res == 0);
+        REQUIRE(cqe->user_data == 1234);
+        io_uring_cqe_seen(ring, cqe);
+
+        io_uring_support_free(ring);
+    }
+
     SECTION("io_uring_support_sqe_enqueue_accept") {
         uint16_t socket_port_free_ipv4 =
                 network_tests_support_search_free_port_ipv4(9999);

@@ -157,7 +157,6 @@ bool io_uring_support_sqe_enqueue_timeout(
     return true;
 }
 
-// TODO: implement test
 bool io_uring_support_sqe_enqueue_nop(
         io_uring_t *ring,
         uint8_t sqe_flags,
