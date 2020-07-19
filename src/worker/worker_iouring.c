@@ -547,9 +547,7 @@ bool worker_iouring_process_op_send(
                 ring,
                 iouring_userdata_current->fd);
 
-        if (iouring_userdata_current->buffer) {
-            xalloc_free(iouring_userdata_current->buffer);
-        }
+        xalloc_free(iouring_userdata_current->buffer);
         xalloc_free(iouring_userdata_current);
 
         return true;
