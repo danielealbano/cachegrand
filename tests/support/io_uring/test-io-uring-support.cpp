@@ -14,7 +14,7 @@
 
 #include "../../network/network_tests_support.h"
 
-TEST_CASE("support/io_uring/io_uring_support.c", "[io_uring_support]") {
+TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_support]") {
     struct in_addr loopback_ipv4 = {0};
     struct in_addr loopback_ipv6 = {0};
 
