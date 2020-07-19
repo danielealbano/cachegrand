@@ -141,6 +141,7 @@ Here the general grand-plan:
             - [ ] ITERATE
             - [ ] DELETE, when deleting move back the far-est key of the chunk usind the distance
     - [ ] Networking
+        - [ ] Add support for workers that do not rely on SO_REUSEPORT (it's Linux only and performance costly)
         - [ ] Switch to use the SLAB allocator
     - [ ] Storage:
         - [ ] Implement garbage collection
