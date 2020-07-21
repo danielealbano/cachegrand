@@ -11,7 +11,7 @@ stages:
   - build
   - test
   - codecoverage
-  - pages
+  - deploy
 
 build_ubuntu2004_x64_gcc9_debug:
   stage: build
