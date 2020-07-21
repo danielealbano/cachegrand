@@ -9,7 +9,7 @@
 #include "hashtable/hashtable_op_get.h"
 
 #include "../tests/support.h"
-#include "../tests/fixtures-hashtable.h"
+#include "../tests/hashtable/fixtures-hashtable.h"
 
 #include "bench-support.h"
 
