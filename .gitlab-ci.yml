@@ -72,7 +72,7 @@ pages:
   dependencies:
     - codecoverage_ubuntu2004_x64_gcc9_debug
   script:
-    - mv build/coverage-html public/
+    - mv build/coverage-html public
   cache:
     key: "$CI_COMMIT_REF_SLUG"
     paths:
@@ -82,3 +82,5 @@ pages:
     paths:
       - public
     expire_in: 30 days
+  tags:
+    - x64
