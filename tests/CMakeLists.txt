@@ -25,12 +25,15 @@ set_target_properties(
 
 add_dependencies(
         cachegrand-tests
-        cachegrand-internal
-        catch2)
+        cachegrand-internal catch2)
 
 target_link_libraries(
         cachegrand-tests
         PUBLIC
         cachegrand-internal)
 
-add_test(NAME cachegrand-tests COMMAND cachegrand-tests)
+add_test(
+        NAME
+        cachegrand-tests
+        COMMAND
+        cachegrand-tests)

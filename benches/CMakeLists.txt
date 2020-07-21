@@ -30,10 +30,23 @@ ENDIF(WIN32)
 # Build benches
 file(GLOB SRC_CACHEGRAND_BENCHES "bench-*.cpp")
 
-add_executable(cachegrand-benches main.cpp ../tests/support.c ${SRC_CACHEGRAND_BENCHES})
-add_dependencies(cachegrand-benches cachegrand-internal)
-target_compile_options(cachegrand-benches PRIVATE -mclflushopt -march=native)
-set_target_properties(cachegrand-benches PROPERTIES LINKER_LANGUAGE CXX)
+add_executable(
+        cachegrand-benches
+        main.cpp ../tests/support.c ${SRC_CACHEGRAND_BENCHES})
+
+add_dependencies(
+        cachegrand-benches
+        cachegrand-internal)
+
+target_compile_options(
+        cachegrand-benches
+        PRIVATE
+        -mclflushopt -march=native)
+
+set_target_properties(
+        cachegrand-benches
+        PROPERTIES
+        LINKER_LANGUAGE CXX)
 
 target_link_libraries(
         cachegrand-benches

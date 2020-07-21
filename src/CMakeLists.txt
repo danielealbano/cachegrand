@@ -143,13 +143,13 @@ endif(WIN32)
 
 # Build the executable
 add_executable(
-        cachegrand
+        cachegrand-server
         "main.c")
 
 add_dependencies(
-        cachegrand
+        cachegrand-server
         cachegrand-internal t1ha)
 
 target_link_libraries(
-        cachegrand
+        cachegrand-server
         cachegrand-internal t1ha)
