@@ -52,10 +52,11 @@ codecoverage_ubuntu2004_x64_gcc9_debug:
   script:
     - chmod +x tools/docker/build/code-coverage.sh
     - INPUT_GCOV_PATH="${GCOV}" tools/docker/build/code-coverage.sh
-    - bash <(curl -s https://codecov.io/bash) -X gcov -Z -f coverage.info
+    - genhtml -o build/coverage-html -p $(pwd) -s --legend build/coverage.info
   artifacts:
     paths:
       - build/coverage.info
+      - build/coverage-html
   cache:
     key: "$CI_COMMIT_REF_SLUG"
     paths:
