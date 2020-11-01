@@ -10,30 +10,40 @@
 #include "xalloc.h"
 #include "thread.h"
 #include "memory_fences.h"
+#include "pow2.h"
 #include "support/io_uring/io_uring_support.h"
 #include "support/io_uring/io_uring_capabilities.h"
 #include "network/io/network_io_common.h"
+#include <network/protocol/network_protocol.h>
+#include <protocols/resp3/protocol_resp3.h>
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
-#include "pow2.h"
 #include "worker.h"
 
 #include "worker_iouring.h"
 
+#define WORKER_FDS_MAP_EMPTY 0
+
 LOG_PRODUCER_CREATE_THREAD_LOCAL_DEFAULT("worker_iouring", worker_iouring)
 
-static thread_local int *fds_map_registered = NULL;
-static thread_local int *fds_map = NULL;
+// TODO: this code is buggy, potentially the fd 0 is a valid fd and it would be considered as empty causing a lot of
+//       headache during debugging and fixing, this code should use a bitmap in addition to keep track of the used
+//       slots
+static thread_local network_io_common_fd_t *fds_map_registered = NULL;
+static thread_local network_io_common_fd_t *fds_map = NULL;
 static thread_local uint32_t fds_map_count = 0;
 static thread_local uint32_t fds_map_mask = 0;
 static thread_local uint32_t fds_map_last_free = 0;
 
 static thread_local bool op_files_update_link_support = false;
 
+// TODO: All the mapped fds management should be moved into the support/io_uring/io_uring_support and should apply
+//       in a transparent way the mapped fds when the IOSQE_FIXED_FILE is passed to the sqe
+
 bool worker_fds_map_files_update(
         io_uring_t *ring,
         uint32_t index,
-        int fd) {
+        network_io_common_fd_t fd) {
 
     bool ret;
 
@@ -41,12 +51,12 @@ bool worker_fds_map_files_update(
 
     if (likely(op_files_update_link_support)) {
         // TODO: use slab allocator
-        network_channel_iouring_entry_user_data_t *iouring_userdata_new = network_channel_iouring_entry_user_data_new_with_fd(
-                NETWORK_IO_IOURING_OP_FILES_UPDATE,
-                index);
+        network_channel_iouring_entry_user_data_t *iouring_userdata_new =
+                network_channel_iouring_entry_user_data_new_with_mapped_fd(NETWORK_IO_IOURING_OP_FILES_UPDATE, index);
 
         io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
         if (sqe != NULL) {
+            // TODO: need to fix the implementation in support/io_uring/io_uring_support.c
             io_uring_prep_files_update(sqe, &fds_map[index], 1, index);
             io_uring_sqe_set_flags(sqe, IOSQE_IO_LINK);
             sqe->user_data = (uintptr_t)iouring_userdata_new;
@@ -60,7 +70,7 @@ bool worker_fds_map_files_update(
     }
 
     if (!ret) {
-        fds_map[index] = 0;
+        fds_map[index] = WORKER_FDS_MAP_EMPTY;
 
         LOG_E(
                 LOG_PRODUCER_DEFAULT,
@@ -74,7 +84,7 @@ bool worker_fds_map_files_update(
 int32_t worker_fds_map_find_free_index() {
     for(uint32_t i = 0; i < fds_map_count; i++) {
         uint32_t fds_map_index = (i + fds_map_last_free) & fds_map_mask;
-        if (fds_map[fds_map_index] == -1) {
+        if (fds_map[fds_map_index] == WORKER_FDS_MAP_EMPTY) {
             return fds_map_index;
         }
     }
@@ -86,13 +96,13 @@ int32_t worker_fds_map_find_free_index() {
     return -1;
 }
 
-int32_t worker_fds_map_add(
+int32_t worker_fds_map_add_and_enqueue_files_update(
         io_uring_t *ring,
-        int fd) {
+        network_io_common_fd_t fd) {
     int32_t index;
 
     if ((index = worker_fds_map_find_free_index()) < 0) {
-        return -1;
+        return WORKER_FDS_MAP_EMPTY;
     }
 
     LOG_D(
@@ -108,22 +118,15 @@ int32_t worker_fds_map_add(
     return index;
 }
 
-int32_t worker_fds_map_remove(
+network_io_common_fd_t worker_fds_map_remove(
         io_uring_t *ring,
         int index) {
-    int fd;
+    network_io_common_fd_t fd;
 
     fd = fds_map[index];
+    fds_map[index] = WORKER_FDS_MAP_EMPTY;
 
-    LOG_D(
-            LOG_PRODUCER_DEFAULT,
-            "Unregistering fd <%d> from index <%d>", fd, index);
-
-    if (!worker_fds_map_files_update(ring, index, -1)) {
-        return -1;
-    }
-
-    return index;
+    return fd;
 }
 
 bool worker_fds_register(
@@ -141,8 +144,7 @@ bool worker_fds_register(
     fds_map = xalloc_alloc(sizeof(int) * fds_map_count);
 
     for(uint32_t fds_map_index = 0; fds_map_index < fds_map_count; fds_map_index++) {
-        fds_map[fds_map_index] = -1;
-        fds_map_registered[fds_map_index] = -1;
+        fds_map[fds_map_index] = WORKER_FDS_MAP_EMPTY;
     }
 
     if (io_uring_register_files(ring, fds_map_registered, fds_map_count) < 0) {
@@ -224,40 +226,31 @@ void worker_iouring_listeners_enqueue(
             uint32_t listener_index = 0;
             listener_index < listener_new_cb_user_data->listeners_count;
             listener_index++) {
-        network_channel_listener_t *listener = &listener_new_cb_user_data->listeners[listener_index];
-
         if ((iouring_user_data = network_channel_iouring_entry_user_data_new(
                 NETWORK_IO_IOURING_OP_ACCEPT)) == NULL) {
             // TODO: handle error properly
             continue;
         }
-        iouring_user_data->address_size = listener->address_size;
 
-        if ((iouring_user_data->fd = worker_fds_map_add(
+        // Import the listener channel as is
+        iouring_user_data->channel = &listener_new_cb_user_data->listeners[listener_index];
+
+        // Enforce the size of the new socket address to match the listener socket address, the listeners are going to
+        // accept only connections of the same type (ipv4 -> ipv4 and ipv6 -> ipv6)
+        iouring_user_data->listener_new_socket_address.size = iouring_user_data->channel->address.size;
+
+        if ((iouring_user_data->mapped_fd = worker_fds_map_add_and_enqueue_files_update(
                 ring,
-                listener->fd)) < 0) {
-            // TODO: handle error
+                iouring_user_data->channel->fd)) < 0) {
+            network_channel_iouring_entry_user_data_free(iouring_user_data);
             continue;
         }
 
-        // TODO: This is VERY wrong, need to move the fds into a different struct and keep track of the sockaddr on
-        //       which it's binded!
-        network_channel_listener_t temp = {0};
-        getsockname(
-                listener->fd,
-                (struct sockaddr*)&temp.address.base,
-                &listener->address_size);
-
-        network_io_common_socket_address_str(
-                &temp.address.base,
-                (char *)&iouring_user_data->address_str,
-                sizeof(iouring_user_data->address_str));
-
         if (io_uring_support_sqe_enqueue_accept(
                 ring,
-                listener->fd,
-                &iouring_user_data->new_socket_address.base,
-                &iouring_user_data->address_size,
+                iouring_user_data->channel->fd,
+                &iouring_user_data->listener_new_socket_address.socket.base,
+                &iouring_user_data->listener_new_socket_address.size,
                 0,
                 0,
                 (uintptr_t)iouring_user_data) == false) {
@@ -287,10 +280,10 @@ void worker_iouring_cqe_log(
 
     LOG_E(
             LOG_PRODUCER_DEFAULT,
-            "[OP:%u][FD IDX:%d][FD:%d] cqe->user_data = <0x%08lx>, cqe->res = <%s (%d)>, cqe->flags >> 16 = <%d>, cqe->flags >> 16 = <%d>",
+            "[OP:%u][FD:%d][FD MAPPED:%d] cqe->user_data = <0x%08lx>, cqe->res = <%s (%d)>, cqe->flags >> 16u = <%d>, cqe->flags & 0xFFFFu = <%d>",
             iouring_userdata->op,
-            iouring_userdata->fd,
-            iouring_userdata->fd >= 0 ? fds_map[iouring_userdata->fd] : -1,
+            iouring_userdata->channel->fd,
+            iouring_userdata->mapped_fd,
             cqe->user_data,
             cqe->res >= 0 ? "Success" : strerror(cqe->res * -1),
             cqe->res,
@@ -307,11 +300,10 @@ bool worker_iouring_process_op_files_update(
     iouring_userdata_current = (network_channel_iouring_entry_user_data_t*)cqe->user_data;
 
     if (cqe->res < 0) {
-        fds_map[iouring_userdata_current->fd] = 0;
+        fds_map[iouring_userdata_current->mapped_fd] = WORKER_FDS_MAP_EMPTY;
     }
 
-    // TODO: use slab allocator
-    xalloc_free(iouring_userdata_current);
+    network_channel_iouring_entry_user_data_free(iouring_userdata_current);
 
     return true;
 }
@@ -356,7 +348,7 @@ bool worker_iouring_process_op_accept(
         LOG_E(
                 LOG_PRODUCER_DEFAULT,
                 "Error while waiting for connections on listener <%s>",
-                iouring_userdata_current->address_str);
+                iouring_userdata_current->channel->address.str);
         worker_request_terminate(worker_user_data);
 
         return false;
@@ -366,31 +358,34 @@ bool worker_iouring_process_op_accept(
 
     iouring_userdata_new = network_channel_iouring_entry_user_data_new(
             NETWORK_IO_IOURING_OP_RECV);
-    network_io_common_socket_address_str(
-            &iouring_userdata_current->new_socket_address.base,
-            (char *)&iouring_userdata_new->address_str,
-            sizeof(iouring_userdata_new->address_str));
+    iouring_userdata_new->channel = network_channel_new();
+    iouring_userdata_new->channel->fd = new_fd;
+    iouring_userdata_new->channel->protocol.type = iouring_userdata_current->channel->protocol.type;
+    iouring_userdata_new->channel->type = NETWORK_CHANNEL_TYPE_CLIENT;
 
-    LOG_V(
-            LOG_PRODUCER_DEFAULT,
-            "Listener <%s> accepting new connection from <%s>",
-            iouring_userdata_current->address_str,
-            iouring_userdata_new->address_str);
+    // Import the address info from the data struct used by the listener, this doesn't have to be done before the
+    // listener has to be enqueued again because the ring items are submitted only in the main loop of the worker but
+    // it may easily cause plenty of headache in the future if it changes so better to do things in the proper sequence
+    // and avoid having these kind of hidden hard dependencies
+    memcpy(
+            &iouring_userdata_new->channel->address,
+            &iouring_userdata_current->listener_new_socket_address,
+            sizeof(iouring_userdata_current->listener_new_socket_address));
 
     if (io_uring_support_sqe_enqueue_accept(
             ring,
-            iouring_userdata_current->fd,
-            &iouring_userdata_current->new_socket_address.base,
-            &iouring_userdata_current->address_size,
+            iouring_userdata_current->mapped_fd,
+            &iouring_userdata_current->listener_new_socket_address.socket.base,
+            &iouring_userdata_current->listener_new_socket_address.size,
             0,
             IOSQE_FIXED_FILE,
             (uintptr_t)iouring_userdata_current) == false) {
         LOG_E(
                 LOG_PRODUCER_DEFAULT,
                 "Can't start to listen again on listener <%s>",
-                iouring_userdata_current->address_str);
+                iouring_userdata_current->channel->address.str);
 
-        xalloc_free(iouring_userdata_new);
+        network_channel_iouring_entry_user_data_free(iouring_userdata_new);
 
         // TODO: close client socket properly
         // TODO: close listener socket properly
@@ -398,6 +393,17 @@ bool worker_iouring_process_op_accept(
         // TODO: handle failure in a more appropriate way (ie. the world has ended, let other worker know)
         return false;
     }
+
+    network_io_common_socket_address_str(
+            &iouring_userdata_new->channel->address.socket.base,
+            iouring_userdata_new->channel->address.str,
+            sizeof(iouring_userdata_new->channel->address.str));
+
+    LOG_V(
+            LOG_PRODUCER_DEFAULT,
+            "Listener <%s> accepting new connection from <%s>",
+            iouring_userdata_current->channel->address.str,
+            iouring_userdata_new->channel->address.str);
 
     // Because potentially network_channel_client_setup may fail, the address of new connection must be extracted and the
     // accept operation on the lister must be enqueue-ed. If the operation fails the newly created iouring_userdata_new
@@ -410,34 +416,30 @@ bool worker_iouring_process_op_accept(
         LOG_E(
                 LOG_PRODUCER_DEFAULT,
                 "Can't accept the connection <%s> coming from listener <%s>",
-                iouring_userdata_new->address_str,
-                iouring_userdata_current->address_str);
+                iouring_userdata_new->channel->address.str,
+                iouring_userdata_current->listener_new_socket_address.str);
 
         // TODO: close client socket properly
-        // TODO: implement ad hoc function to free the iouring_entry_user_data (when will implement the SLAB allocator
-        //       that function will have to rely on it)
-        xalloc_free(iouring_userdata_new);
+        network_channel_iouring_entry_user_data_free(iouring_userdata_new);
 
         return false;
     }
 
     // TODO: Use SLAB allocator to fetch a new buffer
-    iouring_userdata_new->buffer = (char *)xalloc_alloc(NETWORK_CHANNEL_PACKET_BUFFER_SIZE);
+    iouring_userdata_new->recv_buffer.data = (char *)xalloc_alloc(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
+    iouring_userdata_new->send_buffer.data = (char *)xalloc_alloc(NETWORK_CHANNEL_SEND_BUFFER_SIZE);
 
-    if ((iouring_userdata_new->fd = worker_fds_map_add(
+    if ((iouring_userdata_new->mapped_fd = worker_fds_map_add_and_enqueue_files_update(
             ring,
             new_fd)) < 0) {
         LOG_E(
                 LOG_PRODUCER_DEFAULT,
                 "Can't accept the connection <%s> coming from listener <%s>, no more fds free (should never happen, bug!)",
-                iouring_userdata_new->address_str,
-                iouring_userdata_current->address_str);
+                iouring_userdata_new->channel->address.str,
+                iouring_userdata_current->listener_new_socket_address.str);
 
         // TODO: close client socket properly
-        // TODO: implement ad hoc function to free the iouring_entry_user_data (when will implement the SLAB allocator
-        //       that function will have to rely on it)
-        xalloc_free(iouring_userdata_new->buffer);
-        xalloc_free(iouring_userdata_new);
+        network_channel_iouring_entry_user_data_free(iouring_userdata_new);
 
         return false;
     }
@@ -445,26 +447,22 @@ bool worker_iouring_process_op_accept(
     if (io_uring_support_sqe_enqueue_recv(
             ring,
             new_fd,
-            iouring_userdata_new->buffer,
-            NETWORK_CHANNEL_PACKET_BUFFER_SIZE,
+            iouring_userdata_new->recv_buffer.data,
+            NETWORK_CHANNEL_PACKET_SIZE,
             0,
             0,
             (uintptr_t)iouring_userdata_new) == false) {
         LOG_E(
                 LOG_PRODUCER_DEFAULT,
                 "Can't start to read data from the connection <%s> coming from listener <%s>",
-                iouring_userdata_new->address_str,
-                iouring_userdata_current->address_str);
-        // TODO: implement ad hoc function to free the iouring_entry_user_data (when will implement the SLAB allocator
-        //       that function will have to rely on it)
-
-        network_io_common_socket_close(fds_map[iouring_userdata_new->fd], true);
+                iouring_userdata_new->channel->address.str,
+                iouring_userdata_current->listener_new_socket_address.str);
+        network_io_common_socket_close(fds_map[iouring_userdata_new->mapped_fd], true);
         worker_fds_map_remove(
                 ring,
-                iouring_userdata_new->fd);
+                iouring_userdata_new->mapped_fd);
 
-        xalloc_free(iouring_userdata_new->buffer);
-        xalloc_free(iouring_userdata_new);
+        network_channel_iouring_entry_user_data_free(iouring_userdata_current);
 
         return false;
     }
@@ -486,37 +484,58 @@ bool worker_iouring_process_op_recv(
 
     if (cqe->res <= 0) {
         if (cqe->res == 0) {
-            LOG_V(LOG_PRODUCER_DEFAULT, "Closing client <%s>", iouring_userdata_current->address_str);
+            LOG_V(LOG_PRODUCER_DEFAULT, "Closing client <%s>", iouring_userdata_current->channel->address.str);
         } else{
             LOG_E(
                     LOG_PRODUCER_DEFAULT,
                     "Error <%s (%d)>, closing client <%s>",
-                    strerror(cqe->res),
+                    strerror(cqe->res * -1),
                     cqe->res,
-                    iouring_userdata_current->address_str);
+                    iouring_userdata_current->channel->address.str);
         }
 
         stats->network.active_connections--;
-        network_io_common_socket_close(fds_map[iouring_userdata_current->fd], true);
+        network_io_common_socket_close(fds_map[iouring_userdata_current->mapped_fd], true);
         worker_fds_map_remove(
                 ring,
-                iouring_userdata_current->fd);
+                iouring_userdata_current->mapped_fd);
 
-        xalloc_free(iouring_userdata_current->buffer);
-        xalloc_free(iouring_userdata_current);
+        network_channel_iouring_entry_user_data_free(iouring_userdata_current);
 
         return true;
     }
 
-    int len = snprintf(iouring_userdata_current->buffer, NETWORK_CHANNEL_PACKET_BUFFER_SIZE, "+PONG\r\n");
+    iouring_userdata_current->recv_buffer.size += cqe->res;
+
+    char* read_buffer_with_offset =
+            (char*)((uintptr_t)iouring_userdata_current->recv_buffer.data + iouring_userdata_current->recv_buffer.offset);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    read_buffer_with_offset[cqe->res] = 0;
+    LOG_D(LOG_PRODUCER_DEFAULT, "[RECV] iouring_userdata_current->recv_buffer.offset = %lu", iouring_userdata_current->recv_buffer.offset);
+    LOG_D(LOG_PRODUCER_DEFAULT, "%s", read_buffer_with_offset);
+
+    int len = snprintf(iouring_userdata_current->recv_buffer.data, NETWORK_CHANNEL_PACKET_SIZE, "-ERR: you are unlucky!\r\n");
 
     iouring_userdata_current->op = NETWORK_IO_IOURING_OP_SEND;
 
     // TODO: handle errors (ie. close the connection)
     io_uring_support_sqe_enqueue_send(
             ring,
-            iouring_userdata_current->fd,
-            iouring_userdata_current->buffer,
+            iouring_userdata_current->mapped_fd,
+            iouring_userdata_current->recv_buffer.data,
 //            cqe->res,
             len,
             0,
@@ -542,25 +561,34 @@ bool worker_iouring_process_op_send(
     if (worker_iouring_cqe_is_error_any(cqe)) {
         worker_iouring_cqe_log(worker_user_data, cqe);
 
-        network_io_common_socket_close(fds_map[iouring_userdata_current->fd], true);
+        network_io_common_socket_close(fds_map[iouring_userdata_current->mapped_fd], true);
         worker_fds_map_remove(
                 ring,
-                iouring_userdata_current->fd);
+                iouring_userdata_current->mapped_fd);
 
-        xalloc_free(iouring_userdata_current->buffer);
-        xalloc_free(iouring_userdata_current);
+        network_channel_iouring_entry_user_data_free(iouring_userdata_current);
 
         return true;
     }
 
     iouring_userdata_current->op = NETWORK_IO_IOURING_OP_RECV;
 
+    iouring_userdata_current->recv_buffer.offset += cqe->res;
+    if ((iouring_userdata_current->recv_buffer.offset + NETWORK_CHANNEL_PACKET_SIZE) > NETWORK_CHANNEL_RECV_BUFFER_SIZE) {
+        iouring_userdata_current->recv_buffer.offset = 0;
+    }
+
+    LOG_D(LOG_PRODUCER_DEFAULT, "[SEND] iouring_userdata_current->recv_buffer.offset = %lu", iouring_userdata_current->recv_buffer.offset);
+
+    char* read_buffer_with_offset =
+            (char*)((uintptr_t)iouring_userdata_current->recv_buffer.data + iouring_userdata_current->recv_buffer.offset);
+
     // TODO: handle errors (ie. close the connection)
     io_uring_support_sqe_enqueue_recv(
             ring,
-            iouring_userdata_current->fd,
-            iouring_userdata_current->buffer,
-            NETWORK_CHANNEL_PACKET_BUFFER_SIZE,
+            iouring_userdata_current->mapped_fd,
+            read_buffer_with_offset,
+            NETWORK_CHANNEL_PACKET_SIZE,
             0,
             IOSQE_FIXED_FILE,
             (uintptr_t)iouring_userdata_current);
@@ -638,7 +666,7 @@ void worker_iouring_thread_process_ops_loop(
                         LOG_PRODUCER_DEFAULT,
                         "Unknown operation <%u> on <%s>, ignoring...",
                         iouring_userdata_current->op,
-                        iouring_userdata_current->address_str);
+                        iouring_userdata_current->channel->address.str);
             }
         }
 
@@ -715,7 +743,8 @@ void* worker_iouring_thread_func(
             worker_user_data->addresses_count);
 
     if (ring != NULL) {
-        LOG_I(LOG_PRODUCER_DEFAULT, "Checking if io_uring can link file updates ops");
+        // TODO: move the below check into support/io_uring/io_uring_capabilities
+        LOG_I(LOG_PRODUCER_DEFAULT, "Checking if io_uring can link IORING_OP_FILES_UPDATE op");
         if ((op_files_update_link_support = io_uring_capabilities_is_linked_op_files_update_supported())) {
             LOG_I(LOG_PRODUCER_DEFAULT, "> linking supported");
         } else {
@@ -746,6 +775,10 @@ void* worker_iouring_thread_func(
 
     log_producer_local_free_worker_iouring();
     xalloc_free(log_producer_early_prefix_thread);
+
+    // TODO: the various slab allocated memory can be freed ONLY after every thing else has been terminated, especially
+    //       the io_uring ring otherwise the kernel may try to access memory in the userland that is going to contain
+    //       garbage and that's very bad
 
     return NULL;
 }

@@ -7,6 +7,7 @@
 
 #include "misc.h"
 #include "log.h"
+#include "xalloc.h"
 #include "network/io/network_io_common.h"
 
 #include "network/channel/network_channel.h"
@@ -14,7 +15,7 @@
 LOG_PRODUCER_CREATE_DEFAULT("network_channel", network_channel)
 
 bool network_channel_client_setup(
-        int fd,
+        network_io_common_fd_t fd,
         int incoming_cpu) {
     bool error = false;
 
@@ -46,7 +47,7 @@ bool network_channel_client_setup(
 }
 
 bool network_channel_server_setup(
-        int fd,
+        network_io_common_fd_t fd,
         int incoming_cpu) {
     bool error = false;
 
@@ -57,6 +58,7 @@ bool network_channel_server_setup(
             // return A
             code[1] = new sock_filter { code = BPF_RET | BPF_A };
      */
+
     if (!error && network_io_common_socket_set_incoming_cpu(fd, incoming_cpu) == false) {
         error = true;
     }
@@ -108,27 +110,22 @@ bool network_channel_listener_new_callback(
     uint32_t listener_id = cb_user_data->listeners_count + socket_address_index;
 
     cb_user_data->listeners[listener_id].fd = fd;
-    cb_user_data->listeners[listener_id].address_size = socket_address_size;
+    cb_user_data->listeners[listener_id].address.size = socket_address_size;
 
     memcpy(
-            &cb_user_data->listeners[listener_id].address.base,
+            &cb_user_data->listeners[listener_id].address.socket.base,
             socket_address,
             socket_address_size);
 
-    // TODO: should store the address within the listener structure
-    char address_str[INET6_ADDRSTRLEN + 1] = {0};
-    in_port_t port;
-    if (family == AF_INET) {
-        struct sockaddr_in *address = (struct sockaddr_in *)socket_address;
-        inet_ntop(AF_INET, &address->sin_addr, address_str, INET_ADDRSTRLEN);
-        port = address->sin_port;
-    } else {
-        struct sockaddr_in6 *address = (struct sockaddr_in6 *)socket_address;
-        inet_ntop(AF_INET6, &address->sin6_addr, address_str, INET6_ADDRSTRLEN);
-        port = address->sin6_port;
-    }
+    network_io_common_socket_address_str(
+            socket_address,
+            cb_user_data->listeners[listener_id].address.str,
+            sizeof(cb_user_data->listeners[listener_id].address.str));
 
-    LOG_V(LOG_PRODUCER_DEFAULT, "Created listener for <%s:%d>", address_str, ntohs(port));
+    LOG_V(
+            LOG_PRODUCER_DEFAULT,
+            "Created listener for <%s>",
+            cb_user_data->listeners[listener_id].address.str);
 
     return true;
 }
@@ -156,3 +153,10 @@ bool network_channel_listener_new(
     return true;
 }
 
+network_channel_t* network_channel_new() {
+    return (network_channel_t*)xalloc_alloc_zero(sizeof(network_channel_t));
+}
+
+void network_channel_free(network_channel_t* network_channel) {
+    xalloc_free(network_channel);
+}

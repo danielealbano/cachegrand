@@ -11,6 +11,7 @@
 #include "thread.h"
 #include "memory_fences.h"
 #include "log.h"
+#include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 
 #include "worker.h"

@@ -5,6 +5,8 @@
 
 #include "xalloc.h"
 
+#include "network/io/network_io_common.h"
+#include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
 
 TEST_CASE("network/channel/network_channel_iouring.c", "[network][channel][network_channel_iouring]") {
@@ -16,12 +18,12 @@ TEST_CASE("network/channel/network_channel_iouring.c", "[network][channel][netwo
         REQUIRE(user_data->op == NETWORK_IO_IOURING_OP_ACCEPT);
     }
 
-    SECTION("network_channel_iouring_entry_user_data_new_with_fd") {
+    SECTION("network_channel_iouring_entry_user_data_new_with_mapped_fd") {
         network_channel_iouring_entry_user_data_t* user_data =
-                network_channel_iouring_entry_user_data_new_with_fd(NETWORK_IO_IOURING_OP_ACCEPT, 1);
+                network_channel_iouring_entry_user_data_new_with_mapped_fd(NETWORK_IO_IOURING_OP_ACCEPT, 1);
 
         REQUIRE(user_data != NULL);
         REQUIRE(user_data->op == NETWORK_IO_IOURING_OP_ACCEPT);
-        REQUIRE(user_data->fd == 1);
+        REQUIRE(user_data->mapped_fd == 1);
     }
 }

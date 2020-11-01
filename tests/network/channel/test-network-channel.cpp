@@ -93,9 +93,9 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
                     &listener_new_cb_user_data));
 
             REQUIRE(listener_new_cb_user_data.listeners[0].fd > 0);
-            REQUIRE(listener_new_cb_user_data.listeners[0].address_size == sizeof(struct sockaddr_in));
-            REQUIRE(listener_new_cb_user_data.listeners[0].address.ipv4.sin_port == htons(socket_port_free_ipv4));
-            REQUIRE(listener_new_cb_user_data.listeners[0].address.ipv4.sin_addr.s_addr == inet_addr(loopback_ipv4_str));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.size == sizeof(struct sockaddr_in));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.socket.ipv4.sin_port == htons(socket_port_free_ipv4));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.socket.ipv4.sin_addr.s_addr == inet_addr(loopback_ipv4_str));
 
             REQUIRE(network_io_common_socket_close(listener_new_cb_user_data.listeners[0].fd, false));
         }
@@ -117,9 +117,9 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
 
             REQUIRE(listener_new_cb_user_data.listeners_count == 2);
             REQUIRE(listener_new_cb_user_data.listeners[5].fd > 0);
-            REQUIRE(listener_new_cb_user_data.listeners[5].address_size == sizeof(struct sockaddr_in));
-            REQUIRE(listener_new_cb_user_data.listeners[5].address.ipv4.sin_port == htons(socket_port_free_ipv4));
-            REQUIRE(listener_new_cb_user_data.listeners[5].address.ipv4.sin_addr.s_addr == inet_addr(loopback_ipv4_str));
+            REQUIRE(listener_new_cb_user_data.listeners[5].address.size == sizeof(struct sockaddr_in));
+            REQUIRE(listener_new_cb_user_data.listeners[5].address.socket.ipv4.sin_port == htons(socket_port_free_ipv4));
+            REQUIRE(listener_new_cb_user_data.listeners[5].address.socket.ipv4.sin_addr.s_addr == inet_addr(loopback_ipv4_str));
 
             REQUIRE(network_io_common_socket_close(listener_new_cb_user_data.listeners[5].fd, false));
         }
@@ -146,10 +146,10 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
                     &listener_new_cb_user_data));
 
             REQUIRE(listener_new_cb_user_data.listeners[0].fd > 0);
-            REQUIRE(listener_new_cb_user_data.listeners[0].address_size == sizeof(struct sockaddr_in6));
-            REQUIRE(listener_new_cb_user_data.listeners[0].address.ipv6.sin6_port == htons(socket_port_free_ipv4));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.size == sizeof(struct sockaddr_in6));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.socket.ipv6.sin6_port == htons(socket_port_free_ipv4));
             REQUIRE(memcmp(
-                    &listener_new_cb_user_data.listeners[0].address.ipv6.sin6_addr,
+                    &listener_new_cb_user_data.listeners[0].address.socket.ipv6.sin6_addr,
                     &cmp_addr_temp,
                     sizeof(struct in6_addr)) == 0);
 
@@ -190,14 +190,14 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
                     &listener_new_cb_user_data));
 
             REQUIRE(listener_new_cb_user_data.listeners[0].fd > 0);
-            REQUIRE(listener_new_cb_user_data.listeners[0].address_size == sizeof(struct sockaddr_in));
-            REQUIRE(listener_new_cb_user_data.listeners[0].address.ipv4.sin_port == htons(socket_port_free_ipv4));
-            REQUIRE(listener_new_cb_user_data.listeners[0].address.ipv4.sin_addr.s_addr == inet_addr(loopback_ipv4_str));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.size == sizeof(struct sockaddr_in));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.socket.ipv4.sin_port == htons(socket_port_free_ipv4));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.socket.ipv4.sin_addr.s_addr == inet_addr(loopback_ipv4_str));
             REQUIRE(listener_new_cb_user_data.listeners[1].fd > 0);
-            REQUIRE(listener_new_cb_user_data.listeners[1].address_size == sizeof(struct sockaddr_in6));
-            REQUIRE(listener_new_cb_user_data.listeners[1].address.ipv6.sin6_port == htons(socket_port_free_ipv6));
+            REQUIRE(listener_new_cb_user_data.listeners[1].address.size == sizeof(struct sockaddr_in6));
+            REQUIRE(listener_new_cb_user_data.listeners[1].address.socket.ipv6.sin6_port == htons(socket_port_free_ipv6));
             REQUIRE(memcmp(
-                    &listener_new_cb_user_data.listeners[1].address.ipv6.sin6_addr,
+                    &listener_new_cb_user_data.listeners[1].address.socket.ipv6.sin6_addr,
                     &cmp_addr_temp,
                     sizeof(struct in6_addr)) == 0);
 
@@ -238,9 +238,9 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
 
             REQUIRE(listener_new_cb_user_data.listeners_count == 1);
             REQUIRE(listener_new_cb_user_data.listeners[0].fd > 0);
-            REQUIRE(listener_new_cb_user_data.listeners[0].address_size == sizeof(struct sockaddr_in));
-            REQUIRE(listener_new_cb_user_data.listeners[0].address.ipv4.sin_port == htons(socket_port_free_ipv4));
-            REQUIRE(listener_new_cb_user_data.listeners[0].address.ipv4.sin_addr.s_addr == inet_addr(loopback_ipv4_str));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.size == sizeof(struct sockaddr_in));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.socket.ipv4.sin_port == htons(socket_port_free_ipv4));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.socket.ipv4.sin_addr.s_addr == inet_addr(loopback_ipv4_str));
 
             REQUIRE(network_io_common_socket_close(listener_new_cb_user_data.listeners[0].fd, false));
         }
@@ -253,9 +253,9 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
 
             REQUIRE(listener_new_cb_user_data.listeners_count == 1);
             REQUIRE(listener_new_cb_user_data.listeners[0].fd > 0);
-            REQUIRE(listener_new_cb_user_data.listeners[0].address_size == sizeof(struct sockaddr_in));
-            REQUIRE(listener_new_cb_user_data.listeners[0].address.ipv4.sin_port == htons(socket_port_free_ipv4));
-            REQUIRE(listener_new_cb_user_data.listeners[0].address.ipv4.sin_addr.s_addr == INADDR_ANY);
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.size == sizeof(struct sockaddr_in));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.socket.ipv4.sin_port == htons(socket_port_free_ipv4));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.socket.ipv4.sin_addr.s_addr == INADDR_ANY);
 
             REQUIRE(network_io_common_socket_close(listener_new_cb_user_data.listeners[0].fd, false));
         }
@@ -270,10 +270,10 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
 
             REQUIRE(listener_new_cb_user_data.listeners_count == 1);
             REQUIRE(listener_new_cb_user_data.listeners[0].fd > 0);
-            REQUIRE(listener_new_cb_user_data.listeners[0].address_size == sizeof(struct sockaddr_in6));
-            REQUIRE(listener_new_cb_user_data.listeners[0].address.ipv6.sin6_port == htons(socket_port_free_ipv6));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.size == sizeof(struct sockaddr_in6));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.socket.ipv6.sin6_port == htons(socket_port_free_ipv6));
             REQUIRE(memcmp(
-                    &listener_new_cb_user_data.listeners[0].address.ipv6.sin6_addr,
+                    &listener_new_cb_user_data.listeners[0].address.socket.ipv6.sin6_addr,
                     &cmp_addr_temp,
                     sizeof(struct in6_addr)) == 0);
 
@@ -290,10 +290,10 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
 
             REQUIRE(listener_new_cb_user_data.listeners_count == 1);
             REQUIRE(listener_new_cb_user_data.listeners[0].fd > 0);
-            REQUIRE(listener_new_cb_user_data.listeners[0].address_size == sizeof(struct sockaddr_in6));
-            REQUIRE(listener_new_cb_user_data.listeners[0].address.ipv6.sin6_port == htons(socket_port_free_ipv6));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.size == sizeof(struct sockaddr_in6));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.socket.ipv6.sin6_port == htons(socket_port_free_ipv6));
             REQUIRE(memcmp(
-                    &listener_new_cb_user_data.listeners[0].address.ipv6.sin6_addr,
+                    &listener_new_cb_user_data.listeners[0].address.socket.ipv6.sin6_addr,
                     &cmp_addr_temp,
                     sizeof(struct in6_addr)) == 0);
 
@@ -315,14 +315,14 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
             REQUIRE(listener_new_cb_user_data.listeners_count == 2);
 
             REQUIRE(listener_new_cb_user_data.listeners[0].fd > 0);
-            REQUIRE(listener_new_cb_user_data.listeners[0].address_size == sizeof(struct sockaddr_in));
-            REQUIRE(listener_new_cb_user_data.listeners[0].address.ipv4.sin_port == htons(socket_port_free_ipv4));
-            REQUIRE(listener_new_cb_user_data.listeners[0].address.ipv4.sin_addr.s_addr == inet_addr(loopback_ipv4_str));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.size == sizeof(struct sockaddr_in));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.socket.ipv4.sin_port == htons(socket_port_free_ipv4));
+            REQUIRE(listener_new_cb_user_data.listeners[0].address.socket.ipv4.sin_addr.s_addr == inet_addr(loopback_ipv4_str));
             REQUIRE(listener_new_cb_user_data.listeners[1].fd > 0);
-            REQUIRE(listener_new_cb_user_data.listeners[1].address_size == sizeof(struct sockaddr_in6));
-            REQUIRE(listener_new_cb_user_data.listeners[1].address.ipv6.sin6_port == htons(socket_port_free_ipv6));
+            REQUIRE(listener_new_cb_user_data.listeners[1].address.size == sizeof(struct sockaddr_in6));
+            REQUIRE(listener_new_cb_user_data.listeners[1].address.socket.ipv6.sin6_port == htons(socket_port_free_ipv6));
             REQUIRE(memcmp(
-                    &listener_new_cb_user_data.listeners[1].address.ipv6.sin6_addr,
+                    &listener_new_cb_user_data.listeners[1].address.socket.ipv6.sin6_addr,
                     &cmp_addr_temp,
                     sizeof(struct in6_addr)) == 0);
 

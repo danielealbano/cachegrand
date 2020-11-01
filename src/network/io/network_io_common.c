@@ -15,7 +15,7 @@
 LOG_PRODUCER_CREATE_DEFAULT("network_io_common", network_io_common)
 
 bool network_io_common_socket_set_option(
-        int fd,
+        network_io_common_fd_t fd,
         int level,
         int option,
         void* value,
@@ -31,35 +31,35 @@ bool network_io_common_socket_set_option(
 }
 
 bool network_io_common_socket_set_reuse_address(
-        int fd,
+        network_io_common_fd_t fd,
         bool enable) {
     int val = enable ? 1 : 0;
     return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 }
 
 bool network_io_common_socket_set_reuse_port(
-        int fd,
+        network_io_common_fd_t fd,
         bool enable) {
     int val = enable ? 1 : 0;
     return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
 }
 
 bool network_io_common_socket_set_nodelay(
-        int fd,
+        network_io_common_fd_t fd,
         bool enable) {
     int val = enable ? 1 : 0;
     return network_io_common_socket_set_option(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val));
 }
 
 bool network_io_common_socket_set_quickack(
-        int fd,
+        network_io_common_fd_t fd,
         bool enable) {
     int val = enable ? 1 : 0;
     return network_io_common_socket_set_option(fd, IPPROTO_TCP, TCP_QUICKACK, &val, sizeof(val));
 }
 
 bool network_io_common_socket_set_linger(
-        int fd,
+        network_io_common_fd_t fd,
         bool enable,
         int seconds) {
     struct linger linger = { enable ? 1 : 0, seconds };
@@ -67,32 +67,32 @@ bool network_io_common_socket_set_linger(
 }
 
 bool network_io_common_socket_set_keepalive(
-        int fd,
+        network_io_common_fd_t fd,
         bool enable) {
     int val = enable ? 1 : 0;
     return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val));
 }
 
 bool network_io_common_socket_set_incoming_cpu(
-        int fd,
+        network_io_common_fd_t fd,
         int cpu) {
     return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
 }
 
 bool network_io_common_socket_set_receive_buffer(
-        int fd,
+        network_io_common_fd_t fd,
         int size) {
     return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
 }
 
 bool network_io_common_socket_set_send_buffer(
-        int fd,
+        network_io_common_fd_t fd,
         int size) {
     return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
 }
 
 bool network_io_common_socket_set_receive_timeout(
-        int fd,
+        network_io_common_fd_t fd,
         long seconds,
         long useconds) {
     struct timeval timeout = { seconds, useconds };
@@ -100,7 +100,7 @@ bool network_io_common_socket_set_receive_timeout(
 }
 
 bool network_io_common_socket_set_send_timeout(
-        int fd,
+        network_io_common_fd_t fd,
         long seconds,
         long useconds) {
     struct timeval timeout = { seconds, useconds };
@@ -108,14 +108,14 @@ bool network_io_common_socket_set_send_timeout(
 }
 
 bool network_io_common_socket_set_ipv6_only(
-        int fd,
+        network_io_common_fd_t fd,
         bool enable) {
     int val = enable ? 1 : 0;
     return network_io_common_socket_set_option(fd, IPPROTO_IPV6, IPV6_V6ONLY, &val, sizeof(val));
 }
 
 bool network_io_common_socket_bind(
-        int fd,
+        network_io_common_fd_t fd,
         struct sockaddr *address,
         socklen_t address_size) {
     if (bind(fd, address, address_size) < 0) {
@@ -129,7 +129,7 @@ bool network_io_common_socket_bind(
 }
 
 bool network_io_common_socket_listen(
-        int fd,
+        network_io_common_fd_t fd,
         uint16_t backlog) {
     if (listen(fd, backlog) < 0) {
         LOG_E(LOG_PRODUCER_DEFAULT, "Error listening on the socket with a backlog of <%d>", backlog);
@@ -141,7 +141,7 @@ bool network_io_common_socket_listen(
 }
 
 bool network_io_common_socket_close(
-        int fd,
+        network_io_common_fd_t fd,
         bool shutdown_may_fail) {
     bool ret = true;
     if (shutdown(fd, SHUT_RDWR) < 0 && !shutdown_may_fail) {
@@ -161,7 +161,7 @@ bool network_io_common_socket_close(
 }
 
 bool network_io_common_socket_setup_server(
-        int fd,
+        network_io_common_fd_t fd,
         struct sockaddr *address,
         socklen_t address_size,
         uint16_t backlog,
@@ -213,7 +213,7 @@ bool network_io_common_socket_setup_server(
 
 int network_io_common_socket_tcp4_new(
         int flags) {
-    int fd;
+    network_io_common_fd_t fd;
 
     if ((fd = socket(AF_INET, SOCK_STREAM | flags, IPPROTO_TCP)) < 0) {
         LOG_E(LOG_PRODUCER_DEFAULT, "Unable to create a new IPv4 TCP/IP socket");
@@ -229,7 +229,7 @@ int network_io_common_socket_tcp4_new_server(
         uint16_t backlog,
         network_io_common_socket_setup_server_cb_t socket_setup_server_cb,
         void *socket_setup_server_cb_user_data) {
-    int fd;
+    network_io_common_fd_t fd;
 
     if ((fd = network_io_common_socket_tcp4_new(flags)) < 0) {
         return -1;
@@ -250,7 +250,7 @@ int network_io_common_socket_tcp4_new_server(
 
 int network_io_common_socket_tcp6_new(
         int flags) {
-    int fd;
+    network_io_common_fd_t fd;
 
     if ((fd = socket(AF_INET6, SOCK_STREAM | flags, IPPROTO_TCP)) < 0) {
         LOG_E(LOG_PRODUCER_DEFAULT, "Unable to create a new IPv6 TCP/IP socket");
@@ -266,7 +266,7 @@ int network_io_common_socket_tcp6_new_server(
         uint16_t backlog,
         network_io_common_socket_setup_server_cb_t socket_setup_server_cb,
         void *socket_setup_server_cb_user_data) {
-    int fd;
+    network_io_common_fd_t fd;
 
     if ((fd = network_io_common_socket_tcp6_new(flags)) < 0) {
         return -1;
@@ -293,7 +293,7 @@ int network_io_common_socket_new_server(
         uint16_t backlog,
         network_io_common_socket_setup_server_cb_t socket_setup_server_cb,
         void *socket_setup_server_cb_user_data) {
-    int fd;
+    network_io_common_fd_t fd;
 
     if (family == AF_INET) {
         struct sockaddr_in* socket_address_ipv4 = (struct sockaddr_in*)socket_address;
