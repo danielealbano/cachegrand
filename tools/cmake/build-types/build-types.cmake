@@ -1,7 +1,17 @@
+# Use generator expressions with COMPILE_LANGUAGE to avoid setting compile options for the CUDA if enabled
+
+add_compile_options($<$<COMPILE_LANGUAGE:C>:-g>)
+add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-g>)
+
 if (CMAKE_BUILD_TYPE MATCHES Debug)
     add_definitions(-DDEBUG=1)
-    add_compile_options(-g -O0 -fno-inline)
 
+    add_compile_options($<$<COMPILE_LANGUAGE:C>:-O0>)
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-O0>)
+    add_compile_options($<$<COMPILE_LANGUAGE:C>:-fno-inline>)
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-inline>)
+
+    # gcov linking required by gcc
     if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
         link_libraries(gcov)
     endif()
@@ -9,7 +19,9 @@ if (CMAKE_BUILD_TYPE MATCHES Debug)
     message(STATUS "Debug build")
 elseif (CMAKE_BUILD_TYPE MATCHES Release)
     add_definitions(-DNDEBUG=1)
-    add_compile_options(-g -O3)
+
+    add_compile_options($<$<COMPILE_LANGUAGE:C>:-O3>)
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-O3>)
 
     message(STATUS "Release build")
 endif()
