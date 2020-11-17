@@ -145,6 +145,7 @@ bool worker_fds_register(
 
     for(uint32_t fds_map_index = 0; fds_map_index < fds_map_count; fds_map_index++) {
         fds_map[fds_map_index] = WORKER_FDS_MAP_EMPTY;
+        fds_map_registered[fds_map_index] = WORKER_FDS_MAP_EMPTY;
     }
 
     if (io_uring_register_files(ring, fds_map_registered, fds_map_count) < 0) {
