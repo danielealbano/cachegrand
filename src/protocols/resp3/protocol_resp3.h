@@ -68,7 +68,7 @@ struct protocol_resp3_connection {
 
     struct {
 
-    } stack[NETWORK_PROTOCOL_REDIS_RESP3_PARSER_STATE_STACK_DEPTH];
+    } stack[PROTOCOL_RESP3_STACK_DEPTH_MAX];
 
     union {
         struct {
@@ -82,7 +82,7 @@ struct protocol_resp3_connection {
         struct {
             // nop
         } waiting_params;
-    } state_stack[NETWORK_PROTOCOL_REDIS_RESP3_PARSER_STATE_STACK_DEPTH];
+    } state_stack[PROTOCOL_RESP3_STACK_DEPTH_MAX];
 
 };
 
