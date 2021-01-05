@@ -16,7 +16,7 @@
 
 #include "worker.h"
 
-LOG_PRODUCER_CREATE_DEFAULT("worker", worker)
+#define TAG "worker"
 
 void worker_publish_stats(
         worker_stats_t* worker_stats_new,
@@ -37,8 +37,8 @@ bool worker_should_publish_stats(
     struct timespec last_update_timestamp;
 
     if (clock_gettime(CLOCK_MONOTONIC, &last_update_timestamp) < 0) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Unable to fetch the time");
-        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        LOG_E(TAG, "Unable to fetch the time");
+        LOG_E_OS_ERROR(TAG);
         return false;
     }
 

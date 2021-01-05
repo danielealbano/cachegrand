@@ -13,7 +13,7 @@
 #include "misc.h"
 #include "fatal.h"
 
-LOG_PRODUCER_CREATE_DEFAULT("xalloc", xalloc)
+#define TAG "xalloc"
 
 void* xalloc_alloc(size_t size) {
     void* memptr;
@@ -21,7 +21,7 @@ void* xalloc_alloc(size_t size) {
     memptr = malloc(size);
 
     if (memptr == NULL) {
-        FATAL(LOG_PRODUCER_DEFAULT, "Unable to allocate the requested memory %d", size);
+        FATAL(TAG, "Unable to allocate the requested memory %d", size);
     }
 
     return memptr;
@@ -32,7 +32,7 @@ void* xalloc_alloc_zero(size_t size) {
 
     memptr = xalloc_alloc(size);
     if (memset(memptr, 0, size) != memptr) {
-        FATAL(LOG_PRODUCER_DEFAULT, "Unable to zero the requested memory %d", size);
+        FATAL(TAG, "Unable to zero the requested memory %d", size);
     }
 
     return memptr;
@@ -63,7 +63,7 @@ void* xalloc_alloc_aligned(size_t alignment, size_t size) {
 #endif
 
     if (failed) {
-        FATAL(LOG_PRODUCER_DEFAULT, "Unable to allocate the requested memory %d aligned to %d", size, alignment);
+        FATAL(TAG, "Unable to allocate the requested memory %d aligned to %d", size, alignment);
     }
 
     return memptr;
@@ -74,7 +74,7 @@ void* xalloc_alloc_aligned_zero(size_t alignment, size_t size) {
 
     memptr = xalloc_alloc_aligned(alignment, size);
     if (memset(memptr, 0, size) != memptr) {
-        FATAL(LOG_PRODUCER_DEFAULT, "Unable to zero the requested memory %d", size);
+        FATAL(TAG, "Unable to zero the requested memory %d", size);
     }
 
     return memptr;
@@ -155,7 +155,7 @@ void* xalloc_mmap_alloc(size_t size) {
 #endif
 
     if (failed) {
-        FATAL(LOG_PRODUCER_DEFAULT, "Unable to allocate the requested memory %d", size);
+        FATAL(TAG, "Unable to allocate the requested memory %d", size);
     }
 
     return memptr;

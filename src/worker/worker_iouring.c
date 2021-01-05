@@ -24,7 +24,7 @@
 
 #define WORKER_FDS_MAP_EMPTY 0
 
-LOG_PRODUCER_CREATE_THREAD_LOCAL_DEFAULT("worker_iouring", worker_iouring)
+#define TAG "worker_iouring"
 
 // TODO: this code is buggy, potentially the fd 0 is a valid fd and it would be considered as empty causing a lot of
 //       headache during debugging and fixing, this code should use a bitmap in addition to keep track of the used
@@ -73,9 +73,9 @@ bool worker_fds_map_files_update(
         fds_map[index] = WORKER_FDS_MAP_EMPTY;
 
         LOG_E(
-                LOG_PRODUCER_DEFAULT,
+                TAG,
                 "Failed to update the registered fd <%d> with index <%u> in the registered files", fd, index);
-        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        LOG_E_OS_ERROR(TAG);
     }
 
     return ret;
@@ -90,7 +90,7 @@ int32_t worker_fds_map_find_free_index() {
     }
 
     LOG_E(
-            LOG_PRODUCER_DEFAULT,
+            TAG,
             "Unable to find a free slot for an fd in the fds map");
 
     return -1;
@@ -106,7 +106,7 @@ int32_t worker_fds_map_add_and_enqueue_files_update(
     }
 
     LOG_D(
-            LOG_PRODUCER_DEFAULT,
+            TAG,
             "Registering fd <%d> with index <%d>", fd, index);
 
     if (!worker_fds_map_files_update(ring, index, fd)) {
@@ -126,7 +126,15 @@ network_io_common_fd_t worker_fds_map_remove(
     fd = fds_map[index];
     fds_map[index] = WORKER_FDS_MAP_EMPTY;
 
-    return fd;
+    LOG_D(
+            TAG,
+            "Unregistering fd <%d> from index <%d>", fd, index);
+
+    if (!worker_fds_map_files_update(ring, index, -1)) {
+        return -1;
+    }
+
+    return index;
 }
 
 bool worker_fds_register(
@@ -150,9 +158,9 @@ bool worker_fds_register(
 
     if (io_uring_register_files(ring, fds_map_registered, fds_map_count) < 0) {
         LOG_E(
-                LOG_PRODUCER_DEFAULT,
+                TAG,
                 "Failed to register the fds_map with io_uring");
-        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        LOG_E_OS_ERROR(TAG);
 
         io_uring_support_free(ring);
 
@@ -210,7 +218,7 @@ void worker_iouring_network_listeners_initialize(
                 worker_user_data->addresses[address_index].address,
                 worker_user_data->addresses[address_index].port,
                 listener_new_cb_user_data) == false) {
-            LOG_E(LOG_PRODUCER_DEFAULT, "Unable to setup listener for <%s:%u>",
+            LOG_E(TAG, "Unable to setup listener for <%s:%u>",
                   worker_user_data->addresses[address_index].address,
                   worker_user_data->addresses[address_index].port);
         }
@@ -280,8 +288,8 @@ void worker_iouring_cqe_log(
     iouring_userdata = (network_channel_iouring_entry_user_data_t*)cqe->user_data;
 
     LOG_E(
-            LOG_PRODUCER_DEFAULT,
-            "[OP:%u][FD:%d][FD MAPPED:%d] cqe->user_data = <0x%08lx>, cqe->res = <%s (%d)>, cqe->flags >> 16u = <%d>, cqe->flags & 0xFFFFu = <%d>",
+            TAG,
+            "[OP:%u][FD IDX:%d][FD:%d] cqe->user_data = <0x%08lx>, cqe->res = <%s (%d)>, cqe->flags >> 16 = <%d>, cqe->flags >> 16 = <%d>",
             iouring_userdata->op,
             iouring_userdata->channel->fd,
             iouring_userdata->mapped_fd,
@@ -347,7 +355,7 @@ bool worker_iouring_process_op_accept(
 
     if (worker_iouring_cqe_is_error_any(cqe)) {
         LOG_E(
-                LOG_PRODUCER_DEFAULT,
+                TAG,
                 "Error while waiting for connections on listener <%s>",
                 iouring_userdata_current->channel->address.str);
         worker_request_terminate(worker_user_data);
@@ -364,6 +372,11 @@ bool worker_iouring_process_op_accept(
     iouring_userdata_new->channel->protocol.type = iouring_userdata_current->channel->protocol.type;
     iouring_userdata_new->channel->type = NETWORK_CHANNEL_TYPE_CLIENT;
 
+    LOG_V(
+            TAG,
+            "Listener <%s> accepting new connection from <%s>",
+            iouring_userdata_current->address_str,
+            iouring_userdata_new->address_str);
     // Import the address info from the data struct used by the listener, this doesn't have to be done before the
     // listener has to be enqueued again because the ring items are submitted only in the main loop of the worker but
     // it may easily cause plenty of headache in the future if it changes so better to do things in the proper sequence
@@ -382,7 +395,7 @@ bool worker_iouring_process_op_accept(
             IOSQE_FIXED_FILE,
             (uintptr_t)iouring_userdata_current) == false) {
         LOG_E(
-                LOG_PRODUCER_DEFAULT,
+                TAG,
                 "Can't start to listen again on listener <%s>",
                 iouring_userdata_current->channel->address.str);
 
@@ -415,7 +428,7 @@ bool worker_iouring_process_op_accept(
             new_fd,
             worker_user_data->core_index) == false) {
         LOG_E(
-                LOG_PRODUCER_DEFAULT,
+                TAG,
                 "Can't accept the connection <%s> coming from listener <%s>",
                 iouring_userdata_new->channel->address.str,
                 iouring_userdata_current->listener_new_socket_address.str);
@@ -434,7 +447,7 @@ bool worker_iouring_process_op_accept(
             ring,
             new_fd)) < 0) {
         LOG_E(
-                LOG_PRODUCER_DEFAULT,
+                TAG,
                 "Can't accept the connection <%s> coming from listener <%s>, no more fds free (should never happen, bug!)",
                 iouring_userdata_new->channel->address.str,
                 iouring_userdata_current->listener_new_socket_address.str);
@@ -454,7 +467,7 @@ bool worker_iouring_process_op_accept(
             0,
             (uintptr_t)iouring_userdata_new) == false) {
         LOG_E(
-                LOG_PRODUCER_DEFAULT,
+                TAG,
                 "Can't start to read data from the connection <%s> coming from listener <%s>",
                 iouring_userdata_new->channel->address.str,
                 iouring_userdata_current->listener_new_socket_address.str);
@@ -485,10 +498,10 @@ bool worker_iouring_process_op_recv(
 
     if (cqe->res <= 0) {
         if (cqe->res == 0) {
-            LOG_V(LOG_PRODUCER_DEFAULT, "Closing client <%s>", iouring_userdata_current->channel->address.str);
+            LOG_V(TAG, "Closing client <%s>", iouring_userdata_current->address_str);
         } else{
             LOG_E(
-                    LOG_PRODUCER_DEFAULT,
+                    TAG,
                     "Error <%s (%d)>, closing client <%s>",
                     strerror(cqe->res * -1),
                     cqe->res,
@@ -664,7 +677,7 @@ void worker_iouring_thread_process_ops_loop(
                         cqe);
             } else {
                 LOG_W(
-                        LOG_PRODUCER_DEFAULT,
+                        TAG,
                         "Unknown operation <%u> on <%s>, ignoring...",
                         iouring_userdata_current->op,
                         iouring_userdata_current->channel->address.str);
@@ -708,11 +721,10 @@ void* worker_iouring_thread_func(
     network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = {0};
     worker_user_data_t *worker_user_data = user_data;
 
-    // Initialize the log producer for the worker and set the thread prefix
-    log_producer_local_init_worker_iouring();
+    //Set the thread prefix to be used in the logs
     char* log_producer_early_prefix_thread = worker_log_producer_set_early_prefix_thread(worker_user_data);
 
-    LOG_I(LOG_PRODUCER_DEFAULT, "Worker starting");
+    LOG_I(TAG, "Worker starting");
 
     // TODO: The affinity has to be set by the caller
     worker_user_data->core_index = worker_thread_set_affinity(worker_user_data->worker_index);
@@ -720,7 +732,7 @@ void* worker_iouring_thread_func(
     // TODO: The listeners have to be initialized by the caller, each listener has to be paired up with a protocol parser
     //       and a protocol state machine and this code has to be shared across the different kind of workers (io_uring,
     //       epoll, iocp, kqueue/kevent, dpdk, etc.)
-    LOG_I(LOG_PRODUCER_DEFAULT, "Initializing listeners");
+    LOG_I(TAG, "Initializing listeners");
     listener_new_cb_user_data.backlog = worker_user_data->backlog;
     listener_new_cb_user_data.core_index = worker_user_data->core_index;
     worker_iouring_network_listeners_initialize(
@@ -731,12 +743,12 @@ void* worker_iouring_thread_func(
     if (worker_user_data->worker_index == 0) {
         char available_features_str[512] = {0};
         LOG_V(
-                LOG_PRODUCER_DEFAULT,
+                TAG,
                 "io_uring available features: <%s>",
                 io_uring_support_features_str(available_features_str, sizeof(available_features_str)));
     }
 
-    LOG_V(LOG_PRODUCER_DEFAULT, "Initializing local ring for io_uring");
+    LOG_V(TAG, "Initializing local ring for io_uring");
 
     ring = worker_iouring_initialize_iouring(
             worker_user_data->core_index,
@@ -744,37 +756,35 @@ void* worker_iouring_thread_func(
             worker_user_data->addresses_count);
 
     if (ring != NULL) {
-        // TODO: move the below check into support/io_uring/io_uring_capabilities
-        LOG_I(LOG_PRODUCER_DEFAULT, "Checking if io_uring can link IORING_OP_FILES_UPDATE op");
+        LOG_I(TAG, "Checking if io_uring can link file updates ops");
         if ((op_files_update_link_support = io_uring_capabilities_is_linked_op_files_update_supported())) {
-            LOG_I(LOG_PRODUCER_DEFAULT, "> linking supported");
+            LOG_I(TAG, "> linking supported");
         } else {
-            LOG_W(LOG_PRODUCER_DEFAULT, "> linking not supported, accepting new connections will incur in a performance penalty");
+            LOG_W(TAG, "> linking not supported, accepting new connections will incur in a performance penalty");
         }
 
-        LOG_I(LOG_PRODUCER_DEFAULT, "Enqueing listeners");
+        LOG_I(TAG, "Enqueing listeners");
 
         worker_iouring_listeners_enqueue(
                 ring,
                 &listener_new_cb_user_data);
 
-        LOG_I(LOG_PRODUCER_DEFAULT, "Starting events process loop");
+        LOG_I(TAG, "Starting events process loop");
 
         worker_iouring_thread_process_ops_loop(
                 worker_user_data,
                 &stats,
                 ring);
 
-        LOG_I(LOG_PRODUCER_DEFAULT, "Process events loop ended, cleaning up worker");
+        LOG_I(TAG, "Process events loop ended, cleaning up worker");
 
         worker_iouring_cleanup(
                 &listener_new_cb_user_data,
                 ring);
 
-        LOG_I(LOG_PRODUCER_DEFAULT, "Tearing down worker");
+        LOG_I(TAG, "Tearing down worker");
     }
 
-    log_producer_local_free_worker_iouring();
     xalloc_free(log_producer_early_prefix_thread);
 
     // TODO: the various slab allocated memory can be freed ONLY after every thing else has been terminated, especially

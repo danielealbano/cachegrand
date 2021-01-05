@@ -33,7 +33,7 @@
 
 #include "program.h"
 
-LOG_PRODUCER_CREATE_DEFAULT("program", program)
+#define TAG "program"
 
 volatile bool program_terminate_event_loop = false;
 
@@ -57,7 +57,7 @@ void program_signal_handlers(
 
     if (found_sig_index == -1) {
         LOG_V(
-                LOG_PRODUCER_DEFAULT,
+                TAG,
                 "Received un-managed signal <%s (%d)>, ignoring",
                 signal_name,
                 signal_number);
@@ -65,7 +65,7 @@ void program_signal_handlers(
     }
 
     LOG_V(
-            LOG_PRODUCER_DEFAULT,
+            TAG,
             "Received signal <%s (%d)>, requesting loop termination",
             signal_name,
             signal_number);
@@ -98,8 +98,8 @@ worker_user_data_t* program_workers_initialize(
     // TODO: implement a thread manager
     res = pthread_attr_init(attr);
     if (res != 0) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Unable to start initialize the thread attributes");
-        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        LOG_E(TAG, "Unable to start initialize the thread attributes");
+        LOG_E_OS_ERROR(TAG);
         return NULL;
     }
 
@@ -117,7 +117,7 @@ worker_user_data_t* program_workers_initialize(
                 program_addresses,
                 program_addresses_count);
 
-        LOG_V(LOG_PRODUCER_DEFAULT, "Creating worker <%u>", worker_index);
+        LOG_V(TAG, "Creating worker <%u>", worker_index);
 
         // TODO: decide dynamically which kind of worker should start
         if (pthread_create(
@@ -125,8 +125,8 @@ worker_user_data_t* program_workers_initialize(
                 attr,
                 worker_iouring_thread_func,
                 worker_user_data) != 0) {
-            LOG_E(LOG_PRODUCER_DEFAULT, "Unable to start the worker <%u>", worker_index);
-            LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+            LOG_E(TAG, "Unable to start the worker <%u>", worker_index);
+            LOG_E_OS_ERROR(TAG);
         }
     }
 
@@ -151,30 +151,30 @@ bool program_should_terminate(
 
 void program_wait_loop(
         volatile bool *terminate_event_loop) {
-    LOG_V(LOG_PRODUCER_DEFAULT, "Program loop started");
+    LOG_V(TAG, "Program loop started");
 
     // Wait for the software to terminate
     do {
         usleep(WORKER_LOOP_MAX_WAIT_TIME_MS * 1000);
     } while(!program_should_terminate(terminate_event_loop));
 
-    LOG_V(LOG_PRODUCER_DEFAULT, "Program loop terminated");
+    LOG_V(TAG, "Program loop terminated");
 }
 
 void program_workers_cleanup(
         worker_user_data_t* workers_user_data,
         uint32_t workers_count) {
     int res;
-    LOG_V(LOG_PRODUCER_DEFAULT, "Cleaning up workers");
+    LOG_V(TAG, "Cleaning up workers");
 
     for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
-        LOG_V(LOG_PRODUCER_DEFAULT, "Waiting for worker <%lu> to terminate", worker_index);
+        LOG_V(TAG, "Waiting for worker <%lu> to terminate", worker_index);
         res = pthread_join(workers_user_data[worker_index].pthread, NULL);
         if (res != 0) {
-            LOG_E(LOG_PRODUCER_DEFAULT, "Error while joining the worker <%u>", worker_index);
-            LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+            LOG_E(TAG, "Error while joining the worker <%u>", worker_index);
+            LOG_E_OS_ERROR(TAG);
         } else {
-            LOG_V(LOG_PRODUCER_DEFAULT, "Worker terminated", worker_index);
+            LOG_V(TAG, "Worker terminated", worker_index);
         }
     }
 
@@ -196,7 +196,7 @@ int program_main() {
     // TODO: start the worker threads and invoke the worker thread main func
 
     if (io_uring_capabilities_is_supported() == false) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "io_uring isn't supported, update the kernel to at least version 5.7.0 and enable io_uring");
+        LOG_E(TAG, "io_uring isn't supported, update the kernel to at least version 5.7.0 and enable io_uring");
         return 1;
     }
 
@@ -204,7 +204,11 @@ int program_main() {
 
     // TODO: should be possible to pinpoint in the config which cores can be utilized, very handy for benchmarking in
     //       in combination with the isolcpus kernel init parameter
+#if DEBUG == 1
+    workers_count = 2;
+#else
     workers_count = utils_cpu_count();
+#endif
 
     if ((workers_user_data = program_workers_initialize(
             &program_terminate_event_loop,

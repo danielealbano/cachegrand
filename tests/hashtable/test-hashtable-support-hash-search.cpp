@@ -16,7 +16,7 @@
     SECTION("hashtable_support_hash_search" STRINGIZE(SUFFIX)) { \
         SECTION("hash - found") { \
             hashtable_hash_half_volatile_t hashes[HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT] = { \
-                    123, 234, 345, 456, 567, 678, 789, 890, 901, 012, 987, 876, 765, 654 \
+                    123, 234, 345, 456, 567, 678, 789, 890, 901, 12, 987, 876, 765, 654 \
             }; \
             hashtable_hash_half_t hash = 345; \
             uint32_t skip_indexes_mask = 0; \
@@ -26,7 +26,7 @@
         \
         SECTION("hash - not found") { \
             hashtable_hash_half_volatile_t hashes[HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT] = { \
-                    123, 234, 345, 456, 567, 678, 789, 890, 901, 012, 987, 876, 765, 654 \
+                    123, 234, 345, 456, 567, 678, 789, 890, 901, 12, 987, 876, 765, 654 \
             }; \
             hashtable_hash_half_t hash = 999999; \
             uint32_t skip_indexes_mask = 0; \

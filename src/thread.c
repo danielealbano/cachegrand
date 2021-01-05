@@ -12,7 +12,7 @@
 
 #include "thread.h"
 
-LOG_PRODUCER_CREATE_DEFAULT("thread", thread)
+#define TAG "thread"
 
 long thread_current_get_id() {
     return syscall(SYS_gettid);
@@ -38,11 +38,11 @@ uint32_t thread_current_set_affinity(
     res = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
     if (res != 0) {
         LOG_E(
-                LOG_PRODUCER_DEFAULT,
+                TAG,
                 "Unable to set current thread <%u> affinity to core <%u>",
                 thread_current_get_id(),
                 logical_core_index);
-        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        LOG_E_OS_ERROR(TAG);
         logical_core_index = 0;
     }
 

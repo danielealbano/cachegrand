@@ -12,7 +12,7 @@
 
 #include "network/channel/network_channel.h"
 
-LOG_PRODUCER_CREATE_DEFAULT("network_channel", network_channel)
+#define TAG "network_channel"
 
 bool network_channel_client_setup(
         network_io_common_fd_t fd,
@@ -122,10 +122,7 @@ bool network_channel_listener_new_callback(
             cb_user_data->listeners[listener_id].address.str,
             sizeof(cb_user_data->listeners[listener_id].address.str));
 
-    LOG_V(
-            LOG_PRODUCER_DEFAULT,
-            "Created listener for <%s>",
-            cb_user_data->listeners[listener_id].address.str);
+    LOG_V(TAG, "Created listener for <%s:%d>", address_str, ntohs(port));
 
     return true;
 }
@@ -135,7 +132,7 @@ bool network_channel_listener_new(
         uint16_t port,
         network_channel_listener_new_callback_user_data_t *user_data) {
     int res;
-    LOG_V(LOG_PRODUCER_DEFAULT, "Creating listener for <%s:%d>", address, port);
+    LOG_V(TAG, "Creating listener for <%s:%d>", address, port);
 
     user_data->port = port;
 
