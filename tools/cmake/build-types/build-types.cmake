@@ -10,6 +10,8 @@ if (CMAKE_BUILD_TYPE MATCHES Debug)
     add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-O0>)
     add_compile_options($<$<COMPILE_LANGUAGE:C>:-fno-inline>)
     add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-inline>)
+    add_compile_options($<$<COMPILE_LANGUAGE:C>:-fno-omit-frame-pointer>)
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-omit-frame-pointer>)
 
     # gcov linking required by gcc
     if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
