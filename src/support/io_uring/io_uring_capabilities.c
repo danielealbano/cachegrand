@@ -16,7 +16,7 @@ const char* kallsyms_path = "/proc/kallsyms";
 const char* expected_symbol_name = "io_uring_setup";
 const char* minimum_kernel_version = "5.7.0";
 
-LOG_PRODUCER_CREATE_DEFAULT("io_uring_capabilities_is_supported", io_uring_capabilities_is_supported)
+#define TAG "io_uring_capabilities_is_supported"
 
 bool io_uring_capabilities_kallsyms_fetch_symbol_name(
         FILE* fd,
@@ -32,7 +32,7 @@ bool io_uring_capabilities_kallsyms_fetch_symbol_name(
 
     if ((res = fscanf(fd, "%llx %c %499s\n", &address, &type, buffer)) != 3) {
         if (res != EOF && fgets(buffer, 500, fd) == NULL) {
-            LOG_E(LOG_PRODUCER_DEFAULT, "Unable to read data from <%s>", kallsyms_path);
+            LOG_E(TAG, "Unable to read data from <%s>", kallsyms_path);
             return false;
         }
     }
@@ -50,8 +50,8 @@ FILE* io_uring_capabilities_kallsyms_open() {
     FILE *fd = fopen(kallsyms_path, "r");
 
     if (fd == NULL) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Unable to open <%s>", kallsyms_path);
-        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        LOG_E(TAG, "Unable to open <%s>", kallsyms_path);
+        LOG_E_OS_ERROR(TAG);
     }
 
     return fd;

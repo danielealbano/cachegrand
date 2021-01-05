@@ -12,14 +12,14 @@
 #include "fatal.h"
 #include "signals_support.h"
 
-LOG_PRODUCER_CREATE_DEFAULT("signal_handler/sigsegv", signal_handler_sigsegv)
+#define TAG "signal_handler/sigsegv"
 
 char *unknown_signal_name = "UNKNOWN_SIGNAL_NAME";
 
 void signals_support_handler_sigsegv_fatal(int signal_number) {
     char *signal_name = SIGNALS_SUPPORT_NAME_WRAPPER(signal_number);
     FATAL(
-            LOG_PRODUCER_DEFAULT,
+            TAG,
             "Recived segmentation fault signal (%s %d):\n",
             signal_name,
             signal_number);
@@ -64,18 +64,18 @@ bool signals_support_register_signal_handler(
     signal_name = SIGNALS_SUPPORT_NAME_WRAPPER(signal_number);
 
     LOG_D(
-            LOG_PRODUCER_DEFAULT,
+            TAG,
             "Registering signal handler <%s (%d)>",
             signal_name,
             signal_number);
 
     if (sigaction(signal_number, &action, previous_action) < 0) {
         LOG_E(
-                LOG_PRODUCER_DEFAULT,
+                TAG,
                 "Unable to set the handler for <%s (%d)>",
                 signal_name,
                 signal_number);
-        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        LOG_E_OS_ERROR(TAG);
 
         return false;
     }

@@ -33,19 +33,19 @@ void fatal_trigger_debugger() {
 #endif
 }
 
-void fatal_log_message(log_producer_t* producer, const char* message, va_list args) {
-    log_message(producer, LOG_LEVEL_ERROR, "A fatal error has been throw, unable to continue.");
-    log_message(producer, LOG_LEVEL_ERROR, "Please, review the details below.");
-    log_message_internal(producer, LOG_LEVEL_ERROR, message, args);
-    log_message_print_os_error(producer);
+void fatal_log_message(const char *tag, const char* message, va_list args) {
+    log_message(tag, LOG_LEVEL_ERROR, "A fatal error has been throw, unable to continue.");
+    log_message(tag, LOG_LEVEL_ERROR, "Please, review the details below.");
+    log_message_internal(tag, LOG_LEVEL_ERROR, message, args);
+    log_message_print_os_error(tag);
 }
 
-void fatal(log_producer_t* producer, const char* message, ...) {
+void fatal(const char *tag, const char* message, ...) {
     va_list args;
 
     va_start(args, message);
     fatal_log_message(
-        producer,
+            tag,
         message,
         args);
     va_end(args);

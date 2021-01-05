@@ -12,7 +12,7 @@
 
 #include "network_io_common.h"
 
-LOG_PRODUCER_CREATE_DEFAULT("network_io_common", network_io_common)
+#define TAG "network_io_common"
 
 bool network_io_common_socket_set_option(
         int fd,
@@ -21,8 +21,8 @@ bool network_io_common_socket_set_option(
         void* value,
         socklen_t value_size) {
     if (setsockopt(fd, level, option, value, value_size) < 0) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Unable to set an option on the socket with fd <%d>", fd);
-        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        LOG_E(TAG, "Unable to set an option on the socket with fd <%d>", fd);
+        LOG_E_OS_ERROR(TAG);
 
         return false;
     }
@@ -119,8 +119,8 @@ bool network_io_common_socket_bind(
         struct sockaddr *address,
         socklen_t address_size) {
     if (bind(fd, address, address_size) < 0) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Error binding the socket");
-        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        LOG_E(TAG, "Error binding the socket");
+        LOG_E_OS_ERROR(TAG);
 
         return false;
     }
@@ -132,8 +132,8 @@ bool network_io_common_socket_listen(
         int fd,
         uint16_t backlog) {
     if (listen(fd, backlog) < 0) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Error listening on the socket with a backlog of <%d>", backlog);
-        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        LOG_E(TAG, "Error listening on the socket with a backlog of <%d>", backlog);
+        LOG_E_OS_ERROR(TAG);
         return false;
     }
 
@@ -145,15 +145,15 @@ bool network_io_common_socket_close(
         bool shutdown_may_fail) {
     bool ret = true;
     if (shutdown(fd, SHUT_RDWR) < 0 && !shutdown_may_fail) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Error shutting-down the socket with fd <%d>", fd);
-        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        LOG_E(TAG, "Error shutting-down the socket with fd <%d>", fd);
+        LOG_E_OS_ERROR(TAG);
         ret = false;
     }
 
     // Try to close the socket anyway if the shutdown fails
     if (close(fd)) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Error closing the socket with fd <%d>", fd);
-        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        LOG_E(TAG, "Error closing the socket with fd <%d>", fd);
+        LOG_E_OS_ERROR(TAG);
         ret = false;
     }
 
@@ -216,8 +216,8 @@ int network_io_common_socket_tcp4_new(
     int fd;
 
     if ((fd = socket(AF_INET, SOCK_STREAM | flags, IPPROTO_TCP)) < 0) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Unable to create a new IPv4 TCP/IP socket");
-        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        LOG_E(TAG, "Unable to create a new IPv4 TCP/IP socket");
+        LOG_E_OS_ERROR(TAG);
     }
 
     return fd;
@@ -253,8 +253,8 @@ int network_io_common_socket_tcp6_new(
     int fd;
 
     if ((fd = socket(AF_INET6, SOCK_STREAM | flags, IPPROTO_TCP)) < 0) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Unable to create a new IPv6 TCP/IP socket");
-        LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+        LOG_E(TAG, "Unable to create a new IPv6 TCP/IP socket");
+        LOG_E_OS_ERROR(TAG);
     }
 
     return fd;
@@ -314,7 +314,7 @@ int network_io_common_socket_new_server(
                 socket_setup_server_cb,
                 socket_setup_server_cb_user_data);
     } else {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Unknown socket family <%d>", family);
+        LOG_E(TAG, "Unknown socket family <%d>", family);
         fd = -1;
     }
 
@@ -335,7 +335,7 @@ uint32_t network_io_common_parse_addresses_foreach(
     res = getaddrinfo(address, "0", &hints, &result);
     if (res != 0) {
         LOG_E(
-                LOG_PRODUCER_DEFAULT,
+                TAG,
                 "Unable to resolve the address <%s> because <%s>",
                 address,
                 gai_strerror(res));

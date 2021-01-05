@@ -10,7 +10,7 @@
 
 #include "version.h"
 
-LOG_PRODUCER_CREATE_DEFAULT("version", misc)
+#define TAG "version"
 
 int version_parse(
         char version_string[],
@@ -71,7 +71,7 @@ bool version_kernel(
             kernel_version,
             version_parts_count)) != version_parts_count) {
         LOG_E(
-                LOG_PRODUCER_DEFAULT,
+                TAG,
                 "Error parsing the version string <%s>, expected at <%d> parts in the version, found <%u>",
                 utsname.release,
                 version_parts_count,

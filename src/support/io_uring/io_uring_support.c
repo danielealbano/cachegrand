@@ -10,7 +10,7 @@
 
 #include "io_uring_support.h"
 
-LOG_PRODUCER_CREATE_DEFAULT("io_uring_support", io_uring_support)
+#define TAG "io_uring_support"
 
 io_uring_support_feature_t io_uring_support_features[] = {
         { "IORING_FEAT_SINGLE_MMAP",    IORING_FEAT_SINGLE_MMAP },
@@ -46,10 +46,10 @@ io_uring_t* io_uring_support_init(
     if (res < 0) {
         // If there isn't enough memory hard fail
         if (errno == -ENOMEM) {
-            FATAL(LOG_PRODUCER_DEFAULT, "Unable to allocate or lock enough memory to initialize io_uring, please check the available memory and/or increase the memlock ulimit.");
+            FATAL(TAG, "Unable to allocate or lock enough memory to initialize io_uring, please check the available memory and/or increase the memlock ulimit.");
         } else {
-            LOG_E(LOG_PRODUCER_DEFAULT, "Unable to allocate io_uring using the given params");
-            LOG_E_OS_ERROR(LOG_PRODUCER_DEFAULT);
+            LOG_E(TAG, "Unable to allocate io_uring using the given params");
+            LOG_E_OS_ERROR(TAG);
         }
 
         xalloc_free(io_uring);
@@ -77,7 +77,7 @@ bool io_uring_support_probe_opcode(
 
     probe = io_uring_get_probe();
     if (!probe) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Unable to allocate or fetch the supported io_uring opcodes");
+        LOG_E(TAG, "Unable to allocate or fetch the supported io_uring opcodes");
         res = false;
     } else {
         res = io_uring_opcode_supported(probe, opcode);
@@ -126,7 +126,7 @@ io_uring_sqe_t* io_uring_support_get_sqe(
         io_uring_t *ring) {
     io_uring_sqe_t *sqe = io_uring_get_sqe(ring);
     if (sqe == NULL) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Failed to fetch an sqe, queue full");
+        LOG_E(TAG, "Failed to fetch an sqe, queue full");
     }
 
     return sqe;
@@ -271,7 +271,7 @@ bool io_uring_support_sqe_enqueue_close(
 bool io_uring_support_sqe_submit(
         io_uring_t *ring) {
     if (io_uring_submit(ring) < 0) {
-        LOG_E(LOG_PRODUCER_DEFAULT, "Failed to submit the io_uring sqes");
+        LOG_E(TAG, "Failed to submit the io_uring sqes");
 
         return false;
     }
@@ -285,7 +285,7 @@ bool io_uring_support_sqe_submit_and_wait(
     int res;
     if ((res = io_uring_submit_and_wait(ring, wait_nr)) < 0) {
         LOG_E(
-                LOG_PRODUCER_DEFAULT,
+                TAG,
                 "Failed to submit the io_uring sqes, error code <%s (%d)>",
                 strerror(res),
                 res);

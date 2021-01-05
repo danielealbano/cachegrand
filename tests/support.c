@@ -38,7 +38,7 @@
 
 #include "support.h"
 
-LOG_PRODUCER_CREATE_DEFAULT("test-support", test_support)
+#define TAG "test-support"
 
 void test_support_hashtable_print_heatmap(
         hashtable_t* hashtable,
@@ -496,7 +496,7 @@ char* test_support_init_keys(
 
     switch (keys_generator_method) {
         default:
-            FATAL(LOG_PRODUCER_DEFAULT, "Keyset genererator method <%d> unsupported", keys_generator_method);
+            FATAL(TAG, "Keyset genererator method <%d> unsupported", keys_generator_method);
             break;
 
         case TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_MAX_LENGTH:
