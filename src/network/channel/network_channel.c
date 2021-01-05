@@ -122,7 +122,7 @@ bool network_channel_listener_new_callback(
             cb_user_data->listeners[listener_id].address.str,
             sizeof(cb_user_data->listeners[listener_id].address.str));
 
-    LOG_V(TAG, "Created listener for <%s:%d>", address_str, ntohs(port));
+    LOG_V(TAG, "Created listener for <%s>", cb_user_data->listeners[listener_id].address.str);
 
     return true;
 }

@@ -372,11 +372,6 @@ bool worker_iouring_process_op_accept(
     iouring_userdata_new->channel->protocol.type = iouring_userdata_current->channel->protocol.type;
     iouring_userdata_new->channel->type = NETWORK_CHANNEL_TYPE_CLIENT;
 
-    LOG_V(
-            TAG,
-            "Listener <%s> accepting new connection from <%s>",
-            iouring_userdata_current->address_str,
-            iouring_userdata_new->address_str);
     // Import the address info from the data struct used by the listener, this doesn't have to be done before the
     // listener has to be enqueued again because the ring items are submitted only in the main loop of the worker but
     // it may easily cause plenty of headache in the future if it changes so better to do things in the proper sequence
@@ -414,7 +409,7 @@ bool worker_iouring_process_op_accept(
             sizeof(iouring_userdata_new->channel->address.str));
 
     LOG_V(
-            LOG_PRODUCER_DEFAULT,
+            TAG,
             "Listener <%s> accepting new connection from <%s>",
             iouring_userdata_current->channel->address.str,
             iouring_userdata_new->channel->address.str);
@@ -498,7 +493,7 @@ bool worker_iouring_process_op_recv(
 
     if (cqe->res <= 0) {
         if (cqe->res == 0) {
-            LOG_V(TAG, "Closing client <%s>", iouring_userdata_current->address_str);
+            LOG_V(TAG, "Closing client <%s>", iouring_userdata_current->channel->address.str);
         } else{
             LOG_E(
                     TAG,
@@ -538,8 +533,8 @@ bool worker_iouring_process_op_recv(
 
 
     read_buffer_with_offset[cqe->res] = 0;
-    LOG_D(LOG_PRODUCER_DEFAULT, "[RECV] iouring_userdata_current->recv_buffer.offset = %lu", iouring_userdata_current->recv_buffer.offset);
-    LOG_D(LOG_PRODUCER_DEFAULT, "%s", read_buffer_with_offset);
+    LOG_D(TAG, "[RECV] iouring_userdata_current->recv_buffer.offset = %lu", iouring_userdata_current->recv_buffer.offset);
+    LOG_D(TAG, "%s", read_buffer_with_offset);
 
     int len = snprintf(iouring_userdata_current->recv_buffer.data, NETWORK_CHANNEL_PACKET_SIZE, "-ERR: you are unlucky!\r\n");
 
@@ -592,7 +587,7 @@ bool worker_iouring_process_op_send(
         iouring_userdata_current->recv_buffer.offset = 0;
     }
 
-    LOG_D(LOG_PRODUCER_DEFAULT, "[SEND] iouring_userdata_current->recv_buffer.offset = %lu", iouring_userdata_current->recv_buffer.offset);
+    LOG_D(TAG, "[SEND] iouring_userdata_current->recv_buffer.offset = %lu", iouring_userdata_current->recv_buffer.offset);
 
     char* read_buffer_with_offset =
             (char*)((uintptr_t)iouring_userdata_current->recv_buffer.data + iouring_userdata_current->recv_buffer.offset);
