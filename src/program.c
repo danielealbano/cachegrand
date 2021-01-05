@@ -201,7 +201,11 @@ int program_main() {
 
     // TODO: should be possible to pinpoint in the config which cores can be utilized, very handy for benchmarking in
     //       in combination with the isolcpus kernel init parameter
+#if DEBUG == 1
+    workers_count = 2;
+#else
     workers_count = utils_cpu_count();
+#endif
 
     if ((workers_user_data = program_workers_initialize(
             &program_terminate_event_loop,
