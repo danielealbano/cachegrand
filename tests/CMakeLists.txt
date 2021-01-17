@@ -1,7 +1,16 @@
-# Setup catch2 lib, it's the testing framework
-add_library(catch2 INTERFACE)
-target_include_directories(catch2 INTERFACE ${CMAKE_BINARY_DIR}/3rdparty/catch2)
-add_library(catch2::catch ALIAS catch2)
+# Include the FetchContent module to get Catch directly from the git repository
+Include(FetchContent)
+
+# Disable catch self-testing build
+SET(CATCH_BUILD_TESTING OFF CACHE BOOL "CATCH_BUILD_TESTING")
+SET(CATCH_INSTALL_DOCS OFF CACHE BOOL "CATCH_INSTALL_DOCS")
+
+# Fetch Catch2
+FetchContent_Declare(
+        Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG        v2.13.1)
+FetchContent_MakeAvailable(Catch2)
 
 # Build tests
 file(GLOB_RECURSE SRC_CACHEGRAND_TESTS "test-*.cpp" "*.c")
@@ -22,16 +31,13 @@ set_target_properties(
         cachegrand-tests
         PROPERTIES
         LINKER_LANGUAGE CXX)
-
 add_dependencies(
         cachegrand-tests
-        cachegrand-internal catch2)
-
+        cachegrand-internal Catch2)
 target_link_libraries(
         cachegrand-tests
-        PUBLIC
-        cachegrand-internal)
-
+        PRIVATE
+        cachegrand-internal Catch2::Catch2)
 add_test(
         NAME
         cachegrand-tests

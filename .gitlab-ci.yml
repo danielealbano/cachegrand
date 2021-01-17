@@ -5,12 +5,13 @@ variables:
   CXX: "/usr/bin/g++-9"
   GCOV: "/usr/bin/gcov-9"
 
-image: gitlab.cachegrand.dev:5050/cachegrand/cachegrand-server/ubuntu-2004-x64-gcc:latest
-
 stages:
   - build
   - test
   - codecoverage
+
+image:
+  name: gitlab.cachegrand.dev:5050/cachegrand/cachegrand-server/ubuntu-2004-gcc:latest
 
 build_ubuntu2004_x64_gcc9_debug:
   stage: build
@@ -20,11 +21,6 @@ build_ubuntu2004_x64_gcc9_debug:
   artifacts:
     paths:
       - build
-  cache:
-    key: "$CI_COMMIT_REF_SLUG"
-    paths:
-      - build/
-    untracked: true
   tags:
     - ubuntu-2004
     - x64
@@ -34,11 +30,9 @@ test_ubuntu2004_x64_gcc9_debug:
   needs: [build_ubuntu2004_x64_gcc9_debug]
   script:
     - build/tests/cachegrand-tests
-  cache:
-    key: "$CI_COMMIT_REF_SLUG"
+  artifacts:
     paths:
-      - build/
-    untracked: true
+      - build
   tags:
     - ubuntu-2004
     - x64
@@ -56,11 +50,6 @@ codecoverage_ubuntu2004_x64_gcc9_debug:
   artifacts:
     paths:
       - build/coverage.info
-  cache:
-    key: "$CI_COMMIT_REF_SLUG"
-    paths:
-      - build/
-    untracked: true
   tags:
     - ubuntu-2004
     - x64
