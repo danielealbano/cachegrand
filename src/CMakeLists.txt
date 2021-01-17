@@ -95,6 +95,9 @@ if(ARCH_IS_X86_64)
         CACHEGRAND_BUILD_ADHOC_HASHTABLE_SUPPORT_OP_ARCH(
                 ${HASHTABLE_SUPPORT_OP_ARCH_SUFFIX})
     endforeach()
+
+elseif(ARCH_IS_AARCH64)
+    message(STATUS "No accelerated implementations for AARCH64, using portable")
 else()
     message(FATAL_ERROR "Unsupported architecture")
 endif()
