@@ -14,6 +14,14 @@ RUN chmod 644 /etc/dpkg/dpkg.cfg.d/01_nodoc
 # Update the image and install the required deps
 RUN apt update -y \
     && apt upgrade -y \
-    && apt install -y --no-install-recommends build-essential cmake git pkg-config libssl1.1 libssl-dev lcov \
+    && apt install -y --no-install-recommends \
+        build-essential \
+        cmake \
+        git \
+        pkg-config \
+        libssl1.1 \
+        libssl-dev \
+        lcov \
+        ca-certificates \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*

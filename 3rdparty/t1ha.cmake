@@ -1,7 +1,7 @@
 file(GLOB SRC_FILES_T1HA "t1ha/src/*.c")
 list(FILTER SRC_FILES_T1HA EXCLUDE REGEX ".*t1ha0_ia32aes_[a-z0-9]+\\.c$")
 
-message(STATUS "Enabling accelerated t1ha0")
+message(STATUS "Checking accelerated implementations for t1ha0")
 
 if(ARCH_IS_X86_64)
         message(STATUS "Enabling accelerated t1ha0 -- aes-ni + avx2")
@@ -24,6 +24,9 @@ if(ARCH_IS_X86_64)
                 "t1ha/src/t1ha0_ia32aes_noavx.c"
                 PROPERTIES COMPILE_FLAGS
                 "-mno-avx256-split-unaligned-load -mno-avx2 -mno-avx -maes")
+
+elseif(ARCH_IS_AARCH64)
+        message(STATUS "No accelerated implementation for AARCH64, using portable implementation")
 else()
         message(FATAL_ERROR "Unsupported architecture")
 endif()

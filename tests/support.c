@@ -17,8 +17,11 @@
 #if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_CLFLUSHOPT == 1
 #include <immintrin.h>
 #else
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_SSE42 == 1
 #include <emmintrin.h>
 #endif
+#endif
+
 
 
 #include "memory_fences.h"

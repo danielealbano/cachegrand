@@ -1,4 +1,4 @@
-#include "catch.hpp"
+#include <catch2/catch.hpp>
 
 #include <string.h>
 #include <signal.h>
@@ -146,7 +146,7 @@ TEST_CASE("signals_support.c", "[signals_support]") {
 
         // Fetch the action
         REQUIRE(sigaction(SIGSEGV, NULL, &action) == 0);
-        REQUIRE(action.sa_handler == signals_support_handler_sigsegv_fatal);
+        REQUIRE((action.sa_handler == signals_support_handler_sigsegv_fatal));
 
         // Restore the original action
         REQUIRE(sigaction(SIGSEGV, &original_action, NULL) == 0);

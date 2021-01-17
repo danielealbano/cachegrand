@@ -5,8 +5,6 @@
 #include <pthread.h>
 #include <assert.h>
 
-#include <emmintrin.h>
-
 #include "memory_fences.h"
 #include "misc.h"
 #include "exttypes.h"
