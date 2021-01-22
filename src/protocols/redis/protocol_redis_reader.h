@@ -11,6 +11,7 @@ enum protocol_redis_reader_errors {
     PROTOCOL_REDIS_READER_ERROR_ARGS_ARRAY_TOO_SHORT,
     PROTOCOL_REDIS_READER_ERROR_ARGS_ARRAY_INVALID_LENGTH,
     PROTOCOL_REDIS_READER_ERROR_ARGS_INLINE_UNBALANCED_QUOTES,
+    PROTOCOL_REDIS_READER_ERROR_COMMAND_ALREADY_PARSED,
 };
 typedef enum protocol_redis_reader_errors protocol_redis_reader_errors_t;
 
@@ -83,7 +84,13 @@ protocol_redis_reader_context_t* protocol_redis_reader_context_init();
 void protocol_redis_reader_context_free(
         protocol_redis_reader_context_t* context);
 
-size_t protocol_redis_reader_read(
+void protocol_redis_reader_context_free_arguments(
+        protocol_redis_reader_context_t* context);
+
+void protocol_redis_reader_context_reset(
+        protocol_redis_reader_context_t* context);
+
+long protocol_redis_reader_read(
         char* buffer,
         size_t length,
         protocol_redis_reader_context_t* context);

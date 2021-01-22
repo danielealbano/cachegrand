@@ -16,7 +16,7 @@ protocol_redis_reader_context_t* protocol_redis_reader_context_init() {
     return context;
 }
 
-void protocol_redis_reader_context_free(protocol_redis_reader_context_t* context) {
+void protocol_redis_reader_context_free_arguments(protocol_redis_reader_context_t* context) {
     // Free the allocated memory for the args array
     if (context->arguments.count > 0) {
         for(int index = 0; index < context->arguments.count; index++) {
@@ -27,24 +27,31 @@ void protocol_redis_reader_context_free(protocol_redis_reader_context_t* context
 
         xalloc_free(context->arguments.list);
     }
+}
 
+void protocol_redis_reader_context_reset(protocol_redis_reader_context_t* context) {
+    protocol_redis_reader_context_free_arguments(context);
+    memset(context, 0, sizeof(protocol_redis_reader_context_t));
+}
+
+void protocol_redis_reader_context_free(protocol_redis_reader_context_t* context) {
+    protocol_redis_reader_context_free_arguments(context);
     xalloc_free(context);
 }
 
-size_t protocol_redis_reader_read(
+long protocol_redis_reader_read(
         char* buffer,
         size_t length,
         protocol_redis_reader_context_t* context) {
     size_t read_offset = 0;
     char* buffer_end_ptr = buffer + length;
 
-    // Ensures that there are data to read
-    if (unlikely(length < 0)) {
-        context->error = PROTOCOL_REDIS_READER_ERROR_NO_DATA;
+    // Ensure that there no errors reported in the context and there are data to parse
+    if (unlikely(context->error != 0)) {
         return -1;
     } else if (unlikely(length == 0)) {
-        // No errors but doesn't make sense try to parse the buffer as it doesn't contain enough (new) data
-        return read_offset;
+        context->error = PROTOCOL_REDIS_READER_ERROR_NO_DATA;
+        return -1;
     }
 
     // The reader has first to check if the state is BEGIN, it needs to identify if the command is serialized (RESP3)
@@ -94,6 +101,11 @@ size_t protocol_redis_reader_read(
     }
 
     if (context->state == PROTOCOL_REDIS_READER_STATE_WAITING_ARGUMENT) {
+        if (context->command_parsed) {
+            context->error = PROTOCOL_REDIS_READER_ERROR_COMMAND_ALREADY_PARSED;
+            return -1;
+        }
+
         if (context->is_plaintext) {
             bool is_arg_end_newline = false;
             bool arg_end_char_found = false;
@@ -108,7 +120,14 @@ size_t protocol_redis_reader_read(
 
             // Check if it's the beginning of the command parsing
             if (context->arguments.current.beginning) {
-                char first_byte = *buffer;
+                // Skip any additional space character
+                do {
+                    if (*arg_start_char_ptr != ' ') {
+                        break;
+                    }
+                } while (arg_start_char_ptr++ && arg_start_char_ptr < buffer_end_ptr);
+
+                char first_byte = *arg_start_char_ptr;
                 if (first_byte == '\'' || first_byte == '"') {
                     context->arguments.plaintext.current.quote_char = first_byte;
                     context->arguments.plaintext.current.decode_escaped_chars = first_byte == '"';
@@ -124,7 +143,6 @@ size_t protocol_redis_reader_read(
             char arg_search_char = context->arguments.plaintext.current.quote_char != 0
                     ? context->arguments.plaintext.current.quote_char
                     : ' ';
-
             do {
                 // Would be much better to use memchr but it's not possible to search for multiple characters. The do/while
                 // loop below is slower than memchr but the plaintext (inline) protocol should be used only for debugging
@@ -254,14 +272,12 @@ size_t protocol_redis_reader_read(
                     context->arguments.current.length += data_length;
                     context->arguments.list[context->arguments.current.index].length = context->arguments.current.length;
                 }
-
-                if (arg_end_char_found) {
-                    context->arguments.current.length = 0;
-                    context->arguments.current.beginning = true;
-                }
             }
 
             if (arg_end_char_found) {
+                context->arguments.current.length = 0;
+                context->arguments.current.beginning = true;
+
                 if (is_arg_end_newline) {
                     context->command_parsed = true;
                 }
