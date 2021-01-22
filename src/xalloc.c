@@ -27,6 +27,16 @@ void* xalloc_alloc(size_t size) {
     return memptr;
 }
 
+void* xalloc_realloc(void* memptr, size_t size) {
+    memptr = realloc(memptr, size);
+
+    if (memptr == NULL) {
+        FATAL(TAG, "Unable to allocate the requested memory %d to resize the pointer 0x%p", size, memptr);
+    }
+
+    return memptr;
+}
+
 void* xalloc_alloc_zero(size_t size) {
     void* memptr;
 

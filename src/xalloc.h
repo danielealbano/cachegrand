@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 void* xalloc_alloc(size_t size);
+void* xalloc_realloc(void* memptr, size_t size);
 void* xalloc_alloc_zero(size_t size);
 void* xalloc_alloc_aligned(size_t alignment, size_t size);
 void* xalloc_alloc_aligned_zero(size_t alignment, size_t size);

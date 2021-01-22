@@ -1,5 +1,6 @@
 #include <catch2/catch.hpp>
 
+#include <string.h>
 #include <unistd.h>
 #include <signal.h>
 #include <setjmp.h>
@@ -42,6 +43,36 @@ TEST_CASE("xalloc.c", "[xalloc]") {
             }
 
             REQUIRE(fatal_catched);
+        }
+    }
+
+    SECTION("xalloc_realloc") {
+        SECTION("valid size") {
+            char short_test_string[] = "short string";
+            char *data = (char*)xalloc_alloc(16);
+            memcpy(data, short_test_string, strlen(short_test_string) + 1);
+
+            data = (char*)xalloc_realloc(data, 32);
+
+            REQUIRE(data != NULL);
+            REQUIRE(strncmp(data, short_test_string, strlen(short_test_string)) == 0);
+
+            free(data);
+        }
+        SECTION("invalid size") {
+            char *data = (char*)xalloc_alloc(16);
+            bool fatal_catched = false;
+
+            if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
+                test_xalloc_setup_sigabrt_signal_handler();
+                data = (char*)xalloc_realloc(data, -1);
+            } else {
+                fatal_catched = true;
+            }
+
+            REQUIRE(fatal_catched);
+
+            free(data);
         }
     }
 
