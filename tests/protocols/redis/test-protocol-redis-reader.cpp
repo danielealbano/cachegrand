@@ -489,7 +489,7 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c", "[protocols][redis][protoco
             protocol_redis_reader_context_free(context);
         }
 
-        SECTION("multiple argument 1 byte, at time, no quotes, with new line") {
+        SECTION("multiple argument 1 byte at time, no quotes, with new line") {
             char buffer[] = "SET mykey myvalue\r\n";
             int buffer_length = strlen(buffer);
             char* buffer_read = buffer;
@@ -519,6 +519,80 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c", "[protocols][redis][protoco
             protocol_redis_reader_context_free(context);
             free(buffer_new);
         }
+
+        SECTION("multiple argument, no quotes, with new line, clone data") {
+            char buffer[] = "SET mykey myvalue\r\n";
+            int buffer_length = strlen(buffer);
+            char* buffer_read = buffer;
+
+            protocol_redis_reader_context_t* context = protocol_redis_reader_context_init();
+
+            // The expectation is that the command contained in the buffer will be fully parsed with 3 iterations
+            // as all the spaces and new lines will be preemptively found and skipped to avoid useless calls.
+            long buffer_offset = 0;
+            for(int i = 0; i < 3; i++) {
+                long data_read_len = protocol_redis_reader_read(
+                        buffer_read + buffer_offset,
+                        buffer_length - buffer_offset,
+                        context);
+                buffer_offset += data_read_len;
+
+                if (context->arguments.current.length > 0 && context->arguments.list[context->arguments.current.index].from_buffer) {
+                    protocol_redis_reader_context_arguments_clone_current(context);
+                }
+            }
+
+            REQUIRE(context->arguments.count == 3);
+            REQUIRE(context->arguments.list[0].length == 3);
+            REQUIRE(strncmp(context->arguments.list[0].value, "SET", context->arguments.list[0].length) == 0);
+            REQUIRE(context->arguments.list[1].length == 5);
+            REQUIRE(strncmp(context->arguments.list[1].value, "mykey", context->arguments.list[1].length) == 0);
+            REQUIRE(context->arguments.list[2].length == 7);
+            REQUIRE(strncmp(context->arguments.list[2].value, "myvalue", context->arguments.list[2].length) == 0);
+            REQUIRE(context->command_parsed == true);
+
+            protocol_redis_reader_context_free(context);
+        }
+
+//        SECTION("multiple argument 1 byte at time, no quotes, with new line, clone data") {
+//            // TODO: This test covers an edge case not managed by the parser where the command is sent in very small
+//            //       chunks and the data are not from the buffer, it will try to copy some extra bytes at the end
+//            //       past the end of the buffer.
+//            //       This behaviour is wrong and requires a fix as may trigger a segfault but being a very edgy case
+//            //       can be left on a side and fixed within the next iterations.
+//            char buffer[] = "SET mykey myvalue\r\n";
+//            int buffer_length = strlen(buffer);
+//            char* buffer_read = buffer;
+//
+//            protocol_redis_reader_context_t* context = protocol_redis_reader_context_init();
+//
+//            char* buffer_new = (char*)malloc(buffer_length + 1);
+//            long buffer_new_length = 0;
+//            long buffer_new_offset = 0;
+//            for(int i = 0; i < buffer_length; i++) {
+//                buffer_new[i] = buffer[i];
+//                buffer_new_length++;
+//
+//                long data_read_len = protocol_redis_reader_read(buffer_new + buffer_new_offset, buffer_new_length - buffer_new_offset, context);
+//                buffer_new_offset += data_read_len;
+//
+//                if (context->arguments.list[context->arguments.current.index].from_buffer) {
+//                    protocol_redis_reader_context_arguments_clone_current(context);
+//                }
+//            }
+//
+//            REQUIRE(context->arguments.count == 3);
+//            REQUIRE(context->arguments.list[0].length == 3);
+//            REQUIRE(strncmp(context->arguments.list[0].value, "SET", context->arguments.list[0].length) == 0);
+//            REQUIRE(context->arguments.list[1].length == 5);
+//            REQUIRE(strncmp(context->arguments.list[1].value, "mykey", context->arguments.list[1].length) == 0);
+//            REQUIRE(context->arguments.list[2].length == 7);
+//            REQUIRE(strncmp(context->arguments.list[2].value, "myvalue", context->arguments.list[2].length) == 0);
+//            REQUIRE(context->command_parsed == true);
+//
+//            protocol_redis_reader_context_free(context);
+//            free(buffer_new);
+//        }
 
         SECTION("multiple argument with spaces, no quotes, with new line") {
             char buffer[] = " SET   mykey  myvalue   \r\n";

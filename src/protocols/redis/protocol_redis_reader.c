@@ -16,7 +16,7 @@ protocol_redis_reader_context_t* protocol_redis_reader_context_init() {
     return context;
 }
 
-void protocol_redis_reader_context_free_arguments(protocol_redis_reader_context_t* context) {
+void protocol_redis_reader_context_arguments_free(protocol_redis_reader_context_t* context) {
     // Free the allocated memory for the args array
     if (context->arguments.count > 0) {
         for(int index = 0; index < context->arguments.count; index++) {
@@ -29,13 +29,34 @@ void protocol_redis_reader_context_free_arguments(protocol_redis_reader_context_
     }
 }
 
+int protocol_redis_reader_context_arguments_clone_current(protocol_redis_reader_context_t* context) {
+    if (context->arguments.count == 0) {
+        return -1;
+    }
+
+    long index = context->arguments.current.index;
+
+    if (!context->arguments.list[index].from_buffer) {
+        return -1;
+    }
+
+    char* value = xalloc_alloc_zero(context->arguments.current.length);
+
+    memcpy(value, context->arguments.list[index].value, context->arguments.current.length);
+
+    context->arguments.list[index].value = value;
+    context->arguments.list[index].from_buffer = false;
+
+    return 0;
+}
+
 void protocol_redis_reader_context_reset(protocol_redis_reader_context_t* context) {
-    protocol_redis_reader_context_free_arguments(context);
+    protocol_redis_reader_context_arguments_free(context);
     memset(context, 0, sizeof(protocol_redis_reader_context_t));
 }
 
 void protocol_redis_reader_context_free(protocol_redis_reader_context_t* context) {
-    protocol_redis_reader_context_free_arguments(context);
+    protocol_redis_reader_context_arguments_free(context);
     xalloc_free(context);
 }
 
@@ -265,7 +286,7 @@ long protocol_redis_reader_read(
                         char* value_dest =
                                 context->arguments.list[context->arguments.current.index].value +
                                         context->arguments.current.length;
-                        memcpy(arg_start_char_ptr, value_dest, data_length);
+                        memcpy(value_dest, arg_start_char_ptr, data_length);
                     }
 
                     // Updates the length

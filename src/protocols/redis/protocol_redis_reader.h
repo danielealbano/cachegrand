@@ -84,7 +84,10 @@ protocol_redis_reader_context_t* protocol_redis_reader_context_init();
 void protocol_redis_reader_context_free(
         protocol_redis_reader_context_t* context);
 
-void protocol_redis_reader_context_free_arguments(
+void protocol_redis_reader_context_arguments_free(
+        protocol_redis_reader_context_t* context);
+
+int protocol_redis_reader_context_arguments_clone_current(
         protocol_redis_reader_context_t* context);
 
 void protocol_redis_reader_context_reset(
