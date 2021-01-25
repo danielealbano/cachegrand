@@ -8,10 +8,12 @@ extern "C" {
 enum protocol_redis_reader_errors {
     PROTOCOL_REDIS_READER_ERROR_OK,
     PROTOCOL_REDIS_READER_ERROR_NO_DATA,
-    PROTOCOL_REDIS_READER_ERROR_ARGS_ARRAY_TOO_SHORT,
     PROTOCOL_REDIS_READER_ERROR_ARGS_ARRAY_INVALID_LENGTH,
     PROTOCOL_REDIS_READER_ERROR_ARGS_INLINE_UNBALANCED_QUOTES,
     PROTOCOL_REDIS_READER_ERROR_COMMAND_ALREADY_PARSED,
+    PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_EXPECTED,
+    PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_INVALID_LENGTH,
+    PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_MISSING_END_SIGNATURE,
 };
 typedef enum protocol_redis_reader_errors protocol_redis_reader_errors_t;
 
@@ -38,22 +40,23 @@ typedef enum protocol_redis_types protocol_redis_types_t;
 
 enum protocol_redis_reader_states {
     PROTOCOL_REDIS_READER_STATE_BEGIN,
-    PROTOCOL_REDIS_READER_STATE_WAITING_ARGUMENT
+    PROTOCOL_REDIS_READER_STATE_INLINE_WAITING_ARGUMENT,
+    PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_LENGTH,
+    PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA,
+    PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED,
 };
 typedef enum protocol_redis_reader_states protocol_redis_reader_states_t;
 
 struct protocol_redis_reader_context_argument {
     char* value;
     unsigned long length;
-    bool from_buffer;
+    bool copied_from_buffer;
 };
 typedef struct protocol_redis_reader_context_argument protocol_redis_reader_context_argument_t;
 
 struct protocol_redis_reader_context {
     protocol_redis_reader_states_t state;
     protocol_redis_reader_errors_t error;
-    bool is_plaintext;
-    bool command_parsed;
 
     struct {
         protocol_redis_reader_context_argument_t *list;
@@ -66,14 +69,16 @@ struct protocol_redis_reader_context {
 
         union {
             struct {
-                // TODO: nothing to declare right now
-            } serialized;
+                struct {
+                    char received_length;
+                } current;
+            } resp_protocol;
             struct {
                 struct {
                     char quote_char;
                     bool decode_escaped_chars;
                 } current;
-            } plaintext;
+            } inline_protocol;
         };
     } arguments;
 };

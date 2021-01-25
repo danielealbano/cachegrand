@@ -20,7 +20,7 @@ void protocol_redis_reader_context_arguments_free(protocol_redis_reader_context_
     // Free the allocated memory for the args array
     if (context->arguments.count > 0) {
         for(int index = 0; index < context->arguments.count; index++) {
-            if (!context->arguments.list[index].from_buffer) {
+            if (context->arguments.list[index].copied_from_buffer) {
                 xalloc_free(context->arguments.list[index].value);
             }
         }
@@ -36,7 +36,7 @@ int protocol_redis_reader_context_arguments_clone_current(protocol_redis_reader_
 
     long index = context->arguments.current.index;
 
-    if (!context->arguments.list[index].from_buffer) {
+    if (context->arguments.list[index].copied_from_buffer) {
         return -1;
     }
 
@@ -45,7 +45,7 @@ int protocol_redis_reader_context_arguments_clone_current(protocol_redis_reader_
     memcpy(value, context->arguments.list[index].value, context->arguments.current.length);
 
     context->arguments.list[index].value = value;
-    context->arguments.list[index].from_buffer = false;
+    context->arguments.list[index].copied_from_buffer = true;
 
     return 0;
 }
@@ -73,22 +73,32 @@ long protocol_redis_reader_read(
     } else if (unlikely(length == 0)) {
         context->error = PROTOCOL_REDIS_READER_ERROR_NO_DATA;
         return -1;
+    } if (unlikely(context->state == PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED)) {
+        context->error = PROTOCOL_REDIS_READER_ERROR_COMMAND_ALREADY_PARSED;
+        return -1;
     }
 
-    // The reader has first to check if the state is BEGIN, it needs to identify if the command is serialized (RESP3)
+    // The reader has first to check if the state is BEGIN, it needs to identify if the command is resp (RESP3)
     // or if it is inlined checking the first byte.
     if (context->state == PROTOCOL_REDIS_READER_STATE_BEGIN) {
         char first_byte = *(char*)buffer;
+        bool is_inline = first_byte != PROTOCOL_REDIS_TYPE_ARRAY;
 
-        bool is_plaintext = first_byte != PROTOCOL_REDIS_TYPE_ARRAY;
-
-        if (!is_plaintext) {
+        if (is_inline) {
+            context->state = PROTOCOL_REDIS_READER_STATE_INLINE_WAITING_ARGUMENT;
+            context->arguments.count = 0;
+        } else {
             char *new_line_ptr = memchr(buffer, '\n', length);
             if (new_line_ptr == NULL) {
                 // If the new line can't be find, it means that we received partial data and need to wait for more
                 // before trying to parse again.
                 // The state is not changed on purpose
                 return 0;
+            }
+
+            // No need to error check if new_line_ptr - 1 < buffer, there is always at least 1 byte before
+            if (*(new_line_ptr - 1) == '\r') {
+                new_line_ptr--;
             }
 
             char *args_count_end_ptr = NULL;
@@ -100,213 +110,309 @@ long protocol_redis_reader_read(
                 return -1;
             }
 
-            if (args_count == 0) {
-                // TODO: redis consider this valid but it's an edge case and we don't care for now
-                context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_ARRAY_TOO_SHORT;
+            if (args_count <= 0) {
+                context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_ARRAY_INVALID_LENGTH;
                 return -1;
             }
 
-            // TODO: should limit the number of allowed elements, otherwise too much memory maybe consumed
+            // TODO: should limit the number of allowed elements otherwise it can be used as DDOS attack
 
             context->arguments.count = args_count;
-            context->arguments.list = xalloc_alloc(sizeof(char*) * context->arguments.count);
-            read_offset = buffer - new_line_ptr + 1;
+
+            // TODO: use a buffer pool
+            context->arguments.list = xalloc_alloc_zero(
+                    sizeof(protocol_redis_reader_context_argument_t) * context->arguments.count);
+
+            unsigned long move_offset = new_line_ptr - buffer + 2;
+            read_offset += move_offset;
+            buffer += move_offset;
+            length -= move_offset;
+
+            context->state = PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_LENGTH;
         }
 
-        context->state = PROTOCOL_REDIS_READER_STATE_WAITING_ARGUMENT;
-        context->is_plaintext = is_plaintext;
-        context->arguments.count = 0;
         context->arguments.current.index = -1;
         context->arguments.current.beginning = true;
         context->arguments.current.length = 0;
     }
 
-    if (context->state == PROTOCOL_REDIS_READER_STATE_WAITING_ARGUMENT) {
-        if (context->command_parsed) {
-            context->error = PROTOCOL_REDIS_READER_ERROR_COMMAND_ALREADY_PARSED;
+    // PROTOCOL_REDIS_READER_STATE_INLINE_WAITING_ARGUMENT is inline protocol only
+    if (context->state == PROTOCOL_REDIS_READER_STATE_INLINE_WAITING_ARGUMENT) {
+        bool is_arg_end_newline = false;
+        bool arg_end_char_found = false;
+        char* arg_start_char_ptr = buffer;
+        char* arg_end_char_ptr;
+        unsigned long data_length;
+
+        // Check if the string starts with a single or double quote.
+        // If double quotes, need to parse chars in hex format \xHH
+        // Every time a new argument is found, the array needs to be realloc and the counter incremented
+        // TODO: improve it, it's crap
+
+        // Check if it's the beginning of the command parsing
+        if (context->arguments.current.beginning) {
+            // Skip any additional space character
+            do {
+                if (*arg_start_char_ptr != ' ') {
+                    break;
+                }
+            } while (arg_start_char_ptr++ && arg_start_char_ptr < buffer_end_ptr);
+
+            char first_byte = *arg_start_char_ptr;
+            if (first_byte == '\'' || first_byte == '"') {
+                context->arguments.inline_protocol.current.quote_char = first_byte;
+                context->arguments.inline_protocol.current.decode_escaped_chars = first_byte == '"';
+
+                arg_start_char_ptr++;
+            } else {
+                context->arguments.inline_protocol.current.quote_char = 0;
+                context->arguments.inline_protocol.current.decode_escaped_chars = false;
+            }
+        }
+
+        arg_end_char_ptr = arg_start_char_ptr;
+        char arg_search_char = (context->arguments.inline_protocol.current.quote_char != 0)
+                ? context->arguments.inline_protocol.current.quote_char
+                : ' ';
+        do {
+            // Would be much better to use memchr but it's not possible to search for multiple characters. The do/while
+            // loop below is slower than memchr but the inline_protocol (inline) protocol should be used only for debugging
+            // or the simple HELLO/PING commands so doesn't matter
+            do {
+                // Check if it has found the end of the argument
+                if (*arg_end_char_ptr == '\n' || *arg_end_char_ptr == arg_search_char) {
+                    arg_end_char_found = true;
+                    break;
+                }
+            } while (arg_end_char_ptr++ && arg_end_char_ptr < buffer_end_ptr);
+
+            // Check if it has found the end char
+            if (arg_end_char_found) {
+                // Ensure that if a quote is expected the argument end char is not a new line, multiline commands are
+                // not allowed in inline_protocol (inline) mode in redis
+                if (context->arguments.inline_protocol.current.quote_char != 0 && *arg_end_char_ptr == '\n') {
+                    context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_INLINE_UNBALANCED_QUOTES;
+                    return -1;
+                }
+
+                // If the argument is wrapped in double quotes ensure that the quote found is not escaped
+                if (context->arguments.inline_protocol.current.quote_char != 0 &&
+                    context->arguments.inline_protocol.current.decode_escaped_chars) {
+                    // Count the number of backslashes, if any
+                    char* backslash_char_ptr = arg_end_char_ptr;
+                    uint64_t backslash_count = 0;
+                    while(*--backslash_char_ptr == '\\') {
+                        backslash_count++;
+                    }
+
+                    // If found
+                    if (backslash_count > 0) {
+                        if ((backslash_count % 2) == 1) {
+                            // The quote char is escaped, it's not the end of the string, has to keep searching
+                            arg_end_char_found = false;
+                            arg_end_char_ptr++;
+                        }
+                    }
+                }
+            }
+        } while (arg_end_char_found == false && arg_end_char_ptr < buffer_end_ptr);
+
+        // Calculate the read offset, includes any space and new line if present to avoid useless operations afterwards
+        char *read_offset_arg_end_char_ptr = arg_end_char_ptr;
+
+        if (arg_end_char_found) {
+            if (context->arguments.inline_protocol.current.quote_char != 0) {
+                read_offset_arg_end_char_ptr++;
+            }
+
+            // Count in the read offset any empty space after the arg end char
+            do {
+                if (*read_offset_arg_end_char_ptr != ' ') {
+                    break;
+                }
+            } while (read_offset_arg_end_char_ptr++ && read_offset_arg_end_char_ptr < buffer_end_ptr);
+
+            is_arg_end_newline = *read_offset_arg_end_char_ptr == '\n';
+
+            // If the argument doesn't end with a new line, check if it's followed by one to avoid useless operations
+            if (!is_arg_end_newline) {
+                // Check both \n and \r\n after the end of the
+                for (int newlinechars = 2; newlinechars > 0; newlinechars--) {
+                    if (read_offset_arg_end_char_ptr + newlinechars < buffer_end_ptr &&
+                        *(read_offset_arg_end_char_ptr + newlinechars) == '\n') {
+                        read_offset_arg_end_char_ptr += newlinechars;
+                        is_arg_end_newline = true;
+                        break;
+                    }
+                }
+            }
+
+            // If a new line has been found, move over the new line
+            if (is_arg_end_newline) {
+                read_offset_arg_end_char_ptr++;
+            }
+        }
+
+        // Update the read offset, move forward the initial point of the buffer and update the length
+        read_offset += read_offset_arg_end_char_ptr - buffer;
+        buffer += read_offset;
+        length -= read_offset;
+
+        // Calculate the data length but first remove any carriage feed if present
+        if (arg_end_char_found && *(arg_end_char_ptr - 1) == '\r') {
+            arg_end_char_ptr--;
+        }
+
+        data_length = arg_end_char_ptr - arg_start_char_ptr;
+
+        // If the data length is 0, it's just a new line and can be skipped
+        if (data_length > 0) {
+            // Update the context, if the flag beginning is set to true the system has also take care of allocating
+            // the necessary memory
+            if (context->arguments.current.beginning) {
+                // Increments the counter of the arguments and reallocate the memory. Because of this late initialization
+                // count starts from 0 and current.index starts from -1
+                context->arguments.count++;
+                context->arguments.current.index++;
+
+                // Set the data length
+                context->arguments.current.length = data_length;
+
+                // Increase the size of the list and update the new element
+                context->arguments.list = xalloc_realloc(
+                        context->arguments.list,
+                        sizeof(protocol_redis_reader_context_argument_t) * context->arguments.count);
+                context->arguments.list[context->arguments.current.index].value = arg_start_char_ptr;
+                context->arguments.list[context->arguments.current.index].length = context->arguments.current.length;
+                context->arguments.list[context->arguments.current.index].copied_from_buffer = false;
+
+                // Mark that it's not the beginning of the parsing of the current argument anymore
+                context->arguments.current.beginning = false;
+            } else {
+                // If the data are not from the buffer, it needs to resize the allocated memory and copy the new data
+                if (context->arguments.list[context->arguments.current.index].copied_from_buffer) {
+                    context->arguments.list[context->arguments.current.index].value = xalloc_realloc(
+                            context->arguments.list[context->arguments.current.index].value,
+                            context->arguments.current.length + data_length);
+
+                    char* value_dest =
+                            context->arguments.list[context->arguments.current.index].value +
+                                    context->arguments.current.length;
+                    memcpy(value_dest, arg_start_char_ptr, data_length);
+                }
+
+                // Updates the length
+                context->arguments.current.length += data_length;
+                context->arguments.list[context->arguments.current.index].length = context->arguments.current.length;
+            }
+        }
+
+        if (arg_end_char_found) {
+            context->arguments.current.length = 0;
+            context->arguments.current.beginning = true;
+
+            if (is_arg_end_newline) {
+                context->state = PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED;
+            }
+        }
+    }
+
+    if (length > 0 && context->state == PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_LENGTH) {
+        char first_byte = *(char*)buffer;
+        bool is_blob_string = first_byte == PROTOCOL_REDIS_TYPE_BLOB_STRING;
+
+        if (!is_blob_string) {
+            context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_EXPECTED;
             return -1;
         }
 
-        if (context->is_plaintext) {
-            bool is_arg_end_newline = false;
-            bool arg_end_char_found = false;
-            char* arg_start_char_ptr = buffer;
-            char* arg_end_char_ptr;
-            unsigned long data_length;
+        char *new_line_ptr = memchr(buffer, '\n', length);
+        if (new_line_ptr == NULL) {
+            // If the new line can't be find, it means that we received partial data and need to wait for more
+            // before trying to parse again.
+            // The state is not changed on purpose
+            return read_offset;
+        }
 
-            // Check if the string starts with a single or double quote.
-            // If double quotes, need to parse chars in hex format \xHH
-            // Every time a new argument is found, the array needs to be realloc and the counter incremented
-            // TODO: improve it, it's crap
+        // No need to error check if new_line_ptr - 1 < buffer, there is always at least 1 byte before
+        if (*(new_line_ptr - 1) == '\r') {
+            new_line_ptr--;
+        }
 
-            // Check if it's the beginning of the command parsing
-            if (context->arguments.current.beginning) {
-                // Skip any additional space character
-                do {
-                    if (*arg_start_char_ptr != ' ') {
-                        break;
-                    }
-                } while (arg_start_char_ptr++ && arg_start_char_ptr < buffer_end_ptr);
+        char *data_length_end_ptr = NULL;
+        long data_length = strtol(buffer + 1, &data_length_end_ptr, 10);
 
-                char first_byte = *arg_start_char_ptr;
-                if (first_byte == '\'' || first_byte == '"') {
-                    context->arguments.plaintext.current.quote_char = first_byte;
-                    context->arguments.plaintext.current.decode_escaped_chars = first_byte == '"';
+        // Ensure that the tail ptr matches the new line, otherwise means there are invalid chars
+        if (new_line_ptr != data_length_end_ptr) {
+            context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_INVALID_LENGTH;
+            return -1;
+        }
 
-                    arg_start_char_ptr++;
-                } else {
-                    context->arguments.plaintext.current.quote_char = 0;
-                    context->arguments.plaintext.current.decode_escaped_chars = false;
-                }
-            }
+        if (data_length < 0) {
+            context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_INVALID_LENGTH;
+            return -1;
+        }
 
-            arg_end_char_ptr = arg_start_char_ptr;
-            char arg_search_char = context->arguments.plaintext.current.quote_char != 0
-                    ? context->arguments.plaintext.current.quote_char
-                    : ' ';
-            do {
-                // Would be much better to use memchr but it's not possible to search for multiple characters. The do/while
-                // loop below is slower than memchr but the plaintext (inline) protocol should be used only for debugging
-                // or the simple HELLO/PING commands so doesn't matter
-                do {
-                    // Check if it has found the end of the argument
-                    if (*arg_end_char_ptr == '\n' || *arg_end_char_ptr == arg_search_char) {
-                        arg_end_char_found = true;
-                        break;
-                    }
-                } while (arg_end_char_ptr++ && arg_end_char_ptr < buffer_end_ptr);
+        // Increase read_offset
+        unsigned long move_offset = new_line_ptr - buffer + 2;
+        read_offset += move_offset;
 
-                // Check if it has found the end char
-                if (arg_end_char_found) {
-                    // Ensure that if a quote is expected the argument end char is not a new line, multiline commands are
-                    // not allowed in plaintext (inline) mode in redis
-                    if (context->arguments.plaintext.current.quote_char != 0 && *arg_end_char_ptr == '\n') {
-                        context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_INLINE_UNBALANCED_QUOTES;
-                        return -1;
-                    }
+        // Move forward the initial point of the buffer and update the length
+        buffer += move_offset;
+        length -= move_offset;
 
-                    // If the argument is wrapped in double quotes ensure that the quote found is not escaped
-                    if (context->arguments.plaintext.current.quote_char != 0 &&
-                        context->arguments.plaintext.current.decode_escaped_chars) {
-                        // Count the number of backslashes, if any
-                        char* backslash_char_ptr = arg_end_char_ptr;
-                        uint64_t backslash_count = 0;
-                        while(*--backslash_char_ptr == '\\') {
-                            backslash_count++;
-                        }
+        // Update the status of the current argument
+        context->arguments.current.index++;
+        context->arguments.current.length = data_length;
+        context->arguments.resp_protocol.current.received_length = 0;
 
-                        // If found
-                        if (backslash_count > 0) {
-                            if ((backslash_count % 2) == 1) {
-                                // The quote char is escaped, it's not the end of the string, has to keep searching
-                                arg_end_char_found = false;
-                                arg_end_char_ptr++;
-                            }
-                        }
-                    }
-                }
-            } while (arg_end_char_found == false && arg_end_char_ptr < buffer_end_ptr);
+        context->arguments.list[context->arguments.current.index].value = buffer;
+        context->arguments.list[context->arguments.current.index].length = data_length;
+        context->arguments.list[context->arguments.current.index].copied_from_buffer = false;
 
-            // Calculate the read offset, includes any space and new line if present to avoid useless operations afterwards
-            char *read_offset_arg_end_char_ptr = arg_end_char_ptr;
-
-            if (arg_end_char_found) {
-                if (context->arguments.plaintext.current.quote_char != 0) {
-                    read_offset_arg_end_char_ptr++;
-                }
-
-                // Count in the read offset any empty space after the arg end char
-                do {
-                    if (*read_offset_arg_end_char_ptr != ' ') {
-                        break;
-                    }
-                } while (read_offset_arg_end_char_ptr++ && read_offset_arg_end_char_ptr < buffer_end_ptr);
-
-                is_arg_end_newline = *read_offset_arg_end_char_ptr == '\n';
-
-                // If the argument doesn't end with a new line, check if it's followed by one to avoid useless operations
-                if (!is_arg_end_newline) {
-                    // Check both \n and \r\n after the end of the
-                    for (int newlinechars = 2; newlinechars > 0; newlinechars--) {
-                        if (read_offset_arg_end_char_ptr + newlinechars < buffer_end_ptr &&
-                            *(read_offset_arg_end_char_ptr + newlinechars) == '\n') {
-                            read_offset_arg_end_char_ptr += newlinechars;
-                            is_arg_end_newline = true;
-                            break;
-                        }
-                    }
-                }
-
-                // If a new line has been found, move over the new line
-                if (is_arg_end_newline) {
-                    read_offset_arg_end_char_ptr++;
-                }
-            }
-
-            // Update the read offset
-            read_offset = read_offset_arg_end_char_ptr - buffer;
-
-            // Calculate the data length but first remove any carriage feed if present
-            if (arg_end_char_found && *(arg_end_char_ptr - 1) == '\r') {
-                arg_end_char_ptr--;
-            }
-
-            data_length = arg_end_char_ptr - arg_start_char_ptr;
-
-            // If the data length is 0, it's just a new line and can be skipped
-            if (data_length > 0) {
-                // Update the context, if the flag beginning is set to true the system has also take care of allocating
-                // the necessary memory
-                if (context->arguments.current.beginning) {
-                    // Increments the counter of the arguments and reallocate the memory. Because of this late initialization
-                    // count starts from 0 and current.index starts from -1
-                    context->arguments.count++;
-                    context->arguments.current.index++;
-
-                    // Set the data length
-                    context->arguments.current.length = data_length;
-
-                    // Increase the size of the list and update the new element
-                    context->arguments.list = xalloc_realloc(
-                            context->arguments.list,
-                            sizeof(struct protocol_redis_reader_context_argument) * context->arguments.count);
-                    context->arguments.list[context->arguments.current.index].value = arg_start_char_ptr;
-                    context->arguments.list[context->arguments.current.index].length = context->arguments.current.length;
-                    context->arguments.list[context->arguments.current.index].from_buffer = true;
-
-                    // Mark that it's not the beginning of the parsing of the current argument anymore
-                    context->arguments.current.beginning = false;
-                } else {
-                    // If the data are not from the buffer, it needs to resize the allocated memory and copy the new data
-                    if (!context->arguments.list[context->arguments.current.index].from_buffer) {
-                        context->arguments.list[context->arguments.current.index].value = xalloc_realloc(
-                                context->arguments.list[context->arguments.current.index].value,
-                                context->arguments.current.length + data_length);
-
-                        char* value_dest =
-                                context->arguments.list[context->arguments.current.index].value +
-                                        context->arguments.current.length;
-                        memcpy(value_dest, arg_start_char_ptr, data_length);
-                    }
-
-                    // Updates the length
-                    context->arguments.current.length += data_length;
-                    context->arguments.list[context->arguments.current.index].length = context->arguments.current.length;
-                }
-            }
-
-            if (arg_end_char_found) {
-                context->arguments.current.length = 0;
-                context->arguments.current.beginning = true;
-
-                if (is_arg_end_newline) {
-                    context->command_parsed = true;
-                }
-            }
+        // Change the state to PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA only if there are data
+        if (data_length > 0) {
+            context->state = PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA;
         } else {
-            // Search for a new line, read the string length, check if there are enough data for the second string
-            // validate it ends with the new line
-            assert(false);
+            if (context->arguments.current.index == context->arguments.count - 1) {
+                context->state = PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED;
+            }
+        }
+    }
+
+    if (length > 0 && context->state == PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA) {
+        // Check if the current buffer may contain the entire / remaining response, take into account that every data
+        // blob has to be followed by a \r\n
+        size_t waiting_data_length =
+                context->arguments.current.length -
+                context->arguments.resp_protocol.current.received_length +
+                2;
+
+        if (length < waiting_data_length) {
+            read_offset += length;
+            context->arguments.resp_protocol.current.received_length += length;
+        } else {
+            // Check if the end of the data has the proper signature (\r\n)
+            char* signature_ptr = buffer + waiting_data_length - 2;
+            if (*signature_ptr != '\r' || *(signature_ptr + 1) != '\n') {
+                context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_MISSING_END_SIGNATURE;
+                return -1;
+            }
+
+            read_offset += waiting_data_length;
+            buffer += waiting_data_length;
+            length -= waiting_data_length;
+
+            // Update the current status
+            context->arguments.current.length = 0;
+            context->arguments.current.beginning = true;
+
+            // Check if this is the last argument of the array
+            if (context->arguments.current.index == context->arguments.count - 1) {
+                context->state = PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED;
+            } else {
+                context->state = PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_LENGTH;
+            }
         }
     }
 
