@@ -229,7 +229,7 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
 
         SECTION("multiple arguments, 1 byte at time") {
             char buffer[] = "*3\r\n$3\r\nFOR\r\n$2\r\nAN\r\n$12\r\nHELLO WORLD!\r\n";
-            int buffer_length = strlen(buffer);
+            long buffer_length = strlen(buffer);
 
             protocol_redis_reader_context_t* context = protocol_redis_reader_context_init();
 
@@ -252,6 +252,44 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
             REQUIRE(strncmp(context->arguments.list[1].value, "AN", context->arguments.list[1].length) == 0);
             REQUIRE(context->arguments.list[2].length == 12);
             REQUIRE(strncmp(context->arguments.list[2].value, "HELLO WORLD!", context->arguments.list[2].length) == 0);
+            REQUIRE(context->state == PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED);
+
+            protocol_redis_reader_context_free(context);
+        }
+
+        SECTION("multiple arguments, multiple buffers") {
+            int buffers_count = 4;
+            char* buffers[] = {
+                    "*2\r\n$3\r\nFOR\r\n$35\r\n1234567890",
+                    "ABCDEFGHIL",
+                    "MNBVCXZLKJ12345",
+                    "\r\n"
+            };
+
+            protocol_redis_reader_context_t* context = protocol_redis_reader_context_init();
+
+            for (int buffer_index = 0; buffer_index < buffers_count; buffer_index++) {
+                char* buffer_read = buffers[buffer_index];
+                long buffer_length = strlen(buffer_read);
+
+                long data_read_len;
+
+                do {
+                    data_read_len = protocol_redis_reader_read(buffer_read, buffer_length, context);
+
+                    REQUIRE(data_read_len != -1);
+                    REQUIRE(context->error == 0);
+
+                    buffer_read += data_read_len;
+                    buffer_length -= data_read_len;
+                } while(data_read_len != -1 && buffer_length > 0 && context->state != PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED);
+            }
+
+            REQUIRE(context->arguments.count == 2);
+            REQUIRE(context->arguments.list[0].length == 3);
+            REQUIRE(strncmp(context->arguments.list[0].value, "FOR", context->arguments.list[0].length) == 0);
+            REQUIRE(context->arguments.list[1].length == 35);
+            REQUIRE(strncmp(context->arguments.list[1].value, "1234567890", 10) == 0);
             REQUIRE(context->state == PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED);
 
             protocol_redis_reader_context_free(context);
