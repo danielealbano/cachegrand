@@ -285,6 +285,7 @@ long protocol_redis_reader_read(
                 context->arguments.list[context->arguments.current.index].value = arg_start_char_ptr;
                 context->arguments.list[context->arguments.current.index].length = context->arguments.current.length;
                 context->arguments.list[context->arguments.current.index].copied_from_buffer = false;
+                context->arguments.list[context->arguments.current.index].all_read = false;
 
                 // Mark that it's not the beginning of the parsing of the current argument anymore
                 context->arguments.current.beginning = false;
@@ -308,6 +309,8 @@ long protocol_redis_reader_read(
         }
 
         if (arg_end_char_found) {
+            context->arguments.list[context->arguments.current.index].all_read = true;
+
             context->arguments.current.length = 0;
             context->arguments.current.beginning = true;
 
@@ -369,6 +372,7 @@ long protocol_redis_reader_read(
         context->arguments.list[context->arguments.current.index].value = buffer;
         context->arguments.list[context->arguments.current.index].length = data_length;
         context->arguments.list[context->arguments.current.index].copied_from_buffer = false;
+        context->arguments.list[context->arguments.current.index].all_read = false;
 
         // Change the state to PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA only if there are data
         if (data_length > 0) {
@@ -406,6 +410,8 @@ long protocol_redis_reader_read(
             // Update the current status
             context->arguments.current.length = 0;
             context->arguments.current.beginning = true;
+
+            context->arguments.list[context->arguments.current.index].all_read = true;
 
             // Check if this is the last argument of the array
             if (context->arguments.current.index == context->arguments.count - 1) {
