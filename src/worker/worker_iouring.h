@@ -45,6 +45,11 @@ bool worker_iouring_process_op_accept(
         worker_stats_t* stats,
         io_uring_t* ring,
         io_uring_cqe_t *cqe);
+bool worker_iouring_process_op_recv_close_or_error(
+        worker_user_data_t *worker_user_data,
+        worker_stats_t* stats,
+        io_uring_t* ring,
+        io_uring_cqe_t *cqe);
 bool worker_iouring_process_op_recv(
         worker_user_data_t *worker_user_data,
         worker_stats_t* stats,

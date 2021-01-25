@@ -8,8 +8,8 @@ extern "C" {
 #define PROGRAM_NETWORK_MAX_CONNECTIONS_PER_WORKER  512
 #define PROGRAM_NETWORK_CONNECTIONS_BACKLOG         100
 #define PROGRAM_NETWORK_ADDRESSES \
-        { "0.0.0.0", 12345 }, \
-        { "::", 12345 }
+        { "0.0.0.0", 12345, NETWORK_PROTOCOL_TYPE_REDIS }, \
+        { "::", 12345, NETWORK_PROTOCOL_TYPE_REDIS }
 #define PROGRAM_NETWORK_ADDRESSES_COUNT \
         (sizeof(((network_channel_address_t[]){ PROGRAM_NETWORK_ADDRESSES })) / sizeof(network_channel_address_t))
 

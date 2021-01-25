@@ -2,6 +2,7 @@
 #define CACHEGRAND_NETWORK_CHANNEL_H
 
 #include <network/protocol/network_protocol.h>
+#include <protocols/redis/protocol_redis_reader.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,6 +37,7 @@ typedef struct network_channel_address network_channel_address_t;
 struct network_channel_address {
     char* address;
     uint16_t port;
+    network_protocol_type_t protocol;
 };
 
 typedef struct network_channel_socket_address network_channel_socket_address_t;
@@ -49,6 +51,14 @@ struct network_channel_socket_address {
     socklen_t size;
 };
 
+enum network_protocol_redis_commands {
+    NETWORK_PROTOCOL_REDIS_COMMAND_NOP = 0,
+    NETWORK_PROTOCOL_REDIS_COMMAND_HELLO,
+    NETWORK_PROTOCOL_REDIS_COMMAND_PING,
+    NETWORK_PROTOCOL_REDIS_COMMAND_GET,
+    NETWORK_PROTOCOL_REDIS_COMMAND_SET,
+};
+
 typedef struct network_channel network_channel_t;
 struct network_channel {
     network_io_common_fd_t fd;
@@ -57,6 +67,13 @@ struct network_channel {
     network_channel_state_t* state;
     struct {
         network_protocol_type_t type;
+        union {
+            struct {
+                protocol_redis_reader_context_t* context;
+                enum network_protocol_redis_commands command;
+                bool command_found;
+            } redis;
+        } data;
     } protocol;
 };
 
@@ -81,10 +98,12 @@ bool network_channel_listener_new_callback(
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
         uint16_t socket_address_index,
+        network_protocol_type_t protocol,
         void* user_data);
 bool network_channel_listener_new(
         char* address,
         uint16_t port,
+        network_protocol_type_t protocol,
         network_channel_listener_new_callback_user_data_t *user_data);
 network_channel_t* network_channel_new();
 void network_channel_free(

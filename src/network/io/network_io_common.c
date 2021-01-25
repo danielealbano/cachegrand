@@ -10,6 +10,7 @@
 #include "misc.h"
 #include "log.h"
 
+#include "network/protocol/network_protocol.h"
 #include "network_io_common.h"
 
 #define TAG "network_io_common"
@@ -324,6 +325,7 @@ int network_io_common_socket_new_server(
 uint32_t network_io_common_parse_addresses_foreach(
         char *address,
         network_io_common_parse_addresses_foreach_callback_t callback,
+        network_protocol_type_t protocol,
         void* user_data) {
     struct addrinfo *result, *rp;
     struct addrinfo hints = {0};
@@ -353,6 +355,7 @@ uint32_t network_io_common_parse_addresses_foreach(
                 rp->ai_addr,
                 rp->ai_addrlen,
                 socket_address_index,
+                protocol,
                 user_data)) {
             socket_address_index++;
         }

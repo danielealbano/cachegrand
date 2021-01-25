@@ -13,9 +13,9 @@
 #include "pow2.h"
 #include "support/io_uring/io_uring_support.h"
 #include "support/io_uring/io_uring_capabilities.h"
+#include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
-#include <network/protocol/network_protocol.h>
-//#include <protocols/resp3/protocol_resp3.h>
+#include <protocols/redis/protocol_redis_reader.h>
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
 #include "worker.h"
@@ -217,10 +217,12 @@ void worker_iouring_network_listeners_initialize(
         if (network_channel_listener_new(
                 worker_user_data->addresses[address_index].address,
                 worker_user_data->addresses[address_index].port,
+                worker_user_data->addresses[address_index].protocol,
                 listener_new_cb_user_data) == false) {
-            LOG_E(TAG, "Unable to setup listener for <%s:%u>",
+            LOG_E(TAG, "Unable to setup listener for <%s:%u> with protocol <%d>",
                   worker_user_data->addresses[address_index].address,
-                  worker_user_data->addresses[address_index].port);
+                  worker_user_data->addresses[address_index].port,
+                  worker_user_data->addresses[address_index].protocol);
         }
     }
 }
@@ -372,6 +374,20 @@ bool worker_iouring_process_op_accept(
     iouring_userdata_new->channel->protocol.type = iouring_userdata_current->channel->protocol.type;
     iouring_userdata_new->channel->type = NETWORK_CHANNEL_TYPE_CLIENT;
 
+    switch (iouring_userdata_new->channel->protocol.type) {
+        default:
+            LOG_E(
+                    TAG,
+                    "Unsupported protocol type <>",
+                    iouring_userdata_new->channel->protocol.type);
+            network_channel_iouring_entry_user_data_free(iouring_userdata_new);
+            break;
+
+        case NETWORK_PROTOCOL_TYPE_REDIS:
+            iouring_userdata_new->channel->protocol.data.redis.context = protocol_redis_reader_context_init();
+            break;
+    }
+
     // Import the address info from the data struct used by the listener, this doesn't have to be done before the
     // listener has to be enqueued again because the ring items are submitted only in the main loop of the worker but
     // it may easily cause plenty of headache in the future if it changes so better to do things in the proper sequence
@@ -483,7 +499,7 @@ bool worker_iouring_process_op_accept(
     return true;
 }
 
-bool worker_iouring_process_op_recv(
+bool worker_iouring_process_op_recv_close_or_error(
         worker_user_data_t *worker_user_data,
         worker_stats_t* stats,
         io_uring_t* ring,
@@ -491,72 +507,254 @@ bool worker_iouring_process_op_recv(
     network_channel_iouring_entry_user_data_t *iouring_userdata_current;
     iouring_userdata_current = (network_channel_iouring_entry_user_data_t *)cqe->user_data;
 
-    if (cqe->res <= 0) {
-        if (cqe->res == 0) {
-            LOG_V(TAG, "Closing client <%s>", iouring_userdata_current->channel->address.str);
-        } else{
+    if (cqe->res == 0) {
+        LOG_V(TAG, "Closing client <%s>", iouring_userdata_current->channel->address.str);
+    } else{
+        LOG_E(
+                TAG,
+                "Error <%s (%d)>, closing client <%s>",
+                strerror(cqe->res * -1),
+                cqe->res,
+                iouring_userdata_current->channel->address.str);
+    }
+
+    switch (iouring_userdata_current->channel->protocol.type) {
+        default:
             LOG_E(
                     TAG,
-                    "Error <%s (%d)>, closing client <%s>",
-                    strerror(cqe->res * -1),
-                    cqe->res,
-                    iouring_userdata_current->channel->address.str);
+                    "Unsupported protocol type <>",
+                    iouring_userdata_current->channel->protocol.type);
+            break;
+
+        case NETWORK_PROTOCOL_TYPE_REDIS:
+            protocol_redis_reader_context_free(iouring_userdata_current->channel->protocol.data.redis.context);
+            iouring_userdata_current->channel->protocol.data.redis.context = NULL;
+            break;
+    }
+
+    stats->network.active_connections--;
+    network_io_common_socket_close(fds_map[iouring_userdata_current->mapped_fd], true);
+    worker_fds_map_remove(
+            ring,
+            iouring_userdata_current->mapped_fd);
+
+    network_channel_iouring_entry_user_data_free(iouring_userdata_current);
+
+    return true;
+}
+
+bool worker_iouring_process_op_recv_protocol_redis(
+        worker_user_data_t *worker_user_data,
+        worker_stats_t* stats,
+        io_uring_t* ring,
+        io_uring_cqe_t *cqe,
+        char* read_buffer_with_offset) {
+    long data_read_len;
+    network_channel_iouring_entry_user_data_t *iouring_userdata_current;
+    iouring_userdata_current = (network_channel_iouring_entry_user_data_t *) cqe->user_data;
+    protocol_redis_reader_context_t *context = iouring_userdata_current->channel->protocol.data.redis.context;
+
+    // TODO: this function should be part of network_protocol_redis
+
+    bool send_response = false;
+
+    do {
+        // Keep reading till there are data in the buffer
+        do {
+            data_read_len = protocol_redis_reader_read(
+                    read_buffer_with_offset,
+                    iouring_userdata_current->recv_buffer.size,
+                    context);
+
+            if (data_read_len == -1) {
+                continue;
+            }
+
+            read_buffer_with_offset += data_read_len;
+            iouring_userdata_current->recv_buffer.offset += data_read_len;
+            iouring_userdata_current->recv_buffer.size -= data_read_len;
+
+            if (
+                    context->arguments.current.index >= 0 &&
+                    !iouring_userdata_current->channel->protocol.data.redis.command_found) {
+                char* value = context->arguments.list[0].value;
+
+                if (context->arguments.list[0].all_read) {
+                    // TODO: properly implement a command map
+                    if (strncasecmp("GET", value, 3) == 0) {
+                        LOG_D(TAG, "[RECV][REDIS] GET command");
+
+                        iouring_userdata_current->channel->protocol.data.redis.command = NETWORK_PROTOCOL_REDIS_COMMAND_GET;
+                        iouring_userdata_current->channel->protocol.data.redis.command_found = true;
+
+                        // TODO: check expected arguments length (variable number, each one represent a key)
+                    } else if (strncasecmp("SET", value, 3) == 0) {
+                        LOG_D(TAG, "[RECV][REDIS] SET command");
+
+                        iouring_userdata_current->channel->protocol.data.redis.command = NETWORK_PROTOCOL_REDIS_COMMAND_SET;
+                        iouring_userdata_current->channel->protocol.data.redis.command_found = true;
+
+                        // TODO: check expected arguments length (variable number, 2 arguments per set command, arg count % 2 == 0)
+                    } else if (strncasecmp("PING", value, 4) == 0) {
+                        LOG_D(TAG, "[RECV][REDIS] PING command");
+
+                        iouring_userdata_current->channel->protocol.data.redis.command = NETWORK_PROTOCOL_REDIS_COMMAND_PING;
+                        iouring_userdata_current->channel->protocol.data.redis.command_found = true;
+
+                        // TODO: check expected arguments length (must be 0)
+                    } else {
+                        // TODO: handle unknown command!
+                    }
+                }
+            }
+
+            if (iouring_userdata_current->channel->protocol.data.redis.command_found) {
+                if (iouring_userdata_current->channel->protocol.data.redis.command == NETWORK_PROTOCOL_REDIS_COMMAND_PING) {
+                    int len = snprintf(
+                            iouring_userdata_current->send_buffer.data + iouring_userdata_current->send_buffer.offset,
+                            NETWORK_CHANNEL_PACKET_SIZE, "+PONG\r\n");
+                    iouring_userdata_current->send_buffer.offset += len;
+                    iouring_userdata_current->send_buffer.size += len;
+
+                    send_response = true;
+                } else {
+                    // TODO: handle the other supported commands
+                }
+            }
+        } while(
+                data_read_len != -1 &&
+                iouring_userdata_current->recv_buffer.size > 0 &&
+                context->state != PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED);
+
+        // TODO: handle parser error
+        if (data_read_len == -1) {
+            // TODO: need to send back an error message
+            return false;
         }
 
-        stats->network.active_connections--;
-        network_io_common_socket_close(fds_map[iouring_userdata_current->mapped_fd], true);
-        worker_fds_map_remove(
+        if (context->state == PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED) {
+            iouring_userdata_current->channel->protocol.data.redis.command_found = false;
+            protocol_redis_reader_context_reset(context);
+        }
+    } while(data_read_len > 0 && iouring_userdata_current->recv_buffer.size > 0);
+
+    if (send_response) {
+        iouring_userdata_current->send_response = true;
+        iouring_userdata_current->op = NETWORK_IO_IOURING_OP_SEND;
+
+        io_uring_support_sqe_enqueue_send(
                 ring,
-                iouring_userdata_current->mapped_fd);
+                iouring_userdata_current->mapped_fd,
+                iouring_userdata_current->send_buffer.data,
+                iouring_userdata_current->send_buffer.size,
+                0,
+                IOSQE_FIXED_FILE,
+                (uintptr_t)iouring_userdata_current);
+    }
 
-        network_channel_iouring_entry_user_data_free(iouring_userdata_current);
+    return true;
+}
 
-        return true;
+bool worker_iouring_process_op_recv(
+        worker_user_data_t *worker_user_data,
+        worker_stats_t* stats,
+        io_uring_t* ring,
+        io_uring_cqe_t *cqe) {
+    bool result = false;
+    network_channel_iouring_entry_user_data_t *iouring_userdata_current;
+    iouring_userdata_current = (network_channel_iouring_entry_user_data_t *)cqe->user_data;
+
+    if (cqe->res <= 0) {
+        return worker_iouring_process_op_recv_close_or_error(worker_user_data, stats, ring, cqe);
     }
 
     iouring_userdata_current->recv_buffer.size += cqe->res;
-
-    char* read_buffer_with_offset =
-            (char*)((uintptr_t)iouring_userdata_current->recv_buffer.data + iouring_userdata_current->recv_buffer.offset);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    read_buffer_with_offset[cqe->res] = 0;
-    LOG_D(TAG, "[RECV] iouring_userdata_current->recv_buffer.offset = %lu", iouring_userdata_current->recv_buffer.offset);
-    LOG_D(TAG, "%s", read_buffer_with_offset);
-
-    int len = snprintf(iouring_userdata_current->recv_buffer.data, NETWORK_CHANNEL_PACKET_SIZE, "-ERR: you are unlucky!\r\n");
-
-    iouring_userdata_current->op = NETWORK_IO_IOURING_OP_SEND;
-
-    // TODO: handle errors (ie. close the connection)
-    io_uring_support_sqe_enqueue_send(
-            ring,
-            iouring_userdata_current->mapped_fd,
-            iouring_userdata_current->recv_buffer.data,
-//            cqe->res,
-            len,
-            0,
-            IOSQE_FIXED_FILE,
-            (uintptr_t)iouring_userdata_current);
 
     stats->network.received_packets_total++;
     stats->network.received_packets_per_second++;
     stats->network.max_packet_size =
             max(stats->network.max_packet_size, cqe->res);
 
-    return true;
+    char* read_buffer_with_offset =
+            (char*)((uintptr_t)iouring_userdata_current->recv_buffer.data + iouring_userdata_current->recv_buffer.offset);
+
+    LOG_D(
+            TAG,
+            "[RECV] before processing - iouring_userdata_current->recv_buffer.offset = %lu, iouring_userdata_current->recv_buffer.size = %lu",
+            iouring_userdata_current->recv_buffer.offset,
+            iouring_userdata_current->recv_buffer.size);
+
+    switch (iouring_userdata_current->channel->protocol.type) {
+        default:
+            LOG_E(
+                    TAG,
+                    "Unsupported protocol type <%d>",
+                    iouring_userdata_current->channel->protocol.type);
+            break;
+
+        case NETWORK_PROTOCOL_TYPE_REDIS:
+            result = worker_iouring_process_op_recv_protocol_redis(
+                    worker_user_data,
+                    stats,
+                    ring,
+                    cqe,
+                    read_buffer_with_offset);
+    }
+
+    LOG_D(
+            TAG,
+            "[RECV] after processing - iouring_userdata_current->recv_buffer.offset = %lu, iouring_userdata_current->recv_buffer.size = %lu",
+            iouring_userdata_current->recv_buffer.offset,
+            iouring_userdata_current->recv_buffer.size);
+
+    // TODO: if offset + size is bigger than threshold, copy the data back to the beginning but first notify the protocol
+    //       layer
+    size_t recv_buffer_needed_size =
+            iouring_userdata_current->recv_buffer.offset +
+            iouring_userdata_current->recv_buffer.size +
+            NETWORK_CHANNEL_PACKET_SIZE;
+
+    if (recv_buffer_needed_size > NETWORK_CHANNEL_RECV_BUFFER_SIZE) {
+        if (iouring_userdata_current->recv_buffer.size + NETWORK_CHANNEL_PACKET_SIZE > NETWORK_CHANNEL_RECV_BUFFER_SIZE) {
+            LOG_D(TAG, "[RECV] Too much unprocessed data into the buffer, unable to continue");
+
+            network_io_common_socket_close(fds_map[iouring_userdata_current->mapped_fd], true);
+            worker_fds_map_remove(
+                    ring,
+                    iouring_userdata_current->mapped_fd);
+
+            network_channel_iouring_entry_user_data_free(iouring_userdata_current);
+
+            return true;
+        } else {
+            LOG_D(TAG, "[RECV] Copying data from the end of the window to the beginning");
+            memcpy(
+                    iouring_userdata_current->recv_buffer.data,
+                    iouring_userdata_current->recv_buffer.data + iouring_userdata_current->recv_buffer.offset,
+                    iouring_userdata_current->recv_buffer.size);
+            iouring_userdata_current->recv_buffer.offset = 0;
+        }
+    }
+
+    if (result) {
+        if (!iouring_userdata_current->send_response) {
+            iouring_userdata_current->op = NETWORK_IO_IOURING_OP_RECV;
+            io_uring_support_sqe_enqueue_recv(
+                    ring,
+                    iouring_userdata_current->mapped_fd,
+                    (
+                            iouring_userdata_current->recv_buffer.data +
+                            iouring_userdata_current->recv_buffer.offset +
+                            iouring_userdata_current->recv_buffer.size
+                            ),
+                    NETWORK_CHANNEL_PACKET_SIZE,
+                    0,
+                    IOSQE_FIXED_FILE,
+                    (uintptr_t)iouring_userdata_current);
+        }
+    }
+
+    return result;
 }
 
 bool worker_iouring_process_op_send(
@@ -567,7 +765,7 @@ bool worker_iouring_process_op_send(
     network_channel_iouring_entry_user_data_t *iouring_userdata_current;
     iouring_userdata_current = (network_channel_iouring_entry_user_data_t *)cqe->user_data;
 
-    if (worker_iouring_cqe_is_error_any(cqe)) {
+    if (iouring_userdata_current->close_connection || worker_iouring_cqe_is_error_any(cqe)) {
         worker_iouring_cqe_log(worker_user_data, cqe);
 
         network_io_common_socket_close(fds_map[iouring_userdata_current->mapped_fd], true);
@@ -580,23 +778,24 @@ bool worker_iouring_process_op_send(
         return true;
     }
 
+    LOG_D(
+            TAG,
+            "[SEND] submit read iouring_userdata_current->recv_buffer.offset = %lu",
+            iouring_userdata_current->recv_buffer.offset);
+
+    // TODO: should check if the buffer has been entirely sent, if not should complete it before enqueuing the read
+    iouring_userdata_current->send_buffer.size = 0;
+    iouring_userdata_current->send_buffer.offset = 0;
+    iouring_userdata_current->send_response = false;
     iouring_userdata_current->op = NETWORK_IO_IOURING_OP_RECV;
-
-    iouring_userdata_current->recv_buffer.offset += cqe->res;
-    if ((iouring_userdata_current->recv_buffer.offset + NETWORK_CHANNEL_PACKET_SIZE) > NETWORK_CHANNEL_RECV_BUFFER_SIZE) {
-        iouring_userdata_current->recv_buffer.offset = 0;
-    }
-
-    LOG_D(TAG, "[SEND] iouring_userdata_current->recv_buffer.offset = %lu", iouring_userdata_current->recv_buffer.offset);
-
-    char* read_buffer_with_offset =
-            (char*)((uintptr_t)iouring_userdata_current->recv_buffer.data + iouring_userdata_current->recv_buffer.offset);
-
-    // TODO: handle errors (ie. close the connection)
     io_uring_support_sqe_enqueue_recv(
             ring,
             iouring_userdata_current->mapped_fd,
-            read_buffer_with_offset,
+            (
+                    iouring_userdata_current->recv_buffer.data +
+                    iouring_userdata_current->recv_buffer.offset +
+                    iouring_userdata_current->recv_buffer.size
+            ),
             NETWORK_CHANNEL_PACKET_SIZE,
             0,
             IOSQE_FIXED_FILE,
