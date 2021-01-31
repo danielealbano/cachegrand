@@ -15,7 +15,9 @@
 #include "support/io_uring/io_uring_capabilities.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
+#include <protocol/redis/protocol_redis.h>
 #include <protocol/redis/protocol_redis_reader.h>
+#include <protocol/redis/protocol_redis_writer.h>
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
 #include "worker.h"
@@ -610,9 +612,19 @@ bool worker_iouring_process_op_recv_protocol_redis(
 
             if (iouring_userdata_current->channel->protocol.data.redis.command_found) {
                 if (iouring_userdata_current->channel->protocol.data.redis.command == NETWORK_PROTOCOL_REDIS_COMMAND_PING) {
-                    int len = snprintf(
-                            iouring_userdata_current->send_buffer.data + iouring_userdata_current->send_buffer.offset,
-                            NETWORK_CHANNEL_PACKET_SIZE, "+PONG\r\n");
+                    char* buffer_start = iouring_userdata_current->send_buffer.data + iouring_userdata_current->send_buffer.offset;
+                    char* buffer_end = protocol_redis_writer_write_blob_string(
+                            buffer_start,
+                            /** FAKE VALUE - CALCULATE CORRECTLY!!! **/ 1000,
+                            "PONG",
+                            4);
+
+                    if (buffer_end == NULL) {
+                        LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
+                        return false;
+                    }
+
+                    size_t len = buffer_end - buffer_start;
                     iouring_userdata_current->send_buffer.offset += len;
                     iouring_userdata_current->send_buffer.size += len;
 
