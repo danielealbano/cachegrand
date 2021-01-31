@@ -8,7 +8,7 @@
 #include "protocol_redis_writer.h"
 
 bool protocol_redis_writer_enough_space_in_buffer(size_t length, size_t requested_size) {
-    return requested_size > length;
+    return requested_size < length;
 }
 
 unsigned protocol_redis_writer_uint64_str_length(uint64_t number) {
