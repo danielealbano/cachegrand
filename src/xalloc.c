@@ -13,6 +13,8 @@
 #include "misc.h"
 #include "fatal.h"
 
+#include "xalloc.h"
+
 #define TAG "xalloc"
 
 void* xalloc_alloc(size_t size) {
