@@ -12,6 +12,7 @@
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/io/network_io_common.h"
 
+#include "network/protocol/redis/network_protocol_redis.h"
 #include "network/channel/network_channel.h"
 
 #define TAG "network_channel"
@@ -89,7 +90,7 @@ bool network_channel_listener_new_callback(
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
         uint16_t socket_address_index,
-        network_protocol_type_t protocol,
+        network_protocols_t protocol,
         void* user_data) {
     int fd;
     network_channel_listener_new_callback_user_data_t *cb_user_data = user_data;
@@ -114,7 +115,7 @@ bool network_channel_listener_new_callback(
 
     cb_user_data->listeners[listener_id].fd = fd;
     cb_user_data->listeners[listener_id].address.size = socket_address_size;
-    cb_user_data->listeners[listener_id].protocol.type = protocol;
+    cb_user_data->listeners[listener_id].protocol = protocol;
 
     memcpy(
             &cb_user_data->listeners[listener_id].address.socket.base,
@@ -134,7 +135,7 @@ bool network_channel_listener_new_callback(
 bool network_channel_listener_new(
         char* address,
         uint16_t port,
-        network_protocol_type_t protocol,
+        network_protocols_t protocol,
         network_channel_listener_new_callback_user_data_t *user_data) {
     int res;
     LOG_V(TAG, "Creating listener for <%s:%d>", address, port);

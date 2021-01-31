@@ -15,12 +15,13 @@
 #include "support/io_uring/io_uring_capabilities.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
-#include <protocol/redis/protocol_redis.h>
-#include <protocol/redis/protocol_redis_reader.h>
-#include <protocol/redis/protocol_redis_writer.h>
+#include "protocol/redis/protocol_redis.h"
+#include "protocol/redis/protocol_redis_reader.h"
+#include "protocol/redis/protocol_redis_writer.h"
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
-#include "worker.h"
+#include "worker/worker.h"
+#include "network/protocol/redis/network_protocol_redis.h"
 
 #include "worker_iouring.h"
 
@@ -373,20 +374,20 @@ bool worker_iouring_process_op_accept(
             NETWORK_IO_IOURING_OP_RECV);
     iouring_userdata_new->channel = network_channel_new();
     iouring_userdata_new->channel->fd = new_fd;
-    iouring_userdata_new->channel->protocol.type = iouring_userdata_current->channel->protocol.type;
+    iouring_userdata_new->channel->protocol = iouring_userdata_current->channel->protocol;
     iouring_userdata_new->channel->type = NETWORK_CHANNEL_TYPE_CLIENT;
 
-    switch (iouring_userdata_new->channel->protocol.type) {
+    switch (iouring_userdata_new->channel->protocol) {
         default:
             LOG_E(
                     TAG,
                     "Unsupported protocol type <>",
-                    iouring_userdata_new->channel->protocol.type);
+                    iouring_userdata_new->channel->protocol);
             network_channel_iouring_entry_user_data_free(iouring_userdata_new);
             break;
 
-        case NETWORK_PROTOCOL_TYPE_REDIS:
-            iouring_userdata_new->channel->protocol.data.redis.context = protocol_redis_reader_context_init();
+        case NETWORK_PROTOCOLS_REDIS:
+            iouring_userdata_new->channel->user_data.protocol.data.redis.context = protocol_redis_reader_context_init();
             break;
     }
 
@@ -453,8 +454,10 @@ bool worker_iouring_process_op_accept(
     }
 
     // TODO: Use SLAB allocator to fetch a new buffer
-    iouring_userdata_new->recv_buffer.data = (char *)xalloc_alloc(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
-    iouring_userdata_new->send_buffer.data = (char *)xalloc_alloc(NETWORK_CHANNEL_SEND_BUFFER_SIZE);
+    iouring_userdata_new->channel->user_data.recv_buffer.data = (char *)xalloc_alloc(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
+    iouring_userdata_new->channel->user_data.recv_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE;
+    iouring_userdata_new->channel->user_data.send_buffer.data = (char *)xalloc_alloc(NETWORK_CHANNEL_SEND_BUFFER_SIZE);
+    iouring_userdata_new->channel->user_data.send_buffer.length = NETWORK_CHANNEL_SEND_BUFFER_SIZE;
 
     if ((iouring_userdata_new->mapped_fd = worker_fds_map_add_and_enqueue_files_update(
             ring,
@@ -520,17 +523,17 @@ bool worker_iouring_process_op_recv_close_or_error(
                 iouring_userdata_current->channel->address.str);
     }
 
-    switch (iouring_userdata_current->channel->protocol.type) {
+    switch (iouring_userdata_current->channel->protocol) {
         default:
             LOG_E(
                     TAG,
                     "Unsupported protocol type <>",
-                    iouring_userdata_current->channel->protocol.type);
+                    iouring_userdata_current->channel->protocol);
             break;
 
-        case NETWORK_PROTOCOL_TYPE_REDIS:
-            protocol_redis_reader_context_free(iouring_userdata_current->channel->protocol.data.redis.context);
-            iouring_userdata_current->channel->protocol.data.redis.context = NULL;
+        case NETWORK_PROTOCOLS_REDIS:
+            protocol_redis_reader_context_free(iouring_userdata_current->channel->user_data.protocol.data.redis.context);
+            iouring_userdata_current->channel->user_data.protocol.data.redis.context = NULL;
             break;
     }
 
@@ -680,7 +683,7 @@ bool worker_iouring_process_op_recv(
         return worker_iouring_process_op_recv_close_or_error(worker_user_data, stats, ring, cqe);
     }
 
-    iouring_userdata_current->recv_buffer.size += cqe->res;
+    iouring_userdata_current->channel->user_data.recv_buffer.data_size += cqe->res;
 
     stats->network.received_packets_total++;
     stats->network.received_packets_per_second++;
@@ -688,25 +691,26 @@ bool worker_iouring_process_op_recv(
             max(stats->network.max_packet_size, cqe->res);
 
     char* read_buffer_with_offset =
-            (char*)((uintptr_t)iouring_userdata_current->recv_buffer.data + iouring_userdata_current->recv_buffer.offset);
+            (char*)((uintptr_t)iouring_userdata_current->channel->user_data.recv_buffer.data +
+                iouring_userdata_current->channel->user_data.recv_buffer.data_offset);
 
     LOG_D(
             TAG,
             "[RECV] before processing - iouring_userdata_current->recv_buffer.offset = %lu, iouring_userdata_current->recv_buffer.size = %lu",
-            iouring_userdata_current->recv_buffer.offset,
-            iouring_userdata_current->recv_buffer.size);
+            iouring_userdata_current->channel->user_data.recv_buffer.data_offset,
+            iouring_userdata_current->channel->user_data.recv_buffer.data_size);
 
-    switch (iouring_userdata_current->channel->protocol.type) {
+    switch (iouring_userdata_current->channel->protocol) {
         default:
             LOG_E(
                     TAG,
                     "Unsupported protocol type <%d>",
-                    iouring_userdata_current->channel->protocol.type);
+                    iouring_userdata_current->channel->protocol);
             break;
 
-        case NETWORK_PROTOCOL_TYPE_REDIS:
-            result = worker_iouring_process_op_recv_protocol_redis(
-                    worker_user_data,
+        case NETWORK_PROTOCOLS_REDIS:
+            result = network_protocol_redis_recv(
+                    &iouring_userdata_current->channel->user_data,
                     stats,
                     ring,
                     cqe,
@@ -716,18 +720,20 @@ bool worker_iouring_process_op_recv(
     LOG_D(
             TAG,
             "[RECV] after processing - iouring_userdata_current->recv_buffer.offset = %lu, iouring_userdata_current->recv_buffer.size = %lu",
-            iouring_userdata_current->recv_buffer.offset,
-            iouring_userdata_current->recv_buffer.size);
+            iouring_userdata_current->channel->user_data.recv_buffer.data_offset,
+            iouring_userdata_current->channel->user_data.recv_buffer.data_size);
 
     // TODO: if offset + size is bigger than threshold, copy the data back to the beginning but first notify the protocol
     //       layer
     size_t recv_buffer_needed_size =
-            iouring_userdata_current->recv_buffer.offset +
-            iouring_userdata_current->recv_buffer.size +
+            iouring_userdata_current->channel->user_data.recv_buffer.data_offset +
+            iouring_userdata_current->channel->user_data.recv_buffer.data_size +
             NETWORK_CHANNEL_PACKET_SIZE;
 
-    if (recv_buffer_needed_size > NETWORK_CHANNEL_RECV_BUFFER_SIZE) {
-        if (iouring_userdata_current->recv_buffer.size + NETWORK_CHANNEL_PACKET_SIZE > NETWORK_CHANNEL_RECV_BUFFER_SIZE) {
+    if (recv_buffer_needed_size > iouring_userdata_current->channel->user_data.recv_buffer.length) {
+        size_t min_required_size = iouring_userdata_current->channel->user_data.recv_buffer.data_size +
+                NETWORK_CHANNEL_PACKET_SIZE;
+        if (min_required_size > iouring_userdata_current->channel->user_data.recv_buffer.length) {
             LOG_D(TAG, "[RECV] Too much unprocessed data into the buffer, unable to continue");
 
             network_io_common_socket_close(fds_map[iouring_userdata_current->mapped_fd], true);
@@ -741,29 +747,16 @@ bool worker_iouring_process_op_recv(
         } else {
             LOG_D(TAG, "[RECV] Copying data from the end of the window to the beginning");
             memcpy(
-                    iouring_userdata_current->recv_buffer.data,
-                    iouring_userdata_current->recv_buffer.data + iouring_userdata_current->recv_buffer.offset,
-                    iouring_userdata_current->recv_buffer.size);
-            iouring_userdata_current->recv_buffer.offset = 0;
+                    iouring_userdata_current->channel->user_data.recv_buffer.data,
+                    iouring_userdata_current->channel->user_data.recv_buffer.data +
+                        iouring_userdata_current->channel->user_data.recv_buffer.data_offset,
+                    iouring_userdata_current->channel->user_data.recv_buffer.data_size);
+            iouring_userdata_current->channel->user_data.recv_buffer.data_offset = 0;
         }
     }
 
     if (result) {
-        if (!iouring_userdata_current->send_response) {
-            iouring_userdata_current->op = NETWORK_IO_IOURING_OP_RECV;
-            io_uring_support_sqe_enqueue_recv(
-                    ring,
-                    iouring_userdata_current->mapped_fd,
-                    (
-                            iouring_userdata_current->recv_buffer.data +
-                            iouring_userdata_current->recv_buffer.offset +
-                            iouring_userdata_current->recv_buffer.size
-                            ),
-                    NETWORK_CHANNEL_PACKET_SIZE,
-                    0,
-                    IOSQE_FIXED_FILE,
-                    (uintptr_t)iouring_userdata_current);
-        }
+        worker_iouring_send_or_receive(ring, iouring_userdata_current, true);
     }
 
     return result;

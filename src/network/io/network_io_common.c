@@ -325,7 +325,7 @@ int network_io_common_socket_new_server(
 uint32_t network_io_common_parse_addresses_foreach(
         char *address,
         network_io_common_parse_addresses_foreach_callback_t callback,
-        network_protocol_type_t protocol,
+        network_protocols_t protocol,
         void* user_data) {
     struct addrinfo *result, *rp;
     struct addrinfo hints = {0};

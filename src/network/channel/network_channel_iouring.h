@@ -25,25 +25,7 @@ struct network_channel_iouring_entry_user_data {
     network_io_iouring_op_t op;
     network_chanell_iouring_mapped_fd_t mapped_fd;
     network_channel_t *channel;
-    bool send_response;
-    bool close_connection;
-    struct {
-        network_channel_buffer_t *data;
-        size_t offset;
-        size_t size;
-    } recv_buffer;
-    struct {
-        network_channel_buffer_t *data;
-        size_t offset;
-        size_t size;
-    } send_buffer;
     network_channel_socket_address_t listener_new_socket_address;
-    struct {
-        network_protocol_type_t protocol;
-//        union {
-//            network_protocol_redis_connection_t redis;
-//        };
-    } protocol;
 };
 
 network_channel_iouring_entry_user_data_t* network_channel_iouring_entry_user_data_new(

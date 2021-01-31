@@ -16,7 +16,7 @@ typedef bool (*network_io_common_parse_addresses_foreach_callback_t)(
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
         uint16_t socket_address_index,
-        network_protocol_type_t protocol,
+        network_protocols_t protocol,
         void* user_data);
 
 bool network_io_common_socket_set_option(
@@ -114,7 +114,7 @@ int network_io_common_socket_new_server(
 uint32_t network_io_common_parse_addresses_foreach(
         char *address,
         network_io_common_parse_addresses_foreach_callback_t callback,
-        network_protocol_type_t protocol,
+        network_protocols_t protocol,
         void* user_data);
 
 char* network_io_common_socket_address_str(
