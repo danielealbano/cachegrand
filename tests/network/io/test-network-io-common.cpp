@@ -10,7 +10,7 @@
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 
-#include "protocols/redis/protocol_redis.h"
+#include "protocol/redis/protocol_redis.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 

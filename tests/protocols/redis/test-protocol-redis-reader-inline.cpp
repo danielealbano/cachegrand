@@ -1,7 +1,7 @@
 #include <catch2/catch.hpp>
 #include <cstring>
 
-#include "protocols/redis/protocol_redis_reader.h"
+#include "protocol/redis/protocol_redis_reader.h"
 
 
 TEST_CASE("protocols/redis/protocol_redis_reader.c/inline", "[protocols][redis][protocol_redis_reader][inline]") {
