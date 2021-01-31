@@ -17,27 +17,6 @@ enum protocol_redis_reader_errors {
 };
 typedef enum protocol_redis_reader_errors protocol_redis_reader_errors_t;
 
-
-enum protocol_redis_types {
-    PROTOCOL_REDIS_TYPE_SIMPLE_STRING = '+',
-    PROTOCOL_REDIS_TYPE_BLOB_STRING = '$',
-    PROTOCOL_REDIS_TYPE_VERBATIM_STRING = '=',
-    PROTOCOL_REDIS_TYPE_NUMBER = ':',
-    PROTOCOL_REDIS_TYPE_DOUBLE = ',',
-    PROTOCOL_REDIS_TYPE_BIG_NUMBER = '(',
-    PROTOCOL_REDIS_TYPE_NULL = '_',
-    PROTOCOL_REDIS_TYPE_BOOLEAN = '#',
-    PROTOCOL_REDIS_TYPE_ARRAY = '*',
-    PROTOCOL_REDIS_TYPE_MAP = '%',
-    PROTOCOL_REDIS_TYPE_SET = '~',
-    PROTOCOL_REDIS_TYPE_ATTRIBUTE = '|',
-    PROTOCOL_REDIS_TYPE_PUSH = '>',
-
-    PROTOCOL_REDIS_TYPE_SIMPLE_ERROR = '-',
-    PROTOCOL_REDIS_TYPE_BLOB_ERROR = '!',
-};
-typedef enum protocol_redis_types protocol_redis_types_t;
-
 enum protocol_redis_reader_states {
     PROTOCOL_REDIS_READER_STATE_BEGIN,
     PROTOCOL_REDIS_READER_STATE_INLINE_WAITING_ARGUMENT,
@@ -103,7 +82,6 @@ long protocol_redis_reader_read(
         char* buffer,
         size_t length,
         protocol_redis_reader_context_t* context);
-
 
 #ifdef __cplusplus
 }

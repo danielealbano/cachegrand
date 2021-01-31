@@ -6,6 +6,7 @@
 
 #include "misc.h"
 #include "xalloc.h"
+#include "protocol_redis.h"
 
 #include "protocol_redis_reader.h"
 
