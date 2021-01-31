@@ -322,7 +322,7 @@ PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(blob_string, (char* string, int string_len
     return protocol_redis_writer_write_argument_blob(buffer, buffer_length, false, string, string_length);
 }
 
-PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(blog_error, (char* string, int string_length)) {
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(blob_error, (char* string, int string_length)) {
     return protocol_redis_writer_write_argument_blob(buffer, buffer_length, true, string, string_length);
 }
 
