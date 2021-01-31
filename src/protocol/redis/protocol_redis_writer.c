@@ -293,13 +293,6 @@ char* protocol_redis_writer_write_argument_simple(
         is_error ? PROTOCOL_REDIS_TYPE_SIMPLE_ERROR : PROTOCOL_REDIS_TYPE_SIMPLE_STRING)
 
     PROTOCOL_REDIS_WRITER_WRITE_ARGUMENT_WRAPPER_COMMON_VARS(
-            protocol_redis_writer_write_argument_number,
-            string_length)
-
-    PROTOCOL_REDIS_WRITER_WRITE_ARGUMENT_WRAPPER_COMMON_VARS(
-        protocol_redis_writer_write_argument_eol)
-
-    PROTOCOL_REDIS_WRITER_WRITE_ARGUMENT_WRAPPER_COMMON_VARS(
         protocol_redis_writer_write_argument_string,
         string,
         string_length);
