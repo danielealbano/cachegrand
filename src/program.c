@@ -40,7 +40,7 @@ volatile bool program_terminate_event_loop = false;
 network_channel_address_t program_addresses[] = { PROGRAM_NETWORK_ADDRESSES };
 uint32_t program_addresses_count = PROGRAM_NETWORK_ADDRESSES_COUNT;
 
-int program_signals[] =         {  SIGUSR1,   SIGINT,   SIGHUP,   SIGTERM,   SIGQUIT  };
+int program_signals[] = {  SIGUSR1,   SIGINT,   SIGHUP,   SIGTERM,   SIGQUIT  };
 uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
 
 void program_signal_handlers(

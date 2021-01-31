@@ -12,7 +12,7 @@ extern "C" {
 //       direct way to fetch the right MTU so this has to come from the config and potentially if a small MTU is in use
 //       and an interface is using jumbo frames a warning may be printed at the bootstrap.
 //       Must also be possible to silence the warning to avoid log-spamming.
-#define NETWORK_CHANNEL_PACKET_SIZE  2048
+#define NETWORK_CHANNEL_PACKET_SIZE  4096
 
 // The NETWORK_CHANNEL_RECV_BUFFER_SIZE has to be twice the NETWORK_CHANNEL_PACKET_SIZE to ensure that it's always
 // possible to read a full packet in addition to any partially received data while processing the buffer and that there
