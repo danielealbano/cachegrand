@@ -6,7 +6,6 @@
 extern "C" {
 #endif
 
-
 #define PROTOCOL_REDIS_WRITER_WRITE_ARGUMENT_WRAPPER_WRITE_FUNC_VA_ARGS(...) , ##__VA_ARGS__
 
 #define PROTOCOL_REDIS_WRITER_WRITE_ARGUMENT_WRAPPER(BUFFER, BUFFER_LENGTH, BUFFER_START, WRITE_FUNC, ...) { \
@@ -51,6 +50,21 @@ extern "C" {
         \
         return buffer; \
     }
+
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(null, ());
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(boolean, (bool is_true));
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(blob_string, (char* string, int string_length));
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(blog_error, (char* string, int string_length));
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(simple_string, (char* string, int string_length));
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(simple_error, (char* string, int string_length));
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(number, (long number));
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(double, (double number));
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(big_number, (char* bignumber, int bignumber_length));
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(array, (uint32_t array_count));
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(map, (uint32_t items_count));
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(set, (uint32_t set_count));
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(attribute, (uint32_t attributes_count));
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(push, (uint32_t messages_count));
 
 #ifdef __cplusplus
 }
