@@ -310,7 +310,9 @@ long protocol_redis_reader_read(
         }
 
         if (arg_end_char_found) {
-            context->arguments.list[context->arguments.current.index].all_read = true;
+            if (context->arguments.current.index > -1) {
+                context->arguments.list[context->arguments.current.index].all_read = true;
+            }
 
             context->arguments.current.length = 0;
             context->arguments.current.beginning = true;
