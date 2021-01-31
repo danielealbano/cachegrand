@@ -12,6 +12,7 @@
 #include "xalloc.h"
 #include "log.h"
 
+#include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"

@@ -10,6 +10,8 @@
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 
+#include "protocols/redis/protocol_redis.h"
+#include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 
 #include "../network_tests_support.h"
@@ -21,6 +23,7 @@ bool test_network_io_common_parse_addresses_foreach_callback_loopback_ipv4_addre
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
         uint16_t socket_address_index,
+        network_protocol_type_t protocol,
         void* user_data) {
     REQUIRE(socket_address_index == 0);
     REQUIRE(socket_address->sa_family == AF_INET);
@@ -34,6 +37,7 @@ bool test_network_io_common_parse_addresses_foreach_callback_loopback_ipv6_addre
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
         uint16_t socket_address_index,
+        network_protocol_type_t protocol,
         void* user_data) {
     struct in6_addr addr = {0};
     inet_pton(AF_INET6, "::1", &addr);
@@ -53,6 +57,7 @@ bool test_network_io_common_parse_addresses_foreach_callback_localhost_ipv4_ipv6
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
         uint16_t socket_address_index,
+        network_protocol_type_t protocol,
         void* user_data) {
     if (socket_address->sa_family == AF_INET) {
         ((uint8_t*)user_data)[0] = 1;
@@ -767,6 +772,7 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
             REQUIRE(network_io_common_parse_addresses_foreach(
                     "127.0.0.1",
                     test_network_io_common_parse_addresses_foreach_callback_loopback_ipv4_address,
+                    NETWORK_PROTOCOL_TYPE_UNKNOWN,
                     NULL) == 1);
         }
 
@@ -774,6 +780,7 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
             REQUIRE(network_io_common_parse_addresses_foreach(
                     "::1",
                     test_network_io_common_parse_addresses_foreach_callback_loopback_ipv6_address,
+                    NETWORK_PROTOCOL_TYPE_UNKNOWN,
                     NULL) == 1);
         }
 
@@ -782,6 +789,7 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
             REQUIRE(network_io_common_parse_addresses_foreach(
                     "www.google.it",
                     test_network_io_common_parse_addresses_foreach_callback_localhost_ipv4_ipv6_addresses,
+                    NETWORK_PROTOCOL_TYPE_UNKNOWN,
                     &res) == 2);
 
             REQUIRE(res[0] == 1);
@@ -792,6 +800,7 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
             REQUIRE(network_io_common_parse_addresses_foreach(
                     "this is an invalid address! should return -1",
                     test_network_io_common_parse_addresses_foreach_callback_loopback_ipv6_address,
+                    NETWORK_PROTOCOL_TYPE_UNKNOWN,
                     NULL) == -1);
         }
     }
