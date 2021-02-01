@@ -259,17 +259,17 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
 
         SECTION("multiple arguments, multiple buffers") {
             int buffers_count = 4;
-            char* buffers[] = {
-                    "*2\r\n$3\r\nFOR\r\n$35\r\n1234567890",
-                    "ABCDEFGHIL",
-                    "MNBVCXZLKJ12345",
-                    "\r\n"
+            char buffers_stack[][50] = {
+                    "*2\r\n$3\r\nFOR\r\n$35\r\n1234567890\0",
+                    "ABCDEFGHIL\0",
+                    "MNBVCXZLKJ12345\0",
+                    "\r\n\0"
             };
 
             protocol_redis_reader_context_t* context = protocol_redis_reader_context_init();
 
             for (int buffer_index = 0; buffer_index < buffers_count; buffer_index++) {
-                char* buffer_read = buffers[buffer_index];
+                char* buffer_read = buffers_stack[buffer_index];
                 long buffer_length = strlen(buffer_read);
 
                 long data_read_len;
