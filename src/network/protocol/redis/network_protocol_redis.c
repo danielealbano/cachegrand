@@ -23,6 +23,10 @@
 
 #define TAG "network_protocol_redis"
 
+// TODO: need an hook to track when the buffer is copied around, the data need to be cloned onto memory
+// TODO: when processing the arguments, the in-loop command handling has to handle the arguments that require to be
+//       streamed somewhere (ie. the value argument of the SET command has to be written somewhere)
+
 bool network_protocol_redis_recv(
         void *user_data,
         char *read_buffer_with_offset) {
@@ -37,8 +41,6 @@ bool network_protocol_redis_recv(
     char* send_buffer_end = send_buffer_base + network_channel_user_data->send_buffer.length;
 
     // TODO: need to handle data copy if the buffer has to be flushed to make room to new data
-
-    bool send_response = false;
 
     do {
         // Keep reading till there are data in the buffer
@@ -67,19 +69,20 @@ bool network_protocol_redis_recv(
                     continue;
                 }
 
+                int command_len = reader_context->arguments.list[0].length;
                 char* command_str = reader_context->arguments.list[0].value;
 
                 // TODO: properly implement a command map
-                if (strncasecmp("QUIT", command_str, 4) == 0) {
+                if (command_len == 4 && strncasecmp("QUIT", command_str, 4) == 0) {
                     LOG_D(TAG, "[RECV][REDIS] QUIT command");
                     protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_QUIT;
-                } else if (strncasecmp("GET", command_str, 3) == 0) {
+                } else if (command_len == 3 && strncasecmp("GET", command_str, 3) == 0) {
                     LOG_D(TAG, "[RECV][REDIS] SET command");
                     protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_GET;
-                } else if (strncasecmp("SET", command_str, 3) == 0) {
+                } else if (command_len == 3 && strncasecmp("SET", command_str, 3) == 0) {
                     LOG_D(TAG, "[RECV][REDIS] SET command");
                     protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_SET;
-                } else if (strncasecmp("PING", command_str, 4) == 0) {
+                } else if (command_len == 4 && strncasecmp("PING", command_str, 4) == 0) {
                     LOG_D(TAG, "[RECV][REDIS] PING command");
                     protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_PING;
                 } else {
@@ -92,15 +95,16 @@ bool network_protocol_redis_recv(
                     protocol_context->skip_command = true;
                 }
 
-                else {
-                    // TODO: handle the other supported commands
+                else if (protocol_context->command == NETWORK_PROTOCOL_REDIS_COMMAND_SET) {
+                    // TODO: check if the index of the parameter matching the value to stream it to the storage backend
                 }
             }
-        } while(
-                network_channel_user_data->recv_buffer.data_size > 0 &&
+
+            // TODO: add an stream_data_to_storage to the protocol_context and if it's true stream the data here and
+            //       get the pointer to them if it's the first invocation
+        } while(network_channel_user_data->recv_buffer.data_size > 0 &&
                 reader_context->state != PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED);
 
-        // TODO: handle parser error
         if (data_read_len == -1) {
             send_buffer_start = protocol_redis_writer_write_simple_error_printf(
                     send_buffer_start,
@@ -113,7 +117,6 @@ bool network_protocol_redis_recv(
                 return false;
             }
 
-            send_response = true;
             network_channel_user_data->close_connection_on_send = true;
             break;
         }
@@ -122,21 +125,20 @@ bool network_protocol_redis_recv(
             if (protocol_context->command == NETWORK_PROTOCOL_REDIS_COMMAND_UNKNOWN) {
                 // In memory there are always at least 2 bytes after the arguments, the first byte after the command
                 // can be converted into a null to insert it into the the error message
-                *(reader_context->arguments.list[0].value + reader_context->arguments.list[0].length + 1) = 0;
+                *(reader_context->arguments.list[0].value + reader_context->arguments.list[0].length) = 0;
 
                 send_buffer_start = protocol_redis_writer_write_simple_error_printf(
                         send_buffer_start,
                         send_buffer_end - send_buffer_start,
                         "ERR unknown command `%s` with `%d` args",
                         reader_context->arguments.list[0].value,
-                        reader_context->arguments.count);
+                        reader_context->arguments.count - 1);
 
                 if (send_buffer_start == NULL) {
                     LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
                     return false;
                 }
 
-                send_response = true;
                 protocol_context->skip_command = true;
             }
 
@@ -151,10 +153,9 @@ bool network_protocol_redis_recv(
                     LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
                     return false;
                 }
-
-                send_response = true;
             }
 
+            // Reset the protocol_context to handle the next command in the buffer
             protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_NOP;
             protocol_context->skip_command = false;
 
@@ -162,7 +163,7 @@ bool network_protocol_redis_recv(
         }
     } while(data_read_len > 0 && network_channel_user_data->recv_buffer.data_size > 0);
 
-    if (send_response) {
+    if (send_buffer_start != send_buffer_base) {
         send_data_len = send_buffer_start - send_buffer_base;
         network_channel_user_data->send_buffer.data_size += send_data_len;
         network_channel_user_data->data_to_send_pending = true;
