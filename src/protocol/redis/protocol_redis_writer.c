@@ -1,11 +1,18 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 
+#include "exttypes.h"
+#include "misc.h"
+#include "log.h"
 #include "protocol_redis.h"
 
 #include "protocol_redis_writer.h"
+
+#define TAG "protocol_redis_writer"
 
 bool protocol_redis_writer_enough_space_in_buffer(size_t length, size_t requested_size) {
     return requested_size < length;
@@ -215,6 +222,35 @@ char* protocol_redis_writer_write_argument_string(char* buffer, size_t buffer_le
     return buffer + string_length;
 }
 
+char* protocol_redis_writer_write_argument_string_printf(char* buffer, size_t buffer_length, char* string, va_list args) {
+    va_list args_copy;
+    va_copy(args_copy, args);
+    size_t string_length = vsnprintf(NULL, 0, string, args_copy);
+    va_end(args_copy);
+
+    if (string_length < 0) {
+        LOG_E(TAG, "Failed to calculate string length for format <%s> with the arguments", string);
+        LOG_E_OS_ERROR(TAG);
+
+        return NULL;
+    }
+
+    // We need to have access to an extra byte because vsnprintf add the null terminator for the string even if we
+    // don't need it. But in this way we avoid allocating extra memory.
+    if (!protocol_redis_writer_enough_space_in_buffer(buffer_length, string_length + 1)) {
+        return NULL;
+    }
+
+    if (vsnprintf(buffer, string_length + 1, string, args) < 0) {
+        LOG_E(TAG, "Failed to format string <%s> with the arguments", string);
+        LOG_E_OS_ERROR(TAG);
+
+        return NULL;
+    }
+
+    return buffer + string_length;
+}
+
 char* protocol_redis_writer_write_argument_eol(char* buffer, size_t buffer_length) {
     if (!protocol_redis_writer_enough_space_in_buffer(buffer_length, 2)) {
         return NULL;
@@ -303,6 +339,29 @@ char* protocol_redis_writer_write_argument_simple(
     return buffer;
 }
 
+char* protocol_redis_writer_write_argument_simple_printf(
+        char* buffer,
+        size_t buffer_length,
+        bool is_error,
+        char* string,
+        va_list args) {
+    char *buffer_start = buffer;
+
+    PROTOCOL_REDIS_WRITER_WRITE_ARGUMENT_WRAPPER_COMMON_VARS(
+            protocol_redis_writer_write_argument_type,
+            is_error ? PROTOCOL_REDIS_TYPE_SIMPLE_ERROR : PROTOCOL_REDIS_TYPE_SIMPLE_STRING)
+
+    PROTOCOL_REDIS_WRITER_WRITE_ARGUMENT_WRAPPER_COMMON_VARS(
+            protocol_redis_writer_write_argument_string_printf,
+            string,
+            args);
+
+    PROTOCOL_REDIS_WRITER_WRITE_ARGUMENT_WRAPPER_COMMON_VARS(
+            protocol_redis_writer_write_argument_eol)
+
+    return buffer;
+}
+
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_WRAPPER(PROTOCOL_REDIS_TYPE_NULL, null, (), {})
 
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_WRAPPER(PROTOCOL_REDIS_TYPE_BOOLEAN, boolean, (bool is_true), {
@@ -325,6 +384,14 @@ PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(simple_string, (char* string, int string_l
 
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(simple_error, (char* string, int string_length)) {
     return protocol_redis_writer_write_argument_simple(buffer, buffer_length, true, string, string_length);
+}
+
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(simple_error_printf, (char* string, ...)) {
+    va_list args;
+    va_start(args, string);
+    char *res = protocol_redis_writer_write_argument_simple_printf(buffer, buffer_length, true, string, args);
+    va_end(args);
+    return res;
 }
 
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_WRAPPER(PROTOCOL_REDIS_TYPE_NUMBER, number, (long number), {

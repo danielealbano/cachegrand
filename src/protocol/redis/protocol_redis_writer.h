@@ -57,6 +57,7 @@ PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(blob_string, (char* string, int string_len
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(blob_error, (char* string, int string_length));
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(simple_string, (char* string, int string_length));
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(simple_error, (char* string, int string_length));
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(simple_error_printf, (char* string, ...));
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(number, (long number));
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(double, (double number));
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(big_number, (char* bignumber, int bignumber_length));
