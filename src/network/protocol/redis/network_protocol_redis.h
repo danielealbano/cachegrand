@@ -20,7 +20,7 @@ typedef struct network_protocol_redis_context network_protocol_redis_context_t;
 struct network_protocol_redis_context {
     protocol_redis_reader_context_t* context;
     network_protocol_redis_commands_t command;
-    bool unknown_command;
+    bool skip_command;
 };
 
 bool network_protocol_redis_recv(
