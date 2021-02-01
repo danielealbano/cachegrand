@@ -705,7 +705,9 @@ bool worker_iouring_process_op_send(
             "[SEND] submit read iouring_userdata_current->recv_buffer.offset = %lu",
             iouring_userdata_current->channel->user_data.recv_buffer.data_offset);
 
-        if (cqe->res + iouring_userdata_current->channel->user_data.send_buffer.data_offset ==
+        iouring_userdata_current->channel->user_data.send_buffer.data_offset += cqe->res;
+
+        if (iouring_userdata_current->channel->user_data.send_buffer.data_offset ==
             iouring_userdata_current->channel->user_data.send_buffer.data_size) {
             iouring_userdata_current->channel->user_data.send_buffer.data_size = 0;
             iouring_userdata_current->channel->user_data.send_buffer.data_offset = 0;
