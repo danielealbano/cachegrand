@@ -300,7 +300,7 @@ void worker_iouring_cqe_log(
 
     LOG_E(
             TAG,
-            "[OP:%u][FD IDX:%d][FD:%d] cqe->user_data = <0x%08lx>, cqe->res = <%s (%d)>, cqe->flags >> 16 = <%d>, cqe->flags >> 16 = <%d>",
+            "[OP:%u][FD IDX:%d][FD:%d] cqe->user_data = <0x%08lx>, cqe->res = <%s (%d)>, cqe->flags >> 16 = <%d>, cqe->flags & 0xFFFFu = <%d>",
             iouring_userdata->op,
             iouring_userdata->channel->fd,
             iouring_userdata->mapped_fd,
