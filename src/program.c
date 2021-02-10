@@ -195,7 +195,7 @@ int program_main() {
     // TODO: initialize the network listeners and the protocol state machines
     // TODO: start the worker threads and invoke the worker thread main func
 
-    if (io_uring_capabilities_is_supported() == false) {
+    if (io_uring_capabilities_is_fast_poll_supported() == false) {
         LOG_E(TAG, "io_uring isn't supported, update the kernel to at least version 5.7.0 and enable io_uring");
         return 1;
     }
