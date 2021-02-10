@@ -23,6 +23,54 @@
 
 #define TAG "network_protocol_redis"
 
+network_protocol_redis_command_map_t command_map[] = {
+        {
+            NETWORK_PROTOCOL_REDIS_COMMAND_PING,
+            4,
+            "PING",
+            0,
+            0,
+            {}
+        },
+        {
+            NETWORK_PROTOCOL_REDIS_COMMAND_QUIT,
+            4,
+            "QUIT",
+            0,
+            0,
+            {}
+        },
+        {
+            NETWORK_PROTOCOL_REDIS_COMMAND_HELLO,
+            5,
+            "HELLO",
+            0,
+            0,
+            {}
+        },
+        {
+            NETWORK_PROTOCOL_REDIS_COMMAND_SET,
+            3,
+            "GET",
+            0,
+            0,
+            {}
+        },
+        {
+            NETWORK_PROTOCOL_REDIS_COMMAND_GET,
+            3,
+            "SET",
+            0,
+            3,
+            {
+                    { NETWORK_PROTOCOL_REDIS_SUBCOMMAND_SET_AX, 2, "AX" },
+                    { NETWORK_PROTOCOL_REDIS_SUBCOMMAND_SET_PX, 2, "PX" },
+                    { NETWORK_PROTOCOL_REDIS_SUBCOMMAND_SET_NX, 2, "NX" }
+            }
+        },
+};
+uint32_t command_map_length = sizeof(command_map) / sizeof(network_protocol_redis_command_map_t);
+
 // TODO: need an hook to track when the buffer is copied around, the data need to be cloned onto memory
 // TODO: when processing the arguments, the in-loop command handling has to handle the arguments that require to be
 //       streamed somewhere (ie. the value argument of the SET command has to be written somewhere)

@@ -16,6 +16,33 @@ enum network_protocol_redis_commands {
 };
 typedef enum network_protocol_redis_commands network_protocol_redis_commands_t;
 
+enum network_protocol_redis_named_arguments {
+    NETWORK_PROTOCOL_REDIS_SUBCOMMAND_SET_AX,
+    NETWORK_PROTOCOL_REDIS_SUBCOMMAND_SET_PX,
+    NETWORK_PROTOCOL_REDIS_SUBCOMMAND_SET_NX
+};
+typedef enum network_protocol_redis_named_arguments network_protocol_redis_named_arguments_t;
+
+typedef struct network_protocol_redis_command_map_named_argument network_protocol_redis_command_map_named_argument_t;
+struct network_protocol_redis_command_map_named_argument {
+    network_protocol_redis_named_arguments_t named_argument;
+    size_t length;
+    // Redis longest named argument is 10 chars
+    char string[11];
+};
+
+typedef struct network_protocol_redis_command_map network_protocol_redis_command_map_t;
+struct network_protocol_redis_command_map {
+    network_protocol_redis_commands_t command;
+    size_t length;
+    // Redis longest command is 10 chars
+    char string[11];
+    uint8_t positional_arguments;
+    int named_arguments_length;
+    // Redis commands don't have more than 10 named arguments
+    network_protocol_redis_command_map_named_argument_t named_arguments[10];
+};
+
 typedef struct network_protocol_redis_context network_protocol_redis_context_t;
 struct network_protocol_redis_context {
     protocol_redis_reader_context_t* context;
