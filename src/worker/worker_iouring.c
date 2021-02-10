@@ -328,7 +328,7 @@ bool worker_iouring_process_op_files_update(
     return true;
 }
 
-bool worker_iouring_send_or_receive(
+bool worker_iouring_ring_do_send_or_receive(
         io_uring_t* ring,
         network_channel_iouring_entry_user_data_t *iouring_userdata_current,
         bool use_fixed_file) {
@@ -342,29 +342,43 @@ bool worker_iouring_send_or_receive(
             : worker_fds_map_get(iouring_userdata_current->mapped_fd);
 
     if (iouring_userdata_current->channel->user_data.data_to_send_pending) {
+        size_t data_offset = iouring_userdata_current->channel->user_data.send_buffer.data_offset;
+        size_t data_size = iouring_userdata_current->channel->user_data.send_buffer.data_size;
+        size_t buffer_size = data_size - data_offset;
+
+        LOG_D(
+                TAG,
+                "Submit NETWORK_IO_IOURING_OP_SEND data_offset = %lu, data_size = %lu, buffer_size = %lu",
+                data_offset,
+                data_size,
+                buffer_size);
+
         iouring_userdata_current->op = NETWORK_IO_IOURING_OP_SEND;
 
         res = io_uring_support_sqe_enqueue_send(
                 ring,
                 fd,
-                (iouring_userdata_current->channel->user_data.send_buffer.data +
-                    iouring_userdata_current->channel->user_data.send_buffer.data_offset),
-                (iouring_userdata_current->channel->user_data.send_buffer.data_size -
-                 iouring_userdata_current->channel->user_data.send_buffer.data_offset),
+                (iouring_userdata_current->channel->user_data.send_buffer.data + data_offset),
+                buffer_size,
                 0,
                 sqe_flags,
                 (uintptr_t)iouring_userdata_current);
     } else  {
+        size_t data_offset = iouring_userdata_current->channel->user_data.recv_buffer.data_offset;
+        size_t data_size = iouring_userdata_current->channel->user_data.recv_buffer.data_size;
+
+        LOG_D(
+                TAG,
+                "Submit NETWORK_IO_IOURING_OP_RECV data_offset = %lu, data_size = %lu",
+                data_offset,
+                data_size);
+
         iouring_userdata_current->op = NETWORK_IO_IOURING_OP_RECV;
 
         res = io_uring_support_sqe_enqueue_recv(
                 ring,
                 fd,
-                (
-                        iouring_userdata_current->channel->user_data.recv_buffer.data +
-                        iouring_userdata_current->channel->user_data.recv_buffer.data_offset +
-                        iouring_userdata_current->channel->user_data.recv_buffer.data_size
-                ),
+                iouring_userdata_current->channel->user_data.recv_buffer.data + data_offset + data_size,
                 NETWORK_CHANNEL_PACKET_SIZE,
                 0,
                 sqe_flags,
@@ -527,7 +541,7 @@ bool worker_iouring_process_op_accept(
     }
 
     // The SQE to recv will be linked to the previous fd map update
-    if (!worker_iouring_send_or_receive(ring, iouring_userdata_new, false)) {
+    if (!worker_iouring_ring_do_send_or_receive(ring, iouring_userdata_new, false)) {
         LOG_E(
                 TAG,
                 "Can't start to read data from the connection <%s> coming from listener <%s>",
@@ -677,7 +691,7 @@ bool worker_iouring_process_op_recv(
     }
 
     if (result) {
-        worker_iouring_send_or_receive(ring, iouring_userdata_current, true);
+        worker_iouring_ring_do_send_or_receive(ring, iouring_userdata_current, true);
     }
 
     return result;
@@ -701,11 +715,6 @@ bool worker_iouring_process_op_send(
         worker_iouring_cqe_log(worker_user_data, cqe);
         close_connection = true;
     } else {
-        LOG_D(
-            TAG,
-            "[SEND] submit read iouring_userdata_current->recv_buffer.offset = %lu",
-            iouring_userdata_current->channel->user_data.recv_buffer.data_offset);
-
         iouring_userdata_current->channel->user_data.send_buffer.data_offset += cqe->res;
 
         if (iouring_userdata_current->channel->user_data.send_buffer.data_offset ==
@@ -729,7 +738,7 @@ bool worker_iouring_process_op_send(
 
         network_channel_iouring_entry_user_data_free(iouring_userdata_current);
     } else {
-        worker_iouring_send_or_receive(ring, iouring_userdata_current, true);
+        worker_iouring_ring_do_send_or_receive(ring, iouring_userdata_current, true);
     }
 
     return true;
