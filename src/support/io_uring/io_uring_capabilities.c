@@ -14,9 +14,10 @@
 
 const char* kallsyms_path = "/proc/kallsyms";
 const char* expected_symbol_name = "io_uring_setup";
-const char* minimum_kernel_version = "5.7.0";
+const char* minimum_kernel_version_IORING_FEAT_FAST_POLL = "5.7.0";
+const char* minimum_kernel_version_IORING_SQPOLL = "5.11.0";
 
-#define TAG "io_uring_capabilities_is_supported"
+#define TAG "io_uring_capabilities_is_fast_poll_supported"
 
 bool io_uring_capabilities_kallsyms_fetch_symbol_name(
         FILE* fd,
@@ -121,12 +122,12 @@ bool io_uring_capabilities_is_linked_op_files_update_supported() {
     return cqe1->res == 1 && cqe2->res == 0;
 }
 
-bool io_uring_capabilities_is_supported() {
+bool io_uring_capabilities_is_fast_poll_supported() {
     long kernel_version[3] = {0};
 
     // Check kernel minimum version, the io_uring probe op has been introduced in recent kernel versions and we also
     // need IORING_FEAT_FAST_POLL that is available only from the kernel version 5.7.0 onwards
-    version_parse((char*)minimum_kernel_version, (long*)kernel_version, sizeof(kernel_version));
+    version_parse((char*)minimum_kernel_version_IORING_FEAT_FAST_POLL, (long*)kernel_version, sizeof(kernel_version));
     if (!version_kernel_min(kernel_version, 3)) {
         return false;
     }
@@ -138,6 +139,23 @@ bool io_uring_capabilities_is_supported() {
 
     // Check if fast poll is supported
     if (!io_uring_support_probe_opcode(IORING_FEAT_FAST_POLL)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool io_uring_capabilities_is_sqpoll_supported() {
+    long kernel_version[3] = {0};
+
+    // SQPOLL requires the kernel 5.11 to work properly on the sockets
+    version_parse((char*)minimum_kernel_version_IORING_SQPOLL, (long*)kernel_version, sizeof(kernel_version));
+    if (!version_kernel_min(kernel_version, 3)) {
+        return false;
+    }
+
+    // Check if the kernel has been compiled with io_uring support
+    if (!io_uring_capabilities_kallsyms_ensure_iouring_available()) {
         return false;
     }
 

@@ -39,6 +39,7 @@ static thread_local uint32_t fds_map_mask = 0;
 static thread_local uint32_t fds_map_last_free = 0;
 
 static thread_local bool op_files_update_link_support = false;
+static thread_local bool io_uring_supports_sqpoll = false;
 
 // TODO: All the mapped fds management should be moved into the support/io_uring/io_uring_support and should apply
 //       in a transparent way the mapped fds when the IOSQE_FIXED_FILE is passed to the sqe
@@ -197,10 +198,11 @@ io_uring_t* worker_iouring_initialize_iouring(
     io_uring_t *ring;
     io_uring_params_t *params = xalloc_alloc_zero(sizeof(io_uring_params_t));
 
-    // TODO: fix this
-//    params->flags = IORING_SETUP_SQPOLL | IORING_SETUP_SQ_AFF;
-//    params->sq_thread_cpu = core_index;
-//    params->sq_thread_idle = 1000;
+    if (io_uring_supports_sqpoll) {
+        params->flags = IORING_SETUP_SQPOLL | IORING_SETUP_SQ_AFF;
+        params->sq_thread_cpu = core_index;
+        params->sq_thread_idle = 1000;
+    }
 
     ring = io_uring_support_init(
             worker_iouring_calculate_entries(max_connections, network_addresses_count),
@@ -882,6 +884,13 @@ void* worker_iouring_thread_func(
             LOG_I(TAG, "> linking supported");
         } else {
             LOG_W(TAG, "> linking not supported, accepting new connections will incur in a performance penalty");
+        }
+
+        LOG_I(TAG, "Checking if sqpoll can be used with io_uring");
+        if ((io_uring_supports_sqpoll = io_uring_capabilities_is_sqpoll_supported())) {
+            LOG_I(TAG, "> sqpoll supported");
+        } else {
+            LOG_I(TAG, "> need a kernel >=5.11 to use sqpoll");
         }
 
         LOG_I(TAG, "Enqueing listeners");
