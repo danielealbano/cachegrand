@@ -38,7 +38,7 @@ static thread_local uint32_t fds_map_count = 0;
 static thread_local uint32_t fds_map_mask = 0;
 static thread_local uint32_t fds_map_last_free = 0;
 
-static thread_local bool op_files_update_link_support = false;
+static thread_local bool io_uring_supports_op_files_update_link = false;
 static thread_local bool io_uring_supports_sqpoll = false;
 
 // TODO: All the mapped fds management should be moved into the support/io_uring/io_uring_support and should apply
@@ -48,12 +48,11 @@ bool worker_fds_map_files_update(
         io_uring_t *ring,
         uint32_t index,
         network_io_common_fd_t fd) {
-
     bool ret;
 
     fds_map[index] = fd;
 
-    if (likely(op_files_update_link_support)) {
+    if (likely(io_uring_supports_op_files_update_link)) {
         // TODO: use slab allocator
         network_channel_iouring_entry_user_data_t *iouring_userdata_new =
                 network_channel_iouring_entry_user_data_new_with_mapped_fd(NETWORK_IO_IOURING_OP_FILES_UPDATE, index);
@@ -880,7 +879,7 @@ void* worker_iouring_thread_func(
 
     if (ring != NULL) {
         LOG_I(TAG, "Checking if io_uring can link file updates ops");
-        if ((op_files_update_link_support = io_uring_capabilities_is_linked_op_files_update_supported())) {
+        if ((io_uring_supports_op_files_update_link = io_uring_capabilities_is_linked_op_files_update_supported())) {
             LOG_I(TAG, "> linking supported");
         } else {
             LOG_W(TAG, "> linking not supported, accepting new connections will incur in a performance penalty");
