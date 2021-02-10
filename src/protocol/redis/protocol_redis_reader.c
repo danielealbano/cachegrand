@@ -159,6 +159,8 @@ long protocol_redis_reader_read(
                 }
             } while (arg_start_char_ptr++ && arg_start_char_ptr < buffer_end_ptr);
 
+            // TODO: the parser has to be refactored to do not make assumption, the loop above may get on buffer_end_ptr
+            //       and arg_start_char_ptr be not initialized!
             char first_byte = *arg_start_char_ptr;
             if (first_byte == '\'' || first_byte == '"') {
                 context->arguments.inline_protocol.current.quote_char = first_byte;
