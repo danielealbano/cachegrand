@@ -61,6 +61,12 @@ extern "C" {
         return send_buffer_start; \
     }
 
+#define NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR(...) \
+    __VA_ARGS__ \
+    if (send_buffer_start == NULL) { \
+        return send_buffer_start; \
+    }
+
 #define NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(ID, COMMAND, COMMAND_FUNC_PTR, POS_ARGS_COUNT) \
     { \
         NETWORK_PROTOCOL_REDIS_COMMAND_##ID, \
@@ -113,7 +119,6 @@ struct network_protocol_redis_context {
     network_protocol_redis_commands_t command;
     network_protocol_redis_command_info_t *command_info;
     network_protocol_redis_command_context_t command_context;
-    uint32_t processed_argument_index;
     bool skip_command;
 };
 
