@@ -453,7 +453,7 @@ bool worker_iouring_process_op_accept(
             break;
 
         case NETWORK_PROTOCOLS_REDIS:
-            iouring_userdata_new->channel->user_data.protocol.data.redis.context = protocol_redis_reader_context_init();
+            iouring_userdata_new->channel->user_data.protocol.data.redis.reader_context = protocol_redis_reader_context_init();
             break;
     }
 
@@ -592,8 +592,8 @@ bool worker_iouring_process_op_recv_close_or_error(
             break;
 
         case NETWORK_PROTOCOLS_REDIS:
-            protocol_redis_reader_context_free(iouring_userdata_current->channel->user_data.protocol.data.redis.context);
-            iouring_userdata_current->channel->user_data.protocol.data.redis.context = NULL;
+            protocol_redis_reader_context_free(iouring_userdata_current->channel->user_data.protocol.data.redis.reader_context);
+            iouring_userdata_current->channel->user_data.protocol.data.redis.reader_context = NULL;
             break;
     }
 

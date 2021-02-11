@@ -45,7 +45,7 @@ struct network_protocol_redis_command_map {
 
 typedef struct network_protocol_redis_context network_protocol_redis_context_t;
 struct network_protocol_redis_context {
-    protocol_redis_reader_context_t* context;
+    protocol_redis_reader_context_t *reader_context;
     network_protocol_redis_commands_t command;
     bool skip_command;
 };
