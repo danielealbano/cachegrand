@@ -28,7 +28,7 @@ typedef enum protocol_redis_reader_states protocol_redis_reader_states_t;
 
 struct protocol_redis_reader_context_argument {
     char* value;
-    unsigned long length;
+    size_t length;
     bool all_read;
     bool copied_from_buffer;
 };
