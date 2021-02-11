@@ -81,7 +81,7 @@ long protocol_redis_reader_read(
 
     // The reader has first to check if the state is BEGIN, it needs to identify if the command is resp (RESP3)
     // or if it is inlined checking the first byte.
-    if (context->state == PROTOCOL_REDIS_READER_STATE_BEGIN) {
+    if (unlikely(context->state == PROTOCOL_REDIS_READER_STATE_BEGIN)) {
         char first_byte = *(char*)buffer;
         bool is_inline = first_byte != PROTOCOL_REDIS_TYPE_ARRAY;
 
@@ -138,7 +138,8 @@ long protocol_redis_reader_read(
     }
 
     // PROTOCOL_REDIS_READER_STATE_INLINE_WAITING_ARGUMENT is inline protocol only
-    if (context->state == PROTOCOL_REDIS_READER_STATE_INLINE_WAITING_ARGUMENT) {
+    // Set this as unlikely to give priority to the other code paths
+    if (unlikely(context->state == PROTOCOL_REDIS_READER_STATE_INLINE_WAITING_ARGUMENT)) {
         bool is_arg_end_newline = false;
         bool arg_end_char_found = false;
         char* arg_start_char_ptr = buffer;
