@@ -27,7 +27,6 @@
 network_protocol_redis_command_info_t command_infos_map[] = {
         NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(PING, "PING", ping, 0),
         NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(QUIT, "QUIT", quit, 0),
-        NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(HELLO, "HELLO", hello, 0),
         NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(SET, "SET", set, 2),
         NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(GET, "GET", get, 1),
 };
@@ -47,24 +46,41 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(ping, {
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_BEGIN(quit, {})
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_ARGUMENT_PROCESSED(quit, {})
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(quit, {})
-
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_BEGIN(hello, {})
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_ARGUMENT_PROCESSED(hello, {})
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(hello, {})
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(quit, {
+    // TODO: fake response - only for testing
+    NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR({
+        send_buffer_start = protocol_redis_writer_write_blob_string(
+        send_buffer_start,
+        send_buffer_end - send_buffer_start,
+        "OK",
+        2);
+    })
+})
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_BEGIN(set, {})
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_ARGUMENT_PROCESSED(set, {})
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(set, {})
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(set, {
+    // TODO: fake response - only for testing
+    NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR({
+        send_buffer_start = protocol_redis_writer_write_blob_string(
+        send_buffer_start,
+        send_buffer_end - send_buffer_start,
+        "OK",
+        2);
+    })
+})
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_BEGIN(get, {})
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_ARGUMENT_PROCESSED(get, {})
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(get, {
-    send_buffer_start = protocol_redis_writer_write_blob_string(
+    // TODO: fake response - only for testing
+    NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR({
+        send_buffer_start = protocol_redis_writer_write_blob_string(
             send_buffer_start,
             send_buffer_end - send_buffer_start,
             reader_context->arguments.list[1].value,
             reader_context->arguments.list[1].length);
+    })
 })
 
 // TODO: need an hook to track when the buffer is copied around, the data need to be cloned onto memory
