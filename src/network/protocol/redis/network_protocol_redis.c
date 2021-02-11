@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <strings.h>
 #include <arpa/inet.h>
 #include <liburing.h>
@@ -23,53 +24,14 @@
 
 #define TAG "network_protocol_redis"
 
-network_protocol_redis_command_map_t command_map[] = {
+network_protocol_redis_command_info_t command_infos_map[] = {
         NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(PING, "PING", ping, 0),
         NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(QUIT, "QUIT", quit, 0),
         NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(HELLO, "HELLO", hello, 0),
         NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(SET, "SET", set, 2),
         NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(GET, "GET", get, 1),
-            0,
-            {}
-        },
-        {
-            NETWORK_PROTOCOL_REDIS_COMMAND_QUIT,
-            4,
-            "QUIT",
-            0,
-            0,
-            {}
-        },
-        {
-            NETWORK_PROTOCOL_REDIS_COMMAND_HELLO,
-            5,
-            "HELLO",
-            0,
-            0,
-            {}
-        },
-        {
-            NETWORK_PROTOCOL_REDIS_COMMAND_SET,
-            3,
-            "GET",
-            0,
-            0,
-            {}
-        },
-        {
-            NETWORK_PROTOCOL_REDIS_COMMAND_GET,
-            3,
-            "SET",
-            0,
-            3,
-            {
-                    { NETWORK_PROTOCOL_REDIS_SUBCOMMAND_SET_AX, 2, "AX" },
-                    { NETWORK_PROTOCOL_REDIS_SUBCOMMAND_SET_PX, 2, "PX" },
-                    { NETWORK_PROTOCOL_REDIS_SUBCOMMAND_SET_NX, 2, "NX" }
-            }
-        },
 };
-uint32_t command_map_length = sizeof(command_map) / sizeof(network_protocol_redis_command_map_t);
+uint32_t command_infos_map_count = sizeof(command_infos_map) / sizeof(network_protocol_redis_command_info_t);
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_BEGIN(ping, {})
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_ARGUMENT_PROCESSED(ping, {})
@@ -107,6 +69,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(get, {
 // TODO: when processing the arguments, the in-loop command handling has to handle the arguments that require to be
 //       streamed somewhere (ie. the value argument of the SET command has to be written somewhere)
 
+
 bool network_protocol_redis_recv(
         void *user_data,
         char *read_buffer_with_offset) {
@@ -114,7 +77,7 @@ bool network_protocol_redis_recv(
     size_t send_data_len;
     network_channel_user_data_t *network_channel_user_data = (network_channel_user_data_t*)user_data;
     network_protocol_redis_context_t *protocol_context = &(network_channel_user_data->protocol.data.redis);
-    protocol_redis_reader_context_t *reader_context = protocol_context->context;
+    protocol_redis_reader_context_t *reader_context = protocol_context->reader_context;
 
     char* send_buffer_base = network_channel_user_data->send_buffer.data;
     char* send_buffer_start = send_buffer_base + network_channel_user_data->send_buffer.data_size;
@@ -149,38 +112,64 @@ bool network_protocol_redis_recv(
                     continue;
                 }
 
-                int command_len = reader_context->arguments.list[0].length;
+                size_t command_len = reader_context->arguments.list[0].length;
                 char* command_str = reader_context->arguments.list[0].value;
 
-                // TODO: properly implement a command map
-                if (command_len == 4 && strncasecmp("QUIT", command_str, 4) == 0) {
-                    LOG_D(TAG, "[RECV][REDIS] QUIT command");
-                    protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_QUIT;
-                } else if (command_len == 3 && strncasecmp("GET", command_str, 3) == 0) {
-                    LOG_D(TAG, "[RECV][REDIS] SET command");
-                    protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_GET;
-                } else if (command_len == 3 && strncasecmp("SET", command_str, 3) == 0) {
-                    LOG_D(TAG, "[RECV][REDIS] SET command");
-                    protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_SET;
-                } else if (command_len == 4 && strncasecmp("PING", command_str, 4) == 0) {
-                    LOG_D(TAG, "[RECV][REDIS] PING command");
-                    protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_PING;
-                } else {
-                    protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_UNKNOWN;
+                protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_UNKNOWN;
+                for(uint32_t command_index = 0; command_index < command_infos_map_count; command_index++) {
+                    network_protocol_redis_command_info_t *command_info = &command_infos_map[command_index];
+                    if (command_len == command_info->length && strncasecmp(command_str, command_info->string, command_len) == 0) {
+                        LOG_D(
+                                TAG,
+                                "[RECV][REDIS] <%s> command received",
+                                command_info->string);
+                        protocol_context->command = command_info->command;
+                        protocol_context->command_info = command_info;
+                        protocol_context->processed_argument_index = 1;
+                    }
                 }
-            }
 
-            if (protocol_context->command != NETWORK_PROTOCOL_REDIS_COMMAND_NOP) {
                 if (protocol_context->command == NETWORK_PROTOCOL_REDIS_COMMAND_UNKNOWN) {
                     protocol_context->skip_command = true;
-                }
-
-                else if (protocol_context->command == NETWORK_PROTOCOL_REDIS_COMMAND_SET) {
-                    // TODO: check if the index of the parameter matching the value to stream it to the storage backend
+                } else if (protocol_context->command_info->being_funcptr) {
+                    if ((send_buffer_start = protocol_context->command_info->being_funcptr(
+                            reader_context,
+                            &protocol_context->command_context,
+                            send_buffer_start,
+                            send_buffer_end)) == NULL) {
+                        LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
+                        return false;
+                    }
                 }
             }
 
-            // TODO: add an stream_data_to_storage to the protocol_context and if it's true stream the data here and
+            if (protocol_context->skip_command == false && protocol_context->command != NETWORK_PROTOCOL_REDIS_COMMAND_NOP) {
+                for(
+                        int current_argument_index = protocol_context->processed_argument_index;
+                        current_argument_index < reader_context->arguments.current.index &&
+                            protocol_context->command_info->argument_processed_funcptr != NULL;
+                        current_argument_index++) {
+                    if (!reader_context->arguments.list[current_argument_index].all_read) {
+                        continue;
+                    }
+
+                    LOG_D(TAG, "[RECV][REDIS] Processing argument <%d>", current_argument_index);
+
+                    if ((send_buffer_start = protocol_context->command_info->argument_processed_funcptr(
+                            reader_context,
+                            &protocol_context->command_context,
+                            send_buffer_start,
+                            send_buffer_end,
+                            current_argument_index)) == NULL) {
+                        LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
+                        return false;
+                    }
+
+                    protocol_context->processed_argument_index = current_argument_index;
+                }
+            }
+
+            // TODO: add an stream_data_to_storage to the reader_context and if it's true stream the data here and
             //       get the pointer to them if it's the first invocation
         } while(network_channel_user_data->recv_buffer.data_size > 0 &&
                 reader_context->state != PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED);
@@ -220,29 +209,32 @@ bool network_protocol_redis_recv(
                 }
 
                 protocol_context->skip_command = true;
-            }
-
-            else if (protocol_context->command == NETWORK_PROTOCOL_REDIS_COMMAND_PING) {
-                send_buffer_start = protocol_redis_writer_write_blob_string(
+            } else {
+                if ((send_buffer_start = protocol_context->command_info->end_funcptr(
+                        reader_context,
+                        &protocol_context->command_context,
                         send_buffer_start,
-                        send_buffer_end - send_buffer_start,
-                        "PONG",
-                        4);
-
-                if (send_buffer_start == NULL) {
+                        send_buffer_end)) == NULL) {
                     LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
                     return false;
                 }
             }
 
-            // Reset the protocol_context to handle the next command in the buffer
+            // Reset the reader_context to handle the next command in the buffer
+            // TODO: move the reset code into its own function
             protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_NOP;
+            protocol_context->command_info = NULL;
+            protocol_context->processed_argument_index = 0;
+            memset(&protocol_context->command_context, 0, sizeof(protocol_context->command_context));
             protocol_context->skip_command = false;
 
             protocol_redis_reader_context_reset(reader_context);
         }
     } while(data_read_len > 0 && network_channel_user_data->recv_buffer.data_size > 0);
 
+    // TODO: move the network channel user data update code into its own function, doesn't make sense to pass the entire
+    //       network_channel to the recv & parse function, should just receive the recv_buffer and send_buffer and use
+    //       some wrapper functions to update the status of the buffer
     if (send_buffer_start != send_buffer_base) {
         send_data_len = send_buffer_start - send_buffer_base;
         network_channel_user_data->send_buffer.data_size += send_data_len;
