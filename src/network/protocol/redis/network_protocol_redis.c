@@ -24,11 +24,11 @@
 #define TAG "network_protocol_redis"
 
 network_protocol_redis_command_map_t command_map[] = {
-        {
-            NETWORK_PROTOCOL_REDIS_COMMAND_PING,
-            4,
-            "PING",
-            0,
+        NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(PING, "PING", ping, 0),
+        NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(QUIT, "QUIT", quit, 0),
+        NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(HELLO, "HELLO", hello, 0),
+        NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(SET, "SET", set, 2),
+        NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(GET, "GET", get, 1),
             0,
             {}
         },
@@ -70,6 +70,38 @@ network_protocol_redis_command_map_t command_map[] = {
         },
 };
 uint32_t command_map_length = sizeof(command_map) / sizeof(network_protocol_redis_command_map_t);
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_BEGIN(ping, {})
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_ARGUMENT_PROCESSED(ping, {})
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(ping, {
+    send_buffer_start = protocol_redis_writer_write_blob_string(
+            send_buffer_start,
+            send_buffer_end - send_buffer_start,
+            "PONG",
+            4);
+})
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_BEGIN(quit, {})
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_ARGUMENT_PROCESSED(quit, {})
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(quit, {})
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_BEGIN(hello, {})
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_ARGUMENT_PROCESSED(hello, {})
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(hello, {})
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_BEGIN(set, {})
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_ARGUMENT_PROCESSED(set, {})
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(set, {})
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_BEGIN(get, {})
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_ARGUMENT_PROCESSED(get, {})
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(get, {
+    send_buffer_start = protocol_redis_writer_write_blob_string(
+            send_buffer_start,
+            send_buffer_end - send_buffer_start,
+            reader_context->arguments.list[1].value,
+            reader_context->arguments.list[1].length);
+})
 
 // TODO: need an hook to track when the buffer is copied around, the data need to be cloned onto memory
 // TODO: when processing the arguments, the in-loop command handling has to handle the arguments that require to be
