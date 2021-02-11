@@ -95,37 +95,25 @@ enum network_protocol_redis_commands {
 };
 typedef enum network_protocol_redis_commands network_protocol_redis_commands_t;
 
-enum network_protocol_redis_named_arguments {
-    NETWORK_PROTOCOL_REDIS_SUBCOMMAND_SET_AX,
-    NETWORK_PROTOCOL_REDIS_SUBCOMMAND_SET_PX,
-    NETWORK_PROTOCOL_REDIS_SUBCOMMAND_SET_NX
-};
-typedef enum network_protocol_redis_named_arguments network_protocol_redis_named_arguments_t;
-
-typedef struct network_protocol_redis_command_map_named_argument network_protocol_redis_command_map_named_argument_t;
-struct network_protocol_redis_command_map_named_argument {
-    network_protocol_redis_named_arguments_t named_argument;
-    size_t length;
-    // Redis longest named argument is 10 chars
-    char string[11];
-};
-
-typedef struct network_protocol_redis_command_map network_protocol_redis_command_map_t;
-struct network_protocol_redis_command_map {
+typedef struct network_protocol_redis_command_info network_protocol_redis_command_info_t;
+struct network_protocol_redis_command_info {
     network_protocol_redis_commands_t command;
     size_t length;
     // Redis longest command is 10 chars
     char string[11];
-    uint8_t positional_arguments;
-    int named_arguments_length;
-    // Redis commands don't have more than 10 named arguments
-    network_protocol_redis_command_map_named_argument_t named_arguments[10];
+    network_protocol_redis_command_begin_funcptr_t *being_funcptr;
+    network_protocol_redis_command_argument_processed_funcptr_t *argument_processed_funcptr;
+    network_protocol_redis_command_end_funcptr_t *end_funcptr;
+    uint8_t positional_arguments_count;
 };
 
 typedef struct network_protocol_redis_context network_protocol_redis_context_t;
 struct network_protocol_redis_context {
     protocol_redis_reader_context_t *reader_context;
     network_protocol_redis_commands_t command;
+    network_protocol_redis_command_info_t *command_info;
+    network_protocol_redis_command_context_t command_context;
+    uint32_t processed_argument_index;
     bool skip_command;
 };
 
