@@ -108,26 +108,30 @@ Here the general grand-plan:
         - [x] Implement a network io layer based on io_uring nad liburing
         - [x] Implement a network channel layer based on top of the network io iouring layer
         - [x] Implement network workers
+            - [x] Implement an io_uring-based network worker
+        - [x] Implement a redis protocol reader and writer (with pipelining support)
         - [ ] Implement a basic support for the redis protocol
             - [ ] GET
             - [ ] SET
             - [ ] DELETE
-            - [ ] PING
-    - [ ] Storage: 
-        - [ ] Implement a storage stack able to support multiple io libraries 
-        - [ ] Implement a storage io layer based on io_uring and liburing
-    - [ ] Configuration:
-        - [ ] Implement a YAML based configuration
-
-- v0.2
+            - [ ] HELLO
+            - [ ] QUIT
+            - [x] PING
     - [ ] Memory Management
         - [ ] Implement a SLAB allocator
+    - [ ] Configuration
+        - [ ] Implement a YAML based configuration
+    - [ ] Storage
+        - [ ] Implement storage workers
+            - [ ] Implement a storage worker based on io_uring and liburing
+
+- v0.2
     - [ ] Logging
         - [ ] Add the ability to perform multi-threaded logging via a ring buffer per thread processed by the logger
               thread (if too many messages are submitted the caller has to wait for space in the ring).
         - [ ] Add logging to disk sink
     - [ ] Hashtable
-        - [ ] Implement adaptative spinlocks
+        - [ ] Implement adaptive spinlocks
         - [ ] Implement a sliding spinlock window to release locked chunks in advance if possible
         - [ ] Add support for LRU
             - [ ] Implement a separate LRU structure to hold the necessary data for the hashtable
@@ -144,18 +148,18 @@ Here the general grand-plan:
         - [ ] Implement garbage collection
 
 - v0.3
+    - [ ] Memory Management
+        - [ ] Add NUMA support
     - [ ] Hashtable
         - [ ] Add NUMA support
     - [ ] Write documentation
     - [ ] Storage
-        - [ ] Optmize for SSD (LSMTrees?) 
+        - [ ] Optmize for NVMEs (xnvme, LSMTrees?)
     - [ ] Networking
         - [ ] Add support for multiple protocols
         - [ ] Add a protobuf-based rpc based protocol
         - [ ] Implement a basic http webserver to provide general stats
         - [ ] Implement a basic http webserver to provide simple CRUD operations 
-        - [ ] Expand redis protocol support
-            - [ ] Pipelining
 
 - v0.4
     - [ ] Add AARCH64 support
@@ -174,6 +178,10 @@ Here the general grand-plan:
 - v0.6
     - [ ] Storage
         - [ ] Add transparent data encryption / decryption
+
+- v0.7
+    - [ ] Networking
+        - [ ] Implement an XDP-based network worker
 
 - Somewhere before the v1.0
     - [ ] Add support for Windows (IO via support IOCP)
