@@ -127,7 +127,6 @@ bool network_protocol_redis_recv(
                                 command_info->string);
                         protocol_context->command = command_info->command;
                         protocol_context->command_info = command_info;
-                        protocol_context->processed_argument_index = 1;
                     }
                 }
 
@@ -145,29 +144,23 @@ bool network_protocol_redis_recv(
                 }
             }
 
-            if (protocol_context->skip_command == false && protocol_context->command != NETWORK_PROTOCOL_REDIS_COMMAND_NOP) {
-                for(
-                        int current_argument_index = protocol_context->processed_argument_index;
-                        current_argument_index < reader_context->arguments.current.index &&
-                            protocol_context->command_info->argument_processed_funcptr != NULL;
-                        current_argument_index++) {
-                    if (!reader_context->arguments.list[current_argument_index].all_read) {
-                        continue;
-                    }
+            // TODO: need to handle stream mode
 
-                    LOG_D(TAG, "[RECV][REDIS] Processing argument <%d>", current_argument_index);
-
+            if (
+                    protocol_context->skip_command == false &&
+                    protocol_context->command != NETWORK_PROTOCOL_REDIS_COMMAND_NOP &&
+                    reader_context->arguments.current.index > 0) {
+                uint32_t argument_index = reader_context->arguments.current.index;
+                if (reader_context->arguments.list[argument_index].all_read) {
                     if ((send_buffer_start = protocol_context->command_info->argument_processed_funcptr(
                             reader_context,
                             &protocol_context->command_context,
                             send_buffer_start,
                             send_buffer_end,
-                            current_argument_index)) == NULL) {
+                            argument_index)) == NULL) {
                         LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
                         return false;
                     }
-
-                    protocol_context->processed_argument_index = current_argument_index;
                 }
             }
 
