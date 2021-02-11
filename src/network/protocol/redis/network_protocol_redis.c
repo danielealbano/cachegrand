@@ -36,11 +36,13 @@ uint32_t command_infos_map_count = sizeof(command_infos_map) / sizeof(network_pr
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_BEGIN(ping, {})
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_ARGUMENT_PROCESSED(ping, {})
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(ping, {
-    send_buffer_start = protocol_redis_writer_write_blob_string(
-            send_buffer_start,
-            send_buffer_end - send_buffer_start,
-            "PONG",
-            4);
+    NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR({
+         send_buffer_start = protocol_redis_writer_write_blob_string(
+                 send_buffer_start,
+                 send_buffer_end - send_buffer_start,
+                 "PONG",
+                 4);
+     })
 })
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_BEGIN(quit, {})
@@ -224,7 +226,6 @@ bool network_protocol_redis_recv(
             // TODO: move the reset code into its own function
             protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_NOP;
             protocol_context->command_info = NULL;
-            protocol_context->processed_argument_index = 0;
             memset(&protocol_context->command_context, 0, sizeof(protocol_context->command_context));
             protocol_context->skip_command = false;
 
