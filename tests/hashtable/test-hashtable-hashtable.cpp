@@ -3,13 +3,13 @@
 #include "exttypes.h"
 #include "spinlock.h"
 
-#include "hashtable/hashtable.h"
-#include "hashtable/hashtable_config.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/hashtable/mcmp/hashtable_config.h"
 
 #include "fixtures-hashtable.h"
 
 TEST_CASE("hashtable/hashtable.c", "[hashtable][hashtable]") {
-    SECTION("hashtable_init") {
+    SECTION("hashtable_mcmp_init") {
         HASHTABLE(buckets_initial_count_5, false, {
             REQUIRE(hashtable != NULL);
         })
@@ -30,8 +30,8 @@ TEST_CASE("hashtable/hashtable.c", "[hashtable][hashtable]") {
     }
 
     SECTION("hashtable const vales") {
-        SECTION("HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT == 14") {
-            REQUIRE(HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT == 14);
+        SECTION("HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT == 14") {
+            REQUIRE(HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT == 14);
         }
     }
 
@@ -49,9 +49,9 @@ TEST_CASE("hashtable/hashtable.c", "[hashtable][hashtable]") {
             REQUIRE(sizeof(hashtable_half_hashes_chunk_atomic.metadata.padding) == 4);
         }
 
-        SECTION("sizeof(hashtable_half_hashes_chunk_atomic.half_hashes) == 4 * HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT)") {
+        SECTION("sizeof(hashtable_half_hashes_chunk_atomic.half_hashes) == 4 * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT)") {
             hashtable_half_hashes_chunk_volatile_t hashtable_half_hashes_chunk_atomic = { 0 };
-            REQUIRE(sizeof(hashtable_half_hashes_chunk_atomic.half_hashes) == 4 * HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT);
+            REQUIRE(sizeof(hashtable_half_hashes_chunk_atomic.half_hashes) == 4 * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT);
         }
     }
 }

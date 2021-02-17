@@ -10,13 +10,13 @@
 #include "spinlock.h"
 #include "xalloc.h"
 
-#include "hashtable/hashtable.h"
-#include "hashtable/hashtable_support_index.h"
-#include "hashtable/hashtable_op_delete.h"
-#include "hashtable/hashtable_support_hash.h"
-#include "hashtable/hashtable_support_op.h"
+#include "hashtable.h"
+#include "hashtable_support_index.h"
+#include "hashtable_op_delete.h"
+#include "hashtable_support_hash.h"
+#include "hashtable_support_op.h"
 
-bool hashtable_op_delete(
+bool hashtable_mcmp_op_delete(
         hashtable_t* hashtable,
         hashtable_key_data_t* key,
         hashtable_key_size_t key_size) {
@@ -36,7 +36,7 @@ bool hashtable_op_delete(
     //       At the end it has to update the original over overflowed_chunks_counter to restrict the search range if
     //       there was any compaction.
 
-    hash = hashtable_support_hash_calculate(key, key_size);
+    hash = hashtable_mcmp_support_hash_calculate(key, key_size);
 
     LOG_DI("key (%d) = %s", key_size, key);
     LOG_DI("hash = 0x%016x", hash);
@@ -61,7 +61,7 @@ bool hashtable_op_delete(
             continue;
         }
 
-        if (hashtable_support_op_search_key(
+        if (hashtable_mcmp_support_op_search_key(
                 hashtable_data,
                 key,
                 key_size,
@@ -92,7 +92,7 @@ bool hashtable_op_delete(
         HASHTABLE_MEMORY_FENCE_STORE();
 
         if (!HASHTABLE_KEY_VALUE_HAS_FLAG(key_value_flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
-            // Even if we have memory fences here, hashtable_op_get may read from the memory that it's going to be
+            // Even if we have memory fences here, hashtable_mcmp_op_get may read from the memory that it's going to be
             // de-allocated.
             // Even if it never happened so far even under extremely high concurrency (tested up to 64 logical core with
             // 2048 threads on an AMD EPYC 7502P) it can potentially happen.

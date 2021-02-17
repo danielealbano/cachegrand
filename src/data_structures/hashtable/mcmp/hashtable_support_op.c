@@ -7,12 +7,12 @@
 #include "spinlock.h"
 #include "log.h"
 
-#include "hashtable/hashtable.h"
-#include "hashtable/hashtable_support_op.h"
-#include "hashtable/hashtable_support_op_arch.h"
+#include "hashtable.h"
+#include "hashtable_support_op.h"
+#include "hashtable_support_op_arch.h"
 
 #if defined(__x86_64__)
-#define HASHTABLE_SUPPORT_OP_FUNC_RESOLVER(FUNC) \
+#define HASHTABLE_MCMP_SUPPORT_OP_FUNC_RESOLVER(FUNC) \
     static void* FUNC##_resolve(void) { \
         __builtin_cpu_init(); \
         LOG_DI("Selecting optimal " #FUNC); \
@@ -25,30 +25,30 @@
         \
         if (__builtin_cpu_supports("avx2")) { \
             LOG_DI("Selecting AVX2"); \
-            return HASHTABLE_SUPPORT_OP_FUNC_METHOD(FUNC, avx2); \
+            return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, avx2); \
         } else if (__builtin_cpu_supports("avx")) { \
             LOG_DI("Selecting AVX"); \
-            return HASHTABLE_SUPPORT_OP_FUNC_METHOD(FUNC, avx); \
+            return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, avx); \
         } else if (__builtin_cpu_supports("sse4.2")) { \
             LOG_DI("Selecting SSE4.2"); \
-            return HASHTABLE_SUPPORT_OP_FUNC_METHOD(FUNC, sse42); \
+            return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, sse42); \
         } else if (__builtin_cpu_supports("sse3")) { \
             LOG_DI("Selecting SSE3"); \
-            return HASHTABLE_SUPPORT_OP_FUNC_METHOD(FUNC, sse3); \
+            return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, sse3); \
         } \
         \
-        LOG_DI("No optimized function available for the current achitecture, switching to generic"); \
+        LOG_DI("No optimized function available for the current architecture, switching to generic"); \
         \
-        return HASHTABLE_SUPPORT_OP_FUNC_METHOD(FUNC, defaultopt); \
+        return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, defaultopt); \
     }
 #else
-#define HASHTABLE_SUPPORT_OP_FUNC_RESOLVER(FUNC) \
+#define HASHTABLE_MCMP_SUPPORT_OP_FUNC_RESOLVER(FUNC) \
     static void* FUNC##_resolve(void) { \
-        return HASHTABLE_SUPPORT_OP_FUNC_METHOD(FUNC, defaultopt); \
+        return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, defaultopt); \
     }
 #endif
 
-bool hashtable_support_op_search_key(
+bool hashtable_mcmp_support_op_search_key(
         volatile hashtable_data_t *hashtable_data,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
@@ -56,10 +56,10 @@ bool hashtable_support_op_search_key(
         hashtable_chunk_index_t *found_chunk_index,
         hashtable_chunk_slot_index_t *found_chunk_slot_index,
         hashtable_key_value_volatile_t **found_key_value)
-__attribute__ ((ifunc ("hashtable_support_op_search_key_resolve")));
-HASHTABLE_SUPPORT_OP_FUNC_RESOLVER(hashtable_support_op_search_key)
+__attribute__ ((ifunc ("hashtable_mcmp_support_op_search_key_resolve")));
+HASHTABLE_MCMP_SUPPORT_OP_FUNC_RESOLVER(hashtable_mcmp_support_op_search_key)
 
-bool hashtable_support_op_search_key_or_create_new(
+bool hashtable_mcmp_support_op_search_key_or_create_new(
         volatile hashtable_data_t *hashtable_data,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
@@ -68,5 +68,5 @@ bool hashtable_support_op_search_key_or_create_new(
         bool *created_new,
         hashtable_half_hashes_chunk_volatile_t **found_half_hashes_chunk,
         hashtable_key_value_volatile_t **found_key_value)
-__attribute__ ((ifunc ("hashtable_support_op_search_key_or_create_new_resolve")));
-HASHTABLE_SUPPORT_OP_FUNC_RESOLVER(hashtable_support_op_search_key_or_create_new)
+__attribute__ ((ifunc ("hashtable_mcmp_support_op_search_key_or_create_new_resolve")));
+HASHTABLE_MCMP_SUPPORT_OP_FUNC_RESOLVER(hashtable_mcmp_support_op_search_key_or_create_new)

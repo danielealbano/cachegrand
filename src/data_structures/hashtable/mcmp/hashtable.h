@@ -9,7 +9,7 @@ extern "C" {
 #define HASHTABLE_USE_UINT64    1
 #endif
 
-#define HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT     14
+#define HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT     14
 #define HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX      32
 #define HASHTABLE_KEY_INLINE_MAX_LENGTH             23
 
@@ -108,7 +108,7 @@ struct hashtable_half_hashes_chunk {
             uint8_volatile_t is_full;
         };
     } metadata;
-    hashtable_slot_id_wrapper_t half_hashes[HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT];
+    hashtable_slot_id_wrapper_t half_hashes[HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT];
 } __attribute__((aligned(64)));
 
 /**
@@ -131,7 +131,7 @@ struct hashtable_data {
 /**
  * Struct holding the hashtable
  *
- * This has to be initialized with a call to hashtable_init.
+ * This has to be initialized with a call to hashtable_mcmp_init.
  *
  * During the normal operations only ht_1 or ht_2 actually contains the hashtable data and ht_current points to the
  * current one.
@@ -150,8 +150,8 @@ struct hashtable {
     hashtable_data_volatile_t* ht_old;
 };
 
-hashtable_t* hashtable_init(hashtable_config_t* hashtable_config);
-void hashtable_free(hashtable_t* hashtable);
+hashtable_t* hashtable_mcmp_init(hashtable_config_t* hashtable_config);
+void hashtable_mcmp_free(hashtable_t* hashtable);
 
 #ifdef __cplusplus
 }

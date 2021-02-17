@@ -5,8 +5,8 @@
 #include "exttypes.h"
 #include "spinlock.h"
 
-#include "hashtable/hashtable.h"
-#include "hashtable/hashtable_op_get.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_get.h"
 
 #include "../tests/support.h"
 #include "../tests/hashtable/fixtures-hashtable.h"
@@ -52,7 +52,7 @@ static void hashtable_op_get_not_found_key(benchmark::State& state) {
     test_support_set_thread_affinity(state.thread_index);
 
     for (auto _ : state) {
-        benchmark::DoNotOptimize(hashtable_op_get(
+        benchmark::DoNotOptimize(hashtable_mcmp_op_get(
                 hashtable,
                 test_key_1,
                 test_key_1_len,
@@ -60,7 +60,7 @@ static void hashtable_op_get_not_found_key(benchmark::State& state) {
     }
 
     if (state.thread_index == 0) {
-        hashtable_free(hashtable);
+        hashtable_mcmp_free(hashtable);
     }
 }
 
@@ -92,7 +92,7 @@ static void hashtable_op_get_single_key_inline(benchmark::State& state) {
     test_support_set_thread_affinity(state.thread_index);
 
     for (auto _ : state) {
-        benchmark::DoNotOptimize((result = hashtable_op_get(
+        benchmark::DoNotOptimize((result = hashtable_mcmp_op_get(
                 hashtable,
                 test_key_1,
                 test_key_1_len,
@@ -113,7 +113,7 @@ static void hashtable_op_get_single_key_inline(benchmark::State& state) {
     }
 
     if (state.thread_index == 0) {
-        hashtable_free(hashtable);
+        hashtable_mcmp_free(hashtable);
     }
 }
 
@@ -145,7 +145,7 @@ static void hashtable_op_get_single_key_external(benchmark::State& state) {
     test_support_set_thread_affinity(state.thread_index);
 
     for (auto _ : state) {
-        benchmark::DoNotOptimize((result = hashtable_op_get(
+        benchmark::DoNotOptimize((result = hashtable_mcmp_op_get(
                 hashtable,
                 test_key_1,
                 test_key_1_len,
@@ -166,7 +166,7 @@ static void hashtable_op_get_single_key_external(benchmark::State& state) {
     }
 
     if (state.thread_index == 0) {
-        hashtable_free(hashtable);
+        hashtable_mcmp_free(hashtable);
     }
 }
 

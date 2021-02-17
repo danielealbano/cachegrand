@@ -35,20 +35,20 @@ hashtable_hash_quarter_t test_key_2_hash_quarter = test_key_2_hash_half & 0xFFFF
 
 #define HASHTABLE_DATA(buckets_count_v, ...) \
 { \
-    hashtable_data_t* hashtable_data = hashtable_data_init(buckets_count_v); \
+    hashtable_data_t* hashtable_data = hashtable_mcmp_data_init(buckets_count_v); \
     __VA_ARGS__; \
-    hashtable_data_free(hashtable_data); \
+    hashtable_mcmp_data_free(hashtable_data); \
 }
 
 #define HASHTABLE_INIT(initial_size_v, can_auto_resize_v) \
-    hashtable_config_t* hashtable_config = hashtable_config_init();  \
+    hashtable_config_t* hashtable_config = hashtable_mcmp_config_init();  \
     hashtable_config->initial_size = initial_size_v; \
     hashtable_config->can_auto_resize = can_auto_resize_v; \
     \
-    hashtable_t* hashtable = hashtable_init(hashtable_config); \
+    hashtable_t* hashtable = hashtable_mcmp_init(hashtable_config); \
 
 #define HASHTABLE_FREE() \
-    hashtable_free(hashtable); \
+    hashtable_mcmp_free(hashtable); \
 
 #define HASHTABLE(initial_size_v, can_auto_resize_v, ...) \
 { \
@@ -60,9 +60,9 @@ hashtable_hash_quarter_t test_key_2_hash_quarter = test_key_2_hash_half & 0xFFFF
 }
 
 #define HASHTABLE_TO_CHUNK_INDEX(bucket_index) \
-    (int)(bucket_index / HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT)
+    (int)(bucket_index / HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT)
 #define HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index) \
-    (chunk_index * HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index
+    (chunk_index * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index
 
 #define HASHTABLE_HALF_HASHES_CHUNK(chunk_index) \
     hashtable->ht_current->half_hashes_chunk[chunk_index]

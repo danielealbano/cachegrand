@@ -7,19 +7,19 @@
 #include "misc.h"
 #include "log.h"
 
-#include "hashtable/hashtable.h"
-#include "hashtable/hashtable_config.h"
-#include "hashtable/hashtable_support_index.h"
-#include "hashtable/hashtable_op_set.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/hashtable/mcmp/hashtable_config.h"
+#include "data_structures/hashtable/mcmp/hashtable_support_index.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_set.h"
 
 #include "../support.h"
 #include "fixtures-hashtable.h"
 
-TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_op_set]") {
-    SECTION("hashtable_op_set") {
+TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashtable_mcmp_op_set]") {
+    SECTION("hashtable_mcmp_op_set") {
         SECTION("set 1 bucket") {
             HASHTABLE(0x7FFF, false, {
-                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
                 hashtable_chunk_slot_index_t chunk_slot_index = 0;
@@ -29,7 +29,7 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                 hashtable_key_value_volatile_t * key_value =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
 
-                REQUIRE(hashtable_op_set(
+                REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
@@ -58,7 +58,7 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
 
         SECTION("set and update 1 slot") {
             HASHTABLE(0x7FFF, false, {
-                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
                 hashtable_chunk_slot_index_t chunk_slot_index = 0;
@@ -68,13 +68,13 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                 hashtable_key_value_volatile_t * key_value =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
 
-                REQUIRE(hashtable_op_set(
+                REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
                         test_value_1));
 
-                REQUIRE(hashtable_op_set(
+                REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
@@ -99,7 +99,7 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
 
         SECTION("set 2 slots") {
             HASHTABLE(0x7FFF, false, {
-                hashtable_chunk_index_t chunk_index1 = HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                hashtable_chunk_index_t chunk_index1 = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
                 hashtable_chunk_slot_index_t chunk_slot_index1 = 0;
@@ -110,7 +110,7 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index1, chunk_slot_index1)];
 
 
-                hashtable_chunk_index_t chunk_index2 = HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                hashtable_chunk_index_t chunk_index2 = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_2_hash));
                 hashtable_chunk_slot_index_t chunk_slot_index2 = 0;
@@ -120,13 +120,13 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
                 hashtable_key_value_volatile_t * key_value2 =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index2, chunk_slot_index2)];
 
-                REQUIRE(hashtable_op_set(
+                REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
                         test_value_1));
 
-                REQUIRE(hashtable_op_set(
+                REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         test_key_2,
                         test_key_2_len,
@@ -160,22 +160,22 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
 
         SECTION("fill entire half hashes chunk - key with same prefix - key not inline") {
             HASHTABLE(0x7FFF, false, {
-                hashtable_chunk_slot_index_t slots_to_fill = HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
+                hashtable_chunk_slot_index_t slots_to_fill = HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
                 test_key_same_bucket_t *test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
                         hashtable->ht_current->buckets_count,
                         test_key_same_bucket_key_prefix_external,
                         slots_to_fill);
 
                 for(hashtable_chunk_index_t i = 0; i < slots_to_fill; i++) {
-                    REQUIRE(hashtable_op_set(
+                    REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
-                            (char*)test_key_same_bucket[i].key,
+                            (char *) test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i));
                 }
 
                 hashtable_chunk_index_t chunk_index_base =
-                        HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                        HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                                 hashtable->ht_current->buckets_count,
                                 test_key_same_bucket[0].key_hash));
 
@@ -206,30 +206,30 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
             HASHTABLE(0x7FFF, false, {
                 hashtable_chunk_count_t chunks_to_overflow = 3;
                 hashtable_chunk_slot_index_t slots_to_fill =
-                        (HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT * chunks_to_overflow) + 3;
+                        (HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT * chunks_to_overflow) + 3;
                 test_key_same_bucket_t *test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
                         hashtable->ht_current->buckets_count,
                         test_key_same_bucket_key_prefix_external,
                         slots_to_fill);
 
                 for(hashtable_chunk_slot_index_t i = 0; i < slots_to_fill; i++) {
-                    REQUIRE(hashtable_op_set(
+                    REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
-                            (char*)test_key_same_bucket[i].key,
+                            (char *) test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i));
                 }
 
                 hashtable_chunk_index_t chunk_index_base =
-                        HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                        HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                                 hashtable->ht_current->buckets_count,
                                 test_key_same_bucket[0].key_hash));
 
                 for(uint32_t i = 0; i < slots_to_fill; i++) {
                     hashtable_chunk_index_t chunk_index =
-                            chunk_index_base + (int)(i / HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT);
+                            chunk_index_base + (int)(i / HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT);
                     hashtable_chunk_slot_index_t chunk_slot_index =
-                            i % HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
+                            i % HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
 
                     hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
                             &hashtable->ht_current->half_hashes_chunk[chunk_index];
@@ -258,21 +258,21 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
             HASHTABLE(0x7FFF, false, {
                 hashtable_chunk_count_t chunks_to_overflow = 3;
                 hashtable_chunk_slot_index_t slots_to_fill =
-                        (HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT * chunks_to_overflow) + 3;
+                        (HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT * chunks_to_overflow) + 3;
                 test_key_same_bucket_t *test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
                         hashtable->ht_current->buckets_count,
                         test_key_same_bucket_key_prefix_external,
                         slots_to_fill);
 
                 for(hashtable_chunk_slot_index_t i = 0; i < slots_to_fill; i++) {
-                    REQUIRE(hashtable_op_set(
+                    REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
-                            (char*)test_key_same_bucket[i].key,
+                            (char *) test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i));
                 }
 
-                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_same_bucket[0].key_hash));
 
@@ -294,16 +294,16 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
 
                 uint32_t i = 0;
                 for(; i < slots_to_fill - 1; i++) {
-                    REQUIRE(hashtable_op_set(
+                    REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
-                            (char*)test_key_same_bucket[i].key,
+                            (char *) test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i));
                 }
 
-                REQUIRE(!hashtable_op_set(
+                REQUIRE(!hashtable_mcmp_op_set(
                         hashtable,
-                        (char*)test_key_same_bucket[i].key,
+                        (char *) test_key_same_bucket[i].key,
                         test_key_same_bucket[i].key_len,
                         test_value_1 + i));
 
@@ -314,15 +314,15 @@ TEST_CASE("hashtable/hashtable_op_set.c", "[hashtable][hashtable_op][hashtable_o
 
 //        SECTION("parallel inserts - check storage") {
 //            HASHTABLE(1000000, false, {
-//                for(uint32_t i = 0; i < HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT; i++) {
-//                    hashtable_op_set(
+//                for(uint32_t i = 0; i < HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT; i++) {
+//                    hashtable_mcmp_op_set(
 //                            hashtable,
 //                            (char*)test_key_1_same_bucket[i].key,
 //                            test_key_1_same_bucket[i].key_len,
 //                            test_value_1 + i);
 //                }
 //
-//                REQUIRE(!hashtable_op_set(
+//                REQUIRE(!hashtable_mcmp_op_set(
 //                        hashtable,
 //                        (char*)test_key_1_same_bucket[13].key,
 //                        test_key_1_same_bucket[13].key_len,

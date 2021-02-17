@@ -25,9 +25,9 @@ extern "C" {
 #define LOG_MESSAGE_DEBUG_RULES_SRC_FUNC_INCLUDE
 
 #define LOG_MESSAGE_DEBUG_RULES_SRC_FUNC_EXCLUDE \
-        "hashtable_op_get", \
-        "hashtable_op_set", \
-        "hashtable_op_delete", \
+        "hashtable_mcmp_op_get", \
+        "hashtable_mcmp_op_set", \
+        "hashtable_mcmp_op_delete", \
         "hashtable_support_op_search_key_avx2", \
         "hashtable_support_op_search_key_or_create_new_avx2", \
         "hashtable_support_op_search_key_avx", \
@@ -39,7 +39,7 @@ extern "C" {
         "hashtable_support_op_search_key_defaultopt", \
         "hashtable_support_op_search_key_or_create_new_defaultopt", \
         "hash_crc32c_resolve", \
-        "hashtable_support_hash_search_resolve", \
+        "hashtable_mcmp_support_hash_search_resolve", \
         "hashtable_support_op_search_key_or_create_new_resolve", \
         "hashtable_support_op_search_key_resolve", \
 

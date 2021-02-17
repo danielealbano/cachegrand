@@ -10,7 +10,7 @@
 #include "misc.h"
 #include "log.h"
 
-#include "hashtable/hashtable.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
 
 #include "bench-support.h"
 #include "support.h"

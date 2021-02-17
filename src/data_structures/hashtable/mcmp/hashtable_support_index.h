@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-hashtable_bucket_index_t hashtable_support_index_from_hash(
+hashtable_bucket_index_t hashtable_mcmp_support_index_from_hash(
         hashtable_bucket_count_t buckets_count,
         hashtable_hash_t hash);
 

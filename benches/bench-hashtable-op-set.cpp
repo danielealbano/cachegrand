@@ -8,9 +8,9 @@
 #include "spinlock.h"
 #include "log.h"
 
-#include "hashtable/hashtable.h"
-#include "hashtable/hashtable_op_set.h"
-#include "hashtable/hashtable_op_get.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_set.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_get.h"
 
 #include "../tests/support.h"
 #include "../tests/hashtable/fixtures-hashtable.h"
@@ -126,7 +126,7 @@ static void hashtable_op_set_new(benchmark::State& state) {
             uint64_t keyset_offset = TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i;
             char* key = keyset + keyset_offset;
 
-            benchmark::DoNotOptimize((result = hashtable_op_set(
+            benchmark::DoNotOptimize((result = hashtable_mcmp_op_set(
                     hashtable,
                     key,
                     strlen(key),
@@ -147,7 +147,7 @@ static void hashtable_op_set_new(benchmark::State& state) {
 
     if (state.thread_index == 0) {
         bench_support_collect_hashtable_stats_and_update_state(state, hashtable);
-        hashtable_free(hashtable);
+        hashtable_mcmp_free(hashtable);
     }
 }
 
@@ -181,7 +181,7 @@ static void hashtable_op_set_update(benchmark::State& state) {
         bool result = test_support_hashtable_prefill(hashtable, keyset, test_value_1, requested_keyset_size);
 
         if (!result) {
-            hashtable_free(hashtable);
+            hashtable_mcmp_free(hashtable);
 
             sprintf(error_message, "Unable to prefill the hashtable with <%lu> keys", requested_keyset_size);
             state.SkipWithError(error_message);
@@ -198,7 +198,7 @@ static void hashtable_op_set_update(benchmark::State& state) {
         for(long int i = state.thread_index; i < requested_keyset_size; i += state.threads) {
             char* key = keyset + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
 
-            benchmark::DoNotOptimize((result = hashtable_op_set(
+            benchmark::DoNotOptimize((result = hashtable_mcmp_op_set(
                     hashtable,
                     key,
                     strlen(key),
@@ -219,7 +219,7 @@ static void hashtable_op_set_update(benchmark::State& state) {
 
     if (state.thread_index == 0) {
         bench_support_collect_hashtable_stats_and_update_state(state, hashtable);
-        hashtable_free(hashtable);
+        hashtable_mcmp_free(hashtable);
     }
 }
 

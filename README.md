@@ -60,7 +60,7 @@ For more information about the build requirements check [docs/build-requirements
 ```bash
 mkdir cmake-build-debug
 cd cmake-build-debug
-cmake .. -DUSE_HASHTABLE_HASH_ALGORITHM_T1HA2=1
+cmake .. -DUSE_HASH_ALGORITHM_T1HA2=1
 make cachegrand
 ```
 
@@ -68,7 +68,7 @@ make cachegrand
 ```bash
 mkdir cmake-build-debug
 cd cmake-build-debug
-cmake .. -DUSE_HASHTABLE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1
+cmake .. -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1
 make cachegrand-tests
 make test
 ```
@@ -85,7 +85,7 @@ the **cachegrand-benches** target.
 ```bash
 mkdir cmake-build-debug
 cd cmake-build-debug
-cmake .. -DUSE_HASHTABLE_HASH_ALGORITHM_T1HA2=1 -BUILD_INTERNAL_BENCHES=1
+cmake .. -DUSE_HASH_ALGORITHM_T1HA2=1 -BUILD_INTERNAL_BENCHES=1
 make cachegrand-benches
 ./benches/cachegrand-benches
 ```

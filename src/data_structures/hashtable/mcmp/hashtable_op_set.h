@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-bool hashtable_op_set(
+bool hashtable_mcmp_op_set(
         hashtable_t *hashtable,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,

@@ -5,11 +5,11 @@
 extern "C" {
 #endif
 
-#define HASHTABLE_SUPPORT_OP_FUNC_METHOD(FUNCTION, SUFFIX) \
+#define HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNCTION, SUFFIX) \
     FUNCTION##_##SUFFIX
 
-#define HASHTABLE_SUPPORT_OP_ARCH(SUFFIX) \
-    bool HASHTABLE_SUPPORT_OP_FUNC_METHOD(hashtable_support_op_search_key, SUFFIX)( \
+#define HASHTABLE_MCMP_SUPPORT_OP_ARCH(SUFFIX) \
+    bool HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(hashtable_mcmp_support_op_search_key, SUFFIX)( \
             hashtable_data_volatile_t *hashtable_data, \
             hashtable_key_data_t *key, \
             hashtable_key_size_t key_size, \
@@ -18,7 +18,7 @@ extern "C" {
             hashtable_chunk_slot_index_t *found_chunk_slot_index, \
             hashtable_key_value_volatile_t **found_key_value); \
      \
-    bool HASHTABLE_SUPPORT_OP_FUNC_METHOD(hashtable_support_op_search_key_or_create_new, SUFFIX)( \
+    bool HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(hashtable_mcmp_support_op_search_key_or_create_new, SUFFIX)( \
             hashtable_data_t *hashtable_data, \
             hashtable_key_data_t *key, \
             hashtable_key_size_t key_size, \
@@ -29,13 +29,13 @@ extern "C" {
             hashtable_key_value_volatile_t **found_key_value);
 
 #if defined(__x86_64__)
-HASHTABLE_SUPPORT_OP_ARCH(avx2)
-HASHTABLE_SUPPORT_OP_ARCH(avx)
-HASHTABLE_SUPPORT_OP_ARCH(sse42)
-HASHTABLE_SUPPORT_OP_ARCH(sse3)
+HASHTABLE_MCMP_SUPPORT_OP_ARCH(avx2)
+HASHTABLE_MCMP_SUPPORT_OP_ARCH(avx)
+HASHTABLE_MCMP_SUPPORT_OP_ARCH(sse42)
+HASHTABLE_MCMP_SUPPORT_OP_ARCH(sse3)
 #endif
 
-HASHTABLE_SUPPORT_OP_ARCH(defaultopt)
+HASHTABLE_MCMP_SUPPORT_OP_ARCH(defaultopt)
 
 #ifdef __cplusplus
 }

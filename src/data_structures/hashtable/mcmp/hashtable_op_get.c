@@ -9,12 +9,12 @@
 #include "spinlock.h"
 #include "log.h"
 
-#include "hashtable/hashtable.h"
-#include "hashtable/hashtable_op_get.h"
-#include "hashtable/hashtable_support_hash.h"
-#include "hashtable/hashtable_support_op.h"
+#include "hashtable.h"
+#include "hashtable_op_get.h"
+#include "hashtable_support_hash.h"
+#include "hashtable_support_op.h"
 
-bool hashtable_op_get(
+bool hashtable_mcmp_op_get(
         hashtable_t *hashtable,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
@@ -27,7 +27,7 @@ bool hashtable_op_get(
     bool data_found = false;
     *data = 0;
 
-    hash = hashtable_support_hash_calculate(key, key_size);
+    hash = hashtable_mcmp_support_hash_calculate(key, key_size);
 
     LOG_DI("key (%d) = %s", key_size, key);
     LOG_DI("hash = 0x%016x", hash);
@@ -54,7 +54,7 @@ bool hashtable_op_get(
             continue;
         }
 
-        if (hashtable_support_op_search_key(
+        if (hashtable_mcmp_support_op_search_key(
                 hashtable_data,
                 key,
                 key_size,

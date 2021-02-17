@@ -6,20 +6,20 @@
 #include "spinlock.h"
 #include "random.h"
 
-#include "hashtable/hashtable.h"
-#include "hashtable/hashtable_config.h"
-#include "hashtable/hashtable_support_index.h"
-#include "hashtable/hashtable_op_set.h"
-#include "hashtable/hashtable_op_delete.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/hashtable/mcmp/hashtable_config.h"
+#include "data_structures/hashtable/mcmp/hashtable_support_index.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_set.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_delete.h"
 
 #include "../support.h"
 #include "fixtures-hashtable.h"
 
-TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtable_op_delete]") {
-    SECTION("hashtable_op_delete") {
+TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][hashtable_mcmp_op_delete]") {
+    SECTION("hashtable_mcmp_op_delete") {
         SECTION("delete non-existing") {
             HASHTABLE(0x7FFF, false, {
-                REQUIRE(!hashtable_op_delete(
+                REQUIRE(!hashtable_mcmp_op_delete(
                         hashtable,
                         test_key_1,
                         test_key_1_len));
@@ -28,7 +28,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
 
         SECTION("set and delete 1 bucket") {
             HASHTABLE(0x7FFF, false, {
-                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
                 hashtable_chunk_slot_index_t chunk_slot_index = 0;
@@ -38,7 +38,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                 hashtable_key_value_volatile_t *key_value =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
 
-                REQUIRE(hashtable_op_set(
+                REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
@@ -47,7 +47,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
                 REQUIRE(key_value->flags != HASHTABLE_KEY_VALUE_FLAG_DELETED);
 
-                REQUIRE(hashtable_op_delete(
+                REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
                         test_key_1,
                         test_key_1_len));
@@ -59,7 +59,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
 
         SECTION("set and delete 1 bucket - twice to reuse") {
             HASHTABLE(0x7FFF, false, {
-                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
                 hashtable_chunk_slot_index_t chunk_slot_index = 0;
@@ -69,7 +69,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                 hashtable_key_value_volatile_t *key_value =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
 
-                REQUIRE(hashtable_op_set(
+                REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
@@ -78,7 +78,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
                 REQUIRE(key_value->flags != HASHTABLE_KEY_VALUE_FLAG_DELETED);
 
-                REQUIRE(hashtable_op_delete(
+                REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
                         test_key_1,
                         test_key_1_len));
@@ -86,7 +86,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
 
-                REQUIRE(hashtable_op_set(
+                REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
@@ -97,7 +97,7 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
                 REQUIRE(key_value->flags != HASHTABLE_KEY_VALUE_FLAG_DELETED);
 
-                REQUIRE(hashtable_op_delete(
+                REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
                         test_key_1,
                         test_key_1_len));
@@ -116,22 +116,22 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                         slots_to_fill);
 
                 for(hashtable_chunk_index_t i = 0; i < slots_to_fill; i++) {
-                    REQUIRE(hashtable_op_set(
+                    REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
-                            (char*)test_key_same_bucket[i].key,
+                            (char *) test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i));
                 }
 
                 hashtable_chunk_slot_index_t random_slot_index = random_generate() % slots_to_fill;
 
-                REQUIRE(hashtable_op_delete(
+                REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
                         test_key_same_bucket[random_slot_index].key,
                         test_key_same_bucket[random_slot_index].key_len));
 
                 hashtable_chunk_index_t chunk_index_base =
-                        HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                        HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                                 hashtable->ht_current->buckets_count,
                                 test_key_same_bucket[0].key_hash));
                 hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk =
@@ -156,22 +156,22 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                         slots_to_fill);
 
                 for(hashtable_chunk_index_t i = 0; i < slots_to_fill - 1; i++) {
-                    REQUIRE(hashtable_op_set(
+                    REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
-                            (char*)test_key_same_bucket[i].key,
+                            (char *) test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i));
                 }
 
                 hashtable_chunk_slot_index_t random_slot_index = random_generate() % (slots_to_fill - 1);
 
-                REQUIRE(hashtable_op_delete(
+                REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
                         test_key_same_bucket[random_slot_index].key,
                         test_key_same_bucket[random_slot_index].key_len));
 
                 hashtable_chunk_index_t chunk_index_base =
-                        HASHTABLE_TO_CHUNK_INDEX(hashtable_support_index_from_hash(
+                        HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                                 hashtable->ht_current->buckets_count,
                                 test_key_same_bucket[0].key_hash));
                 hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk =
@@ -183,9 +183,9 @@ TEST_CASE("hashtable/hashtable_op_delete.c", "[hashtable][hashtable_op][hashtabl
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
                 REQUIRE(key_value->data == test_value_1 + random_slot_index);
 
-                REQUIRE(hashtable_op_set(
+                REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
-                        (char*)test_key_same_bucket[slots_to_fill - 1].key,
+                        (char *) test_key_same_bucket[slots_to_fill - 1].key,
                         test_key_same_bucket[slots_to_fill - 1].key_len,
                         test_value_1 + slots_to_fill - 1));
 

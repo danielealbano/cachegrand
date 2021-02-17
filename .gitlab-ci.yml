@@ -16,7 +16,7 @@ image:
 build_ubuntu2004_x64_gcc9_debug:
   stage: build
   script:
-    - cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DUSE_HASHTABLE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
+    - cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
     - cmake --build build -- -j $(nproc)
   artifacts:
     paths:
@@ -60,7 +60,7 @@ build_ubuntu2004_arm64_gcc9_debug:
   stage: build
   allow_failure: true
   script:
-    - cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DUSE_HASHTABLE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
+    - cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
     - cmake --build build -- -j $(nproc)
   artifacts:
     paths:

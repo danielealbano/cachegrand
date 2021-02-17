@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-extern bool hashtable_support_op_search_key(
+extern bool hashtable_mcmp_support_op_search_key(
         hashtable_data_volatile_t *hashtable_data,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
@@ -14,7 +14,7 @@ extern bool hashtable_support_op_search_key(
         hashtable_chunk_slot_index_t *found_chunk_slot_index,
         hashtable_key_value_volatile_t **found_key_value);
 
-extern bool hashtable_support_op_search_key_or_create_new(
+extern bool hashtable_mcmp_support_op_search_key_or_create_new(
         hashtable_data_volatile_t *hashtable_data,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
@@ -24,11 +24,11 @@ extern bool hashtable_support_op_search_key_or_create_new(
         hashtable_half_hashes_chunk_volatile_t **found_half_hashes_chunk,
         hashtable_key_value_volatile_t **found_key_value);
 
-extern bool hashtable_support_op_half_hashes_chunk_lock(
+extern bool hashtable_mcmp_support_op_half_hashes_chunk_lock(
         hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk,
         bool retry);
 
-extern void hashtable_support_op_half_hashes_chunk_unlock(
+extern void hashtable_mcmp_support_op_half_hashes_chunk_unlock(
         hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk);
 
 #ifdef __cplusplus

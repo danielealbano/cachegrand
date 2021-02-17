@@ -34,10 +34,10 @@
 #include "xalloc.h"
 #include "random.h"
 
-#include "hashtable/hashtable.h"
-#include "hashtable/hashtable_config.h"
-#include "hashtable/hashtable_support_hash.h"
-#include "hashtable/hashtable_op_set.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/hashtable/mcmp/hashtable_config.h"
+#include "data_structures/hashtable/mcmp/hashtable_support_hash.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_set.h"
 
 #include "support.h"
 
@@ -46,7 +46,7 @@
 void test_support_hashtable_print_heatmap(
         hashtable_t* hashtable,
         uint8_t columns) {
-    uint64_t slots_used_max = HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
+    uint64_t slots_used_max = HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
 
     fprintf(stdout, "\n");
     fprintf(stdout, "-------------------\n");
@@ -100,7 +100,7 @@ void test_support_hashtable_print_heatmap(
 
         for(
                 hashtable_chunk_slot_index_t chunk_slot_index = 0;
-                chunk_slot_index < HASHTABLE_HALF_HASHES_CHUNK_SLOTS_COUNT;
+                chunk_slot_index < HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
                 chunk_slot_index++) {
             if (ht_data->half_hashes_chunk[chunk_index].half_hashes[chunk_slot_index].slot_id == 0) {
                 continue;
@@ -214,7 +214,7 @@ test_key_same_bucket_t* test_support_same_hash_mod_fixtures_generate(
         bool add_fixture = false;
 
         snprintf(key_test, key_test_size, key_model, i);
-        hashtable_hash_t hash_test = hashtable_support_hash_calculate(key_test, strlen(key_test));
+        hashtable_hash_t hash_test = hashtable_mcmp_support_hash_calculate(key_test, strlen(key_test));
 
         if (!reference_hash_set) {
             reference_bucket_index = hash_test & (bucket_count - 1);
@@ -232,9 +232,9 @@ test_key_same_bucket_t* test_support_same_hash_mod_fixtures_generate(
             test_key_same_bucket_fixtures[matches_counter].key_len = strlen(key_test);
             test_key_same_bucket_fixtures[matches_counter].key_hash = hash_test;
             test_key_same_bucket_fixtures[matches_counter].key_hash_half =
-                    hashtable_support_hash_half(hash_test);
+                    hashtable_mcmp_support_hash_half(hash_test);
             test_key_same_bucket_fixtures[matches_counter].key_hash_quarter =
-                    hashtable_support_hash_quarter(hashtable_support_hash_half(hash_test));
+                    hashtable_mcmp_support_hash_quarter(hashtable_mcmp_support_hash_half(hash_test));
 
             matches_counter++;
 
@@ -598,11 +598,11 @@ char* test_support_init_keys(
 
 hashtable_t* test_support_init_hashtable(
         uint64_t initial_size) {
-    hashtable_config_t* hashtable_config = hashtable_config_init();
+    hashtable_config_t* hashtable_config = hashtable_mcmp_config_init();
     hashtable_config->initial_size = initial_size;
     hashtable_config->can_auto_resize = false;
 
-    return hashtable_init(hashtable_config);
+    return hashtable_mcmp_init(hashtable_config);
 }
 
 bool test_support_hashtable_prefill(
@@ -613,7 +613,7 @@ bool test_support_hashtable_prefill(
     for(long int i = 0; i < insert_count; i++) {
         char* key = keyset + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
 
-        bool result = hashtable_op_set(
+        bool result = hashtable_mcmp_op_set(
                 hashtable,
                 key,
                 strlen(key),

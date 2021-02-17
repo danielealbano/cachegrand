@@ -5,8 +5,8 @@
 #include "misc.h"
 #include "signals_support.h"
 
-#include "hashtable/hashtable.h"
-#include "hashtable/hashtable_support_hash.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/hashtable/mcmp/hashtable_support_hash.h"
 
 int main(int argc, char** argv) {
     signals_support_register_sigsegv_fatal_handler();

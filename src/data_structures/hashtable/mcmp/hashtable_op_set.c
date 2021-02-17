@@ -11,12 +11,12 @@
 #include "log.h"
 #include "xalloc.h"
 
-#include "hashtable/hashtable.h"
-#include "hashtable/hashtable_op_set.h"
-#include "hashtable/hashtable_support_hash.h"
-#include "hashtable/hashtable_support_op.h"
+#include "hashtable.h"
+#include "hashtable_op_set.h"
+#include "hashtable_support_hash.h"
+#include "hashtable_support_op.h"
 
-bool hashtable_op_set(
+bool hashtable_mcmp_op_set(
         hashtable_t *hashtable,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
@@ -28,14 +28,14 @@ bool hashtable_op_set(
 
     hashtable_key_data_t* ht_key;
 
-    hash = hashtable_support_hash_calculate(key, key_size);
+    hash = hashtable_mcmp_support_hash_calculate(key, key_size);
 
     LOG_DI("key (%d) = %s", key_size, key);
     LOG_DI("hash = 0x%016x", hash);
 
     // TODO: the resize logic has to be reviewed, the underlying hash search function has to be aware that it hasn't
     //       to create a new item if it's missing
-    bool ret = hashtable_support_op_search_key_or_create_new(
+    bool ret = hashtable_mcmp_support_op_search_key_or_create_new(
             hashtable->ht_current,
             key,
             key_size,
