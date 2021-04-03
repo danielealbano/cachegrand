@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
@@ -95,10 +96,8 @@ void* xalloc_alloc_aligned_zero(size_t alignment, size_t size) {
 void xalloc_free(void *memptr) {
     free(memptr);
 }
-
-size_t xalloc_mmap_align_size(size_t size) {
+size_t xalloc_get_page_size() {
     long alignment;
-
 #if defined(__APPLE__) || defined(__linux__)
     alignment = sysconf(_SC_PAGESIZE);
 #elif defined(__MINGW32__)
@@ -109,6 +108,22 @@ size_t xalloc_mmap_align_size(size_t size) {
 #error Platform not supported
 #endif
 
+    return alignment;
+}
+
+void* xalloc_mmap_align_addr(void* memaddr) {
+    long alignment = xalloc_get_page_size();
+
+    memaddr -= 1;
+    memaddr = memaddr - ((uintptr_t)memaddr % alignment) + alignment;
+
+    return memaddr;
+}
+
+size_t xalloc_mmap_align_size(size_t size) {
+    long alignment = xalloc_get_page_size();
+
+    size -= 1;
     size = size - (size % alignment) + alignment;
 
     return size;

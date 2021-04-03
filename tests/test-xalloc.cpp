@@ -161,6 +161,23 @@ TEST_CASE("xalloc.c", "[xalloc]") {
         }
     }
 
+    SECTION("xalloc_get_page_size") {
+        long page_size_os = sysconf(_SC_PAGESIZE);
+        long page_size_xalloc = xalloc_get_page_size();
+
+        REQUIRE(page_size_os == page_size_xalloc);
+    }
+
+    SECTION("xalloc_mmap_align_addr") {
+        void* memaddr = (void*)64;
+        long alignment = sysconf(_SC_PAGESIZE);
+        void* test_memaddr = (void*)((uintptr_t)memaddr - ((uintptr_t)memaddr % alignment) + alignment);
+        void* aligned_memaddr = xalloc_mmap_align_addr(memaddr);
+
+        REQUIRE((uintptr_t)aligned_memaddr % alignment == 0);
+        REQUIRE(aligned_memaddr == test_memaddr);
+    }
+
     SECTION("xalloc_mmap_align_size") {
         size_t size = 64;
         long alignment = sysconf(_SC_PAGESIZE);
