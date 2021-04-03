@@ -28,7 +28,6 @@ double_linked_list_item_t *double_linked_list_iter_next(
         double_linked_list_t *list,
         double_linked_list_item_t *current_item) {
     assert(list != NULL);
-    assert(current_item == NULL || (current_item != NULL && current_item->parent == list));
 
     if (current_item == NULL) {
         current_item = list->head;
@@ -43,7 +42,6 @@ double_linked_list_item_t *double_linked_list_iter_prev(
         double_linked_list_t *list,
         double_linked_list_item_t *current_item) {
     assert(list != NULL);
-    assert(current_item == NULL || (current_item != NULL && current_item->parent == list));
 
     if (current_item == NULL) {
         current_item = list->tail;
@@ -60,10 +58,8 @@ void double_linked_list_insert_item_before(
         double_linked_list_item_t *before_item) {
     assert(item != NULL);
     assert(list != NULL);
-    assert(before_item == NULL || (before_item != NULL && before_item->parent == list));
     assert(before_item != NULL || (before_item == NULL && list->head == NULL));
 
-    item->parent = list;
     item->prev = NULL;
     item->next = NULL;
 
@@ -95,10 +91,8 @@ void double_linked_list_insert_item_after(
         double_linked_list_item_t *after_item) {
     assert(item != NULL);
     assert(list != NULL);
-    assert(after_item == NULL || (after_item != NULL && after_item->parent == list));
     assert(after_item != NULL || (after_item == NULL && list->head == NULL));
 
-    item->parent = list;
     item->prev = NULL;
     item->next = NULL;
 
@@ -167,7 +161,6 @@ void double_linked_list_remove_item(
         double_linked_list_item_t *item) {
     assert(item != NULL);
     assert(list != NULL);
-    assert(item->parent == list);
 
     if (item->next) {
         item->next->prev = item->prev;
@@ -185,7 +178,6 @@ void double_linked_list_remove_item(
         list->tail = item->prev;
     }
 
-    item->parent = NULL;
     item->next = NULL;
     item->prev = NULL;
     list->count--;
@@ -196,7 +188,6 @@ void double_linked_list_move_item_to_head(
         double_linked_list_item_t *item) {
     assert(item != NULL);
     assert(list != NULL);
-    assert(item->parent == list);
     assert(list->head != NULL && list->tail != NULL);
 
     double_linked_list_item_t* head;
@@ -238,7 +229,6 @@ void double_linked_list_move_item_to_tail(
         double_linked_list_item_t *item) {
     assert(item != NULL);
     assert(list != NULL);
-    assert(item->parent == list);
     assert(list->head != NULL && list->tail != NULL);
 
     double_linked_list_item_t* tail;

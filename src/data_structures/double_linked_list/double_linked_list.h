@@ -9,7 +9,6 @@ typedef struct double_linked_list double_linked_list_t;
 typedef struct double_linked_list_item double_linked_list_item_t;
 
 struct double_linked_list_item {
-    double_linked_list_t *parent;
     double_linked_list_item_t *prev;
     double_linked_list_item_t *next;
     void* data;
