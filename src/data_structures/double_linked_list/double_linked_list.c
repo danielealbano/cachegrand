@@ -120,7 +120,8 @@ void double_linked_list_insert_item_after(
 void double_linked_list_push_item(
         double_linked_list_t *list,
         double_linked_list_item_t *item) {
-    return double_linked_list_insert_item_before(list, item, list->head);
+    assert(list != NULL);
+    return double_linked_list_insert_item_after(list, item, list->tail);
 }
 
 double_linked_list_item_t *double_linked_list_pop_item(
@@ -139,8 +140,8 @@ double_linked_list_item_t *double_linked_list_pop_item(
 void double_linked_list_unshift_item(
         double_linked_list_t *list,
         double_linked_list_item_t *item) {
-
-    return double_linked_list_insert_item_after(list, item, list->tail);
+    assert(list != NULL);
+    return double_linked_list_insert_item_before(list, item, list->head);
 }
 
 double_linked_list_item_t *double_linked_list_shift_item(
