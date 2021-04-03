@@ -81,8 +81,8 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
         slab_slice_t* slab_slice = slab_allocator_slice_init(slab_allocator, memptr);
         slab_allocator_slice_add_slots_to_slots_per_core(slab_allocator, slab_slice, core_index);
 
-        REQUIRE(slab_allocator->slots_per_core[core_index]->head == &slab_slice->slots[0].item);
-        REQUIRE(slab_allocator->slots_per_core[core_index]->tail == &slab_slice->slots[slab_slice->count - 1].item);
+        REQUIRE(slab_allocator->slots_per_core[core_index]->tail == &slab_slice->slots[0].item);
+        REQUIRE(slab_allocator->slots_per_core[core_index]->head == &slab_slice->slots[slab_slice->count - 1].item);
 
         for(int i = 0; i < slab_slice->count; i++) {
             REQUIRE(slab_slice->slots[i].data.available == true);
@@ -105,8 +105,8 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
         REQUIRE(slab_allocator->slices_count == 1);
         REQUIRE(slab_allocator->slices_per_numa[numa_node_index]->head->data == memptr);
         REQUIRE(slab_allocator->slices_per_numa[numa_node_index]->tail->data == memptr);
-        REQUIRE(slab_allocator->slots_per_core[core_index]->head == &slab_slice->slots[0].item);
-        REQUIRE(slab_allocator->slots_per_core[core_index]->tail == &slab_slice->slots[slab_slice->count - 1].item);
+        REQUIRE(slab_allocator->slots_per_core[core_index]->tail == &slab_slice->slots[0].item);
+        REQUIRE(slab_allocator->slots_per_core[core_index]->head == &slab_slice->slots[slab_slice->count - 1].item);
 
         slab_allocator_free(slab_allocator);
         free(memptr);
