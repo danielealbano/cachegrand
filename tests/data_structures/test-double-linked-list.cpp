@@ -262,13 +262,13 @@ TEST_CASE("data_structures/double_linked_list/double_linked_list.c", "[data_stru
             double_linked_list_push_item(list, item1);
             double_linked_list_push_item(list, item2);
 
-            REQUIRE(list->head == item2);
-            REQUIRE(list->tail == item1);
+            REQUIRE(list->head == item1);
+            REQUIRE(list->tail == item2);
             REQUIRE(list->count == 2);
-            REQUIRE(item2->prev == NULL);
-            REQUIRE(item2->next == item1);
-            REQUIRE(item1->prev == item2);
-            REQUIRE(item1->next == NULL);
+            REQUIRE(item1->prev == NULL);
+            REQUIRE(item1->next == item2);
+            REQUIRE(item2->prev == item1);
+            REQUIRE(item2->next == NULL);
 
             double_linked_list_item_free(item1);
             double_linked_list_item_free(item2);
@@ -301,13 +301,13 @@ TEST_CASE("data_structures/double_linked_list/double_linked_list.c", "[data_stru
             double_linked_list_unshift_item(list, item1);
             double_linked_list_unshift_item(list, item2);
 
-            REQUIRE(list->head == item1);
-            REQUIRE(list->tail == item2);
+            REQUIRE(list->head == item2);
+            REQUIRE(list->tail == item1);
             REQUIRE(list->count == 2);
-            REQUIRE(item1->prev == NULL);
-            REQUIRE(item1->next == item2);
-            REQUIRE(item2->prev == item1);
-            REQUIRE(item2->next == NULL);
+            REQUIRE(item2->prev == NULL);
+            REQUIRE(item2->next == item1);
+            REQUIRE(item1->prev == item2);
+            REQUIRE(item1->next == NULL);
 
             double_linked_list_item_free(item1);
             double_linked_list_item_free(item2);
