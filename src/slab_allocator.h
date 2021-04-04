@@ -37,7 +37,7 @@ struct slab_allocator {
     uint16_t object_size;
     uint32_t slices_count;
     slab_allocator_metrics_per_core_t** metrics_per_core;
-    double_linked_list_t** slices_per_numa;
+    double_linked_list_t** slices_per_numa_node;
 
     // The slots are sorted per availability
     double_linked_list_t** slots_per_core;

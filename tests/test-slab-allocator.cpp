@@ -103,8 +103,8 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
         slab_allocator_grow(slab_allocator, numa_node_index, core_index, memptr);
 
         REQUIRE(slab_allocator->slices_count == 1);
-        REQUIRE(slab_allocator->slices_per_numa[numa_node_index]->head->data == memptr);
-        REQUIRE(slab_allocator->slices_per_numa[numa_node_index]->tail->data == memptr);
+        REQUIRE(slab_allocator->slices_per_numa_node[numa_node_index]->head->data == memptr);
+        REQUIRE(slab_allocator->slices_per_numa_node[numa_node_index]->tail->data == memptr);
         REQUIRE(slab_allocator->slots_per_core[core_index]->tail == &slab_slice->slots[0].item);
         REQUIRE(slab_allocator->slots_per_core[core_index]->head == &slab_slice->slots[slab_slice->count - 1].item);
 

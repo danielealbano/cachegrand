@@ -112,7 +112,7 @@ slab_allocator_t* slab_allocator_init(
     slab_allocator->object_size = object_size;
     slab_allocator->numa_node_count = numa_node_count;
     slab_allocator->core_count = core_count;
-    slab_allocator->slices_per_numa = xalloc_alloc_zero(sizeof(double_linked_list_t) * numa_node_count);
+    slab_allocator->slices_per_numa_node = xalloc_alloc_zero(sizeof(double_linked_list_t) * numa_node_count);
     slab_allocator->slots_per_core = xalloc_alloc_zero(sizeof(double_linked_list_t) * core_count);
     slab_allocator->metrics_per_core = xalloc_alloc_zero(sizeof(slab_allocator_metrics_per_core_t) * core_count);
     slab_allocator->slices_count = 0;
@@ -122,7 +122,7 @@ slab_allocator_t* slab_allocator_init(
     }
 
     for(int i = 0; i < slab_allocator->numa_node_count; i++) {
-        slab_allocator->slices_per_numa[i] = double_linked_list_init();
+        slab_allocator->slices_per_numa_node[i] = double_linked_list_init();
     }
 
     return slab_allocator;
@@ -133,7 +133,7 @@ void slab_allocator_free(
 
     for(int i = 0; i < slab_allocator->numa_node_count; i++) {
         double_linked_list_item_t* item = NULL;
-        while((item = double_linked_list_iter_next(slab_allocator->slices_per_numa[i], item)) != NULL) {
+        while((item = double_linked_list_iter_next(slab_allocator->slices_per_numa_node[i], item)) != NULL) {
             slab_slice_t* slab_slice = item->data;
             xalloc_hugepages_free(slab_slice->page_addr, SLAB_PAGE_2MB);
         }
@@ -144,7 +144,7 @@ void slab_allocator_free(
     }
 
     for(int i = 0; i < slab_allocator->numa_node_count; i++) {
-        double_linked_list_free(slab_allocator->slices_per_numa[i]);
+        double_linked_list_free(slab_allocator->slices_per_numa_node[i]);
     }
 
     xalloc_free(slab_allocator);
@@ -207,7 +207,7 @@ void slab_allocator_grow(
     // Add the slice to the ones initialized per core
     double_linked_list_item_t* slab_slice_item = double_linked_list_item_init();
     slab_slice_item->data = slab_slice;
-    double_linked_list_push_item(slab_allocator->slices_per_numa[numa_node_index], slab_slice_item);
+    double_linked_list_push_item(slab_allocator->slices_per_numa_node[numa_node_index], slab_slice_item);
     slab_allocator->slices_count++;
 }
 
