@@ -98,9 +98,6 @@ void slab_allocator_grow(
         uint32_t core_index,
         void* memptr);
 
-void* slab_allocator_hugepage_alloc(
-        size_t size);
-
 void slab_allocator_hugepage_free(
         void* memptr,
         size_t size);
