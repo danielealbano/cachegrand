@@ -43,7 +43,7 @@ TEST_CASE("data_structures/double_linked_list/double_linked_list.c", "[data_stru
     }
 
     SECTION("double_linked_list_insert_item_before") {
-        SECTION("insert one item before head") {
+        SECTION("insert one double_linked_list_item before head") {
             double_linked_list_t* list = double_linked_list_init();
             double_linked_list_item_t* item1 = double_linked_list_item_init();
 
@@ -106,7 +106,7 @@ TEST_CASE("data_structures/double_linked_list/double_linked_list.c", "[data_stru
             double_linked_list_free(list);
         }
 
-        SECTION("insert before item") {
+        SECTION("insert before double_linked_list_item") {
             double_linked_list_t* list = double_linked_list_init();
             double_linked_list_item_t* item1 = double_linked_list_item_init();
             double_linked_list_item_t* item2 = double_linked_list_item_init();
@@ -142,7 +142,7 @@ TEST_CASE("data_structures/double_linked_list/double_linked_list.c", "[data_stru
 
 
     SECTION("double_linked_list_insert_item_after") {
-        SECTION("insert one item after tail") {
+        SECTION("insert one double_linked_list_item after tail") {
             double_linked_list_t* list = double_linked_list_init();
             double_linked_list_item_t* item1 = double_linked_list_item_init();
 
@@ -205,7 +205,7 @@ TEST_CASE("data_structures/double_linked_list/double_linked_list.c", "[data_stru
             double_linked_list_free(list);
         }
 
-        SECTION("insert after item") {
+        SECTION("insert after double_linked_list_item") {
             double_linked_list_t* list = double_linked_list_init();
             double_linked_list_item_t* item1 = double_linked_list_item_init();
             double_linked_list_item_t* item2 = double_linked_list_item_init();
@@ -316,7 +316,7 @@ TEST_CASE("data_structures/double_linked_list/double_linked_list.c", "[data_stru
     }
 
     SECTION("double_linked_list_pop_item") {
-        SECTION("pop one item") {
+        SECTION("pop one double_linked_list_item") {
             TEST_DOUBLE_LINKED_LIST_FIXTURE_ALLOCATE(5, {
                 double_linked_list_item_t* item;
 
@@ -360,7 +360,7 @@ TEST_CASE("data_structures/double_linked_list/double_linked_list.c", "[data_stru
     }
 
     SECTION("double_linked_list_shift_item") {
-        SECTION("pop one item") {
+        SECTION("pop one double_linked_list_item") {
             TEST_DOUBLE_LINKED_LIST_FIXTURE_ALLOCATE(5, {
                 double_linked_list_item_t* item;
 
