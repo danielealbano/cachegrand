@@ -114,8 +114,7 @@ slab_allocator_t* slab_allocator_init(
     slab_allocator->core_count = core_count;
     slab_allocator->slices_per_numa_node = xalloc_alloc_zero(sizeof(double_linked_list_t) * numa_node_count);
     slab_allocator->slots_per_core = xalloc_alloc_zero(sizeof(double_linked_list_t) * core_count);
-    slab_allocator->metrics_per_core = xalloc_alloc_zero(sizeof(slab_allocator_metrics_per_core_t) * core_count);
-    slab_allocator->slices_count = 0;
+    slab_allocator->total_slices_count = 0;
 
     for(int i = 0; i < slab_allocator->core_count; i++) {
         slab_allocator->slots_per_core[i] = double_linked_list_init();
@@ -131,11 +130,18 @@ slab_allocator_t* slab_allocator_init(
 void slab_allocator_free(
         slab_allocator_t* slab_allocator) {
 
+    // No need to deallocate the double linked list items of the slots as they are embedded within the hugepage and the
+    // hugepage is going to get freed below.
+
     for(int i = 0; i < slab_allocator->numa_node_count; i++) {
-        double_linked_list_item_t* item = NULL;
-        while((item = double_linked_list_iter_next(slab_allocator->slices_per_numa_node[i], item)) != NULL) {
+        double_linked_list_item_t* item = slab_allocator->slices_per_numa_node[i]->head;
+
+        // Can't iterate using the normal double_linked_list_iter_next as the double_linked_list_item is embedded in the hugepage and
+        // the hugepage is going to get freed
+        while(item != NULL) {
             slab_slice_t* slab_slice = item->data;
-            xalloc_hugepages_free(slab_slice->page_addr, SLAB_PAGE_2MB);
+            item = item->next;
+            xalloc_hugepages_free(slab_slice->data.page_addr, SLAB_PAGE_2MB);
         }
     }
 
@@ -167,10 +173,12 @@ slab_slice_t* slab_allocator_slice_init(
     data_addr = memptr + (slab_slot_size * slots_count);
     data_addr = xalloc_mmap_align_addr((void*)data_addr);
 
-    slab_slice->slab_allocator = slab_allocator;
-    slab_slice->page_addr = memptr;
-    slab_slice->data_addr = (uintptr_t)data_addr;
-    slab_slice->count = slots_count;
+    slab_slice->data.slab_allocator = slab_allocator;
+    slab_slice->data.page_addr = memptr;
+    slab_slice->data.data_addr = (uintptr_t)data_addr;
+    slab_slice->data.count = slots_count;
+    slab_slice->data.used = 0;
+    slab_slice->data.available = true;
 
     return slab_slice;
 }
@@ -181,13 +189,90 @@ void slab_allocator_slice_add_slots_to_slots_per_core(
         uint32_t core_index) {
 
     slab_slot_t* slab_slot;
-    for(uint32_t index = 0; index < slab_slice->count; index++) {
-        slab_slot = &slab_slice->slots[index];
+    for(uint32_t index = 0; index < slab_slice->data.count; index++) {
+        slab_slot = &slab_slice->data.slots[index];
         slab_slot->data.available = true;
-        slab_slot->data.memptr = (void*)(slab_slice->data_addr + (index * slab_allocator->object_size));
+        slab_slot->data.memptr = (void*)(slab_slice->data.data_addr + (index * slab_allocator->object_size));
 
-        double_linked_list_unshift_item(slab_allocator->slots_per_core[core_index], &slab_slot->item);
+        double_linked_list_unshift_item(slab_allocator->slots_per_core[core_index], &slab_slot->double_linked_list_item);
     }
+}
+
+void slab_allocator_slice_remove_slots_from_slots_per_core(
+        slab_allocator_t* slab_allocator,
+        slab_slice_t* slab_slice,
+        uint32_t core_index) {
+
+    slab_slot_t* slab_slot;
+    for(uint32_t index = 0; index < slab_slice->data.count; index++) {
+        slab_slot = &slab_slice->data.slots[index];
+        double_linked_list_remove_item(slab_allocator->slots_per_core[core_index], &slab_slot->double_linked_list_item);
+    }
+}
+
+slab_slice_t* slab_allocator_slice_from_memptr(
+        void* memptr) {
+    slab_slice_t* slab_slice = memptr - ((uintptr_t)memptr % SLAB_PAGE_2MB);
+    return slab_slice;
+}
+
+void slab_allocator_slice_make_available(
+        slab_allocator_t* slab_allocator,
+        slab_slice_t* slab_slice) {
+    slab_allocator_slice_remove_slots_from_slots_per_core(
+            slab_allocator,
+            slab_slice,
+            current_thread_core_index);
+
+    spinlock_section(&slab_allocator->spinlock, {
+        slab_allocator->free_slices_count++;
+        slab_slice->data.available = true;
+        double_linked_list_move_item_to_head(
+                slab_allocator->slices_per_numa_node[current_thread_numa_node_index],
+                &slab_slice->double_linked_list_item);
+    })
+}
+
+bool slab_allocator_slice_try_acquire(
+        slab_allocator_t* slab_allocator) {
+    bool slab_slice_found = false;
+    double_linked_list_item_t* slab_slices_per_numa_node_head_item;
+    slab_slice_t* head_slab_slice;
+
+    // Check if an existing slices is available
+    spinlock_section(&slab_allocator->spinlock, {
+        slab_slices_per_numa_node_head_item =
+                slab_allocator->slices_per_numa_node[current_thread_numa_node_index]->head;
+        head_slab_slice = (slab_slice_t *) slab_slices_per_numa_node_head_item;
+
+        if (slab_slices_per_numa_node_head_item != NULL && head_slab_slice->data.available == true) {
+            slab_slice_found = true;
+            slab_allocator->free_slices_count--;
+            head_slab_slice->data.available = false;
+            double_linked_list_move_item_to_tail(
+                    slab_allocator->slices_per_numa_node[current_thread_numa_node_index],
+                    slab_slices_per_numa_node_head_item);
+        }
+    });
+
+    if (slab_slice_found) {
+        slab_allocator_slice_add_slots_to_slots_per_core(
+                slab_allocator,
+                head_slab_slice,
+                current_thread_core_index);
+    }
+
+    return slab_slice_found;
+}
+
+slab_slot_t* slab_allocator_slot_from_memptr(
+        slab_allocator_t* slab_allocator,
+        slab_slice_t* slab_slice,
+        void* memptr) {
+    uint16_t object_index = ((uintptr_t)memptr - (uintptr_t)slab_slice->data.data_addr) / slab_allocator->object_size;
+    slab_slot_t* slot = &slab_slice->data.slots[object_index];
+
+    return slot;
 }
 
 void slab_allocator_grow(
@@ -195,8 +280,9 @@ void slab_allocator_grow(
         uint32_t numa_node_index,
         uint32_t core_index,
         void* memptr) {
-    // Initialize the new slice
+    // Initialize the new slice and set it to non available because it's going to be immediately used
     slab_slice_t* slab_slice = slab_allocator_slice_init(slab_allocator, memptr);
+    slab_slice->data.available = false;
 
     // Add all the slots to the double linked list
     slab_allocator_slice_add_slots_to_slots_per_core(
@@ -205,39 +291,45 @@ void slab_allocator_grow(
             core_index);
 
     // Add the slice to the ones initialized per core
-    double_linked_list_item_t* slab_slice_item = double_linked_list_item_init();
-    slab_slice_item->data = slab_slice;
-    double_linked_list_push_item(slab_allocator->slices_per_numa_node[numa_node_index], slab_slice_item);
-    slab_allocator->slices_count++;
+    spinlock_section(&slab_allocator->spinlock, {
+        double_linked_list_push_item(slab_allocator->slices_per_numa_node[numa_node_index], &slab_slice->double_linked_list_item);
+        slab_allocator->total_slices_count++;
+    })
 }
 
 void* slab_allocator_mem_alloc(
         size_t size) {
+    slab_slice_t* slab_slice = NULL;
+
     slab_allocator_ensure_core_index_and_numa_node_index_filled();
 
     uint8_t predefined_slab_allocator_index = slab_index_by_object_size(size);
     slab_allocator_t* slab_allocator = predefined_slab_allocators[predefined_slab_allocator_index];
 
-    double_linked_list_t* list = slab_allocator->slots_per_core[current_thread_core_index];
-    double_linked_list_item_t* item = list->head;
-    slab_slot_t* slab_slot = (slab_slot_t*)item;
+    double_linked_list_t* slots_per_core_list = slab_allocator->slots_per_core[current_thread_core_index];
+    double_linked_list_item_t* slots_per_core_head_item = slots_per_core_list->head;
+    slab_slot_t* slab_slot = (slab_slot_t*)slots_per_core_head_item;
 
-    if (item == NULL || slab_slot->data.available == false) {
-        void* memptr = xalloc_hugepages_2mb_alloc(SLAB_PAGE_2MB);
-        slab_allocator_grow(
-                slab_allocator,
-                current_thread_numa_node_index,
-                current_thread_core_index,
-                memptr);
+    if (slots_per_core_head_item == NULL || slab_slot->data.available == false) {
+        if (slab_allocator_slice_try_acquire(slab_allocator) == false) {
+            void* memptr = xalloc_hugepages_2mb_alloc(SLAB_PAGE_2MB);
+            slab_allocator_grow(
+                    slab_allocator,
+                    current_thread_numa_node_index,
+                    current_thread_core_index,
+                    memptr);
+        }
 
-        item = list->head;
-        slab_slot = (slab_slot_t*)item;
+        slots_per_core_head_item = slots_per_core_list->head;
+        slab_slot = (slab_slot_t*)slots_per_core_head_item;
     }
 
-    slab_slot->data.available = false;
-    double_linked_list_move_item_to_tail(list, item);
+    slab_slice = slab_allocator_slice_from_memptr(slab_slot->data.memptr);
 
-    // TODO: update metrics
+    slab_slot->data.available = false;
+    double_linked_list_move_item_to_tail(slots_per_core_list, slots_per_core_head_item);
+
+    slab_slice->data.used++;
 
     return slab_slot->data.memptr;
 }
@@ -255,18 +347,30 @@ void slab_allocator_mem_free(
         void* memptr) {
     slab_allocator_ensure_core_index_and_numa_node_index_filled();
 
-    slab_slice_t* slab_slice = memptr - ((uintptr_t)memptr % SLAB_PAGE_2MB);
+    // Acquire the slab_slice, the slab_allocator and the slab_slot
+    slab_slice_t* slab_slice = slab_allocator_slice_from_memptr(memptr);
+    slab_allocator_t* slab_allocator = slab_slice->data.slab_allocator;
+    slab_slot_t* slot = slab_allocator_slot_from_memptr(
+            slab_allocator,
+            slab_slice,
+            memptr);
 
-    slab_allocator_t* slab_allocator = slab_slice->slab_allocator;
-    double_linked_list_t* slots_list = slab_allocator->slots_per_core[current_thread_core_index];
-
-    assert((((uintptr_t)memptr - (uintptr_t)slab_slice->data_addr) % slab_allocator->object_size) == 0);
-
-    uint16_t object_index = ((uintptr_t)memptr - (uintptr_t)slab_slice->data_addr) / slab_allocator->object_size;
-    slab_slot_t* slot = &slab_slice->slots[object_index];
-
+    // Update the availability and the metrics
+    slab_slice->data.used--;
     slot->data.available = true;
-    double_linked_list_move_item_to_head(slots_list, &slot->item);
 
-    // TODO: update metrics
+    // Move the slot back to the head because it's available
+    double_linked_list_move_item_to_head(
+            slab_allocator->slots_per_core[current_thread_core_index],
+            &slot->double_linked_list_item);
+
+    // If the slice is totally empty, move the slice to the beginning of the double linked list so it can be re-used
+    // by another core if needed
+    // TODO: should be optimized to free not from the first empty slice but from the second as there may be the case
+    //       of a continuous allocation & deallocation
+    if (slab_slice->data.used == 0) {
+        slab_allocator_slice_make_available(
+                slab_allocator,
+                slab_slice);
+    }
 }
