@@ -29,8 +29,6 @@
  * The logic should be improved to
  */
 
-#define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)   /* 2 MB huge pages */
-
 #define SLAB_PAGE_2MB   (2 * 1024 * 1024)
 
 thread_local uint32_t current_thread_core_index = UINT32_MAX;
@@ -152,29 +150,6 @@ void slab_allocator_free(
     xalloc_free(slab_allocator);
 }
 
-void* slab_allocator_hugepage_alloc(
-        size_t size) {
-    void* memptr;
-
-    // TODO: should be numa-aware
-
-    size = xalloc_mmap_align_size(size);
-
-    memptr = mmap(
-            NULL,
-            size,
-            PROT_READ | PROT_WRITE,
-            MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_HUGE_2MB,
-            -1,
-            0);
-
-    if (memptr == (void *)-1) {
-        FATAL(TAG, "Unable to allocate the requested memory %d", size);
-    }
-
-    return memptr;
-}
-
 void slab_allocator_hugepage_free(
         void* memptr,
         size_t size) {
@@ -255,7 +230,7 @@ void* slab_allocator_mem_alloc(
     slab_slot_t* slab_slot = (slab_slot_t*)item;
 
     if (item == NULL || slab_slot->data.available == false) {
-        void* memptr = slab_allocator_hugepage_alloc(SLAB_PAGE_2MB);
+        void* memptr = xalloc_hugepages_2mb_alloc(SLAB_PAGE_2MB);
         slab_allocator_grow(
                 slab_allocator,
                 current_thread_numa_node_index,
