@@ -51,6 +51,11 @@ void spinlock_unlock(
 #define spinlock_lock(spinlock, retry) \
     spinlock_lock_internal(spinlock, retry, CACHEGRAND_SRC_PATH, __func__, __LINE__)
 
+#define spinlock_section(spinlock, ...) \
+    spinlock_lock(spinlock, true); \
+    __VA_ARGS__ \
+    spinlock_unlock(spinlock);
+
 #ifdef __cplusplus
 }
 #endif
