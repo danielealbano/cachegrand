@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <string.h>
 #include <sched.h>
 #include <assert.h>
 #include <unistd.h>
@@ -332,6 +333,14 @@ void* slab_allocator_mem_alloc(
     slab_slice->data.used++;
 
     return slab_slot->data.memptr;
+}
+
+void* slab_allocator_mem_alloc_zero(
+        size_t size) {
+    void* memptr = slab_allocator_mem_alloc(size);
+    memset(memptr, 0, size);
+
+    return memptr;
 }
 
 bool slab_allocator_mem_try_alloc(

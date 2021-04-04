@@ -316,4 +316,24 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
             REQUIRE(slab_allocator->slots_per_core[core_index]->tail == NULL);
         }
     }
+
+    SECTION("slab_allocator_mem_alloc_zero") {
+        SECTION("ensure that after reallocation memory is zero-ed") {
+            const char* fixture_test_slab_allocator_mem_alloc_zero_str = "THIS IS A TEST";
+
+            void *memptr1 = slab_allocator_mem_alloc_zero(64);
+
+            strcpy((char*)memptr1, fixture_test_slab_allocator_mem_alloc_zero_str);
+
+            REQUIRE(strcmp((char*)memptr1, fixture_test_slab_allocator_mem_alloc_zero_str) == 0);
+
+            slab_allocator_mem_free(memptr1);
+            void *memptr2 = slab_allocator_mem_alloc_zero(64);
+
+            REQUIRE(memptr1 == memptr2);
+            REQUIRE(strcmp((char*)memptr2, fixture_test_slab_allocator_mem_alloc_zero_str) != 0);
+
+            slab_allocator_mem_free(memptr2);
+        }
+    }
 }

@@ -118,6 +118,9 @@ void slab_allocator_hugepage_free(
 void* slab_allocator_mem_alloc(
         size_t size);
 
+void* slab_allocator_mem_alloc_zero(
+        size_t size);
+
 bool slab_allocator_mem_try_alloc(
         size_t size,
         void** memptr);
