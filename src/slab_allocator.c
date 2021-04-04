@@ -402,8 +402,10 @@ void slab_allocator_mem_free(
         slab_allocator->core_metadata[current_thread_core_index].metrics.slices_free_count++;
         slab_allocator->core_metadata[current_thread_core_index].metrics.slices_inuse_count--;
 
-        slab_allocator_slice_make_available(
-                slab_allocator,
-                slab_slice);
+        if (slab_allocator->core_metadata[current_thread_core_index].metrics.slices_free_count > 1) {
+            slab_allocator_slice_make_available(
+                    slab_allocator,
+                    slab_slice);
+        }
     }
 }
