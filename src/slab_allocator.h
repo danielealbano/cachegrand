@@ -22,6 +22,29 @@ extern "C" {
                                 SLAB_OBJECT_SIZE_8192, SLAB_OBJECT_SIZE_16384, SLAB_OBJECT_SIZE_32768
 #define SLAB_OBJECT_SIZES_COUNT 10
 
+typedef struct slab_allocator_core_metadata slab_allocator_core_metadata_t;
+struct slab_allocator_core_metadata {
+    // The slots are sorted per availability
+    double_linked_list_t* slots;
+
+    struct {
+        uint16_t slices_total_count;
+        uint16_t slices_inuse_count;
+        uint16_t slices_free_count;
+        uint32_t objects_inuse_count;
+    } metrics;
+};
+
+typedef struct slab_allocator_numa_node_metadata slab_allocator_numa_node_metadata_t;
+struct slab_allocator_numa_node_metadata {
+    // The slices are sorted per availability
+    double_linked_list_t* slices;
+
+    struct {
+        uint32_t total_slices_count;
+        uint32_t free_slices_count;
+    } metrics;
+};
 
 typedef struct slab_allocator slab_allocator_t;
 struct slab_allocator {
@@ -29,12 +52,12 @@ struct slab_allocator {
     uint16_t core_count;
     uint16_t numa_node_count;
     uint16_t object_size;
-    uint32_t total_slices_count;
-    uint32_t free_slices_count;
-    double_linked_list_t** slices_per_numa_node;
-
-    // The slots are sorted per availability
-    double_linked_list_t** slots_per_core;
+    slab_allocator_core_metadata_t* core_metadata;
+    slab_allocator_numa_node_metadata_t* numa_node_metadata;
+    struct {
+        uint32_t total_slices_count;
+        uint32_t free_slices_count;
+    } metrics;
 };
 
 // It's necessary to use an union for slab_slot_t and slab_slice_t as the double_linked_list_item_t is being embedded
@@ -59,9 +82,11 @@ typedef union {
         slab_allocator_t* slab_allocator;
         void* page_addr;
         uintptr_t data_addr;
-        uint32_t count;
-        uint32_t used;
         bool available;
+        struct {
+            uint32_t objects_total_count;
+            uint32_t objects_inuse_count;
+        } metrics;
         slab_slot_t slots[];
     } __attribute__((aligned(64))) data;
 } slab_slice_t;
@@ -88,12 +113,12 @@ slab_slice_t* slab_allocator_slice_init(
         slab_allocator_t* slab_allocator,
         void* memptr);
 
-void slab_allocator_slice_add_slots_to_slots_per_core(
+void slab_allocator_slice_add_slots_to_per_core_metadata_slots(
         slab_allocator_t* slab_allocator,
         slab_slice_t* slab_slice,
         uint32_t core_index);
 
-void slab_allocator_slice_remove_slots_from_slots_per_core(
+void slab_allocator_slice_remove_slots_from_per_core_metadata_slots(
         slab_allocator_t* slab_allocator,
         slab_slice_t* slab_slice,
         uint32_t core_index);
