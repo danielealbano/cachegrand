@@ -96,19 +96,23 @@ void* xalloc_alloc_aligned_zero(size_t alignment, size_t size) {
 void xalloc_free(void *memptr) {
     free(memptr);
 }
+
 size_t xalloc_get_page_size() {
-    long alignment;
+    static size_t page_size;
+    if (page_size > 0)
+        return page_size;
+
 #if defined(__APPLE__) || defined(__linux__)
-    alignment = sysconf(_SC_PAGESIZE);
+    page_size = getpagesize();
 #elif defined(__MINGW32__)
     SYSTEM_INFO stInfo;
     GetNativeSystemInfo(&stInfo);
-    alignment = stInfo.dwPageSize;
+    page_size = stInfo.dwPageSize;
 #else
 #error Platform not supported
 #endif
 
-    return alignment;
+    return page_size;
 }
 
 void* xalloc_mmap_align_addr(void* memaddr) {
