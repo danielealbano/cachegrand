@@ -16,6 +16,10 @@
 
 #include "xalloc.h"
 
+// TODO: should use libnuma set_mempolicy the be able to use mmap and allocate interleaved memory across numa nodes
+
+#define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)   /* 2 MB huge pages */
+
 #define TAG "xalloc"
 
 void* xalloc_alloc(size_t size) {
@@ -201,6 +205,66 @@ int xalloc_mmap_free(void *memptr, size_t size) {
     }
 
     return -1;
+#else
+#error Platform not supported
+#endif
+}
+
+bool xalloc_hugepages_2mb_is_available() {
+    bool result = false;
+
+#if defined(__linux__)
+    size_t size = 1;
+    size = xalloc_mmap_align_size(size);
+
+    void* memptr = mmap(
+            NULL,
+            size,
+            PROT_READ | PROT_WRITE,
+            MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_HUGE_2MB,
+            -1,
+            0);
+
+    if (memptr != (void *)-1) {
+        result = true;
+        xalloc_hugepages_free(memptr, size);
+    }
+#else
+#error Platform not supported
+#endif
+
+    return result;
+}
+
+void* xalloc_hugepages_2mb_alloc(
+        size_t size) {
+    void* memptr;
+
+    // TODO: should be numa-aware, need to use set_mempolicy
+#if defined(__linux__)
+    size = xalloc_mmap_align_size(size);
+
+    memptr = mmap(
+            NULL,
+            size,
+            PROT_READ | PROT_WRITE,
+            MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_HUGE_2MB,
+            -1,
+            0);
+
+    if (memptr == (void *)-1) {
+        FATAL(TAG, "Unable to allocate the requested memory %d", size);
+    }
+#else
+#error Platform not supported
+#endif
+
+    return memptr;
+}
+
+int xalloc_hugepages_free(void *memptr, size_t size) {
+#if defined(__linux__)
+    return munmap(memptr, xalloc_mmap_align_size(size));
 #else
 #error Platform not supported
 #endif
