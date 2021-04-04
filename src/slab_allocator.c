@@ -135,7 +135,7 @@ void slab_allocator_free(
         double_linked_list_item_t* item = NULL;
         while((item = double_linked_list_iter_next(slab_allocator->slices_per_numa[i], item)) != NULL) {
             slab_slice_t* slab_slice = item->data;
-            slab_allocator_hugepage_free(slab_slice->page_addr, SLAB_PAGE_2MB);
+            xalloc_hugepages_free(slab_slice->page_addr, SLAB_PAGE_2MB);
         }
     }
 
@@ -148,13 +148,6 @@ void slab_allocator_free(
     }
 
     xalloc_free(slab_allocator);
-}
-
-void slab_allocator_hugepage_free(
-        void* memptr,
-        size_t size) {
-    size = xalloc_mmap_align_size(size);
-    munmap(memptr, size);
 }
 
 slab_slice_t* slab_allocator_slice_init(
