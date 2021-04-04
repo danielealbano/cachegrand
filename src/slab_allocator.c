@@ -15,6 +15,7 @@
 #include "xalloc.h"
 #include "fatal.h"
 #include "utils_cpu.h"
+#include "utils_numa.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 
 #include "slab_allocator.h"
@@ -101,8 +102,7 @@ slab_allocator_t* slab_allocator_init(
         size_t object_size) {
     assert(object_size <= SLAB_OBJECT_SIZE_MAX);
 
-    // TODO: needs to be numa-aware
-    int numa_node_count = 1;
+    int numa_node_count = utils_numa_node_configured_count();
     int core_count = utils_cpu_count();
 
     slab_allocator_t* slab_allocator = (slab_allocator_t*)xalloc_alloc_zero(sizeof(slab_allocator_t));
