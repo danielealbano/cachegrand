@@ -3,6 +3,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
 list(APPEND DEPS_LIST_LIBRARIES "pthread")
 
 include("liburing")
+include("libnuma")
 include("openssl")
 include("t1ha")
 
