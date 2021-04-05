@@ -447,7 +447,7 @@ bool worker_iouring_process_op_accept(
         default:
             LOG_E(
                     TAG,
-                    "Unsupported protocol type <>",
+                    "Unsupported protocol type <%d>",
                     iouring_userdata_new->channel->protocol);
             network_channel_iouring_entry_user_data_free(iouring_userdata_new);
             break;
