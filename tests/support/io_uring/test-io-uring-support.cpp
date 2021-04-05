@@ -76,7 +76,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
         }
 
         SECTION("invalid opcode") {
-            REQUIRE(!io_uring_support_probe_opcode(IORING_OP_LAST));
+            REQUIRE(!io_uring_support_probe_opcode(UINT8_MAX));
         }
     }
 
