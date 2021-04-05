@@ -21,6 +21,8 @@ RUN apt update -y \
         pkg-config \
         libssl1.1 \
         libssl-dev \
+        libnuma1 \
+        libnuma-dev \
         lcov \
         ca-certificates \
     && apt-get clean \
