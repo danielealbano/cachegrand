@@ -28,20 +28,20 @@ extern "C" {
         "hashtable_mcmp_op_get", \
         "hashtable_mcmp_op_set", \
         "hashtable_mcmp_op_delete", \
-        "hashtable_support_op_search_key_avx2", \
-        "hashtable_support_op_search_key_or_create_new_avx2", \
-        "hashtable_support_op_search_key_avx", \
-        "hashtable_support_op_search_key_or_create_new_avx", \
-        "hashtable_support_op_search_key_sse42", \
-        "hashtable_support_op_search_key_or_create_new_sse42", \
-        "hashtable_support_op_search_key_genericx86", \
-        "hashtable_support_op_search_key_or_create_new_genericx86", \
-        "hashtable_support_op_search_key_defaultopt", \
-        "hashtable_support_op_search_key_or_create_new_defaultopt", \
+        "hashtable_mcmp_support_op_search_key_avx2", \
+        "hashtable_mcmp_support_op_search_key_or_create_new_avx2", \
+        "hashtable_mcmp_support_op_search_key_avx", \
+        "hashtable_mcmp_support_op_search_key_or_create_new_avx", \
+        "hashtable_mcmp_support_op_search_key_sse42", \
+        "hashtable_mcmp_support_op_search_key_or_create_new_sse42", \
+        "hashtable_mcmp_support_op_search_key_genericx86", \
+        "hashtable_mcmp_support_op_search_key_or_create_new_genericx86", \
+        "hashtable_mcmp_support_op_search_key_defaultopt", \
+        "hashtable_mcmp_support_op_search_key_or_create_new_defaultopt", \
         "hash_crc32c_resolve", \
         "hashtable_mcmp_support_hash_search_resolve", \
-        "hashtable_support_op_search_key_or_create_new_resolve", \
-        "hashtable_support_op_search_key_resolve", \
+        "hashtable_mcmp_support_op_search_key_or_create_new_resolve", \
+        "hashtable_mcmp_support_op_search_key_resolve", \
 
 #define LOG_MESSAGE_DEBUG_RULES(var, TYPE, INCLUDE_OR_EXCLUDE) \
     const char* var[] = { LOG_MESSAGE_DEBUG_RULES_##TYPE##_##INCLUDE_OR_EXCLUDE NULL }
