@@ -64,6 +64,28 @@ cmake .. -DUSE_HASH_ALGORITHM_T1HA2=1
 make cachegrand
 ```
 
+#### Run (general)
+
+The SLAB Allocator in cachegrand currently relies on 2MB hugepages, it's necessary to enable them otherwise it will
+fail-back to a dummy malloc-based allocator that will perform extremely badly.
+
+A simple way to enable them is to set /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages to the desired number of
+hugepages to allocate, bare in mind that each page is 2MB so using the example below you will reserve 1GB of memory.
+```shell
+echo 512 | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
+```
+
+When deciding the value keep in mind that cachegrand will need:
+- 20kb per connection
+- 16kb per IO operation
+
+So to handle 10000 active connections writing and/or reading, cachegrand will need a bit less than 200 2MB hugepages (less
+than half GB).
+
+In general 256 hugepages will be enough on low-load servers meanwhile 1024 is the suggested value for high-load servers.
+
+These suggestions are subject to change as cachegrand is under heavy development.
+
 #### Run tests
 ```bash
 mkdir cmake-build-debug
@@ -104,6 +126,7 @@ Here the general grand-plan:
             - [x] SET, chunk-based (14 slots) locking using spin-locks
             - [x] DELETE, chunk-based (14 slots) locking using spin-locks
     - [ ] Networking
+        - [X] Add support for multiple protocols
         - [x] Implement a network stack able to support multiple io libraries and multiple protocols 
         - [x] Implement a network io layer based on io_uring nad liburing
         - [x] Implement a network channel layer based on top of the network io iouring layer
@@ -113,12 +136,13 @@ Here the general grand-plan:
         - [ ] Implement a basic support for the redis protocol
             - [ ] GET
             - [ ] SET
-            - [ ] DELETE
+            - [ ] DEL
             - [ ] HELLO
             - [ ] QUIT
             - [x] PING
-    - [ ] Memory Management
-        - [ ] Implement a SLAB allocator
+    - [X] Memory Management
+        - [X] Implement a SLAB allocator
+        - [X] Add NUMA support
     - [ ] Configuration
         - [ ] Implement a YAML based configuration
     - [ ] Storage
@@ -140,32 +164,38 @@ Here the general grand-plan:
         - [ ] Ops
             - [ ] RESIZE
             - [ ] ITERATE
-            - [ ] DELETE, when deleting move back the far-est key of the chunk usind the distance
+            - [ ] DELETE, when deleting move back the far-est key of the chunk using the distance
     - [ ] Networking
         - [ ] Add support for workers that do not rely on SO_REUSEPORT (it's Linux only and performance costly)
         - [ ] Switch to use the SLAB allocator
+        - [ ] Extend redis protocol support
+            - [ ] APPEND, SETNX, INCR, INCRBY, INCRBYFLOAT, DECR, DECRBY
+            - [ ] RPUSH, RPUSHX, LPUSH, LINDEX, LLEN, LPOP, LSET, RPOP
+    - [ ] Memory Management
+        - [ ] Add a fail-over malloc-based dummy SLAB allocator to be used when the hugepages are not available 
     - [ ] Storage:
         - [ ] Implement garbage collection
 
 - v0.3
-    - [ ] Memory Management
-        - [ ] Add NUMA support
     - [ ] Hashtable
-        - [ ] Add NUMA support
+        - [ ] Add NUMA support (set_mempolicy for mmap)
+        - [ ] Add AARCH64 support (xxhash3)
     - [ ] Write documentation
     - [ ] Storage
-        - [ ] Optmize for NVMEs (xnvme, LSMTrees?)
+        - [ ] General optimization for flash (NVME and SSD) disks
     - [ ] Networking
-        - [ ] Add support for multiple protocols
-        - [ ] Add a protobuf-based rpc based protocol
+        - [ ] Extend redis protocol support
+            - [ ] SADD, SREM, SISMEMBER, SMEMBERS, SMOVE
+            - [ ] HGET, HGETALL, HSET, HMSET, HDEL, HEXISTS, HKEYS, HLEN, HVALS
+            - [ ] EXPIRE, TTL
         - [ ] Implement a basic http webserver to provide general stats
         - [ ] Implement a basic http webserver to provide simple CRUD operations 
 
 - v0.4
-    - [ ] Add AARCH64 support
     - [ ] Storage
         - [ ] Add support for epoll
     - [ ] Networking
+        - [ ] Add a protobuf-based rpc based protocol
         - [ ] Add support for epoll
 
 - v0.5
@@ -184,6 +214,12 @@ Here the general grand-plan:
         - [ ] Implement an XDP-based network worker
 
 - Somewhere before the v1.0
-    - [ ] Add support for Windows (IO via support IOCP)
-    - [ ] Add support for Mac OS X (IO via epoll)
-    - [ ] Add support for FreeBSD (IO via kqueue/kevent)
+    - [ ] Rework SLAB Allocator to not be dependant on hugepages and support multiple platforms
+    - [ ] ACLs for commands / data access
+        - [ ] Redis protocol support
+        - [ ] HTTPS protocol support
+    - [ ] Add support for Mac OS X
+    - [ ] Add support for Windows
+        - [ ] IO via support IOCP
+    - [ ] Add support for FreeBSD
+        - IO via kqueue/kevent
