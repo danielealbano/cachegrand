@@ -223,6 +223,7 @@ slab_slice_t* slab_allocator_slice_from_memptr(
 void slab_allocator_slice_make_available(
         slab_allocator_t* slab_allocator,
         slab_slice_t* slab_slice) {
+    bool can_free_slice = false;
     slab_allocator_slice_remove_slots_from_per_core_metadata_slots(
             slab_allocator,
             slab_slice,
@@ -236,13 +237,27 @@ void slab_allocator_slice_make_available(
     //       if needed
 
     spinlock_section(&slab_allocator->spinlock, {
-        slab_allocator->metrics.free_slices_count++;
-        slab_allocator->numa_node_metadata[current_thread_numa_node_index].metrics.free_slices_count++;
-        slab_slice->data.available = true;
-        double_linked_list_move_item_to_head(
-                slab_allocator->numa_node_metadata[current_thread_numa_node_index].slices,
-                &slab_slice->double_linked_list_item);
+        if (slab_allocator->metrics.free_slices_count == 1) {
+            can_free_slice = true;
+
+            slab_allocator->metrics.total_slices_count--;
+            slab_allocator->numa_node_metadata[current_thread_numa_node_index].metrics.total_slices_count--;
+            double_linked_list_remove_item(
+                    slab_allocator->numa_node_metadata[current_thread_numa_node_index].slices,
+                    &slab_slice->double_linked_list_item);
+        } else {
+            slab_allocator->metrics.free_slices_count++;
+            slab_allocator->numa_node_metadata[current_thread_numa_node_index].metrics.free_slices_count++;
+            slab_slice->data.available = true;
+            double_linked_list_move_item_to_head(
+                    slab_allocator->numa_node_metadata[current_thread_numa_node_index].slices,
+                    &slab_slice->double_linked_list_item);
+        }
     })
+
+    if (can_free_slice) {
+        xalloc_hugepages_free(slab_slice->data.page_addr, SLAB_PAGE_2MB);
+    }
 }
 
 bool slab_allocator_slice_try_acquire(
