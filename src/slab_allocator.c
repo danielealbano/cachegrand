@@ -120,12 +120,19 @@ slab_allocator_t* slab_allocator_init(
 
     for(int i = 0; i < slab_allocator->core_count; i++) {
         slab_allocator->core_metadata[i].slots = double_linked_list_init();
-        memset(&slab_allocator->core_metadata[i].metrics, 0, sizeof(slab_allocator_core_metadata_t));
+        spinlock_init(&slab_allocator->core_metadata[i].spinlock);
+
+        slab_allocator->core_metadata[i].metrics.slices_free_count = 0;
+        slab_allocator->core_metadata[i].metrics.slices_total_count = 0;
+        slab_allocator->core_metadata[i].metrics.slices_inuse_count = 0;
+        slab_allocator->core_metadata[i].metrics.objects_inuse_count = 0;
     }
 
     for(int i = 0; i < slab_allocator->numa_node_count; i++) {
         slab_allocator->numa_node_metadata[i].slices = double_linked_list_init();
-        memset(&slab_allocator->numa_node_metadata[i].metrics, 0, sizeof(slab_allocator_numa_node_metadata_t));
+
+        slab_allocator->numa_node_metadata[i].metrics.free_slices_count = 0;
+        slab_allocator->numa_node_metadata[i].metrics.total_slices_count = 0;
     }
 
     return slab_allocator;
@@ -157,6 +164,8 @@ void slab_allocator_free(
         double_linked_list_free(slab_allocator->numa_node_metadata[i].slices);
     }
 
+    xalloc_free(slab_allocator->core_metadata);
+    xalloc_free(slab_allocator->numa_node_metadata);
     xalloc_free(slab_allocator);
 }
 
