@@ -120,6 +120,7 @@ slab_allocator_t* slab_allocator_init(
 
     for(int i = 0; i < slab_allocator->core_count; i++) {
         slab_allocator->core_metadata[i].slots = double_linked_list_init();
+        spinlock_init(&slab_allocator->core_metadata[i].spinlock);
 
         slab_allocator->core_metadata[i].metrics.slices_free_count = 0;
         slab_allocator->core_metadata[i].metrics.slices_total_count = 0;

@@ -24,6 +24,8 @@ extern "C" {
 
 typedef struct slab_allocator_core_metadata slab_allocator_core_metadata_t;
 struct slab_allocator_core_metadata {
+    spinlock_lock_volatile_t spinlock;
+
     // The slots are sorted per availability
     double_linked_list_t* slots;
 
