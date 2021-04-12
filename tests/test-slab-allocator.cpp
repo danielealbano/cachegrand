@@ -6,6 +6,7 @@
 #include "exttypes.h"
 #include "spinlock.h"
 #include "utils_cpu.h"
+#include "utils_numa.h"
 #include "xalloc.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 
@@ -13,9 +14,13 @@
 
 TEST_CASE("slab_allocator.c", "[slab_allocator]") {
     SECTION("slab_allocator_init") {
-        slab_allocator_t* slab_allocator = slab_allocator_init(256);
+        int numa_node_count = utils_numa_node_configured_count();
+        int core_count = utils_cpu_count();
+        slab_allocator_t* slab_allocator = slab_allocator_init(128);
 
-        REQUIRE(slab_allocator->object_size == 256);
+        REQUIRE(slab_allocator->object_size == 128);
+        REQUIRE(slab_allocator->numa_node_count == numa_node_count);
+        REQUIRE(slab_allocator->core_count == core_count);
         REQUIRE(slab_allocator->metrics.total_slices_count == 0);
         REQUIRE(slab_allocator->metrics.free_slices_count == 0);
 
@@ -31,6 +36,7 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
             REQUIRE(slab_allocator->core_metadata[i].metrics.slices_inuse_count == 0);
             REQUIRE(slab_allocator->core_metadata[i].metrics.slices_free_count == 0);
             REQUIRE(slab_allocator->core_metadata[i].slots->count == 0);
+            REQUIRE(slab_allocator->core_metadata[i].free_page_addr != NULL);
         }
 
         slab_allocator_free(slab_allocator);
@@ -48,6 +54,7 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
         REQUIRE(slab_index_by_object_size(8192) == 7);
         REQUIRE(slab_index_by_object_size(16384) == 8);
         REQUIRE(slab_index_by_object_size(32768) == 9);
+        REQUIRE(slab_index_by_object_size(65536) == 10);
     }
 
     SECTION("sizeof(slab_slice_t)") {
