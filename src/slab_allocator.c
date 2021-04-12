@@ -9,9 +9,11 @@
 #include <assert.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <stdatomic.h>
 
 #include "misc.h"
 #include "exttypes.h"
+#include "memory_fences.h"
 #include "spinlock.h"
 #include "xalloc.h"
 #include "fatal.h"
@@ -230,8 +232,9 @@ slab_slice_t* slab_allocator_slice_from_memptr(
 
 void slab_allocator_slice_make_available(
         slab_allocator_t* slab_allocator,
-        slab_slice_t* slab_slice) {
-    bool can_free_slice = false;
+        slab_slice_t* slab_slice,
+        bool* can_free_slice) {
+    *can_free_slice = false;
     slab_allocator_slice_remove_slots_from_per_core_metadata_slots(
             slab_allocator,
             slab_slice,
@@ -246,7 +249,7 @@ void slab_allocator_slice_make_available(
 
     spinlock_section(&slab_allocator->spinlock, {
         if (slab_allocator->metrics.free_slices_count == 1) {
-            can_free_slice = true;
+            *can_free_slice = true;
 
             slab_allocator->metrics.total_slices_count--;
             slab_allocator->numa_node_metadata[current_thread_numa_node_index].metrics.total_slices_count--;
@@ -262,10 +265,6 @@ void slab_allocator_slice_make_available(
                     &slab_slice->double_linked_list_item);
         }
     })
-
-    if (can_free_slice) {
-        xalloc_hugepages_free(slab_slice->data.page_addr, SLAB_PAGE_2MB);
-    }
 }
 
 bool slab_allocator_slice_try_acquire(
@@ -344,6 +343,7 @@ void slab_allocator_grow(
 
 void* slab_allocator_mem_alloc(
         size_t size) {
+    bool allocaet_new_hugepage = false;
     slab_slot_t* slab_slot = NULL;
     slab_slice_t* slab_slice = NULL;
 
@@ -361,12 +361,22 @@ void* slab_allocator_mem_alloc(
 
         if (slots_per_core_head_item == NULL || slab_slot->data.available == false) {
             if (slab_allocator_slice_try_acquire(slab_allocator) == false) {
-                void* memptr = xalloc_hugepages_2mb_alloc(SLAB_PAGE_2MB);
+                // Ensure that free_page_addr is not null, if it is null the previous thread that used it hasn't
+                // allocated the new one yet.
+                // See comment below on ...if (core_metadata->free_page_addr == NULL)... for a bit more details on why
+                // this look is necessary
+                do {
+                    HASHTABLE_MEMORY_FENCE_LOAD();
+                } while (core_metadata->free_page_addr == NULL);
+
                 slab_allocator_grow(
                         slab_allocator,
                         current_thread_numa_node_index,
                         current_thread_core_index,
-                    memptr);
+                        core_metadata->free_page_addr);
+
+                core_metadata->free_page_addr = NULL;
+                allocaet_new_hugepage = true;
             }
 
             slots_per_core_head_item = slots_per_core_list->head;
@@ -381,6 +391,14 @@ void* slab_allocator_mem_alloc(
 
         core_metadata->metrics.objects_inuse_count++;
     });
+
+    if (allocaet_new_hugepage) {
+        // Can be done without locking but with a memory write fence because the spinlock above guarantees that
+        // only one thread can get through allocating a new huge page for the same core, if more than one thread fetches
+        // the free hugepage then the read memory barrier and the check above will avoid using a null pointer.
+        core_metadata->free_page_addr = xalloc_hugepages_2mb_alloc(SLAB_PAGE_2MB);
+        HASHTABLE_MEMORY_FENCE_STORE();
+    }
 
     return slab_slot->data.memptr;
 }
@@ -406,7 +424,10 @@ void slab_allocator_mem_free(
         void* memptr) {
     slab_allocator_ensure_core_index_and_numa_node_index_filled();
 
-    // Acquire the slab_slice, the slab_allocator and the slab_slot
+    bool can_free_slab_slice = false;
+
+    // Acquire the slab_slice, the slab_allocator, the slab_slot and the core_metadata for the current core on which the
+    // thread is running
     slab_slice_t* slab_slice = slab_allocator_slice_from_memptr(memptr);
     slab_allocator_t* slab_allocator = slab_slice->data.slab_allocator;
     slab_slot_t* slot = slab_allocator_slot_from_memptr(
@@ -435,8 +456,13 @@ void slab_allocator_mem_free(
             if (slab_allocator->core_metadata[current_thread_core_index].metrics.slices_free_count > 1) {
                 slab_allocator_slice_make_available(
                         slab_allocator,
-                        slab_slice);
+                        slab_slice,
+                        &can_free_slab_slice);
             }
         }
     });
+
+    if (can_free_slab_slice) {
+        xalloc_hugepages_free(slab_slice->data.page_addr, SLAB_PAGE_2MB);
+    }
 }

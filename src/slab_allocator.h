@@ -27,6 +27,7 @@ extern "C" {
 typedef struct slab_allocator_core_metadata slab_allocator_core_metadata_t;
 struct slab_allocator_core_metadata {
     spinlock_lock_volatile_t spinlock;
+    void* free_page_addr;
 
     // The slots are sorted per availability
     double_linked_list_t* slots;
@@ -129,7 +130,8 @@ void slab_allocator_slice_remove_slots_from_per_core_metadata_slots(
 
 void slab_allocator_slice_make_available(
         slab_allocator_t* slab_allocator,
-        slab_slice_t* slab_slice);
+        slab_slice_t* slab_slice,
+        bool* can_free_slice);
 
 bool slab_allocator_slice_try_acquire(
         slab_allocator_t* slab_allocator);
