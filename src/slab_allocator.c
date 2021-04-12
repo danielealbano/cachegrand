@@ -148,12 +148,12 @@ slab_allocator_t* slab_allocator_init(
 
 void slab_allocator_free(
         slab_allocator_t* slab_allocator) {
-
     // No need to deallocate the double linked list items of the slots as they are embedded within the hugepage and the
     // hugepage is going to get freed below.
 
     for(int i = 0; i < slab_allocator->numa_node_count; i++) {
-        double_linked_list_item_t* item = slab_allocator->numa_node_metadata[i].slices->head;
+        slab_allocator_numa_node_metadata_t* numa_node_metadata = &slab_allocator->numa_node_metadata[i];
+        double_linked_list_item_t* item = numa_node_metadata->slices->head;
 
         // Can't iterate using the normal double_linked_list_iter_next as the double_linked_list_item is embedded in the hugepage and
         // the hugepage is going to get freed
@@ -162,15 +162,22 @@ void slab_allocator_free(
             item = item->next;
             xalloc_hugepages_free(slab_slice->data.page_addr, SLAB_PAGE_2MB);
         }
+
+        double_linked_list_free(numa_node_metadata->slices);
     }
 
     for(int i = 0; i < slab_allocator->core_count; i++) {
-        double_linked_list_free(slab_allocator->core_metadata[i].slots);
-        xalloc_hugepages_free(slab_allocator->core_metadata[i].free_page_addr, SLAB_PAGE_2MB);
-    }
+        slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[i];
+        double_linked_list_free(core_metadata->slots);
 
-    for(int i = 0; i < slab_allocator->numa_node_count; i++) {
-        double_linked_list_free(slab_allocator->numa_node_metadata[i].slices);
+        // If a thread is still allocating an hugepage while the slab allocator is getting freed wait for it to avoid
+        // losing it (although slab_allocator_free should only be invoked in the destructor and therefore doesn't
+        // matter too much, the kernel will take care of it)
+        do {
+            HASHTABLE_MEMORY_FENCE_LOAD();
+        } while (core_metadata->free_page_addr == NULL);
+
+        xalloc_hugepages_free(core_metadata->free_page_addr, SLAB_PAGE_2MB);
     }
 
     xalloc_free(slab_allocator->core_metadata);
