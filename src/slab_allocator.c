@@ -426,7 +426,8 @@ bool slab_allocator_mem_try_alloc(
 
 void slab_allocator_mem_free(
         void* memptr) {
-    slab_allocator_ensure_core_index_and_numa_node_index_filled();
+    assert(current_thread_core_index < UINT32_MAX);
+    assert(current_thread_numa_node_index < UINT32_MAX);
 
     bool can_free_slab_slice = false;
 
