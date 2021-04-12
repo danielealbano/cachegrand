@@ -27,8 +27,6 @@
  * The slab allocator HEAVILY relies on the hugepages, the hugepage address is 2MB aligned therefore it's possible to
  * calculate the initial address of the page and place the index of slab slice at the beginning and use the rest of the
  * page to store the data.
- *
- * The logic should be improved to
  */
 
 #define SLAB_PAGE_2MB   (2 * 1024 * 1024)
@@ -55,6 +53,7 @@ FUNCTION_CTOR(slab_allocator_init, {
     predefined_slab_allocators[7] = slab_allocator_init(SLAB_OBJECT_SIZE_8192);
     predefined_slab_allocators[8] = slab_allocator_init(SLAB_OBJECT_SIZE_16384);
     predefined_slab_allocators[9] = slab_allocator_init(SLAB_OBJECT_SIZE_32768);
+    predefined_slab_allocators[10] = slab_allocator_init(SLAB_OBJECT_SIZE_65536);
 })
 
 void slab_allocator_ensure_core_index_and_numa_node_index_filled() {
@@ -65,7 +64,7 @@ void slab_allocator_ensure_core_index_and_numa_node_index_filled() {
 
 uint8_t slab_index_by_object_size(
         size_t object_size) {
-    assert(object_size <= SLAB_OBJECT_SIZE_32768);
+    assert(object_size <= SLAB_OBJECT_SIZE_MAX);
 
     if (object_size < SLAB_OBJECT_SIZE_64) {
         object_size = SLAB_OBJECT_SIZE_64;

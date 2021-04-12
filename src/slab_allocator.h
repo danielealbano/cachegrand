@@ -5,22 +5,24 @@
 extern "C" {
 #endif
 
-#define SLAB_OBJECT_SIZE_64     0x0040
-#define SLAB_OBJECT_SIZE_128    0x0080
-#define SLAB_OBJECT_SIZE_256    0x0100
-#define SLAB_OBJECT_SIZE_512    0x0200
-#define SLAB_OBJECT_SIZE_1024   0x0400
-#define SLAB_OBJECT_SIZE_2048   0x0800
-#define SLAB_OBJECT_SIZE_4096   0x1000
-#define SLAB_OBJECT_SIZE_8192   0x2000
-#define SLAB_OBJECT_SIZE_16384  0x4000
-#define SLAB_OBJECT_SIZE_32768  0x8000
-#define SLAB_OBJECT_SIZE_MAX    SLAB_OBJECT_SIZE_32768
+#define SLAB_OBJECT_SIZE_64     0x00000040
+#define SLAB_OBJECT_SIZE_128    0x00000080
+#define SLAB_OBJECT_SIZE_256    0x00000100
+#define SLAB_OBJECT_SIZE_512    0x00000200
+#define SLAB_OBJECT_SIZE_1024   0x00000400
+#define SLAB_OBJECT_SIZE_2048   0x00000800
+#define SLAB_OBJECT_SIZE_4096   0x00001000
+#define SLAB_OBJECT_SIZE_8192   0x00002000
+#define SLAB_OBJECT_SIZE_16384  0x00004000
+#define SLAB_OBJECT_SIZE_32768  0x00008000
+#define SLAB_OBJECT_SIZE_65536  0x00010000
+#define SLAB_OBJECT_SIZE_MAX    SLAB_OBJECT_SIZE_65536
 
-#define SLAB_OBJECT_SIZES       SLAB_OBJECT_SIZE_64, SLAB_OBJECT_SIZE_128, SLAB_OBJECT_SIZE_256, SLAB_OBJECT_SIZE_512, \
-                                SLAB_OBJECT_SIZE_1024, SLAB_OBJECT_SIZE_2048, SLAB_OBJECT_SIZE_4096, \
-                                SLAB_OBJECT_SIZE_8192, SLAB_OBJECT_SIZE_16384, SLAB_OBJECT_SIZE_32768
-#define SLAB_OBJECT_SIZES_COUNT 10
+#define SLAB_OBJECT_SIZES       SLAB_OBJECT_SIZE_64, SLAB_OBJECT_SIZE_128, SLAB_OBJECT_SIZE_256, \
+                                SLAB_OBJECT_SIZE_512, SLAB_OBJECT_SIZE_1024, SLAB_OBJECT_SIZE_2048, \
+                                SLAB_OBJECT_SIZE_4096, SLAB_OBJECT_SIZE_8192, SLAB_OBJECT_SIZE_16384, \
+                                SLAB_OBJECT_SIZE_32768, SLAB_OBJECT_SIZE_65536
+#define SLAB_OBJECT_SIZES_COUNT 11
 
 typedef struct slab_allocator_core_metadata slab_allocator_core_metadata_t;
 struct slab_allocator_core_metadata {
@@ -53,7 +55,7 @@ struct slab_allocator {
     spinlock_lock_volatile_t spinlock;
     uint16_t core_count;
     uint16_t numa_node_count;
-    uint16_t object_size;
+    uint32_t object_size;
     slab_allocator_core_metadata_t* core_metadata;
     slab_allocator_numa_node_metadata_t* numa_node_metadata;
     struct {
