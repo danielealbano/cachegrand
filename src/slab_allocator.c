@@ -362,17 +362,12 @@ void* slab_allocator_mem_alloc(
 
         if (slots_per_core_head_item == NULL || slab_slot->data.available == false) {
             if (slab_allocator_slice_try_acquire(slab_allocator) == false) {
-            void* memptr = xalloc_hugepages_2mb_alloc(SLAB_PAGE_2MB);
-            slab_allocator_grow(
-                    slab_allocator,
-                    current_thread_numa_node_index,
-                    current_thread_core_index,
+                void* memptr = xalloc_hugepages_2mb_alloc(SLAB_PAGE_2MB);
                 slab_allocator_grow(
                         slab_allocator,
                         current_thread_numa_node_index,
                         current_thread_core_index,
                     memptr);
-
             }
 
             slots_per_core_head_item = slots_per_core_list->head;
@@ -422,27 +417,27 @@ void slab_allocator_mem_free(
     slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[current_thread_core_index];
 
     spinlock_section(&core_metadata->spinlock, {
-    // Update the availability and the metrics
-    slab_slice->data.metrics.objects_inuse_count--;
-    slab_allocator->core_metadata[current_thread_core_index].metrics.objects_inuse_count--;
-    slot->data.available = true;
+        // Update the availability and the metrics
+        slab_slice->data.metrics.objects_inuse_count--;
+        slab_allocator->core_metadata[current_thread_core_index].metrics.objects_inuse_count--;
+        slot->data.available = true;
 
-    // Move the slot back to the head because it's available
-    double_linked_list_move_item_to_head(
-            slab_allocator->core_metadata[current_thread_core_index].slots,
-            &slot->double_linked_list_item);
+        // Move the slot back to the head because it's available
+        double_linked_list_move_item_to_head(
+                slab_allocator->core_metadata[current_thread_core_index].slots,
+                &slot->double_linked_list_item);
 
-    // If the slice is empty and for the currenty core there is already another empty slice, make the current slice
-    // available for other cores in the same numa node
-    if (slab_slice->data.metrics.objects_inuse_count == 0) {
-        slab_allocator->core_metadata[current_thread_core_index].metrics.slices_free_count++;
-        slab_allocator->core_metadata[current_thread_core_index].metrics.slices_inuse_count--;
+        // If the slice is empty and for the currenty core there is already another empty slice, make the current slice
+        // available for other cores in the same numa node
+        if (slab_slice->data.metrics.objects_inuse_count == 0) {
+            slab_allocator->core_metadata[current_thread_core_index].metrics.slices_free_count++;
+            slab_allocator->core_metadata[current_thread_core_index].metrics.slices_inuse_count--;
 
-        if (slab_allocator->core_metadata[current_thread_core_index].metrics.slices_free_count > 1) {
-            slab_allocator_slice_make_available(
-                    slab_allocator,
-                    slab_slice);
+            if (slab_allocator->core_metadata[current_thread_core_index].metrics.slices_free_count > 1) {
+                slab_allocator_slice_make_available(
+                        slab_allocator,
+                        slab_slice);
+            }
         }
     });
-    }
 }
