@@ -120,20 +120,27 @@ slab_allocator_t* slab_allocator_init(
     slab_allocator->metrics.free_slices_count = 0;
 
     for(int i = 0; i < slab_allocator->core_count; i++) {
-        slab_allocator->core_metadata[i].slots = double_linked_list_init();
-        spinlock_init(&slab_allocator->core_metadata[i].spinlock);
+        slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[i];
 
-        slab_allocator->core_metadata[i].metrics.slices_free_count = 0;
-        slab_allocator->core_metadata[i].metrics.slices_total_count = 0;
-        slab_allocator->core_metadata[i].metrics.slices_inuse_count = 0;
-        slab_allocator->core_metadata[i].metrics.objects_inuse_count = 0;
+        core_metadata->slots = double_linked_list_init();
+        spinlock_init(&core_metadata->spinlock);
+
+        // Not numa-friendly, the memory has to be allocated on the correct numa node
+        core_metadata->free_page_addr = xalloc_hugepages_2mb_alloc(SLAB_PAGE_2MB);
+
+        core_metadata->metrics.slices_free_count = 0;
+        core_metadata->metrics.slices_total_count = 0;
+        core_metadata->metrics.slices_inuse_count = 0;
+        core_metadata->metrics.objects_inuse_count = 0;
     }
 
     for(int i = 0; i < slab_allocator->numa_node_count; i++) {
-        slab_allocator->numa_node_metadata[i].slices = double_linked_list_init();
+        slab_allocator_numa_node_metadata_t* numa_node_metadata = &slab_allocator->numa_node_metadata[i];
 
-        slab_allocator->numa_node_metadata[i].metrics.free_slices_count = 0;
-        slab_allocator->numa_node_metadata[i].metrics.total_slices_count = 0;
+        numa_node_metadata->slices = double_linked_list_init();
+
+        numa_node_metadata->metrics.free_slices_count = 0;
+        numa_node_metadata->metrics.total_slices_count = 0;
     }
 
     return slab_allocator;
@@ -159,6 +166,7 @@ void slab_allocator_free(
 
     for(int i = 0; i < slab_allocator->core_count; i++) {
         double_linked_list_free(slab_allocator->core_metadata[i].slots);
+        xalloc_hugepages_free(slab_allocator->core_metadata[i].free_page_addr, SLAB_PAGE_2MB);
     }
 
     for(int i = 0; i < slab_allocator->numa_node_count; i++) {
