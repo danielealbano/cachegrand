@@ -345,6 +345,7 @@ void slab_allocator_grow(
 
 void* slab_allocator_mem_alloc(
         size_t size) {
+    slab_slot_t* slab_slot = NULL;
     slab_slice_t* slab_slice = NULL;
 
     slab_allocator_ensure_core_index_and_numa_node_index_filled();
@@ -352,31 +353,40 @@ void* slab_allocator_mem_alloc(
     uint8_t predefined_slab_allocator_index = slab_index_by_object_size(size);
     slab_allocator_t* slab_allocator = predefined_slab_allocators[predefined_slab_allocator_index];
 
-    double_linked_list_t* slots_per_core_list = slab_allocator->core_metadata[current_thread_core_index].slots;
-    double_linked_list_item_t* slots_per_core_head_item = slots_per_core_list->head;
-    slab_slot_t* slab_slot = (slab_slot_t*)slots_per_core_head_item;
+    slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[current_thread_core_index];
 
-    if (slots_per_core_head_item == NULL || slab_slot->data.available == false) {
-        if (slab_allocator_slice_try_acquire(slab_allocator) == false) {
+    spinlock_section(&core_metadata->spinlock, {
+        double_linked_list_t* slots_per_core_list = core_metadata->slots;
+        double_linked_list_item_t* slots_per_core_head_item = slots_per_core_list->head;
+        slab_slot = (slab_slot_t*)slots_per_core_head_item;
+
+        if (slots_per_core_head_item == NULL || slab_slot->data.available == false) {
+            if (slab_allocator_slice_try_acquire(slab_allocator) == false) {
             void* memptr = xalloc_hugepages_2mb_alloc(SLAB_PAGE_2MB);
             slab_allocator_grow(
                     slab_allocator,
                     current_thread_numa_node_index,
                     current_thread_core_index,
+                slab_allocator_grow(
+                        slab_allocator,
+                        current_thread_numa_node_index,
+                        current_thread_core_index,
                     memptr);
+
+            }
+
+            slots_per_core_head_item = slots_per_core_list->head;
+            slab_slot = (slab_slot_t*)slots_per_core_head_item;
         }
 
-        slots_per_core_head_item = slots_per_core_list->head;
-        slab_slot = (slab_slot_t*)slots_per_core_head_item;
-    }
+        slab_slot->data.available = false;
+        double_linked_list_move_item_to_tail(slots_per_core_list, slots_per_core_head_item);
 
-    slab_slice = slab_allocator_slice_from_memptr(slab_slot->data.memptr);
+        slab_slice = slab_allocator_slice_from_memptr(slab_slot->data.memptr);
+        slab_slice->data.metrics.objects_inuse_count++;
 
-    slab_slot->data.available = false;
-    double_linked_list_move_item_to_tail(slots_per_core_list, slots_per_core_head_item);
-
-    slab_slice->data.metrics.objects_inuse_count++;
-    slab_allocator->core_metadata[current_thread_core_index].metrics.objects_inuse_count++;
+        core_metadata->metrics.objects_inuse_count++;
+    });
 
     return slab_slot->data.memptr;
 }
@@ -409,7 +419,9 @@ void slab_allocator_mem_free(
             slab_allocator,
             slab_slice,
             memptr);
+    slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[current_thread_core_index];
 
+    spinlock_section(&core_metadata->spinlock, {
     // Update the availability and the metrics
     slab_slice->data.metrics.objects_inuse_count--;
     slab_allocator->core_metadata[current_thread_core_index].metrics.objects_inuse_count--;
@@ -431,5 +443,6 @@ void slab_allocator_mem_free(
                     slab_allocator,
                     slab_slice);
         }
+    });
     }
 }
