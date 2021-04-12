@@ -66,52 +66,52 @@ codecoverage_ubuntu2004_x64_gcc9_debug:
     - ubuntu-2004
     - x64
 
-build_ubuntu2004_arm64_gcc9_debug:
-  stage: build
-  allow_failure: true
-  script:
-    - cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
-    - cmake --build build -- -j $(nproc)
-  artifacts:
-    paths:
-      - build
-  tags:
-    - ubuntu-2004
-    - arm64
-
-test_ubuntu2004_arm64_gcc9_debug:
-  stage: test
-  allow_failure: true
-  needs: [ build_ubuntu2004_arm64_gcc9_debug ]
-  dependencies:
-    - build_ubuntu2004_arm64_gcc9_debug
-  script:
-    - build/tests/cachegrand-tests -r junit -o report.xml -s
-  artifacts:
-    paths:
-      - build
-    reports:
-      junit: report.xml
-  tags:
-    - ubuntu-2004
-    - arm64
-
-codecoverage_ubuntu2004_arm64_gcc9_debug:
-  stage: codecoverage
-  allow_failure: true
-  needs: [ test_ubuntu2004_arm64_gcc9_debug ]
-  dependencies:
-    - test_ubuntu2004_arm64_gcc9_debug
-  variables:
-    INPUT_REMOVE_PATTERNS: "3rdparty,tests,build/_deps"
-    INPUT_OUTPUT_LCOV_INFO: "build/coverage.info"
-  script:
-    - chmod +x tools/docker/build/code-coverage.sh
-    - INPUT_GCOV_PATH="${GCOV}" tools/docker/build/code-coverage.sh
-    - bash <(curl -s https://codecov.io/bash) -X gcov -Z -f coverage.info
-  artifacts:
-    paths:
-      - build/coverage.info
-  tags:
-    - ubuntu-2004
-    - arm64
+#build_ubuntu2004_arm64_gcc9_debug:
+#  stage: build
+#  allow_failure: true
+#  script:
+#    - cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
+#    - cmake --build build -- -j $(nproc)
+#  artifacts:
+#    paths:
+#      - build
+#  tags:
+#    - ubuntu-2004
+#    - arm64
+#
+#test_ubuntu2004_arm64_gcc9_debug:
+#  stage: test
+#  allow_failure: true
+#  needs: [ build_ubuntu2004_arm64_gcc9_debug ]
+#  dependencies:
+#    - build_ubuntu2004_arm64_gcc9_debug
+#  script:
+#    - build/tests/cachegrand-tests -r junit -o report.xml -s
+#  artifacts:
+#    paths:
+#      - build
+#    reports:
+#      junit: report.xml
+#  tags:
+#    - ubuntu-2004
+#    - arm64
+#
+#codecoverage_ubuntu2004_arm64_gcc9_debug:
+#  stage: codecoverage
+#  allow_failure: true
+#  needs: [ test_ubuntu2004_arm64_gcc9_debug ]
+#  dependencies:
+#    - test_ubuntu2004_arm64_gcc9_debug
+#  variables:
+#    INPUT_REMOVE_PATTERNS: "3rdparty,tests,build/_deps"
+#    INPUT_OUTPUT_LCOV_INFO: "build/coverage.info"
+#  script:
+#    - chmod +x tools/docker/build/code-coverage.sh
+#    - INPUT_GCOV_PATH="${GCOV}" tools/docker/build/code-coverage.sh
+#    - bash <(curl -s https://codecov.io/bash) -X gcov -Z -f coverage.info
+#  artifacts:
+#    paths:
+#      - build/coverage.info
+#  tags:
+#    - ubuntu-2004
+#    - arm64
