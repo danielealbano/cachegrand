@@ -173,6 +173,10 @@ explained above, the available slices are kept at the head meanwhile the in use 
 
 #### Slice
 
-![SLAB Allocator - Memory layoyt](images/slab_allocator_2.png)
+![SLAB Allocator - Memory layout](images/slab_allocator_2.png)
+
+### Benchmarks
+
+![SLAB Allocator - Benchmarks](images/slab_allocator_3.png)
 
 [1]: https://en.wikipedia.org/wiki/Slab_allocation
