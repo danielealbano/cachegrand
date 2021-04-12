@@ -444,21 +444,21 @@ void slab_allocator_mem_free(
     spinlock_section(&core_metadata->spinlock, {
         // Update the availability and the metrics
         slab_slice->data.metrics.objects_inuse_count--;
-        slab_allocator->core_metadata[current_thread_core_index].metrics.objects_inuse_count--;
+        core_metadata->metrics.objects_inuse_count--;
         slot->data.available = true;
 
         // Move the slot back to the head because it's available
         double_linked_list_move_item_to_head(
-                slab_allocator->core_metadata[current_thread_core_index].slots,
+                core_metadata->slots,
                 &slot->double_linked_list_item);
 
-        // If the slice is empty and for the currenty core there is already another empty slice, make the current slice
+        // If the slice is empty and for the currently core there is already another empty slice, make the current slice
         // available for other cores in the same numa node
         if (slab_slice->data.metrics.objects_inuse_count == 0) {
-            slab_allocator->core_metadata[current_thread_core_index].metrics.slices_free_count++;
-            slab_allocator->core_metadata[current_thread_core_index].metrics.slices_inuse_count--;
+            core_metadata->metrics.slices_free_count++;
+            core_metadata->metrics.slices_inuse_count--;
 
-            if (slab_allocator->core_metadata[current_thread_core_index].metrics.slices_free_count > 1) {
+            if (core_metadata->metrics.slices_free_count > 1) {
                 slab_allocator_slice_make_available(
                         slab_allocator,
                         slab_slice,
