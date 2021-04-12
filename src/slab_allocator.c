@@ -43,19 +43,10 @@ FUNCTION_CTOR(slab_allocator_init, {
     // Get page size
     slab_os_page_size = xalloc_get_page_size();
 
-    // Allocates all the slab allocator per object size (can't do an array, the preprocessor gets angry because of the
-    // commas)
-    predefined_slab_allocators[0] = slab_allocator_init(SLAB_OBJECT_SIZE_64);
-    predefined_slab_allocators[1] = slab_allocator_init(SLAB_OBJECT_SIZE_128);
-    predefined_slab_allocators[2] = slab_allocator_init(SLAB_OBJECT_SIZE_256);
-    predefined_slab_allocators[3] = slab_allocator_init(SLAB_OBJECT_SIZE_512);
-    predefined_slab_allocators[4] = slab_allocator_init(SLAB_OBJECT_SIZE_1024);
-    predefined_slab_allocators[5] = slab_allocator_init(SLAB_OBJECT_SIZE_2048);
-    predefined_slab_allocators[6] = slab_allocator_init(SLAB_OBJECT_SIZE_4096);
-    predefined_slab_allocators[7] = slab_allocator_init(SLAB_OBJECT_SIZE_8192);
-    predefined_slab_allocators[8] = slab_allocator_init(SLAB_OBJECT_SIZE_16384);
-    predefined_slab_allocators[9] = slab_allocator_init(SLAB_OBJECT_SIZE_32768);
-    predefined_slab_allocators[10] = slab_allocator_init(SLAB_OBJECT_SIZE_65536);
+    // Allocates all the slab allocator per object size
+    for(int i = 0; i < SLAB_OBJECT_SIZES_COUNT; i++) {
+        predefined_slab_allocators[i] = slab_allocator_init(SLAB_OBJECT_SIZE_64 << i);
+    }
 })
 
 FUNCTION_DTOR(slab_allocator_free, {
