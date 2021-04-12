@@ -251,10 +251,6 @@ void slab_allocator_slice_make_available(
     slab_allocator->core_metadata[current_thread_core_index].metrics.slices_total_count--;
     slab_allocator->core_metadata[current_thread_core_index].metrics.slices_free_count--;
 
-    // TODO: if slab_allocator->metrics.free_slices_count > threshold, the slice should be entirely freed, no reason
-    //       to own hugepages if they are not in use and there is enough margin to make memory immediately available
-    //       if needed
-
     spinlock_section(&slab_allocator->spinlock, {
         if (slab_allocator->metrics.free_slices_count == 1) {
             *can_free_slice = true;
