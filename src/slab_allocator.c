@@ -58,6 +58,12 @@ FUNCTION_CTOR(slab_allocator_init, {
     predefined_slab_allocators[10] = slab_allocator_init(SLAB_OBJECT_SIZE_65536);
 })
 
+FUNCTION_DTOR(slab_allocator_free, {
+    for(int i = 0; i < SLAB_OBJECT_SIZES_COUNT; i++) {
+        slab_allocator_free(predefined_slab_allocators[i]);
+    }
+});
+
 void slab_allocator_ensure_core_index_and_numa_node_index_filled() {
     if (current_thread_core_index == UINT32_MAX || current_thread_numa_node_index == UINT32_MAX) {
         getcpu(&current_thread_core_index, &current_thread_numa_node_index);
