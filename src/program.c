@@ -30,6 +30,7 @@
 #include "network/channel/network_channel_iouring.h"
 #include "worker/worker.h"
 #include "worker/worker_iouring.h"
+#include "config.h"
 
 #include "program.h"
 
@@ -42,6 +43,8 @@ uint32_t program_addresses_count = PROGRAM_NETWORK_ADDRESSES_COUNT;
 
 int program_signals[] = {  SIGUSR1,   SIGINT,   SIGHUP,   SIGTERM,   SIGQUIT  };
 uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
+
+config_t* config = NULL;
 
 void program_signal_handlers(
         int signal_number) {
@@ -90,18 +93,10 @@ void program_register_signal_handlers() {
 
 worker_user_data_t* program_workers_initialize(
         volatile bool *terminate_event_loop,
-        pthread_attr_t *attr,
+        config_t* config,
         uint32_t workers_count) {
     int res;
     worker_user_data_t *workers_user_data;
-
-    // TODO: implement a thread manager
-    res = pthread_attr_init(attr);
-    if (res != 0) {
-        LOG_E(TAG, "Unable to start initialize the thread attributes");
-        LOG_E_OS_ERROR(TAG);
-        return NULL;
-    }
 
     workers_user_data = xalloc_alloc_zero(sizeof(worker_user_data_t) * workers_count);
 
@@ -122,7 +117,7 @@ worker_user_data_t* program_workers_initialize(
         // TODO: decide dynamically which kind of worker should start
         if (pthread_create(
                 &worker_user_data->pthread,
-                attr,
+                NULL,
                 worker_iouring_thread_func,
                 worker_user_data) != 0) {
             LOG_E(TAG, "Unable to start the worker <%u>", worker_index);
@@ -184,7 +179,6 @@ void program_workers_cleanup(
 int program_main() {
     uint32_t workers_count;
     worker_user_data_t* workers_user_data;
-    pthread_attr_t attr = {0};
 
     // TODO: refactor this function to make it actually testable
     // TODO: load the config
@@ -212,7 +206,7 @@ int program_main() {
 
     if ((workers_user_data = program_workers_initialize(
             &program_terminate_event_loop,
-            &attr,
+            config,
             workers_count)) == NULL) {
         return 1;
     }

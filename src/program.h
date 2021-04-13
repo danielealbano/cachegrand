@@ -19,7 +19,7 @@ void program_register_signal_handlers();
 
 worker_user_data_t* program_workers_initialize(
         volatile bool *terminate_event_loop,
-        pthread_attr_t *attr,
+        config_t* config,
         uint32_t workers_count);
 
 bool* program_get_terminate_event_loop();
