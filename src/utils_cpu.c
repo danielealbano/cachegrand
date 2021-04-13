@@ -5,11 +5,15 @@
 int utils_cpu_count() {
     static int count = 0;
 
+#if defined(__APPLE__) || defined(__linux__)
     if (count != 0) {
         return count;
     }
 
     count = sysconf(_SC_NPROCESSORS_ONLN);
+#else
+#error Platform not supported
+#endif
 
     return count;
 }
@@ -17,11 +21,15 @@ int utils_cpu_count() {
 int utils_cpu_count_all() {
     static int count = 0;
 
+#if defined(__APPLE__) || defined(__linux__)
     if (count != 0) {
         return count;
     }
 
     count = sysconf(_SC_NPROCESSORS_CONF);
+#else
+#error Platform not supported
+#endif
 
     return count;
 }
