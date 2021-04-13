@@ -33,29 +33,29 @@ struct config_log_sinks {
     // TODO
 };
 
-enum config_limits_max_memory_policy {
-    CONFIG_LIMITS_MAX_MEMORY_POLICY_TTL_AND_LRU = 0,
-    CONFIG_LIMITS_MAX_MEMORY_POLICY_LRU,
-    CONFIG_LIMITS_MAX_MEMORY_POLICY_TTL_AND_LFU,
-    CONFIG_LIMITS_MAX_MEMORY_POLICY_LFU,
-    CONFIG_LIMITS_MAX_MEMORY_POLICY_TTL,
-    CONFIG_LIMITS_MAX_MEMORY_POLICY_NO_EVICTION
+enum config_limits_data_eviction_policy {
+    CONFIG_LIMITS_DATA_EVICTION_POLICY_TTL_AND_LRU = 0,
+    CONFIG_LIMITS_DATA_EVICTION_POLICY_LRU,
+    CONFIG_LIMITS_DATA_EVICTION_POLICY_TTL_AND_LFU,
+    CONFIG_LIMITS_DATA_EVICTION_POLICY_LFU,
+    CONFIG_LIMITS_DATA_EVICTION_POLICY_TTL,
+    CONFIG_LIMITS_DATA_EVICTION_POLICY_NO_EVICTION
 };
-typedef enum config_limits_max_memory_policy config_limits_max_memory_policy_t;
+typedef enum config_limits_data_eviction_policy config_limits_data_eviction_policy_t;
 
 typedef struct config config_t;
 struct config {
     config_protocol_t* protocols;
     config_log_sinks_t* log_sinks;
+    worker_type_t worker_type;
+    int* cpus;
+    bool run_in_foreground;
+    char* pidfile_path;
     struct {
         uint32_t max_client;
-        uint32_t max_memory;
-        config_limits_max_memory_policy_t max_memory_policy;
-        uint32_t max_request_length;
+        uint32_t data_memory_size;
+        config_limits_data_eviction_policy_t data_eviction_policy;
     } limits;
-    int* cpus;
-    bool run_as_service;
-    char* pidfile_path;
 };
 
 config_t* config_init();
