@@ -103,6 +103,7 @@ worker_user_data_t* program_workers_initialize(
     for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
         worker_user_data_t *worker_user_data = &workers_user_data[worker_index];
 
+        // TODO: needs to be changed to accept the config and setup all the settings via it
         worker_setup_user_data(
                 worker_user_data,
                 worker_index,
