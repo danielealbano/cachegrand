@@ -108,7 +108,7 @@ add_library(
 
 add_dependencies(
         cachegrand-internal
-        __internal_refresh_cmake_config t1ha uring)
+        __internal_refresh_cmake_config t1ha uring cyaml)
 
 target_compile_options(
         cachegrand-internal

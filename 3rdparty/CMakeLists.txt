@@ -4,8 +4,10 @@ list(APPEND DEPS_LIST_LIBRARIES "pthread")
 
 include("liburing")
 include("libnuma")
-include("openssl")
 include("t1ha")
+include("openssl")
+include("libyaml")
+include("libcyaml")
 
 set(DEPS_LIST_LIBRARIES "${DEPS_LIST_LIBRARIES}" PARENT_SCOPE)
 set(DEPS_LIST_INCLUDE_DIRS "${DEPS_LIST_INCLUDE_DIRS}" PARENT_SCOPE)
