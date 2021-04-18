@@ -45,7 +45,7 @@ int program_signals[] = {  SIGUSR1,   SIGINT,   SIGHUP,   SIGTERM,   SIGQUIT  };
 uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
 
 config_t* config = NULL;
-const char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
+static char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
 
 void program_signal_handlers(
         int signal_number) {
