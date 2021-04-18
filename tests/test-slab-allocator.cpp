@@ -206,6 +206,9 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
     }
 
     SECTION("slab_allocator_mem_alloc_hugepages") {
+        slab_allocator_enable(true);
+        slab_allocator_predefined_allocators_init();
+
         SECTION("allocate 1 object") {
             uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
             uint32_t core_index = slab_allocator_get_current_thread_core_index();
