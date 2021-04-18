@@ -104,8 +104,8 @@ cpus:
   - all
 
 run_in_foreground: false
-
 pidfile_path: /var/run/cachegrand.pid
+use_slab_allocator: true
 
 network_max_clients: 0
 network_listen_backlog: 0
@@ -183,6 +183,8 @@ TEST_CASE("config.c", "[config]") {
             REQUIRE(config != NULL);
             REQUIRE(config->worker_type == CONFIG_WORKER_TYPE_IO_URING);
             REQUIRE(config->cpus_count == 1);
+            REQUIRE(config->use_slab_allocator != NULL);
+            REQUIRE(*config->use_slab_allocator == true);
             REQUIRE(config->protocols_count == 1);
             REQUIRE(config->log_sinks_count == 2);
             REQUIRE(cyaml_logger_context.data == NULL);
