@@ -124,6 +124,10 @@ target_link_libraries(
         cachegrand-internal
         PUBLIC
         ${DEPS_LIST_LIBRARIES})
+target_link_libraries(
+        cachegrand-internal
+        PRIVATE
+        ${DEPS_LIST_LIBRARIES_PRIVATE})
 
 target_include_directories(
         cachegrand-internal
