@@ -10,7 +10,7 @@ extern "C" {
     ({ \
         char *signal_name; \
         char signal_name_buffer[SIGNALS_SUPPORT_NAME_BUFFER_SIZE] = {0}; \
-        signal_name = signals_support_name(signal_number, signal_name_buffer, sizeof(signal_name_buffer)); \
+        signal_name = signals_support_name(SIGNAL_NUMBER, signal_name_buffer, sizeof(signal_name_buffer)); \
         if (!signal_name) { \
             signal_name = unknown_signal_name; \
         } \
