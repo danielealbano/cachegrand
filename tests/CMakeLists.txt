@@ -27,6 +27,12 @@ if(HOST_HAS_CLFLUSHOPT)
             -mclflushopt)
 endif()
 
+# The libcyaml library can't be statically linked for the tests, the C++ compiler will fail to link the libyaml library
+# as it is compiled for C and the C++ is not properly configured.
+# Linking it dynamically will avoid the issue, it has a number of side effects but for the tests it's fine (at least
+# for now)
+set(LIBCYAML_DYNAMIC_PATH_LIBRARY "${CMAKE_BINARY_DIR}/_deps/src/cyaml/build/release/libcyaml.so.1")
+
 set_target_properties(
         cachegrand-tests
         PROPERTIES
@@ -37,7 +43,7 @@ add_dependencies(
 target_link_libraries(
         cachegrand-tests
         PRIVATE
-        cachegrand-internal Catch2::Catch2)
+        cachegrand-internal Catch2::Catch2 ${LIBCYAML_DYNAMIC_PATH_LIBRARY})
 add_test(
         NAME
         cachegrand-tests
