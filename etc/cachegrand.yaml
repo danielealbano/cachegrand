@@ -1,0 +1,41 @@
+worker_type: io_uring
+cpus:
+  - all
+
+run_in_foreground: false
+
+pidfile_path: /var/run/cachegrand.pid
+
+network_max_clients: 0
+network_listen_backlog: 0
+storage_max_partition_size_mb: 0
+memory_max_keys: 0
+
+protocols:
+  - type: redis
+    timeout:
+      connection: 2000
+      read: 2000
+      write: 2000
+      inactivity: 10000
+    keepalive:
+      time: 0
+      interval: 0
+      probes: 0
+    redis:
+      max_key_length: 8192
+      max_command_length: 0
+    bindings:
+      - host: 0.0.0.0
+        port: 12345
+      - host: "::"
+        port: 12345
+
+log_sinks:
+  - type: console
+    level: warning
+
+  - type: file
+    level: verbose
+    file:
+      path: /var/log/cachegrand.log
