@@ -6,13 +6,13 @@ extern "C" {
 #endif
 
 enum config_protocol_type {
-    CONFIG_PROTOCOL_TYPE_REDIS
+    CONFIG_PROTOCOL_TYPE_REDIS,
 };
 typedef enum config_protocol_type config_protocol_type_t;
 
 enum config_log_sink_type {
     CONFIG_LOG_SINK_TYPE_CONSOLE,
-    CONFIG_LOG_SINK_TYPE_FILE
+    CONFIG_LOG_SINK_TYPE_FILE,
 };
 typedef enum config_log_sink_type config_log_sink_type_t;
 
@@ -27,7 +27,7 @@ enum config_log_level {
 typedef enum config_log_level config_log_level_t;
 
 enum config_worker_type {
-    CONFIG_WORKER_TYPE_IO_URING
+    CONFIG_WORKER_TYPE_IO_URING,
 };
 typedef enum config_worker_type config_worker_type_t;
 
