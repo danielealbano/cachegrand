@@ -1,7 +1,5 @@
 include(CheckIncludeFiles)
-include(CheckCCompilerFlag)
 include(CheckCSourceCompiles)
-include(CheckFunctionExists)
 
 # Can't use pkg-config for libnuma, not all the distros provide numa.pc as part of the numa package
 
@@ -24,10 +22,6 @@ endif()
 find_library(LIBNUMA_LIBRARY_DIRS NAMES numa NAMES_PER_DIR)
 find_path(LIBNUMA_INCLUDE_DIRS numa.h)
 set(LIBNUMA_LIBRARIES "numa")
-
-message(STATUS ${LIBNUMA_LIBRARY_DIRS})
-message(STATUS ${LIBNUMA_INCLUDE_DIRS})
-message(STATUS ${LIBNUMA_LIBRARIES})
 
 list(APPEND DEPS_LIST_LIBRARIES "${LIBNUMA_LIBRARIES}")
 list(APPEND DEPS_LIST_INCLUDE_DIRS "${LIBNUMA_INCLUDE_DIRS}")
