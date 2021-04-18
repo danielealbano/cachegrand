@@ -178,28 +178,61 @@ void program_workers_cleanup(
     xalloc_free(workers_user_data);
 }
 
+void program_update_config_from_arguments(
+        program_arguments_t* program_arguments,
+        config_t* config) {
+    if (program_arguments->log_level != PROGRAM_ARGUMENTS_LOG_LEVEL_MAX) {
+        for(int i = 0; i < config->log_sinks_count; i++) {
+            config->log_sinks[i].level = (config_log_level_t)program_arguments->log_level;
+        }
+    }
+}
+
+config_t* program_parse_arguments_and_load_config(
+        int argc,
+        char** argv) {
+    config_t* config;
+    program_arguments_t* program_arguments = program_arguments_init();
+
+    if (!program_arguments_parse(argc, argv, program_arguments)) {
+        program_arguments_free(program_arguments);
+        LOG_E(TAG, "Failed to parse the arguments, unable to continue");
+        return NULL;
+    }
+
+    if ((config = config_load(program_arguments->config_file
+            ? program_arguments->config_file
+            : config_path_default)) == NULL) {
+        program_arguments_free(program_arguments);
+        LOG_E(TAG, "Failed to load the configuration, unable to continue");
+        return NULL;
+    }
+
+    program_update_config_from_arguments(program_arguments, config);
+
+    program_arguments_free(program_arguments);
+
+    return config;
+}
+
 int program_main(
         int argc,
         char** argv) {
+    config_t* config;
     uint32_t workers_count;
     worker_user_data_t* workers_user_data;
 
     // TODO: refactor this function to make it actually testable
 
-    // TODO: parse args
-
-    // TODO: once args parsing is done, get config path from args or from default
-    config = config_load(config_path_default);
-    if (config == NULL) {
-        LOG_E(TAG, "Failed to load the configuration, unable to continue");
+    if ((config = program_parse_arguments_and_load_config(argc, argv)) == NULL) {
         return 1;
     }
 
     // TODO: initialize the log sinks
-    // TODO: initialize the hashtable(s) (with or without LRU, when the support will be added)
-    // TODO: initialize the storage
     // TODO: initialize the protocol parsers
     // TODO: initialize the network listeners and the protocol state machines
+    // TODO: initialize the hashtable(s) (with or without LRU, when the support will be added)
+    // TODO: initialize the storage
     // TODO: start the worker threads and invoke the worker thread main func
 
     if (io_uring_capabilities_is_fast_poll_supported() == false) {
@@ -212,7 +245,7 @@ int program_main(
     // TODO: should be possible to pinpoint in the config which cores can be utilized, very handy for benchmarking in
     //       in combination with the isolcpus kernel init parameter
 #if DEBUG == 1
-    workers_count = 2;
+    workers_count = 1;
 #else
     workers_count = utils_cpu_count();
 #endif
@@ -229,6 +262,8 @@ int program_main(
     program_workers_cleanup(
             workers_user_data,
             workers_count);
+
+    config_free(config);
 
     return 0;
 }
