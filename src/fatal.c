@@ -46,8 +46,8 @@ void fatal(const char *tag, const char* message, ...) {
     va_start(args, message);
     fatal_log_message(
             tag,
-        message,
-        args);
+            message,
+            args);
     va_end(args);
 
     backtrace_print();
