@@ -38,15 +38,6 @@ enum program_arguments_log_level {
 };
 typedef enum program_arguments_log_level program_arguments_log_level_t;
 
-const program_arguments_strval_map_t program_arguments_log_level_strings[] = {
-        { "error", PROGRAM_ARGUMENTS_LOG_LEVEL_ERROR },
-        { "recoverable", PROGRAM_ARGUMENTS_LOG_LEVEL_RECOVERABLE },
-        { "warning", PROGRAM_ARGUMENTS_LOG_LEVEL_WARNING },
-        { "info", PROGRAM_ARGUMENTS_LOG_LEVEL_INFO },
-        { "verbose", PROGRAM_ARGUMENTS_LOG_LEVEL_VERBOSE },
-        { "debug", PROGRAM_ARGUMENTS_LOG_LEVEL_DEBUG },
-};
-
 typedef struct program_arguments program_arguments_t;
 struct program_arguments {
     program_arguments_log_level_t log_level;
