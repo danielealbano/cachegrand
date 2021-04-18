@@ -6,6 +6,7 @@
 
 #include "xalloc.h"
 
+#include "config.h"
 #include "program_arguments.h"
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
@@ -21,6 +22,15 @@ const char* test_program_arguments_position_unsupported[] = { TEST_PROGRAM_NAME,
 
 TEST_CASE("program_arguments.c", "[program][arguments]") {
     program_arguments_parser_testing = 1;
+
+    SECTION("program_arguments_log_level_t == config_log_level_t") {
+        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_ERROR == CONFIG_LOG_LEVEL_ERROR);
+        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_RECOVERABLE == CONFIG_LOG_LEVEL_RECOVERABLE);
+        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_WARNING == CONFIG_LOG_LEVEL_WARNING);
+        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_INFO == CONFIG_LOG_LEVEL_INFO);
+        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_VERBOSE == CONFIG_LOG_LEVEL_VERBOSE);
+        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_DEBUG == CONFIG_LOG_LEVEL_DEBUG);
+    }
 
     SECTION("program_arguments_docs_header_prepare") {
         char* docs_header = program_arguments_docs_header_prepare();
@@ -39,7 +49,7 @@ TEST_CASE("program_arguments.c", "[program][arguments]") {
         program_arguments_t* program_arguments = program_arguments_init();
 
         REQUIRE(program_arguments != NULL);
-        REQUIRE(program_arguments->log_level == 0);
+        REQUIRE(program_arguments->log_level == PROGRAM_ARGUMENTS_LOG_LEVEL_MAX);
         REQUIRE(program_arguments->config_file == NULL);
 
         xalloc_free(program_arguments);
@@ -57,7 +67,7 @@ TEST_CASE("program_arguments.c", "[program][arguments]") {
             int argc = sizeof(test_program_arguments_empty) / sizeof(char*);
 
             REQUIRE(program_arguments_parse(argc, (char**)test_program_arguments_empty, program_arguments) == true);
-            REQUIRE(program_arguments->log_level == 0);
+            REQUIRE(program_arguments->log_level == PROGRAM_ARGUMENTS_LOG_LEVEL_MAX);
             REQUIRE(program_arguments->config_file == NULL);
         }
 
@@ -65,7 +75,7 @@ TEST_CASE("program_arguments.c", "[program][arguments]") {
             int argc = sizeof(test_program_arguments_only_config_file) / sizeof(char*);
 
             REQUIRE(program_arguments_parse(argc, (char**)test_program_arguments_only_config_file, program_arguments) == true);
-            REQUIRE(program_arguments->log_level == 0);
+            REQUIRE(program_arguments->log_level == PROGRAM_ARGUMENTS_LOG_LEVEL_MAX);
             REQUIRE(program_arguments->config_file == test_program_arguments_only_config_file[2]);
         }
 

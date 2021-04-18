@@ -89,7 +89,11 @@ void program_arguments_docs_header_free(char* docs_header) {
 }
 
 program_arguments_t* program_arguments_init() {
-    return (program_arguments_t*)xalloc_alloc_zero(sizeof(program_arguments_t));
+    program_arguments_t* program_arguments = (program_arguments_t*)xalloc_alloc_zero(sizeof(program_arguments_t));
+
+    program_arguments->log_level = PROGRAM_ARGUMENTS_LOG_LEVEL_MAX;
+
+    return program_arguments;
 }
 
 void program_arguments_free(program_arguments_t* program_arguments) {

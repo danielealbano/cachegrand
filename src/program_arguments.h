@@ -12,7 +12,6 @@ extern int program_arguments_parser_testing;
 #define program_arguments_strval_map_len(STRVAL_ARRAY) (sizeof(STRVAL_ARRAY) / sizeof(program_arguments_strval_map_t))
 
 #define program_arguments_strval_map_get(STRVAL_ARRAY, STRING, VALUE) { \
-    (VALUE) = -1; \
     for(int STRVAL_ARRAY_index = 0; STRVAL_ARRAY_index < program_arguments_strval_map_len(STRVAL_ARRAY); STRVAL_ARRAY_index++) { \
         program_arguments_strval_map_t strval_map = ((STRVAL_ARRAY)[(STRVAL_ARRAY_index)]); \
         size_t strval_len = strlen(strval_map.key); \
@@ -34,7 +33,8 @@ enum program_arguments_log_level {
     PROGRAM_ARGUMENTS_LOG_LEVEL_WARNING,
     PROGRAM_ARGUMENTS_LOG_LEVEL_INFO,
     PROGRAM_ARGUMENTS_LOG_LEVEL_VERBOSE,
-    PROGRAM_ARGUMENTS_LOG_LEVEL_DEBUG
+    PROGRAM_ARGUMENTS_LOG_LEVEL_DEBUG,
+    PROGRAM_ARGUMENTS_LOG_LEVEL_MAX
 };
 typedef enum program_arguments_log_level program_arguments_log_level_t;
 
