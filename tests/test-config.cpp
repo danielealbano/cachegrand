@@ -47,8 +47,6 @@ void test_config_cyaml_logger(
     ctx->data[ctx->data_length] = 0;
 }
 
-
-
 bool test_config_fixture_file_from_data_create(
         char* path,
         int path_suffix_len,
