@@ -7,7 +7,11 @@
 
 #include "program_arguments.h"
 
-static struct argp_option options[] = {
+#if DEBUG == 1
+int program_arguments_parser_testing = 0;
+#endif
+
+static struct argp_option program_arguments_parser_options[] = {
         {"config-file", 'c', "FILE", 0,
             "Config file (default config file " CACHEGRAND_CONFIG_PATH_DEFAULT " )"},
         {"log-level",   'l', "LOG LEVEL", 0,
@@ -29,13 +33,24 @@ error_t program_arguments_argp_parser(
         case 'l':
             program_arguments_strval_map_get(program_arguments_log_level_strings, arg, program_arguments->log_level);
             if (program_arguments->log_level == -1) {
+#if DEBUG == 1
+                if (program_arguments_parser_testing == 0) {
+#endif
                 argp_error(state, "invalid value for log-level");
+#if DEBUG == 1
+                } else {
+                    return ARGP_ERR_UNKNOWN;
+                }
+#endif
             }
             break;
 
         case ARGP_KEY_ARG:
             argp_usage(state);
-            break;
+
+            // arpg_usage normally exits but for the testing we set ARGP_SILENT that sets ARGP_NO_EXIT, among other
+            // flags, and therefore we need a return with ARGP_ERR_UNKNOWN to stop argp from further parsing.
+            return ARGP_ERR_UNKNOWN;
 
         case ARGP_KEY_END:
             // do nothing
@@ -76,16 +91,24 @@ void program_arguments_parse(
         int argc,
         char **argv,
         program_arguments_t* program_arguments) {
+    int arg_parse_flags = 0;
     char* docs_header = program_arguments_docs_header_prepare();
 
     struct argp argp = {
-            .options = options,
+            .options = program_arguments_parser_options,
             .parser = program_arguments_argp_parser,
             .doc = "",
             .args_doc = docs_header
     };
 
-    argp_parse(&argp, argc, argv, 0, 0, program_arguments);
+#if DEBUG == 1
+    if (program_arguments_parser_testing != 0) {
+        arg_parse_flags |= ARGP_SILENT;
+    }
+#endif
+
+    error_t res = argp_parse(&argp, argc, argv, arg_parse_flags, 0, program_arguments);
 
     program_arguments_docs_header_free(docs_header);
+
 }
