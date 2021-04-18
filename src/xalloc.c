@@ -210,32 +210,6 @@ int xalloc_mmap_free(void *memptr, size_t size) {
 #endif
 }
 
-bool xalloc_hugepages_2mb_is_available() {
-    bool result = false;
-
-#if defined(__linux__)
-    size_t size = 1;
-    size = xalloc_mmap_align_size(size);
-
-    void* memptr = mmap(
-            NULL,
-            size,
-            PROT_READ | PROT_WRITE,
-            MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_HUGE_2MB,
-            -1,
-            0);
-
-    if (memptr != (void *)-1) {
-        result = true;
-        xalloc_hugepages_free(memptr, size);
-    }
-#else
-#error Platform not supported
-#endif
-
-    return result;
-}
-
 void* xalloc_hugepages_2mb_alloc(
         size_t size) {
     void* memptr;

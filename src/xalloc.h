@@ -16,7 +16,6 @@ void* xalloc_mmap_align_addr(void* memaddr);
 size_t xalloc_mmap_align_size(size_t size);
 void* xalloc_mmap_alloc(size_t size);
 int xalloc_mmap_free(void *memptr, size_t size);
-bool xalloc_hugepages_2mb_is_available();
 void* xalloc_hugepages_2mb_alloc(size_t size);
 int xalloc_hugepages_free(void *memptr, size_t size);
 
