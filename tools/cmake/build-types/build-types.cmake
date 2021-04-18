@@ -1,5 +1,3 @@
-# Use generator expressions with COMPILE_LANGUAGE to avoid setting compile options for the CUDA if enabled
-
 add_compile_options($<$<COMPILE_LANGUAGE:C>:-g>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-g>)
 
@@ -24,6 +22,8 @@ elseif (CMAKE_BUILD_TYPE MATCHES Release)
 
     add_compile_options($<$<COMPILE_LANGUAGE:C>:-O3>)
     add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-O3>)
+
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
     message(STATUS "Release build")
 endif()
