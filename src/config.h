@@ -91,6 +91,7 @@ struct config {
     unsigned cpus_count;
     bool run_in_foreground;
     char* pidfile_path;
+    bool* use_slab_allocator;
 
     uint32_t network_max_clients;
     uint32_t network_listen_backlog;

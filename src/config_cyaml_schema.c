@@ -181,6 +181,9 @@ const cyaml_schema_field_t config_fields_schema[] = {
         CYAML_FIELD_STRING_PTR(
                 "pidfile_path", CYAML_FLAG_POINTER,
                 config_t, pidfile_path, 0, CYAML_UNLIMITED),
+        CYAML_FIELD_BOOL_PTR(
+                "use_slab_allocator", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
+                config_t, use_slab_allocator),
 
         CYAML_FIELD_UINT(
                 "network_max_clients", CYAML_FLAG_POINTER,
