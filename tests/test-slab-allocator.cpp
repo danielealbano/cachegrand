@@ -171,10 +171,41 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
         free(memptr);
     }
 
-    SECTION("slab_allocator_mem_alloc") {
+    SECTION("slab_allocator_predefined_allocators_init / slab_allocator_predefined_allocators_free") {
+        int numa_node_count = utils_numa_node_configured_count();
+        int core_count = utils_cpu_count();
+
         slab_allocator_enable(true);
         slab_allocator_predefined_allocators_init();
 
+        for(int i = 0; i < SLAB_PREDEFINED_OBJECT_SIZES_COUNT; i++) {
+            uint32_t slab_predefined_object_size = slab_predefined_object_sizes[i];
+            slab_allocator_t* slab_allocator = slab_allocator_predefined_get_by_size(slab_predefined_object_size);
+
+            if (slab_allocator == NULL) {
+                continue;
+            }
+
+            REQUIRE(slab_allocator->object_size == slab_predefined_object_size);
+            REQUIRE(slab_allocator->numa_node_count == numa_node_count);
+            REQUIRE(slab_allocator->core_count == core_count);
+            REQUIRE(slab_allocator->metrics.total_slices_count == 0);
+            REQUIRE(slab_allocator->metrics.free_slices_count == 0);
+        }
+
+        slab_allocator_predefined_allocators_free();
+        slab_allocator_enable(false);
+
+
+        for(int i = 0; i < SLAB_PREDEFINED_OBJECT_SIZES_COUNT; i++) {
+            uint32_t slab_predefined_object_size = slab_predefined_object_sizes[i];
+            slab_allocator_t* slab_allocator = slab_allocator_predefined_get_by_size(slab_predefined_object_size);
+
+            REQUIRE(slab_allocator == NULL);
+        }
+    }
+
+    SECTION("slab_allocator_mem_alloc_hugepages") {
         SECTION("allocate 1 object") {
             uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
             uint32_t core_index = slab_allocator_get_current_thread_core_index();
