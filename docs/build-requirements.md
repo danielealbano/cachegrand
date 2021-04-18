@@ -7,6 +7,7 @@
 | pkg-config | | **mandatory** |
 | kernel | >= 5.7.0 | **mandatory** |
 | libnuma | >= 1.1 | **mandatory** |
+| libyaml | >= 1.1 | **mandatory** |
 | openssl | >= 2.0 | **mandatory** |
 
 cachegrand depends on io_uring and liburing for the I/O and the networking therefore it's necessary to have recent
@@ -31,9 +32,12 @@ Example output
 ```
 5.10.15-051015-generic
 ```
- 
 
 Command line to install the non-kernel dependencies
 ```shell
-apt-get install built-essential cmake pkg-config libnuma-dev libssl-dev
+apt-get install \
+    built-essential cmake pkg-config git \
+    libssl1.1 libssl-dev \
+    libnuma1 libnuma-dev \
+    libyaml-0-2 libyaml-dev
 ```
