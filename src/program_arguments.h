@@ -11,16 +11,6 @@ extern int program_arguments_parser_testing;
 
 #define program_arguments_strval_map_len(STRVAL_ARRAY) (sizeof(STRVAL_ARRAY) / sizeof(program_arguments_strval_map_t))
 
-#define program_arguments_strval_map_get(STRVAL_ARRAY, STRING, VALUE) { \
-    for(int STRVAL_ARRAY_index = 0; STRVAL_ARRAY_index < program_arguments_strval_map_len(STRVAL_ARRAY); STRVAL_ARRAY_index++) { \
-        program_arguments_strval_map_t strval_map = ((STRVAL_ARRAY)[(STRVAL_ARRAY_index)]); \
-        size_t strval_len = strlen(strval_map.key); \
-        if (strncmp(strval_map.key, STRING, strval_len) == 0) { \
-            (VALUE) = strval_map.value; \
-        } \
-    } \
-}
-
 typedef struct program_arguments_strval_map program_arguments_strval_map_t;
 struct program_arguments_strval_map {
     const char *key;

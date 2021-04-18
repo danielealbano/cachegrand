@@ -28,6 +28,26 @@ const program_arguments_strval_map_t program_arguments_log_level_strings[] = {
         { "debug", PROGRAM_ARGUMENTS_LOG_LEVEL_DEBUG },
 };
 
+bool program_arguments_strval_map_get(
+        const program_arguments_strval_map_t* array,
+        size_t array_length,
+        char* key,
+        int* value) {
+    bool found = false;
+
+    for(int array_index = 0; array_index < array_length; array_index++) {
+        program_arguments_strval_map_t strval_map = array[array_index];
+        size_t strval_len = strlen(strval_map.key);
+        if (strncmp(strval_map.key, key, strval_len) == 0) {
+            *value = strval_map.value;
+            found = true;
+            break;
+        }
+    }
+
+    return found;
+}
+
 error_t program_arguments_argp_parser(
         int key,
         char *arg,
@@ -40,8 +60,11 @@ error_t program_arguments_argp_parser(
             break;
 
         case 'l':
-            program_arguments_strval_map_get(program_arguments_log_level_strings, arg, program_arguments->log_level);
-            if (program_arguments->log_level == -1) {
+            if (program_arguments_strval_map_get(
+                    program_arguments_log_level_strings,
+                    program_arguments_strval_map_len(program_arguments_log_level_strings),
+                    arg,
+                    (int*)(&program_arguments->log_level)) == false) {
 #if DEBUG == 1
                 if (program_arguments_parser_testing == 0) {
 #endif
