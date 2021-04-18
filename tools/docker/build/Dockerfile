@@ -1,3 +1,6 @@
+# Build command
+# docker buildx build --push --platform linux/amd64,linux/arm64/v8 --tag gitlab.cachegrand.dev:5050/cachegrand/cachegrand-server/ubuntu-2004-gcc:latest .
+
 FROM ubuntu:focal
 MAINTAINER d.albano@cachegrand.io
 
@@ -19,10 +22,9 @@ RUN apt update -y \
         cmake \
         git \
         pkg-config \
-        libssl1.1 \
-        libssl-dev \
-        libnuma1 \
-        libnuma-dev \
+        libssl1.1 libssl-dev \
+        libnuma1 libnuma-dev \
+        libyaml-0-2 libyaml-dev \
         lcov \
         ca-certificates \
     && apt-get clean \
