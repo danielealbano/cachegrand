@@ -45,6 +45,7 @@ int program_signals[] = {  SIGUSR1,   SIGINT,   SIGHUP,   SIGTERM,   SIGQUIT  };
 uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
 
 config_t* config = NULL;
+const char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
 
 void program_signal_handlers(
         int signal_number) {
@@ -182,7 +183,16 @@ int program_main() {
     worker_user_data_t* workers_user_data;
 
     // TODO: refactor this function to make it actually testable
-    // TODO: load the config
+
+    // TODO: parse args
+
+    // TODO: once args parsing is done, get config path from args or from default
+    config = config_load(config_path_default);
+    if (config == NULL) {
+        LOG_E(TAG, "Failed to load the configuration, unable to continue");
+        return 1;
+    }
+
     // TODO: initialize the log sinks
     // TODO: initialize the hashtable(s) (with or without LRU, when the support will be added)
     // TODO: initialize the storage
