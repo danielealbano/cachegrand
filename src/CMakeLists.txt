@@ -159,4 +159,4 @@ add_dependencies(
 
 target_link_libraries(
         cachegrand-server
-        cachegrand-internal t1ha)
+        cachegrand-internal ${DEPS_LIST_LIBRARIES_PRIVATE})
