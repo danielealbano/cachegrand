@@ -3,7 +3,7 @@ project(cachegrand LANGUAGES C CXX)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
-include(tools/cmake/config.cmake)
+include(tools/cmake/main.cmake)
 
 add_subdirectory(3rdparty)
 add_subdirectory(src)
