@@ -18,11 +18,12 @@ extern "C" {
 #define SLAB_OBJECT_SIZE_65536  0x00010000
 #define SLAB_OBJECT_SIZE_MAX    SLAB_OBJECT_SIZE_65536
 
-#define SLAB_OBJECT_SIZES       SLAB_OBJECT_SIZE_64, SLAB_OBJECT_SIZE_128, SLAB_OBJECT_SIZE_256, \
-                                SLAB_OBJECT_SIZE_512, SLAB_OBJECT_SIZE_1024, SLAB_OBJECT_SIZE_2048, \
-                                SLAB_OBJECT_SIZE_4096, SLAB_OBJECT_SIZE_8192, SLAB_OBJECT_SIZE_16384, \
-                                SLAB_OBJECT_SIZE_32768, SLAB_OBJECT_SIZE_65536
-#define SLAB_OBJECT_SIZES_COUNT 11
+#define SLAB_PREDEFINED_OBJECT_SIZES    SLAB_OBJECT_SIZE_64, SLAB_OBJECT_SIZE_128, SLAB_OBJECT_SIZE_256, \
+                                        SLAB_OBJECT_SIZE_512, SLAB_OBJECT_SIZE_1024, SLAB_OBJECT_SIZE_2048, \
+                                        SLAB_OBJECT_SIZE_4096, SLAB_OBJECT_SIZE_8192, SLAB_OBJECT_SIZE_16384, \
+                                        SLAB_OBJECT_SIZE_32768, SLAB_OBJECT_SIZE_65536
+static const uint32_t slab_predefined_object_sizes[] = { SLAB_PREDEFINED_OBJECT_SIZES };
+#define SLAB_PREDEFINED_OBJECT_SIZES_COUNT (sizeof(slab_predefined_object_sizes) / sizeof(uint32_t))
 
 typedef struct slab_allocator_core_metadata slab_allocator_core_metadata_t;
 struct slab_allocator_core_metadata {
@@ -96,6 +97,13 @@ typedef union {
     } __attribute__((aligned(64))) data;
 } slab_slice_t;
 
+void slab_allocator_predefined_allocators_init();
+
+void slab_allocator_predefined_allocators_free();
+
+void slab_allocator_enable(
+        bool enable);
+
 slab_allocator_t* slab_allocator_predefined_get_by_size(
         size_t object_size);
 
@@ -142,9 +150,17 @@ void slab_allocator_grow(
         uint32_t core_index,
         void* memptr);
 
-void slab_allocator_hugepage_free(
-        void* memptr,
+void* slab_allocator_mem_alloc_hugepages(
         size_t size);
+
+void slab_allocator_mem_free_hugepages(
+        void* memptr);
+
+void* slab_allocator_mem_alloc_xalloc(
+        size_t size);
+
+void slab_allocator_mem_free_xalloc(
+        void* memptr);
 
 void* slab_allocator_mem_alloc(
         size_t size);

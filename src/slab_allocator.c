@@ -16,7 +16,9 @@
 #include "memory_fences.h"
 #include "spinlock.h"
 #include "xalloc.h"
+#include "log.h"
 #include "fatal.h"
+#include "hugepages.h"
 #include "utils_cpu.h"
 #include "utils_numa.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
@@ -37,23 +39,48 @@ thread_local uint32_t current_thread_core_index = UINT32_MAX;
 thread_local uint32_t current_thread_numa_node_index = UINT32_MAX;
 
 size_t slab_os_page_size;
-slab_allocator_t* predefined_slab_allocators[SLAB_OBJECT_SIZES_COUNT];
+slab_allocator_t* predefined_slab_allocators[SLAB_PREDEFINED_OBJECT_SIZES_COUNT] = { 0 };
+bool slab_allocator_enabled = false;
 
-FUNCTION_CTOR(slab_allocator_init, {
-    // Get page size
+FUNCTION_CTOR(slab_allocator_fetch_slab_os_page_size, {
     slab_os_page_size = xalloc_get_page_size();
-
-    // Allocates all the slab allocator per object size
-    for(int i = 0; i < SLAB_OBJECT_SIZES_COUNT; i++) {
-        predefined_slab_allocators[i] = slab_allocator_init(SLAB_OBJECT_SIZE_64 << i);
-    }
 })
 
-FUNCTION_DTOR(slab_allocator_free, {
-    for(int i = 0; i < SLAB_OBJECT_SIZES_COUNT; i++) {
-        slab_allocator_free(predefined_slab_allocators[i]);
+void slab_allocator_predefined_allocators_init() {
+    if (!slab_allocator_enabled) {
+        FATAL(TAG, "Slab allocator disabled, unable to initialize predefined slab allocators per size");
     }
-});
+
+    for(int i = 0; i < SLAB_PREDEFINED_OBJECT_SIZES_COUNT; i++) {
+        uint32_t object_size = slab_predefined_object_sizes[i];
+        uint32_t predefined_slab_allocators_index = slab_index_by_object_size(object_size);
+
+        predefined_slab_allocators[predefined_slab_allocators_index] =
+                slab_allocator_init(SLAB_OBJECT_SIZE_64 << i);
+    }
+}
+
+void slab_allocator_predefined_allocators_free() {
+    if (!slab_allocator_enabled) {
+        FATAL(TAG, "Slab allocator disabled, unable to free predefined slab allocators per size");
+    }
+
+    for(int i = 0; i < SLAB_PREDEFINED_OBJECT_SIZES_COUNT; i++) {
+        if (predefined_slab_allocators[i] == NULL) {
+            continue;
+        }
+
+        uint32_t object_size = slab_predefined_object_sizes[i];
+        uint32_t predefined_slab_allocators_index = slab_index_by_object_size(object_size);
+        slab_allocator_free(predefined_slab_allocators[predefined_slab_allocators_index]);
+        predefined_slab_allocators[predefined_slab_allocators_index] = NULL;
+    }
+}
+
+void slab_allocator_enable(
+        bool enable) {
+    slab_allocator_enabled = enable;
+}
 
 void slab_allocator_ensure_core_index_and_numa_node_index_filled() {
     if (current_thread_core_index == UINT32_MAX || current_thread_numa_node_index == UINT32_MAX) {
@@ -122,7 +149,8 @@ slab_allocator_t* slab_allocator_init(
         core_metadata->slots = double_linked_list_init();
         spinlock_init(&core_metadata->spinlock);
 
-        // Not numa-friendly, the memory has to be allocated on the correct numa node
+        // TODO: Not numa-friendly, the memory has to be allocated on the correct numa node
+        // TODO: to speed the first allocation a lot of memory get wasted! Needs to be changed.
         core_metadata->free_page_addr = xalloc_hugepages_2mb_alloc(SLAB_PAGE_2MB);
 
         core_metadata->metrics.slices_free_count = 0;
@@ -152,8 +180,8 @@ void slab_allocator_free(
         slab_allocator_numa_node_metadata_t* numa_node_metadata = &slab_allocator->numa_node_metadata[i];
         double_linked_list_item_t* item = numa_node_metadata->slices->head;
 
-        // Can't iterate using the normal double_linked_list_iter_next as the double_linked_list_item is embedded in the hugepage and
-        // the hugepage is going to get freed
+        // Can't iterate using the normal double_linked_list_iter_next as the double_linked_list_item is embedded in the
+        // hugepage and the hugepage is going to get freed
         while(item != NULL) {
             slab_slice_t* slab_slice = item->data;
             item = item->next;
@@ -220,7 +248,9 @@ void slab_allocator_slice_add_slots_to_per_core_metadata_slots(
         slab_slot->data.available = true;
         slab_slot->data.memptr = (void*)(slab_slice->data.data_addr + (index * slab_allocator->object_size));
 
-        double_linked_list_unshift_item(slab_allocator->core_metadata[core_index].slots, &slab_slot->double_linked_list_item);
+        double_linked_list_unshift_item(
+                slab_allocator->core_metadata[core_index].slots,
+                &slab_slot->double_linked_list_item);
     }
 }
 
@@ -232,7 +262,9 @@ void slab_allocator_slice_remove_slots_from_per_core_metadata_slots(
     slab_slot_t* slab_slot;
     for(uint32_t index = 0; index < slab_slice->data.metrics.objects_total_count; index++) {
         slab_slot = &slab_slice->data.slots[index];
-        double_linked_list_remove_item(slab_allocator->core_metadata[core_index].slots, &slab_slot->double_linked_list_item);
+        double_linked_list_remove_item(
+                slab_allocator->core_metadata[core_index].slots,
+                &slab_slot->double_linked_list_item);
     }
 }
 
@@ -349,7 +381,7 @@ void slab_allocator_grow(
     })
 }
 
-void* slab_allocator_mem_alloc(
+void* slab_allocator_mem_alloc_hugepages(
         size_t size) {
     bool allocaet_new_hugepage = false;
     slab_slot_t* slab_slot = NULL;
@@ -402,8 +434,8 @@ void* slab_allocator_mem_alloc(
 
     if (allocaet_new_hugepage) {
         // Can be done without locking but with a memory write fence because the spinlock above guarantees that
-        // only one thread can get through allocating a new huge page for the same core, if more than one thread fetches
-        // the free hugepage then the read memory barrier and the check above will avoid using a null pointer.
+        // only one thread can get through allocating a new huge page for the same core, if more than one thread
+        // fetches the free hugepage then the read memory barrier and the check above will avoid using a null pointer.
         core_metadata->free_page_addr = xalloc_hugepages_2mb_alloc(SLAB_PAGE_2MB);
         HASHTABLE_MEMORY_FENCE_STORE();
     }
@@ -428,15 +460,15 @@ bool slab_allocator_mem_try_alloc(
     return true;
 }
 
-void slab_allocator_mem_free(
+void slab_allocator_mem_free_hugepages(
         void* memptr) {
     assert(current_thread_core_index < UINT32_MAX);
     assert(current_thread_numa_node_index < UINT32_MAX);
 
     bool can_free_slab_slice = false;
 
-    // Acquire the slab_slice, the slab_allocator, the slab_slot and the core_metadata for the current core on which the
-    // thread is running
+    // Acquire the slab_slice, the slab_allocator, the slab_slot and the core_metadata for the current core on which
+    // the thread is running
     slab_slice_t* slab_slice = slab_allocator_slice_from_memptr(memptr);
     slab_allocator_t* slab_allocator = slab_slice->data.slab_allocator;
     slab_slot_t* slot = slab_allocator_slot_from_memptr(
@@ -456,8 +488,8 @@ void slab_allocator_mem_free(
                 core_metadata->slots,
                 &slot->double_linked_list_item);
 
-        // If the slice is empty and for the currently core there is already another empty slice, make the current slice
-        // available for other cores in the same numa node
+        // If the slice is empty and for the currently core there is already another empty slice, make the current
+        // slice available for other cores in the same numa node
         if (slab_slice->data.metrics.objects_inuse_count == 0) {
             core_metadata->metrics.slices_free_count++;
             core_metadata->metrics.slices_inuse_count--;
@@ -473,5 +505,33 @@ void slab_allocator_mem_free(
 
     if (can_free_slab_slice) {
         xalloc_hugepages_free(slab_slice->data.page_addr, SLAB_PAGE_2MB);
+    }
+}
+
+void* slab_allocator_mem_alloc_xalloc(
+        size_t size) {
+    return xalloc_alloc(size);
+}
+
+void slab_allocator_mem_free_xalloc(
+        void* memptr) {
+    xalloc_free(memptr);
+}
+
+void* slab_allocator_mem_alloc(
+        size_t size) {
+    if (slab_allocator_enabled) {
+        return slab_allocator_mem_alloc_hugepages(size);
+    } else {
+        return slab_allocator_mem_alloc_xalloc(size);
+    }
+}
+
+void slab_allocator_mem_free(
+        void* memptr) {
+    if (slab_allocator_enabled) {
+        slab_allocator_mem_free_hugepages(memptr);
+    } else {
+        slab_allocator_mem_free_xalloc(memptr);
     }
 }
