@@ -50,7 +50,7 @@ void program_arguments_docs_header_free(
 program_arguments_t* program_arguments_init();
 void program_arguments_free(
         program_arguments_t* program_arguments);
-void program_arguments_parse(
+bool program_arguments_parse(
         int argc,
         char **argv,
         program_arguments_t* program_arguments);
