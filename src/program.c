@@ -178,7 +178,9 @@ void program_workers_cleanup(
     xalloc_free(workers_user_data);
 }
 
-int program_main() {
+int program_main(
+        int argc,
+        char** argv) {
     uint32_t workers_count;
     worker_user_data_t* workers_user_data;
 

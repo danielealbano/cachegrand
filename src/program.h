@@ -16,12 +16,10 @@ extern "C" {
 void program_signal_handlers(
         int sig);
 void program_register_signal_handlers();
-
 worker_user_data_t* program_workers_initialize(
         volatile bool *terminate_event_loop,
         config_t* config,
         uint32_t workers_count);
-
 bool* program_get_terminate_event_loop();
 void program_request_terminate(
         volatile bool *terminate_event_loop);
@@ -29,11 +27,12 @@ bool program_should_terminate(
         volatile bool *terminate_event_loop);
 void program_wait_loop(
         volatile bool *terminate_event_loop);
-
 void program_workers_cleanup(
         worker_user_data_t* workers_user_data,
         uint32_t workers_count);
-int program_main();
+int program_main(
+        int argc,
+        char** argv);
 
 #ifdef __cplusplus
 }

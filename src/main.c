@@ -16,6 +16,6 @@
 
 #include "program.h"
 
-int main() {
-    return program_main();
+int main(int argc, char** argv) {
+    return program_main(argc, argv);
 }
