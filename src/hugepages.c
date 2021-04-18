@@ -51,9 +51,9 @@ bool hugepages_file_read_uint32(
     *out_data = strtol(data, &remaining_data, 0);
 
     // A new line is expected
-    if (*remaining_data != 0x0a) {
+    if (*remaining_data != 0x0a || data == remaining_data) {
         LOG_E(TAG, "Unable to read %s: invalid number", path);
-        return -1;
+        return false;
     }
 
     return true;
