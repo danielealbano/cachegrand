@@ -19,6 +19,9 @@
 #include "misc.h"
 #include "xalloc.h"
 #include "log.h"
+#include "hugepages.h"
+#include "spinlock.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
 #include "signals_support.h"
 #include "memory_fences.h"
 #include "support/io_uring/io_uring_support.h"
@@ -31,6 +34,7 @@
 #include "worker/worker.h"
 #include "worker/worker_iouring.h"
 #include "config.h"
+#include "slab_allocator.h"
 
 #include "program.h"
 #include "program_arguments.h"
@@ -215,10 +219,40 @@ config_t* program_parse_arguments_and_load_config(
     return config;
 }
 
+bool program_use_slab_allocator(
+        config_t* config) {
+    // TODO: estimate how much 2mb hugepages should be available to properly work with the current settings, just
+    //       having 2mb hugepages is not enough to guarantee that memory will be available during the execution, it
+    //       should be reserved
+    int requested_hugepages = 0;
+    bool use_slab_allocator;
+
+    // use_slab_allocator is optional
+    if (config->use_slab_allocator == NULL) {
+        use_slab_allocator = true;
+    } else {
+        use_slab_allocator = *config->use_slab_allocator;
+    }
+
+    if (use_slab_allocator) {
+        if (!hugepages_2mb_is_available(requested_hugepages)) {
+            LOG_W(TAG, "Disabling slab allocator, 2mb hugepages not available, performances will be degraded");
+            use_slab_allocator = false;
+        }
+    } else {
+        LOG_W(TAG, "slab allocator disabled in config, performances will be degraded");
+    }
+
+    slab_allocator_enable(use_slab_allocator);
+
+    return use_slab_allocator;
+}
+
 int program_main(
         int argc,
         char** argv) {
     config_t* config;
+    bool use_slab_allocator;
     uint32_t workers_count;
     worker_user_data_t* workers_user_data;
 
@@ -231,14 +265,8 @@ int program_main(
     // TODO: initialize the log sinks
     // TODO: initialize the protocol parsers
     // TODO: initialize the network listeners and the protocol state machines
-    // TODO: initialize the hashtable(s) (with or without LRU, when the support will be added)
-    // TODO: initialize the storage
-    // TODO: start the worker threads and invoke the worker thread main func
 
-    if (io_uring_capabilities_is_fast_poll_supported() == false) {
-        LOG_E(TAG, "io_uring isn't supported, update the kernel to at least version 5.7.0 and enable io_uring");
-        return 1;
-    }
+    use_slab_allocator = program_use_slab_allocator(config);
 
     program_register_signal_handlers();
 
@@ -249,6 +277,14 @@ int program_main(
 #else
     workers_count = utils_cpu_count();
 #endif
+
+    // TODO: initialize the hashtable(s) (with or without LRU, when the support will be added)
+    // TODO: initialize the storage
+    // TODO: start the worker threads and invoke the worker thread main func
+
+    if (use_slab_allocator) {
+        slab_allocator_predefined_allocators_init();
+    }
 
     if ((workers_user_data = program_workers_initialize(
             &program_terminate_event_loop,
@@ -262,6 +298,10 @@ int program_main(
     program_workers_cleanup(
             workers_user_data,
             workers_count);
+
+    if (use_slab_allocator) {
+        slab_allocator_predefined_allocators_free();
+    }
 
     config_free(config);
 
