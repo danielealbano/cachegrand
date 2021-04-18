@@ -12,6 +12,7 @@
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "worker/worker.h"
+#include "config.h"
 
 #include "program.h"
 
