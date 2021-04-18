@@ -13,7 +13,7 @@ ExternalProject_Add(
         liburing-install
         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/liburing
         PREFIX ${CMAKE_BINARY_DIR}/_deps
-        CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/liburing/configure --prefix=${CMAKE_BINARY_DIR}/_deps/liburing/install
+        CONFIGURE_COMMAND chmod +x ${CMAKE_CURRENT_SOURCE_DIR}/liburing/configure && ${CMAKE_CURRENT_SOURCE_DIR}/liburing/configure --prefix=${CMAKE_BINARY_DIR}/_deps/liburing/install
         INSTALL_COMMAND cmake -E echo "Skipping install step."
         BUILD_COMMAND cmake -E echo "Skipping build step.")
 
