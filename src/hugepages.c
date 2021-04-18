@@ -60,7 +60,7 @@ bool hugepages_file_read_uint32(
 }
 
 uint32_t hugepages_file_path_uint32_return(
-        char* path) {
+        const char* path) {
     uint32_t value;
     if (!hugepages_file_read_uint32(path, &value)) {
         return 0;

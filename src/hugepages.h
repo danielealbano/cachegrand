@@ -21,7 +21,7 @@ bool hugepages_file_read_uint32(
         const char* path,
         uint32_t* out_data);
 uint32_t hugepages_file_path_uint32_return(
-        char* path);
+        const char* path);
 bool hugepages_2mb_is_available(
         int min_available);
 bool hugepages_1024mb_is_available(
