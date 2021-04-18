@@ -29,6 +29,7 @@ typedef struct slab_allocator_core_metadata slab_allocator_core_metadata_t;
 struct slab_allocator_core_metadata {
     spinlock_lock_volatile_t spinlock;
     void* free_page_addr;
+    bool free_page_addr_first_inited;
 
     // The slots are sorted per availability
     double_linked_list_t* slots;

@@ -151,7 +151,8 @@ slab_allocator_t* slab_allocator_init(
 
         // TODO: Not numa-friendly, the memory has to be allocated on the correct numa node
         // TODO: to speed the first allocation a lot of memory get wasted! Needs to be changed.
-        core_metadata->free_page_addr = xalloc_hugepages_2mb_alloc(SLAB_PAGE_2MB);
+        core_metadata->free_page_addr = NULL;
+        core_metadata->free_page_addr_first_inited = false;
 
         core_metadata->metrics.slices_free_count = 0;
         core_metadata->metrics.slices_total_count = 0;
@@ -196,11 +197,10 @@ void slab_allocator_free(
         double_linked_list_free(core_metadata->slots);
 
         // If a thread is still allocating an hugepage while the slab allocator is getting freed wait for it to avoid
-        // losing it (although slab_allocator_free should only be invoked in the destructor and therefore doesn't
-        // matter too much, the kernel will take care of it)
+        // losing it
         do {
             HASHTABLE_MEMORY_FENCE_LOAD();
-        } while (core_metadata->free_page_addr == NULL);
+        } while (core_metadata->free_page_addr == NULL && core_metadata->free_page_addr_first_inited == true);
 
         xalloc_hugepages_free(core_metadata->free_page_addr, SLAB_PAGE_2MB);
     }
@@ -383,7 +383,7 @@ void slab_allocator_grow(
 
 void* slab_allocator_mem_alloc_hugepages(
         size_t size) {
-    bool allocaet_new_hugepage = false;
+    bool allocate_new_hugepage = false;
     slab_slot_t* slab_slot = NULL;
     slab_slice_t* slab_slice = NULL;
 
@@ -401,6 +401,11 @@ void* slab_allocator_mem_alloc_hugepages(
 
         if (slots_per_core_head_item == NULL || slab_slot->data.available == false) {
             if (slab_allocator_slice_try_acquire(slab_allocator) == false) {
+                if (!core_metadata->free_page_addr_first_inited) {
+                    core_metadata->free_page_addr_first_inited = true;
+                    core_metadata->free_page_addr = xalloc_hugepages_2mb_alloc(SLAB_PAGE_2MB);
+                }
+
                 // Ensure that free_page_addr is not null, if it is null the previous thread that used it hasn't
                 // allocated the new one yet.
                 // See comment below on ...if (core_metadata->free_page_addr == NULL)... for a bit more details on why
@@ -416,7 +421,7 @@ void* slab_allocator_mem_alloc_hugepages(
                         core_metadata->free_page_addr);
 
                 core_metadata->free_page_addr = NULL;
-                allocaet_new_hugepage = true;
+                allocate_new_hugepage = true;
             }
 
             slots_per_core_head_item = slots_per_core_list->head;
@@ -432,7 +437,7 @@ void* slab_allocator_mem_alloc_hugepages(
         core_metadata->metrics.objects_inuse_count++;
     });
 
-    if (allocaet_new_hugepage) {
+    if (core_metadata->free_page_addr_first_inited == true && allocate_new_hugepage) {
         // Can be done without locking but with a memory write fence because the spinlock above guarantees that
         // only one thread can get through allocating a new huge page for the same core, if more than one thread
         // fetches the free hugepage then the read memory barrier and the check above will avoid using a null pointer.
