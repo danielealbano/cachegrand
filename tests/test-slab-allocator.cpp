@@ -36,7 +36,8 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
             REQUIRE(slab_allocator->core_metadata[i].metrics.slices_inuse_count == 0);
             REQUIRE(slab_allocator->core_metadata[i].metrics.slices_free_count == 0);
             REQUIRE(slab_allocator->core_metadata[i].slots->count == 0);
-            REQUIRE(slab_allocator->core_metadata[i].free_page_addr != NULL);
+            REQUIRE(slab_allocator->core_metadata[i].free_page_addr == NULL);
+            REQUIRE(slab_allocator->core_metadata[i].free_page_addr_first_inited == false);
         }
 
         slab_allocator_free(slab_allocator);
@@ -128,6 +129,8 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
 
         slab_allocator_slice_remove_slots_from_per_core_metadata_slots(slab_allocator, slab_slice, core_index);
 
+        REQUIRE(slab_allocator->core_metadata[core_index].free_page_addr == NULL);
+        REQUIRE(slab_allocator->core_metadata[core_index].free_page_addr_first_inited == false);
         REQUIRE(slab_allocator->core_metadata[core_index].slots->tail == NULL);
         REQUIRE(slab_allocator->core_metadata[core_index].slots->head == NULL);
         REQUIRE(slab_slice->data.slots[0].data.available == true);
@@ -158,6 +161,8 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
         REQUIRE(&slab_allocator->numa_node_metadata[numa_node_index].slices->head->data == &slab_slice->double_linked_list_item.data);
         REQUIRE(&slab_allocator->numa_node_metadata[numa_node_index].slices->tail->data == &slab_slice->double_linked_list_item.data);
         REQUIRE(slab_slice->data.available == false);
+        REQUIRE(slab_allocator->core_metadata[core_index].free_page_addr == NULL);
+        REQUIRE(slab_allocator->core_metadata[core_index].free_page_addr_first_inited == false);
         REQUIRE(slab_allocator->core_metadata[core_index].slots->tail == &slab_slice->data.slots[0].double_linked_list_item);
         REQUIRE(slab_allocator->core_metadata[core_index].slots->head ==
                 &slab_slice->data.slots[slab_slice->data.metrics.objects_total_count - 1].double_linked_list_item);
@@ -182,6 +187,8 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
             REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.total_slices_count == 1);
             REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.free_slices_count == 0);
             REQUIRE(slab_allocator->core_metadata[core_index].slots->tail->data == memptr);
+            REQUIRE(slab_allocator->core_metadata[core_index].free_page_addr != NULL);
+            REQUIRE(slab_allocator->core_metadata[core_index].free_page_addr_first_inited == true);
             REQUIRE(((slab_slot_t*) slab_allocator->core_metadata[core_index].slots->tail)->data.available == false);
             REQUIRE(((slab_slot_t*) slab_allocator->core_metadata[core_index].slots->head)->data.available == true);
             REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.metrics.objects_inuse_count == 1);
