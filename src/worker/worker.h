@@ -9,12 +9,6 @@ extern "C" {
 #define WORKER_LOG_PRODUCER_PREFIX_FORMAT_STRING "[WORKER: %-3u][THREAD ID: %-10ld]"
 #define WORKER_PUBLISH_STATS_DELAY_SEC  1
 
-enum worker_type {
-    WORKER_TYPE_UNKNOWN = 0,
-    WORKER_TYPE_IO_URING
-};
-typedef enum worker_type worker_type_t;
-
 typedef struct worker_stats worker_stats_t;
 struct worker_stats {
     struct {
