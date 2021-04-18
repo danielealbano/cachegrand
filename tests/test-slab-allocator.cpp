@@ -167,6 +167,9 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
     }
 
     SECTION("slab_allocator_mem_alloc") {
+        slab_allocator_enable(true);
+        slab_allocator_predefined_allocators_init();
+
         SECTION("allocate 1 object") {
             uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
             uint32_t core_index = slab_allocator_get_current_thread_core_index();
@@ -246,9 +249,15 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
             REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.available == false);
             REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail->prev)->data.available == false);
         }
+
+        slab_allocator_predefined_allocators_free();
+        slab_allocator_enable(false);
     }
 
     SECTION("slab_allocator_mem_free") {
+        slab_allocator_enable(true);
+        slab_allocator_predefined_allocators_init();
+
         SECTION("allocate and free 1 object") {
             uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
             uint32_t core_index = slab_allocator_get_current_thread_core_index();
@@ -346,9 +355,12 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
             REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.available == true);
             REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail->prev)->data.available == true);
         }
+
+        slab_allocator_predefined_allocators_free();
+        slab_allocator_enable(false);
     }
 
-    SECTION("slab_allocator_mem_alloc_zero") {
+    SECTION("slab_allocator_mem_alloc_zero") {;
         SECTION("ensure that after reallocation memory is zero-ed") {
             const char* fixture_test_slab_allocator_mem_alloc_zero_str = "THIS IS A TEST";
 
