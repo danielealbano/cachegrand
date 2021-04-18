@@ -212,9 +212,11 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
         SECTION("allocate 1 object") {
             uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
             uint32_t core_index = slab_allocator_get_current_thread_core_index();
-            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(64);
+            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
+                    slab_predefined_object_sizes[0]);
 
-            void *memptr = slab_allocator_mem_alloc(64);
+            void *memptr = slab_allocator_mem_alloc_hugepages(
+                    slab_predefined_object_sizes[0]);
 
             REQUIRE(slab_allocator->metrics.total_slices_count == 1);
             REQUIRE(slab_allocator->metrics.free_slices_count == 0);
@@ -235,7 +237,8 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
         SECTION("fill one page") {
             uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
             uint32_t core_index = slab_allocator_get_current_thread_core_index();
-            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(128);
+            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
+                    slab_predefined_object_sizes[0]);
             size_t slab_slot_size = sizeof(slab_slot_t);
             size_t slab_page_size = 2 * 1024 * 1024;
             size_t os_page_size = xalloc_get_page_size();
@@ -244,7 +247,8 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
             uint32_t slots_count = (int)(usable_page_size / item_size);
 
             for(int i = 0; i < slots_count; i++) {
-                void *memptr = slab_allocator_mem_alloc(128);
+                void *memptr = slab_allocator_mem_alloc_hugepages(
+                        slab_predefined_object_sizes[0]);
             }
 
             REQUIRE(slab_allocator->metrics.total_slices_count == 1);
@@ -261,7 +265,8 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
         SECTION("trigger second page creation") {
             uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
             uint32_t core_index = slab_allocator_get_current_thread_core_index();
-            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(256);
+            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
+                    slab_predefined_object_sizes[0]);
             size_t slab_slot_size = sizeof(slab_slot_t);
             size_t slab_page_size = 2 * 1024 * 1024;
             size_t os_page_size = xalloc_get_page_size();
@@ -270,7 +275,8 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
             uint32_t slots_count = (int)(usable_page_size / item_size);
 
             for(int i = 0; i < slots_count + 1; i++) {
-                void *memptr = slab_allocator_mem_alloc(256);
+                void *memptr = slab_allocator_mem_alloc_hugepages(
+                        slab_predefined_object_sizes[0]);
             }
 
             REQUIRE(slab_allocator->metrics.total_slices_count == 2);
@@ -295,21 +301,23 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
         slab_allocator_enable(false);
     }
 
-    SECTION("slab_allocator_mem_free") {
+    SECTION("slab_allocator_mem_free_hugepages") {
         slab_allocator_enable(true);
         slab_allocator_predefined_allocators_init();
 
         SECTION("allocate and free 1 object") {
             uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
             uint32_t core_index = slab_allocator_get_current_thread_core_index();
-            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(512);
+            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
+                    slab_predefined_object_sizes[0]);
 
-            void *memptr = slab_allocator_mem_alloc(512);
+            void *memptr = slab_allocator_mem_alloc_hugepages(
+                    slab_predefined_object_sizes[0]);
 
             REQUIRE(slab_allocator->core_metadata[core_index].slots->head->data != memptr);
             REQUIRE(slab_allocator->core_metadata[core_index].slots->tail->data == memptr);
 
-            slab_allocator_mem_free(memptr);
+            slab_allocator_mem_free_hugepages(memptr);
 
             REQUIRE(slab_allocator->metrics.total_slices_count == 1);
             REQUIRE(slab_allocator->metrics.free_slices_count == 0);
@@ -328,7 +336,8 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
         SECTION("fill and free one page") {
             uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
             uint32_t core_index = slab_allocator_get_current_thread_core_index();
-            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(1024);
+            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
+                    slab_predefined_object_sizes[0]);
             size_t slab_slot_size = sizeof(slab_slot_t);
             size_t slab_page_size = 2 * 1024 * 1024;
             size_t os_page_size = xalloc_get_page_size();
@@ -338,11 +347,12 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
 
             void** memptrs = (void**)malloc(sizeof(void*) * slots_count);
             for(int i = 0; i < slots_count; i++) {
-                memptrs[i] = slab_allocator_mem_alloc(1024);
+                memptrs[i] = slab_allocator_mem_alloc_hugepages(
+                        slab_predefined_object_sizes[0]);
             }
 
             for(int i = 0; i < slots_count; i++) {
-                slab_allocator_mem_free(memptrs[i]);
+                slab_allocator_mem_free_hugepages(memptrs[i]);
             }
 
             REQUIRE(slab_allocator->metrics.total_slices_count == 1);
@@ -362,7 +372,8 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
         SECTION("fill and free one page and one element") {
             uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
             uint32_t core_index = slab_allocator_get_current_thread_core_index();
-            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(2048);
+            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
+                    slab_predefined_object_sizes[0]);
             size_t slab_slot_size = sizeof(slab_slot_t);
             size_t slab_page_size = 2 * 1024 * 1024;
             size_t os_page_size = xalloc_get_page_size();
@@ -374,11 +385,12 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
 
             void** memptrs = (void**)malloc(sizeof(void*) * slots_count);
             for(int i = 0; i < slots_count; i++) {
-                memptrs[i] = slab_allocator_mem_alloc(2048);
+                memptrs[i] = slab_allocator_mem_alloc_hugepages(
+                        slab_predefined_object_sizes[0]);
             }
 
             for(int i = 0; i < slots_count; i++) {
-                slab_allocator_mem_free(memptrs[i]);
+                slab_allocator_mem_free_hugepages(memptrs[i]);
             }
 
             REQUIRE(slab_allocator->metrics.total_slices_count == 2);
@@ -405,14 +417,16 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
         SECTION("ensure that after reallocation memory is zero-ed") {
             const char* fixture_test_slab_allocator_mem_alloc_zero_str = "THIS IS A TEST";
 
-            void *memptr1 = slab_allocator_mem_alloc_zero(64);
+            void *memptr1 = slab_allocator_mem_alloc_zero(
+                    slab_predefined_object_sizes[0]);
 
             strcpy((char*)memptr1, fixture_test_slab_allocator_mem_alloc_zero_str);
 
             REQUIRE(strcmp((char*)memptr1, fixture_test_slab_allocator_mem_alloc_zero_str) == 0);
 
             slab_allocator_mem_free(memptr1);
-            void *memptr2 = slab_allocator_mem_alloc_zero(64);
+            void *memptr2 = slab_allocator_mem_alloc_zero(
+                    slab_predefined_object_sizes[0]);
 
             REQUIRE(memptr1 == memptr2);
             REQUIRE(strcmp((char*)memptr2, fixture_test_slab_allocator_mem_alloc_zero_str) != 0);
