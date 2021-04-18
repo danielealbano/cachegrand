@@ -33,6 +33,7 @@
 #include "config.h"
 
 #include "program.h"
+#include "program_arguments.h"
 
 #define TAG "program"
 
@@ -44,7 +45,6 @@ uint32_t program_addresses_count = PROGRAM_NETWORK_ADDRESSES_COUNT;
 int program_signals[] = {  SIGUSR1,   SIGINT,   SIGHUP,   SIGTERM,   SIGQUIT  };
 uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
 
-config_t* config = NULL;
 static char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
 
 void program_signal_handlers(
