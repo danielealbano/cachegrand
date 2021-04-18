@@ -23,7 +23,6 @@ enum config_log_level {
     CONFIG_LOG_LEVEL_INFO,
     CONFIG_LOG_LEVEL_VERBOSE,
     CONFIG_LOG_LEVEL_DEBUG,
-    CONFIG_LOG_LEVEL_DEBUG_INTERNALS
 };
 typedef enum config_log_level config_log_level_t;
 
