@@ -51,6 +51,17 @@ struct log_sink {
     log_sink_type_t type;
     FILE* out;
     log_level_t levels;
+    union {
+        struct {
+            bool use_stdout_for_errors;
+        } console;
+        struct {
+            char* filepath;
+            struct {
+                FILE* fp;
+            } internal;
+        } file;
+    } settings;
 };
 
 typedef struct log_producer log_producer_t;
