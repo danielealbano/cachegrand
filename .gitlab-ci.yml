@@ -5,6 +5,8 @@ variables:
   CXX: "/usr/bin/g++-9"
   GCOV: "/usr/bin/gcov-9"
   BUILD_DIR_NAME: "build"
+  SAST_DEFAULT_ANALYZERS: "flawfinder"
+  SAST_EXCLUDED_PATHS: "3dparty,tests,benches,tools,build"
 
 stages:
   - build
