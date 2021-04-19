@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <pthread.h>
 #include <sched.h>
