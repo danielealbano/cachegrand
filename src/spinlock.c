@@ -8,7 +8,7 @@
 #include "misc.h"
 #include "exttypes.h"
 #include "spinlock.h"
-#include "log.h"
+#include "log/log.h"
 #include "fatal.h"
 
 #define TAG "spinlock"

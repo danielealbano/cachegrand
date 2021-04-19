@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include "memory_fences.h"
-#include "log.h"
+#include "log/log.h"
 #include "exttypes.h"
 #include "spinlock.h"
 #include "xalloc.h"

@@ -10,7 +10,7 @@
 #include <windows.h>
 #endif
 
-#include "log.h"
+#include "log/log.h"
 #include "misc.h"
 #include "fatal.h"
 

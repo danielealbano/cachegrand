@@ -10,7 +10,7 @@
 #include "xalloc.h"
 #include "thread.h"
 #include "memory_fences.h"
-#include "log.h"
+#include "log/log.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"

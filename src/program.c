@@ -18,7 +18,7 @@
 #include "exttypes.h"
 #include "misc.h"
 #include "xalloc.h"
-#include "log.h"
+#include "log/log.h"
 #include "hugepages.h"
 #include "spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"

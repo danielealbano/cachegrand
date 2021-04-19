@@ -8,7 +8,7 @@
 
 #include "utils_cpu.h"
 #include "misc.h"
-#include "log.h"
+#include "log/log.h"
 
 #include "thread.h"
 

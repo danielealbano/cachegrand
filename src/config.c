@@ -10,7 +10,7 @@
 #include "exttypes.h"
 #include "misc.h"
 #include "xalloc.h"
-#include "log.h"
+#include "log/log.h"
 #include "fatal.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/protocol/network_protocol.h"

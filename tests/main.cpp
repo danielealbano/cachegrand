@@ -5,7 +5,7 @@
 #include <unistd.h>
 
 #include "misc.h"
-#include "log.h"
+#include "log/log.h"
 #include "signals_support.h"
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"

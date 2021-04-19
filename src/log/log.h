@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 #include <stdarg.h>
-#include <log_debug.h>
+#include <log/log_debug.h>
 #include <stdio.h>
 
 #define LOG_SINK_REGISTERED_MAX             4

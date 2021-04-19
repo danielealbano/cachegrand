@@ -16,7 +16,7 @@
 #include "memory_fences.h"
 #include "spinlock.h"
 #include "xalloc.h"
-#include "log.h"
+#include "log/log.h"
 #include "fatal.h"
 #include "hugepages.h"
 #include "utils_cpu.h"

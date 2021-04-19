@@ -6,7 +6,7 @@
 #include <assert.h>
 
 #include "misc.h"
-#include "log.h"
+#include "log/log.h"
 #include "xalloc.h"
 #include "network/protocol/network_protocol.h"
 #include "protocol/redis/protocol_redis_reader.h"

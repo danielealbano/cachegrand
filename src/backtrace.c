@@ -20,7 +20,7 @@
 #endif
 
 #include "backtrace.h"
-#include "log.h"
+#include "log/log.h"
 
 void backtrace_print() {
 #if defined(__linux__) || defined(__APPLE__)

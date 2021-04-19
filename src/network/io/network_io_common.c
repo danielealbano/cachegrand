@@ -8,7 +8,7 @@
 #include <netinet/tcp.h>
 
 #include "misc.h"
-#include "log.h"
+#include "log/log.h"
 
 #include "network/protocol/network_protocol.h"
 #include "network_io_common.h"

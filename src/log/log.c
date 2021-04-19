@@ -16,22 +16,14 @@
 //       The current producers overlay managed via the LOG_PRODUCER_* macros / log_producer_* functions should go
 //       because it doesn't provide anything and it's just a wrapper to the textual TAG so it should just be reverted to
 //       be a simple textual tag.
-//       To make the logging thread safe and flexible for each thread using the logging there should be a thread_local
-//       ring buffer with a fixed size, the producing thread will be the only updating the entries and 2 counters will
-//       be used to keep track of the enqueued and dequeued entries.
-//       The entries will have to be dequeued by a log worker thread per sink, the ring buffers will have to allow each
-//       worker thread to track the processed entries, this is not a big deal because we can preallocate a fixed number
-//       of counters because we do allow only up to a certain amount of log sinks (currently this is defined via the
-//       LOG_SINK_REGISTERED_MAX macro and the memory pre-allocated but it can be allocated at runtime at the start
-//       before logging is being used, they just can't easily change during the execution).
-//       When a thread starts to produce new logs, it has to register the log ring buffer with the log workers of the
-//       sink but because this operation has to run within the producer thread it has to rely on atomic ops to safely
-//       update the list of tracked ring buffers.
-//       To enqueue and dequeue the ring buffer entries, simple memory barriers are more than enough.
-//       If a producer will saturate the ring buffer it will just wait, although in a future an overflow list can be
-//       maintained so the producer will be able to proceed and once there will be enough room it will copy the data
-//       but also making it wait is not a bad idea beacuse will release some of the pressure from the worker and
-//       provide a good balance.
+//       Everytime a thread tries to submit a message to be logged should check if it has been registered with the
+//       logging system and if not it should register, threads are not spawn dynamically so the logging thread will
+//       waste away checks on ended threads, but if it will be necessary a GC can be performed on threads that are not
+//       logging and the logging mechanism will take care of re-registering the thread if it has been de-registered
+//       simply tracking the registration status.
+//       The registration mechanism must be provided in a transparent way by the logging mechanism.
+//       To make the logging thread safe and fast enough to cope with the performance requirements, a double ring-buffer
+//       of pre-allocated objects should be used.
 
 thread_local char* log_producer_early_prefix_thread = NULL;
 
@@ -164,6 +156,12 @@ void log_message_print_os_error(
     char buf[1024] = {0};
     char *error_message;
     error_code = errno;
+
+    // If error code is OK skip
+    if (error_code == 0) {
+        return;
+    }
+
     strerror_r(error_code, buf, sizeof(buf));
     error_message = buf;
 #elif defined(__MINGW32__)

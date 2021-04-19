@@ -8,7 +8,7 @@
 #include <signal.h>
 
 #include "misc.h"
-#include "log.h"
+#include "log/log.h"
 #include "fatal.h"
 #include "signals_support.h"
 

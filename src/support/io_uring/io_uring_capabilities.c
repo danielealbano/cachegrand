@@ -5,7 +5,7 @@
 #include <liburing.h>
 
 #include "misc.h"
-#include "log.h"
+#include "log/log.h"
 #include "version.h"
 #include "xalloc.h"
 

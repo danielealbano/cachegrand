@@ -28,7 +28,7 @@
 #include "exttypes.h"
 #include "spinlock.h"
 #include "misc.h"
-#include "log.h"
+#include "log/log.h"
 #include "fatal.h"
 #include "utils_cpu.h"
 #include "xalloc.h"

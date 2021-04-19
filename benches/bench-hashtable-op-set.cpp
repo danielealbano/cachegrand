@@ -6,7 +6,7 @@
 
 #include "exttypes.h"
 #include "spinlock.h"
-#include "log.h"
+#include "log/log.h"
 
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"

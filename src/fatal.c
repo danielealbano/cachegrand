@@ -14,7 +14,7 @@
 #error Platform not supported
 #endif
 
-#include "log.h"
+#include "log/log.h"
 #include "fatal.h"
 #include "backtrace.h"
 

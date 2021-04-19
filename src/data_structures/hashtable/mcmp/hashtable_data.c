@@ -6,7 +6,7 @@
 #include "exttypes.h"
 #include "spinlock.h"
 #include "xalloc.h"
-#include "log.h"
+#include "log/log.h"
 #include "pow2.h"
 
 #include "hashtable.h"

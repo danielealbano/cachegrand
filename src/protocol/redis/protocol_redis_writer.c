@@ -7,7 +7,7 @@
 
 #include "exttypes.h"
 #include "misc.h"
-#include "log.h"
+#include "log/log.h"
 #include "protocol_redis.h"
 
 #include "protocol_redis_writer.h"

@@ -3,7 +3,7 @@
 #include <stdbool.h>
 
 #include "exttypes.h"
-#include "log.h"
+#include "log/log.h"
 
 #include "hash/hash_crc32c.h"
 

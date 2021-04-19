@@ -11,7 +11,7 @@ using namespace std;
 #include "memory_fences.h"
 #include "spinlock_ticket.h"
 #include "utils_cpu.h"
-#include "log_debug.h"
+#include "log/log_debug.h"
 
 void* test_spinlock_ticket_lock_lock_retry_try_lock_thread_func(void* rawdata) {
     spinlock_ticket_lock_volatile_t* lock = (spinlock_ticket_lock_volatile_t*)rawdata;

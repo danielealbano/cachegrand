@@ -8,7 +8,7 @@
 
 #include "misc.h"
 #include "exttypes.h"
-#include "log.h"
+#include "log/log.h"
 
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"

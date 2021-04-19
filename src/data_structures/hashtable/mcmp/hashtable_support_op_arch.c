@@ -8,7 +8,7 @@
 #include "exttypes.h"
 #include "memory_fences.h"
 #include "misc.h"
-#include "log.h"
+#include "log/log.h"
 #include "spinlock.h"
 
 #include "hashtable.h"

@@ -8,7 +8,7 @@
 #include <error.h>
 #include <errno.h>
 
-#include "log.h"
+#include "log/log.h"
 
 #include "hugepages.h"
 
