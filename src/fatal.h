@@ -8,7 +8,9 @@ extern "C" {
 #define FATAL(tag, ...) \
     { fatal(tag, __VA_ARGS__); }
 
-void fatal(const char *tag, const char *message, ...);
+void fatal(
+        const char *tag,
+        const char *message, ...);
 
 #ifdef __cplusplus
 }

@@ -71,21 +71,28 @@ struct log_producer {
 
 void log_producer_set_early_prefix_thread(
         char* prefix);
+
 char* log_producer_get_early_prefix_thread();
+
 void log_producer_unset_early_prefix_thread();
 log_sink_t* log_sink_init(
         log_sink_type_t type,
         FILE* out,
         log_level_t levels);
+
 void log_sink_free(
         log_sink_t *log_sink);
+
 const char* log_level_to_string(
         log_level_t level);
+
 time_t log_message_timestamp();
+
 char* log_message_timestamp_str(
         time_t timestamp,
         char *dest,
         size_t maxlen);
+
 void log_message_internal_printer(
         const char *tag,
         log_level_t level,
@@ -93,20 +100,25 @@ void log_message_internal_printer(
         const char *message,
         va_list args,
         FILE *out);
+
 void log_message_internal(
         const char *tag,
         log_level_t level,
         const char *message,
         va_list args);
+
 void log_message(
         const char *tag,
         log_level_t level,
         const char *message,
         ...);
+
 void log_message_print_os_error(
         const char *tag);
+
 void log_sink_register(
         log_sink_t *sink);
+
 log_sink_t *log_sink_console_init(
         log_level_t levels);
 
