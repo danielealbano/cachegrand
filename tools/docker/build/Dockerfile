@@ -18,14 +18,11 @@ RUN chmod 644 /etc/dpkg/dpkg.cfg.d/01_nodoc
 RUN apt update -y \
     && apt upgrade -y \
     && apt install -y --no-install-recommends \
-        build-essential \
-        cmake \
-        git \
-        pkg-config \
+        curl ca-certificates \
+        build-essential cmake git pkg-config \
         libssl1.1 libssl-dev \
         libnuma1 libnuma-dev \
         libyaml-0-2 libyaml-dev \
-        lcov \
-        ca-certificates \
+        lcov gcovr \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
