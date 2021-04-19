@@ -40,8 +40,15 @@ typedef enum log_level log_level_t;
 
 #define LOG_LEVEL_ALL ((uint8_t)LOG_LEVEL_ERROR << 1u) - 1u
 
+enum log_sink_type {
+    LOG_SINK_TYPE_CONSOLE = 0,
+    LOG_SINK_TYPE_FILE
+};
+typedef enum log_sink_type log_sink_type_t;
+
 typedef struct log_sink log_sink_t;
 struct log_sink {
+    log_sink_type_t type;
     FILE* out;
     log_level_t levels;
 };
@@ -56,6 +63,7 @@ void log_producer_set_early_prefix_thread(
 char* log_producer_get_early_prefix_thread();
 void log_producer_unset_early_prefix_thread();
 log_sink_t* log_sink_init(
+        log_sink_type_t type,
         FILE* out,
         log_level_t levels);
 void log_sink_free(

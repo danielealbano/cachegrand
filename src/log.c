@@ -191,11 +191,15 @@ void log_sink_register(
 }
 
 log_sink_t *log_sink_init(
+        log_sink_type_t type,
         FILE *out,
         log_level_t levels) {
     log_sink_t* result = xalloc_alloc_zero(sizeof(log_sink_t));
+
+    result->type = type;
     result->out = out;
     result->levels = levels;
+
     return result;
 }
 
