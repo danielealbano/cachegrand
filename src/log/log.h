@@ -28,13 +28,14 @@ extern "C" {
     log_message(tag, LOG_LEVEL_DEBUG, __VA_ARGS__)
 
 enum log_level {
-    LOG_LEVEL_ERROR = 0x40,
-    LOG_LEVEL_RECOVERABLE = 0x20,
-    LOG_LEVEL_WARNING = 0x10,
-    LOG_LEVEL_INFO = 0x08,
-    LOG_LEVEL_VERBOSE = 0x04,
-    LOG_LEVEL_DEBUG = 0x02,
     LOG_LEVEL_DEBUG_INTERNALS = 0x01,
+    LOG_LEVEL_DEBUG = 0x02,
+    LOG_LEVEL_VERBOSE = 0x04,
+    LOG_LEVEL_INFO = 0x08,
+    LOG_LEVEL_WARNING = 0x10,
+    LOG_LEVEL_RECOVERABLE = 0x20,
+    LOG_LEVEL_ERROR = 0x40,
+    LOG_LEVEL_MAX
 };
 typedef enum log_level log_level_t;
 
