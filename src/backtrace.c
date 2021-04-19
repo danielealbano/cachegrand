@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <time.h>
 
 #if defined(__linux__) || defined(__APPLE__)
 #include <execinfo.h>
