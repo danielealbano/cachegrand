@@ -39,6 +39,7 @@ test_ubuntu2004_x64_gcc9_debug:
   script:
     - build/tests/cachegrand-tests -r junit -o report.xml -s
   artifacts:
+    expire_in: 2 days
     paths:
       - build
     reports:
@@ -52,16 +53,16 @@ codecoverage_ubuntu2004_x64_gcc9_debug:
   needs: [test_ubuntu2004_x64_gcc9_debug]
   dependencies:
     - test_ubuntu2004_x64_gcc9_debug
-  variables:
-    INPUT_REMOVE_PATTERNS: "3rdparty,tests,build/_deps"
-    INPUT_OUTPUT_LCOV_INFO: "build/coverage.info"
   script:
-    - chmod +x tools/docker/build/code-coverage.sh
-    - INPUT_GCOV_PATH="${GCOV}" tools/docker/build/code-coverage.sh
-    - bash <(curl -s https://codecov.io/bash) -X gcov -Z -f coverage.info
+    - cd build
+    - /usr/bin/gcovr --xml-pretty --exclude-unreachable-branches --print-summary -j $(nproc) -o coverage.xml --root ${CI_PROJECT_DIR} -e 3rdparty -e tests -e benches -e tools -e cmake-build-debug/_deps
+  coverage: /^\s*lines:\s*\d+.\d+\%/
   artifacts:
+    expire_in: 2 days
     paths:
-      - build/coverage.info
+      - build/coverage.xml
+    reports:
+      cobertura: build/coverage.xml
   tags:
     - ubuntu-2004
     - x64
