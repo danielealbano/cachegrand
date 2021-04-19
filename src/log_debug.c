@@ -40,8 +40,8 @@ bool log_message_debug_check_rules(const char* str, const char* rules_include[],
 }
 
 void log_message_debug(const char* src_path, const char* src_func, const int src_line, const char* message, ...) {
-    char* tag;
-    uint32_t tag_len = strlen(src_path) + /*][*/ 2 + strlen(src_func) + /*():*/ 3 + 10 + 1;
+    char tag[256];
+    size_t tag_len = sizeof(tag);
 
     LOG_MESSAGE_DEBUG_RULES(rules_src_path_include, SRC_PATH, INCLUDE);
     LOG_MESSAGE_DEBUG_RULES(rules_src_path_exclude, SRC_PATH, EXCLUDE);
@@ -57,8 +57,6 @@ void log_message_debug(const char* src_path, const char* src_func, const int src
     }
 
     time_t timestamp = log_message_timestamp();
-
-    tag = (char*)malloc(tag_len);
     snprintf(tag, tag_len, "%s][%s():%d", src_path, src_func, src_line);
 
     va_list args;
@@ -73,7 +71,6 @@ void log_message_debug(const char* src_path, const char* src_func, const int src
             stdout);
 
     va_end(args);
-    free(tag);
 }
 
 #endif // DEBUG == 1
