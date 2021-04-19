@@ -4,6 +4,7 @@ variables:
   CC: "/usr/bin/gcc-9"
   CXX: "/usr/bin/g++-9"
   GCOV: "/usr/bin/gcov-9"
+  BUILD_DIR_NAME: "build"
 
 stages:
   - build
@@ -22,11 +23,11 @@ workflow:
 build_ubuntu2004_x64_gcc9_debug:
   stage: build
   script:
-    - cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
-    - cmake --build build -- -j $(nproc)
+    - cmake -B ${BUILD_DIR_NAME} -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
+    - cmake --build ${BUILD_DIR_NAME} -- -j $(nproc)
   artifacts:
     paths:
-      - build
+      - ${BUILD_DIR_NAME}
   tags:
     - ubuntu-2004
     - x64
@@ -37,11 +38,11 @@ test_ubuntu2004_x64_gcc9_debug:
   dependencies:
     - build_ubuntu2004_x64_gcc9_debug
   script:
-    - build/tests/cachegrand-tests -r junit -o report.xml -s
+    - ${BUILD_DIR_NAME}/tests/cachegrand-tests -r junit -o report.xml -s
   artifacts:
     expire_in: 2 days
     paths:
-      - build
+      - ${BUILD_DIR_NAME}
     reports:
       junit: report.xml
   tags:
@@ -54,15 +55,14 @@ codecoverage_ubuntu2004_x64_gcc9_debug:
   dependencies:
     - test_ubuntu2004_x64_gcc9_debug
   script:
-    - cd build
-    - /usr/bin/gcovr --xml-pretty --exclude-unreachable-branches --print-summary -j $(nproc) -o coverage.xml --root ${CI_PROJECT_DIR} -e 3rdparty -e tests -e benches -e tools -e cmake-build-debug/_deps
+    - /usr/bin/gcovr --xml-pretty --exclude-unreachable-branches --print-summary -j $(nproc) -o ${BUILD_DIR_NAME}/coverage.xml --root ${CI_PROJECT_DIR} -e 3rdparty -e tests -e benches -e tools -e ${BUILD_DIR_NAME}/_deps
   coverage: /^\s*lines:\s*\d+.\d+\%/
   artifacts:
     expire_in: 2 days
     paths:
-      - build/coverage.xml
+      - ${BUILD_DIR_NAME}/coverage.xml
     reports:
-      cobertura: build/coverage.xml
+      cobertura: ${BUILD_DIR_NAME}/coverage.xml
   tags:
     - ubuntu-2004
     - x64
