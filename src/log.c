@@ -41,8 +41,7 @@ static uint8_t log_sinks_registered_count = 0;
 static log_sink_t *log_sink_default_console;
 
 FUNCTION_CTOR(log_sink_init_console, {
-    log_sink_default_console = log_sink_init(stdout, LOG_LEVEL_ALL - LOG_LEVEL_DEBUG - LOG_LEVEL_VERBOSE);
-    log_sink_register(log_sink_default_console);
+    log_sink_register(log_sink_console_init(LOG_LEVEL_ALL /*- LOG_LEVEL_DEBUG - LOG_LEVEL_VERBOSE*/));
 })
 
 FUNCTION_DTOR(log_sink_free_console, {
@@ -206,4 +205,12 @@ log_sink_t *log_sink_init(
 void log_sink_free(
         log_sink_t* log_sink) {
     xalloc_free(log_sink);
+}
+
+log_sink_t *log_sink_console_init(
+        log_level_t levels) {
+    return log_sink_init(
+            LOG_SINK_TYPE_CONSOLE,
+            stdout,
+            levels);
 }

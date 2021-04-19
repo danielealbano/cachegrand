@@ -93,6 +93,9 @@ void log_message_print_os_error(
         const char *tag);
 void log_sink_register(
         log_sink_t *sink);
+log_sink_t *log_sink_console_init(
+        log_level_t levels);
+
 #ifndef DEBUG
 #define LOG_DI(...) /* Internal debug logs disabled */
 #endif // DEBUG == 1
