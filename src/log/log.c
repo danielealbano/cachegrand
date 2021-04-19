@@ -178,13 +178,19 @@ void log_sink_register(
 
 log_sink_t *log_sink_init(
         log_sink_type_t type,
-        FILE *out,
-        log_level_t levels) {
+        log_level_t levels,
+        log_sink_settings_t* log_sink_settings,
+        log_sink_printer_fn_t printer_fn,
+        log_sink_free_fn_t free_fn) {
     log_sink_t* result = xalloc_alloc_zero(sizeof(log_sink_t));
 
     result->type = type;
-    result->out = out;
     result->levels = levels;
+    result->printer_fn = printer_fn;
+    result->free_fn = free_fn;
+
+    // Copy the settings into log_sink_t->settings
+    memcpy(&result->settings, log_sink_settings, sizeof(log_sink_settings_t));
 
     return result;
 }

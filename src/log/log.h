@@ -46,22 +46,38 @@ enum log_sink_type {
 };
 typedef enum log_sink_type log_sink_type_t;
 
+typedef union log_sink_settings log_sink_settings_t;
+union log_sink_settings {
+    struct {
+        bool use_stdout_for_errors;
+    } console;
+    struct {
+        char* filepath;
+        struct {
+            FILE* fp;
+        } internal;
+    } file;
+};
+
+typedef void (log_sink_printer_fn_t)(
+        log_sink_settings_t* log_sink_settings,
+        const char* tag,
+        time_t timestamp,
+        log_level_t level,
+        char* early_prefix_thread,
+        const char* message,
+        va_list args);
+
+typedef void (log_sink_free_fn_t)(
+    log_sink_settings_t* log_sink_settings);
+
 typedef struct log_sink log_sink_t;
 struct log_sink {
     log_sink_type_t type;
-    FILE* out;
     log_level_t levels;
-    union {
-        struct {
-            bool use_stdout_for_errors;
-        } console;
-        struct {
-            char* filepath;
-            struct {
-                FILE* fp;
-            } internal;
-        } file;
-    } settings;
+    log_sink_printer_fn_t* printer_fn;
+    log_sink_free_fn_t* free_fn;
+    log_sink_settings_t settings;
 };
 
 void log_set_early_prefix_thread(
@@ -73,8 +89,10 @@ void log_unset_early_prefix_thread();
 
 log_sink_t* log_sink_init(
         log_sink_type_t type,
-        FILE* out,
-        log_level_t levels);
+        log_level_t levels,
+        log_sink_settings_t* log_sink_settings,
+        log_sink_printer_fn_t printer_fn,
+        log_sink_free_fn_t free_fn);
 
 void log_sink_free(
         log_sink_t *log_sink);
