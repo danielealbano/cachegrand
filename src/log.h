@@ -64,11 +64,6 @@ struct log_sink {
     } settings;
 };
 
-typedef struct log_producer log_producer_t;
-struct log_producer {
-    const char* tag;
-};
-
 void log_producer_set_early_prefix_thread(
         char* prefix);
 
