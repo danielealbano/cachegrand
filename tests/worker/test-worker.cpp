@@ -72,9 +72,9 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
         str = worker_log_producer_set_early_prefix_thread(&worker_user_data);
 
         REQUIRE(str != NULL);
-        REQUIRE(str == log_producer_get_early_prefix_thread());
+        REQUIRE(str == log_get_early_prefix_thread());
 
-        log_producer_unset_early_prefix_thread();
+        log_unset_early_prefix_thread();
         xalloc_free(str);
     }
 

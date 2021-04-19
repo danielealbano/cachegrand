@@ -59,7 +59,7 @@ char* worker_log_producer_set_early_prefix_thread(
             WORKER_LOG_PRODUCER_PREFIX_FORMAT_STRING,
             worker_user_data->worker_index,
             thread_current_get_id());
-    log_producer_set_early_prefix_thread(prefix);
+    log_set_early_prefix_thread(prefix);
 
     return prefix;
 }
