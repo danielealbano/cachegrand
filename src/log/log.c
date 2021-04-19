@@ -25,7 +25,7 @@
 //       To make the logging thread safe and fast enough to cope with the performance requirements, a double ring-buffer
 //       of pre-allocated objects should be used.
 
-thread_local char* log_producer_early_prefix_thread = NULL;
+thread_local char* log_early_prefix_thread = NULL;
 
 static log_sink_t log_sinks_registered_list[LOG_SINK_REGISTERED_MAX] = {0};
 static uint8_t log_sinks_registered_count = 0;
@@ -61,17 +61,17 @@ const char* log_level_to_string(log_level_t level) {
     }
 }
 
-void log_producer_set_early_prefix_thread(
+void log_set_early_prefix_thread(
         char* prefix) {
-    log_producer_early_prefix_thread = prefix;
+    log_early_prefix_thread = prefix;
 }
 
-char* log_producer_get_early_prefix_thread() {
-    return log_producer_early_prefix_thread;
+char* log_get_early_prefix_thread() {
+    return log_early_prefix_thread;
 }
 
-void log_producer_unset_early_prefix_thread() {
-    log_producer_early_prefix_thread = NULL;
+void log_unset_early_prefix_thread() {
+    log_early_prefix_thread = NULL;
 }
 
 time_t log_message_timestamp() {

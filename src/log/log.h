@@ -64,12 +64,13 @@ struct log_sink {
     } settings;
 };
 
-void log_producer_set_early_prefix_thread(
+void log_set_early_prefix_thread(
         char* prefix);
 
-char* log_producer_get_early_prefix_thread();
+char* log_get_early_prefix_thread();
 
-void log_producer_unset_early_prefix_thread();
+void log_unset_early_prefix_thread();
+
 log_sink_t* log_sink_init(
         log_sink_type_t type,
         FILE* out,
