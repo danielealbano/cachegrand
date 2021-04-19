@@ -1,8 +1,8 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <time.h>
 
 #include "log/log.h"
-#include "xalloc.h"
 
 #include "log_sink_support.h"
 
