@@ -5,8 +5,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
 
 #include "log.h"
+#include "fatal.h"
+
 #include "log_debug.h"
 
 bool log_message_debug_check_rules(const char* str, const char* rules_include[], const char* rules_exclude[]) {
@@ -53,6 +56,8 @@ void log_message_debug(const char* src_path, const char* src_func, const int src
         return;
     }
 
+    time_t timestamp = log_message_timestamp();
+
     tag = (char*)malloc(tag_len);
     snprintf(tag, tag_len, "%s][%s():%d", src_path, src_func, src_line);
 
@@ -62,6 +67,7 @@ void log_message_debug(const char* src_path, const char* src_func, const int src
     log_message_internal_printer(
             tag,
             LOG_LEVEL_DEBUG_INTERNALS,
+            timestamp,
             message,
             args,
             stdout);

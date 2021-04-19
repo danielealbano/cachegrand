@@ -82,15 +82,19 @@ void log_producer_unset_early_prefix_thread() {
     log_producer_early_prefix_thread = NULL;
 }
 
-char* log_message_timestamp(
+time_t log_message_timestamp() {
+    return time(NULL);
+}
+
+char* log_message_timestamp_str(
+        time_t timestamp,
         char* dest,
         size_t maxlen) {
-    struct tm tm = {0};
-    time_t t = time(NULL);
-    gmtime_r(&t, &tm);
+    struct tm tm = { 0 };
+    gmtime_r(&timestamp, &tm);
 
     snprintf(dest, maxlen, "%04d-%02d-%02dT%02d:%02d:%02dZ",
-            1900 + tm.tm_year, tm.tm_mon, tm.tm_mday,
+             1900 + tm.tm_year, tm.tm_mon, tm.tm_mday,
              tm.tm_hour, tm.tm_min, tm.tm_sec);
 
     return dest;
@@ -99,14 +103,17 @@ char* log_message_timestamp(
 void log_message_internal_printer(
         const char* tag,
         log_level_t level,
+        time_t timestamp,
         const char* message,
         va_list args,
         FILE* out) {
-    char t_str[LOG_MESSAGE_TIMESTAMP_MAX_LENGTH] = {0};
+    char timestamp_str[LOG_MESSAGE_TIMESTAMP_MAX_LENGTH] = {0};
 
+    // TODO: the timestamp should be passed to the printer as it should be uniform across the different sinks and not
+    //       fetched each single time
     fprintf(out,
             "[%s][%-11s]%s[%s] ",
-            log_message_timestamp(t_str, LOG_MESSAGE_TIMESTAMP_MAX_LENGTH),
+            log_message_timestamp_str(timestamp, timestamp_str, LOG_MESSAGE_TIMESTAMP_MAX_LENGTH),
             log_level_to_string(level),
             log_producer_early_prefix_thread != NULL ? log_producer_early_prefix_thread : "",
             tag);
@@ -120,6 +127,8 @@ void log_message_internal(
         log_level_t level,
         const char *message,
         va_list args) {
+    time_t timestamp = log_message_timestamp();
+
     for(uint8_t i = 0; i < log_sinks_registered_count && i < LOG_SINK_REGISTERED_MAX; ++i){
         if ((level & log_sinks_registered_list[i].levels) != level) {
             continue;
@@ -128,6 +137,7 @@ void log_message_internal(
         log_message_internal_printer(
                 tag,
                 level,
+                timestamp,
                 message,
                 args,
                 log_sinks_registered_list[i].out);

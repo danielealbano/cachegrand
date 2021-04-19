@@ -70,12 +70,15 @@ void log_sink_free(
         log_sink_t *log_sink);
 const char* log_level_to_string(
         log_level_t level);
-char* log_message_timestamp(
+time_t log_message_timestamp();
+char* log_message_timestamp_str(
+        time_t timestamp,
         char *dest,
         size_t maxlen);
 void log_message_internal_printer(
         const char *tag,
         log_level_t level,
+        time_t timestamp,
         const char *message,
         va_list args,
         FILE *out);
