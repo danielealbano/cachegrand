@@ -92,28 +92,6 @@ char* log_message_timestamp_str(
     return dest;
 }
 
-void log_message_internal_printer(
-        const char* tag,
-        log_level_t level,
-        time_t timestamp,
-        const char* message,
-        va_list args,
-        FILE* out) {
-    char timestamp_str[LOG_MESSAGE_TIMESTAMP_MAX_LENGTH] = {0};
-
-    // TODO: the timestamp should be passed to the printer as it should be uniform across the different sinks and not
-    //       fetched each single time
-    fprintf(out,
-            "[%s][%-11s]%s[%s] ",
-            log_message_timestamp_str(timestamp, timestamp_str, LOG_MESSAGE_TIMESTAMP_MAX_LENGTH),
-            log_level_to_string(level),
-            log_producer_early_prefix_thread != NULL ? log_producer_early_prefix_thread : "",
-            tag);
-    vfprintf(out, message, args);
-    fprintf(out, "\n");
-    fflush(out);
-}
-
 void log_message_internal(
         const char *tag,
         log_level_t level,
@@ -126,13 +104,14 @@ void log_message_internal(
             continue;
         }
 
-        log_message_internal_printer(
+        log_sinks_registered_list[i].printer_fn(
+                &log_sinks_registered_list[i].settings,
                 tag,
-                level,
                 timestamp,
+                level,
+                log_early_prefix_thread,
                 message,
-                args,
-                log_sinks_registered_list[i].out);
+                args);
     }
 }
 

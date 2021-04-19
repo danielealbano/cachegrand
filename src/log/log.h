@@ -88,14 +88,6 @@ char* log_message_timestamp_str(
         char *dest,
         size_t maxlen);
 
-void log_message_internal_printer(
-        const char *tag,
-        log_level_t level,
-        time_t timestamp,
-        const char *message,
-        va_list args,
-        FILE *out);
-
 void log_message_internal(
         const char *tag,
         log_level_t level,
