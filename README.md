@@ -1,41 +1,30 @@
 cachegrand
 ==========
 
-cachegrand aims to be a general purpose, concurrent, distributed, almost lock-free caching system.
+cachegrand is a redis drop in replacement designed from the ground up to take advantage of modern hardware vertical
+scalability, able to provide better performance and a larger cache at lower cost, without losing focus on distributed
+systems.
 
-To be able to achieve these goals, cachegrand implements a set of components specifically tailored to provide the
-performance and scale up on multi-core and multi-cpu (NUMA) servers capable of running 64bit software including the
-most recent SOC platforms able to run 64bit software as well (ie. the Raspberry PI 4 with 64bit kernel).
+To be able to achieve these goals, cachegrand implements a set of components tailored to provide the needed performance
+and the ability to scale-up on multi-core and multi-cpu (NUMA) servers capable of running 64bit software including the
+most recent ARM-based SoC platforms (ie. AWS Graviton, Raspberry PI 4 with 64bit kernel, etc.).
 
-While being similar to other platforms, like memcache or redis, there are two distinctive factors that make cachegrand
-unique:
-- it uses a parallel almost-lock-free and almost-atomic-free hashtable, load/store memory fences are used wherever it's
-  possible to achieve better performances;
-- it's natively multi-threaded, like memcache, and thanks to the patterns put in place scales vertically very welll
-- It has been built with modern technologies in mind, it supports on-disk storage to take advantage of using NVME flash
-  disks bringing down the costs to a fraction without losing performances.
+Among the distinctive features:
+- Uses a custom-tailored KeyValue store able to perform GET operations without using locks or wait-loops;
+- The KeyValue store also takes advantage of SSE4.1/AVX/AVX2 if available;
+- Implements N-M threads per core approach to control what runs on which core, take advantage of the cache-locality and
+  being numa-aware;
+- Uses a zero-copy approach whenever possible and implements sliding window (streams) algorithms to process the data;
+- Relies on the newer io_uring kernel component to provide efficient network and disk io;
+- Stores the data on the disks, instead of the memory, using a flash-friendly algorithm to minimize the COW domino
+  effect.
 
-As mentioned above, the data internally are backed by a modern designed hashtable:
-- first-arrived first-served pattern is not needed to be guaranteed, it's used by a multi-threaded network server where
-  there are a number of factors affecting the order of the requests, special commands (like for redis or memcache) have
-  be used if the order of the operations is relevant (ie. incrementing counters), the set and delete operations are
-  always serialized on a key but the get operations are not being blocked;
-- the hashtable buckets are split in chunks of 14 slots (number chosen to be cache-aligned, no reference to F14) and
-  each chunk has a localized spinlock to guarantee that high-contented chunks hit perform less operations;
-- it takes advantage of memory fencing to guarantee that the get operation can operate independently from the set and
-  delete ones, no locks or atomic operations when reading;
-- uses the t1ha2 hashing algorithm to provide very high performances with a fairly distribution;
-- to improve the speed uses power of twos for the hashtable size;
-- fully takes advantage of the L1/L2 and L3 caches to minimize accessing the main memory when searching for an hash;
-- take advantage of branch-less AVX2 and AVX hash search implementation with detection at runtime if supported by the
-  hardware;
-- some speed-critical parts are recompiled with multiple different optimization and the best one is chosen at runtime;
-- if the keys are short enough, it uses key-inlining, it avoids to jump to another memory location to perform the 
-  comparison;
-- minimize the effects of the "false-sharing" caused by multiple threads trying to change data that are stored in
-  cache-lines held by different hardware cores;
-- uses a DOD (Data Oriented Design) keeping the hashes and keys/values data structures separated to be able to achieve
-  what above mentioned;
+Although it's still in heavy development and therefore the current version doesn't provide all the required
+functionalities to use it, some benchmarking has been carried out:
+- The in-memory hashtable is able to insert up to **2.1 billions** new keys per second on an **1 x AMD EPYC 7502P** and
+  **192GB RAM DDR4** using **2048 threads**;
+- The networking layer is able to process up to **5.1 millions** redis **PING** commands submitted by **12k** clients
+  per second on a **1 x AMD EPYC 7402P** with a **2 x 10Gbps** link saturating up to **5Gbit/s**.
 
 ### DOCS
 
@@ -48,6 +37,7 @@ written documentation is more a general reference.
 
 ```bash
 git clone https://github.com/danielealbano/cachegrand.git
+cd cachegrand
 git submodule update --init --recursive
 ```
 
@@ -60,39 +50,124 @@ For more information about the build requirements check [docs/build-requirements
 ```bash
 mkdir cmake-build-debug
 cd cmake-build-debug
-cmake .. -DUSE_HASH_ALGORITHM_T1HA2=1
+cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1
 make cachegrand
 ```
 
-#### Run (general)
+#### Run
+
+To run cachegrand a number of settings may need to be tuned.
+
+##### Max lockable memory and Opened files limit
+
+cachegrand uses io_uring, a standard kernel component introduced with the kernel 5.1 and became stable for disk i/o
+around 5.4 and for network i/o around 5.7, to handle both the storage and the network.
+
+This component shares some memory between the user space process using it and the kernel side, it locks the shared
+memory region to avoid swapping, otherwise the kernel may access some other data.
+
+The maximum amount of lockable memory of a process or an user is managed via the standard limits on linux so it's
+possible to use the `ulimit -a` command to check the value of `max locked memory`, a value of 65536 (65mb) or higher
+should be set.
+
+It is also important to have a value high enough for the `open files` as in Linux the network connections are counted
+towards this limit as well, to manage 10000 connections the open files limit must be greater than 10000, it is
+usually safe to set it to unlimited or to a very high value.
+
+```text
+$ ulimit -a
+...
+max locked memory       (kbytes, -l) 64
+...
+open files                      (-n) 1024
+...
+```
+
+In this case, both the `max locked memory` and the `open files` limits are too low and need to be increased.
+
+It's a common approach to use `ulimit` directly to change these limits as root but to set in a permanently manner check
+the documentation of your distribution.
+
+##### Hugepages
 
 The SLAB Allocator in cachegrand currently relies on 2MB hugepages, it's necessary to enable them otherwise it will
 fail-back to a dummy malloc-based allocator that will perform extremely badly.
 
 A simple way to enable them is to set /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages to the desired number of
-hugepages to allocate, bare in mind that each page is 2MB so using the example below you will reserve 1GB of memory.
+hugepages to allocate, bare in mind that each page is 2MB.
+
+Here an example on how initialize 512 hugepages, 1GB fo memory will be reserved.
 ```shell
 echo 512 | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
 ```
 
-When deciding the value keep in mind that cachegrand will need:
-- 20kb per connection
-- 16kb per IO operation
+#### Run in docker
 
-So to handle 10000 active connections writing and/or reading, cachegrand will need a bit less than 200 2MB hugepages (less
-than half GB).
+When using docker to run cachegrand or the cachegrand tests, it's necessary to
+- enable IPv6, as it is used by the test suite
+- allow enough lockable memory
+- allow enough open files
+- enable the hugepages
 
-In general 256 hugepages will be enough on low-load servers meanwhile 1024 is the suggested value for high-load servers.
+To enable IPv6 in docker it's enough to define the following two keys in the `/etc/docker/daemon.json` config file
+```json 
+{
+  "ipv6": true,
+  "fixed-cidr-v6": "2001:db8:1::/64"
+}
+```
 
-These suggestions are subject to change as cachegrand is under heavy development.
+To allow enough lockable memory and enough open files, two override files can be created for systemd, one for containerd
+and one for the docker engine
+
+Docker override config file `/etc/systemd/system/docker.service.d/override.conf`
+```text
+[Service]
+LimitNOFILE=1048576
+LimitMEMLOCK=167772160
+```
+
+Containerd override config file `/etc/systemd/system/containerd.service.d/override.conf`
+```text
+[Service]
+LimitNOFILE=1048576
+LimitMEMLOCK=167772160
+```
+
+After having created them, it's necessary to reload the systemd configuration from the disk and reload/restart the
+services
+```shell
+sudo systemctl daemon-reload
+sudo systemctl restart containerd
+sudo systemctl restart docker
+```
+
+The hugepages are a system-wide setting and once they are configured on the host machine no special settings are
+necessary to use them in docker.
+
+One the system has been configured it's possible to build the container using `docker build`
+```shell
+cd tools/docker/build && docker build --tag cachegrand-build-test:latest .
+```
+
+As cachegrand is still in development, the image is not available on the public registry.
 
 #### Run tests
+
 ```bash
 mkdir cmake-build-debug
 cd cmake-build-debug
-cmake .. -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1
 make cachegrand-tests
 make test
+```
+
+The tests are verbose, a number of error messages are expected when running them as failing conditions are expressly
+verified.
+
+To run the tests in docker
+```shell
+docker run --volume "$PWD":/code cachegrand-build-test:latest /bin/bash -c "cd /code && mkdir cmake-build-debug && cd cmake-build-debug && cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 && make cachegrand-tests && make test"
 ```
 
 #### Run benchmarks
@@ -107,18 +182,25 @@ the **cachegrand-benches** target.
 ```bash
 mkdir cmake-build-debug
 cd cmake-build-debug
-cmake .. -DUSE_HASH_ALGORITHM_T1HA2=1 -BUILD_INTERNAL_BENCHES=1
+cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1 -BUILD_INTERNAL_BENCHES=1
 make cachegrand-benches
 ./benches/cachegrand-benches
 ```
 
-### TODO
+It's strongly discouraged to run benchmarks into a docker container.
 
-cachegrand is still under heavy development!
+#### Run the software
+
+cachegrand is still under heavy development.
 
 The goal is to implement a PoC for the v0.1 and a basic working caching server with by the v0.3.
 
-Here the general grand-plan:
+Until the v0.1 will be reached cachegrand will be missing essential features to make it fully usable although it's
+already possible to run some benchmarks.
+
+### TODO
+
+General milestones grand-plan:
 - v0.1 
     - [x] Hashtable
         - [x] Ops
@@ -143,24 +225,25 @@ Here the general grand-plan:
     - [X] Memory Management
         - [X] Implement a SLAB allocator
         - [X] Add NUMA support
+        - [X] Implement a malloc-based fallback for the SLAB Allocator
     - [ ] Configuration
-        - [ ] Implement a YAML based configuration
+        - [X] Implement a YAML based configuration
+        - [X] Implement YAML schema validation
+        - [X] Implement an argument parser to support basic settings via command line
+        - [ ] Update the implement code to rely on the dynamic configuration instead of the hardcoded settings
+    - [ ] Logging
+        - [ ] Add logging to disk sink
     - [ ] Storage
         - [ ] Implement storage workers
             - [ ] Implement a storage worker based on io_uring and liburing
-
+    
 - v0.2
     - [ ] Logging
-        - [ ] Add the ability to perform multi-threaded logging via a ring buffer per thread processed by the logger
-              thread (if too many messages are submitted the caller has to wait for space in the ring).
-        - [ ] Add logging to disk sink
+        - [ ] Add the ability to perform multi-threaded logging via a double ring buffer per thread processed by the
+              logger thread (if too many messages are submitted the caller has to wait for space in the ring).
     - [ ] Hashtable
-        - [ ] Implement adaptive spinlocks
-        - [ ] Implement a sliding spinlock window to release locked chunks in advance if possible
-        - [ ] Add support for LRU
-            - [ ] Implement a separate LRU structure to hold the necessary data for the hashtable
-            - [ ] Implement an LRU linked-list
-            - [ ] Implement an LRU Promote and GC worker
+        - [ ] Test-out adaptive spinlocks
+        - [ ] Add support for data eviction policies
         - [ ] Ops
             - [ ] RESIZE
             - [ ] ITERATE
@@ -171,15 +254,12 @@ Here the general grand-plan:
         - [ ] Extend redis protocol support
             - [ ] APPEND, SETNX, INCR, INCRBY, INCRBYFLOAT, DECR, DECRBY
             - [ ] RPUSH, RPUSHX, LPUSH, LINDEX, LLEN, LPOP, LSET, RPOP
-    - [ ] Memory Management
-        - [ ] Add a fail-over malloc-based dummy SLAB allocator to be used when the hugepages are not available 
     - [ ] Storage:
         - [ ] Implement garbage collection
 
 - v0.3
     - [ ] Hashtable
         - [ ] Add NUMA support (set_mempolicy for mmap)
-        - [ ] Add AARCH64 support (xxhash3)
     - [ ] Write documentation
     - [ ] Storage
         - [ ] General optimization for flash (NVME and SSD) disks
@@ -192,10 +272,10 @@ Here the general grand-plan:
         - [ ] Implement a basic http webserver to provide simple CRUD operations 
 
 - v0.4
+    - [ ] Add AARCH64 support
     - [ ] Storage
         - [ ] Add support for epoll
     - [ ] Networking
-        - [ ] Add a protobuf-based rpc based protocol
         - [ ] Add support for epoll
 
 - v0.5
@@ -211,15 +291,14 @@ Here the general grand-plan:
 
 - v0.7
     - [ ] Networking
+        - [ ] Add a protobuf-based rpc based protocol
         - [ ] Implement an XDP-based network worker
 
 - Somewhere before the v1.0
-    - [ ] Rework SLAB Allocator to not be dependant on hugepages and support multiple platforms
+    - [ ] Rework the SLAB Allocator to not be dependant on hugepages and support multiple platforms
     - [ ] ACLs for commands / data access
         - [ ] Redis protocol support
         - [ ] HTTPS protocol support
     - [ ] Add support for Mac OS X
-    - [ ] Add support for Windows
-        - [ ] IO via support IOCP
     - [ ] Add support for FreeBSD
         - IO via kqueue/kevent
