@@ -12,17 +12,20 @@ static char** log_sink_console_log_level_color_fg_lookup = NULL;
 void log_sink_console_log_level_color_fg_lookup_init() {
     log_sink_console_log_level_color_fg_lookup = xalloc_alloc_zero((LOG_LEVEL_MAX - 1) * sizeof(char*));
 
-    // red
-    log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_ERROR] = "\x1B[31m";
+    // light red
+    log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_ERROR] = "\x1B[91m";
 
-    // yellow
-    log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_WARNING] = "\x1B[33m";
+    // light yellow
+    log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_WARNING] = "\x1B[93m";
 
     // light gray
     log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_VERBOSE] = "\x1B[37m";
 
     // dark gray
     log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_DEBUG] = "\x1B[90m";
+
+    // info
+    log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_INFO] = "\x1B[97m";
 
     // Use 0 to reset the foreground color status, not used by logging
     log_sink_console_log_level_color_fg_lookup[0] = "\x1B[0m";
