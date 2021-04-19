@@ -214,11 +214,3 @@ void log_sink_free(
         log_sink_t* log_sink) {
     xalloc_free(log_sink);
 }
-
-log_sink_t *log_sink_console_init(
-        log_level_t levels) {
-    return log_sink_init(
-            LOG_SINK_TYPE_CONSOLE,
-            stdout,
-            levels);
-}
