@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 #include <string.h>
+#include <errno.h>
 #include <arpa/inet.h>
 #include <cyaml/cyaml.h>
 
