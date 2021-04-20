@@ -852,13 +852,12 @@ void* worker_iouring_thread_func(
     network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = {0};
     worker_user_data_t *worker_user_data = user_data;
 
+    worker_user_data->core_index = worker_thread_set_affinity(worker_user_data->worker_index);
+
     //Set the thread prefix to be used in the logs
     char* log_producer_early_prefix_thread = worker_log_producer_set_early_prefix_thread(worker_user_data);
 
     LOG_I(TAG, "Worker starting");
-
-    // TODO: The affinity has to be set by the caller
-    worker_user_data->core_index = worker_thread_set_affinity(worker_user_data->worker_index);
 
     // TODO: The listeners have to be initialized by the caller, each listener has to be paired up with a protocol parser
     //       and a protocol state machine and this code has to be shared across the different kind of workers (io_uring,
