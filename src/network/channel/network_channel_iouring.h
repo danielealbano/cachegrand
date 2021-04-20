@@ -30,9 +30,11 @@ struct network_channel_iouring_entry_user_data {
 
 network_channel_iouring_entry_user_data_t* network_channel_iouring_entry_user_data_new(
         network_io_iouring_op_t op);
+
 network_channel_iouring_entry_user_data_t* network_channel_iouring_entry_user_data_new_with_mapped_fd(
         network_io_iouring_op_t op,
         network_chanell_iouring_mapped_fd_t mapped_fd);
+
 void network_channel_iouring_entry_user_data_free(
         network_channel_iouring_entry_user_data_t* iouring_user_data);
 

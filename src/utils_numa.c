@@ -43,7 +43,8 @@ int utils_numa_cpu_configured_count() {
 #endif
 }
 
-bool utils_numa_cpu_allowed(uint32_t cpu_index) {
+bool utils_numa_cpu_allowed(
+        uint32_t cpu_index) {
     return numa_bitmask_isbitset(numa_all_cpus_ptr, cpu_index) == 1;
 }
 

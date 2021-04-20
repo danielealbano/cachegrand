@@ -46,8 +46,17 @@ extern "C" {
 #define LOG_MESSAGE_DEBUG_RULES(var, TYPE, INCLUDE_OR_EXCLUDE) \
     const char* var[] = { LOG_MESSAGE_DEBUG_RULES_##TYPE##_##INCLUDE_OR_EXCLUDE NULL }
 
-bool log_message_debug_check_rules(const char* str, const char* rules_include[], const char* rules_exclude[]);
-void log_message_debug(const char* src_path, const char* src_func, const int src_line, const char* message, ...);
+bool log_message_debug_check_rules(
+        const char* str,
+        const char* rules_include[],
+        const char* rules_exclude[]);
+
+void log_message_debug(
+        const char* src_path,
+        const char* src_func,
+        const int src_line,
+        const char* message,
+        ...);
 
 #ifdef __cplusplus
 }

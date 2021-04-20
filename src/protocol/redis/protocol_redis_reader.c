@@ -17,7 +17,8 @@ protocol_redis_reader_context_t* protocol_redis_reader_context_init() {
     return context;
 }
 
-void protocol_redis_reader_context_arguments_free(protocol_redis_reader_context_t* context) {
+void protocol_redis_reader_context_arguments_free(
+        protocol_redis_reader_context_t* context) {
     // Free the allocated memory for the args array
     if (context->arguments.count > 0) {
         for(int index = 0; index < context->arguments.count; index++) {
@@ -30,7 +31,8 @@ void protocol_redis_reader_context_arguments_free(protocol_redis_reader_context_
     }
 }
 
-int protocol_redis_reader_context_arguments_clone_current(protocol_redis_reader_context_t* context) {
+int protocol_redis_reader_context_arguments_clone_current(
+        protocol_redis_reader_context_t* context) {
     if (context->arguments.count == 0) {
         return -1;
     }
@@ -51,12 +53,14 @@ int protocol_redis_reader_context_arguments_clone_current(protocol_redis_reader_
     return 0;
 }
 
-void protocol_redis_reader_context_reset(protocol_redis_reader_context_t* context) {
+void protocol_redis_reader_context_reset(
+        protocol_redis_reader_context_t* context) {
     protocol_redis_reader_context_arguments_free(context);
     memset(context, 0, sizeof(protocol_redis_reader_context_t));
 }
 
-void protocol_redis_reader_context_free(protocol_redis_reader_context_t* context) {
+void protocol_redis_reader_context_free(
+        protocol_redis_reader_context_t* context) {
     protocol_redis_reader_context_arguments_free(context);
     xalloc_free(context);
 }

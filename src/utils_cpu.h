@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 int utils_cpu_count();
+
 int utils_cpu_count_all();
 
 #ifdef __cplusplus

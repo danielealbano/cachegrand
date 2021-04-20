@@ -10,15 +10,18 @@ extern void config_internal_cyaml_log(
         void *ctx,
         const char *fmt,
         va_list args);
+
 extern void* config_internal_cyaml_malloc(
         void *ctx,
         void *ptr,
         size_t size);
+
 extern cyaml_err_t config_internal_cyaml_load(
         config_t** config,
         char* config_path,
         cyaml_config_t* cyaml_config,
         cyaml_schema_value_t* schema);
+
 extern void config_internal_cyaml_free(
         config_t* config,
         cyaml_config_t* cyaml_config,

@@ -16,7 +16,8 @@
 
 char *unknown_signal_name = "UNKNOWN_SIGNAL_NAME";
 
-void signals_support_handler_sigsegv_fatal(int signal_number) {
+void signals_support_handler_sigsegv_fatal(
+        int signal_number) {
     char *signal_name = SIGNALS_SUPPORT_NAME_WRAPPER(signal_number);
     FATAL(
             TAG,

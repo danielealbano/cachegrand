@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 long thread_current_get_id();
+
 uint32_t thread_current_set_affinity(
         uint32_t thread_index);
 

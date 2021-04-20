@@ -64,8 +64,8 @@ struct protocol_redis_reader_context {
 };
 typedef struct protocol_redis_reader_context protocol_redis_reader_context_t;
 
-
 protocol_redis_reader_context_t* protocol_redis_reader_context_init();
+
 void protocol_redis_reader_context_free(
         protocol_redis_reader_context_t* context);
 

@@ -5,7 +5,8 @@
 
 static __thread random_state_t random_state = {0};
 
-uint64_t random_init_internal_seed(random_init_state_t *state) {
+uint64_t random_init_internal_seed(
+        random_init_state_t *state) {
     uint64_t result = state->s;
 
     state->s = result + 0x9E3779B97f4A7C15;
@@ -14,7 +15,8 @@ uint64_t random_init_internal_seed(random_init_state_t *state) {
     return result ^ (result >> 31U);
 }
 
-random_state_t random_init(uint64_t seed) {
+random_state_t random_init(
+        uint64_t seed) {
     random_init_state_t init_state = {seed};
     random_state_t result = {0};
 

@@ -14,11 +14,14 @@
 
 #define TAG "protocol_redis_writer"
 
-bool protocol_redis_writer_enough_space_in_buffer(size_t length, size_t requested_size) {
+bool protocol_redis_writer_enough_space_in_buffer(
+        size_t length,
+        size_t requested_size) {
     return requested_size < length;
 }
 
-unsigned protocol_redis_writer_uint64_str_length(uint64_t number) {
+unsigned protocol_redis_writer_uint64_str_length(
+        uint64_t number) {
     if (number < 10U) return 1;
     if (number < 100U) return 2;
     if (number < 1000U) return 3;
@@ -41,7 +44,8 @@ unsigned protocol_redis_writer_uint64_str_length(uint64_t number) {
     return 20;
 }
 
-unsigned protocol_redis_writer_int64_str_length(int64_t number) {
+unsigned protocol_redis_writer_int64_str_length(
+        int64_t number) {
     int add_minus_sign = number < 0U ? 1 : 0;
     if (add_minus_sign) {
         number *= -1;
@@ -69,7 +73,11 @@ unsigned protocol_redis_writer_int64_str_length(int64_t number) {
     return add_minus_sign + 20;
 }
 
-char* protocol_redis_writer_uint64_to_str(uint64_t number, size_t number_str_length, char* buffer, size_t buffer_length) {
+char* protocol_redis_writer_uint64_to_str(
+        uint64_t number,
+        size_t number_str_length,
+        char* buffer,
+        size_t buffer_length) {
     char* buffer_end_ptr = buffer + number_str_length;
 
     if (number_str_length == 0 || number_str_length > buffer_length) {
@@ -87,7 +95,11 @@ char* protocol_redis_writer_uint64_to_str(uint64_t number, size_t number_str_len
     return buffer_end_ptr;
 }
 
-char* protocol_redis_writer_int64_to_str(int64_t number, size_t number_str_length, char* buffer, size_t buffer_length) {
+char* protocol_redis_writer_int64_to_str(
+        int64_t number,
+        size_t number_str_length,
+        char* buffer,
+        size_t buffer_length) {
     char* buffer_end_ptr = buffer + number_str_length;
 
     if (number_str_length == 0 || number_str_length > buffer_length) {
@@ -104,7 +116,11 @@ char* protocol_redis_writer_int64_to_str(int64_t number, size_t number_str_lengt
     return protocol_redis_writer_uint64_to_str(number, number_str_length, buffer, buffer_length);
 }
 
-unsigned protocol_redis_writer_double_str_length(double number, int round_to_digits, size_t* integer_part_length, size_t* fraction_part_length) {
+unsigned protocol_redis_writer_double_str_length(
+        double number,
+        int round_to_digits,
+        size_t* integer_part_length,
+        size_t* fraction_part_length) {
     *integer_part_length = protocol_redis_writer_int64_str_length((int64_t) number);
     *fraction_part_length = 0;
 
@@ -129,7 +145,13 @@ unsigned protocol_redis_writer_double_str_length(double number, int round_to_dig
     return *integer_part_length + *fraction_part_length;
 }
 
-char* protocol_redis_writer_double_to_str(double number, int round_to_digits, size_t integer_part_length, size_t fraction_part_length, char* buffer, size_t buffer_length) {
+char* protocol_redis_writer_double_to_str(
+        double number,
+        int round_to_digits,
+        size_t integer_part_length,
+        size_t fraction_part_length,
+        char* buffer,
+        size_t buffer_length) {
     if (integer_part_length + fraction_part_length > buffer_length) {
         return NULL;
     }
@@ -161,7 +183,10 @@ char* protocol_redis_writer_double_to_str(double number, int round_to_digits, si
     return buffer;
 }
 
-char* protocol_redis_writer_write_argument_type(char* buffer, size_t buffer_length, protocol_redis_types_t type) {
+char* protocol_redis_writer_write_argument_type(
+        char* buffer,
+        size_t buffer_length,
+        protocol_redis_types_t type) {
     if (!protocol_redis_writer_enough_space_in_buffer(buffer_length, 1)) {
         return NULL;
     }
@@ -171,7 +196,10 @@ char* protocol_redis_writer_write_argument_type(char* buffer, size_t buffer_leng
     return buffer;
 }
 
-char* protocol_redis_writer_write_argument_boolean(char* buffer, size_t buffer_length, bool is_true) {
+char* protocol_redis_writer_write_argument_boolean(
+        char* buffer,
+        size_t buffer_length,
+        bool is_true) {
     if (!protocol_redis_writer_enough_space_in_buffer(buffer_length, 1)) {
         return NULL;
     }
@@ -181,7 +209,10 @@ char* protocol_redis_writer_write_argument_boolean(char* buffer, size_t buffer_l
     return buffer;
 }
 
-char* protocol_redis_writer_write_argument_number(char* buffer, size_t buffer_length, int64_t number) {
+char* protocol_redis_writer_write_argument_number(
+        char* buffer,
+        size_t buffer_length,
+        int64_t number) {
     size_t number_size = protocol_redis_writer_uint64_str_length(number);
 
     if (!protocol_redis_writer_enough_space_in_buffer(buffer_length, number_size)) {
@@ -191,7 +222,10 @@ char* protocol_redis_writer_write_argument_number(char* buffer, size_t buffer_le
     return protocol_redis_writer_uint64_to_str(number, number_size, buffer, buffer_length);
 }
 
-char* protocol_redis_writer_write_argument_double(char* buffer, size_t buffer_length, double number) {
+char* protocol_redis_writer_write_argument_double(
+        char* buffer,
+        size_t buffer_length,
+        double number) {
     size_t integer_part_length, fraction_part_length;
     size_t number_size = protocol_redis_writer_double_str_length(
             number,
@@ -212,7 +246,11 @@ char* protocol_redis_writer_write_argument_double(char* buffer, size_t buffer_le
             buffer_length);
 }
 
-char* protocol_redis_writer_write_argument_string(char* buffer, size_t buffer_length, char* string, size_t string_length) {
+char* protocol_redis_writer_write_argument_string(
+        char* buffer,
+        size_t buffer_length,
+        char* string,
+        size_t string_length) {
     if (!protocol_redis_writer_enough_space_in_buffer(buffer_length, string_length)) {
         return NULL;
     }
@@ -222,7 +260,11 @@ char* protocol_redis_writer_write_argument_string(char* buffer, size_t buffer_le
     return buffer + string_length;
 }
 
-char* protocol_redis_writer_write_argument_string_printf(char* buffer, size_t buffer_length, char* string, va_list args) {
+char* protocol_redis_writer_write_argument_string_printf(
+        char* buffer,
+        size_t buffer_length,
+        char* string,
+        va_list args) {
     va_list args_copy;
     va_copy(args_copy, args);
     size_t string_length = vsnprintf(NULL, 0, string, args_copy);
@@ -251,7 +293,9 @@ char* protocol_redis_writer_write_argument_string_printf(char* buffer, size_t bu
     return buffer + string_length;
 }
 
-char* protocol_redis_writer_write_argument_eol(char* buffer, size_t buffer_length) {
+char* protocol_redis_writer_write_argument_eol(
+        char* buffer,
+        size_t buffer_length) {
     if (!protocol_redis_writer_enough_space_in_buffer(buffer_length, 2)) {
         return NULL;
     }
@@ -283,7 +327,9 @@ char* protocol_redis_writer_write_argument_blob_start(
     return buffer;
 }
 
-char* protocol_redis_writer_write_argument_blob_end(char* buffer, size_t buffer_length) {
+char* protocol_redis_writer_write_argument_blob_end(
+        char* buffer,
+        size_t buffer_length) {
     char* buffer_start = buffer;
 
     PROTOCOL_REDIS_WRITER_WRITE_ARGUMENT_WRAPPER_COMMON_VARS(

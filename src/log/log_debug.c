@@ -18,7 +18,10 @@
 
 extern thread_local char* log_early_prefix_thread;
 
-bool log_message_debug_check_rules(const char* str, const char* rules_include[], const char* rules_exclude[]) {
+bool log_message_debug_check_rules(
+        const char* str,
+        const char* rules_include[],
+        const char* rules_exclude[]) {
     bool has_includes = rules_include[0] != NULL;
 
     const char** rulesset[] = {
@@ -45,7 +48,12 @@ bool log_message_debug_check_rules(const char* str, const char* rules_include[],
     return true;
 }
 
-void log_message_debug(const char* src_path, const char* src_func, const int src_line, const char* message, ...) {
+void log_message_debug(
+        const char* src_path,
+        const char* src_func,
+        const int src_line,
+        const char* message,
+        ...) {
     static log_sink_settings_t log_sink_console_settings = {
             .console = {
                     .use_stdout_for_errors = true

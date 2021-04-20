@@ -35,11 +35,15 @@ struct program_arguments {
 };
 
 char* program_arguments_docs_header_prepare();
+
 void program_arguments_docs_header_free(
         char* docs_header);
+
 program_arguments_t* program_arguments_init();
+
 void program_arguments_free(
         program_arguments_t* program_arguments);
+
 bool program_arguments_parse(
         int argc,
         char **argv,

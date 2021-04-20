@@ -107,6 +107,7 @@ struct config {
 
 config_t* config_load(
         char* config_path);
+
 void config_free(
         config_t* config);
 

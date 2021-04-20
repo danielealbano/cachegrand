@@ -15,8 +15,12 @@ struct random_state {
 };
 typedef struct random_state random_state_t;
 
-uint64_t random_init_internal_seed(random_init_state_t *state);
-random_state_t random_init(uint64_t seed);
+uint64_t random_init_internal_seed(
+        random_init_state_t *state);
+
+random_state_t random_init(
+        uint64_t seed);
+
 uint64_t random_generate();
 
 #ifdef __cplusplus

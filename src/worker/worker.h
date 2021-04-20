@@ -41,6 +41,7 @@ struct worker_user_data {
 void worker_publish_stats(
         worker_stats_t* worker_stats_new,
         worker_stats_volatile_t* worker_stats_public);
+
 bool worker_should_publish_stats(
         worker_stats_volatile_t* worker_stats_public);
 
@@ -58,6 +59,7 @@ void worker_setup_user_data(
 
 bool worker_should_terminate(
         worker_user_data_t *worker_user_data);
+
 void worker_request_terminate(
         worker_user_data_t *worker_user_data);
 

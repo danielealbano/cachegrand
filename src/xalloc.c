@@ -22,7 +22,8 @@
 
 #define TAG "xalloc"
 
-void* xalloc_alloc(size_t size) {
+void* xalloc_alloc(
+        size_t size) {
     void* memptr;
 
     memptr = malloc(size);
@@ -34,7 +35,9 @@ void* xalloc_alloc(size_t size) {
     return memptr;
 }
 
-void* xalloc_realloc(void* memptr, size_t size) {
+void* xalloc_realloc(
+        void* memptr,
+        size_t size) {
     memptr = realloc(memptr, size);
 
     if (memptr == NULL) {
@@ -44,7 +47,8 @@ void* xalloc_realloc(void* memptr, size_t size) {
     return memptr;
 }
 
-void* xalloc_alloc_zero(size_t size) {
+void* xalloc_alloc_zero(
+        size_t size) {
     void* memptr;
 
     memptr = xalloc_alloc(size);
@@ -55,7 +59,9 @@ void* xalloc_alloc_zero(size_t size) {
     return memptr;
 }
 
-void* xalloc_alloc_aligned(size_t alignment, size_t size) {
+void* xalloc_alloc_aligned(
+        size_t alignment,
+        size_t size) {
     void* memptr;
     bool failed = false;
 
@@ -86,7 +92,9 @@ void* xalloc_alloc_aligned(size_t alignment, size_t size) {
     return memptr;
 }
 
-void* xalloc_alloc_aligned_zero(size_t alignment, size_t size) {
+void* xalloc_alloc_aligned_zero(
+        size_t alignment,
+        size_t size) {
     void* memptr;
 
     memptr = xalloc_alloc_aligned(alignment, size);
@@ -97,7 +105,8 @@ void* xalloc_alloc_aligned_zero(size_t alignment, size_t size) {
     return memptr;
 }
 
-void xalloc_free(void *memptr) {
+void xalloc_free(
+        void *memptr) {
     free(memptr);
 }
 
@@ -119,7 +128,8 @@ size_t xalloc_get_page_size() {
     return page_size;
 }
 
-void* xalloc_mmap_align_addr(void* memaddr) {
+void* xalloc_mmap_align_addr(
+        void* memaddr) {
     long alignment = xalloc_get_page_size();
 
     memaddr -= 1;
@@ -128,7 +138,8 @@ void* xalloc_mmap_align_addr(void* memaddr) {
     return memaddr;
 }
 
-size_t xalloc_mmap_align_size(size_t size) {
+size_t xalloc_mmap_align_size(
+        size_t size) {
     long alignment = xalloc_get_page_size();
 
     size -= 1;
@@ -137,7 +148,8 @@ size_t xalloc_mmap_align_size(size_t size) {
     return size;
 }
 
-void* xalloc_mmap_alloc(size_t size) {
+void* xalloc_mmap_alloc(
+        size_t size) {
     void* memptr;
     bool failed = false;
 
@@ -196,7 +208,9 @@ void* xalloc_mmap_alloc(size_t size) {
     return memptr;
 }
 
-int xalloc_mmap_free(void *memptr, size_t size) {
+int xalloc_mmap_free(
+        void *memptr,
+        size_t size) {
 #if defined(__APPLE__) || defined(__linux__)
     return munmap(memptr, xalloc_mmap_align_size(size));
 #elif defined(__MINGW32__)
@@ -236,7 +250,9 @@ void* xalloc_hugepages_2mb_alloc(
     return memptr;
 }
 
-int xalloc_hugepages_free(void *memptr, size_t size) {
+int xalloc_hugepages_free(
+        void *memptr,
+        size_t size) {
 #if defined(__linux__)
     return munmap(memptr, xalloc_mmap_align_size(size));
 #else

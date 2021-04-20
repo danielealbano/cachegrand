@@ -161,6 +161,7 @@ network_channel_t* network_channel_new() {
     return (network_channel_t*)xalloc_alloc_zero(sizeof(network_channel_t));
 }
 
-void network_channel_free(network_channel_t* network_channel) {
+void network_channel_free(
+        network_channel_t* network_channel) {
     xalloc_free(network_channel);
 }

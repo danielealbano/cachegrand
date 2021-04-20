@@ -99,9 +99,11 @@ struct network_create_lister_new_user_data {
 bool network_channel_client_setup(
         network_io_common_fd_t fd,
         int incoming_cpu);
+
 bool network_channel_server_setup(
         network_io_common_fd_t fd,
         int incoming_cpu);
+
 bool network_channel_listener_new_callback(
         int family,
         struct sockaddr *socket_address,
@@ -109,12 +111,15 @@ bool network_channel_listener_new_callback(
         uint16_t socket_address_index,
         network_protocols_t protocol,
         void* user_data);
+
 bool network_channel_listener_new(
         char* address,
         uint16_t port,
         network_protocols_t protocol,
         network_channel_listener_new_callback_user_data_t *user_data);
+
 network_channel_t* network_channel_new();
+
 void network_channel_free(
         network_channel_t* network_channel);
 

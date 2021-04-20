@@ -20,16 +20,20 @@ io_uring_t* io_uring_support_init(
         uint32_t entries,
         io_uring_params_t *io_uring_params,
         uint32_t *features);
+
 void io_uring_support_free(
         io_uring_t *io_uring);
+
 bool io_uring_support_probe_opcode(
         uint8_t opcode);
+
 char* io_uring_support_features_str(
         char* buffer,
         size_t buffer_size);
 
 io_uring_sqe_t* io_uring_support_get_sqe(
         io_uring_t *ring);
+
 void io_uring_support_cq_advance(
         io_uring_t *ring,
         uint32_t count);
@@ -41,16 +45,19 @@ bool io_uring_support_sqe_enqueue_files_update(
         uint32_t offset,
         uint8_t sqe_flags,
         uint64_t user_data);
+
 bool io_uring_support_sqe_enqueue_timeout(
         io_uring_t *ring,
         uint64_t count,
         struct __kernel_timespec *ts,
         uint8_t sqe_flags,
         uint64_t user_data);
+
 bool io_uring_support_sqe_enqueue_nop(
         io_uring_t *ring,
         uint8_t sqe_flags,
         uint64_t user_data);
+
 bool io_uring_support_sqe_enqueue_accept(
         io_uring_t *ring,
         int fd,
@@ -59,6 +66,7 @@ bool io_uring_support_sqe_enqueue_accept(
         int op_flags,
         uint8_t sqe_flags,
         uint64_t user_data);
+
 bool io_uring_support_sqe_enqueue_recv(
         io_uring_t *ring,
         int fd,
@@ -67,6 +75,7 @@ bool io_uring_support_sqe_enqueue_recv(
         int op_flags,
         uint8_t sqe_flags,
         uint64_t user_data);
+
 bool io_uring_support_sqe_enqueue_send(
         io_uring_t *ring,
         int fd,
@@ -75,6 +84,7 @@ bool io_uring_support_sqe_enqueue_send(
         int op_flags,
         uint8_t sqe_flags,
         uint64_t user_data);
+
 bool io_uring_support_sqe_enqueue_close(
         io_uring_t *ring,
         int fd,
