@@ -15,10 +15,6 @@
 static log_sink_t log_sinks_registered[LOG_SINK_REGISTERED_MAX] = {0};
 static uint8_t log_sinks_registered_count = 0;
 
-FUNCTION_DTOR(log_sink, {
-    log_sink_registered_free();
-})
-
 void log_sink_register(
         log_sink_t *sink) {
     log_sinks_registered[log_sinks_registered_count] = *sink;

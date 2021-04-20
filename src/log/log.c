@@ -25,18 +25,6 @@
 
 thread_local char* log_early_prefix_thread = NULL;
 
-FUNCTION_CTOR(log_sink_console_init, {
-    log_level_t level = LOG_LEVEL_ALL;
-    log_sink_settings_t settings = { 0 };
-    settings.console.use_stdout_for_errors = false;
-
-#if NDEBUG == 1
-    level -= LOG_LEVEL_DEBUG - LOG_LEVEL_VERBOSE;
-#endif
-
-    log_sink_register(log_sink_console_init(level, &settings));
-})
-
 const char* log_level_to_string(log_level_t level) {
     switch(level) {
         case LOG_LEVEL_DEBUG_INTERNALS:
