@@ -182,6 +182,10 @@ const cyaml_schema_field_t config_fields_schema[] = {
                 "cpus", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
                 config_t, cpus,
                 &config_generic_string_schema, 0, CYAML_UNLIMITED),
+        CYAML_FIELD_UINT(
+                "threads_per_cpus", CYAML_FLAG_DEFAULT,
+                config_t, threads_per_cpus),
+
         CYAML_FIELD_BOOL(
                 "run_in_foreground", CYAML_FLAG_DEFAULT,
                 config_t, run_in_foreground),

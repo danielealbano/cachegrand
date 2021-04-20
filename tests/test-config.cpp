@@ -102,6 +102,7 @@ std::string test_config_correct_all_fields_yaml_data =
 worker_type: io_uring
 cpus:
   - all
+threads_per_cpus: 2
 
 run_in_foreground: false
 pidfile_path: /var/run/cachegrand.pid
@@ -247,7 +248,7 @@ TEST_CASE("config.c", "[config]") {
 
         SECTION("broken - missing field") {
             const char* cyaml_logger_context_data_cmp =
-                    "Load: Missing required mapping field: run_in_foreground\nLoad: Backtrace:\n  in mapping field: worker_type\n";
+                    "Load: Missing required mapping field: threads_per_cpus\nLoad: Backtrace:\n  in mapping field: worker_type\n";
 
             err = cyaml_load_data(
                     (const uint8_t *)(test_config_broken_missing_field_yaml_data.c_str()),
@@ -314,7 +315,7 @@ TEST_CASE("config.c", "[config]") {
 
         SECTION("broken - missing field") {
             const char* cyaml_logger_context_data_cmp =
-                    "Load: Missing required mapping field: run_in_foreground\nLoad: Backtrace:\n  in mapping field: worker_type\n";
+                    "Load: Missing required mapping field: threads_per_cpus\nLoad: Backtrace:\n  in mapping field: worker_type\n";
 
             TEST_CONFIG_FIXTURE_FILE_FROM_DATA(
                     test_config_broken_missing_field_yaml_data.c_str(),

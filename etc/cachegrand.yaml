@@ -7,6 +7,9 @@ worker_type: io_uring
 cpus:
   - all
 
+# Suggested 2 thread per cpu, depending on the hardware up to 4 threads still scale well
+threads_per_cpus: 2
+
 run_in_foreground: false
 
 pidfile_path: /var/run/cachegrand.pid
