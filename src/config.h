@@ -17,9 +17,7 @@ enum config_log_type {
 typedef enum config_log_type config_log_type_t;
 
 enum config_log_level {
-#if DEBUG==1
     CONFIG_LOG_LEVEL_DEBUG = 0x0002,
-#endif
     CONFIG_LOG_LEVEL_VERBOSE = 0x0004,
     CONFIG_LOG_LEVEL_INFO = 0x0008,
     CONFIG_LOG_LEVEL_WARNING = 0x0010,
@@ -27,9 +25,7 @@ enum config_log_level {
     CONFIG_LOG_LEVEL_ERROR = 0x0040,
     CONFIG_LOG_LEVEL_ALL = 0x0080,
 
-#if DEBUG==1
     CONFIG_LOG_LEVEL_DEBUG_NEGATE = 0x0200,
-#endif
     CONFIG_LOG_LEVEL_VERBOSE_NEGATE = 0x0400,
     CONFIG_LOG_LEVEL_INFO_NEGATE = 0x0800,
     CONFIG_LOG_LEVEL_WARNING_NEGATE = 0x1000,
