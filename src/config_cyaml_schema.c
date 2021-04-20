@@ -226,10 +226,6 @@ const cyaml_schema_value_t config_top_schema = {
                             config_t, config_fields_schema),
 };
 
-const cyaml_schema_value_t* config_cyaml_schema_get_log_schema() {
-    return &config_log_list_schema;
-}
-
 const cyaml_schema_value_t* config_cyaml_schema_get_top_schema() {
     return &config_top_schema;
 }

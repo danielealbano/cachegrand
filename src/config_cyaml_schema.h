@@ -5,8 +5,6 @@
 extern "C" {
 #endif
 
-const cyaml_schema_value_t* config_cyaml_schema_get_log_schema();
-
 const cyaml_schema_value_t* config_cyaml_schema_get_top_schema();
 
 #ifdef __cplusplus
