@@ -384,22 +384,14 @@ int program_main(
 
     // TODO: initialize the protocol parsers
     // TODO: initialize the network listeners and the protocol state machines
-
-    // TODO: should be possible to pinpoint in the config which cores can be utilized, very handy for benchmarking in
-    //       in combination with the isolcpus kernel init parameter
-#if DEBUG == 1
-    workers_count = 1;
-#else
-    workers_count = utils_cpu_count();
-#endif
-
     // TODO: initialize the hashtable(s) (with or without LRU, when the support will be added)
     // TODO: initialize the storage
-    // TODO: start the worker threads and invoke the worker thread main func
 
     if (use_slab_allocator) {
         slab_allocator_predefined_allocators_init();
     }
+
+    workers_count = config->threads_per_cpus * selected_cpus_count;
 
     if ((workers_user_data = program_workers_initialize(
             &program_terminate_event_loop,
