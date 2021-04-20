@@ -8,6 +8,7 @@ cpus:
   - all
 
 # Suggested 2 thread per cpu, depending on the hardware up to 4 threads still scale well
+# The number of workers that will be started will be n. cpus * threads_per_count
 threads_per_cpus: 2
 
 run_in_foreground: false
