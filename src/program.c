@@ -16,6 +16,7 @@
 #include <assert.h>
 
 #include "utils_cpu.h"
+#include "utils_numa.h"
 #include "exttypes.h"
 #include "misc.h"
 #include "xalloc.h"
@@ -37,6 +38,7 @@
 #include "worker/worker.h"
 #include "worker/worker_iouring.h"
 #include "config.h"
+#include "thread.h"
 #include "slab_allocator.h"
 
 #include "program.h"
@@ -53,6 +55,8 @@ int program_signals[] = { SIGUSR1, SIGINT, SIGHUP, SIGTERM, SIGQUIT };
 uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
 
 static char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
+static uint16_t* selected_cpus;
+static uint16_t selected_cpus_count;
 
 void program_signal_handlers(
         int signal_number) {
@@ -329,6 +333,22 @@ void program_config_setup_log_sinks(
     }
 }
 
+bool program_config_thread_affinity_set_selected_cpus(
+        config_t* config) {
+    if (config_cpus_parse(
+            utils_numa_cpu_configured_count(),
+            config->cpus,
+            config->cpus_count,
+            &selected_cpus,
+            &selected_cpus_count) == false) {
+        return false;
+    }
+
+    thread_affinity_set_selected_cpus(selected_cpus, selected_cpus_count);
+
+    return true;
+}
+
 int program_main(
         int argc,
         char** argv) {
@@ -344,6 +364,11 @@ int program_main(
     // TODO: refactor this function to make it actually testable
 
     if ((config = program_parse_arguments_and_load_config(argc, argv)) == NULL) {
+        return 1;
+    }
+
+    if (program_config_thread_affinity_set_selected_cpus(config) == false) {
+        config_free(config);
         return 1;
     }
 
@@ -394,6 +419,7 @@ int program_main(
     }
 
     log_sink_registered_free();
+    xalloc_free(selected_cpus);
     config_free(config);
 
     return 0;
