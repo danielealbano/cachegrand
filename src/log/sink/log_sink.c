@@ -41,6 +41,10 @@ log_sink_t *log_sink_init(
 
 void log_sink_free(
         log_sink_t* log_sink) {
+    if (log_sink->free_fn) {
+        log_sink->free_fn(&log_sink->settings);
+    }
+
     xalloc_free(log_sink);
 }
 
@@ -75,9 +79,6 @@ void log_sink_registered_free() {
             log_sink_registered_index < log_sink_registered_count() && log_sink_registered_index < LOG_SINK_REGISTERED_MAX;
             log_sink_registered_index++) {
         log_sink_t* log_sink = &log_sink_registered[log_sink_registered_index];
-
-        if (log_sink->free_fn) {
-            log_sink->free_fn(&log_sink->settings);
-        }
+        log_sink_free(log_sink);
     }
 }
