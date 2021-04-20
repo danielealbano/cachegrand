@@ -1,4 +1,9 @@
 worker_type: io_uring
+
+# Set cpu pinning, accepted values:
+# - cpu number, starting from 0 (ie. 0, 1, 2)
+# - cpu range, starting from 0 (ie. 2-12)
+# - all, will use all the available cpus
 cpus:
   - all
 
