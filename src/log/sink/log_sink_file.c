@@ -29,7 +29,15 @@ log_sink_t *log_sink_file_init(
             levels,
             settings,
             log_sink_file_printer,
-            NULL);
+            log_sink_file_free);
+}
+
+void log_sink_file_free(
+        log_sink_settings_t* settings) {
+    if (settings->file.internal.fp) {
+        fclose(settings->file.internal.fp);
+        settings->file.internal.fp = NULL;
+    }
 }
 
 void log_sink_file_printer(

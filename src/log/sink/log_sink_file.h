@@ -9,6 +9,9 @@ log_sink_t *log_sink_file_init(
         log_level_t levels,
         log_sink_settings_t* settings);
 
+void log_sink_file_free(
+        log_sink_settings_t* settings);
+
 void log_sink_file_printer(
         log_sink_settings_t* log_sink_settings,
         const char* tag,
