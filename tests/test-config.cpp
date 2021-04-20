@@ -622,6 +622,182 @@ TEST_CASE("config.c", "[config]") {
         }
     }
 
+    SECTION("config_cpus_validate") {
+        config_cpus_validate_error_t errors[TEST_CONFIG_CPUS_COUNT_MAX] = { CONFIG_CPUS_VALIDATE_OK };
+
+        SECTION("1 cpu") {
+            REQUIRE(config_cpus_validate(
+                    max_cpu_count,
+                    test_config_cpus_1_cpu,
+                    test_config_cpus_1_cpu_count,
+                    errors) == true);
+
+            REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_OK);
+        }
+
+        SECTION("2 cpus") {
+            REQUIRE(config_cpus_validate(
+                    max_cpu_count,
+                    test_config_cpus_2_cpus,
+                    test_config_cpus_2_cpus_count,
+                    errors) == true);
+
+            REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_OK);
+            REQUIRE(errors[1] == CONFIG_CPUS_VALIDATE_OK);
+        }
+
+        SECTION("1 cpu repeated") {
+            REQUIRE(config_cpus_validate(
+                    max_cpu_count,
+                    test_config_cpus_1_cpu_repeated,
+                    test_config_cpus_1_cpu_repeated_count,
+                    errors) == true);
+
+            REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_OK);
+            REQUIRE(errors[1] == CONFIG_CPUS_VALIDATE_OK);
+            REQUIRE(errors[2] == CONFIG_CPUS_VALIDATE_OK);
+            REQUIRE(errors[3] == CONFIG_CPUS_VALIDATE_OK);
+        }
+
+        SECTION("single cpus range") {
+            REQUIRE(config_cpus_validate(
+                    max_cpu_count,
+                    test_config_cpus_1_cpu_range,
+                    test_config_cpus_1_cpu_range_count,
+                    errors) == true);
+
+            REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_OK);
+        }
+
+        SECTION("two cpus range") {
+            REQUIRE(config_cpus_validate(
+                    max_cpu_count,
+                    test_config_cpus_2_cpu_ranges,
+                    test_config_cpus_2_cpu_ranges_count,
+                    errors) == true);
+
+            REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_OK);
+            REQUIRE(errors[1] == CONFIG_CPUS_VALIDATE_OK);
+        }
+
+        SECTION("mixed cpus") {
+            REQUIRE(config_cpus_validate(
+                    max_cpu_count,
+                    test_config_cpus_mixed,
+                    test_config_cpus_mixed_count,
+                    errors) == true);
+
+            REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_OK);
+            REQUIRE(errors[1] == CONFIG_CPUS_VALIDATE_OK);
+            REQUIRE(errors[2] == CONFIG_CPUS_VALIDATE_OK);
+            REQUIRE(errors[3] == CONFIG_CPUS_VALIDATE_OK);
+        }
+
+        SECTION("all cpus") {
+            REQUIRE(config_cpus_validate(
+                    max_cpu_count_low,
+                    test_config_cpus_all,
+                    test_config_cpus_all_count,
+                    errors) == true);
+
+            REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_OK);
+        }
+
+        SECTION("all cpus - before other") {
+            REQUIRE(config_cpus_validate(
+                    max_cpu_count_low,
+                    test_config_cpus_all_before_other,
+                    test_config_cpus_all_before_other_count,
+                    errors) == true);
+
+            REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_OK);
+            REQUIRE(errors[1] == CONFIG_CPUS_VALIDATE_OK);
+            REQUIRE(errors[2] == CONFIG_CPUS_VALIDATE_OK);
+        }
+
+        SECTION("all cpus - after other") {
+            REQUIRE(config_cpus_validate(
+                    max_cpu_count_low,
+                    test_config_cpus_all_after_other,
+                    test_config_cpus_all_after_other_count,
+                    errors) == true);
+
+            REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_OK);
+            REQUIRE(errors[1] == CONFIG_CPUS_VALIDATE_OK);
+            REQUIRE(errors[2] == CONFIG_CPUS_VALIDATE_OK);
+        }
+
+        SECTION("1 cpu over max") {
+            REQUIRE(config_cpus_validate(
+                    max_cpu_count,
+                    test_config_cpus_1_cpu_over,
+                    test_config_cpus_cpu_over_count,
+                    errors) == false);
+
+            REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_ERROR_INVALID_CPU);
+        }
+
+        SECTION("1 cpu range start over max") {
+            REQUIRE(config_cpus_validate(
+                    max_cpu_count,
+                    test_config_cpus_1_cpu_range_start_over,
+                    test_config_cpus_1_cpu_range_start_over_count,
+                    errors) == false);
+
+            REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_ERROR_INVALID_CPU);
+        }
+
+        SECTION("1 cpu range end over max") {
+            REQUIRE(config_cpus_validate(
+                    max_cpu_count,
+                    test_config_cpus_1_cpu_range_end_over,
+                    test_config_cpus_1_cpu_range_end_over_count,
+                    errors) == false);
+
+            REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_ERROR_INVALID_CPU);
+        }
+
+        SECTION("1 cpu range too small") {
+            REQUIRE(config_cpus_validate(
+                    max_cpu_count,
+                    test_config_cpus_1_cpu_range_too_small,
+                    test_config_cpus_1_cpu_range_too_small_count,
+                    errors) == false);
+
+            REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_ERROR_RANGE_TOO_SMALL);
+        }
+
+        SECTION("1 cpu range multiple") {
+            REQUIRE(config_cpus_validate(
+                    max_cpu_count,
+                    test_config_cpus_1_cpu_range_multiple,
+                    test_config_cpus_1_cpu_range_multiple_count,
+                    errors) == false);
+
+            REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_ERROR_MULTIPLE_RANGES);
+        }
+
+        SECTION("1 cpu with comma") {
+            REQUIRE(config_cpus_validate(
+                    max_cpu_count,
+                    test_config_cpus_1_cpu_with_comma,
+                    test_config_cpus_1_cpu_with_comma_count,
+                    errors) == false);
+
+            REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_ERROR_UNEXPECTED_CHARACTER);
+        }
+
+        SECTION("1 cpu with comma") {
+            REQUIRE(config_cpus_validate(
+                    max_cpu_count,
+                    test_config_cpus_1_cpu_with_dot,
+                    test_config_cpus_1_cpu_with_dot_count,
+                    errors) == false);
+
+            REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_ERROR_UNEXPECTED_CHARACTER);
+        }
+    }
+
     SECTION("config_log_level_t == log_level_t") {
         REQUIRE((int)CONFIG_LOG_LEVEL_ERROR == LOG_LEVEL_ERROR);
         REQUIRE((int)CONFIG_LOG_LEVEL_RECOVERABLE == LOG_LEVEL_RECOVERABLE);
