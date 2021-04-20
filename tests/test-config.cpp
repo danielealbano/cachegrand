@@ -358,6 +358,230 @@ TEST_CASE("config.c", "[config]") {
         config_free(config);
     }
 
+    SECTION("config_cpus_parse") {
+        uint16_t max_cpu_count = 8;
+        uint16_t max_cpu_count_low = 4;
+        uint16_t* cpus_map = NULL;
+        uint16_t cpus_map_count;
+
+        char* cpus_1_cpu[] = { "2" };
+        unsigned cpus_1_cpu_count = 1;
+
+        char* cpus_2_cpus[] = { "3", "4" };
+        unsigned cpus_2_cpus_count = 2;
+
+        char* cpus_1_cpu_repeated[] = { "2", "2", "2", "2" };
+        unsigned cpus_1_cpu_repeated_count = 4;
+
+        char* cpus_1_cpu_range[] = { "2-6" };
+        unsigned cpus_1_cpu_range_count = 1;
+
+        char* cpus_2_cpu_ranges[] = { "2-3", "6-8" };
+        unsigned cpus_2_cpu_ranges_count = 2;
+
+        char* cpus_mixed[] = { "2-3", "1", "6-8", "0" };
+        unsigned cpus_mixed_count = 4;
+
+        char* cpus_all[] = { "all" };
+        unsigned cpus_all_count = 1;
+
+        char* cpus_all_before_other[] = { "all", "1", "2-3" };
+        unsigned cpus_all_before_other_count = 3;
+
+        char* cpus_all_after_other[] = { "1", "2-3", "all" };
+        unsigned cpus_all_after_other_count = 3;
+
+        char* cpus_1_cpu_over[] = { "9" };
+        unsigned cpus_cpu_over_count = 1;
+
+        char* cpus_1_cpu_range_start_over[] = { "9-10" };
+        unsigned cpus_1_cpu_range_start_over_count = 1;
+
+        char* cpus_1_cpu_range_end_over[] = { "6-10" };
+        unsigned cpus_1_cpu_range_end_over_count = 1;
+
+        char* cpus_1_cpu_with_comma[] = { "1,2" };
+        unsigned cpus_1_cpu_with_comma_count = 1;
+
+        char* cpus_1_cpu_with_dot[] = { "1.2" };
+        unsigned cpus_1_cpu_with_dot_count = 1;
+
+        SECTION("1 cpu") {
+            REQUIRE(config_cpus_parse(
+                    max_cpu_count, cpus_1_cpu, cpus_1_cpu_count, &cpus_map, &cpus_map_count) == true);
+            REQUIRE(cpus_map_count == 1);
+            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map[0] == 2);
+        }
+
+        SECTION("2 cpus") {
+            REQUIRE(config_cpus_parse(
+                    max_cpu_count, cpus_2_cpus, cpus_2_cpus_count, &cpus_map, &cpus_map_count) == true);
+
+            REQUIRE(cpus_map_count == 2);
+            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map[0] == 3);
+            REQUIRE(cpus_map[1] == 4);
+        }
+
+        SECTION("1 cpu repeated") {
+            REQUIRE(config_cpus_parse(
+                    max_cpu_count, cpus_1_cpu_repeated, cpus_1_cpu_repeated_count, &cpus_map, &cpus_map_count) == true);
+
+            REQUIRE(cpus_map_count == 4);
+            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map[0] == 2);
+            REQUIRE(cpus_map[1] == 2);
+            REQUIRE(cpus_map[2] == 2);
+            REQUIRE(cpus_map[3] == 2);
+        }
+
+        SECTION("single cpus range") {
+            REQUIRE(config_cpus_parse(
+                    max_cpu_count, cpus_1_cpu_range, cpus_1_cpu_range_count, &cpus_map, &cpus_map_count) == true);
+
+            REQUIRE(cpus_map_count == 5);
+            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map[0] == 2);
+            REQUIRE(cpus_map[1] == 3);
+            REQUIRE(cpus_map[2] == 4);
+            REQUIRE(cpus_map[3] == 5);
+            REQUIRE(cpus_map[4] == 6);
+        }
+
+        SECTION("two cpus range") {
+            REQUIRE(config_cpus_parse(
+                    max_cpu_count, cpus_2_cpu_ranges, cpus_2_cpu_ranges_count, &cpus_map, &cpus_map_count) == true);
+
+            REQUIRE(cpus_map_count == 2 + 3);
+            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map[0] == 2);
+            REQUIRE(cpus_map[1] == 3);
+            REQUIRE(cpus_map[2] == 6);
+            REQUIRE(cpus_map[3] == 7);
+            REQUIRE(cpus_map[4] == 8);
+        }
+
+        SECTION("mixed cpus") {
+            REQUIRE(config_cpus_parse(
+                    max_cpu_count, cpus_mixed, cpus_mixed_count, &cpus_map, &cpus_map_count) == true);
+
+            REQUIRE(cpus_map_count == 2 + 1 + 3 + 1);
+            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map[0] == 2);
+            REQUIRE(cpus_map[1] == 3);
+            REQUIRE(cpus_map[2] == 1);
+            REQUIRE(cpus_map[3] == 6);
+            REQUIRE(cpus_map[4] == 7);
+            REQUIRE(cpus_map[5] == 8);
+            REQUIRE(cpus_map[6] == 0);
+        }
+
+        SECTION("mixed cpus") {
+            REQUIRE(config_cpus_parse(
+                    max_cpu_count, cpus_mixed, cpus_mixed_count, &cpus_map, &cpus_map_count) == true);
+
+            REQUIRE(cpus_map_count == 2 + 1 + 3 + 1);
+            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map[0] == 2);
+            REQUIRE(cpus_map[1] == 3);
+            REQUIRE(cpus_map[2] == 1);
+            REQUIRE(cpus_map[3] == 6);
+            REQUIRE(cpus_map[4] == 7);
+            REQUIRE(cpus_map[5] == 8);
+            REQUIRE(cpus_map[6] == 0);
+        }
+
+        SECTION("all cpus") {
+            REQUIRE(config_cpus_parse(
+                    max_cpu_count_low, cpus_all, cpus_all_count, &cpus_map, &cpus_map_count) == true);
+
+            REQUIRE(cpus_map_count == max_cpu_count_low);
+            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map[0] == 0);
+            REQUIRE(cpus_map[1] == 1);
+            REQUIRE(cpus_map[2] == 2);
+            REQUIRE(cpus_map[3] == 3);
+        }
+
+        SECTION("all cpus - before other") {
+            REQUIRE(config_cpus_parse(
+                    max_cpu_count_low,
+                    cpus_all_before_other,
+                    cpus_all_before_other_count,
+                    &cpus_map,
+                    &cpus_map_count) == true);
+
+            REQUIRE(cpus_map_count == max_cpu_count_low);
+            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map[0] == 0);
+            REQUIRE(cpus_map[1] == 1);
+            REQUIRE(cpus_map[2] == 2);
+            REQUIRE(cpus_map[3] == 3);
+        }
+
+        SECTION("all cpus - after other") {
+            REQUIRE(config_cpus_parse(
+                    max_cpu_count_low,
+                    cpus_all_after_other,
+                    cpus_all_after_other_count,
+                    &cpus_map,
+                    &cpus_map_count) == true);
+
+            REQUIRE(cpus_map_count == max_cpu_count_low);
+            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map[0] == 0);
+            REQUIRE(cpus_map[1] == 1);
+            REQUIRE(cpus_map[2] == 2);
+            REQUIRE(cpus_map[3] == 3);
+        }
+
+        SECTION("1 cpu over max") {
+            REQUIRE(config_cpus_parse(
+                    max_cpu_count,
+                    cpus_1_cpu_over,
+                    cpus_cpu_over_count,
+                    &cpus_map,
+                    &cpus_map_count) == false);
+        }
+
+        SECTION("1 cpu range start over max") {
+            REQUIRE(config_cpus_parse(
+                    max_cpu_count,
+                    cpus_1_cpu_range_start_over,
+                    cpus_1_cpu_range_start_over_count,
+                    &cpus_map,
+                    &cpus_map_count) == false);
+        }
+
+        SECTION("1 cpu range end over max") {
+            REQUIRE(config_cpus_parse(
+                    max_cpu_count,
+                    cpus_1_cpu_range_end_over,
+                    cpus_1_cpu_range_end_over_count,
+                    &cpus_map,
+                    &cpus_map_count) == false);
+        }
+
+        SECTION("1 cpu with comma") {
+            REQUIRE(config_cpus_parse(
+                    max_cpu_count,
+                    cpus_1_cpu_with_comma,
+                    cpus_1_cpu_with_comma_count,
+                    &cpus_map,
+                    &cpus_map_count) == false);
+        }
+
+        SECTION("1 cpu with comma") {
+            REQUIRE(config_cpus_parse(
+                    max_cpu_count,
+                    cpus_1_cpu_with_dot,
+                    cpus_1_cpu_with_dot_count,
+                    &cpus_map,
+                    &cpus_map_count) == false);
+        }
+    }
+
     SECTION("config_log_level_t == log_level_t") {
         REQUIRE((int)CONFIG_LOG_LEVEL_ERROR == LOG_LEVEL_ERROR);
         REQUIRE((int)CONFIG_LOG_LEVEL_RECOVERABLE == LOG_LEVEL_RECOVERABLE);
