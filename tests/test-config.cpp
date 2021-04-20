@@ -7,6 +7,7 @@
 #include <cyaml/cyaml.h>
 
 #include "xalloc.h"
+#include "log/log.h"
 
 #include "config.h"
 #include "config_cyaml_config.h"
@@ -408,5 +409,14 @@ TEST_CASE("config.c", "[config]") {
                 });
 
         config_free(config);
+    }
+
+    SECTION("config_log_level_t == log_level_t") {
+        REQUIRE((int)CONFIG_LOG_LEVEL_ERROR == LOG_LEVEL_ERROR);
+        REQUIRE((int)CONFIG_LOG_LEVEL_RECOVERABLE == LOG_LEVEL_RECOVERABLE);
+        REQUIRE((int)CONFIG_LOG_LEVEL_WARNING == LOG_LEVEL_WARNING);
+        REQUIRE((int)CONFIG_LOG_LEVEL_INFO == LOG_LEVEL_INFO);
+        REQUIRE((int)CONFIG_LOG_LEVEL_VERBOSE == LOG_LEVEL_VERBOSE);
+        REQUIRE((int)CONFIG_LOG_LEVEL_DEBUG == LOG_LEVEL_DEBUG);
     }
 }

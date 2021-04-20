@@ -5,8 +5,9 @@
 #include <assert.h>
 
 #include "xalloc.h"
-
+#include "log/log.h"
 #include "config.h"
+
 #include "program_arguments.h"
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
@@ -23,13 +24,13 @@ const char* test_program_arguments_position_unsupported[] = { TEST_PROGRAM_NAME,
 TEST_CASE("program_arguments.c", "[program][arguments]") {
     program_arguments_parser_testing = 1;
 
-    SECTION("program_arguments_log_level_t == config_log_level_t") {
-        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_ERROR == CONFIG_LOG_LEVEL_ERROR);
-        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_RECOVERABLE == CONFIG_LOG_LEVEL_RECOVERABLE);
-        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_WARNING == CONFIG_LOG_LEVEL_WARNING);
-        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_INFO == CONFIG_LOG_LEVEL_INFO);
-        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_VERBOSE == CONFIG_LOG_LEVEL_VERBOSE);
-        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_DEBUG == CONFIG_LOG_LEVEL_DEBUG);
+    SECTION("program_arguments_log_level_t == log_level_t") {
+        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_ERROR == LOG_LEVEL_ERROR);
+        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_RECOVERABLE == LOG_LEVEL_RECOVERABLE);
+        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_WARNING == LOG_LEVEL_WARNING);
+        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_INFO == LOG_LEVEL_INFO);
+        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_VERBOSE == LOG_LEVEL_VERBOSE);
+        REQUIRE((int)PROGRAM_ARGUMENTS_LOG_LEVEL_DEBUG == LOG_LEVEL_DEBUG);
     }
 
     SECTION("program_arguments_docs_header_prepare") {
