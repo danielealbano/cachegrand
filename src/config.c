@@ -103,6 +103,7 @@ void config_internal_cyaml_free(
         cyaml_schema_value_t* schema) {
     cyaml_free(cyaml_config, schema, config, 0);
 }
+
 bool config_cpus_validate(
         uint16_t max_cpus_count,
         char** cpus,
