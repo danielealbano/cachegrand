@@ -10,6 +10,7 @@
 #include "misc.h"
 #include "log.h"
 #include "fatal.h"
+#include "log/sink/log_sink.h"
 #include "log/sink/log_sink_support.h"
 #include "log/sink/log_sink_console.h"
 

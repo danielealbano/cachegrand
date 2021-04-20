@@ -11,6 +11,7 @@
 #include "xalloc.h"
 
 #include "log.h"
+#include "log/sink/log_sink.h"
 #include "log/sink/log_sink_console.h"
 
 // TODO: Everytime a thread tries to submit a message to be logged should check if it has been registered with the
@@ -24,9 +25,6 @@
 
 thread_local char* log_early_prefix_thread = NULL;
 
-static log_sink_t log_sinks_registered_list[LOG_SINK_REGISTERED_MAX] = {0};
-static uint8_t log_sinks_registered_count = 0;
-
 FUNCTION_CTOR(log_sink_console_init, {
     log_level_t level = LOG_LEVEL_ALL;
     log_sink_settings_t settings = { 0 };
@@ -37,14 +35,6 @@ FUNCTION_CTOR(log_sink_console_init, {
 #endif
 
     log_sink_register(log_sink_console_init(level, &settings));
-})
-
-FUNCTION_DTOR(log_sink, {
-    for(uint8_t i = 0; i < log_sinks_registered_count && i < LOG_SINK_REGISTERED_MAX; i++) {
-        if (log_sinks_registered_list[i].free_fn) {
-            log_sinks_registered_list[i].free_fn(&log_sinks_registered_list[i].settings);
-        }
-    }
 })
 
 const char* log_level_to_string(log_level_t level) {
@@ -106,13 +96,18 @@ void log_message_internal(
         va_list args) {
     time_t timestamp = log_message_timestamp();
 
-    for(uint8_t i = 0; i < log_sinks_registered_count && i < LOG_SINK_REGISTERED_MAX; ++i){
-        if ((level & log_sinks_registered_list[i].levels) != level) {
+    log_sink_t* log_sink_registered = log_sink_registered_get();
+    for(
+            uint8_t log_sink_registered_index = 0;
+            log_sink_registered_index < log_sink_registered_count() && log_sink_registered_index < LOG_SINK_REGISTERED_MAX;
+            log_sink_registered_index++) {
+        log_sink_t* log_sink = &log_sink_registered[log_sink_registered_index];
+        if ((level & log_sink->levels) != level) {
             continue;
         }
 
-        log_sinks_registered_list[i].printer_fn(
-                &log_sinks_registered_list[i].settings,
+        log_sink->printer_fn(
+                &log_sink->settings,
                 tag,
                 timestamp,
                 level,
@@ -175,34 +170,4 @@ void log_message_print_os_error(
 #if defined(__MINGW32__)
     LocalFree(error_message);
 #endif
-}
-
-void log_sink_register(
-        log_sink_t *sink) {
-    log_sinks_registered_list[log_sinks_registered_count] = *sink;
-    log_sinks_registered_count++;
-}
-
-log_sink_t *log_sink_init(
-        log_sink_type_t type,
-        log_level_t levels,
-        log_sink_settings_t* log_sink_settings,
-        log_sink_printer_fn_t printer_fn,
-        log_sink_free_fn_t free_fn) {
-    log_sink_t* result = xalloc_alloc_zero(sizeof(log_sink_t));
-
-    result->type = type;
-    result->levels = levels;
-    result->printer_fn = printer_fn;
-    result->free_fn = free_fn;
-
-    // Copy the settings into log_sink_t->settings
-    memcpy(&result->settings, log_sink_settings, sizeof(log_sink_settings_t));
-
-    return result;
-}
-
-void log_sink_free(
-        log_sink_t* log_sink) {
-    xalloc_free(log_sink);
 }

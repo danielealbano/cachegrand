@@ -41,46 +41,6 @@ typedef enum log_level log_level_t;
 
 #define LOG_LEVEL_ALL ((uint8_t)LOG_LEVEL_ERROR << 1u) - 1u
 
-enum log_sink_type {
-    LOG_SINK_TYPE_CONSOLE = 0,
-    LOG_SINK_TYPE_FILE
-};
-typedef enum log_sink_type log_sink_type_t;
-
-typedef union log_sink_settings log_sink_settings_t;
-union log_sink_settings {
-    struct {
-        bool use_stdout_for_errors;
-    } console;
-    struct {
-        char* filepath;
-        struct {
-            FILE* fp;
-        } internal;
-    } file;
-};
-
-typedef void (log_sink_printer_fn_t)(
-        log_sink_settings_t* log_sink_settings,
-        const char* tag,
-        time_t timestamp,
-        log_level_t level,
-        char* early_prefix_thread,
-        const char* message,
-        va_list args);
-
-typedef void (log_sink_free_fn_t)(
-    log_sink_settings_t* log_sink_settings);
-
-typedef struct log_sink log_sink_t;
-struct log_sink {
-    log_sink_type_t type;
-    log_level_t levels;
-    log_sink_printer_fn_t* printer_fn;
-    log_sink_free_fn_t* free_fn;
-    log_sink_settings_t settings;
-};
-
 void log_set_early_prefix_thread(
         char* prefix);
 
@@ -88,15 +48,6 @@ char* log_get_early_prefix_thread();
 
 void log_unset_early_prefix_thread();
 
-log_sink_t* log_sink_init(
-        log_sink_type_t type,
-        log_level_t levels,
-        log_sink_settings_t* log_sink_settings,
-        log_sink_printer_fn_t printer_fn,
-        log_sink_free_fn_t free_fn);
-
-void log_sink_free(
-        log_sink_t *log_sink);
 
 const char* log_level_to_string(
         log_level_t level);
@@ -122,9 +73,6 @@ void log_message(
 
 void log_message_print_os_error(
         const char *tag);
-
-void log_sink_register(
-        log_sink_t *sink);
 
 #ifndef DEBUG
 #define LOG_DI(...) /* Internal debug logs disabled */
