@@ -1,19 +1,27 @@
 #define _GNU_SOURCE
 
+#include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 #include <pthread.h>
 #include <sched.h>
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <assert.h>
 
-#include "utils_cpu.h"
 #include "misc.h"
+#include "xalloc.h"
+#include "utils_cpu.h"
+#include "utils_numa.h"
 #include "log/log.h"
 
 #include "thread.h"
 
 #define TAG "thread"
+
+uint16_t* internal_selected_cpus = NULL;
+uint16_t internal_selected_cpus_count = 0;
 
 long thread_current_get_id() {
     return syscall(SYS_gettid);
@@ -24,12 +32,18 @@ uint32_t thread_current_set_affinity(
     int res;
     cpu_set_t cpuset;
     pthread_t thread;
+    uint32_t logical_core_count;
+    uint32_t logical_core_index;
 
-    uint32_t logical_core_count = utils_cpu_count();
-    uint32_t logical_core_index = (thread_index % logical_core_count) * 2;
+    if (internal_selected_cpus == NULL) {
+        logical_core_count = utils_cpu_count();
+        logical_core_index = (thread_index % logical_core_count) * 2;
 
-    if (logical_core_index >= logical_core_count) {
-        logical_core_index = logical_core_index - logical_core_count + 1;
+        if (logical_core_index >= logical_core_count) {
+            logical_core_index = logical_core_index - logical_core_count + 1;
+        }
+    } else {
+        logical_core_index = internal_selected_cpus[thread_index % internal_selected_cpus_count];
     }
 
     CPU_ZERO(&cpuset);
@@ -48,4 +62,19 @@ uint32_t thread_current_set_affinity(
     }
 
     return logical_core_index;
+}
+
+int thread_affinity_set_selected_cpus_sort(
+        const void * a,
+        const void * b) {
+    return (*(uint16_t*)a - *(uint16_t*)b);
+}
+
+void thread_affinity_set_selected_cpus(
+        uint16_t* selected_cpus,
+        uint16_t selected_cpus_count) {
+    qsort(selected_cpus, selected_cpus_count, sizeof(uint16_t), thread_affinity_set_selected_cpus_sort);
+
+    internal_selected_cpus = selected_cpus;
+    internal_selected_cpus_count = selected_cpus_count;
 }

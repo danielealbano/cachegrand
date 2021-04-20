@@ -10,6 +10,14 @@ long thread_current_get_id();
 uint32_t thread_current_set_affinity(
         uint32_t thread_index);
 
+int thread_affinity_set_selected_cpus_sort(
+        const void * a,
+        const void * b);
+
+void thread_affinity_set_selected_cpus(
+        uint16_t* selected_cpus,
+        uint16_t selected_cpus_count);
+
 #ifdef __cplusplus
 }
 #endif
