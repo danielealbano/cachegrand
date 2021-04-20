@@ -159,7 +159,7 @@ const cyaml_schema_field_t config_log_fields_schema[] = {
 
 // Schema for config -> logs
 const cyaml_schema_value_t config_log_list_schema = {
-        CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER,
+        CYAML_VALUE_MAPPING(CYAML_FLAG_DEFAULT,
                             config_log_t, config_log_fields_schema),
 };
 
