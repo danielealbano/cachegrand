@@ -17,7 +17,7 @@ union log_sink_settings {
         bool use_stdout_for_errors;
     } console;
     struct {
-        char* log_path;
+        char* path;
         struct {
             FILE* fp;
         } internal;
