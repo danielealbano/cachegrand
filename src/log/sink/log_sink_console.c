@@ -2,8 +2,10 @@
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
+#include <assert.h>
 
 #include "log/log.h"
+#include "log/sink/log_sink.h"
 #include "log/sink/log_sink_support.h"
 #include "xalloc.h"
 
@@ -30,7 +32,7 @@ void log_sink_console_log_level_color_fg_lookup_init() {
 
 log_sink_t *log_sink_console_init(
         log_level_t levels,
-        log_sink_settings_t* log_sink_settings) {
+        log_sink_settings_t* settings) {
     if (log_sink_console_log_level_color_fg_lookup[0] == NULL) {
         log_sink_console_log_level_color_fg_lookup_init();
     }
@@ -38,7 +40,7 @@ log_sink_t *log_sink_console_init(
     return log_sink_init(
             LOG_SINK_TYPE_CONSOLE,
             levels,
-            log_sink_settings,
+            settings,
             log_sink_console_printer,
             NULL);
 }
@@ -80,7 +82,7 @@ void log_sink_console_printer(
         log_message = log_message_static_buffer;
     } else {
         // xalloc_alloc is slower than the slab_allocator but the console log sink should not be used in production for non
-        // error logging, also we can't depened on the slab allocator as the slab allocator prints messages via the logging
+        // error logging, also we can't depend on the slab allocator as the slab allocator prints messages via the logging
         log_message = xalloc_alloc(log_message_size + 1);
     }
 
@@ -110,7 +112,10 @@ void log_sink_console_printer(
         log_message += color_fg_reset_len;
     }
 
+    assert(log_message == log_message_beginning + log_message_size);
+
     fwrite(log_message_beginning, log_message_size, 1, out);
+    fflush(out);
 
     if (log_message_size >= sizeof(log_message_static_buffer)) {
         xalloc_free(log_message_beginning);

@@ -7,7 +7,7 @@ extern "C" {
 
 log_sink_t *log_sink_console_init(
         log_level_t levels,
-        log_sink_settings_t* log_sink_settings);
+        log_sink_settings_t* settings);
 
 void log_sink_console_printer(
         log_sink_settings_t* log_sink_settings,
