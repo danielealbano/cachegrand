@@ -13,6 +13,7 @@ typedef enum config_protocol_type config_protocol_type_t;
 enum config_log_type {
     CONFIG_LOG_TYPE_CONSOLE,
     CONFIG_LOG_TYPE_FILE,
+    CONFIG_LOG_TYPE_MAX,
 };
 typedef enum config_log_type config_log_type_t;
 
@@ -23,6 +24,9 @@ enum config_log_level {
     CONFIG_LOG_LEVEL_WARNING = 0x0010,
     CONFIG_LOG_LEVEL_RECOVERABLE = 0x0020,
     CONFIG_LOG_LEVEL_ERROR = 0x0040,
+    CONFIG_LOG_LEVEL_MAX,
+
+    // Extra log levels specific for the config as they are mapped directly into string to be used with cyaml
     CONFIG_LOG_LEVEL_ALL = 0x0080,
 
     CONFIG_LOG_LEVEL_DEBUG_NEGATE = 0x0200,

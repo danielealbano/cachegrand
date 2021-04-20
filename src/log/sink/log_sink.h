@@ -7,7 +7,8 @@ extern "C" {
 
 enum log_sink_type {
     LOG_SINK_TYPE_CONSOLE = 0,
-    LOG_SINK_TYPE_FILE
+    LOG_SINK_TYPE_FILE,
+    LOG_SINK_TYPE_MAX
 };
 typedef enum log_sink_type log_sink_type_t;
 
