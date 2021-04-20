@@ -798,6 +798,61 @@ TEST_CASE("config.c", "[config]") {
         }
     }
 
+    SECTION("config_cpus_filter_duplicates") {
+        uint16_t* unique_cpus_duplicates = NULL;
+        uint16_t unique_cpus_duplicates_count = 0;
+
+        SECTION("list with duplicates") {
+            uint16_t cpus_duplicates[] = { 2, 2, 3, 3, 1, 4, 2 };
+            uint16_t cpus_duplicates_count = sizeof(cpus_duplicates) / sizeof(uint16_t);
+
+            config_cpus_filter_duplicates(
+                    cpus_duplicates,
+                    cpus_duplicates_count,
+                    &unique_cpus_duplicates,
+                    &unique_cpus_duplicates_count);
+
+            REQUIRE(unique_cpus_duplicates != NULL);
+            REQUIRE(unique_cpus_duplicates_count == 4);
+            REQUIRE(unique_cpus_duplicates[0] == 2);
+            REQUIRE(unique_cpus_duplicates[1] == 3);
+            REQUIRE(unique_cpus_duplicates[2] == 1);
+            REQUIRE(unique_cpus_duplicates[3] == 4);
+        }
+
+        SECTION("list without duplicates") {
+            uint16_t cpus_duplicates[] = { 2, 3, 1, 4 };
+            uint16_t cpus_duplicates_count = sizeof(cpus_duplicates) / sizeof(uint16_t);
+
+            config_cpus_filter_duplicates(
+                    cpus_duplicates,
+                    cpus_duplicates_count,
+                    &unique_cpus_duplicates,
+                    &unique_cpus_duplicates_count);
+
+            REQUIRE(unique_cpus_duplicates != NULL);
+            REQUIRE(unique_cpus_duplicates_count == 4);
+            REQUIRE(unique_cpus_duplicates[0] == 2);
+            REQUIRE(unique_cpus_duplicates[1] == 3);
+            REQUIRE(unique_cpus_duplicates[2] == 1);
+            REQUIRE(unique_cpus_duplicates[3] == 4);
+        }
+
+        SECTION("empty list") {
+            uint16_t cpus_duplicates[] = { };
+            uint16_t cpus_duplicates_count = 0;
+
+            config_cpus_filter_duplicates(
+                    cpus_duplicates,
+                    cpus_duplicates_count,
+                    &unique_cpus_duplicates,
+                    &unique_cpus_duplicates_count);
+
+            REQUIRE(unique_cpus_duplicates == NULL);
+            REQUIRE(unique_cpus_duplicates_count == 0);
+        }
+    }
+
     SECTION("config_log_level_t == log_level_t") {
         REQUIRE((int)CONFIG_LOG_LEVEL_ERROR == LOG_LEVEL_ERROR);
         REQUIRE((int)CONFIG_LOG_LEVEL_RECOVERABLE == LOG_LEVEL_RECOVERABLE);
