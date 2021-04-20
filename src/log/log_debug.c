@@ -8,6 +8,7 @@
 #include <time.h>
 
 #include "misc.h"
+#include "xalloc.h"
 #include "log.h"
 #include "fatal.h"
 #include "log/sink/log_sink.h"
@@ -54,13 +55,17 @@ void log_message_debug(
         const int src_line,
         const char* message,
         ...) {
+    char *message_with_args;
+    size_t message_with_args_len = 0;
+    char message_with_args_static_buffer[200] = {0};
+    bool message_with_args_static_buffer_selected = false;
     static log_sink_settings_t log_sink_console_settings = {
             .console = {
                     .use_stdout_for_errors = true
             }
     };
 
-    char tag[256] = { 0 };
+    char tag[256] = {0};
     size_t tag_len = sizeof(tag);
 
     LOG_MESSAGE_DEBUG_RULES(rules_src_path_include, SRC_PATH, INCLUDE);
@@ -81,16 +86,31 @@ void log_message_debug(
     va_list args;
     va_start(args, message);
 
+    va_list args_copy;
+    va_copy(args_copy, args);
+    message_with_args_len = vsnprintf(NULL, 0, message, args_copy);
+    va_end(args_copy);
+
+    // Decide if a static buffer can be used or a new one has to be allocated
+    message_with_args = log_buffer_static_or_alloc_new(
+            message_with_args_static_buffer,
+            sizeof(message_with_args_static_buffer),
+            message_with_args_len,
+            &message_with_args_static_buffer_selected);
+
     log_sink_console_printer(
             &log_sink_console_settings,
             tag,
             log_message_timestamp(),
             LOG_LEVEL_DEBUG_INTERNALS,
             log_early_prefix_thread,
-            message,
-            args);
+            message_with_args,
+            message_with_args_len);
 
     va_end(args);
-}
 
+    if (!message_with_args_static_buffer_selected) {
+        xalloc_free(message_with_args);
+    }
+}
 #endif // DEBUG == 1
