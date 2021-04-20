@@ -159,7 +159,7 @@ bool config_cpus_parse(
                 if (cpu_is_range) {
                     cpu_number_range_end = cpu_number;
                     cpu_number_range_len = cpu_number_range_end - cpu_number_range_start + 1;
-                    if (cpu_number_range_len < 1) {
+                    if (cpu_number_range_len < 2) {
                         error = true;
                         break;
                     }
