@@ -9,33 +9,29 @@
 
 #include "log_sink_console.h"
 
-static char** log_sink_console_log_level_color_fg_lookup = NULL;
+static const char* log_sink_console_colors_fg[] = {
+        "\x1B[0m", // reset
+        "\x1B[91m", // light red
+        "\x1B[93m", // light yellow
+        "\x1B[37m", // light gray
+        "\x1B[90m", // dark gray
+        "\x1B[97m", // white
+};
+
+static const char* log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_MAX] = { 0 };
 void log_sink_console_log_level_color_fg_lookup_init() {
-    log_sink_console_log_level_color_fg_lookup = xalloc_alloc_zero((LOG_LEVEL_MAX - 1) * sizeof(char*));
-
-    // light red
-    log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_ERROR] = "\x1B[91m";
-
-    // light yellow
-    log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_WARNING] = "\x1B[93m";
-
-    // light gray
-    log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_VERBOSE] = "\x1B[37m";
-
-    // dark gray
-    log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_DEBUG] = "\x1B[90m";
-
-    // info
-    log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_INFO] = "\x1B[97m";
-
-    // Use 0 to reset the foreground color status, not used by logging
-    log_sink_console_log_level_color_fg_lookup[0] = "\x1B[0m";
+    log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_ERROR] = log_sink_console_colors_fg[1];
+    log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_WARNING] = log_sink_console_colors_fg[2];
+    log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_VERBOSE] = log_sink_console_colors_fg[3];
+    log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_DEBUG] = log_sink_console_colors_fg[4];
+    log_sink_console_log_level_color_fg_lookup[LOG_LEVEL_INFO] = log_sink_console_colors_fg[5];
+    log_sink_console_log_level_color_fg_lookup[0] = log_sink_console_colors_fg[0];
 }
 
 log_sink_t *log_sink_console_init(
         log_level_t levels,
         log_sink_settings_t* log_sink_settings) {
-    if (!log_sink_console_log_level_color_fg_lookup) {
+    if (log_sink_console_log_level_color_fg_lookup[0] == NULL) {
         log_sink_console_log_level_color_fg_lookup_init();
     }
 
