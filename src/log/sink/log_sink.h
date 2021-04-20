@@ -31,7 +31,7 @@ typedef void (log_sink_printer_fn_t)(
         log_level_t level,
         char* early_prefix_thread,
         const char* message,
-        va_list args);
+        size_t message_len);
 
 typedef void (log_sink_free_fn_t)(
         log_sink_settings_t* settings);
@@ -63,7 +63,7 @@ log_sink_t *log_sink_factory(
         log_level_t levels,
         log_sink_settings_t* settings);
 
-log_sink_t* log_sink_registered_get();
+log_sink_t** log_sink_registered_get();
 
 uint8_t log_sink_registered_count();
 

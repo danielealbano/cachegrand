@@ -7,11 +7,8 @@ extern "C" {
 
 size_t log_sink_support_printer_str_len(
         const char* tag,
-        time_t timestamp,
-        log_level_t level,
-        char* early_prefix_thread,
-        const char* message,
-        va_list args);
+        const char* early_prefix_thread,
+        size_t message_len);
 
 size_t log_sink_support_printer_str(
         char* message_out,
@@ -19,9 +16,9 @@ size_t log_sink_support_printer_str(
         const char* tag,
         time_t timestamp,
         log_level_t level,
-        char* early_prefix_thread,
+        const char* early_prefix_thread,
         const char* message,
-        va_list args);
+        size_t message_len);
 
 #ifdef __cplusplus
 }

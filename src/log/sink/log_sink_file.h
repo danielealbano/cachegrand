@@ -19,7 +19,7 @@ void log_sink_file_printer(
         log_level_t level,
         char* early_prefix_thread,
         const char* message,
-        va_list args);
+        size_t message_len);
 
 #ifdef __cplusplus
 }

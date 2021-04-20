@@ -82,9 +82,28 @@ void log_message_internal(
         log_level_t level,
         const char *message,
         va_list args) {
+    char* message_with_args;
+    size_t message_with_args_len = 0;
+    char message_with_args_static_buffer[200] = { 0 };
+    bool message_with_args_static_buffer_selected = false;
     time_t timestamp = log_message_timestamp();
 
-    log_sink_t* log_sink_registered = log_sink_registered_get();
+    // Calculate message with args size
+    va_list args_copy;
+    va_copy(args_copy, args);
+    message_with_args_len = vsnprintf(NULL, 0, message, args_copy);
+    va_end(args_copy);
+
+    // Decide if a static buffer can be used or a new one has to be allocated
+    message_with_args = log_buffer_static_or_alloc_new(
+            message_with_args_static_buffer,
+            sizeof(message_with_args_static_buffer),
+            message_with_args_len,
+            &message_with_args_static_buffer_selected);
+
+    // Build the message
+    vsnprintf(message_with_args, message_with_args_len + 1, message, args);
+
     // Loop over the registered sinks and print the message
     log_sink_t** log_sink_registered = log_sink_registered_get();
     for(
@@ -102,8 +121,12 @@ void log_message_internal(
                 timestamp,
                 level,
                 log_early_prefix_thread,
-                message,
-                args);
+                message_with_args,
+                message_with_args_len);
+    }
+
+    if (!message_with_args_static_buffer_selected) {
+        xalloc_free(message_with_args);
     }
 }
 
@@ -160,4 +183,26 @@ void log_message_print_os_error(
 #if defined(__MINGW32__)
     LocalFree(error_message);
 #endif
+}
+
+char* log_buffer_static_or_alloc_new(
+        char* static_buffer,
+        size_t static_buffer_size,
+        size_t data_size,
+        bool* static_buffer_selected) {
+    char* buffer;
+
+    // If the message is small enough, avoid allocating & freeing memory, uses < to keep 1 byte free for NULL
+    // termination
+    if (data_size < static_buffer_size) {
+        buffer = static_buffer;
+        *static_buffer_selected = true;
+    } else {
+        buffer = xalloc_alloc(data_size + 1);
+        *static_buffer_selected = false;
+    }
+
+    buffer[data_size] = 0;
+
+    return buffer;
 }

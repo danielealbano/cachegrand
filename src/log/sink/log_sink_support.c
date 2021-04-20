@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <stdbool.h>
 #include <time.h>
 
@@ -8,28 +9,21 @@
 
 size_t log_sink_support_printer_str_len(
         const char* tag,
-        time_t timestamp,
-        log_level_t level,
-        char* early_prefix_thread,
-        const char* message,
-        va_list args) {
-    size_t log_message_size;
+        const char* early_prefix_thread,
+        size_t message_len) {
+    size_t log_message_len;
 
-    // Calculate how much memory is needed for the message to be printed
-    va_list args_copy;
-    va_copy(args_copy, args);
-    log_message_size = log_sink_support_printer_str(
-            NULL,
-            0,
-            tag,
-            timestamp,
-            level,
-            early_prefix_thread,
-            message,
-            args_copy);
-    va_end(args_copy);
+    log_message_len =
+            1 + LOG_MESSAGE_TIMESTAMP_MAX_LENGTH + 1 + // timestamp
+            1 + 11 + 1 +  // log level padded with up to 11 spaces
+            (early_prefix_thread != NULL ? strlen(early_prefix_thread) : 0) + // early_prefix_thread
+            1 + strlen(tag) + 1 + // tag with brackets
+            1 +  // space
+            message_len + // message
+            1; // \n
 
-    return log_message_size;
+
+    return log_message_len;
 }
 
 size_t log_sink_support_printer_str(
@@ -38,35 +32,26 @@ size_t log_sink_support_printer_str(
         const char* tag,
         time_t timestamp,
         log_level_t level,
-        char* early_prefix_thread,
+        const char* early_prefix_thread,
         const char* message,
-        va_list args) {
+        size_t message_len) {
     size_t message_out_len_res = 0;
-    char timestamp_str[LOG_MESSAGE_TIMESTAMP_MAX_LENGTH] = {0};
+    char timestamp_str[LOG_MESSAGE_TIMESTAMP_MAX_LENGTH + 1] = {0};
 
     message_out_len_res = snprintf(
-            message_out != NULL
-                ? message_out + message_out_len_res
-                : NULL,
+            message_out,
             message_out_len,
             "[%s][%-11s]%s[%s] ",
-            log_message_timestamp_str(timestamp, timestamp_str, LOG_MESSAGE_TIMESTAMP_MAX_LENGTH),
+            log_message_timestamp_str(timestamp, timestamp_str, sizeof(timestamp_str)),
             log_level_to_string(level),
             early_prefix_thread != NULL ? early_prefix_thread : "",
             tag);
-    message_out_len_res += vsnprintf(
-            message_out != NULL
-                ? message_out + message_out_len_res
-                : NULL,
-            message_out_len,
-            message,
-            args);
-    message_out_len_res += snprintf(
-            message_out != NULL
-                ? message_out + message_out_len_res
-                : NULL,
-            message_out_len,
-            "\n");
+
+    strcpy(message_out + message_out_len_res, message);
+    message_out_len_res += message_len;
+
+    message_out[message_out_len_res] = '\n';
+    message_out_len_res++;
 
     return message_out_len_res;
 }

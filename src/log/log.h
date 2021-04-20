@@ -79,6 +79,12 @@ void log_message(
 void log_message_print_os_error(
         const char *tag);
 
+char* log_buffer_static_or_alloc_new(
+        char* static_buffer,
+        size_t static_buffer_size,
+        size_t data_size,
+        bool* static_buffer_selected);
+
 #ifdef __cplusplus
 }
 #endif

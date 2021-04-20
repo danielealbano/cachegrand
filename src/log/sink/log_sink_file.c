@@ -47,26 +47,21 @@ void log_sink_file_printer(
         log_level_t level,
         char* early_prefix_thread,
         const char* message,
-        va_list args) {
+        size_t message_len) {
     char* log_message;
-    char log_message_static_buffer[150] = { 0 };
+    char log_message_static_buffer[200] = { 0 };
+    bool log_message_static_buffer_selected = false;
 
     size_t log_message_size = log_sink_support_printer_str_len(
             tag,
-            timestamp,
-            level,
             early_prefix_thread,
-            message,
-            args);
+            message_len);
 
-    // If the message is small enough, avoid allocating & freeing memory
-    if (log_message_size < sizeof(log_message_static_buffer)) {
-        log_message = log_message_static_buffer;
-    } else {
-        // xalloc_alloc is slower than the slab_allocator but the file log sink should not be used in production for non
-        // error logging, also we can't depend on the slab allocator as the slab allocator prints messages via the logging
-        log_message = xalloc_alloc(log_message_size + 1);
-    }
+    log_message = log_buffer_static_or_alloc_new(
+            log_message_static_buffer,
+            sizeof(log_message_static_buffer),
+            log_message_size,
+            &log_message_static_buffer_selected);
 
     // Write the log message
     log_sink_support_printer_str(
@@ -77,11 +72,12 @@ void log_sink_file_printer(
             level,
             early_prefix_thread,
             message,
-            args);
+            message_len);
 
     fwrite(log_message, log_message_size, 1, settings->file.internal.fp);
+    fflush(settings->file.internal.fp);
 
-    if (log_message_size >= sizeof(log_message_static_buffer)) {
+    if (!log_message_static_buffer_selected) {
         xalloc_free(log_message);
     }
 }

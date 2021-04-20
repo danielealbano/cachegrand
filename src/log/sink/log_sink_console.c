@@ -52,10 +52,11 @@ void log_sink_console_printer(
         log_level_t level,
         char* early_prefix_thread,
         const char* message,
-        va_list args) {
+        size_t message_len) {
     char* log_message;
     char* log_message_beginning;
-    char log_message_static_buffer[150] = { 0 };
+    char log_message_static_buffer[200] = { 0 };
+    bool log_message_static_buffer_selected = false;
     size_t color_fg_desired_len = 0;
     size_t color_fg_reset_len = 0;
     bool level_has_color = log_sink_console_log_level_color_fg_lookup[level] != NULL;
@@ -70,22 +71,16 @@ void log_sink_console_printer(
 
     size_t log_message_size = log_sink_support_printer_str_len(
             tag,
-            timestamp,
-            level,
             early_prefix_thread,
-            message,
-            args);
+            message_len);
     log_message_size += color_fg_desired_len + color_fg_reset_len;
 
-    // If the message is small enough, avoid allocating & freeing memory
-    if (log_message_size < sizeof(log_message_static_buffer)) {
-        log_message = log_message_static_buffer;
-    } else {
-        // xalloc_alloc is slower than the slab_allocator but the console log sink should not be used in production for non
-        // error logging, also we can't depend on the slab allocator as the slab allocator prints messages via the logging
-        log_message = xalloc_alloc(log_message_size + 1);
-    }
-
+    // Use the static buffer or allocate a new one
+    log_message = log_buffer_static_or_alloc_new(
+            log_message_static_buffer,
+            sizeof(log_message_static_buffer),
+            log_message_size,
+            &log_message_static_buffer_selected);
     log_message_beginning = log_message;
     log_message_beginning[log_message_size] = 0;
 
@@ -104,7 +99,7 @@ void log_sink_console_printer(
             level,
             early_prefix_thread,
             message,
-            args);
+            message_len);
 
     // Restore the foreground color
     if (level_has_color) {
@@ -112,12 +107,12 @@ void log_sink_console_printer(
         log_message += color_fg_reset_len;
     }
 
-    assert(log_message == log_message_beginning + log_message_size);
-
     fwrite(log_message_beginning, log_message_size, 1, out);
     fflush(out);
 
-    if (log_message_size >= sizeof(log_message_static_buffer)) {
+    assert(log_message == log_message_beginning + log_message_size);
+
+    if (!log_message_static_buffer_selected) {
         xalloc_free(log_message_beginning);
     }
 }
