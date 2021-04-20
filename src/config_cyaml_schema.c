@@ -159,7 +159,7 @@ const cyaml_schema_field_t config_log_fields_schema[] = {
 
 // Schema for config -> logs
 const cyaml_schema_value_t config_log_list_schema = {
-        CYAML_VALUE_MAPPING(CYAML_FLAG_DEFAULT,
+        CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER,
                             config_log_t, config_log_fields_schema),
 };
 
@@ -221,6 +221,10 @@ const cyaml_schema_value_t config_top_schema = {
         CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER,
                             config_t, config_fields_schema),
 };
+
+const cyaml_schema_value_t* config_cyaml_schema_get_log_schema() {
+    return &config_log_list_schema;
+}
 
 const cyaml_schema_value_t* config_cyaml_schema_get_top_schema() {
     return &config_top_schema;
