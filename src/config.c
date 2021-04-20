@@ -278,6 +278,45 @@ bool config_cpus_parse(
     return true;
 }
 
+void config_cpus_filter_duplicates(
+        uint16_t* cpus,
+        uint16_t cpus_count,
+        uint16_t** unique_cpus,
+        uint16_t* unique_cpus_count) {
+    char* int_unique_cpu_set;
+    uint16_t* int_unique_cpus;
+    uint16_t int_unique_cpus_count = 0;
+
+    for(uint16_t cpu_index = 0; cpu_index < cpus_count; cpu_index++) {
+        uint16_t cpu_number = cpus[cpu_index];
+        int_unique_cpus_count = cpu_number > int_unique_cpus_count ? cpu_number : int_unique_cpus_count;
+    }
+
+    if (int_unique_cpus_count == 0) {
+        *unique_cpus = NULL;
+        *unique_cpus_count = int_unique_cpus_count;
+        return;
+    }
+
+    int_unique_cpus = xalloc_alloc_zero(sizeof(uint16_t) * int_unique_cpus_count);
+    int_unique_cpu_set = xalloc_alloc_zero(sizeof(char) * int_unique_cpus_count + 1);
+
+    uint16_t int_unique_cpu_index = 0;
+    for(uint16_t cpu_index = 0; cpu_index < cpus_count; cpu_index++) {
+        uint16_t cpu_number = cpus[cpu_index];
+
+        if (int_unique_cpu_set[cpu_number] == 0) {
+            int_unique_cpus[int_unique_cpu_index] = cpu_number;
+            int_unique_cpu_index++;
+        }
+
+        int_unique_cpu_set[cpu_number] = 1;
+    }
+
+    *unique_cpus = int_unique_cpus;
+    *unique_cpus_count = int_unique_cpus_count;
+}
+
 config_t* config_load(
         char* config_path) {
     config_t* config = NULL;

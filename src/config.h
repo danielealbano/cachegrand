@@ -150,6 +150,12 @@ bool config_cpus_parse(
         uint16_t** cpus_map,
         uint16_t* cpus_map_count);
 
+void config_cpus_filter_duplicates(
+        uint16_t* cpus,
+        uint16_t cpus_count,
+        uint16_t** unique_cpus,
+        uint16_t* unique_cpus_count);
+
 #ifdef __cplusplus
 }
 #endif
