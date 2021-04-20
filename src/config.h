@@ -123,6 +123,13 @@ config_t* config_load(
 void config_free(
         config_t* config);
 
+bool config_cpus_parse(
+        uint16_t max_cpus_count,
+        char** cpus,
+        unsigned cpus_count,
+        uint16_t** cpus_map,
+        uint16_t* cpus_map_count);
+
 #ifdef __cplusplus
 }
 #endif
