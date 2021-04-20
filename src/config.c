@@ -84,7 +84,7 @@ cyaml_err_t config_internal_cyaml_load(
     return cyaml_load_file(config_path, cyaml_config, schema, (cyaml_data_t **)config, NULL);
 }
 
-bool config_internal_validate_after_load(
+bool config_validate_after_load(
         config_t* config) {
     // TODO: validate the cpus list if present, if all is in the list anything else can be there
 
@@ -292,7 +292,7 @@ config_t* config_load(
         LOG_E(TAG, "Failed loading the configuration: %s", cyaml_strerror(err));
     }
 
-    if (config_internal_validate_after_load(config) == false) {
+    if (config_validate_after_load(config) == false) {
         config_free(config);
         config = NULL;
     }

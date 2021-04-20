@@ -134,6 +134,9 @@ config_t* config_load(
 void config_free(
         config_t* config);
 
+bool config_validate_after_load(
+        config_t* config);
+
 bool config_cpus_validate(
         uint16_t max_cpus_count,
         char** cpus,
