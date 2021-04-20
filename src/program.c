@@ -13,6 +13,7 @@
 #include <strings.h>
 #include <unistd.h>
 #include <liburing.h>
+#include <assert.h>
 
 #include "utils_cpu.h"
 #include "exttypes.h"
@@ -52,7 +53,6 @@ int program_signals[] = { SIGUSR1, SIGINT, SIGHUP, SIGTERM, SIGQUIT };
 uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
 
 static char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
-static log_sink_t* log_sink_console = NULL;
 
 void program_signal_handlers(
         int signal_number) {
@@ -189,8 +189,23 @@ void program_update_config_from_arguments(
         program_arguments_t* program_arguments,
         config_t* config) {
     if (program_arguments->log_level != PROGRAM_ARGUMENTS_LOG_LEVEL_MAX) {
+        config_log_level_t config_log_levels[] = { CONFIG_LOG_LEVEL_DEBUG, CONFIG_LOG_LEVEL_VERBOSE, CONFIG_LOG_LEVEL_INFO, CONFIG_LOG_LEVEL_WARNING, CONFIG_LOG_LEVEL_RECOVERABLE, CONFIG_LOG_LEVEL_ERROR };
+        size_t config_log_levels_len = sizeof(config_log_levels) / sizeof(config_log_level_t);
+
+        bool set_remaining_bits = false;
+        config_log_level_t config_log_level = 0;
+        for(int i = 0; i < config_log_levels_len; i++) {
+            if ((config_log_level_t)program_arguments->log_level == config_log_levels[i]) {
+                set_remaining_bits = true;
+            }
+
+            if (set_remaining_bits) {
+                config_log_level |= config_log_levels[i];
+            }
+        }
+
         for(int i = 0; i < config->logs_count; i++) {
-            config->logs[i].level = (config_log_level_t)program_arguments->log_level;
+            config->logs[i].level = config_log_level;
         }
     }
 }
@@ -260,9 +275,58 @@ void program_setup_initial_log_sink_console() {
     level -= LOG_LEVEL_DEBUG;
 #endif
 
-    log_sink_console = log_sink_console_init(level, &settings);
+    log_sink_register(log_sink_console_init(level, &settings));
+}
 
-    log_sink_register(log_sink_console);
+void program_config_setup_log_sinks(
+        config_t* config) {
+    // Free up the temporary registered log sink (the console one)
+    log_sink_registered_free();
+
+    // Iterate over the log sinks defined in the configuration
+    for(int i = 0; i < config->logs_count; i++) {
+        log_level_t log_levels = 0;
+        log_sink_settings_t log_sink_settings = { 0 };
+
+        config_log_t* config_log = &config->logs[i];
+
+        log_sink_type_t log_sink_type = (log_sink_type_t)config_log->type;
+
+        // Setup log levels from config - first pass - set all if requested
+        log_levels = (config_log->level & CONFIG_LOG_LEVEL_ALL) == CONFIG_LOG_LEVEL_ALL
+                     ? LOG_LEVEL_ALL
+                     : 0;
+
+        // Setup log levels from config - second pass - set the directly specified log levels
+        log_levels |= (log_level_t)config_log->level & LOG_LEVEL_ALL;
+
+        // Setup log levels from config - third pass - apply negation (no-* log levels in config)
+        log_levels &= (~(config_log->level >> 8));
+
+        // Setup log levels from config - fourth pass - always drop LOG_LEVEL_DEBUG_INTERNALS, not settable
+        log_levels &= ~LOG_LEVEL_DEBUG_INTERNALS;
+
+#if NDEBUG == 1
+        // Setup log levels from config - fourth pass - always drop LOG_LEVEL_DEBUG in release builds, not available
+        log_levels &= ~LOG_LEVEL_DEBUG;
+#endif
+
+        switch (log_sink_type) {
+            case LOG_SINK_TYPE_CONSOLE:
+                // do nothing
+                break;
+
+            case LOG_SINK_TYPE_FILE:
+                log_sink_settings.file.path = config_log->file->path;
+                break;
+
+            default:
+                // To catch mismatches
+                assert(false);
+        }
+
+        log_sink_register(log_sink_factory(log_sink_type, log_levels, &log_sink_settings));
+    }
 }
 
 int program_main(
@@ -283,13 +347,18 @@ int program_main(
         return 1;
     }
 
-    // TODO: initialize the log sinks
-    // TODO: initialize the protocol parsers
-    // TODO: initialize the network listeners and the protocol state machines
+    // Register the signal handlers
+    program_register_signal_handlers();
 
+    // Enable, if allowed in the config and if the hugepages are available, the slab allocator
     use_slab_allocator = program_use_slab_allocator(config);
 
-    program_register_signal_handlers();
+    // Initialize the log sinks defined in the configuration, if any. The function will take care of dropping the
+    // temporary log sink defined initially
+    program_config_setup_log_sinks(config);
+
+    // TODO: initialize the protocol parsers
+    // TODO: initialize the network listeners and the protocol state machines
 
     // TODO: should be possible to pinpoint in the config which cores can be utilized, very handy for benchmarking in
     //       in combination with the isolcpus kernel init parameter
