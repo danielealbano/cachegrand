@@ -61,7 +61,7 @@ void log_sink_register(
 log_sink_t *log_sink_factory(
         log_sink_type_t type,
         log_level_t levels,
-        log_sink_settings_t *settings);
+        log_sink_settings_t* settings);
 
 log_sink_t* log_sink_registered_get();
 
