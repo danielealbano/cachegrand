@@ -10,7 +10,7 @@ extern "C" {
 #include <stdio.h>
 
 #define LOG_SINK_REGISTERED_MAX             4
-#define LOG_MESSAGE_TIMESTAMP_MAX_LENGTH    50
+#define LOG_MESSAGE_TIMESTAMP_MAX_LENGTH    20
 
 #define LOG_E_OS_ERROR(tag) \
     log_message_print_os_error(tag);
