@@ -391,7 +391,7 @@ int program_main(
         slab_allocator_predefined_allocators_init();
     }
 
-    workers_count = config->threads_per_cpus * selected_cpus_count;
+    workers_count = config->workers_per_cpus * selected_cpus_count;
 
     if ((workers_user_data = program_workers_initialize(
             &program_terminate_event_loop,

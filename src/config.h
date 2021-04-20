@@ -101,7 +101,7 @@ struct config {
     config_worker_type_t worker_type;
     char** cpus;
     unsigned cpus_count;
-    uint32_t threads_per_cpus;
+    uint32_t workers_per_cpus;
     bool run_in_foreground;
     char* pidfile_path;
     bool* use_slab_allocator;
