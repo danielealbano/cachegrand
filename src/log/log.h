@@ -24,8 +24,14 @@ extern "C" {
     log_message(tag, LOG_LEVEL_INFO, __VA_ARGS__)
 #define LOG_V(tag, ...) \
     log_message(tag, LOG_LEVEL_VERBOSE, __VA_ARGS__)
+
+#ifndef DEBUG
+#define LOG_D(...) /* Internal debug logs disabled */
+#define LOG_DI(...) /* Debug logs disabled, verbose is appropriate for release builds */
+#else
 #define LOG_D(tag, ...) \
     log_message(tag, LOG_LEVEL_DEBUG, __VA_ARGS__)
+#endif // DEBUG == 1
 
 enum log_level {
     LOG_LEVEL_DEBUG_INTERNALS = 0x01,
@@ -47,7 +53,6 @@ void log_set_early_prefix_thread(
 char* log_get_early_prefix_thread();
 
 void log_unset_early_prefix_thread();
-
 
 const char* log_level_to_string(
         log_level_t level);
@@ -73,10 +78,6 @@ void log_message(
 
 void log_message_print_os_error(
         const char *tag);
-
-#ifndef DEBUG
-#define LOG_DI(...) /* Internal debug logs disabled */
-#endif // DEBUG == 1
 
 #ifdef __cplusplus
 }
