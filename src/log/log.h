@@ -45,7 +45,7 @@ enum log_level {
 };
 typedef enum log_level log_level_t;
 
-#define LOG_LEVEL_ALL ((uint8_t)LOG_LEVEL_ERROR << 1u) - 1u
+#define LOG_LEVEL_ALL (((LOG_LEVEL_MAX - 1u) * 2u) - 1u)
 
 void log_set_early_prefix_thread(
         char* prefix);
