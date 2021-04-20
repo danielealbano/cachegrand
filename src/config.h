@@ -17,12 +17,19 @@ enum config_log_sink_type {
 typedef enum config_log_sink_type config_log_sink_type_t;
 
 enum config_log_level {
-    CONFIG_LOG_LEVEL_ERROR,
-    CONFIG_LOG_LEVEL_RECOVERABLE,
-    CONFIG_LOG_LEVEL_WARNING,
-    CONFIG_LOG_LEVEL_INFO,
-    CONFIG_LOG_LEVEL_VERBOSE,
-    CONFIG_LOG_LEVEL_DEBUG,
+    CONFIG_LOG_LEVEL_ERROR = 1 << 1,
+    CONFIG_LOG_LEVEL_RECOVERABLE = 1 << 2,
+    CONFIG_LOG_LEVEL_WARNING = 1 << 3,
+    CONFIG_LOG_LEVEL_INFO = 1 << 4,
+    CONFIG_LOG_LEVEL_VERBOSE = 1 << 5,
+    CONFIG_LOG_LEVEL_DEBUG = 1 << 6,
+    CONFIG_LOG_LEVEL_ALL = 1 << 7,
+    CONFIG_LOG_LEVEL_ERROR_NEGATE = 1 << 8,
+    CONFIG_LOG_LEVEL_RECOVERABLE_NEGATE = 1 << 9,
+    CONFIG_LOG_LEVEL_WARNING_NEGATE = 1 << 10,
+    CONFIG_LOG_LEVEL_INFO_NEGATE = 1 << 11,
+    CONFIG_LOG_LEVEL_VERBOSE_NEGATE = 1 << 12,
+    CONFIG_LOG_LEVEL_DEBUG_NEGATE = 1 << 13,
 };
 typedef enum config_log_level config_log_level_t;
 

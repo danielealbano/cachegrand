@@ -130,10 +130,10 @@ protocols:
 
 log_sinks:
   - type: console
-    level: warning
+    level: [ warning, error ]
 
   - type: file
-    level: verbose
+    level: [ all, no-verbose ]
     file:
       path: /var/log/cachegrand.log
 )EOF";
@@ -177,7 +177,7 @@ TEST_CASE("config.c", "[config]") {
                                 (cyaml_data_t **)&config,
                                 NULL);
                     });
-
+            
             REQUIRE(config != NULL);
             REQUIRE(config->worker_type == CONFIG_WORKER_TYPE_IO_URING);
             REQUIRE(config->cpus_count == 1);

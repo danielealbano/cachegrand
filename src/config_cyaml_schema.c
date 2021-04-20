@@ -132,6 +132,13 @@ const cyaml_strval_t config_log_sink_level_schema_strings[] = {
         { "info", CONFIG_LOG_LEVEL_INFO },
         { "verbose", CONFIG_LOG_LEVEL_VERBOSE },
         { "debug", CONFIG_LOG_LEVEL_DEBUG },
+        { "all", CONFIG_LOG_LEVEL_ALL },
+        { "no-error", CONFIG_LOG_LEVEL_ERROR_NEGATE },
+        { "no-recoverable", CONFIG_LOG_LEVEL_RECOVERABLE_NEGATE },
+        { "no-warning", CONFIG_LOG_LEVEL_WARNING_NEGATE },
+        { "no-info", CONFIG_LOG_LEVEL_INFO_NEGATE },
+        { "no-verbose", CONFIG_LOG_LEVEL_VERBOSE_NEGATE },
+        { "no-debug", CONFIG_LOG_LEVEL_DEBUG_NEGATE },
 };
 
 // Schema for config -> log_sinks -> log_sink
@@ -140,7 +147,7 @@ const cyaml_schema_field_t config_log_sink_fields_schema[] = {
                 "type", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT,
                 config_log_sink_t, type, config_log_sink_type_schema_strings,
                 CYAML_ARRAY_LEN(config_log_sink_type_schema_strings)),
-        CYAML_FIELD_ENUM(
+        CYAML_FIELD_FLAGS(
                 "level", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT,
                 config_log_sink_t, level, config_log_sink_level_schema_strings,
                 CYAML_ARRAY_LEN(config_log_sink_level_schema_strings)),

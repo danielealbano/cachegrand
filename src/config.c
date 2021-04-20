@@ -87,7 +87,10 @@ bool config_internal_validate_after_load(
         config_t* config) {
     // TODO: validate the cpus list if present, if all is in the list anything else can be there
 
-    // TODO: if type == file in log sink, the file struct must be present
+    // TODO: if type == file in log sink, the file struct must be present (path will be present because of schema
+    //       validation)
+
+    // TODO: for log sinks, if all is set only negate flags can be set
 
     // TODO: if keepalive struct is present, values must be allowed
     return true;
