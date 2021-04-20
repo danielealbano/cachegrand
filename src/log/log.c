@@ -85,11 +85,13 @@ void log_message_internal(
     time_t timestamp = log_message_timestamp();
 
     log_sink_t* log_sink_registered = log_sink_registered_get();
+    // Loop over the registered sinks and print the message
+    log_sink_t** log_sink_registered = log_sink_registered_get();
     for(
             uint8_t log_sink_registered_index = 0;
             log_sink_registered_index < log_sink_registered_count() && log_sink_registered_index < LOG_SINK_REGISTERED_MAX;
             log_sink_registered_index++) {
-        log_sink_t* log_sink = &log_sink_registered[log_sink_registered_index];
+        log_sink_t* log_sink = log_sink_registered[log_sink_registered_index];
         if ((level & log_sink->levels) != level) {
             continue;
         }

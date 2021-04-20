@@ -12,13 +12,21 @@
 #include "log/sink/log_sink_console.h"
 #include "log/sink/log_sink_file.h"
 
-static log_sink_t log_sinks_registered[LOG_SINK_REGISTERED_MAX] = {0};
+static log_sink_t** log_sinks_registered = NULL;
 static uint8_t log_sinks_registered_count = 0;
 
 void log_sink_register(
-        log_sink_t *sink) {
-    log_sinks_registered[log_sinks_registered_count] = *sink;
+        log_sink_t* sink) {
     log_sinks_registered_count++;
+
+    size_t size = sizeof(log_sink_t*) * log_sinks_registered_count;
+    if (log_sinks_registered == NULL) {
+        log_sinks_registered = xalloc_alloc(size);
+    } else {
+        log_sinks_registered = xalloc_realloc(log_sinks_registered, size);
+    }
+
+    log_sinks_registered[log_sinks_registered_count - 1] = sink;
 }
 
 log_sink_t *log_sink_init(
@@ -64,7 +72,7 @@ log_sink_t* log_sink_factory(
     }
 }
 
-log_sink_t* log_sink_registered_get() {
+log_sink_t** log_sink_registered_get() {
     return log_sinks_registered;
 }
 
@@ -73,12 +81,16 @@ uint8_t log_sink_registered_count() {
 }
 
 void log_sink_registered_free() {
-    log_sink_t* log_sink_registered = log_sink_registered_get();
     for(
             uint8_t log_sink_registered_index = 0;
-            log_sink_registered_index < log_sink_registered_count() && log_sink_registered_index < LOG_SINK_REGISTERED_MAX;
+            log_sink_registered_index < log_sinks_registered_count && log_sink_registered_index < LOG_SINK_REGISTERED_MAX;
             log_sink_registered_index++) {
-        log_sink_t* log_sink = &log_sink_registered[log_sink_registered_index];
+        log_sink_t* log_sink = log_sinks_registered[log_sink_registered_index];
         log_sink_free(log_sink);
+        log_sinks_registered[log_sink_registered_index] = NULL;
     }
+
+    log_sinks_registered_count = 0;
+    xalloc_free(log_sinks_registered);
+    log_sinks_registered = NULL;
 }
