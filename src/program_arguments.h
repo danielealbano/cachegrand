@@ -24,7 +24,7 @@ enum program_arguments_log_level {
     PROGRAM_ARGUMENTS_LOG_LEVEL_WARNING = 0x10,
     PROGRAM_ARGUMENTS_LOG_LEVEL_RECOVERABLE = 0x20,
     PROGRAM_ARGUMENTS_LOG_LEVEL_ERROR = 0x40,
-    PROGRAM_ARGUMENTS_LOG_LEVEL_MAX
+    PROGRAM_ARGUMENTS_LOG_LEVEL_MAX,
 };
 typedef enum program_arguments_log_level program_arguments_log_level_t;
 
