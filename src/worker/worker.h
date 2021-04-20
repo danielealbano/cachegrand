@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 #define WORKER_LOOP_MAX_WAIT_TIME_MS 200
-#define WORKER_LOG_PRODUCER_PREFIX_FORMAT_STRING "[WORKER: %-3u][THREAD ID: %-10ld]"
+#define WORKER_LOG_PRODUCER_PREFIX_FORMAT_STRING "[WORKER: %-3u][CPU: %2d][THREAD ID: %-10ld]"
 #define WORKER_PUBLISH_STATS_DELAY_SEC  1
 
 typedef struct worker_stats worker_stats_t;

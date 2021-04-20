@@ -10,6 +10,7 @@
 #include "xalloc.h"
 #include "thread.h"
 #include "memory_fences.h"
+#include "utils_numa.h"
 #include "log/log.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/protocol/network_protocol.h"
@@ -50,7 +51,13 @@ bool worker_should_publish_stats(
 
 char* worker_log_producer_set_early_prefix_thread(
         worker_user_data_t *worker_user_data) {
-    size_t prefix_size = strlen(WORKER_LOG_PRODUCER_PREFIX_FORMAT_STRING) + 50 + 1;
+    size_t prefix_size = snprintf(
+            NULL,
+            0,
+            WORKER_LOG_PRODUCER_PREFIX_FORMAT_STRING,
+            worker_user_data->worker_index,
+            utils_numa_cpu_current_index(),
+            thread_current_get_id()) + 1;
     char *prefix = xalloc_alloc_zero(prefix_size);
 
     snprintf(
@@ -58,6 +65,7 @@ char* worker_log_producer_set_early_prefix_thread(
             prefix_size,
             WORKER_LOG_PRODUCER_PREFIX_FORMAT_STRING,
             worker_user_data->worker_index,
+            utils_numa_cpu_current_index(),
             thread_current_get_id());
     log_set_early_prefix_thread(prefix);
 
