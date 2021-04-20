@@ -189,8 +189,8 @@ void program_update_config_from_arguments(
         program_arguments_t* program_arguments,
         config_t* config) {
     if (program_arguments->log_level != PROGRAM_ARGUMENTS_LOG_LEVEL_MAX) {
-        for(int i = 0; i < config->log_sinks_count; i++) {
-            config->log_sinks[i].level = (config_log_level_t)program_arguments->log_level;
+        for(int i = 0; i < config->logs_count; i++) {
+            config->logs[i].level = (config_log_level_t)program_arguments->log_level;
         }
     }
 }

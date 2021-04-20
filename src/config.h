@@ -10,11 +10,11 @@ enum config_protocol_type {
 };
 typedef enum config_protocol_type config_protocol_type_t;
 
-enum config_log_sink_type {
-    CONFIG_LOG_SINK_TYPE_CONSOLE,
-    CONFIG_LOG_SINK_TYPE_FILE,
+enum config_log_type {
+    CONFIG_LOG_TYPE_CONSOLE,
+    CONFIG_LOG_TYPE_FILE,
 };
-typedef enum config_log_sink_type config_log_sink_type_t;
+typedef enum config_log_type config_log_type_t;
 
 enum config_log_level {
     CONFIG_LOG_LEVEL_ERROR = 1 << 1,
@@ -77,16 +77,16 @@ struct config_protocol {
     unsigned bindings_count;
 };
 
-typedef struct config_log_sink_file config_log_sink_file_t;
-struct config_log_sink_file {
+typedef struct config_log_file config_log_file_t;
+struct config_log_file {
     char* path;
 };
 
-typedef struct config_log_sink config_log_sink_t;
-struct config_log_sink {
-    config_log_sink_type_t type;
+typedef struct config_log config_log_t;
+struct config_log {
+    config_log_type_t type;
     config_log_level_t level;
-    config_log_sink_file_t* file;
+    config_log_file_t* file;
 };
 
 // Do not remove the macro below as they are use to "tag" the struct in a special so that the build process can identify
@@ -108,8 +108,8 @@ struct config {
     config_protocol_t* protocols;
     uint8_t protocols_count;
 
-    config_log_sink_t* log_sinks;
-    uint8_t log_sinks_count;
+    config_log_t* logs;
+    uint8_t logs_count;
 };
 
 config_t* config_load(

@@ -128,7 +128,7 @@ protocols:
       - host: 0.0.0.0
         port: 12345
 
-log_sinks:
+logs:
   - type: console
     level: [ warning, error ]
 
@@ -148,6 +148,10 @@ std::string test_config_broken_unknown_field_yaml_data =
         R"EOF(
 unknown_field: io_uring
 )EOF";
+
+std::string test_config_log_sink_correct_valid_levels_yaml_data = "[ warning, error ]";
+
+std::string test_config_log_sink_broken_invalid_levels_yaml_data = "[ invalid, level ]";
 
 TEST_CASE("config.c", "[config]") {
     cyaml_err_t err = CYAML_OK;
@@ -184,7 +188,7 @@ TEST_CASE("config.c", "[config]") {
             REQUIRE(config->use_slab_allocator != NULL);
             REQUIRE(*config->use_slab_allocator == true);
             REQUIRE(config->protocols_count == 1);
-            REQUIRE(config->log_sinks_count == 2);
+            REQUIRE(config->logs_count == 2);
             REQUIRE(cyaml_logger_context.data == NULL);
             REQUIRE(cyaml_logger_context.data_length == 0);
             REQUIRE(err == CYAML_OK);
@@ -260,7 +264,7 @@ TEST_CASE("config.c", "[config]") {
             REQUIRE(config->worker_type == CONFIG_WORKER_TYPE_IO_URING);
             REQUIRE(config->cpus_count == 1);
             REQUIRE(config->protocols_count == 1);
-            REQUIRE(config->log_sinks_count == 2);
+            REQUIRE(config->logs_count == 2);
             REQUIRE(cyaml_logger_context.data == NULL);
             REQUIRE(cyaml_logger_context.data_length == 0);
             REQUIRE(err == CYAML_OK);
@@ -331,7 +335,7 @@ TEST_CASE("config.c", "[config]") {
             REQUIRE(config->worker_type == CONFIG_WORKER_TYPE_IO_URING);
             REQUIRE(config->cpus_count == 1);
             REQUIRE(config->protocols_count == 1);
-            REQUIRE(config->log_sinks_count == 2);
+            REQUIRE(config->logs_count == 2);
             REQUIRE(cyaml_logger_context.data == NULL);
             REQUIRE(cyaml_logger_context.data_length == 0);
             REQUIRE(err == CYAML_OK);

@@ -107,25 +107,25 @@ const cyaml_schema_value_t config_protocol_list_schema = {
 };
 
 /**
- * CONFIG -> LOG SINKS schema
+ * CONFIG -> LOGS schema
  */
 
-// Schema for config -> log_sinks -> log_sink -> file
-const cyaml_schema_field_t config_log_sink_file_schema[] = {
+// Schema for config -> logs -> log -> file
+const cyaml_schema_field_t config_log_file_schema[] = {
         CYAML_FIELD_STRING_PTR(
                 "path", CYAML_FLAG_POINTER,
-                config_log_sink_file_t, path, 0, CYAML_UNLIMITED),
+                config_log_file_t, path, 0, CYAML_UNLIMITED),
         CYAML_FIELD_END
 };
 
-// Allowed strings for for config -> log_sinks -> log_sink -> type (config_log_sink_type_t)
-const cyaml_strval_t config_log_sink_type_schema_strings[] = {
-        { "console", CONFIG_LOG_SINK_TYPE_CONSOLE },
-        { "file", CONFIG_LOG_SINK_TYPE_FILE },
+// Allowed strings for for config -> logs -> log -> type (config_log_type_t)
+const cyaml_strval_t config_log_type_schema_strings[] = {
+        { "console", CONFIG_LOG_TYPE_CONSOLE },
+        { "file",    CONFIG_LOG_TYPE_FILE },
 };
 
-// Allowed strings for for config -> log_sinks -> log_sink -> level (log_sink_level_t)
-const cyaml_strval_t config_log_sink_level_schema_strings[] = {
+// Allowed strings for for config -> logs -> log -> level (config_log_level_t)
+const cyaml_strval_t config_log_level_schema_strings[] = {
         { "error", CONFIG_LOG_LEVEL_ERROR },
         { "recoverable", CONFIG_LOG_LEVEL_RECOVERABLE },
         { "warning", CONFIG_LOG_LEVEL_WARNING },
@@ -141,38 +141,38 @@ const cyaml_strval_t config_log_sink_level_schema_strings[] = {
         { "no-debug", CONFIG_LOG_LEVEL_DEBUG_NEGATE },
 };
 
-// Schema for config -> log_sinks -> log_sink
-const cyaml_schema_field_t config_log_sink_fields_schema[] = {
+// Schema for config -> logs -> log
+const cyaml_schema_field_t config_log_fields_schema[] = {
         CYAML_FIELD_ENUM(
                 "type", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT,
-                config_log_sink_t, type, config_log_sink_type_schema_strings,
-                CYAML_ARRAY_LEN(config_log_sink_type_schema_strings)),
+                config_log_t, type, config_log_type_schema_strings,
+                CYAML_ARRAY_LEN(config_log_type_schema_strings)),
         CYAML_FIELD_FLAGS(
                 "level", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT,
-                config_log_sink_t, level, config_log_sink_level_schema_strings,
-                CYAML_ARRAY_LEN(config_log_sink_level_schema_strings)),
+                config_log_t, level, config_log_level_schema_strings,
+                CYAML_ARRAY_LEN(config_log_level_schema_strings)),
         CYAML_FIELD_MAPPING_PTR(
                 "file", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
-                config_log_sink_t, file, config_log_sink_file_schema),
+                config_log_t, file, config_log_file_schema),
         CYAML_FIELD_END
 };
 
-// Schema for config -> log_sinks
-const cyaml_schema_value_t config_log_sink_list_schema = {
+// Schema for config -> logs
+const cyaml_schema_value_t config_log_list_schema = {
         CYAML_VALUE_MAPPING(CYAML_FLAG_DEFAULT,
-                            config_log_sink_t, config_log_sink_fields_schema),
+                            config_log_t, config_log_fields_schema),
 };
 
 /**
  * CONFIG schema
  */
 
-// Allowed strings for for config -> log_sinks -> log_sink -> level (log_sink_level_t)
+// Allowed strings for for config -> logs -> log -> level (log_level_t)
 const cyaml_strval_t config_worker_type_schema_strings[] = {
         { "io_uring", CONFIG_WORKER_TYPE_IO_URING },
 };
 
-// Schema for config -> log_sinks -> log_sink
+// Schema for config
 const cyaml_schema_field_t config_fields_schema[] = {
         CYAML_FIELD_ENUM(
                 "worker_type", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT,
@@ -210,9 +210,9 @@ const cyaml_schema_field_t config_fields_schema[] = {
                 config_t, protocols,
                 &config_protocol_list_schema, 1, CYAML_UNLIMITED),
         CYAML_FIELD_SEQUENCE(
-                "log_sinks", CYAML_FLAG_POINTER,
-                config_t, log_sinks,
-                &config_log_sink_list_schema, 1, CYAML_UNLIMITED),
+                "logs", CYAML_FLAG_POINTER,
+                config_t, logs,
+                &config_log_list_schema, 1, CYAML_UNLIMITED),
 
         CYAML_FIELD_END
 };
