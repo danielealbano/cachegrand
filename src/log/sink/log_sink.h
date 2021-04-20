@@ -25,7 +25,7 @@ union log_sink_settings {
 };
 
 typedef void (log_sink_printer_fn_t)(
-        log_sink_settings_t* log_sink_settings,
+        log_sink_settings_t* settings,
         const char* tag,
         time_t timestamp,
         log_level_t level,
@@ -34,7 +34,7 @@ typedef void (log_sink_printer_fn_t)(
         va_list args);
 
 typedef void (log_sink_free_fn_t)(
-        log_sink_settings_t* log_sink_settings);
+        log_sink_settings_t* settings);
 
 typedef struct log_sink log_sink_t;
 struct log_sink {
@@ -48,7 +48,7 @@ struct log_sink {
 log_sink_t* log_sink_init(
         log_sink_type_t type,
         log_level_t levels,
-        log_sink_settings_t* log_sink_settings,
+        log_sink_settings_t* settings,
         log_sink_printer_fn_t printer_fn,
         log_sink_free_fn_t free_fn);
 

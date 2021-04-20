@@ -46,7 +46,7 @@ log_sink_t *log_sink_console_init(
 }
 
 void log_sink_console_printer(
-        log_sink_settings_t* log_sink_settings,
+        log_sink_settings_t* settings,
         const char* tag,
         time_t timestamp,
         log_level_t level,
@@ -59,7 +59,7 @@ void log_sink_console_printer(
     size_t color_fg_desired_len = 0;
     size_t color_fg_reset_len = 0;
     bool level_has_color = log_sink_console_log_level_color_fg_lookup[level] != NULL;
-    FILE* out = level == LOG_LEVEL_ERROR && !log_sink_settings->console.use_stdout_for_errors
+    FILE* out = level == LOG_LEVEL_ERROR && !settings->console.use_stdout_for_errors
             ? stderr
             : stdout;
 

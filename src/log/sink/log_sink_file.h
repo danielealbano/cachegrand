@@ -13,7 +13,7 @@ void log_sink_file_free(
         log_sink_settings_t* settings);
 
 void log_sink_file_printer(
-        log_sink_settings_t* log_sink_settings,
+        log_sink_settings_t* settings,
         const char* tag,
         time_t timestamp,
         log_level_t level,

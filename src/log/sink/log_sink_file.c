@@ -41,7 +41,7 @@ void log_sink_file_free(
 }
 
 void log_sink_file_printer(
-        log_sink_settings_t* log_sink_settings,
+        log_sink_settings_t* settings,
         const char* tag,
         time_t timestamp,
         log_level_t level,
@@ -79,7 +79,7 @@ void log_sink_file_printer(
             message,
             args);
 
-    fwrite(log_message, log_message_size, 1, log_sink_settings->file.internal.fp);
+    fwrite(log_message, log_message_size, 1, settings->file.internal.fp);
 
     if (log_message_size >= sizeof(log_message_static_buffer)) {
         xalloc_free(log_message);
