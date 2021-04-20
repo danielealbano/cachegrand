@@ -150,18 +150,6 @@ std::string test_config_broken_unknown_field_yaml_data =
 unknown_field: io_uring
 )EOF";
 
-std::string test_config_log_correct_valid_levels_yaml_data =
-        R"EOF(
-type: console
-level: [ warning, error ]
-)EOF";
-
-std::string test_config_log_broken_invalid_levels_yaml_data =
-        R"EOF(
-type: console
-level: [ invalid, level ]
-)EOF";
-
 TEST_CASE("config.c", "[config]") {
     cyaml_err_t err = CYAML_OK;
     config_t* config = NULL;
@@ -238,48 +226,6 @@ TEST_CASE("config.c", "[config]") {
             REQUIRE(err == CYAML_ERR_INVALID_KEY);
 
             cyaml_free(config_cyaml_config, config_top_schema, config, 0);
-        }
-
-        SECTION("correct - logs - valid levels") {
-            config_log_t* log = NULL;
-
-            err = cyaml_load_data(
-                    (const uint8_t *)(test_config_log_correct_valid_levels_yaml_data.c_str()),
-                    test_config_log_correct_valid_levels_yaml_data.length(),
-                    config_cyaml_config,
-                    config_cyaml_schema_get_log_schema(),
-                    (cyaml_data_t **)&log,
-                    NULL);
-
-            REQUIRE(log != NULL);
-            REQUIRE(log->type == CONFIG_LOG_TYPE_CONSOLE);
-            REQUIRE(log->level == (CONFIG_LOG_LEVEL_WARNING | CONFIG_LOG_LEVEL_ERROR));
-            REQUIRE(cyaml_logger_context.data == NULL);
-            REQUIRE(cyaml_logger_context.data_length == 0);
-            REQUIRE(err == CYAML_OK);
-
-            cyaml_free(config_cyaml_config, config_cyaml_schema_get_log_schema(), log, 0);
-        }
-
-        SECTION("broken - logs - unsupported levels") {
-            const char* cyaml_logger_context_data_cmp =
-                    "Load: Unknown flag: invalid\nLoad: Backtrace:\n  in mapping field: level\n";
-            config_log_t* log = NULL;
-
-            err = cyaml_load_data(
-                    (const uint8_t *)(test_config_log_broken_invalid_levels_yaml_data.c_str()),
-                    test_config_log_broken_invalid_levels_yaml_data.length(),
-                    config_cyaml_config,
-                    config_cyaml_schema_get_log_schema(),
-                    (cyaml_data_t **)&log,
-                    NULL);
-
-            REQUIRE(log == NULL);
-            REQUIRE(strcmp(cyaml_logger_context_data_cmp, cyaml_logger_context.data) == 0);
-            REQUIRE(cyaml_logger_context.data_length == strlen(cyaml_logger_context_data_cmp));
-            REQUIRE(err != CYAML_OK);
-
-            cyaml_free(config_cyaml_config, config_cyaml_schema_get_log_schema(), log, 0);
         }
     }
 
