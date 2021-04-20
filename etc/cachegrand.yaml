@@ -31,11 +31,22 @@ protocols:
       - host: "::"
         port: 12345
 
-log_sinks:
+# LOGS
+# ---
+# type:     console or file
+# level:    array of flags: debug, verbose, info, warning, recoverable, error
+#           it's possible to negate a flag prefixing it with no- (ie. no-debug)
+#           possible to select all the flags using the keyword all
+#
+# For type file
+# file:
+#   path:   path to the log file
+
+logs:
   - type: console
-    level: warning
+    level: [ error, warning ]
 
   - type: file
-    level: verbose
+    level: [ all, no-debug, no-verbose ]
     file:
       path: /var/log/cachegrand.log
