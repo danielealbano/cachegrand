@@ -19,6 +19,8 @@
 #include "misc.h"
 #include "xalloc.h"
 #include "log/log.h"
+#include "log/sink/log_sink.h"
+#include "log/sink/log_sink_console.h"
 #include "hugepages.h"
 #include "spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
@@ -50,6 +52,7 @@ int program_signals[] = {  SIGUSR1,   SIGINT,   SIGHUP,   SIGTERM,   SIGQUIT  };
 uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
 
 static char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
+static log_sink_t* log_sink_console = NULL;
 
 void program_signal_handlers(
         int signal_number) {
@@ -248,6 +251,20 @@ bool program_use_slab_allocator(
     return use_slab_allocator;
 }
 
+void program_setup_initial_log_sink_console() {
+    log_level_t level = LOG_LEVEL_ALL;
+    log_sink_settings_t settings = { 0 };
+    settings.console.use_stdout_for_errors = false;
+
+#if NDEBUG == 1
+    level -= LOG_LEVEL_DEBUG;
+#endif
+
+    log_sink_console = log_sink_console_init(level, &settings);
+
+    log_sink_register(log_sink_console);
+}
+
 int program_main(
         int argc,
         char** argv) {
@@ -255,6 +272,10 @@ int program_main(
     bool use_slab_allocator;
     uint32_t workers_count;
     worker_user_data_t* workers_user_data;
+
+    // Initialize the console log sink to be able to print logs, will update it with the settings from the config at
+    // later stage
+    program_setup_initial_log_sink_console();
 
     // TODO: refactor this function to make it actually testable
 
@@ -303,6 +324,7 @@ int program_main(
         slab_allocator_predefined_allocators_free();
     }
 
+    log_sink_registered_free();
     config_free(config);
 
     return 0;
