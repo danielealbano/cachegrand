@@ -102,6 +102,69 @@ void config_internal_cyaml_free(
         cyaml_schema_value_t* schema) {
     cyaml_free(cyaml_config, schema, config, 0);
 }
+bool config_cpus_validate(
+        uint16_t max_cpus_count,
+        char** cpus,
+        unsigned cpus_count,
+        config_cpus_validate_error_t* config_cpus_validate_errors) {
+    bool error = false;
+
+    for(uint32_t cpu_index = 0; cpu_index < cpus_count; cpu_index++) {
+        bool cpu_is_range = false;
+        long cpu_number = -1;
+        long cpu_number_range_start = -1;
+        char* cpu = cpus[cpu_index];
+        char* cpu_end = NULL;
+
+        if (strncasecmp(cpu, "all", 3) == 0) {
+            continue;
+        }
+
+        do {
+            cpu_number = strtol(cpu, &cpu_end, 10);
+
+            // If the cpu_number failed to be parsed, the cpu_number is greater than ULONG_MAX or if it is greater than
+            // the max cpus (the linux kernel currently supports up to 4096 cpus but better to do not hard-code the
+            // check) report an error, better to make the user aware that something may be wrong
+            if (
+                    cpu_end == cpu || errno == ERANGE || cpu_number > UINT16_MAX || cpu_number > max_cpus_count ||
+                    cpu_number < 0) {
+                error = true;
+                config_cpus_validate_errors[cpu_index] = CONFIG_CPUS_VALIDATE_ERROR_INVALID_CPU;
+                break;
+            }
+
+            if (*cpu_end == '-') {
+                // There can't be more than one range
+                if (cpu_is_range) {
+                    error = true;
+                    config_cpus_validate_errors[cpu_index] = CONFIG_CPUS_VALIDATE_ERROR_MULTIPLE_RANGES;
+                    break;
+                }
+
+                cpu = ++cpu_end;
+                cpu_number_range_start = cpu_number;
+                cpu_is_range = true;
+
+                continue;
+            } else if (*cpu_end == 0) {
+                if (cpu_is_range) {
+                    if (cpu_number - cpu_number_range_start + 1 < 2) {
+                        config_cpus_validate_errors[cpu_index] = CONFIG_CPUS_VALIDATE_ERROR_RANGE_TOO_SMALL;
+                        error = true;
+                        break;
+                    }
+                }
+            } else {
+                config_cpus_validate_errors[cpu_index] = CONFIG_CPUS_VALIDATE_ERROR_UNEXPECTED_CHARACTER;
+                error = true;
+                break;
+            }
+        } while(*cpu_end != 0);
+    }
+
+    return !error;
+}
 
 bool config_cpus_parse(
         uint16_t max_cpus_count,
@@ -115,7 +178,6 @@ bool config_cpus_parse(
     uint16_t* int_cpus_map = NULL;
     uint16_t int_cpus_map_count = 0;
 
-    // Count the amount of slots needed and validate the cpu strings
     for(uint32_t cpu_index = 0; cpu_index < cpus_count; cpu_index++) {
         bool cpu_is_range = false;
         long cpu_number = -1;

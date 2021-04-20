@@ -117,11 +117,28 @@ struct config {
     uint8_t logs_count;
 };
 
+enum config_cpus_validate_error {
+    CONFIG_CPUS_VALIDATE_OK,
+    CONFIG_CPUS_VALIDATE_ERROR_INVALID_CPU,
+    CONFIG_CPUS_VALIDATE_ERROR_MULTIPLE_RANGES,
+    CONFIG_CPUS_VALIDATE_ERROR_RANGE_TOO_SMALL,
+    CONFIG_CPUS_VALIDATE_ERROR_UNEXPECTED_CHARACTER,
+
+    CONFIG_CPUS_VALIDATE_MAX,
+};
+typedef enum config_cpus_validate_error config_cpus_validate_error_t;
+
 config_t* config_load(
         char* config_path);
 
 void config_free(
         config_t* config);
+
+bool config_cpus_validate(
+        uint16_t max_cpus_count,
+        char** cpus,
+        unsigned cpus_count,
+        config_cpus_validate_error_t* config_cpus_validate_errors);
 
 bool config_cpus_parse(
         uint16_t max_cpus_count,
