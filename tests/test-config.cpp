@@ -8,6 +8,7 @@
 
 #include "xalloc.h"
 #include "log/log.h"
+#include "log/sink/log_sink.h"
 
 #include "config.h"
 #include "config_cyaml_config.h"
@@ -364,5 +365,12 @@ TEST_CASE("config.c", "[config]") {
         REQUIRE((int)CONFIG_LOG_LEVEL_INFO == LOG_LEVEL_INFO);
         REQUIRE((int)CONFIG_LOG_LEVEL_VERBOSE == LOG_LEVEL_VERBOSE);
         REQUIRE((int)CONFIG_LOG_LEVEL_DEBUG == LOG_LEVEL_DEBUG);
+        REQUIRE((int)CONFIG_LOG_LEVEL_MAX == LOG_LEVEL_MAX);
+    }
+
+    SECTION("config_log_type_t == log_sink_type_t") {
+        REQUIRE((int)CONFIG_LOG_TYPE_CONSOLE == LOG_SINK_TYPE_CONSOLE);
+        REQUIRE((int)CONFIG_LOG_TYPE_FILE == LOG_SINK_TYPE_FILE);
+        REQUIRE((int)CONFIG_LOG_TYPE_MAX == LOG_SINK_TYPE_MAX);
     }
 }
