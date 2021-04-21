@@ -5,7 +5,7 @@
 int utils_cpu_count() {
     static int count = 0;
 
-#if defined(__APPLE__) || defined(__linux__)
+#if defined(__linux__)
     if (count != 0) {
         return count;
     }
@@ -21,7 +21,7 @@ int utils_cpu_count() {
 int utils_cpu_count_all() {
     static int count = 0;
 
-#if defined(__APPLE__) || defined(__linux__)
+#if defined(__linux__)
     if (count != 0) {
         return count;
     }

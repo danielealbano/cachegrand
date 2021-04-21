@@ -146,7 +146,7 @@ void log_message(
 void log_message_print_os_error(
         const char *tag) {
     int error_code;
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__)
     char buf[1024] = {0};
     char *error_message;
     error_code = errno;
@@ -158,22 +158,6 @@ void log_message_print_os_error(
 
     strerror_r(error_code, buf, sizeof(buf));
     error_message = buf;
-#elif defined(__MINGW32__)
-    DWORD last_error = GetLastError();
-    error_code = last_error;
-    LPVOID error_message;
-
-    FormatMessage(
-            (DWORD)FORMAT_MESSAGE_ALLOCATE_BUFFER |
-            (DWORD)FORMAT_MESSAGE_FROM_SYSTEM |
-            (DWORD)FORMAT_MESSAGE_IGNORE_INSERTS,
-            NULL,
-            last_error,
-            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-            (LPTSTR) &error_message,
-            0,
-            NULL
-            );
 #else
 #error Platform not supported
 #endif

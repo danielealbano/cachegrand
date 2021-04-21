@@ -5,11 +5,8 @@
 #include <signal.h>
 #include <stdbool.h>
 
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__)
 #include <execinfo.h>
-#elif defined(__MINGW32__)
-#include <windows.h>
-#include <strsafe.h>
 #else
 #error Platform not supported
 #endif
@@ -19,14 +16,7 @@
 #include "backtrace.h"
 
 void fatal_trigger_debugger() {
-#if defined(__APPLE__)
-    volatile int* a;
-    a = 0;
-    *a = 0;
-
-    // Raise the SIGABRT anyway in the code, in case the above statements get's optimized away by the compiler
-    raise(SIGABRT);
-#elif defined(__linux__) || defined(__MINGW32__)
+#if defined(__linux__)
     raise(SIGABRT);
 #else
 #error Platform not supported
