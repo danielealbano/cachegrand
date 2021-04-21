@@ -7,12 +7,10 @@
 #include "exttypes.h"
 #include "spinlock.h"
 #include "xalloc.h"
-#include "log/log.h"
 #include "pow2.h"
 
 #include "hashtable.h"
 #include "hashtable_data.h"
-
 
 hashtable_data_t* hashtable_mcmp_data_init(hashtable_bucket_count_t buckets_count) {
     if (pow2_is(buckets_count) == false) {
@@ -41,6 +39,19 @@ hashtable_data_t* hashtable_mcmp_data_init(hashtable_bucket_count_t buckets_coun
             (hashtable_key_value_volatile_t *)xalloc_mmap_alloc(hashtable_data->keys_values_size);
 
     return hashtable_data;
+}
+
+void hashtable_mcmp_data_numa_interleave_memory(
+        hashtable_data_t* hashtable_data,
+        struct bitmask* numa_nodes_bitmask) {
+    numa_interleave_memory(
+            (void*)hashtable_data->half_hashes_chunk,
+            hashtable_data->half_hashes_chunk_size,
+            numa_nodes_bitmask);
+    numa_interleave_memory(
+            (void*)hashtable_data->keys_values,
+            hashtable_data->keys_values_size,
+            numa_nodes_bitmask);
 }
 
 void hashtable_mcmp_data_free(hashtable_data_t* hashtable_data) {
