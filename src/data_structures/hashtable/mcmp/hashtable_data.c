@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <errno.h>
 #include <numa.h>
 
 #include "exttypes.h"
@@ -44,14 +45,29 @@ hashtable_data_t* hashtable_mcmp_data_init(hashtable_bucket_count_t buckets_coun
 bool hashtable_mcmp_data_numa_interleave_memory(
         hashtable_data_t* hashtable_data,
         struct bitmask* numa_nodes_bitmask) {
+    // Can't use numa_interleave_memory with only one numa node so if it's requested fail
+    if (numa_available() < 0 || numa_num_configured_nodes() < 2) {
+        return false;
+    }
+
     numa_interleave_memory(
             (void*)hashtable_data->half_hashes_chunk,
             hashtable_data->half_hashes_chunk_size,
             numa_nodes_bitmask);
+
+    if (errno != 0) {
+        return false;
+    }
+
     numa_interleave_memory(
             (void*)hashtable_data->keys_values,
             hashtable_data->keys_values_size,
             numa_nodes_bitmask);
+
+    if (errno != 0) {
+        return false;
+    }
+
     return true;
 }
 
