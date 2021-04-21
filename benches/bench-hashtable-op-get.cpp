@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <string.h>
+#include <numa.h>
+
 #include <benchmark/benchmark.h>
 
 #include "exttypes.h"

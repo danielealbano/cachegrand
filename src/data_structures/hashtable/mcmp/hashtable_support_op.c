@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <numa.h>
 
 #include "exttypes.h"
 #include "spinlock.h"

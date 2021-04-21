@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdatomic.h>
 #include <assert.h>
+#include <numa.h>
 
 #include "exttypes.h"
 #include "memory_fences.h"

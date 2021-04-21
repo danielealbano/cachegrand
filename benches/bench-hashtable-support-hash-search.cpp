@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdint.h>
 #include <immintrin.h>
+#include <numa.h>
 
 #include <benchmark/benchmark.h>
 

@@ -13,6 +13,7 @@
 #include <stdatomic.h>
 #include <sched.h>
 #include <openssl/bn.h>
+#include <numa.h>
 
 #if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_CLFLUSHOPT == 1
 #include <immintrin.h>
@@ -21,8 +22,6 @@
 #include <emmintrin.h>
 #endif
 #endif
-
-
 
 #include "memory_fences.h"
 #include "exttypes.h"

@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 #include <string.h>
+#include <numa.h>
 
 #include "memory_fences.h"
 #include "exttypes.h"

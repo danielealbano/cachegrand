@@ -1,5 +1,6 @@
 #include <string.h>
 #include <math.h>
+#include <numa.h>
 
 #include <benchmark/benchmark.h>
 

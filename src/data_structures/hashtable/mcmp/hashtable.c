@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <numa.h>
 
 #include "exttypes.h"
 #include "spinlock.h"

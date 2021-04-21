@@ -1,3 +1,5 @@
+#include <numa.h>
+
 #include <benchmark/benchmark.h>
 
 #include "exttypes.h"
