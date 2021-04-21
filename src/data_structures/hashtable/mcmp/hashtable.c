@@ -18,7 +18,12 @@ hashtable_t* hashtable_mcmp_init(hashtable_config_t* hashtable_config) {
     hashtable_data_t* hashtable_data = hashtable_mcmp_data_init(buckets_count);
 
     if (hashtable_config->numa_aware) {
-        hashtable_mcmp_data_numa_interleave_memory(hashtable_data, &hashtable_config->numa_nodes_bitmask);
+        if (!hashtable_mcmp_data_numa_interleave_memory(
+                hashtable_data,
+                hashtable_config->numa_nodes_bitmask)) {
+            hashtable_mcmp_data_free(hashtable_data);
+            return NULL;
+        }
     }
 
     hashtable->is_resizing = false;
@@ -45,4 +50,3 @@ void hashtable_mcmp_free(hashtable_t* hashtable) {
 
     xalloc_free(hashtable);
 }
-
