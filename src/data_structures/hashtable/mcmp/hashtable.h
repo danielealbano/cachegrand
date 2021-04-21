@@ -56,6 +56,8 @@ typedef struct hashtable_config hashtable_config_t;
 struct hashtable_config {
     hashtable_bucket_count_t initial_size;
     bool can_auto_resize;
+    bool numa_aware;
+    struct bitmask numa_nodes_bitmask;
 };
 
 /**
