@@ -47,12 +47,32 @@ hashtable_hash_quarter_t test_key_2_hash_quarter = test_key_2_hash_half & 0xFFFF
     \
     hashtable_t* hashtable = hashtable_mcmp_init(hashtable_config); \
 
+#define HASHTABLE_INIT_NUMA_AWARE(initial_size_v, can_auto_resize_v, numa_nodes_bitmask_v) \
+    hashtable_config_t* hashtable_config = hashtable_mcmp_config_init();  \
+    hashtable_config->initial_size = initial_size_v; \
+    hashtable_config->can_auto_resize = can_auto_resize_v; \
+    hashtable_config->numa_aware = true; \
+    hashtable_config->numa_nodes_bitmask = numa_nodes_bitmask_v; \
+    \
+    hashtable_t* hashtable = hashtable_mcmp_init(hashtable_config); \
+
 #define HASHTABLE_FREE() \
-    hashtable_mcmp_free(hashtable); \
+    if (hashtable) {  \
+        hashtable_mcmp_free(hashtable); \
+    }
 
 #define HASHTABLE(initial_size_v, can_auto_resize_v, ...) \
 { \
     HASHTABLE_INIT(initial_size_v, can_auto_resize_v); \
+    \
+    __VA_ARGS__ \
+    \
+    HASHTABLE_FREE(); \
+}
+
+#define HASHTABLE_NUMA_AWARE(initial_size_v, can_auto_resize_v, numa_nodes_bitmask_v, ...) \
+{ \
+    HASHTABLE_INIT_NUMA_AWARE(initial_size_v, can_auto_resize_v, numa_nodes_bitmask_v); \
     \
     __VA_ARGS__ \
     \

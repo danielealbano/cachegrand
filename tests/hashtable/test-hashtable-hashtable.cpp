@@ -1,5 +1,6 @@
 #include <catch2/catch.hpp>
 #include <numa.h>
+#include <errno.h>
 
 #include "exttypes.h"
 #include "spinlock.h"
@@ -11,9 +12,48 @@
 
 TEST_CASE("hashtable/hashtable.c", "[hashtable][hashtable]") {
     SECTION("hashtable_mcmp_init") {
-        HASHTABLE(buckets_initial_count_5, false, {
-            REQUIRE(hashtable != NULL);
-        })
+        SECTION("5 buckets, non resizable, non numa aware") {
+            HASHTABLE(buckets_initial_count_5, false, {
+                REQUIRE(hashtable != NULL);
+                REQUIRE(hashtable->config->numa_aware == false);
+                REQUIRE(hashtable->config->numa_nodes_bitmask == NULL);
+            })
+        }
+
+        SECTION("5 buckets, non resizable, numa aware (all nodes)") {
+            if (numa_available() == 0 && numa_num_configured_nodes() >= 2) {
+                HASHTABLE_NUMA_AWARE(0x7FFF, false, numa_all_nodes_ptr, {
+                    REQUIRE(hashtable != NULL);
+                    REQUIRE(hashtable->config->numa_aware == true);
+                    REQUIRE(hashtable->config->numa_nodes_bitmask == numa_all_nodes_ptr);
+                })
+            } else {
+                WARN("Can't test numa awareness, numa not available or only one numa node");
+            }
+        }
+
+        SECTION("5 buckets, non resizable, numa aware (only first node)") {
+            if (numa_available() == 0 && numa_num_configured_nodes() >= 2) {
+                struct bitmask* numa_first_node_ptr = numa_allocate_nodemask();
+                numa_bitmask_setbit(numa_first_node_ptr, 0);
+
+                HASHTABLE_NUMA_AWARE(0x7FFF, false, numa_first_node_ptr, {
+                    REQUIRE(hashtable != NULL);
+                    REQUIRE(hashtable->config->numa_aware == true);
+                    REQUIRE(hashtable->config->numa_nodes_bitmask == numa_first_node_ptr);
+                })
+
+                numa_free_nodemask(numa_first_node_ptr);
+            } else {
+                WARN("Can't test numa awareness, numa not available or only one numa node");
+            }
+        }
+
+        SECTION("5 buckets, non resizable, numa aware (no nodes)") {
+            HASHTABLE_NUMA_AWARE(0x7FFF, false, numa_no_nodes_ptr, {
+                REQUIRE(hashtable == NULL);
+            })
+        }
     }
 
     SECTION("hashtable->hashtable_data->buckets_count") {
@@ -30,7 +70,7 @@ TEST_CASE("hashtable/hashtable.c", "[hashtable][hashtable]") {
         })
     }
 
-    SECTION("hashtable const vales") {
+    SECTION("hashtable consts") {
         SECTION("HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT == 14") {
             REQUIRE(HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT == 14);
         }

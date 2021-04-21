@@ -312,6 +312,48 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
             })
         }
 
+        SECTION("set 1 bucket - numa aware") {
+            if (numa_available() == 0 && numa_num_configured_nodes() >= 2) {
+                HASHTABLE_NUMA_AWARE(0x7FFFF, false, numa_all_nodes_ptr, {
+                    hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
+                            hashtable->ht_current->buckets_count,
+                            test_key_1_hash));
+                    hashtable_chunk_slot_index_t chunk_slot_index = 0;
+
+                    hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
+                            &hashtable->ht_current->half_hashes_chunk[chunk_index];
+                    hashtable_key_value_volatile_t * key_value =
+                            &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
+
+                    REQUIRE(hashtable_mcmp_op_set(
+                            hashtable,
+                            test_key_1,
+                            test_key_1_len,
+                            test_value_1));
+
+                    // Check if the write lock has been released
+                    REQUIRE(!spinlock_is_locked(&half_hashes_chunk->write_lock));
+
+                    // Check if the first slot of the chain ring contains the correct key/value
+                    REQUIRE(half_hashes_chunk->metadata.changes_counter == 1);
+                    REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
+                    REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].distance == 0);
+                    REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
+                    REQUIRE(key_value->flags ==
+                            (HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE));
+                    REQUIRE(strncmp(
+                            (char*)key_value->inline_key.data,
+                            test_key_1,
+                            test_key_1_len) == 0);
+                    REQUIRE(key_value->data == test_value_1);
+
+                    // Check if the subsequent element has been affected by the changes
+                    REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index + 1].slot_id == 0);
+                })
+            } else {
+                WARN("Can't test numa awareness, numa not available or only one numa node");
+            }
+        }
 
 //        SECTION("parallel inserts - check storage") {
 //            HASHTABLE(1000000, false, {
