@@ -41,7 +41,7 @@ hashtable_data_t* hashtable_mcmp_data_init(hashtable_bucket_count_t buckets_coun
     return hashtable_data;
 }
 
-void hashtable_mcmp_data_numa_interleave_memory(
+bool hashtable_mcmp_data_numa_interleave_memory(
         hashtable_data_t* hashtable_data,
         struct bitmask* numa_nodes_bitmask) {
     numa_interleave_memory(
@@ -52,6 +52,7 @@ void hashtable_mcmp_data_numa_interleave_memory(
             (void*)hashtable_data->keys_values,
             hashtable_data->keys_values_size,
             numa_nodes_bitmask);
+    return true;
 }
 
 void hashtable_mcmp_data_free(hashtable_data_t* hashtable_data) {

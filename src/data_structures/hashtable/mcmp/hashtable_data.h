@@ -8,7 +8,7 @@ extern "C" {
 hashtable_data_t* hashtable_mcmp_data_init(
         hashtable_bucket_count_t buckets_count);
 
-void hashtable_mcmp_data_numa_interleave_memory(
+bool hashtable_mcmp_data_numa_interleave_memory(
         hashtable_data_t* hashtable_data,
         struct bitmask* numa_nodes_bitmask);
 
