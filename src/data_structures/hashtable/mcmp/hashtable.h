@@ -146,7 +146,6 @@ struct hashtable_data {
 typedef struct hashtable hashtable_t;
 struct hashtable {
     hashtable_config_t* config;
-    bool is_shutdowning;
     bool is_resizing;
     hashtable_data_volatile_t* ht_current;
     hashtable_data_volatile_t* ht_old;

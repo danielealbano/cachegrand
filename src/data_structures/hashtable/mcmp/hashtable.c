@@ -22,7 +22,6 @@ hashtable_t* hashtable_mcmp_init(hashtable_config_t* hashtable_config) {
     }
 
     hashtable->is_resizing = false;
-    hashtable->is_shutdowning = false;
     hashtable->ht_current = hashtable_data;
     hashtable->ht_old = NULL;
 
