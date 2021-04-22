@@ -20,10 +20,10 @@ static void *hash_crc32c_resolve(void) {
 
 #if defined(__x86_64__)
     LOG_DI("CPU FOUND: %s", "X64");
-    LOG_DI("> HAS AVX2: %s", __builtin_cpu_supports("avx2") ? "yes" : "no");
+    LOG_DI("> HAS SSE4.2: %s", __builtin_cpu_supports("sse4.2") ? "yes" : "no");
 
     if (__builtin_cpu_supports("sse4.2")) {
-        LOG_DI("Selecting AVX2");
+        LOG_DI("Selecting SSE4.2");
 
         return HASH_CRC32C(sse42);
     }
