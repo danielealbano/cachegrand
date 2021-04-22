@@ -37,6 +37,8 @@
 #include "network/channel/network_channel_iouring.h"
 #include "worker/worker.h"
 #include "worker/worker_iouring.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/hashtable/mcmp/hashtable_config.h"
 #include "config.h"
 #include "thread.h"
 #include "slab_allocator.h"
@@ -57,6 +59,7 @@ uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
 static char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
 static uint16_t* selected_cpus;
 static uint16_t selected_cpus_count;
+static hashtable_t* hashtable = NULL;
 
 void program_signal_handlers(
         int signal_number) {
@@ -349,6 +352,22 @@ bool program_config_thread_affinity_set_selected_cpus(
     return true;
 }
 
+bool program_config_setup_hashtable(
+        config_t* config) {
+    hashtable_config_t* hashtable_config = hashtable_mcmp_config_init();
+    hashtable_config->can_auto_resize = false;
+    hashtable_config->initial_size = config->memory_max_keys;
+
+    hashtable = hashtable_mcmp_init(hashtable_config);
+
+    if (!hashtable) {
+        hashtable_mcmp_config_free(hashtable_config);
+        hashtable = NULL;
+    }
+
+    return hashtable;
+}
+
 int program_main(
         int argc,
         char** argv) {
@@ -384,7 +403,12 @@ int program_main(
 
     // TODO: initialize the protocol parsers
     // TODO: initialize the network listeners and the protocol state machines
-    // TODO: initialize the hashtable(s) (with or without LRU, when the support will be added)
+
+    if (program_config_setup_hashtable(config) == false) {
+        LOG_E(TAG, "Unable to initialize the hashtable");
+        return 1;
+    }
+
     // TODO: initialize the storage
 
     if (use_slab_allocator) {
