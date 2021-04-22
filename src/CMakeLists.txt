@@ -158,3 +158,7 @@ add_dependencies(
 target_link_libraries(
         cachegrand-server
         cachegrand-internal ${DEPS_LIST_LIBRARIES_PRIVATE})
+
+if (CMAKE_C_LINK_PIE_SUPPORTED AND CMAKE_BUILD_TYPE MATCHES Release)
+    set_property(TARGET cachegrand-server PROPERTY POSITION_INDEPENDENT_CODE TRUE)
+endif()
