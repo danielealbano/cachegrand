@@ -5,9 +5,7 @@
 extern "C" {
 #endif
 
-#if DEBUG == 1
 extern int program_arguments_parser_testing;
-#endif
 
 #define program_arguments_strval_map_len(STRVAL_ARRAY) (sizeof(STRVAL_ARRAY) / sizeof(program_arguments_strval_map_t))
 

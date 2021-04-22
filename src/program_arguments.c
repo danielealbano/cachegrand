@@ -7,9 +7,7 @@
 
 #include "program_arguments.h"
 
-#if DEBUG == 1
 int program_arguments_parser_testing = 0;
-#endif
 
 static struct argp_option program_arguments_parser_options[] = {
         {"config-file", 'c', "FILE", 0,
@@ -65,15 +63,11 @@ error_t program_arguments_argp_parser(
                     program_arguments_strval_map_len(program_arguments_log_level_strings),
                     arg,
                     (int*)(&program_arguments->log_level)) == false) {
-#if DEBUG == 1
                 if (program_arguments_parser_testing == 0) {
-#endif
-                argp_error(state, "invalid value for log-level");
-#if DEBUG == 1
+                    argp_error(state, "invalid value for log-level");
                 } else {
                     return ARGP_ERR_UNKNOWN;
                 }
-#endif
             }
             break;
 
@@ -138,11 +132,9 @@ bool program_arguments_parse(
             .args_doc = docs_header
     };
 
-#if DEBUG == 1
     if (program_arguments_parser_testing != 0) {
         arg_parse_flags |= ARGP_SILENT;
     }
-#endif
 
     error_t res = argp_parse(&argp, argc, argv, arg_parse_flags, 0, program_arguments);
 
