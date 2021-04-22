@@ -58,6 +58,7 @@ uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
 
 static char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
 static uint16_t* selected_cpus;
+static config_t* config = NULL;
 static uint16_t selected_cpus_count;
 static hashtable_t* hashtable = NULL;
 
@@ -371,7 +372,6 @@ bool program_config_setup_hashtable(
 int program_main(
         int argc,
         char** argv) {
-    config_t* config;
     bool use_slab_allocator;
     uint32_t workers_count;
     worker_user_data_t* workers_user_data;
