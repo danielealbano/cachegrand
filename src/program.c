@@ -48,6 +48,18 @@
 
 #define TAG "program"
 
+typedef struct program_context program_context_t;
+struct program_context {
+    bool use_slab_allocator;
+    bool slab_allocator_inited;
+    config_t* config;
+    uint16_t* selected_cpus;
+    uint16_t selected_cpus_count;
+    hashtable_t* hashtable;
+    uint32_t workers_count;
+    worker_user_data_t* workers_user_data;
+};
+
 volatile bool program_terminate_event_loop = false;
 
 network_channel_address_t program_addresses[] = { PROGRAM_NETWORK_ADDRESSES };
@@ -57,11 +69,6 @@ int program_signals[] = { SIGUSR1, SIGINT, SIGHUP, SIGTERM, SIGQUIT };
 uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
 
 static char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
-
-static config_t* config = NULL;
-static uint16_t* selected_cpus = NULL;
-static uint16_t selected_cpus_count;
-static hashtable_t* hashtable = NULL;
 
 void program_signal_handlers(
         int signal_number) {
@@ -339,72 +346,81 @@ void program_config_setup_log_sinks(
 }
 
 bool program_config_thread_affinity_set_selected_cpus(
+        program_context_t* program_context,
         config_t* config) {
     if (config_cpus_parse(
             utils_numa_cpu_configured_count(),
             config->cpus,
             config->cpus_count,
-            &selected_cpus,
-            &selected_cpus_count) == false) {
+            &program_context->selected_cpus,
+            &program_context->selected_cpus_count) == false) {
         return false;
     }
 
-    thread_affinity_set_selected_cpus(selected_cpus, selected_cpus_count);
+    thread_affinity_set_selected_cpus(
+            program_context->selected_cpus,
+            program_context->selected_cpus_count);
 
     return true;
 }
 
 bool program_config_setup_hashtable(
+        program_context_t* program_context,
         config_t* config) {
     hashtable_config_t* hashtable_config = hashtable_mcmp_config_init();
     hashtable_config->can_auto_resize = false;
     hashtable_config->initial_size = config->memory_max_keys;
 
-    hashtable = hashtable_mcmp_init(hashtable_config);
+    program_context->hashtable = hashtable_mcmp_init(hashtable_config);
 
-    if (!hashtable) {
+    if (!program_context->hashtable) {
         hashtable_mcmp_config_free(hashtable_config);
-        hashtable = NULL;
+        program_context->hashtable = NULL;
     }
 
-    return hashtable;
+    return program_context->hashtable;
 }
 
-void program_cleanup() {
-    if (hashtable) {
-        hashtable_mcmp_free(hashtable);
+void program_cleanup(
+        program_context_t* program_context) {
+    if (program_context->hashtable) {
+        hashtable_mcmp_free(program_context->hashtable);
     }
 
     log_sink_registered_free();
 
-    if (selected_cpus) {
-        xalloc_free(selected_cpus);
+    if (program_context->slab_allocator_inited) {
+        slab_allocator_predefined_allocators_free();
     }
 
-    if (config) {
-        config_free(config);
+    if (program_context->selected_cpus) {
+        xalloc_free(program_context->selected_cpus);
+        program_context->selected_cpus_count = 0;
+    }
+
+    if (program_context->config) {
+        config_free(program_context->config);
     }
 }
 
 int program_main(
         int argc,
         char** argv) {
-    bool use_slab_allocator;
-    uint32_t workers_count;
-    worker_user_data_t* workers_user_data;
+    static program_context_t program_context = { 0 };
+
+    // TODO: refactor this function to make it actually testable
 
     // Initialize the console log sink to be able to print logs, will update it with the settings from the config at
     // later stage
     program_setup_initial_log_sink_console();
 
-    // TODO: refactor this function to make it actually testable
-
-    if ((config = program_parse_arguments_and_load_config(argc, argv)) == NULL) {
+    if ((program_context.config = program_parse_arguments_and_load_config(argc, argv)) == NULL) {
         return 1;
     }
 
-    if (program_config_thread_affinity_set_selected_cpus(config) == false) {
-        config_free(config);
+    if (program_config_thread_affinity_set_selected_cpus(&program_context, program_context.config) == false) {
+        LOG_E(TAG, "Unable to setup cpu affinity");
+        program_cleanup(&program_context);
         return 1;
     }
 
@@ -412,48 +428,44 @@ int program_main(
     program_register_signal_handlers();
 
     // Enable, if allowed in the config and if the hugepages are available, the slab allocator
-    use_slab_allocator = program_use_slab_allocator(config);
+    program_context.use_slab_allocator = program_use_slab_allocator(program_context.config);
 
     // Initialize the log sinks defined in the configuration, if any. The function will take care of dropping the
     // temporary log sink defined initially
-    program_config_setup_log_sinks(config);
+    program_config_setup_log_sinks(program_context.config);
 
     // TODO: initialize the protocol parsers
     // TODO: initialize the network listeners and the protocol state machines
 
-    if (program_config_setup_hashtable(config) == false) {
+    if (program_config_setup_hashtable(&program_context, program_context.config) == false) {
         LOG_E(TAG, "Unable to initialize the hashtable");
+        program_cleanup(&program_context);
         return 1;
     }
 
     // TODO: initialize the storage
 
-    if (use_slab_allocator) {
+    if (program_context.use_slab_allocator) {
         slab_allocator_predefined_allocators_init();
+        program_context.slab_allocator_inited = true;
     }
 
-    workers_count = config->workers_per_cpus * selected_cpus_count;
+    program_context.workers_count = program_context.config->workers_per_cpus * program_context.selected_cpus_count;
 
-    if ((workers_user_data = program_workers_initialize(
+    if ((program_context.workers_user_data = program_workers_initialize(
             &program_terminate_event_loop,
-            config,
-            workers_count)) == NULL) {
+            program_context.config,
+            program_context.workers_count)) == NULL) {
+        program_cleanup(&program_context);
         return 1;
     }
 
     program_wait_loop(&program_terminate_event_loop);
 
     program_workers_cleanup(
-            workers_user_data,
-            workers_count);
+            program_context.workers_user_data,
+            program_context.workers_count);
 
-    if (use_slab_allocator) {
-        slab_allocator_predefined_allocators_free();
-    }
-
-    log_sink_registered_free();
-    xalloc_free(selected_cpus);
-    config_free(config);
-
+    program_cleanup(&program_context);
     return 0;
 }
