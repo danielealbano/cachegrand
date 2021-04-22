@@ -142,11 +142,9 @@ if(ARCH_IS_X86_64)
             -mcx16)
 endif()
 
-if(WIN32)
-    target_link_libraries(
-            cachegrand-internal
-            imagehlp)
-endif(WIN32)
+if (CMAKE_C_LINK_PIE_SUPPORTED AND CMAKE_BUILD_TYPE MATCHES Release)
+    set_property(TARGET cachegrand-internal PROPERTY POSITION_INDEPENDENT_CODE TRUE)
+endif()
 
 # Build the executable
 add_executable(
