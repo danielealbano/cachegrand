@@ -8,6 +8,7 @@
 #include "utils_cpu.h"
 #include "utils_numa.h"
 #include "xalloc.h"
+#include "hugepages.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 
 #include "slab_allocator.h"
@@ -206,232 +207,257 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
     }
 
     SECTION("slab_allocator_mem_alloc_hugepages") {
-        slab_allocator_enable(true);
-        slab_allocator_predefined_allocators_init();
+        if (hugepages_2mb_is_available(64)) {
+            slab_allocator_enable(true);
+            slab_allocator_predefined_allocators_init();
 
-        SECTION("allocate 1 object") {
-            uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
-            uint32_t core_index = slab_allocator_get_current_thread_core_index();
-            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
-                    slab_predefined_object_sizes[0]);
+            SECTION("allocate 1 object") {
+                uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
+                uint32_t core_index = slab_allocator_get_current_thread_core_index();
+                slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
+                        slab_predefined_object_sizes[0]);
 
-            void *memptr = slab_allocator_mem_alloc_hugepages(
-                    slab_predefined_object_sizes[0]);
-
-            REQUIRE(slab_allocator->metrics.total_slices_count == 1);
-            REQUIRE(slab_allocator->metrics.free_slices_count == 0);
-            REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.total_slices_count == 1);
-            REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.free_slices_count == 0);
-            REQUIRE(slab_allocator->core_metadata[core_index].slots->tail->data == memptr);
-            REQUIRE(slab_allocator->core_metadata[core_index].free_page_addr != NULL);
-            REQUIRE(slab_allocator->core_metadata[core_index].free_page_addr_first_inited == true);
-            REQUIRE(((slab_slot_t*) slab_allocator->core_metadata[core_index].slots->tail)->data.available == false);
-            REQUIRE(((slab_slot_t*) slab_allocator->core_metadata[core_index].slots->head)->data.available == true);
-            REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.metrics.objects_inuse_count == 1);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head)->data.available == true);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head)->data.available == true);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.available == false);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.memptr == memptr);
-        }
-
-        SECTION("fill one page") {
-            uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
-            uint32_t core_index = slab_allocator_get_current_thread_core_index();
-            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
-                    slab_predefined_object_sizes[0]);
-            size_t slab_slot_size = sizeof(slab_slot_t);
-            size_t slab_page_size = 2 * 1024 * 1024;
-            size_t os_page_size = xalloc_get_page_size();
-            size_t usable_page_size = slab_page_size - os_page_size - sizeof(slab_slice_t);
-            uint32_t item_size = slab_allocator->object_size + slab_slot_size;
-            uint32_t slots_count = (int)(usable_page_size / item_size);
-
-            for(int i = 0; i < slots_count; i++) {
                 void *memptr = slab_allocator_mem_alloc_hugepages(
                         slab_predefined_object_sizes[0]);
+
+                REQUIRE(slab_allocator->metrics.total_slices_count == 1);
+                REQUIRE(slab_allocator->metrics.free_slices_count == 0);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.total_slices_count == 1);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.free_slices_count == 0);
+                REQUIRE(slab_allocator->core_metadata[core_index].slots->tail->data == memptr);
+                REQUIRE(slab_allocator->core_metadata[core_index].free_page_addr != NULL);
+                REQUIRE(slab_allocator->core_metadata[core_index].free_page_addr_first_inited == true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.available ==
+                        false);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head)->data.available ==
+                        true);
+                REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.metrics.objects_inuse_count ==
+                        1);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head)->data.available ==
+                        true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head)->data.available ==
+                        true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.available ==
+                        false);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.memptr == memptr);
             }
 
-            REQUIRE(slab_allocator->metrics.total_slices_count == 1);
-            REQUIRE(slab_allocator->metrics.free_slices_count == 0);
-            REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.total_slices_count == 1);
-            REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.free_slices_count == 0);
-            REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.metrics.objects_inuse_count == slots_count);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head)->data.available == false);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head->next)->data.available == false);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.available == false);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail->prev)->data.available == false);
-        }
-
-        SECTION("trigger second page creation") {
-            uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
-            uint32_t core_index = slab_allocator_get_current_thread_core_index();
-            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
-                    slab_predefined_object_sizes[0]);
-            size_t slab_slot_size = sizeof(slab_slot_t);
-            size_t slab_page_size = 2 * 1024 * 1024;
-            size_t os_page_size = xalloc_get_page_size();
-            size_t usable_page_size = slab_page_size - os_page_size - sizeof(slab_slice_t);
-            uint32_t item_size = slab_allocator->object_size + slab_slot_size;
-            uint32_t slots_count = (int)(usable_page_size / item_size);
-
-            for(int i = 0; i < slots_count + 1; i++) {
-                void *memptr = slab_allocator_mem_alloc_hugepages(
+            SECTION("fill one page") {
+                uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
+                uint32_t core_index = slab_allocator_get_current_thread_core_index();
+                slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
                         slab_predefined_object_sizes[0]);
+                size_t slab_slot_size = sizeof(slab_slot_t);
+                size_t slab_page_size = 2 * 1024 * 1024;
+                size_t os_page_size = xalloc_get_page_size();
+                size_t usable_page_size = slab_page_size - os_page_size - sizeof(slab_slice_t);
+                uint32_t item_size = slab_allocator->object_size + slab_slot_size;
+                uint32_t slots_count = (int) (usable_page_size / item_size);
+
+                for (int i = 0; i < slots_count; i++) {
+                    void *memptr = slab_allocator_mem_alloc_hugepages(
+                            slab_predefined_object_sizes[0]);
+                }
+
+                REQUIRE(slab_allocator->metrics.total_slices_count == 1);
+                REQUIRE(slab_allocator->metrics.free_slices_count == 0);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.total_slices_count == 1);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.free_slices_count == 0);
+                REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.metrics.objects_inuse_count ==
+                        slots_count);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head)->data.available ==
+                        false);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head->next)->data.available ==
+                        false);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.available ==
+                        false);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail->prev)->data.available ==
+                        false);
             }
 
-            REQUIRE(slab_allocator->metrics.total_slices_count == 2);
-            REQUIRE(slab_allocator->metrics.free_slices_count == 0);
-            REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.total_slices_count == 2);
-            REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.free_slices_count == 0);
-            REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].slices->head !=
-                    slab_allocator->numa_node_metadata[numa_node_index].slices->tail);
-            REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].slices->head->next ==
-                    slab_allocator->numa_node_metadata[numa_node_index].slices->tail);
-            REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].slices->head ==
-                    slab_allocator->numa_node_metadata[numa_node_index].slices->tail->prev);
-            REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.metrics.objects_inuse_count == slots_count);
-            REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->tail)->data.metrics.objects_inuse_count == 1);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head)->data.available == true);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head->next)->data.available == true);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.available == false);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail->prev)->data.available == false);
-        }
+            SECTION("trigger second page creation") {
+                uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
+                uint32_t core_index = slab_allocator_get_current_thread_core_index();
+                slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
+                        slab_predefined_object_sizes[0]);
+                size_t slab_slot_size = sizeof(slab_slot_t);
+                size_t slab_page_size = 2 * 1024 * 1024;
+                size_t os_page_size = xalloc_get_page_size();
+                size_t usable_page_size = slab_page_size - os_page_size - sizeof(slab_slice_t);
+                uint32_t item_size = slab_allocator->object_size + slab_slot_size;
+                uint32_t slots_count = (int) (usable_page_size / item_size);
 
-        slab_allocator_predefined_allocators_free();
-        slab_allocator_enable(false);
+                for (int i = 0; i < slots_count + 1; i++) {
+                    void *memptr = slab_allocator_mem_alloc_hugepages(
+                            slab_predefined_object_sizes[0]);
+                }
+
+                REQUIRE(slab_allocator->metrics.total_slices_count == 2);
+                REQUIRE(slab_allocator->metrics.free_slices_count == 0);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.total_slices_count == 2);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.free_slices_count == 0);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].slices->head !=
+                        slab_allocator->numa_node_metadata[numa_node_index].slices->tail);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].slices->head->next ==
+                        slab_allocator->numa_node_metadata[numa_node_index].slices->tail);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].slices->head ==
+                        slab_allocator->numa_node_metadata[numa_node_index].slices->tail->prev);
+                REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.metrics.objects_inuse_count ==
+                        slots_count);
+                REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->tail)->data.metrics.objects_inuse_count ==
+                        1);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head)->data.available ==
+                        true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head->next)->data.available ==
+                        true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.available ==
+                        false);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail->prev)->data.available ==
+                        false);
+            }
+
+            slab_allocator_predefined_allocators_free();
+            slab_allocator_enable(false);
+        } else {
+            WARN("Can't test hugepages support in slab allocator, hugepages not enabled or not enough hugepages for testing");
+        }
     }
 
     SECTION("slab_allocator_mem_free_hugepages") {
-        slab_allocator_enable(true);
-        slab_allocator_predefined_allocators_init();
+        if (hugepages_2mb_is_available(64)) {
+            slab_allocator_enable(true);
+            slab_allocator_predefined_allocators_init();
 
-        SECTION("allocate and free 1 object") {
-            uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
-            uint32_t core_index = slab_allocator_get_current_thread_core_index();
-            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
-                    slab_predefined_object_sizes[0]);
-
-            void *memptr = slab_allocator_mem_alloc_hugepages(
-                    slab_predefined_object_sizes[0]);
-
-            REQUIRE(slab_allocator->core_metadata[core_index].slots->head->data != memptr);
-            REQUIRE(slab_allocator->core_metadata[core_index].slots->tail->data == memptr);
-
-            slab_allocator_mem_free_hugepages(memptr);
-
-            REQUIRE(slab_allocator->metrics.total_slices_count == 1);
-            REQUIRE(slab_allocator->metrics.free_slices_count == 0);
-            REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.total_slices_count == 1);
-            REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.free_slices_count == 0);
-            REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.metrics.objects_inuse_count == 0);
-            REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.available == false);
-            REQUIRE(slab_allocator->core_metadata[core_index].slots->head->data == memptr);
-            REQUIRE(slab_allocator->core_metadata[core_index].slots->tail->data != memptr);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head)->data.available == true);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head->next)->data.available == true);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.available == true);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail->prev)->data.available == true);
-        }
-
-        SECTION("fill and free one page") {
-            uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
-            uint32_t core_index = slab_allocator_get_current_thread_core_index();
-            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
-                    slab_predefined_object_sizes[0]);
-            size_t slab_slot_size = sizeof(slab_slot_t);
-            size_t slab_page_size = 2 * 1024 * 1024;
-            size_t os_page_size = xalloc_get_page_size();
-            size_t usable_page_size = slab_page_size - os_page_size - sizeof(slab_slice_t);
-            uint32_t item_size = slab_allocator->object_size + slab_slot_size;
-            uint32_t slots_count = (int)(usable_page_size / item_size);
-
-            void** memptrs = (void**)malloc(sizeof(void*) * slots_count);
-            for(int i = 0; i < slots_count; i++) {
-                memptrs[i] = slab_allocator_mem_alloc_hugepages(
+            SECTION("allocate and free 1 object") {
+                uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
+                uint32_t core_index = slab_allocator_get_current_thread_core_index();
+                slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
                         slab_predefined_object_sizes[0]);
-            }
 
-            for(int i = 0; i < slots_count; i++) {
-                slab_allocator_mem_free_hugepages(memptrs[i]);
-            }
-
-            REQUIRE(slab_allocator->metrics.total_slices_count == 1);
-            REQUIRE(slab_allocator->metrics.free_slices_count == 0);
-            REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.total_slices_count == 1);
-            REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.free_slices_count == 0);
-            REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.metrics.objects_inuse_count == 0);
-            REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.available == false);
-            REQUIRE(slab_allocator->core_metadata[core_index].slots->head->data == memptrs[slots_count - 1]);
-            REQUIRE(slab_allocator->core_metadata[core_index].slots->tail->data == memptrs[0]);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head)->data.available == true);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head->next)->data.available == true);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.available == true);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail->prev)->data.available == true);
-        }
-
-        SECTION("fill and free one page and one element") {
-            uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
-            uint32_t core_index = slab_allocator_get_current_thread_core_index();
-            slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
-                    slab_predefined_object_sizes[0]);
-            size_t slab_slot_size = sizeof(slab_slot_t);
-            size_t slab_page_size = 2 * 1024 * 1024;
-            size_t os_page_size = xalloc_get_page_size();
-            size_t usable_page_size = slab_page_size - os_page_size - sizeof(slab_slice_t);
-            uint32_t item_size = slab_allocator->object_size + slab_slot_size;
-            uint32_t slots_count = (int)(usable_page_size / item_size);
-
-            slots_count++;
-
-            void** memptrs = (void**)malloc(sizeof(void*) * slots_count);
-            for(int i = 0; i < slots_count; i++) {
-                memptrs[i] = slab_allocator_mem_alloc_hugepages(
+                void *memptr = slab_allocator_mem_alloc_hugepages(
                         slab_predefined_object_sizes[0]);
+
+                REQUIRE(slab_allocator->core_metadata[core_index].slots->head->data != memptr);
+                REQUIRE(slab_allocator->core_metadata[core_index].slots->tail->data == memptr);
+
+                slab_allocator_mem_free_hugepages(memptr);
+
+                REQUIRE(slab_allocator->metrics.total_slices_count == 1);
+                REQUIRE(slab_allocator->metrics.free_slices_count == 0);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.total_slices_count == 1);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.free_slices_count == 0);
+                REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.metrics.objects_inuse_count == 0);
+                REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.available == false);
+                REQUIRE(slab_allocator->core_metadata[core_index].slots->head->data == memptr);
+                REQUIRE(slab_allocator->core_metadata[core_index].slots->tail->data != memptr);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head)->data.available == true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head->next)->data.available == true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.available == true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail->prev)->data.available == true);
             }
 
-            for(int i = 0; i < slots_count; i++) {
-                slab_allocator_mem_free_hugepages(memptrs[i]);
+            SECTION("fill and free one page") {
+                uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
+                uint32_t core_index = slab_allocator_get_current_thread_core_index();
+                slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
+                        slab_predefined_object_sizes[0]);
+                size_t slab_slot_size = sizeof(slab_slot_t);
+                size_t slab_page_size = 2 * 1024 * 1024;
+                size_t os_page_size = xalloc_get_page_size();
+                size_t usable_page_size = slab_page_size - os_page_size - sizeof(slab_slice_t);
+                uint32_t item_size = slab_allocator->object_size + slab_slot_size;
+                uint32_t slots_count = (int)(usable_page_size / item_size);
+
+                void** memptrs = (void**)malloc(sizeof(void*) * slots_count);
+                for(int i = 0; i < slots_count; i++) {
+                    memptrs[i] = slab_allocator_mem_alloc_hugepages(
+                            slab_predefined_object_sizes[0]);
+                }
+
+                for(int i = 0; i < slots_count; i++) {
+                    slab_allocator_mem_free_hugepages(memptrs[i]);
+                }
+
+                REQUIRE(slab_allocator->metrics.total_slices_count == 1);
+                REQUIRE(slab_allocator->metrics.free_slices_count == 0);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.total_slices_count == 1);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.free_slices_count == 0);
+                REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.metrics.objects_inuse_count == 0);
+                REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.available == false);
+                REQUIRE(slab_allocator->core_metadata[core_index].slots->head->data == memptrs[slots_count - 1]);
+                REQUIRE(slab_allocator->core_metadata[core_index].slots->tail->data == memptrs[0]);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head)->data.available == true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head->next)->data.available == true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.available == true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail->prev)->data.available == true);
             }
 
-            REQUIRE(slab_allocator->metrics.total_slices_count == 2);
-            REQUIRE(slab_allocator->metrics.free_slices_count == 1);
-            REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.total_slices_count == 2);
-            REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.free_slices_count == 1);
-            REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].slices->head !=
-                    slab_allocator->numa_node_metadata[numa_node_index].slices->tail);
-            REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.metrics.objects_inuse_count == 0);
-            REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.available == true);
-            REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->tail)->data.metrics.objects_inuse_count == 0);
-            REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->tail)->data.available == false);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head)->data.available == true);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head->next)->data.available == true);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.available == true);
-            REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail->prev)->data.available == true);
+            SECTION("fill and free one page and one element") {
+                uint32_t numa_node_index = slab_allocator_get_current_thread_numa_node_index();
+                uint32_t core_index = slab_allocator_get_current_thread_core_index();
+                slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
+                        slab_predefined_object_sizes[0]);
+                size_t slab_slot_size = sizeof(slab_slot_t);
+                size_t slab_page_size = 2 * 1024 * 1024;
+                size_t os_page_size = xalloc_get_page_size();
+                size_t usable_page_size = slab_page_size - os_page_size - sizeof(slab_slice_t);
+                uint32_t item_size = slab_allocator->object_size + slab_slot_size;
+                uint32_t slots_count = (int)(usable_page_size / item_size);
+
+                slots_count++;
+
+                void** memptrs = (void**)malloc(sizeof(void*) * slots_count);
+                for(int i = 0; i < slots_count; i++) {
+                    memptrs[i] = slab_allocator_mem_alloc_hugepages(
+                            slab_predefined_object_sizes[0]);
+                }
+
+                for(int i = 0; i < slots_count; i++) {
+                    slab_allocator_mem_free_hugepages(memptrs[i]);
+                }
+
+                REQUIRE(slab_allocator->metrics.total_slices_count == 2);
+                REQUIRE(slab_allocator->metrics.free_slices_count == 1);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.total_slices_count == 2);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.free_slices_count == 1);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].slices->head !=
+                        slab_allocator->numa_node_metadata[numa_node_index].slices->tail);
+                REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.metrics.objects_inuse_count == 0);
+                REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.available == true);
+                REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->tail)->data.metrics.objects_inuse_count == 0);
+                REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->tail)->data.available == false);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head)->data.available == true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head->next)->data.available == true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.available == true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail->prev)->data.available == true);
+            }
+
+            slab_allocator_predefined_allocators_free();
+            slab_allocator_enable(false);
         }
 
-        slab_allocator_predefined_allocators_free();
-        slab_allocator_enable(false);
-    }
+        SECTION("slab_allocator_mem_alloc_zero") {;
+            SECTION("ensure that after reallocation memory is zero-ed") {
+                const char* fixture_test_slab_allocator_mem_alloc_zero_str = "THIS IS A TEST";
 
-    SECTION("slab_allocator_mem_alloc_zero") {;
-        SECTION("ensure that after reallocation memory is zero-ed") {
-            const char* fixture_test_slab_allocator_mem_alloc_zero_str = "THIS IS A TEST";
+                void *memptr1 = slab_allocator_mem_alloc_zero(
+                        slab_predefined_object_sizes[0]);
 
-            void *memptr1 = slab_allocator_mem_alloc_zero(
-                    slab_predefined_object_sizes[0]);
+                strcpy((char*)memptr1, fixture_test_slab_allocator_mem_alloc_zero_str);
 
-            strcpy((char*)memptr1, fixture_test_slab_allocator_mem_alloc_zero_str);
+                REQUIRE(strcmp((char*)memptr1, fixture_test_slab_allocator_mem_alloc_zero_str) == 0);
 
-            REQUIRE(strcmp((char*)memptr1, fixture_test_slab_allocator_mem_alloc_zero_str) == 0);
+                slab_allocator_mem_free(memptr1);
+                void *memptr2 = slab_allocator_mem_alloc_zero(
+                        slab_predefined_object_sizes[0]);
 
-            slab_allocator_mem_free(memptr1);
-            void *memptr2 = slab_allocator_mem_alloc_zero(
-                    slab_predefined_object_sizes[0]);
+                REQUIRE(memptr1 == memptr2);
+                REQUIRE(strcmp((char*)memptr2, fixture_test_slab_allocator_mem_alloc_zero_str) != 0);
 
-            REQUIRE(memptr1 == memptr2);
-            REQUIRE(strcmp((char*)memptr2, fixture_test_slab_allocator_mem_alloc_zero_str) != 0);
-
-            slab_allocator_mem_free(memptr2);
+                slab_allocator_mem_free(memptr2);
+            }
+        } else {
+            WARN("Can't test hugepages support in slab allocator, hugepages not enabled or not enough hugepages for testing");
         }
     }
 }
