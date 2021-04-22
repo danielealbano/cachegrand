@@ -57,8 +57,9 @@ int program_signals[] = { SIGUSR1, SIGINT, SIGHUP, SIGTERM, SIGQUIT };
 uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
 
 static char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
-static uint16_t* selected_cpus;
+
 static config_t* config = NULL;
+static uint16_t* selected_cpus = NULL;
 static uint16_t selected_cpus_count;
 static hashtable_t* hashtable = NULL;
 
@@ -367,6 +368,22 @@ bool program_config_setup_hashtable(
     }
 
     return hashtable;
+}
+
+void program_cleanup() {
+    if (hashtable) {
+        hashtable_mcmp_free(hashtable);
+    }
+
+    log_sink_registered_free();
+
+    if (selected_cpus) {
+        xalloc_free(selected_cpus);
+    }
+
+    if (config) {
+        config_free(config);
+    }
 }
 
 int program_main(
