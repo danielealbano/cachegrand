@@ -1,3 +1,6 @@
+include(CheckPIESupported)
+check_pie_supported()
+
 add_compile_options($<$<COMPILE_LANGUAGE:C>:-g>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-g>)
 
