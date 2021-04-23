@@ -862,7 +862,7 @@ void* worker_iouring_thread_func(
     // TODO: The listeners have to be initialized by the caller, each listener has to be paired up with a protocol parser
     //       and a protocol state machine and this code has to be shared across the different kind of workers (io_uring,
     //       epoll, iocp, kqueue/kevent, dpdk, etc.)
-    LOG_I(TAG, "Initializing listeners");
+    LOG_V(TAG, "Initializing listeners");
     listener_new_cb_user_data.backlog = worker_user_data->backlog;
     listener_new_cb_user_data.core_index = worker_user_data->core_index;
     worker_iouring_network_listeners_initialize(
@@ -886,34 +886,32 @@ void* worker_iouring_thread_func(
             worker_user_data->addresses_count);
 
     if (ring != NULL) {
-        LOG_I(TAG, "Checking if io_uring can link file updates ops");
         if ((io_uring_supports_op_files_update_link = io_uring_capabilities_is_linked_op_files_update_supported())) {
-            LOG_I(TAG, "> linking supported");
+            LOG_V(TAG, "io_uring linking supported");
         } else {
-            LOG_W(TAG, "> linking not supported, accepting new connections will incur in a performance penalty");
+            LOG_W(TAG, "io_uring linking not supported, accepting new connections will incur in a performance penalty");
         }
 
-        LOG_I(TAG, "Checking if sqpoll can be used with io_uring");
         if ((io_uring_supports_sqpoll = io_uring_capabilities_is_sqpoll_supported())) {
-            LOG_I(TAG, "> sqpoll supported");
+            LOG_V(TAG, "io_uring sqpoll supported");
         } else {
-            LOG_I(TAG, "> need a kernel >=5.11 to use sqpoll");
+            LOG_W(TAG, "Need a kernel >=5.11 to use sqpoll with io_uring");
         }
 
-        LOG_I(TAG, "Enqueing listeners");
+        LOG_V(TAG, "Enqueing listeners");
 
         worker_iouring_listeners_enqueue(
                 ring,
                 &listener_new_cb_user_data);
 
-        LOG_I(TAG, "Starting events process loop");
+        LOG_V(TAG, "Starting events process loop");
 
         worker_iouring_thread_process_ops_loop(
                 worker_user_data,
                 &stats,
                 ring);
 
-        LOG_I(TAG, "Process events loop ended, cleaning up worker");
+        LOG_V(TAG, "Process events loop ended, cleaning up worker");
 
         worker_iouring_cleanup(
                 &listener_new_cb_user_data,
