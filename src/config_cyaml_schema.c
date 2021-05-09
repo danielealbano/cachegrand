@@ -18,9 +18,9 @@ const cyaml_schema_field_t config_protocol_binding_schema[] = {
         CYAML_FIELD_STRING_PTR(
                 "host", CYAML_FLAG_POINTER,
                 config_protocol_binding_t, host, 0, CYAML_UNLIMITED),
-        CYAML_FIELD_STRING_PTR(
-                "port", CYAML_FLAG_POINTER,
-                config_protocol_binding_t, port, 0, CYAML_UNLIMITED),
+        CYAML_FIELD_UINT(
+                "port", CYAML_FLAG_DEFAULT,
+                config_protocol_binding_t, port),
         CYAML_FIELD_END
 };
 

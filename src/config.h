@@ -46,7 +46,7 @@ typedef enum config_worker_type config_worker_type_t;
 typedef struct config_protocol_binding config_protocol_binding_t;
 struct config_protocol_binding {
     char* host;
-    char* port;
+    uint16_t port;
 };
 
 typedef struct config_protocol_timeout config_protocol_timeout_t;
