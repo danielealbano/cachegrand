@@ -192,13 +192,15 @@ bool network_protocol_redis_recv(
 
                     protocol_context->skip_command = true;
                 } else {
-                    for(int i = 0; i < reader_context->arguments.count; i++) {
-                        LOG_I(TAG,
-                                "[ARG:%d][LEN:%d] %s",
-                                i,
-                                reader_context->arguments.list[i].length,
-                                reader_context->arguments.list[i].value);
-                    }
+                    // TODO: something is really wrong with the arguments when the inline parser is used, needs
+                    //       investigation
+//                    for(int i = 0; i < reader_context->arguments.count; i++) {
+//                        LOG_I(TAG,
+//                                "[ARG:%d][LEN:%d] %s",
+//                                i,
+//                                reader_context->arguments.list[i].length,
+//                                reader_context->arguments.list[i].value);
+//                    }
 
                     if ((send_buffer_start = protocol_context->command_info->end_funcptr(
                             network_channel_user_data,
