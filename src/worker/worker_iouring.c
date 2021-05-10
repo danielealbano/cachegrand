@@ -315,7 +315,7 @@ void worker_iouring_cqe_log(
             TAG,
             "[OP:%u][FD IDX:%d][FD:%d] cqe->user_data = <0x%08lx>, cqe->res = <%s (%d)>, cqe->flags >> 16 = <%d>, cqe->flags & 0xFFFFu = <%d>",
             iouring_userdata->op,
-            iouring_userdata->channel->fd,
+            iouring_userdata->channel != NULL ? iouring_userdata->channel->fd : -1,
             iouring_userdata->mapped_fd,
             cqe->user_data,
             cqe->res >= 0 ? "Success" : strerror(cqe->res * -1),
