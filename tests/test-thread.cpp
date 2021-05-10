@@ -11,27 +11,50 @@ TEST_CASE("thread.c", "[thread]") {
     }
 
     SECTION("thread_current_set_affinity") {
-        uint32_t selected_cpus_count = sysconf(_SC_NPROCESSORS_ONLN);
-        uint16_t *selected_cpus = (uint16_t*)malloc(sizeof(uint16_t) * selected_cpus_count);
-        for (int index = 0; index < selected_cpus_count; index++) {
-            selected_cpus[index] = index;
-        }
-        thread_affinity_set_selected_cpus(selected_cpus, selected_cpus_count);
+        uint32_t cpus_count = sysconf(_SC_NPROCESSORS_ONLN);
 
-        SECTION("set affinity to cpu 0") {
-            REQUIRE(thread_current_set_affinity(0) == 0);
-        }
+        SECTION("with selected cpus") {
+            uint16_t *selected_cpus = (uint16_t*)malloc(sizeof(uint16_t) * cpus_count);
+            for (int index = 0; index < cpus_count; index++) {
+                selected_cpus[index] = index;
+            }
+            thread_affinity_set_selected_cpus(selected_cpus, cpus_count);
 
-        SECTION("set affinity to cpu 1") {
-            if (selected_cpus_count > 0) {
-                    REQUIRE(thread_current_set_affinity(1) == 1);
-            } else {
-                WARN("Can't test, not enough cores");
+            SECTION("set affinity to cpu 0") {
+                REQUIRE(thread_current_set_affinity(0) == 0);
+            }
+
+            SECTION("set affinity to cpu 1") {
+                if (cpus_count > 0) {
+                        REQUIRE(thread_current_set_affinity(1) == 1);
+                } else {
+                    WARN("Can't test, not enough cores");
+                }
+            }
+
+            SECTION("affinity max cpu count == 0") {
+                REQUIRE(thread_current_set_affinity(cpus_count) == 0);
             }
         }
 
-        SECTION("affinity max cpu count == 0") {
-            REQUIRE(thread_current_set_affinity(selected_cpus_count) == 0);
+        SECTION("without selected cpus") {
+            thread_affinity_set_selected_cpus(NULL, 0);
+
+            SECTION("set affinity to cpu 0") {
+                REQUIRE(thread_current_set_affinity(0) == 0);
+            }
+
+            SECTION("set affinity to cpu 1") {
+                if (cpus_count > 0) {
+                    REQUIRE(thread_current_set_affinity(1) == 1);
+                } else {
+                    WARN("Can't test, not enough cores");
+                }
+            }
+
+            SECTION("affinity max cpu count == 0") {
+                REQUIRE(thread_current_set_affinity(cpus_count) == 0);
+            }
         }
     }
 }
