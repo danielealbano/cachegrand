@@ -220,19 +220,31 @@ io_uring_t* worker_iouring_initialize_iouring(
 void worker_iouring_network_listeners_initialize(
         worker_user_data_t *worker_user_data,
         network_channel_listener_new_callback_user_data_t *listener_new_cb_user_data) {
-    for(
-            uint32_t address_index = 0;
-            address_index < worker_user_data->addresses_count;
-            address_index++) {
-        if (network_channel_listener_new(
-                worker_user_data->addresses[address_index].address,
-                worker_user_data->addresses[address_index].port,
-                worker_user_data->addresses[address_index].protocol,
-                listener_new_cb_user_data) == false) {
-            LOG_E(TAG, "Unable to setup listener for <%s:%u> with protocol <%d>",
-                  worker_user_data->addresses[address_index].address,
-                  worker_user_data->addresses[address_index].port,
-                  worker_user_data->addresses[address_index].protocol);
+
+    config_t *config = worker_user_data->config;
+
+    for(int protocol_index = 0; protocol_index < config->protocols_count; protocol_index++) {
+        network_protocols_t network_protocol;
+
+        config_protocol_t *config_protocol = config->protocols;
+        switch(config_protocol->type) {
+            default:
+            case CONFIG_PROTOCOL_TYPE_REDIS:
+                network_protocol = NETWORK_PROTOCOLS_REDIS;
+        }
+
+        for(int binding_index = 0; binding_index < config_protocol->bindings_count; binding_index++) {
+            if (network_channel_listener_new(
+                    config_protocol->bindings[binding_index].host,
+                    config_protocol->bindings[binding_index].port,
+                    network_protocol,
+                    listener_new_cb_user_data) == false) {
+
+                LOG_E(TAG, "Unable to setup listener for <%s:%u> with protocol <%d>",
+                      config_protocol->bindings[binding_index].host,
+                      config_protocol->bindings[binding_index].port,
+                      network_protocol);
+            }
         }
     }
 }
