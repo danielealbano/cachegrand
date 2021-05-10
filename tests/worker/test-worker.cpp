@@ -81,6 +81,7 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
     }
 
     SECTION("worker_setup_user_data") {
+        config_t config = {};
         worker_user_data_t worker_user_data = {0};
         network_channel_address_t addresses[1] = {0};
         volatile bool terminate_event_loop = false;
@@ -89,17 +90,11 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
                 &worker_user_data,
                 1,
                 &terminate_event_loop,
-                2,
-                3,
-                addresses,
-                1);
+                &config);
 
         REQUIRE(worker_user_data.worker_index == 1);
         REQUIRE(worker_user_data.terminate_event_loop == &terminate_event_loop);
-        REQUIRE(worker_user_data.max_connections == 2);
-        REQUIRE(worker_user_data.backlog == 3);
-        REQUIRE(worker_user_data.addresses_count == 1);
-        REQUIRE(worker_user_data.addresses == addresses);
+        REQUIRE(worker_user_data.config == &config);
     }
 
     SECTION("worker_request_terminate") {

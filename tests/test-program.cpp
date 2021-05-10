@@ -47,10 +47,34 @@ void* test_program_wait_loop_terminate(
     return NULL;
 }
 
-void test_program_prepare_mock_config(
-        config_t* config) {
-    memset(config, 0, sizeof(config_t));
+#define PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345(...) { \
+     char* cpus[] = { "0" }; \
+    config_protocol_binding_t config_protocol_binding = { \
+            .host = "127.0.0.1", \
+            .port = 12345, \
+    }; \
+    config_protocol_t config_protocol = { \
+            .type = CONFIG_PROTOCOL_TYPE_REDIS, \
+            .bindings = &config_protocol_binding, \
+            .bindings_count = 1, \
+    }; \
+    config_t config = { \
+            .worker_type = CONFIG_WORKER_TYPE_IO_URING, \
+            .cpus = cpus, \
+            .cpus_count = 1, \
+            .workers_per_cpus = 1, \
+            .network_max_clients = 10, \
+            .network_listen_backlog = 10, \
+            .protocols = &config_protocol, \
+            .protocols_count = 1, \
+    }; \
+    program_context_t program_context = { \
+            .config = &config \
+    }; \
+    __VA_ARGS__ \
 }
+
+
 
 TEST_CASE("program.c", "[program]") {
     SECTION("program_request_terminate") {
@@ -139,7 +163,7 @@ TEST_CASE("program.c", "[program]") {
                 test_program_wait_loop_wait,
                 (void*)&terminate_event_loop) == 0);
 
-        sleep(1);
+        usleep(250000);
 
         REQUIRE(pthread_create(
                 &pthread_terminate,
@@ -147,7 +171,7 @@ TEST_CASE("program.c", "[program]") {
                 test_program_wait_loop_terminate,
                 (void*)&terminate_event_loop) == 0);
 
-        sleep(3);
+        usleep(500000);
 
         REQUIRE(pthread_kill(pthread_terminate, 0) == ESRCH);
         REQUIRE(pthread_kill(pthread_wait, 0) == ESRCH);
@@ -157,126 +181,118 @@ TEST_CASE("program.c", "[program]") {
     }
 
     SECTION("program_workers_initialize") {
-        config_t config;
-        worker_user_data_t* worker_user_data;
-        network_channel_address_t addresses[] = { PROGRAM_NETWORK_ADDRESSES };
-        volatile bool terminate_event_loop = false;
+        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345({
+            worker_user_data_t* worker_user_data;
+            volatile bool terminate_event_loop = false;
 
-        test_program_prepare_mock_config(&config);
+            program_config_thread_affinity_set_selected_cpus(&program_context);
+            worker_user_data = program_workers_initialize(
+                    &terminate_event_loop,
+                    &program_context);
 
-        worker_user_data = program_workers_initialize(
-                &terminate_event_loop,
-                &config,
-                1);
+            REQUIRE(worker_user_data != NULL);
+            REQUIRE(worker_user_data->worker_index == 0);
+            REQUIRE(worker_user_data->terminate_event_loop == &terminate_event_loop);
+            REQUIRE(worker_user_data->config == &config);
+            REQUIRE(worker_user_data->pthread != 0);
 
-        // TODO: the tests should be able to define on which addresses the program is running, multiple test runs can
-        //       fail because of this
-        REQUIRE(worker_user_data != NULL);
-        REQUIRE(worker_user_data->worker_index == 0);
-        REQUIRE(worker_user_data->terminate_event_loop == &terminate_event_loop);
-        REQUIRE(worker_user_data->max_connections == PROGRAM_NETWORK_MAX_CONNECTIONS_PER_WORKER);
-        REQUIRE(worker_user_data->backlog == PROGRAM_NETWORK_CONNECTIONS_BACKLOG);
-        REQUIRE(worker_user_data->addresses_count == PROGRAM_NETWORK_ADDRESSES_COUNT);
-        REQUIRE(worker_user_data->pthread != 0);
+            usleep(250000);
 
-        sleep(1);
+            // Terminate running thread
+            terminate_event_loop = true;
+            HASHTABLE_MEMORY_FENCE_STORE();
 
-        // Terminate running thread
-        terminate_event_loop = true;
-        HASHTABLE_MEMORY_FENCE_STORE();
+            // Wait for the thread to end
+            usleep(500000);
 
-        // Wait for the thread to end
-        sleep(3);
+            // Check if the worker terminated
+            REQUIRE(pthread_kill(worker_user_data->pthread, 0) == ESRCH);
 
-        // Check if the worker terminated
-        REQUIRE(pthread_kill(worker_user_data->pthread, 0) == ESRCH);
-
-        // Cleanup
-        REQUIRE(pthread_join(worker_user_data->pthread, NULL) == 0);
-        xalloc_free(worker_user_data);
+            // Cleanup
+            REQUIRE(pthread_join(worker_user_data->pthread, NULL) == 0);
+            xalloc_free(worker_user_data);
+        )}
     }
 
     SECTION("program_workers_cleanup") {
-        config_t config;
-        pthread_t worker_pthread;
-        worker_user_data_t* worker_user_data;
-        volatile bool terminate_event_loop = false;
+        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345({
+            pthread_t worker_pthread;
+            worker_user_data_t* worker_user_data;
+            volatile bool terminate_event_loop = false;
 
-        test_program_prepare_mock_config(&config);
+            program_config_thread_affinity_set_selected_cpus(&program_context);
+            worker_user_data = program_workers_initialize(
+                    &terminate_event_loop,
+                    &program_context);
 
-        worker_user_data = program_workers_initialize(
-                &terminate_event_loop,
-                &config,
-                1);
+            // Terminate running thread
+            worker_pthread = worker_user_data->pthread;
 
-        // Terminate running thread
-        worker_pthread = worker_user_data->pthread;
+            usleep(250000);
 
-        sleep(1);
+            terminate_event_loop = true;
+            HASHTABLE_MEMORY_FENCE_STORE();
 
-        terminate_event_loop = true;
-        HASHTABLE_MEMORY_FENCE_STORE();
+            // Wait for the thread to end
+            usleep(500000);
 
-        // Wait for the thread to end
-        sleep(3);
+            program_workers_cleanup(
+                    worker_user_data,
+                    1);
 
-        program_workers_cleanup(
-                worker_user_data,
-                1);
+            REQUIRE(pthread_kill(worker_pthread, 0) == ESRCH);
 
-        REQUIRE(pthread_kill(worker_pthread, 0) == ESRCH);
-
-        REQUIRE(mprobe(worker_user_data) == -MCHECK_FREE);
+            REQUIRE(mprobe(worker_user_data) == -MCHECK_FREE);
+        )}
     }
 
     SECTION("test redis ping/pong") {
-        config_t config;
-        pthread_t worker_pthread;
-        worker_user_data_t* worker_user_data;
-        struct sockaddr_in address = {0};
-        size_t buffer_send_data_len;
-        char buffer_send[64] = {0};
-        char buffer_recv[64] = {0};
-        volatile bool terminate_event_loop = false;
+        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345({
+            pthread_t worker_pthread;
+            worker_user_data_t *worker_user_data;
+            struct sockaddr_in address = {0};
+            size_t buffer_send_data_len;
+            char buffer_send[64] = {0};
+            char buffer_recv[64] = {0};
+            volatile bool terminate_event_loop = false;
 
-        test_program_prepare_mock_config(&config);
+            program_config_thread_affinity_set_selected_cpus(&program_context);
+            worker_user_data = program_workers_initialize(
+                    &terminate_event_loop,
+                    &program_context);
 
-        worker_user_data = program_workers_initialize(
-                &terminate_event_loop,
-                &config,
-                1);
+            // Terminate running thread
+            worker_pthread = worker_user_data->pthread;
 
-        // Terminate running thread
-        worker_pthread = worker_user_data->pthread;
+            usleep(250000);
 
-        sleep(1);
+            int clientfd = network_io_common_socket_tcp4_new(0);
 
-        int clientfd = network_io_common_socket_tcp4_new(0);
+            address.sin_family = AF_INET;
+            address.sin_port = htons(config_protocol_binding.port);
+            address.sin_addr.s_addr = inet_addr(config_protocol_binding.host);
+            snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$4\r\nPING\r\n");
+            buffer_send_data_len = strlen(buffer_send);
 
-        address.sin_family = AF_INET;
-        address.sin_port = htons(12345);
-        address.sin_addr.s_addr = inet_addr("127.0.0.1");
-        snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$4\r\nPING\r\n");
-        buffer_send_data_len = strlen(buffer_send);
+            REQUIRE(connect(clientfd, (struct sockaddr *) &address, sizeof(address)) == 0);
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 10);
+            REQUIRE(strncmp(buffer_recv, "$4\r\nPONG\r\n", strlen("$4\r\nPONG\r\n")) == 0);
+            REQUIRE(network_io_common_socket_close(clientfd, false));
 
-        REQUIRE(connect(clientfd, (struct sockaddr*)&address, sizeof(address)) == 0);
-        REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-        REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 10);
-        REQUIRE(strncmp(buffer_recv, "$4\r\nPONG\r\n", strlen("$4\r\nPONG\r\n")) == 0);
-        REQUIRE(network_io_common_socket_close(clientfd, false));
+            terminate_event_loop = true;
+            HASHTABLE_MEMORY_FENCE_STORE();
 
-        terminate_event_loop = true;
-        HASHTABLE_MEMORY_FENCE_STORE();
+            // Wait for the thread to end
+            usleep(500000);
 
-        // Wait for the thread to end
-        sleep(3);
+            program_workers_cleanup(
+                    worker_user_data,
+                    1);
 
-        program_workers_cleanup(
-                worker_user_data,
-                1);
+            REQUIRE(pthread_kill(worker_pthread, 0) == ESRCH);
 
-        REQUIRE(pthread_kill(worker_pthread, 0) == ESRCH);
-
-        REQUIRE(mprobe(worker_user_data) == -MCHECK_FREE);
+            REQUIRE(mprobe(worker_user_data) == -MCHECK_FREE);
+        })
     }
 }
