@@ -73,7 +73,9 @@ int thread_affinity_set_selected_cpus_sort(
 void thread_affinity_set_selected_cpus(
         uint16_t* selected_cpus,
         uint16_t selected_cpus_count) {
-    qsort(selected_cpus, selected_cpus_count, sizeof(uint16_t), thread_affinity_set_selected_cpus_sort);
+    if (selected_cpus != NULL) {
+        qsort(selected_cpus, selected_cpus_count, sizeof(uint16_t), thread_affinity_set_selected_cpus_sort);
+    }
 
     internal_selected_cpus = selected_cpus;
     internal_selected_cpus_count = selected_cpus_count;
