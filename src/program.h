@@ -8,13 +8,17 @@ extern "C" {
 #define PROGRAM_NAME            "cachegrand"
 #define PROGRAM_VERSION         CACHEGRAND_CMAKE_CONFIG_VERSION_GIT
 
-#define PROGRAM_NETWORK_MAX_CONNECTIONS_PER_WORKER  512
-#define PROGRAM_NETWORK_CONNECTIONS_BACKLOG         100
-#define PROGRAM_NETWORK_ADDRESSES \
-        { "0.0.0.0", 12345, NETWORK_PROTOCOLS_REDIS }, \
-        { "::", 12345, NETWORK_PROTOCOLS_REDIS }
-#define PROGRAM_NETWORK_ADDRESSES_COUNT \
-        (sizeof(((network_channel_address_t[]){ PROGRAM_NETWORK_ADDRESSES })) / sizeof(network_channel_address_t))
+typedef struct program_context program_context_t;
+struct program_context {
+    bool use_slab_allocator;
+    bool slab_allocator_inited;
+    config_t* config;
+    uint16_t* selected_cpus;
+    uint16_t selected_cpus_count;
+    hashtable_t* hashtable;
+    uint32_t workers_count;
+    worker_user_data_t* workers_user_data;
+};
 
 void program_signal_handlers(
         int sig);
