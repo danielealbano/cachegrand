@@ -35,11 +35,11 @@
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
+#include "config.h"
 #include "worker/worker.h"
 #include "worker/worker_iouring.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
-#include "config.h"
 #include "thread.h"
 #include "slab_allocator.h"
 
@@ -102,14 +102,17 @@ void program_register_signal_handlers() {
 
 worker_user_data_t* program_workers_initialize(
         volatile bool *terminate_event_loop,
-        config_t* config,
-        uint32_t workers_count) {
-    int res;
+        program_context_t *program_context)  {
     worker_user_data_t *workers_user_data;
 
     workers_user_data = xalloc_alloc_zero(sizeof(worker_user_data_t) * workers_count);
 
-    for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
+    program_context->workers_count = program_context->config->workers_per_cpus * program_context->selected_cpus_count;
+    program_context->workers_user_data = xalloc_alloc_zero(sizeof(worker_user_data_t) * program_context->workers_count);
+
+    workers_user_data = program_context->workers_user_data;
+
+    for(uint32_t worker_index = 0; worker_index < program_context->workers_count; worker_index++) {
         worker_user_data_t *worker_user_data = &workers_user_data[worker_index];
 
         // TODO: needs to be changed to accept the config and setup all the settings via it
@@ -239,7 +242,7 @@ config_t* program_parse_arguments_and_load_config(
 }
 
 bool program_use_slab_allocator(
-        config_t* config) {
+        program_context_t* program_context) {
     // TODO: estimate how much 2mb hugepages should be available to properly work with the current settings, just
     //       having 2mb hugepages is not enough to guarantee that memory will be available during the execution, it
     //       should be reserved
@@ -247,10 +250,10 @@ bool program_use_slab_allocator(
     bool use_slab_allocator;
 
     // use_slab_allocator is optional
-    if (config->use_slab_allocator == NULL) {
+    if (program_context->config->use_slab_allocator == NULL) {
         use_slab_allocator = true;
     } else {
-        use_slab_allocator = *config->use_slab_allocator;
+        use_slab_allocator = *program_context->config->use_slab_allocator;
     }
 
     if (use_slab_allocator) {
@@ -263,6 +266,8 @@ bool program_use_slab_allocator(
     }
 
     slab_allocator_enable(use_slab_allocator);
+
+    program_context->use_slab_allocator = use_slab_allocator;
 
     return use_slab_allocator;
 }
@@ -331,12 +336,11 @@ void program_config_setup_log_sinks(
 }
 
 bool program_config_thread_affinity_set_selected_cpus(
-        program_context_t* program_context,
-        config_t* config) {
+        program_context_t* program_context) {
     if (config_cpus_parse(
             utils_numa_cpu_configured_count(),
-            config->cpus,
-            config->cpus_count,
+            program_context->config->cpus,
+            program_context->config->cpus_count,
             &program_context->selected_cpus,
             &program_context->selected_cpus_count) == false) {
         return false;
@@ -350,11 +354,10 @@ bool program_config_thread_affinity_set_selected_cpus(
 }
 
 bool program_config_setup_hashtable(
-        program_context_t* program_context,
-        config_t* config) {
+        program_context_t* program_context) {
     hashtable_config_t* hashtable_config = hashtable_mcmp_config_init();
     hashtable_config->can_auto_resize = false;
-    hashtable_config->initial_size = config->memory_max_keys;
+    hashtable_config->initial_size = program_context->config->memory_max_keys;
 
     program_context->hashtable = hashtable_mcmp_init(hashtable_config);
 
@@ -403,7 +406,7 @@ int program_main(
         return 1;
     }
 
-    if (program_config_thread_affinity_set_selected_cpus(&program_context, program_context.config) == false) {
+    if (program_config_thread_affinity_set_selected_cpus(&program_context) == false) {
         LOG_E(TAG, "Unable to setup cpu affinity");
         program_cleanup(&program_context);
         return 1;
@@ -413,16 +416,13 @@ int program_main(
     program_register_signal_handlers();
 
     // Enable, if allowed in the config and if the hugepages are available, the slab allocator
-    program_context.use_slab_allocator = program_use_slab_allocator(program_context.config);
+    program_use_slab_allocator(&program_context);
 
     // Initialize the log sinks defined in the configuration, if any. The function will take care of dropping the
     // temporary log sink defined initially
     program_config_setup_log_sinks(program_context.config);
 
-    // TODO: initialize the protocol parsers
-    // TODO: initialize the network listeners and the protocol state machines
-
-    if (program_config_setup_hashtable(&program_context, program_context.config) == false) {
+    if (program_config_setup_hashtable(&program_context) == false) {
         LOG_E(TAG, "Unable to initialize the hashtable");
         program_cleanup(&program_context);
         return 1;
@@ -435,12 +435,9 @@ int program_main(
         program_context.slab_allocator_inited = true;
     }
 
-    program_context.workers_count = program_context.config->workers_per_cpus * program_context.selected_cpus_count;
-
-    if ((program_context.workers_user_data = program_workers_initialize(
+    if (program_workers_initialize(
             &program_terminate_event_loop,
-            program_context.config,
-            program_context.workers_count)) == NULL) {
+            &program_context) == NULL) {
         program_cleanup(&program_context);
         return 1;
     }
