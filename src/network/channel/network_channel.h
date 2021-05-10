@@ -1,9 +1,6 @@
 #ifndef CACHEGRAND_NETWORK_CHANNEL_H
 #define CACHEGRAND_NETWORK_CHANNEL_H
 
-
-#include <network/protocol/redis/network_protocol_redis.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
