@@ -136,7 +136,7 @@ bool concat(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
                 LOG_DI(">> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
                 found_key = key_value->inline_key.data;
-                found_key_max_compare_size = HASHTABLE_KEY_INLINE_MAX_LENGTH;
+                found_key_max_compare_size = min(key_size, HASHTABLE_KEY_INLINE_MAX_LENGTH);
             } else {
                 LOG_DI(">> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
@@ -144,7 +144,7 @@ bool concat(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
                 //       be freed immediately after the bucket is freed because it can be in use and would cause a
                 //       crash
                 found_key = key_value->external_key.data;
-                found_key_max_compare_size = key_value->external_key.size;
+                found_key_max_compare_size = min(key_size, key_value->external_key.size);
 
                 if (key_value->external_key.size != key_size) {
                     LOG_DI(">> key have different length (%lu != %lu), continuing",
@@ -343,12 +343,12 @@ bool concat(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                         LOG_DI(">>> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
                         found_key = key_value->inline_key.data;
-                        found_key_max_compare_size = HASHTABLE_KEY_INLINE_MAX_LENGTH;
+                        found_key_max_compare_size = min(key_size, HASHTABLE_KEY_INLINE_MAX_LENGTH);
                     } else {
                         LOG_DI(">>> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
                         found_key = key_value->external_key.data;
-                        found_key_max_compare_size = key_value->external_key.size;
+                        found_key_max_compare_size = min(key_size, key_value->external_key.size);
 
                         if (unlikely(key_value->external_key.size != key_size)) {
                             LOG_DI(">>> key have different length (%lu != %lu), continuing",
