@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <sys/mman.h>
 
+#include "hugepages.h"
 #include "signals_support.h"
 #include "xalloc.h"
 
@@ -226,5 +227,38 @@ TEST_CASE("xalloc.c", "[xalloc]") {
         REQUIRE(data % alignment == 0);
 
         REQUIRE(xalloc_mmap_free((void*)data, size) == 0);
+    }
+
+    SECTION("xalloc_hugepages_2mb_alloc") {
+        SECTION("valid size") {
+            if (hugepages_2mb_is_available(1)) {
+                void *data = xalloc_hugepages_2mb_alloc(2 * 1024 * 1024);
+
+                REQUIRE(data != NULL);
+
+                xalloc_hugepages_free(data, 2 * 1024 * 1024);
+            } else {
+                WARN("Can't test hugepages support in xalloc, hugepages not enabled or not enough hugepages for testing");
+            }
+        }
+
+        SECTION("invalid size") {
+            if (hugepages_2mb_is_available(1)) {
+
+                void *data = NULL;
+                bool fatal_catched = false;
+
+                if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
+                    test_xalloc_setup_sigabrt_signal_handler();
+                    data = xalloc_hugepages_2mb_alloc(UINT32_MAX * 1024 * 1024);
+                } else {
+                    fatal_catched = true;
+                }
+
+                REQUIRE(fatal_catched);
+            } else {
+                WARN("Can't test hugepages support in xalloc, hugepages not enabled or not enough hugepages for testing");
+            }
+        }
     }
 }
