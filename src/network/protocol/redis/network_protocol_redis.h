@@ -62,10 +62,11 @@ extern "C" {
         return send_buffer_start; \
     }
 
-#define NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR(...) \
-    __VA_ARGS__ \
-    if (send_buffer_start == NULL) { \
-        return send_buffer_start; \
+#define NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR(...) { \
+        __VA_ARGS__ \
+        if (send_buffer_start == NULL) { \
+            return send_buffer_start; \
+        } \
     }
 
 #define NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(ID, COMMAND, COMMAND_FUNC_PTR, POS_ARGS_COUNT) \
