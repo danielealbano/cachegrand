@@ -452,6 +452,7 @@ bool worker_iouring_process_op_accept(
     iouring_userdata_new = network_channel_iouring_entry_user_data_new(
             NETWORK_IO_IOURING_OP_RECV);
     iouring_userdata_new->channel = network_channel_new();
+    iouring_userdata_new->channel->user_data.hashtable = worker_user_data->hashtable;
     iouring_userdata_new->channel->fd = new_fd;
     iouring_userdata_new->channel->protocol = iouring_userdata_current->channel->protocol;
     iouring_userdata_new->channel->type = NETWORK_CHANNEL_TYPE_CLIENT;
