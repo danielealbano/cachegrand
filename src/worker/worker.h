@@ -31,10 +31,7 @@ struct worker_user_data {
     volatile bool *terminate_event_loop;
     uint8_t worker_index;
     uint8_t core_index;
-    uint16_t max_connections;
-    uint16_t backlog;
-    uint32_t addresses_count;
-    network_channel_address_t *addresses;
+    config_t *config;
     worker_stats_volatile_t stats;
 };
 
@@ -52,10 +49,7 @@ void worker_setup_user_data(
         worker_user_data_t *worker_user_data,
         uint32_t worker_index,
         volatile bool *terminate_event_loop,
-        uint32_t max_connections,
-        uint32_t backlog,
-        network_channel_address_t* addresses,
-        uint32_t addresses_count);
+        config_t *config);
 
 bool worker_should_terminate(
         worker_user_data_t *worker_user_data);
