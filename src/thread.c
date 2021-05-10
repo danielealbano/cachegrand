@@ -32,16 +32,10 @@ uint32_t thread_current_set_affinity(
     int res;
     cpu_set_t cpuset;
     pthread_t thread;
-    uint32_t logical_core_count;
     uint32_t logical_core_index;
 
     if (internal_selected_cpus == NULL) {
-        logical_core_count = utils_cpu_count();
-        logical_core_index = (thread_index % logical_core_count) * 2;
-
-        if (logical_core_index >= logical_core_count) {
-            logical_core_index = logical_core_index - logical_core_count + 1;
-        }
+        logical_core_index = thread_index % utils_cpu_count();
     } else {
         logical_core_index = internal_selected_cpus[thread_index % internal_selected_cpus_count];
     }
