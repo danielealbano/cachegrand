@@ -110,7 +110,7 @@ struct network_protocol_redis_command_info {
     network_protocol_redis_command_begin_funcptr_t *being_funcptr;
     network_protocol_redis_command_argument_processed_funcptr_t *argument_processed_funcptr;
     network_protocol_redis_command_end_funcptr_t *end_funcptr;
-    uint8_t positional_arguments_count;
+    uint8_t required_positional_arguments_count;
 };
 
 typedef struct network_protocol_redis_context network_protocol_redis_context_t;
