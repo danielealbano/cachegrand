@@ -876,7 +876,7 @@ void* worker_iouring_thread_func(
     //       and a protocol state machine and this code has to be shared across the different kind of workers (io_uring,
     //       epoll, iocp, kqueue/kevent, dpdk, etc.)
     LOG_V(TAG, "Initializing listeners");
-    listener_new_cb_user_data.backlog = worker_user_data->backlog;
+    listener_new_cb_user_data.backlog = worker_user_data->config->network_listen_backlog;
     listener_new_cb_user_data.core_index = worker_user_data->core_index;
     worker_iouring_network_listeners_initialize(
             worker_user_data,
