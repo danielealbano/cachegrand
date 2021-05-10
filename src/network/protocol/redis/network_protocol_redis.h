@@ -70,13 +70,13 @@ extern "C" {
 
 #define NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(ID, COMMAND, COMMAND_FUNC_PTR, POS_ARGS_COUNT) \
     { \
-        NETWORK_PROTOCOL_REDIS_COMMAND_##ID, \
-        sizeof(COMMAND) - 1, /* sizeof takes into account the NULL char at the end, different behaviour than strlen */ \
-        COMMAND, \
-        NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_FUNCPTR_NAME(COMMAND_FUNC_PTR, begin), \
-        NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_FUNCPTR_NAME(COMMAND_FUNC_PTR, argument_processed), \
-        NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_FUNCPTR_NAME(COMMAND_FUNC_PTR, end), \
-        POS_ARGS_COUNT \
+        .command = NETWORK_PROTOCOL_REDIS_COMMAND_##ID, \
+        .length = sizeof(COMMAND) - 1, /* sizeof takes into account the NULL char at the end, different behaviour than strlen */ \
+        .string = COMMAND, \
+        .being_funcptr = NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_FUNCPTR_NAME(COMMAND_FUNC_PTR, begin), \
+        .argument_processed_funcptr = NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_FUNCPTR_NAME(COMMAND_FUNC_PTR, argument_processed), \
+        .end_funcptr = NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_FUNCPTR_NAME(COMMAND_FUNC_PTR, end), \
+        .required_positional_arguments_count = POS_ARGS_COUNT \
     }
 
 typedef struct network_protocol_redis_command_context network_protocol_redis_command_context_t;
