@@ -226,16 +226,17 @@ General milestones grand-plan:
         - [X] Implement a SLAB allocator
         - [X] Add NUMA support
         - [X] Implement a malloc-based fallback for the SLAB Allocator
-    - [ ] Configuration
+    - [X] Configuration
         - [X] Implement a YAML based configuration
         - [X] Implement YAML schema validation
         - [X] Implement an argument parser to support basic settings via command line
-        - [ ] Update the implement code to rely on the dynamic configuration instead of the hardcoded settings
-    - [ ] Logging
-        - [ ] Add logging to disk sink
+        - [X] Update the implement code to rely on the dynamic configuration instead of the hardcoded settings
+    - [X] Logging
+        - [X] Add logging to disk sink
     - [ ] Storage
         - [ ] Implement storage workers
-            - [ ] Implement a storage worker based on io_uring and liburing
+            - [ ] Implement a memory-based storage worker
+            - [ ] Implement a disk-based storage worker based on io_uring and liburing
     
 - v0.2
     - [ ] Logging
