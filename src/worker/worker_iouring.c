@@ -880,17 +880,7 @@ void* worker_iouring_thread_func(
             worker_user_data,
             &listener_new_cb_user_data);
 
-    LOG_V(TAG, "Initializing local ring for io_uring");
-
-    ring = worker_iouring_initialize_iouring(
-            worker_user_data->core_index,
-            worker_user_data->config->network_max_clients,
-            listener_new_cb_user_data.listeners_count);
-
-    if (ring == NULL) {
-        FATAL(TAG, "Unable to initialize io_uring");
-    }
-
+    LOG_V(TAG, "Checking io_uring supported features");
     io_uring_supports_op_files_update_link = io_uring_capabilities_is_linked_op_files_update_supported();
     io_uring_supports_sqpoll = io_uring_capabilities_is_sqpoll_supported();
 
@@ -912,6 +902,17 @@ void* worker_iouring_thread_func(
         } else {
             LOG_W(TAG, "Need a kernel >=5.11 to use sqpoll with io_uring");
         }
+    }
+
+    LOG_V(TAG, "Initializing local ring for io_uring");
+
+    ring = worker_iouring_initialize_iouring(
+            worker_user_data->core_index,
+            worker_user_data->config->network_max_clients,
+            listener_new_cb_user_data.listeners_count);
+
+    if (ring == NULL) {
+        FATAL(TAG, "Unable to initialize io_uring");
     }
 
     LOG_V(TAG, "Enqueing listeners");
