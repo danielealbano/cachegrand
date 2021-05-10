@@ -312,6 +312,8 @@ void config_cpus_filter_duplicates(
         int_unique_cpu_set[cpu_number] = 1;
     }
 
+    xalloc_free(int_unique_cpu_set);
+
     *unique_cpus = int_unique_cpus;
     *unique_cpus_count = int_unique_cpus_count;
 }
