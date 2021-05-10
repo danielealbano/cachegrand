@@ -105,7 +105,12 @@ worker_user_data_t* program_workers_initialize(
         program_context_t *program_context)  {
     worker_user_data_t *workers_user_data;
 
-    workers_user_data = xalloc_alloc_zero(sizeof(worker_user_data_t) * workers_count);
+    void *(*worker_thread_func) (void *);
+    switch(program_context->config->worker_type) {
+        default:
+        case CONFIG_WORKER_TYPE_IO_URING:
+            worker_thread_func = worker_iouring_thread_func;
+    }
 
     program_context->workers_count = program_context->config->workers_per_cpus * program_context->selected_cpus_count;
     program_context->workers_user_data = xalloc_alloc_zero(sizeof(worker_user_data_t) * program_context->workers_count);
@@ -115,23 +120,18 @@ worker_user_data_t* program_workers_initialize(
     for(uint32_t worker_index = 0; worker_index < program_context->workers_count; worker_index++) {
         worker_user_data_t *worker_user_data = &workers_user_data[worker_index];
 
-        // TODO: needs to be changed to accept the config and setup all the settings via it
         worker_setup_user_data(
                 worker_user_data,
                 worker_index,
                 terminate_event_loop,
-                PROGRAM_NETWORK_MAX_CONNECTIONS_PER_WORKER,
-                PROGRAM_NETWORK_CONNECTIONS_BACKLOG,
-                program_addresses,
-                program_addresses_count);
+                program_context->config);
 
         LOG_V(TAG, "Creating worker <%u>", worker_index);
 
-        // TODO: decide dynamically which kind of worker should start
         if (pthread_create(
                 &worker_user_data->pthread,
                 NULL,
-                worker_iouring_thread_func,
+                worker_thread_func,
                 worker_user_data) != 0) {
             LOG_E(TAG, "Unable to start the worker <%u>", worker_index);
             LOG_E_OS_ERROR(TAG);
