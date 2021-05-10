@@ -9,7 +9,9 @@
 #include "misc.h"
 #include "exttypes.h"
 #include "log/log.h"
-
+#include "exttypes.h"
+#include "spinlock.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "protocol/redis/protocol_redis_writer.h"
@@ -171,14 +173,42 @@ bool network_protocol_redis_recv(
                 }
 
                 protocol_context->skip_command = true;
-            } else {
-                if ((send_buffer_start = protocol_context->command_info->end_funcptr(
-                        reader_context,
-                        &protocol_context->command_context,
-                        send_buffer_start,
-                        send_buffer_end)) == NULL) {
-                    LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
-                    return false;
+            } else if (protocol_context->command_info != NULL) {
+                if (protocol_context->command_info->required_positional_arguments_count > reader_context->arguments.count - 1) {
+                    // In memory there are always at least 2 bytes after the arguments, the first byte after the command
+                    // can be converted into a null to insert it into the the error message
+                    *(reader_context->arguments.list[0].value + reader_context->arguments.list[0].length) = 0;
+
+                    send_buffer_start = protocol_redis_writer_write_simple_error_printf(
+                            send_buffer_start,
+                            send_buffer_end - send_buffer_start,
+                            "ERR wrong number of arguments for '%s' command",
+                            reader_context->arguments.list[0].value);
+
+                    if (send_buffer_start == NULL) {
+                        LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
+                        return false;
+                    }
+
+                    protocol_context->skip_command = true;
+                } else {
+                    for(int i = 0; i < reader_context->arguments.count; i++) {
+                        LOG_I(TAG,
+                                "[ARG:%d][LEN:%d] %s",
+                                i,
+                                reader_context->arguments.list[i].length,
+                                reader_context->arguments.list[i].value);
+                    }
+
+                    if ((send_buffer_start = protocol_context->command_info->end_funcptr(
+                            network_channel_user_data,
+                            reader_context,
+                            &protocol_context->command_context,
+                            send_buffer_start,
+                            send_buffer_end)) == NULL) {
+                        LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
+                        return false;
+                    }
                 }
             }
 
