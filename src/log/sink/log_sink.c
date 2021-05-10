@@ -15,8 +15,12 @@
 static log_sink_t** log_sinks_registered = NULL;
 static uint8_t log_sinks_registered_count = 0;
 
-void log_sink_register(
+bool log_sink_register(
         log_sink_t* sink) {
+    if (sink == NULL) {
+        return false;
+    }
+
     log_sinks_registered_count++;
 
     size_t size = sizeof(log_sink_t*) * log_sinks_registered_count;
@@ -27,6 +31,8 @@ void log_sink_register(
     }
 
     log_sinks_registered[log_sinks_registered_count - 1] = sink;
+
+    return true;
 }
 
 log_sink_t *log_sink_init(

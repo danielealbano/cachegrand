@@ -56,7 +56,7 @@ log_sink_t* log_sink_init(
 void log_sink_free(
         log_sink_t *log_sink);
 
-void log_sink_register(
+bool log_sink_register(
         log_sink_t *sink);
 
 log_sink_t *log_sink_factory(
