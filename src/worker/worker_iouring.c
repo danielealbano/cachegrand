@@ -932,9 +932,5 @@ void* worker_iouring_thread_func(
 
     xalloc_free(log_producer_early_prefix_thread);
 
-    // TODO: the various slab allocated memory can be freed ONLY after every thing else has been terminated, especially
-    //       the io_uring ring otherwise the kernel may try to access memory in the userland that is going to contain
-    //       garbage and that's very bad
-
     return NULL;
 }
