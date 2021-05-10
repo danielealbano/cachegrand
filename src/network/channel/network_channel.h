@@ -55,6 +55,7 @@ typedef struct network_channel_user_data network_channel_user_data_t;
 struct network_channel_user_data {
     bool data_to_send_pending;
     bool close_connection_on_send;
+    hashtable_t *hashtable;
     struct {
         network_channel_buffer_t *data;
         size_t data_offset;
