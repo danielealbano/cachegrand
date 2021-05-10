@@ -17,6 +17,11 @@ hashtable_t* hashtable_mcmp_init(hashtable_config_t* hashtable_config) {
     hashtable_t* hashtable = (hashtable_t*)xalloc_alloc(sizeof(hashtable_t));
     hashtable_data_t* hashtable_data = hashtable_mcmp_data_init(buckets_count);
 
+    if (hashtable_data == NULL) {
+        xalloc_free(hashtable);
+        return NULL;
+    }
+
     if (hashtable_config->numa_aware) {
         if (!hashtable_mcmp_data_numa_interleave_memory(
                 hashtable_data,
