@@ -201,7 +201,7 @@ io_uring_t* worker_iouring_initialize_iouring(
     if (io_uring_supports_sqpoll) {
         params->flags = IORING_SETUP_SQPOLL | IORING_SETUP_SQ_AFF;
         params->sq_thread_cpu = core_index;
-        params->sq_thread_idle = 1000;
+        params->sq_thread_idle = 2000;
     }
 
     ring = io_uring_support_init(
