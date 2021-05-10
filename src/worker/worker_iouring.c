@@ -148,13 +148,13 @@ network_io_common_fd_t worker_fds_map_remove(
 
 bool worker_fds_register(
         uint32_t max_connections,
-        uint32_t network_addresses_count,
+        uint32_t network_listeners_count,
         io_uring_t *ring) {
 
     // pow2_next may return a value greater than UINT32_MAX but it would mean that we are requesting to handle more than
-    // 4 billions of FDS with this thread, that can't simply the case -- EVER.
+    // 4 billions of FDS with this thread, that can't simply be the case ... like EVER.
     // The caller should ensure this will never happen.
-    fds_map_count = max_connections + network_addresses_count;
+    fds_map_count = max_connections + network_listeners_count;
     fds_map_count = pow2_next(fds_map_count);
     fds_map_mask = fds_map_count - 1;
     fds_map_registered = xalloc_alloc(sizeof(int) * fds_map_count);
@@ -194,7 +194,7 @@ uint32_t worker_iouring_calculate_entries(
 io_uring_t* worker_iouring_initialize_iouring(
         uint32_t core_index,
         uint32_t max_connections,
-        uint32_t network_addresses_count) {
+        uint32_t network_listeners_count) {
     io_uring_t *ring;
     io_uring_params_t *params = xalloc_alloc_zero(sizeof(io_uring_params_t));
 
@@ -205,11 +205,11 @@ io_uring_t* worker_iouring_initialize_iouring(
     }
 
     ring = io_uring_support_init(
-            worker_iouring_calculate_entries(max_connections, network_addresses_count),
+            worker_iouring_calculate_entries(max_connections, network_listeners_count),
             params,
             NULL);
 
-    if (worker_fds_register(max_connections, network_addresses_count, ring) == false) {
+    if (worker_fds_register(max_connections, network_listeners_count, ring) == false) {
         io_uring_support_free(ring);
         ring = NULL;
     }

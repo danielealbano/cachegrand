@@ -19,7 +19,7 @@ uint32_t worker_iouring_calculate_entries(
 io_uring_t* worker_iouring_initialize_iouring(
         uint32_t core_index,
         uint32_t max_connections,
-        uint32_t network_addresses_count);
+        uint32_t network_listeners_count);
 
 void worker_iouring_network_listeners_initialize(
         worker_user_data_t *worker_user_data,
