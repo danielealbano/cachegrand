@@ -879,56 +879,60 @@ void* worker_iouring_thread_func(
             worker_user_data,
             &listener_new_cb_user_data);
 
-    // Reports the available features in io_uring
+    LOG_V(TAG, "Initializing local ring for io_uring");
+
+    ring = worker_iouring_initialize_iouring(
+            worker_user_data->core_index,
+            worker_user_data->config->network_max_clients,
+            listener_new_cb_user_data.listeners_count);
+
+    if (ring == NULL) {
+        FATAL(TAG, "Unable to initialize io_uring");
+    }
+
+    io_uring_supports_op_files_update_link = io_uring_capabilities_is_linked_op_files_update_supported();
+    io_uring_supports_sqpoll = io_uring_capabilities_is_sqpoll_supported();
+
     if (worker_user_data->worker_index == 0) {
         char available_features_str[512] = {0};
         LOG_V(
                 TAG,
                 "io_uring available features: <%s>",
                 io_uring_support_features_str(available_features_str, sizeof(available_features_str)));
-    }
 
-    LOG_V(TAG, "Initializing local ring for io_uring");
-
-    ring = worker_iouring_initialize_iouring(
-            worker_user_data->core_index,
-            worker_user_data->max_connections,
-            worker_user_data->addresses_count);
-
-    if (ring != NULL) {
-        if ((io_uring_supports_op_files_update_link = io_uring_capabilities_is_linked_op_files_update_supported())) {
+        if (io_uring_supports_op_files_update_link) {
             LOG_V(TAG, "io_uring linking supported");
         } else {
             LOG_W(TAG, "io_uring linking not supported, accepting new connections will incur in a performance penalty");
         }
 
-        if ((io_uring_supports_sqpoll = io_uring_capabilities_is_sqpoll_supported())) {
+        if (io_uring_supports_sqpoll) {
             LOG_V(TAG, "io_uring sqpoll supported");
         } else {
             LOG_W(TAG, "Need a kernel >=5.11 to use sqpoll with io_uring");
         }
-
-        LOG_V(TAG, "Enqueing listeners");
-
-        worker_iouring_listeners_enqueue(
-                ring,
-                &listener_new_cb_user_data);
-
-        LOG_V(TAG, "Starting events process loop");
-
-        worker_iouring_thread_process_ops_loop(
-                worker_user_data,
-                &stats,
-                ring);
-
-        LOG_V(TAG, "Process events loop ended, cleaning up worker");
-
-        worker_iouring_cleanup(
-                &listener_new_cb_user_data,
-                ring);
-
-        LOG_I(TAG, "Tearing down worker");
     }
+
+    LOG_V(TAG, "Enqueing listeners");
+
+    worker_iouring_listeners_enqueue(
+            ring,
+            &listener_new_cb_user_data);
+
+    LOG_V(TAG, "Starting events process loop");
+
+    worker_iouring_thread_process_ops_loop(
+            worker_user_data,
+            &stats,
+            ring);
+
+    LOG_V(TAG, "Process events loop ended, cleaning up worker");
+
+    worker_iouring_cleanup(
+            &listener_new_cb_user_data,
+            ring);
+
+    LOG_I(TAG, "Tearing down worker");
 
     xalloc_free(log_producer_early_prefix_thread);
 
