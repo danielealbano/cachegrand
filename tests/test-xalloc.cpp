@@ -246,13 +246,12 @@ TEST_CASE("xalloc.c", "[xalloc]") {
 
         SECTION("invalid size") {
             if (hugepages_2mb_is_available(1)) {
-
-                void *data = NULL;
+                uintptr_t data = 0;
                 bool fatal_catched = false;
 
                 if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                     test_xalloc_setup_sigabrt_signal_handler();
-                    data = xalloc_hugepages_2mb_alloc(UINT32_MAX * 1024 * 1024);
+                    data = (uintptr_t)xalloc_hugepages_2mb_alloc(0);
                 } else {
                     fatal_catched = true;
                 }
