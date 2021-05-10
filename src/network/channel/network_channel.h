@@ -69,9 +69,7 @@ struct network_channel_user_data {
     } send_buffer;
     struct {
         network_protocols_t protocol;
-        union {
-            network_protocol_redis_context_t redis;
-        } data;
+        void* context;
     } protocol;
 };
 

@@ -42,7 +42,8 @@ bool network_protocol_redis_recv(
     long data_read_len;
     size_t send_data_len;
     network_channel_user_data_t *network_channel_user_data = (network_channel_user_data_t*)user_data;
-    network_protocol_redis_context_t *protocol_context = &(network_channel_user_data->protocol.data.redis);
+    network_protocol_redis_context_t *protocol_context =
+            (network_protocol_redis_context_t*)network_channel_user_data->protocol.context;
     protocol_redis_reader_context_t *reader_context = protocol_context->reader_context;
 
     char* send_buffer_base = network_channel_user_data->send_buffer.data;
