@@ -44,6 +44,9 @@ void program_workers_cleanup(
         worker_user_data_t* workers_user_data,
         uint32_t workers_count);
 
+bool program_config_thread_affinity_set_selected_cpus(
+        program_context_t* program_context);
+
 int program_main(
         int argc,
         char** argv);
