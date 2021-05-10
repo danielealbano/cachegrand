@@ -1,11 +1,13 @@
 #include <stdbool.h>
+#include <stdint.h>
 #include <netinet/in.h>
 
 #include "xalloc.h"
-
-#include "protocol/redis/protocol_redis.h"
-#include "protocol/redis/protocol_redis_reader.h"
-#include "network/protocol/redis/network_protocol_redis.h"
+#include "exttypes.h"
+#include "spinlock.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
+#include "slab_allocator.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
@@ -36,12 +38,11 @@ void network_channel_iouring_entry_user_data_free(
         network_channel_iouring_entry_user_data_t* iouring_user_data) {
     if (iouring_user_data->channel) {
         if (iouring_user_data->channel->user_data.recv_buffer.data) {
-            xalloc_free(iouring_user_data->channel->user_data.recv_buffer.data);
+            slab_allocator_mem_free(iouring_user_data->channel->user_data.recv_buffer.data);
         }
 
         if (iouring_user_data->channel->user_data.send_buffer.data) {
-            xalloc_free(iouring_user_data->channel->user_data.send_buffer.data);
-
+            slab_allocator_mem_free(iouring_user_data->channel->user_data.send_buffer.data);
         }
 
         xalloc_free(iouring_user_data->channel);

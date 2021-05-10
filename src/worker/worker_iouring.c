@@ -533,9 +533,10 @@ bool worker_iouring_process_op_accept(
     }
 
     // TODO: Use SLAB allocator to fetch a new buffer
-    iouring_userdata_new->channel->user_data.recv_buffer.data = (char *)xalloc_alloc(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
+
+    iouring_userdata_new->channel->user_data.recv_buffer.data = (char *)slab_allocator_mem_alloc(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
     iouring_userdata_new->channel->user_data.recv_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE;
-    iouring_userdata_new->channel->user_data.send_buffer.data = (char *)xalloc_alloc(NETWORK_CHANNEL_SEND_BUFFER_SIZE);
+    iouring_userdata_new->channel->user_data.send_buffer.data = (char *)slab_allocator_mem_alloc(NETWORK_CHANNEL_SEND_BUFFER_SIZE);
     iouring_userdata_new->channel->user_data.send_buffer.length = NETWORK_CHANNEL_SEND_BUFFER_SIZE;
 
     if ((iouring_userdata_new->mapped_fd = worker_fds_map_add_and_enqueue_files_update(
