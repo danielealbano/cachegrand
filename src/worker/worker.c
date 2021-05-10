@@ -13,10 +13,11 @@
 #include "memory_fences.h"
 #include "utils_numa.h"
 #include "log/log.h"
+#include "spinlock.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
-#include "network/protocol/redis/network_protocol_redis.h"
 #include "network/channel/network_channel.h"
 
 #include "worker.h"

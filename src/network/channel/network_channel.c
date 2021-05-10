@@ -5,14 +5,16 @@
 #include <arpa/inet.h>
 #include <assert.h>
 
+#include "exttypes.h"
 #include "misc.h"
+#include "spinlock.h"
 #include "log/log.h"
 #include "xalloc.h"
 #include "network/protocol/network_protocol.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/io/network_io_common.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
 
-#include "network/protocol/redis/network_protocol_redis.h"
 #include "network/channel/network_channel.h"
 
 #define TAG "network_channel"
