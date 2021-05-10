@@ -85,7 +85,7 @@ char* protocol_redis_writer_uint64_to_str(
     }
 
     do {
-        buffer[number_str_length - 1] = (number % 10U) + '0';
+        buffer[number_str_length - 1] = (char)((number % 10U) + '0');
     } while(number_str_length-- > 0 && (number /= 10U) > 0);
 
     if (number_str_length == 0 && number > 0) {
@@ -100,8 +100,6 @@ char* protocol_redis_writer_int64_to_str(
         size_t number_str_length,
         char* buffer,
         size_t buffer_length) {
-    char* buffer_end_ptr = buffer + number_str_length;
-
     if (number_str_length == 0 || number_str_length > buffer_length) {
         return NULL;
     }
@@ -128,7 +126,7 @@ unsigned protocol_redis_writer_double_str_length(
         number *= -1;
     }
 
-    number -= (int64_t) number;
+    number -= (int)number;
 
     while(number > 0 && round_to_digits-- > 0) {
         (*fraction_part_length)++;
@@ -157,7 +155,7 @@ char* protocol_redis_writer_double_to_str(
     }
 
     if (integer_part_length > 0) {
-        buffer = protocol_redis_writer_int64_to_str(number, integer_part_length, buffer, buffer_length);
+        buffer = protocol_redis_writer_int64_to_str((int)number, integer_part_length, buffer, buffer_length);
     }
 
     if (fraction_part_length > 0) {
@@ -168,14 +166,14 @@ char* protocol_redis_writer_double_to_str(
             buffer_length--;
         }
 
-        number -= (int64_t)number;
+        number -= (int)number;
 
         // TODO: not perfect implementation, there is no rounding and after 12 digits it starts to differ from sprintf output
 
         while(number > 0 && round_to_digits-- > 0) {
             number *= 10;
             int digit = (int)number;
-            *buffer++ = digit + '0';
+            *buffer++ = (char)(digit + '0');
             number -= digit;
         }
     }
