@@ -24,6 +24,7 @@
 #define TAG "network_protocol_redis"
 
 network_protocol_redis_command_info_t command_infos_map[] = {
+        NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(HELLO, "HELLO", hello, 0),
         NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(PING, "PING", ping, 0),
         NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(QUIT, "QUIT", quit, 0),
         NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(SET, "SET", set, 2),
