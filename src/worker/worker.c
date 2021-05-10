@@ -77,10 +77,12 @@ void worker_setup_user_data(
         worker_user_data_t *worker_user_data,
         uint32_t worker_index,
         volatile bool *terminate_event_loop,
-        config_t *config) {
+        config_t *config,
+        hashtable_t *hashtable) {
     worker_user_data->worker_index = worker_index;
     worker_user_data->terminate_event_loop = terminate_event_loop;
     worker_user_data->config = config;
+    worker_user_data->hashtable = hashtable;
 }
 
 bool worker_should_terminate(

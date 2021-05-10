@@ -25,6 +25,7 @@
 #include "log/sink/log_sink_console.h"
 #include "hugepages.h"
 #include "spinlock.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "signals_support.h"
 #include "memory_fences.h"
@@ -124,7 +125,8 @@ worker_user_data_t* program_workers_initialize(
                 worker_user_data,
                 worker_index,
                 terminate_event_loop,
-                program_context->config);
+                program_context->config,
+                program_context->hashtable);
 
         LOG_V(TAG, "Creating worker <%u>", worker_index);
 

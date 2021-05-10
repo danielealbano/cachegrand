@@ -32,6 +32,7 @@ struct worker_user_data {
     uint8_t worker_index;
     uint8_t core_index;
     config_t *config;
+    hashtable_t *hashtable;
     worker_stats_volatile_t stats;
 };
 
@@ -49,7 +50,8 @@ void worker_setup_user_data(
         worker_user_data_t *worker_user_data,
         uint32_t worker_index,
         volatile bool *terminate_event_loop,
-        config_t *config);
+        config_t *config,
+        hashtable_t *hashtable);
 
 bool worker_should_terminate(
         worker_user_data_t *worker_user_data);
