@@ -98,6 +98,7 @@ bool network_protocol_redis_recv(
                     protocol_context->skip_command = true;
                 } else if (protocol_context->command_info->being_funcptr) {
                     if ((send_buffer_start = protocol_context->command_info->being_funcptr(
+                            network_channel_user_data,
                             reader_context,
                             &protocol_context->command_context,
                             send_buffer_start,
@@ -117,6 +118,7 @@ bool network_protocol_redis_recv(
                 uint32_t argument_index = reader_context->arguments.current.index;
                 if (reader_context->arguments.list[argument_index].all_read) {
                     if ((send_buffer_start = protocol_context->command_info->argument_processed_funcptr(
+                            network_channel_user_data,
                             reader_context,
                             &protocol_context->command_context,
                             send_buffer_start,

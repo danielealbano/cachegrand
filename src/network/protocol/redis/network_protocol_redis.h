@@ -13,6 +13,7 @@ extern "C" {
     char* NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_FUNCPTR_NAME(COMMAND_FUNC_PTR, TYPE) (ARGUMENTS)
 
 #define NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_FUNCPTR_ARGUMENTS_BEGIN \
+    network_channel_user_data_t *network_channel_user_data, \
     protocol_redis_reader_context_t *reader_context, \
     network_protocol_redis_command_context_t *command_context, \
     char* send_buffer_start, \
