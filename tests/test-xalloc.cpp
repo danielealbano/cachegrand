@@ -232,11 +232,13 @@ TEST_CASE("xalloc.c", "[xalloc]") {
     SECTION("xalloc_hugepages_2mb_alloc") {
         SECTION("valid size") {
             if (hugepages_2mb_is_available(1)) {
-                void *data = xalloc_hugepages_2mb_alloc(2 * 1024 * 1024);
+                size_t hugepage_2mb_size = 2 * 1024 * 1024;
+                uintptr_t data = (uintptr_t)xalloc_hugepages_2mb_alloc(hugepage_2mb_size);
 
-                REQUIRE(data != NULL);
+                REQUIRE(data != 0);
+                REQUIRE((data % (hugepage_2mb_size)) == 0);
 
-                xalloc_hugepages_free(data, 2 * 1024 * 1024);
+                xalloc_hugepages_free((void*)data, hugepage_2mb_size);
             } else {
                 WARN("Can't test hugepages support in xalloc, hugepages not enabled or not enough hugepages for testing");
             }
