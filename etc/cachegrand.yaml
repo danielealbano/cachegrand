@@ -15,10 +15,10 @@ run_in_foreground: false
 
 pidfile_path: /var/run/cachegrand.pid
 
-network_max_clients: 0
-network_listen_backlog: 0
+network_max_clients: 1000
+network_listen_backlog: 100
 storage_max_partition_size_mb: 0
-memory_max_keys: 0
+memory_max_keys: 10000
 
 protocols:
   - type: redis
