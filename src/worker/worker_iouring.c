@@ -57,7 +57,7 @@ bool worker_fds_map_files_update(
 
     fds_map[index] = fd;
 
-    if (likely(io_uring_supports_op_files_update_link)) {
+    if (io_uring_supports_op_files_update_link && !io_uring_supports_sqpoll) {
         // TODO: use slab allocator
         network_channel_iouring_entry_user_data_t *iouring_userdata_new =
                 network_channel_iouring_entry_user_data_new_with_mapped_fd(NETWORK_IO_IOURING_OP_FILES_UPDATE, index);
