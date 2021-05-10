@@ -9,6 +9,7 @@
 #include "xalloc.h"
 #include "log/log.h"
 #include "log/sink/log_sink.h"
+#include "log/sink/log_sink_support.h"
 
 #include "config.h"
 #include "config_cyaml_config.h"
@@ -21,6 +22,8 @@ struct test_config_cyaml_logger_context {
     char* data;
     size_t data_length;
 };
+
+char* test_config_internal_log_sink_printer_data = NULL;
 
 void test_config_cyaml_logger(
         cyaml_log_t level_cyaml,
@@ -47,6 +50,56 @@ void test_config_cyaml_logger(
 
     ctx->data_length = new_data_length;
     ctx->data[ctx->data_length] = 0;
+}
+
+void test_config_internal_cyaml_log_wrapper(
+        cyaml_log_t level_cyaml,
+        void *ctx,
+        const char *fmt,
+        ...) {
+    va_list args;
+    va_start(args, fmt);
+    config_internal_cyaml_log(level_cyaml, ctx, fmt, args);
+    va_end(args);
+}
+
+void test_config_internal_log_sink_printer(
+        log_sink_settings_t* settings,
+        const char* tag,
+        time_t timestamp,
+        log_level_t level,
+        char* early_prefix_thread,
+        const char* message,
+        size_t message_len) {
+
+    size_t log_message_size = log_sink_support_printer_str_len(
+            tag,
+            early_prefix_thread,
+            message_len);
+
+    test_config_internal_log_sink_printer_data =
+            (char*)xalloc_alloc(log_message_size + 1);
+
+    log_sink_support_printer_str(
+            test_config_internal_log_sink_printer_data,
+            log_message_size,
+            tag,
+            timestamp,
+            level,
+            early_prefix_thread,
+            message,
+            message_len);
+}
+
+log_sink_t *test_config_internal_log_sink_init(
+        log_level_t levels,
+        log_sink_settings_t* settings) {
+    return log_sink_init(
+            LOG_SINK_TYPE_CONSOLE,
+            levels,
+            settings,
+            test_config_internal_log_sink_printer,
+            NULL);
 }
 
 bool test_config_fixture_file_from_data_create(
@@ -852,6 +905,45 @@ TEST_CASE("config.c", "[config]") {
             REQUIRE(unique_cpus_duplicates == NULL);
             REQUIRE(unique_cpus_duplicates_count == 0);
         }
+    }
+
+    SECTION("config_internal_cyaml_log") {
+        log_level_t level = (log_level_t)LOG_LEVEL_ALL;
+        log_sink_settings_t settings = { 0 };
+        log_sink_register(test_config_internal_log_sink_init(level, &settings));
+
+        SECTION("CYAML_LOG_DEBUG") {
+            char* cyaml_logger_context_data_cmp = "[DEBUG      ][config] test log message: test argument\n";
+            test_config_internal_cyaml_log_wrapper(CYAML_LOG_DEBUG, NULL, "test log message: %s", "test argument");
+            REQUIRE(strcmp(cyaml_logger_context_data_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
+        }
+
+        SECTION("CYAML_LOG_NOTICE") {
+            char* cyaml_logger_context_data_cmp = "[WARNING    ][config] test log message: test argument\n";
+            test_config_internal_cyaml_log_wrapper(CYAML_LOG_NOTICE, NULL, "test log message: %s", "test argument");
+            REQUIRE(strcmp(cyaml_logger_context_data_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
+        }
+
+        SECTION("CYAML_LOG_WARNING") {
+            char* cyaml_logger_context_data_cmp = "[WARNING    ][config] test log message: test argument\n";
+            test_config_internal_cyaml_log_wrapper(CYAML_LOG_WARNING, NULL, "test log message: %s", "test argument");
+            REQUIRE(strcmp(cyaml_logger_context_data_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
+        }
+
+        SECTION("CYAML_LOG_ERROR") {
+            char* cyaml_logger_context_data_cmp = "[ERROR      ][config] test log message: test argument\n";
+            test_config_internal_cyaml_log_wrapper(CYAML_LOG_ERROR, NULL, "test log message: %s", "test argument");
+            REQUIRE(strcmp(cyaml_logger_context_data_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
+        }
+
+        SECTION("CYAML_LOG_INFO") {
+            char* cyaml_logger_context_data_cmp = "[INFO       ][config] test log message: test argument\n";
+            test_config_internal_cyaml_log_wrapper(CYAML_LOG_INFO, NULL, "test log message: %s", "test argument");
+            REQUIRE(strcmp(cyaml_logger_context_data_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
+        }
+
+        log_sink_registered_free();
+        xalloc_free(test_config_internal_log_sink_printer_data);
     }
 
     SECTION("config_log_level_t == log_level_t") {
