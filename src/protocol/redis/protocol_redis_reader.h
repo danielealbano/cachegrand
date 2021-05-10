@@ -26,6 +26,12 @@ enum protocol_redis_reader_states {
 };
 typedef enum protocol_redis_reader_states protocol_redis_reader_states_t;
 
+enum protocol_redis_resp_version {
+    PROTOCOL_REDIS_RESP_VERSION_2,
+    PROTOCOL_REDIS_RESP_VERSION_3
+};
+typedef enum protocol_redis_resp_version protocol_redis_resp_version_t;
+
 struct protocol_redis_reader_context_argument {
     char* value;
     size_t length;
@@ -37,6 +43,7 @@ typedef struct protocol_redis_reader_context_argument protocol_redis_reader_cont
 struct protocol_redis_reader_context {
     protocol_redis_reader_states_t state;
     protocol_redis_reader_errors_t error;
+    protocol_redis_resp_version_t resp_version;
 
     struct {
         protocol_redis_reader_context_argument_t *list;
