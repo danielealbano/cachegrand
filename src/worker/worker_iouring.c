@@ -20,6 +20,7 @@
 #include "protocol/redis/protocol_redis_writer.h"
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
+#include "config.h"
 #include "worker/worker.h"
 #include "network/protocol/redis/network_protocol_redis.h"
 

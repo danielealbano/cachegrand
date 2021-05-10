@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include <arpa/inet.h>
+#include <config.h>
 
 #include "exttypes.h"
 #include "misc.h"
