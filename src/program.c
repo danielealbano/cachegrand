@@ -15,6 +15,7 @@
 #include <liburing.h>
 #include <assert.h>
 
+#include "pow2.h"
 #include "utils_cpu.h"
 #include "utils_numa.h"
 #include "exttypes.h"
@@ -359,7 +360,7 @@ bool program_config_setup_hashtable(
         program_context_t* program_context) {
     hashtable_config_t* hashtable_config = hashtable_mcmp_config_init();
     hashtable_config->can_auto_resize = false;
-    hashtable_config->initial_size = program_context->config->memory_max_keys;
+    hashtable_config->initial_size = pow2_next(program_context->config->memory_max_keys);
 
     program_context->hashtable = hashtable_mcmp_init(hashtable_config);
 
