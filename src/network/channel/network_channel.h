@@ -18,7 +18,7 @@ extern "C" {
 // is enough room to avoid copying continuously the data at the beginning (a streaming parser is being used so there
 // maybe data that need still to be parsed)
 #define NETWORK_CHANNEL_RECV_BUFFER_SIZE    (NETWORK_CHANNEL_PACKET_SIZE * 4)
-#define NETWORK_CHANNEL_SEND_BUFFER_SIZE    NETWORK_CHANNEL_PACKET_SIZE
+#define NETWORK_CHANNEL_SEND_BUFFER_SIZE    NETWORK_CHANNEL_PACKET_SIZE * 2
 #define NETWORK_CHANNEL_LISTENERS_MAX       16
 
 typedef void network_channel_state_t;
