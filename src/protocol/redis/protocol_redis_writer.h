@@ -54,6 +54,7 @@ extern "C" {
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(null, ());
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(boolean, (bool is_true));
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(blob_string, (char* string, int string_length));
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(blob_string_null, ());
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(blob_error, (char* string, int string_length));
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(simple_string, (char* string, int string_length));
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(simple_error, (char* string, int string_length));

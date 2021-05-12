@@ -349,13 +349,15 @@ char* protocol_redis_writer_write_argument_blob(
         is_error,
         string_length);
 
-    PROTOCOL_REDIS_WRITER_WRITE_ARGUMENT_WRAPPER_COMMON_VARS(
-        protocol_redis_writer_write_argument_string,
-        string,
-        string_length);
+    if (string_length > -1) {
+        PROTOCOL_REDIS_WRITER_WRITE_ARGUMENT_WRAPPER_COMMON_VARS(
+            protocol_redis_writer_write_argument_string,
+            string,
+            string_length);
 
-    PROTOCOL_REDIS_WRITER_WRITE_ARGUMENT_WRAPPER_COMMON_VARS(
-        protocol_redis_writer_write_argument_blob_end)
+        PROTOCOL_REDIS_WRITER_WRITE_ARGUMENT_WRAPPER_COMMON_VARS(
+            protocol_redis_writer_write_argument_blob_end)
+    }
 
     return buffer;
 }
@@ -416,6 +418,10 @@ PROTOCOL_REDIS_WRITER_WRITE_FUNC_WRAPPER(PROTOCOL_REDIS_TYPE_BOOLEAN, boolean, (
 
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(blob_string, (char* string, int string_length)) {
     return protocol_redis_writer_write_argument_blob(buffer, buffer_length, false, string, string_length);
+}
+
+PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(blob_string_null, ()) {
+    return protocol_redis_writer_write_argument_blob(buffer, buffer_length, false, NULL, -1);
 }
 
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(blob_error, (char* string, int string_length)) {
