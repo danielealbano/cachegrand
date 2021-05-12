@@ -2,6 +2,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <liburing.h>
+#include <assert.h>
 
 #include "exttypes.h"
 #include "misc.h"
@@ -55,6 +56,8 @@ bool worker_fds_map_files_update(
         network_io_common_fd_t fd) {
     bool ret;
 
+    assert(fd != -1);
+
     fds_map[index] = fd;
 
     if (io_uring_supports_op_files_update_link && !io_uring_supports_sqpoll) {
@@ -69,12 +72,15 @@ bool worker_fds_map_files_update(
             io_uring_sqe_set_flags(sqe, IOSQE_IO_LINK);
             sqe->user_data = (uintptr_t)iouring_userdata_new;
 
+            assert(fds_map[index] != -1);
+
             ret = true;
         } else {
             ret = false;
         }
     } else {
         ret = io_uring_register_files_update(ring, index, &fds_map[index], 1) == 1;
+        assert(fds_map[index] != -1);
     }
 
     if (!ret) {
@@ -90,28 +96,35 @@ bool worker_fds_map_files_update(
 }
 
 int32_t worker_fds_map_find_free_index() {
+    int free_fds_map_index = -1;
     for(uint32_t i = 0; i < fds_map_count; i++) {
         uint32_t fds_map_index = (i + fds_map_last_free) & fds_map_mask;
         if (fds_map[fds_map_index] == WORKER_FDS_MAP_EMPTY) {
-            return fds_map_index;
+            free_fds_map_index = (int32_t)fds_map_index;
         }
     }
 
-    LOG_E(
-            TAG,
-            "Unable to find a free slot for an fd in the fds map");
+    if (free_fds_map_index == -1) {
+        LOG_E(
+                TAG,
+                "Unable to find a free slot for an fd in the fds map");
+    }
 
-    return -1;
+    assert(free_fds_map_index != -1);
+
+    return free_fds_map_index;
 }
 
 int32_t worker_fds_map_add_and_enqueue_files_update(
         io_uring_t *ring,
         network_io_common_fd_t fd) {
-    int32_t index;
+    int32_t index = -1;
 
     if ((index = worker_fds_map_find_free_index()) < 0) {
-        return WORKER_FDS_MAP_EMPTY;
+        return -1;
     }
+
+    assert(index != -1);
 
     LOG_D(
             TAG,
@@ -133,33 +146,31 @@ int worker_fds_map_get(
 
 network_io_common_fd_t worker_fds_map_remove(
         io_uring_t *ring,
-        int index) {
+        int index,
+        int expected_fd) {
     network_io_common_fd_t fd;
 
     fd = fds_map[index];
-    fds_map[index] = WORKER_FDS_MAP_EMPTY;
 
     LOG_D(
             TAG,
             "Unregistering fd <%d> from index <%d>", fd, index);
 
-    if (!worker_fds_map_files_update(ring, index, -1)) {
+    if (!worker_fds_map_files_update(ring, index, WORKER_FDS_MAP_EMPTY)) {
         return -1;
     }
 
     return index;
 }
 
-bool worker_fds_register(
-        uint32_t max_connections,
-        uint32_t network_listeners_count,
+bool worker_iouring_fds_register(
+        uint32_t fds_count,
         io_uring_t *ring) {
 
     // pow2_next may return a value greater than UINT32_MAX but it would mean that we are requesting to handle more than
     // 4 billions of FDS with this thread, that can't simply be the case ... like EVER.
     // The caller should ensure this will never happen.
-    fds_map_count = max_connections + network_listeners_count;
-    fds_map_count = pow2_next(fds_map_count);
+    fds_map_count = pow2_next(fds_count);
     fds_map_mask = fds_map_count - 1;
     fds_map_registered = xalloc_alloc(sizeof(int) * fds_map_count);
     fds_map = xalloc_alloc(sizeof(int) * fds_map_count);
@@ -183,19 +194,22 @@ bool worker_fds_register(
     return true;
 }
 
-uint32_t worker_thread_set_affinity(
+uint32_t worker_iouring_thread_set_affinity(
         uint32_t worker_index) {
     return thread_current_set_affinity(worker_index);
 }
 
-uint32_t worker_iouring_calculate_entries(
+uint32_t worker_iouring_calculate_fds_count(
+        uint32_t workers_count,
         uint32_t max_connections,
         uint32_t network_addresses_count) {
-    // TODO: this should take into account the storage as well although the math should already be fine
-    return (max_connections * 2) + (network_addresses_count * 2);
+    uint32_t max_connections_per_worker = (max_connections / workers_count) * 2;
+
+    return max_connections_per_worker + network_addresses_count;
 }
 
 io_uring_t* worker_iouring_initialize_iouring(
+        uint32_t workers_count,
         uint32_t core_index,
         uint32_t max_connections,
         uint32_t network_listeners_count) {
@@ -208,12 +222,17 @@ io_uring_t* worker_iouring_initialize_iouring(
         params->sq_thread_idle = 2000;
     }
 
+    uint32_t fds_count = worker_iouring_calculate_fds_count(
+            workers_count,
+            max_connections,
+            network_listeners_count);
+
     ring = io_uring_support_init(
-            worker_iouring_calculate_entries(max_connections, network_listeners_count),
+            fds_count * 2,
             params,
             NULL);
 
-    if (worker_fds_register(max_connections, network_listeners_count, ring) == false) {
+    if (worker_iouring_fds_register(fds_count, ring) == false) {
         io_uring_support_free(ring);
         ring = NULL;
     }
@@ -338,6 +357,7 @@ bool worker_iouring_process_op_files_update(
 
     if (cqe->res < 0) {
         fds_map[iouring_userdata_current->mapped_fd] = WORKER_FDS_MAP_EMPTY;
+        assert(fds_map[iouring_userdata_current->mapped_fd] != -1);
     }
 
     network_channel_iouring_entry_user_data_free(iouring_userdata_current);
@@ -365,7 +385,8 @@ bool worker_iouring_ring_do_send_or_receive(
 
         LOG_D(
                 TAG,
-                "Submit NETWORK_IO_IOURING_OP_SEND data_offset = %lu, data_size = %lu, buffer_size = %lu",
+                "[FD:%5d] Submit NETWORK_IO_IOURING_OP_SEND data_offset = %lu, data_size = %lu, buffer_size = %lu",
+                iouring_userdata_current->mapped_fd,
                 data_offset,
                 data_size,
                 buffer_size);
@@ -386,7 +407,8 @@ bool worker_iouring_ring_do_send_or_receive(
 
         LOG_D(
                 TAG,
-                "Submit NETWORK_IO_IOURING_OP_RECV data_offset = %lu, data_size = %lu",
+                "[FD:%5d] Submit NETWORK_IO_IOURING_OP_RECV data_offset = %lu, data_size = %lu",
+                iouring_userdata_current->mapped_fd,
                 data_offset,
                 data_size);
 
@@ -472,6 +494,7 @@ bool worker_iouring_process_op_accept(
 
         case NETWORK_PROTOCOLS_REDIS:
             iouring_userdata_new->channel->user_data.protocol.context = slab_allocator_mem_alloc(sizeof(network_protocol_redis_context_t));
+            iouring_userdata_new->channel->user_data.protocol.context = slab_allocator_mem_alloc(sizeof(network_protocol_redis_context_t));
 
             network_protocol_redis_context_t *context = iouring_userdata_new->channel->user_data.protocol.context;
             context->reader_context = protocol_redis_reader_context_init();
@@ -542,8 +565,6 @@ bool worker_iouring_process_op_accept(
         return false;
     }
 
-    // TODO: Use SLAB allocator to fetch a new buffer
-
     iouring_userdata_new->channel->user_data.recv_buffer.data = (char *)slab_allocator_mem_alloc(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
     iouring_userdata_new->channel->user_data.recv_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE;
     iouring_userdata_new->channel->user_data.send_buffer.data = (char *)slab_allocator_mem_alloc(NETWORK_CHANNEL_SEND_BUFFER_SIZE);
@@ -574,7 +595,8 @@ bool worker_iouring_process_op_accept(
         network_io_common_socket_close(fds_map[iouring_userdata_new->mapped_fd], true);
         worker_fds_map_remove(
                 ring,
-                iouring_userdata_new->mapped_fd);
+                iouring_userdata_new->mapped_fd,
+                iouring_userdata_new->channel->fd);
 
         network_channel_iouring_entry_user_data_free(iouring_userdata_current);
 
@@ -627,8 +649,8 @@ bool worker_iouring_process_op_recv_close_or_error(
     network_io_common_socket_close(fds_map[iouring_userdata_current->mapped_fd], true);
     worker_fds_map_remove(
             ring,
-            iouring_userdata_current->mapped_fd);
-
+            iouring_userdata_current->mapped_fd,
+            iouring_userdata_current->channel->fd);
     network_channel_iouring_entry_user_data_free(iouring_userdata_current);
 
     return true;
@@ -660,7 +682,8 @@ bool worker_iouring_process_op_recv(
 
     LOG_D(
             TAG,
-            "[RECV] before processing - iouring_userdata_current->recv_buffer.offset = %lu, iouring_userdata_current->recv_buffer.size = %lu",
+            "[FD:%5d][RECV] before processing - iouring_userdata_current->recv_buffer.offset = %lu, iouring_userdata_current->recv_buffer.size = %lu",
+            iouring_userdata_current->mapped_fd,
             iouring_userdata_current->channel->user_data.recv_buffer.data_offset,
             iouring_userdata_current->channel->user_data.recv_buffer.data_size);
 
@@ -680,7 +703,8 @@ bool worker_iouring_process_op_recv(
 
     LOG_D(
             TAG,
-            "[RECV] after processing - iouring_userdata_current->recv_buffer.offset = %lu, iouring_userdata_current->recv_buffer.size = %lu",
+            "[FD:%5d][RECV] after processing - iouring_userdata_current->recv_buffer.offset = %lu, iouring_userdata_current->recv_buffer.size = %lu",
+            iouring_userdata_current->mapped_fd,
             iouring_userdata_current->channel->user_data.recv_buffer.data_offset,
             iouring_userdata_current->channel->user_data.recv_buffer.data_size);
 
@@ -695,18 +719,25 @@ bool worker_iouring_process_op_recv(
         size_t min_required_size = iouring_userdata_current->channel->user_data.recv_buffer.data_size +
                 NETWORK_CHANNEL_PACKET_SIZE;
         if (min_required_size > iouring_userdata_current->channel->user_data.recv_buffer.length) {
-            LOG_D(TAG, "[RECV] Too much unprocessed data into the buffer, unable to continue");
+            LOG_D(
+                    TAG,
+                    "[FD:%5d][RECV] Too much unprocessed data into the buffer, unable to continue",
+                    iouring_userdata_current->mapped_fd);
 
             network_io_common_socket_close(fds_map[iouring_userdata_current->mapped_fd], true);
             worker_fds_map_remove(
                     ring,
-                    iouring_userdata_current->mapped_fd);
+                    iouring_userdata_current->mapped_fd,
+                    iouring_userdata_current->channel->fd);
 
             network_channel_iouring_entry_user_data_free(iouring_userdata_current);
 
             return true;
         } else {
-            LOG_D(TAG, "[RECV] Copying data from the end of the window to the beginning");
+            LOG_D(
+                    TAG,
+                    "[FD:%5d][RECV] Copying data from the end of the window to the beginning",
+                    iouring_userdata_current->mapped_fd);
             memcpy(
                     iouring_userdata_current->channel->user_data.recv_buffer.data,
                     iouring_userdata_current->channel->user_data.recv_buffer.data +
@@ -760,7 +791,8 @@ bool worker_iouring_process_op_send(
         network_io_common_socket_close(fds_map[iouring_userdata_current->mapped_fd], true);
         worker_fds_map_remove(
                 ring,
-                iouring_userdata_current->mapped_fd);
+                iouring_userdata_current->mapped_fd,
+                iouring_userdata_current->channel->fd);
 
         network_channel_iouring_entry_user_data_free(iouring_userdata_current);
     } else {
@@ -878,7 +910,7 @@ void* worker_iouring_thread_func(
     network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = {0};
     worker_user_data_t *worker_user_data = user_data;
 
-    worker_user_data->core_index = worker_thread_set_affinity(worker_user_data->worker_index);
+    worker_user_data->core_index = worker_iouring_thread_set_affinity(worker_user_data->worker_index);
 
     //Set the thread prefix to be used in the logs
     char* log_producer_early_prefix_thread = worker_log_producer_set_early_prefix_thread(worker_user_data);
@@ -895,6 +927,7 @@ void* worker_iouring_thread_func(
     LOG_V(TAG, "Checking io_uring supported features");
     io_uring_supports_op_files_update_link = io_uring_capabilities_is_linked_op_files_update_supported();
     io_uring_supports_sqpoll = io_uring_capabilities_is_sqpoll_supported();
+    io_uring_supports_sqpoll = false;
 
     if (worker_user_data->worker_index == 0) {
         char available_features_str[512] = {0};
@@ -919,6 +952,7 @@ void* worker_iouring_thread_func(
     LOG_V(TAG, "Initializing local ring for io_uring");
 
     ring = worker_iouring_initialize_iouring(
+            worker_user_data->workers_count,
             worker_user_data->core_index,
             worker_user_data->config->network_max_clients,
             listener_new_cb_user_data.listeners_count);

@@ -9,14 +9,16 @@ enum {
     WORKER_IOURING_OP_TIMEOUT_ENSURE_LOOP = NETWORK_IO_IOURING_OP_LAST + 1u,
 };
 
-uint32_t worker_thread_set_affinity(
+uint32_t worker_iouring_thread_set_affinity(
         uint32_t worker_index);
 
-uint32_t worker_iouring_calculate_entries(
+uint32_t worker_iouring_calculate_fds_count(
+        uint32_t workers_count,
         uint32_t max_connections,
         uint32_t network_addresses_count);
 
 io_uring_t* worker_iouring_initialize_iouring(
+        uint32_t workers_count,
         uint32_t core_index,
         uint32_t max_connections,
         uint32_t network_listeners_count);
