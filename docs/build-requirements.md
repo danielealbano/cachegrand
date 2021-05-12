@@ -9,6 +9,7 @@
 | libnuma | >= 1.1 | **mandatory** |
 | libyaml | >= 1.1 | **mandatory** |
 | openssl | >= 2.0 | **mandatory** |
+| curl    | >= 7.0 | **mandatory** |
 
 cachegrand depends on io_uring and liburing for the I/O and the networking therefore it's necessary to have recent
 kernel (>=5.7.0), liburing is instead built internally as cmake target, it's built transparently.
@@ -39,5 +40,6 @@ apt-get install \
     built-essential cmake pkg-config git \
     libssl1.1 libssl-dev \
     libnuma1 libnuma-dev \
+    libcurl4-openssl-dev libcurl4 \
     libyaml-0-2 libyaml-dev
 ```
