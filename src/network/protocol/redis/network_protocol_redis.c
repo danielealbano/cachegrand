@@ -41,8 +41,8 @@ uint32_t command_infos_map_count = sizeof(command_infos_map) / sizeof(network_pr
 bool network_protocol_redis_recv(
         void *user_data,
         char *read_buffer_with_offset) {
-    long data_read_len;
-    size_t send_data_len;
+    long data_read_len = 0;
+    size_t send_data_len = 0;
     network_channel_user_data_t *network_channel_user_data = (network_channel_user_data_t*)user_data;
     network_protocol_redis_context_t *protocol_context =
             (network_protocol_redis_context_t*)network_channel_user_data->protocol.context;
@@ -120,15 +120,18 @@ bool network_protocol_redis_recv(
                     reader_context->arguments.current.index > 0) {
                 uint32_t argument_index = reader_context->arguments.current.index;
                 if (reader_context->arguments.list[argument_index].all_read) {
-                    if ((send_buffer_start = protocol_context->command_info->argument_processed_funcptr(
-                            network_channel_user_data,
-                            reader_context,
-                            &protocol_context->command_context,
-                            send_buffer_start,
-                            send_buffer_end,
-                            argument_index)) == NULL) {
-                        LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
-                        return false;
+                    assert(protocol_context->command_info != NULL);
+                    if (protocol_context->command_info->argument_processed_funcptr) {
+                        if ((send_buffer_start = protocol_context->command_info->argument_processed_funcptr(
+                                network_channel_user_data,
+                                reader_context,
+                                &protocol_context->command_context,
+                                send_buffer_start,
+                                send_buffer_end,
+                                argument_index)) == NULL) {
+                            LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
+                            return false;
+                        }
                     }
                 }
             }
