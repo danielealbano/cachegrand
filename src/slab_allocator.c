@@ -562,7 +562,11 @@ void* slab_allocator_mem_alloc(
                 current_thread_numa_node_index,
                 current_thread_core_index);
     } else {
-        return slab_allocator_mem_alloc_xalloc(size);
+        // mmap-ed memory ie zero-ed by the kernel on the page-fault, to reproduce the behaviour the memory is memset
+        // to NULL after having been allocated
+        void* memptr = slab_allocator_mem_alloc_xalloc(size);
+        memset(memptr, 0, size);
+        return memptr;
     }
 }
 
