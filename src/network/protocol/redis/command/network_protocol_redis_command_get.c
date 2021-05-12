@@ -51,10 +51,15 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(get, {
                     (char*)memptr,
                     *value_length);
         } else {
-            send_buffer_start = protocol_redis_writer_write_simple_error_printf(
-                    send_buffer_start,
-                    send_buffer_end - send_buffer_start,
-                    "ERR get failed");
+            if (reader_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2) {
+                send_buffer_start = protocol_redis_writer_write_blob_string_null(
+                        send_buffer_start,
+                        send_buffer_end - send_buffer_start);
+            } else {
+                send_buffer_start = protocol_redis_writer_write_null(
+                        send_buffer_start,
+                        send_buffer_end - send_buffer_start);
+            }
         }
     })
 })
