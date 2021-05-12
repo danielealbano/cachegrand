@@ -1,8 +1,12 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <time.h>
 #include <sentry.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "exttypes.h"
 #include "spinlock.h"
@@ -12,6 +16,7 @@
 #include "worker/worker.h"
 #include "program.h"
 #include "xalloc.h"
+#include "signals_support.h"
 
 #include "sentry_support.h"
 
@@ -19,7 +24,6 @@
 #define TAG "sentry_support"
 
 static char release_str[200] = { 0 };
-
 static char* internal_data_path = NULL;
 
 void sentry_support_shutdown() {
@@ -27,28 +31,47 @@ void sentry_support_shutdown() {
     xalloc_free(internal_data_path);
 }
 
+void sentry_support_signal_sigsegv_handler(
+        int signal_number) {
+    // cachegrand crashed, let's give a few second to sentry.io to process and, if the dsn is set, upload the minidump
+    sleep(5);
+    exit(-1);
+}
+
+void sentry_support_register_signal_sigsegv_handler() {
+    signals_support_register_signal_handler(
+            SIGSEGV,
+            sentry_support_signal_sigsegv_handler,
+            NULL);
+}
+
 void sentry_support_init(
         char* data_path,
         char* dsn) {
     if (data_path == NULL) {
         // Set the data path if it hasn't been set in the config
-        char template[] = "/tmp/tmpdir.XXXXXX";
-        data_path = mkdtemp(template);
+        char data_path_temp[] = "/tmp/" PROGRAM_NAME;
+        mkdir(data_path_temp, 0700);
+        data_path = data_path_temp;
     }
 
+    sentry_support_register_signal_sigsegv_handler();
+
     // Append the data path suffix at the end
-    size_t needed_size = snprintf(NULL, 0, "%s/%s", data_path, SENTRYIO_DATA_PATH_SUFFIX);
+    size_t needed_size = snprintf(NULL, 0, "%s/%s", data_path, SENTRYIO_DATA_PATH_SUFFIX) + 1;
     internal_data_path = xalloc_alloc(needed_size + 1);
     snprintf(internal_data_path, needed_size, "%s/%s", data_path, SENTRYIO_DATA_PATH_SUFFIX);
+
+    // Create the folder (it ignore failures & don't check if it already exists on purpose)
+    mkdir(internal_data_path, 0700);
 
     // Initialize the release_str "cachegrand vVERSION (built on TIMESTAMP)"
     snprintf(
             release_str,
             sizeof(release_str),
-            "%s@%s (built on %s)",
+            "%s@%s",
             PROGRAM_NAME,
-            PROGRAM_VERSION,
-            PROGRAM_BUILD_DATE_TIME);
+            PROGRAM_VERSION);
 
     LOG_I(TAG, "Configuring sentry.io");
     LOG_I(TAG, "> release: %s", release_str);
@@ -68,12 +91,21 @@ void sentry_support_init(
             dsn);
     sentry_options_set_database_path(
             options,
-            data_path);
+            internal_data_path);
+
+    // TODO: Should track the version of the dependencies, the architecture of the machine, etc...
 
 #if DEBUG == 1
+    sentry_options_set_environment(
+            options,
+            "dev-build");
     sentry_options_set_debug(
             options,
             1);
+#else
+    sentry_options_set_environment(
+            options,
+            "release-build");
 #endif
 
     sentry_init(options);
