@@ -164,10 +164,28 @@ const cyaml_schema_value_t config_log_list_schema = {
 };
 
 /**
+ * CONFIG SENTRY schema
+ */
+
+// Schema for config -> sentry
+const cyaml_schema_field_t config_sentry_schema[] = {
+        CYAML_FIELD_BOOL(
+                "enable", CYAML_FLAG_DEFAULT,
+                config_sentry_t, enable),
+        CYAML_FIELD_STRING_PTR(
+                "data_path", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_sentry_t, data_path, 0, CYAML_UNLIMITED),
+        CYAML_FIELD_STRING_PTR(
+                "dsn", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_sentry_t, dsn, 0, CYAML_UNLIMITED),
+        CYAML_FIELD_END
+};
+
+/**
  * CONFIG schema
  */
 
-// Allowed strings for for config -> logs -> log -> level (log_level_t)
+// Allowed strings for for config -> worker_type
 const cyaml_strval_t config_worker_type_schema_strings[] = {
         { "io_uring", CONFIG_WORKER_TYPE_IO_URING },
 };
@@ -217,6 +235,10 @@ const cyaml_schema_field_t config_fields_schema[] = {
                 "logs", CYAML_FLAG_POINTER,
                 config_t, logs,
                 &config_log_list_schema, 1, CYAML_UNLIMITED),
+
+        CYAML_FIELD_MAPPING_PTR(
+                "sentry", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_t, sentry, config_sentry_schema),
 
         CYAML_FIELD_END
 };

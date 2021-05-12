@@ -94,6 +94,13 @@ struct config_log {
     config_log_file_t* file;
 };
 
+typedef struct config_sentry config_sentry_t;
+struct config_sentry {
+    bool enable;
+    char* data_path;
+    char* dsn;
+};
+
 // Do not remove the macro below as they are use to "tag" the struct in a special so that the build process can identify
 // the settings and produce a dynamic loader for the config.
 typedef struct config config_t;
@@ -116,6 +123,8 @@ struct config {
 
     config_log_t* logs;
     uint8_t logs_count;
+
+    config_sentry_t* sentry;
 };
 
 enum config_cpus_validate_error {
