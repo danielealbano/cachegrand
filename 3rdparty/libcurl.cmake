@@ -1,0 +1,11 @@
+include(FindPkgConfig)
+
+pkg_check_modules(LIBCURL REQUIRED libcurl>=7.0)
+
+if (LIBCURL_FOUND)
+    list(APPEND DEPS_LIST_LIBRARIES "${LIBCURL_LIBRARIES}")
+    list(APPEND DEPS_LIST_INCLUDE_DIRS "${LIBCURL_INCLUDE_DIRS}")
+    list(APPEND DEPS_LIST_LIBRARY_DIRS "${LIBCURL_LIBRARY_DIRS}")
+else()
+    set(LIBCURL_FOUND "0")
+endif()
