@@ -56,7 +56,7 @@ protocols:
 # ---
 # type:     console or file
 # level:    array of flags: debug, verbose, info, warning, recoverable, error
-#           it's possible to negate a flag prefixing it with no- (ie. no-debug)
+#           it's possible to negate a flag prefixing it with no- (ie. no-debug), it is also
 #           possible to select all the flags using the keyword all
 #
 # For type file
