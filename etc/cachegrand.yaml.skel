@@ -1,0 +1,73 @@
+worker_type: io_uring
+
+# Set cpu pinning, accepted values:
+# - cpu number, starting from 0 (ie. 0, 1, 2)
+# - cpu range, starting from 0 (ie. 2-12)
+# - all, will use all the available cpus
+cpus:
+  - all
+
+# Suggested 2 thread per cpu, depending on the hardware up to 4 threads will still scale well
+# The number of workers that will be started will be n. cpus * threads_per_count
+workers_per_cpus: 2
+
+run_in_foreground: false
+
+pidfile_path: /var/run/cachegrand.pid
+
+network_max_clients: 10000
+network_listen_backlog: 100
+storage_max_partition_size_mb: 0
+memory_max_keys: 10000
+use_slab_allocator: false
+
+# The sentry.io service is used to automatically collect minidumps in case of crashes, it doesn't store them after that
+# they are processed but be aware that minidumps will contain memory regions used by cachegrand and therefore may
+# they may also contain cached data!
+# To avoid accidental/unwanted uploads, by default the dsn is not set to avoid accidental/unwanted uploads, if you want
+# to provide crash data without having to attach it to a github issue simply set the dsn parameter, or the SENTRY_DSN
+# env variable, to
+# https://05dd54814d8149cab65ba2987d560340@o590814.ingest.sentry.io/5740234
+sentry:
+  enable: true
+  # dsn: "https://05dd54814d8149cab65ba2987d560340@o590814.ingest.sentry.io/5740234"
+
+protocols:
+  - type: redis
+    timeout:
+      connection: 2000
+      read: 2000
+      write: 2000
+      inactivity: 2000
+    keepalive:
+      time: 0
+      interval: 0
+      probes: 0
+    redis:
+      max_key_length: 8192
+      max_command_length: 1048576
+    bindings:
+      - host: 0.0.0.0
+        port: 6379
+      - host: "::"
+        port: 6379
+
+# LOGS
+# ---
+# type:     console or file
+# level:    array of flags: debug, verbose, info, warning, recoverable, error
+#           it's possible to negate a flag prefixing it with no- (ie. no-debug)
+#           possible to select all the flags using the keyword all
+#
+# For type file
+# file:
+#   path:   path to the log file
+
+logs:
+  - type: console
+    level: [ all, no-debug, no-verbose ]
+
+  - type: file
+    level: [ all, no-debug, no-verbose ]
+    file:
+      path: /var/log/cachegrand.log
