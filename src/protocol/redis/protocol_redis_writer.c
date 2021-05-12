@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <limits.h>
 
 #include "exttypes.h"
 #include "misc.h"
@@ -22,26 +23,33 @@ bool protocol_redis_writer_enough_space_in_buffer(
 
 unsigned protocol_redis_writer_uint64_str_length(
         uint64_t number) {
-    if (number < 10U) return 1;
-    if (number < 100U) return 2;
-    if (number < 1000U) return 3;
-    if (number < 10000U) return 4;
-    if (number < 100000U) return 5;
-    if (number < 1000000U) return 6;
-    if (number < 10000000U) return 7;
-    if (number < 100000000U) return 8;
-    if (number < 1000000000U) return 9;
-    if (number < 10000000000U) return 10;
-    if (number < 100000000000U) return 11;
-    if (number < 1000000000000U) return 12;
-    if (number < 10000000000000U) return 13;
-    if (number < 100000000000000U) return 14;
-    if (number < 1000000000000000U) return 15;
-    if (number < 10000000000000000U) return 16;
-    if (number < 100000000000000000U) return 17;
-    if (number < 1000000000000000000U) return 18;
-    if (number < 10000000000000000000U) return 19;
-    return 20;
+    static uint8_t maxdigits[65] = {
+            1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 6, 6, 6,
+            7, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10, 10, 11, 11, 11,
+            12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 15, 15, 15,
+            16, 16, 16, 16, 17, 17, 17, 18, 18, 18, 19, 19, 19, 19, 20,
+    };
+
+    static uint64_t powers[] = {
+            0U, 1U, 10U, 100U, 1000U, 10000U, 100000U, 1000000U, 10000000U,
+            100000000U, 1000000000U, 10000000000U, 100000000000U,
+            1000000000000U, 10000000000000U, 100000000000000U,
+            1000000000000000U, 10000000000000000U, 100000000000000000U,
+            1000000000000000000U, 10000000000000000000U,
+    };
+
+    if (number == 0) {
+        return 1;
+    }
+
+    unsigned bits = sizeof(number) * CHAR_BIT - __builtin_clzll(number);
+    unsigned digits = maxdigits[bits];
+
+    if (number < powers[digits]) {
+        --digits;
+    }
+
+    return digits;
 }
 
 unsigned protocol_redis_writer_int64_str_length(
@@ -51,27 +59,9 @@ unsigned protocol_redis_writer_int64_str_length(
         number *= -1;
     }
 
-    if (number < 10U) return add_minus_sign + 1;
-    if (number < 100U) return add_minus_sign + 2;
-    if (number < 1000U) return add_minus_sign + 3;
-    if (number < 10000U) return add_minus_sign + 4;
-    if (number < 100000U) return add_minus_sign + 5;
-    if (number < 1000000U) return add_minus_sign + 6;
-    if (number < 10000000U) return add_minus_sign + 7;
-    if (number < 100000000U) return add_minus_sign + 8;
-    if (number < 1000000000U) return add_minus_sign + 9;
-    if (number < 10000000000U) return add_minus_sign + 10;
-    if (number < 100000000000U) return add_minus_sign + 11;
-    if (number < 1000000000000U) return add_minus_sign + 12;
-    if (number < 10000000000000U) return add_minus_sign + 13;
-    if (number < 100000000000000U) return add_minus_sign + 14;
-    if (number < 1000000000000000U) return add_minus_sign + 15;
-    if (number < 10000000000000000U) return add_minus_sign + 16;
-    if (number < 100000000000000000U) return add_minus_sign + 17;
-    if (number < 1000000000000000000U) return add_minus_sign + 18;
-    if (number < 10000000000000000000U) return add_minus_sign + 19;
-    return add_minus_sign + 20;
+    return protocol_redis_writer_uint64_str_length(number) + add_minus_sign;
 }
+
 
 char* protocol_redis_writer_uint64_to_str(
         uint64_t number,
