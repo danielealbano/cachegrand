@@ -140,10 +140,14 @@ void slab_allocator_slice_remove_slots_from_per_core_metadata_slots(
 void slab_allocator_slice_make_available(
         slab_allocator_t* slab_allocator,
         slab_slice_t* slab_slice,
+        uint32_t numa_node_index,
+        uint32_t core_index,
         bool* can_free_slice);
 
 bool slab_allocator_slice_try_acquire(
-        slab_allocator_t* slab_allocator);
+        slab_allocator_t* slab_allocator,
+        uint32_t numa_node_index,
+        uint32_t core_index);
 
 void slab_allocator_grow(
         slab_allocator_t* slab_allocator,
@@ -152,10 +156,14 @@ void slab_allocator_grow(
         void* memptr);
 
 void* slab_allocator_mem_alloc_hugepages(
-        size_t size);
+        size_t size,
+        uint32_t numa_node_index,
+        uint32_t core_index);
 
 void slab_allocator_mem_free_hugepages(
-        void* memptr);
+        void* memptr,
+        uint32_t numa_node_index,
+        uint32_t core_index);
 
 void* slab_allocator_mem_alloc_xalloc(
         size_t size);

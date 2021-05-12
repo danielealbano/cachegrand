@@ -241,6 +241,10 @@ void slab_allocator_slice_add_slots_to_per_core_metadata_slots(
         slab_allocator_t* slab_allocator,
         slab_slice_t* slab_slice,
         uint32_t core_index) {
+    slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[core_index];
+
+    // The caller must ensure the lock
+    assert(core_metadata->spinlock.lock != 0);
 
     slab_slot_t* slab_slot;
     for(uint32_t index = 0; index < slab_slice->data.metrics.objects_total_count; index++) {
@@ -249,7 +253,7 @@ void slab_allocator_slice_add_slots_to_per_core_metadata_slots(
         slab_slot->data.memptr = (void*)(slab_slice->data.data_addr + (index * slab_allocator->object_size));
 
         double_linked_list_unshift_item(
-                slab_allocator->core_metadata[core_index].slots,
+                core_metadata->slots,
                 &slab_slot->double_linked_list_item);
     }
 }
@@ -258,12 +262,16 @@ void slab_allocator_slice_remove_slots_from_per_core_metadata_slots(
         slab_allocator_t* slab_allocator,
         slab_slice_t* slab_slice,
         uint32_t core_index) {
+    slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[core_index];
+
+    // The caller must ensure the lock
+    assert(core_metadata->spinlock.lock != 0);
 
     slab_slot_t* slab_slot;
     for(uint32_t index = 0; index < slab_slice->data.metrics.objects_total_count; index++) {
         slab_slot = &slab_slice->data.slots[index];
         double_linked_list_remove_item(
-                slab_allocator->core_metadata[core_index].slots,
+                core_metadata->slots,
                 &slab_slot->double_linked_list_item);
     }
 }
@@ -277,38 +285,51 @@ slab_slice_t* slab_allocator_slice_from_memptr(
 void slab_allocator_slice_make_available(
         slab_allocator_t* slab_allocator,
         slab_slice_t* slab_slice,
+        uint32_t numa_node_index,
+        uint32_t core_index,
         bool* can_free_slice) {
     *can_free_slice = false;
+    slab_allocator_numa_node_metadata_t* numa_node_metadata = &slab_allocator->numa_node_metadata[numa_node_index];
+    slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[core_index];
+
     slab_allocator_slice_remove_slots_from_per_core_metadata_slots(
             slab_allocator,
             slab_slice,
-            current_thread_core_index);
+            core_index);
 
-    slab_allocator->core_metadata[current_thread_core_index].metrics.slices_total_count--;
-    slab_allocator->core_metadata[current_thread_core_index].metrics.slices_free_count--;
+    // The caller must ensure the lock
+    assert(core_metadata->spinlock.lock != 0);
+
+    core_metadata->metrics.slices_total_count--;
+    core_metadata->metrics.slices_free_count--;
 
     spinlock_section(&slab_allocator->spinlock, {
         if (slab_allocator->metrics.free_slices_count == 1) {
             *can_free_slice = true;
 
             slab_allocator->metrics.total_slices_count--;
-            slab_allocator->numa_node_metadata[current_thread_numa_node_index].metrics.total_slices_count--;
+            numa_node_metadata->metrics.total_slices_count--;
             double_linked_list_remove_item(
-                    slab_allocator->numa_node_metadata[current_thread_numa_node_index].slices,
+                    numa_node_metadata->slices,
                     &slab_slice->double_linked_list_item);
         } else {
             slab_allocator->metrics.free_slices_count++;
-            slab_allocator->numa_node_metadata[current_thread_numa_node_index].metrics.free_slices_count++;
+            numa_node_metadata->metrics.free_slices_count++;
             slab_slice->data.available = true;
             double_linked_list_move_item_to_head(
-                    slab_allocator->numa_node_metadata[current_thread_numa_node_index].slices,
+                    numa_node_metadata->slices,
                     &slab_slice->double_linked_list_item);
         }
     })
 }
 
 bool slab_allocator_slice_try_acquire(
-        slab_allocator_t* slab_allocator) {
+        slab_allocator_t* slab_allocator,
+        uint32_t numa_node_index,
+        uint32_t core_index) {
+    slab_allocator_numa_node_metadata_t* numa_node_metadata = &slab_allocator->numa_node_metadata[numa_node_index];
+    slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[core_index];
+
     bool slab_slice_found = false;
     double_linked_list_item_t* slab_slices_per_numa_node_head_item;
     slab_slice_t* head_slab_slice;
@@ -316,27 +337,27 @@ bool slab_allocator_slice_try_acquire(
     // Check if an existing slices is available
     spinlock_section(&slab_allocator->spinlock, {
         slab_slices_per_numa_node_head_item =
-                slab_allocator->numa_node_metadata[current_thread_numa_node_index].slices->head;
-        head_slab_slice = (slab_slice_t *) slab_slices_per_numa_node_head_item;
+               numa_node_metadata->slices->head;
+        head_slab_slice = (slab_slice_t *)slab_slices_per_numa_node_head_item;
 
         if (slab_slices_per_numa_node_head_item != NULL && head_slab_slice->data.available == true) {
             slab_slice_found = true;
             slab_allocator->metrics.free_slices_count--;
-            slab_allocator->numa_node_metadata[current_thread_numa_node_index].metrics.free_slices_count--;
+           numa_node_metadata->metrics.free_slices_count--;
             head_slab_slice->data.available = false;
             double_linked_list_move_item_to_tail(
-                    slab_allocator->numa_node_metadata[current_thread_numa_node_index].slices,
+                   numa_node_metadata->slices,
                     slab_slices_per_numa_node_head_item);
         }
     });
 
     if (slab_slice_found) {
-        slab_allocator->core_metadata[current_thread_core_index].metrics.slices_inuse_count++;
-        slab_allocator->core_metadata[current_thread_core_index].metrics.slices_total_count++;
+        core_metadata->metrics.slices_inuse_count++;
+        core_metadata->metrics.slices_total_count++;
         slab_allocator_slice_add_slots_to_per_core_metadata_slots(
                 slab_allocator,
                 head_slab_slice,
-                current_thread_core_index);
+                core_index);
     }
 
     return slab_slice_found;
@@ -357,7 +378,11 @@ void slab_allocator_grow(
         uint32_t numa_node_index,
         uint32_t core_index,
         void* memptr) {
-    slab_allocator_ensure_core_index_and_numa_node_index_filled();
+    slab_allocator_numa_node_metadata_t* numa_node_metadata = &slab_allocator->numa_node_metadata[numa_node_index];
+    slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[core_index];
+
+    // The caller must ensure the lock on core_metadata
+    assert(core_metadata->spinlock.lock != 0);
 
     // Initialize the new slice and set it to non available because it's going to be immediately used
     slab_slice_t* slab_slice = slab_allocator_slice_init(slab_allocator, memptr);
@@ -368,31 +393,31 @@ void slab_allocator_grow(
             slab_allocator,
             slab_slice,
             core_index);
-    slab_allocator->core_metadata[current_thread_core_index].metrics.slices_inuse_count++;
-    slab_allocator->core_metadata[current_thread_core_index].metrics.slices_total_count++;
+    core_metadata->metrics.slices_inuse_count++;
+    core_metadata->metrics.slices_total_count++;
 
     // Add the slice to the ones initialized per core
     spinlock_section(&slab_allocator->spinlock, {
         slab_allocator->metrics.total_slices_count++;
-        slab_allocator->numa_node_metadata[current_thread_numa_node_index].metrics.total_slices_count++;
+        numa_node_metadata->metrics.total_slices_count++;
         double_linked_list_push_item(
-                slab_allocator->numa_node_metadata[numa_node_index].slices,
+                numa_node_metadata->slices,
                 &slab_slice->double_linked_list_item);
     })
 }
 
 void* slab_allocator_mem_alloc_hugepages(
-        size_t size) {
+        size_t size,
+        uint32_t numa_node_index,
+        uint32_t core_index) {
     bool allocate_new_hugepage = false;
     slab_slot_t* slab_slot = NULL;
     slab_slice_t* slab_slice = NULL;
 
-    slab_allocator_ensure_core_index_and_numa_node_index_filled();
-
     uint8_t predefined_slab_allocator_index = slab_index_by_object_size(size);
     slab_allocator_t* slab_allocator = predefined_slab_allocators[predefined_slab_allocator_index];
 
-    slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[current_thread_core_index];
+    slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[core_index];
 
     spinlock_section(&core_metadata->spinlock, {
         double_linked_list_t* slots_per_core_list = core_metadata->slots;
@@ -400,7 +425,7 @@ void* slab_allocator_mem_alloc_hugepages(
         slab_slot = (slab_slot_t*)slots_per_core_head_item;
 
         if (slots_per_core_head_item == NULL || slab_slot->data.available == false) {
-            if (slab_allocator_slice_try_acquire(slab_allocator) == false) {
+            if (slab_allocator_slice_try_acquire(slab_allocator, numa_node_index, core_index) == false) {
                 if (!core_metadata->free_page_addr_first_inited) {
                     core_metadata->free_page_addr_first_inited = true;
                     core_metadata->free_page_addr = xalloc_hugepages_2mb_alloc(SLAB_PAGE_2MB);
@@ -416,8 +441,8 @@ void* slab_allocator_mem_alloc_hugepages(
 
                 slab_allocator_grow(
                         slab_allocator,
-                        current_thread_numa_node_index,
-                        current_thread_core_index,
+                        numa_node_index,
+                        core_index,
                         core_metadata->free_page_addr);
 
                 core_metadata->free_page_addr = NULL;
@@ -435,7 +460,7 @@ void* slab_allocator_mem_alloc_hugepages(
         slab_slice->data.metrics.objects_inuse_count++;
 
         core_metadata->metrics.objects_inuse_count++;
-    });
+    })
 
     if (core_metadata->free_page_addr_first_inited == true && allocate_new_hugepage) {
         // Can be done without locking but with a memory write fence because the spinlock above guarantees that
@@ -466,9 +491,11 @@ bool slab_allocator_mem_try_alloc(
 }
 
 void slab_allocator_mem_free_hugepages(
-        void* memptr) {
-    assert(current_thread_core_index < UINT32_MAX);
-    assert(current_thread_numa_node_index < UINT32_MAX);
+        void* memptr,
+        uint32_t numa_node_index,
+        uint32_t core_index) {
+    assert(core_index < UINT32_MAX);
+    assert(numa_node_index < UINT32_MAX);
 
     bool can_free_slab_slice = false;
 
@@ -480,7 +507,7 @@ void slab_allocator_mem_free_hugepages(
             slab_allocator,
             slab_slice,
             memptr);
-    slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[current_thread_core_index];
+    slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[core_index];
 
     spinlock_section(&core_metadata->spinlock, {
         // Update the availability and the metrics
@@ -503,6 +530,8 @@ void slab_allocator_mem_free_hugepages(
                 slab_allocator_slice_make_available(
                         slab_allocator,
                         slab_slice,
+                        numa_node_index,
+                        core_index,
                         &can_free_slab_slice);
             }
         }
@@ -526,7 +555,12 @@ void slab_allocator_mem_free_xalloc(
 void* slab_allocator_mem_alloc(
         size_t size) {
     if (slab_allocator_enabled) {
-        return slab_allocator_mem_alloc_hugepages(size);
+        slab_allocator_ensure_core_index_and_numa_node_index_filled();
+
+        return slab_allocator_mem_alloc_hugepages(
+                size,
+                current_thread_numa_node_index,
+                current_thread_core_index);
     } else {
         return slab_allocator_mem_alloc_xalloc(size);
     }
@@ -535,7 +569,12 @@ void* slab_allocator_mem_alloc(
 void slab_allocator_mem_free(
         void* memptr) {
     if (slab_allocator_enabled) {
-        slab_allocator_mem_free_hugepages(memptr);
+        slab_allocator_ensure_core_index_and_numa_node_index_filled();
+
+        slab_allocator_mem_free_hugepages(
+                memptr,
+                current_thread_numa_node_index,
+                current_thread_core_index);
     } else {
         slab_allocator_mem_free_xalloc(memptr);
     }
