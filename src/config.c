@@ -41,8 +41,6 @@ void config_internal_cyaml_log(
             level = LOG_LEVEL_DEBUG;
             break;
         case CYAML_LOG_NOTICE:
-            level = LOG_LEVEL_WARNING;
-            break;
         case CYAML_LOG_WARNING:
             level = LOG_LEVEL_WARNING;
             break;
