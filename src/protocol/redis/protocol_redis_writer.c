@@ -211,13 +211,13 @@ char* protocol_redis_writer_write_argument_number(
         char* buffer,
         size_t buffer_length,
         int64_t number) {
-    size_t number_size = protocol_redis_writer_uint64_str_length(number);
+    size_t number_size = protocol_redis_writer_int64_str_length(number);
 
     if (!protocol_redis_writer_enough_space_in_buffer(buffer_length, number_size)) {
         return NULL;
     }
 
-    return protocol_redis_writer_uint64_to_str(number, number_size, buffer, buffer_length);
+    return protocol_redis_writer_int64_to_str(number, number_size, buffer, buffer_length);
 }
 
 char* protocol_redis_writer_write_argument_double(
