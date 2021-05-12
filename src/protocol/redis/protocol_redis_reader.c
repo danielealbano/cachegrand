@@ -414,8 +414,6 @@ long protocol_redis_reader_read(
             }
 
             read_offset += waiting_data_length;
-            buffer += waiting_data_length;
-            length -= waiting_data_length;
 
             // Update the current status
             context->arguments.current.length = 0;
@@ -432,5 +430,5 @@ long protocol_redis_reader_read(
         }
     }
 
-    return read_offset;
+    return (long)read_offset;
 }
