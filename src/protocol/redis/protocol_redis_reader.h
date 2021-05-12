@@ -51,13 +51,13 @@ struct protocol_redis_reader_context {
         struct {
             long index;
             bool beginning;
-            unsigned long length;
+            size_t length;
         } current;
 
         union {
             struct {
                 struct {
-                    char received_length;
+                    size_t received_length;
                 } current;
             } resp_protocol;
             struct {
