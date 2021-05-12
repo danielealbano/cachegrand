@@ -6,6 +6,9 @@
 #include <arpa/inet.h>
 
 #include "../network_tests_support.h"
+#include "exttypes.h"
+#include "spinlock.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
 
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
