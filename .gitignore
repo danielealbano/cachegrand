@@ -1,4 +1,5 @@
 .idea
 cmake-build-*/*
 
+/etc/cachegrand.yaml
 /src/cmake_config.c
