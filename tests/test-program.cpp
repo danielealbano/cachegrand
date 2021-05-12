@@ -16,6 +16,7 @@
 #include "xalloc.h"
 #include "memory_fences.h"
 #include "spinlock.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/protocol/network_protocol.h"
@@ -163,7 +164,8 @@ TEST_CASE("program.c", "[program]") {
                 test_program_wait_loop_wait,
                 (void*)&terminate_event_loop) == 0);
 
-        usleep(250000);
+        usleep(25000);
+        pthread_yield();
 
         REQUIRE(pthread_create(
                 &pthread_terminate,
@@ -171,13 +173,13 @@ TEST_CASE("program.c", "[program]") {
                 test_program_wait_loop_terminate,
                 (void*)&terminate_event_loop) == 0);
 
-        usleep(500000);
+        usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
+        pthread_yield();
 
-        REQUIRE(pthread_kill(pthread_terminate, 0) == ESRCH);
-        REQUIRE(pthread_kill(pthread_wait, 0) == ESRCH);
-
-        REQUIRE(pthread_join(pthread_wait, NULL) == 0);
         REQUIRE(pthread_join(pthread_terminate, NULL) == 0);
+
+        REQUIRE(pthread_kill(pthread_wait, 0) == ESRCH);
+        REQUIRE(pthread_join(pthread_wait, NULL) == 0);
     }
 
     SECTION("program_workers_initialize") {
@@ -196,14 +198,16 @@ TEST_CASE("program.c", "[program]") {
             REQUIRE(worker_user_data->config == &config);
             REQUIRE(worker_user_data->pthread != 0);
 
-            usleep(250000);
+             usleep(25000);
+             pthread_yield();
 
             // Terminate running thread
             terminate_event_loop = true;
             HASHTABLE_MEMORY_FENCE_STORE();
 
             // Wait for the thread to end
-            usleep(500000);
+            usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
+            pthread_yield();
 
             // Check if the worker terminated
             REQUIRE(pthread_kill(worker_user_data->pthread, 0) == ESRCH);
@@ -228,13 +232,15 @@ TEST_CASE("program.c", "[program]") {
             // Terminate running thread
             worker_pthread = worker_user_data->pthread;
 
-            usleep(250000);
+            usleep(25000);
+            pthread_yield();
 
             terminate_event_loop = true;
             HASHTABLE_MEMORY_FENCE_STORE();
 
             // Wait for the thread to end
-            usleep(500000);
+            usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
+            pthread_yield();
 
             program_workers_cleanup(
                     worker_user_data,
@@ -264,7 +270,8 @@ TEST_CASE("program.c", "[program]") {
             // Terminate running thread
             worker_pthread = worker_user_data->pthread;
 
-            usleep(250000);
+            usleep(25000);
+            pthread_yield();
 
             int clientfd = network_io_common_socket_tcp4_new(0);
 
@@ -284,7 +291,8 @@ TEST_CASE("program.c", "[program]") {
             HASHTABLE_MEMORY_FENCE_STORE();
 
             // Wait for the thread to end
-            usleep(500000);
+            usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
+            pthread_yield();
 
             program_workers_cleanup(
                     worker_user_data,
