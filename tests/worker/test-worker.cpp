@@ -82,6 +82,7 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
 
     SECTION("worker_setup_user_data") {
         config_t config = {};
+        hashtable_t hashtable = {};
         worker_user_data_t worker_user_data = {0};
         network_channel_address_t addresses[1] = {0};
         volatile bool terminate_event_loop = false;
@@ -90,11 +91,13 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
                 &worker_user_data,
                 1,
                 &terminate_event_loop,
-                &config);
+                &config,
+                &hashtable);
 
         REQUIRE(worker_user_data.worker_index == 1);
         REQUIRE(worker_user_data.terminate_event_loop == &terminate_event_loop);
         REQUIRE(worker_user_data.config == &config);
+        REQUIRE(worker_user_data.hashtable == &hashtable);
     }
 
     SECTION("worker_request_terminate") {
