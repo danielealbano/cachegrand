@@ -31,7 +31,8 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(quit, {
         send_buffer_start = protocol_redis_writer_write_blob_string(
                 send_buffer_start,
                 send_buffer_end - send_buffer_start,
-                "QUIT",
+                "OK",
                 4);
+        network_channel_user_data->close_connection_on_send = true;
     })
 })
