@@ -193,13 +193,14 @@ TEST_CASE("program.c", "[program]") {
                     &program_context);
 
             REQUIRE(worker_user_data != NULL);
+            REQUIRE(worker_user_data->workers_count == 0);
             REQUIRE(worker_user_data->worker_index == 0);
             REQUIRE(worker_user_data->terminate_event_loop == &terminate_event_loop);
             REQUIRE(worker_user_data->config == &config);
             REQUIRE(worker_user_data->pthread != 0);
 
-             usleep(25000);
-             pthread_yield();
+            usleep(25000);
+            pthread_yield();
 
             // Terminate running thread
             terminate_event_loop = true;

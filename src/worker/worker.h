@@ -29,8 +29,9 @@ typedef struct worker_user_data worker_user_data_t;
 struct worker_user_data {
     pthread_t pthread;
     volatile bool *terminate_event_loop;
-    uint8_t worker_index;
-    uint8_t core_index;
+    uint32_t workers_count;
+    uint32_t worker_index;
+    uint32_t core_index;
     config_t *config;
     hashtable_t *hashtable;
     worker_stats_volatile_t stats;
@@ -48,6 +49,7 @@ char* worker_log_producer_set_early_prefix_thread(
 
 void worker_setup_user_data(
         worker_user_data_t *worker_user_data,
+        uint32_t workers_count,
         uint32_t worker_index,
         volatile bool *terminate_event_loop,
         config_t *config,

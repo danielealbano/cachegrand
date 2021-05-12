@@ -93,9 +93,6 @@ void program_register_signal_handlers() {
     sigemptyset(&action.sa_mask);
     action.sa_flags = 0;
 
-#ifndef DEBUG
-    signals_support_register_sigsegv_fatal_handler();
-#endif
     signal(SIGCHLD, SIG_IGN);
 
     for(uint8_t i = 0; i < program_signals_count; i++) {
@@ -125,6 +122,7 @@ worker_user_data_t* program_workers_initialize(
 
         worker_setup_user_data(
                 worker_user_data,
+                program_context->workers_count,
                 worker_index,
                 terminate_event_loop,
                 program_context->config,
