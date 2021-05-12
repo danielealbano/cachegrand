@@ -4,6 +4,13 @@
 #include <stdatomic.h>
 #include <pthread.h>
 
+#if DEBUG == 1
+#include <assert.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+#endif
+
 #include "memory_fences.h"
 #include "misc.h"
 #include "exttypes.h"
@@ -24,21 +31,23 @@ void spinlock_init(
 
 void spinlock_unlock(
         spinlock_lock_volatile_t* spinlock) {
+#if DEBUG == 1
+    long thread_id = syscall(__NR_gettid);
+    assert(spinlock->lock != thread_id);
+#endif
+
     spinlock->lock = SPINLOCK_UNLOCKED;
     HASHTABLE_MEMORY_FENCE_STORE();
 }
 
 bool spinlock_is_locked(
-        spinlock_lock_volatile_t *spinlock)
-{
+        spinlock_lock_volatile_t *spinlock) {
     HASHTABLE_MEMORY_FENCE_LOAD();
-    return spinlock->lock == SPINLOCK_LOCKED;
+    return spinlock->lock != SPINLOCK_UNLOCKED;
 }
 
 bool spinlock_try_lock(
-        spinlock_lock_volatile_t *spinlock)
-{
-
+        spinlock_lock_volatile_t *spinlock) {
 #if CACHEGRAND_USE_LOCK_XCHGB == 1
     char prev;
 
@@ -52,7 +61,13 @@ bool spinlock_try_lock(
     return prev != SPINLOCK_LOCKED;
 #else
     uint8_t expected_value = SPINLOCK_UNLOCKED;
+
+#if DEBUG == 1
+    long thread_id = syscall(__NR_gettid);
+    uint8_t new_value = thread_id;
+#else
     uint8_t new_value = SPINLOCK_LOCKED;
+#endif
 
     return __sync_bool_compare_and_swap(&spinlock->lock, expected_value, new_value);
 #endif
@@ -63,8 +78,7 @@ bool spinlock_lock_internal(
         bool retry,
         const char* src_path,
         const char* src_func,
-        uint32_t src_line)
-{
+        uint32_t src_line) {
     bool res = false;
 
     while (unlikely(!(res = spinlock_try_lock(spinlock)) && retry)) {

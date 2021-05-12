@@ -5,11 +5,16 @@ using namespace std;
 
 #include <pthread.h>
 #include <unistd.h>
+#if DEBUG == 1
+#include <sys/types.h>
+#include <sys/syscall.h>
+#endif
 
 #include "exttypes.h"
 #include "memory_fences.h"
 #include "spinlock.h"
 #include "utils_cpu.h"
+#include "thread.h"
 
 // Returns 1 if it can do the initial lock, 2 instead if it's able to reach the point in which has
 // to wait for the spinlock to become free
@@ -31,6 +36,7 @@ void* test_spinlock_lock__lock_retry_try_lock_thread_func(void* rawdata) {
 // Increments a number a number of times using the spinlock for each increment
 struct test_spinlock_lock__counter_thread_func_data {
     uint8_t* start_flag;
+    uint32_t thread_num;
     pthread_t thread_id;
     spinlock_lock_t* lock;
     uint64_t increments;
@@ -39,6 +45,9 @@ struct test_spinlock_lock__counter_thread_func_data {
 void* test_spinlock_lock__counter_thread_func(void* rawdata) {
     struct test_spinlock_lock__counter_thread_func_data* data =
             (struct test_spinlock_lock__counter_thread_func_data*)rawdata;
+
+    thread_current_set_affinity(data->thread_num);
+
     do {
         HASHTABLE_MEMORY_FENCE_LOAD();
     } while (*data->start_flag == 0);
@@ -87,10 +96,12 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             spinlock_init(&lock);
 
             REQUIRE(spinlock_try_lock(&lock));
-            REQUIRE(lock.lock == SPINLOCK_LOCKED);
-
 #if DEBUG == 1
+            long thread_id = syscall(__NR_gettid);
+            REQUIRE(lock.lock == (uint8_t)thread_id);
             REQUIRE(lock.magic == SPINLOCK_MAGIC);
+#else
+            REQUIRE(lock.lock == SPINLOCK_LOCKED);
 #endif
         }
 
@@ -135,10 +146,12 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
             REQUIRE(spinlock_lock(&lock, false));
 
-            REQUIRE(lock.lock == SPINLOCK_LOCKED);
-
 #if DEBUG == 1
+            long thread_id = syscall(__NR_gettid);
+            REQUIRE(lock.lock == (uint8_t)thread_id);
             REQUIRE(lock.magic == SPINLOCK_MAGIC);
+#else
+            REQUIRE(lock.lock == SPINLOCK_LOCKED);
 #endif
         }
 
@@ -150,10 +163,12 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
             REQUIRE(!spinlock_lock(&lock, false));
 
-            REQUIRE(lock.lock == SPINLOCK_LOCKED);
-
 #if DEBUG == 1
+            long thread_id = syscall(__NR_gettid);
+            REQUIRE(lock.lock == (uint8_t)thread_id);
             REQUIRE(lock.magic == SPINLOCK_MAGIC);
+#else
+            REQUIRE(lock.lock == SPINLOCK_LOCKED);
 #endif
         }
 
@@ -172,7 +187,14 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
             // Lock
             REQUIRE(spinlock_lock(&lock, false));
+
+#if DEBUG == 1
+            long thread_id = syscall(__NR_gettid);
+            REQUIRE(lock.lock == (uint8_t)thread_id);
+            REQUIRE(lock.magic == SPINLOCK_MAGIC);
+#else
             REQUIRE(lock.lock == SPINLOCK_LOCKED);
+#endif
 
             // Create the thread that wait for unlock
             res = pthread_create(&pthread, &attr, &test_spinlock_lock__lock_retry_try_lock_thread_func, (void*)&lock);
@@ -197,7 +219,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
             REQUIRE(pthread_tryjoin_np_res == 0);
             REQUIRE(pthread_return_val == 2);
-            REQUIRE(lock.lock == SPINLOCK_LOCKED);
+            REQUIRE(lock.lock != SPINLOCK_UNLOCKED);
         }
 
         SECTION("test lock parallelism") {
@@ -226,6 +248,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             start_flag = 0;
             spinlock_init(&lock);
             for(uint32_t thread_num = 0; thread_num < threads_count; thread_num++) {
+                threads_info[thread_num].thread_num = thread_num;
                 threads_info[thread_num].start_flag = &start_flag;
                 threads_info[thread_num].lock = &lock;
                 threads_info[thread_num].increments = increments_per_thread;
