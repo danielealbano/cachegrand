@@ -65,9 +65,13 @@ protocols:
 
 logs:
   - type: console
-    level: [ all, no-debug, no-verbose ]
+    # Print to the console errors, warnings and informational messages
+    level: [ all, no-verbose, no-debug]
+
+    # or print everything
+    # level: [ all ]
 
   - type: file
-    level: [ all, no-debug, no-verbose ]
+    level: [ all, no-verbose, no-debug ]
     file:
       path: /var/log/cachegrand.log
