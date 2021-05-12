@@ -21,12 +21,12 @@ storage_max_partition_size_mb: 0
 memory_max_keys: 10000
 use_slab_allocator: false
 
-# The sentry.io service is used to automatically collect minidumps in case of crashes, it doesn't store them after that
-# they are processed but be aware that minidumps will contain memory regions used by cachegrand and therefore may
-# they may also contain cached data!
-# To avoid accidental/unwanted uploads, by default the dsn is not set to avoid accidental/unwanted uploads, if you want
-# to provide crash data without having to attach it to a github issue simply set the dsn parameter, or the SENTRY_DSN
-# env variable, to
+# The sentry.io service is used to automatically collect minidumps in case of crashes, it doesn't
+# store them after that they are processed but be aware that minidumps will contain memory regions
+# used by cachegrand and therefore may they may also contain cached data!
+# To avoid accidental/unwanted uploads, by default the dsn is not set to avoid accidental/unwanted
+# uploads, if you want to provide crash data without having to attach it to a github issue simply
+# set the dsn parameter, or the SENTRY_DSN env variable, to
 # https://05dd54814d8149cab65ba2987d560340@o590814.ingest.sentry.io/5740234
 sentry:
   enable: true
