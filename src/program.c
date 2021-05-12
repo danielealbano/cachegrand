@@ -44,6 +44,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
 #include "thread.h"
 #include "slab_allocator.h"
+#include "support/sentry/sentry_support.h"
 
 #include "program.h"
 #include "program_arguments.h"
@@ -372,13 +373,26 @@ bool program_config_setup_hashtable(
     return program_context->hashtable;
 }
 
+void program_setup_sentry(
+        program_context_t program_context) {
+    if (program_context.config->sentry == NULL) {
+        return;
+    } else if (program_context.config->sentry->enable == false) {
+        return;
+    }
+
+    sentry_support_init(
+            program_context.config->sentry->data_path,
+            program_context.config->sentry->dsn);
+}
+
 void program_cleanup(
         program_context_t* program_context) {
+    // TODO: free storage backend
+
     if (program_context->hashtable) {
         hashtable_mcmp_free(program_context->hashtable);
     }
-
-    log_sink_registered_free();
 
     if (program_context->slab_allocator_inited) {
         slab_allocator_predefined_allocators_free();
@@ -392,6 +406,9 @@ void program_cleanup(
     if (program_context->config) {
         config_free(program_context->config);
     }
+
+    log_sink_registered_free();
+    sentry_support_shutdown();
 }
 
 int program_main(
@@ -408,6 +425,8 @@ int program_main(
     if ((program_context.config = program_parse_arguments_and_load_config(argc, argv)) == NULL) {
         return 1;
     }
+
+    program_setup_sentry(program_context);
 
     if (program_config_thread_affinity_set_selected_cpus(&program_context) == false) {
         LOG_E(TAG, "Unable to setup cpu affinity");
