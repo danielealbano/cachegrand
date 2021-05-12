@@ -13,7 +13,7 @@ set(LIBCYAML_INCLUDE_PATH "${LIBCYAML_SRC_PATH}/include")
 ExternalProject_Add(
         cyaml
         GIT_REPOSITORY    https://github.com/tlsa/libcyaml.git
-        GIT_TAG           6d131e1a464773e3ee1931337e2f9335cb088d83
+        GIT_TAG           227bbe04581541d8e97b7306a81c05fa2894841b # tag v1.2.0
         PREFIX ${CMAKE_BINARY_DIR}/_deps
         CONFIGURE_COMMAND ""
         BUILD_COMMAND
