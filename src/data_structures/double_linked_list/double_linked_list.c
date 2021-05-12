@@ -221,7 +221,7 @@ void double_linked_list_move_item_to_head(
     if (item_prev != NULL) {
         item_prev->next = item_next;
     }
-    if (item_next) {
+    if (item_next != NULL) {
         item_next->prev = item_prev;
     }
 }
