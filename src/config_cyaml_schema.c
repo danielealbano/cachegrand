@@ -27,9 +27,6 @@ const cyaml_schema_field_t config_network_protocol_binding_schema[] = {
 // Schema for config -> network -> protocols -> protocol-> timeout
 const cyaml_schema_field_t config_network_protocol_timeout_schema[] = {
         CYAML_FIELD_UINT(
-                "connection", CYAML_FLAG_DEFAULT,
-                config_network_protocol_timeout_t, connection),
-        CYAML_FIELD_UINT(
                 "read", CYAML_FLAG_DEFAULT,
                 config_network_protocol_timeout_t, read),
         CYAML_FIELD_UINT(
