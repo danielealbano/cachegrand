@@ -106,9 +106,9 @@ worker_user_data_t* program_workers_initialize(
     worker_user_data_t *workers_user_data;
 
     void *(*worker_thread_func) (void *);
-    switch(program_context->config->worker_type) {
+    switch(program_context->config->network->backend) {
         default:
-        case CONFIG_WORKER_TYPE_IO_URING:
+        case CONFIG_NETWORK_BACKEND_IO_URING:
             worker_thread_func = worker_iouring_thread_func;
     }
 
@@ -359,7 +359,7 @@ bool program_config_setup_hashtable(
         program_context_t* program_context) {
     hashtable_config_t* hashtable_config = hashtable_mcmp_config_init();
     hashtable_config->can_auto_resize = false;
-    hashtable_config->initial_size = pow2_next(program_context->config->memory_max_keys);
+    hashtable_config->initial_size = pow2_next(program_context->config->database->max_keys);
 
     program_context->hashtable = hashtable_mcmp_init(hashtable_config);
 

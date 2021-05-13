@@ -151,62 +151,106 @@ void test_config_fixture_file_from_data_cleanup(
 
 std::string test_config_correct_all_fields_yaml_data =
         R"EOF(
-worker_type: io_uring
+# Set cpu pinning, accepted values:
+# - cpu number, starting from 0 (ie. 0, 1, 2)
+# - cpu range, starting from 0 (ie. 2-12)
+# - all, will use all the available cpus
 cpus:
   - all
+
+# Suggested 2 thread per cpu, depending on the hardware up to 4 threads will still scale well
+# The number of workers that will be started will be n. cpus * threads_per_count
 workers_per_cpus: 2
 
 run_in_foreground: false
+
 pidfile_path: /var/run/cachegrand.pid
-use_slab_allocator: true
 
-network_max_clients: 0
-network_listen_backlog: 0
-storage_max_partition_size_mb: 0
-memory_max_keys: 0
+# The slab allocator requires huge pages
+use_slab_allocator: false
 
-protocols:
-  - type: redis
-    timeout:
-      connection: 2000
-      read: 2000
-      write: 2000
-      inactivity: 10000
-    keepalive:
-      time: 0
-      interval: 0
-      probes: 0
-    redis:
-      max_key_length: 8192
-      max_command_length: 0
-    bindings:
-      - host: 0.0.0.0
-        port: 12345
+network:
+  backend: io_uring
+  max_clients: 10000
+  listen_backlog: 100
+
+  protocols:
+    - type: redis
+      timeout:
+        connection: 2000
+        read: 2000
+        write: 2000
+        inactivity: 2000
+      keepalive:
+        time: 0
+        interval: 0
+        probes: 0
+      redis:
+        max_key_length: 8192
+        max_command_length: 1048576
+      bindings:
+        - host: 0.0.0.0
+          port: 6379
+        - host: "::"
+          port: 6379
+
+storage:
+  backend: memory
+  max_shard_size_mb: 0
+
+database:
+  max_keys: 10000
+
+# The sentry.io service is used to automatically collect minidumps in case of crashes, it doesn't
+# store them after that they are processed but be aware that minidumps will contain memory regions
+# used by cachegrand and therefore may they may also contain cached data!
+# To avoid accidental/unwanted uploads, by default the dsn is not set to avoid accidental/unwanted
+# uploads, if you want to provide crash data without having to attach it to a github issue simply
+# set the dsn parameter, or the SENTRY_DSN env variable, to
+# https://05dd54814d8149cab65ba2987d560340@o590814.ingest.sentry.io/5740234
+sentry:
+  enable: true
+  # dsn: "https://05dd54814d8149cab65ba2987d560340@o590814.ingest.sentry.io/5740234"
+
+# LOGS
+# ---
+# type:     console or file
+# level:    array of flags: debug, verbose, info, warning, recoverable, error
+#           it's possible to negate a flag prefixing it with no- (ie. no-debug), it is also
+#           possible to select all the flags using the keyword all
+#
+# For type file
+# file:
+#   path:   path to the log file
 
 logs:
   - type: console
-    level: [ warning, error ]
+    # Print to the console errors, warnings and informational messages
+    level: [ all, no-verbose, no-debug]
+
+    # or print everything
+    # level: [ all ]
 
   - type: file
-    level: [ all, no-verbose ]
+    level: [ all, no-verbose, no-debug ]
     file:
       path: /var/log/cachegrand.log
 )EOF";
 
 std::string test_config_broken_missing_field_yaml_data =
         R"EOF(
-worker_type: io_uring
-
+network:
+  backend: io_uring
 )EOF";
 
 std::string test_config_broken_unknown_field_yaml_data =
         R"EOF(
-unknown_field: io_uring
+unknown_field: unknown_value
 )EOF";
 
-uint16_t max_cpu_count = 8;
 uint16_t max_cpu_count_high = 8;
 uint16_t max_cpu_count_low = 4;
+uint16_t max_cpu_count = max_cpu_count_high;
 uint16_t* cpus_map = NULL;
 uint16_t cpus_map_count;
 
@@ -285,11 +329,11 @@ TEST_CASE("config.c", "[config]") {
                     NULL);
 
             REQUIRE(config != NULL);
-            REQUIRE(config->worker_type == CONFIG_WORKER_TYPE_IO_URING);
+            REQUIRE(config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING);
+            REQUIRE(config->network->protocols_count == 1);
             REQUIRE(config->cpus_count == 1);
             REQUIRE(config->use_slab_allocator != NULL);
-            REQUIRE(*config->use_slab_allocator == true);
-            REQUIRE(config->protocols_count == 1);
+            REQUIRE(*config->use_slab_allocator == false);
             REQUIRE(config->logs_count == 2);
             REQUIRE(cyaml_logger_context.data == NULL);
             REQUIRE(cyaml_logger_context.data_length == 0);
@@ -300,8 +344,7 @@ TEST_CASE("config.c", "[config]") {
 
         SECTION("broken - missing field") {
             const char* str_cmp =
-                    "Load: Missing required mapping field: workers_per_cpus\nLoad: Backtrace:\n  in mapping field 'worker_type' (line: 2, column: 14)\n";
-
+                "Load: Missing required mapping field: max_clients\nLoad: Backtrace:\n  in mapping field 'backend' (line: 3, column: 12)\n  in mapping field 'network' (line: 3, column: 3)\n";
             err = cyaml_load_data(
                     (const uint8_t *)(test_config_broken_missing_field_yaml_data.c_str()),
                     test_config_broken_missing_field_yaml_data.length(),
@@ -354,9 +397,9 @@ TEST_CASE("config.c", "[config]") {
                     });
 
             REQUIRE(config != NULL);
-            REQUIRE(config->worker_type == CONFIG_WORKER_TYPE_IO_URING);
+            REQUIRE(config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING);
+            REQUIRE(config->network->protocols_count == 1);
             REQUIRE(config->cpus_count == 1);
-            REQUIRE(config->protocols_count == 1);
             REQUIRE(config->logs_count == 2);
             REQUIRE(cyaml_logger_context.data == NULL);
             REQUIRE(cyaml_logger_context.data_length == 0);
@@ -367,7 +410,7 @@ TEST_CASE("config.c", "[config]") {
 
         SECTION("broken - missing field") {
             const char* str_cmp =
-                    "Load: Missing required mapping field: workers_per_cpus\nLoad: Backtrace:\n  in mapping field 'worker_type' (line: 2, column: 14)\n";
+                    "Load: Missing required mapping field: max_clients\nLoad: Backtrace:\n  in mapping field 'backend' (line: 3, column: 12)\n  in mapping field 'network' (line: 3, column: 3)\n";
 
             TEST_CONFIG_FIXTURE_FILE_FROM_DATA(
                     test_config_broken_missing_field_yaml_data.c_str(),
@@ -425,9 +468,9 @@ TEST_CASE("config.c", "[config]") {
                     });
 
             REQUIRE(config != NULL);
-            REQUIRE(config->worker_type == CONFIG_WORKER_TYPE_IO_URING);
+            REQUIRE(config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING);
+            REQUIRE(config->network->protocols_count == 1);
             REQUIRE(config->cpus_count == 1);
-            REQUIRE(config->protocols_count == 1);
             REQUIRE(config->logs_count == 2);
             REQUIRE(cyaml_logger_context.data == NULL);
             REQUIRE(cyaml_logger_context.data_length == 0);

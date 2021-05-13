@@ -50,24 +50,36 @@ void* test_program_wait_loop_terminate(
 
 #define PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345(...) { \
      char* cpus[] = { "0" }; \
-    config_protocol_binding_t config_protocol_binding = { \
+    config_network_protocol_binding_t config_network_protocol_binding = { \
             .host = "127.0.0.1", \
             .port = 12345, \
     }; \
-    config_protocol_t config_protocol = { \
+    config_network_protocol_t config_network_protocol = { \
             .type = CONFIG_PROTOCOL_TYPE_REDIS, \
-            .bindings = &config_protocol_binding, \
+            .bindings = &config_network_protocol_binding, \
             .bindings_count = 1, \
     }; \
+    config_network_t config_network = { \
+            .backend = CONFIG_NETWORK_BACKEND_IO_URING,         \
+            .max_clients = 10, \
+            .listen_backlog = 10, \
+            .protocols = &config_network_protocol, \
+            .protocols_count = 1, \
+    }; \
+    config_storage_t config_storage = { \
+            .backend = CONFIG_STORAGE_BACKEND_MEMORY, \
+            .max_shard_size_mb = 50, \
+    }; \
+    config_database_t config_database = { \
+            .max_keys = 1000, \
+    }; \
     config_t config = { \
-            .worker_type = CONFIG_WORKER_TYPE_IO_URING, \
             .cpus = cpus, \
             .cpus_count = 1, \
             .workers_per_cpus = 1, \
-            .network_max_clients = 10, \
-            .network_listen_backlog = 10, \
-            .protocols = &config_protocol, \
-            .protocols_count = 1, \
+            .network = &config_network, \
+            .storage = &config_storage, \
+            .database = &config_database, \
     }; \
     program_context_t program_context = { \
             .config = &config \
@@ -277,8 +289,8 @@ TEST_CASE("program.c", "[program]") {
             int clientfd = network_io_common_socket_tcp4_new(0);
 
             address.sin_family = AF_INET;
-            address.sin_port = htons(config_protocol_binding.port);
-            address.sin_addr.s_addr = inet_addr(config_protocol_binding.host);
+            address.sin_port = htons(config_network_protocol_binding.port);
+            address.sin_addr.s_addr = inet_addr(config_network_protocol_binding.host);
             snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$4\r\nPING\r\n");
             buffer_send_data_len = strlen(buffer_send);
 

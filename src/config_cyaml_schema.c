@@ -10,100 +10,158 @@ const cyaml_schema_value_t config_generic_string_schema = {
 };
 
 /**
- * CONFIG -> PROTOCOLS schemas
+ * CONFIG -> NETWORK -> PROTOCOLS schemas
  */
 
-// Schema for config -> protocols -> protocol-> bindings -> binding
-const cyaml_schema_field_t config_protocol_binding_schema[] = {
+// Schema for config -> network -> protocols -> protocol-> bindings -> binding
+const cyaml_schema_field_t config_network_protocol_binding_schema[] = {
         CYAML_FIELD_STRING_PTR(
                 "host", CYAML_FLAG_POINTER,
-                config_protocol_binding_t, host, 0, CYAML_UNLIMITED),
+                config_network_protocol_binding_t, host, 0, CYAML_UNLIMITED),
         CYAML_FIELD_UINT(
                 "port", CYAML_FLAG_DEFAULT,
-                config_protocol_binding_t, port),
+                config_network_protocol_binding_t, port),
         CYAML_FIELD_END
 };
 
-// Schema for config -> protocols -> protocol-> timeout
-const cyaml_schema_field_t config_protocol_timeout_schema[] = {
+// Schema for config -> network -> protocols -> protocol-> timeout
+const cyaml_schema_field_t config_network_protocol_timeout_schema[] = {
         CYAML_FIELD_UINT(
                 "connection", CYAML_FLAG_DEFAULT,
-                config_protocol_timeout_t, connection),
+                config_network_protocol_timeout_t, connection),
         CYAML_FIELD_UINT(
                 "read", CYAML_FLAG_DEFAULT,
-                config_protocol_timeout_t, read),
+                config_network_protocol_timeout_t, read),
         CYAML_FIELD_UINT(
                 "write", CYAML_FLAG_DEFAULT,
-                config_protocol_timeout_t, write),
+                config_network_protocol_timeout_t, write),
         CYAML_FIELD_UINT(
                 "inactivity", CYAML_FLAG_DEFAULT,
-                config_protocol_timeout_t, inactivity),
+                config_network_protocol_timeout_t, inactivity),
         CYAML_FIELD_END
 };
 
-// Schema for config -> protocols -> protocol-> keepalive
-const cyaml_schema_field_t config_protocol_keepalive_schema[] = {
+// Schema for config -> network -> protocols -> protocol-> keepalive
+const cyaml_schema_field_t config_network_protocol_keepalive_schema[] = {
         CYAML_FIELD_UINT(
                 "time", CYAML_FLAG_DEFAULT,
-                config_protocol_keepalive_t, time),
+                config_network_protocol_keepalive_t, time),
         CYAML_FIELD_UINT(
                 "interval", CYAML_FLAG_DEFAULT,
-                config_protocol_keepalive_t, interval),
+                config_network_protocol_keepalive_t, interval),
         CYAML_FIELD_UINT(
                 "probes", CYAML_FLAG_DEFAULT,
-                config_protocol_keepalive_t, probes),
+                config_network_protocol_keepalive_t, probes),
         CYAML_FIELD_END
 };
 
-// Schema for config -> protocols -> protocol-> redis
-const cyaml_schema_field_t config_protocol_redis_schema[] = {
+// Schema for config -> network -> protocols -> protocol-> redis
+const cyaml_schema_field_t config_network_protocol_redis_schema[] = {
         CYAML_FIELD_UINT(
                 "max_key_length", CYAML_FLAG_DEFAULT,
-                config_protocol_redis_t, max_key_length),
+                config_network_protocol_redis_t, max_key_length),
         CYAML_FIELD_UINT(
                 "max_command_length", CYAML_FLAG_DEFAULT,
-                config_protocol_redis_t, max_command_length),
+                config_network_protocol_redis_t, max_command_length),
         CYAML_FIELD_END
 };
 
-// Allowed strings for for config -> protocols -> protocol-> type (config_protocol_type_t)
-const cyaml_strval_t config_protocol_type_schema_strings[] = {
+// Allowed strings for for config -> network -> protocols -> protocol-> type (config_network_protocol_type_t)
+const cyaml_strval_t config_network_protocol_type_schema_strings[] = {
         { "redis", CONFIG_PROTOCOL_TYPE_REDIS },
 };
 
-typedef enum config_protocol_type config_protocol_type_t;
+typedef enum config_network_protocol_type config_network_protocol_type_t;
 
-// Schema for config -> protocols -> protocol-> bindings
+// Schema for config -> network -> protocols -> protocol-> bindings
 const cyaml_schema_value_t config_protocol_binding_list_schema = {
         CYAML_VALUE_MAPPING(CYAML_FLAG_DEFAULT,
-                            config_protocol_binding_t, config_protocol_binding_schema),
+                            config_network_protocol_binding_t, config_network_protocol_binding_schema),
 };
 
-// Schema for config -> protocols -> protocol
-const cyaml_schema_field_t config_protocol_fields_schema[] = {
+// Schema for config -> network -> protocols -> protocol
+const cyaml_schema_field_t config_network_protocol_fields_schema[] = {
         CYAML_FIELD_ENUM(
                 "type", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT,
-                config_protocol_t, type, config_protocol_type_schema_strings,
-                CYAML_ARRAY_LEN(config_protocol_type_schema_strings)),
+                config_network_protocol_t, type, config_network_protocol_type_schema_strings,
+                CYAML_ARRAY_LEN(config_network_protocol_type_schema_strings)),
         CYAML_FIELD_MAPPING_PTR(
                 "timeout", CYAML_FLAG_POINTER,
-                config_protocol_t, timeout, config_protocol_timeout_schema),
+                config_network_protocol_t, timeout, config_network_protocol_timeout_schema),
         CYAML_FIELD_MAPPING_PTR(
                 "keepalive", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
-                config_protocol_t, keepalive, config_protocol_keepalive_schema),
+                config_network_protocol_t, keepalive, config_network_protocol_keepalive_schema),
         CYAML_FIELD_MAPPING_PTR(
                 "redis", CYAML_FLAG_POINTER,
-                config_protocol_t, redis, config_protocol_redis_schema),
+                config_network_protocol_t, redis, config_network_protocol_redis_schema),
         CYAML_FIELD_SEQUENCE(
                 "bindings", CYAML_FLAG_POINTER,
-                config_protocol_t, bindings, &config_protocol_binding_list_schema, 0, CYAML_UNLIMITED),
+                config_network_protocol_t, bindings, &config_protocol_binding_list_schema, 0, CYAML_UNLIMITED),
         CYAML_FIELD_END
 };
 
-// Schema for config -> protocols
-const cyaml_schema_value_t config_protocol_list_schema = {
+// Schema for config -> network -> protocols
+const cyaml_schema_value_t config_network_protocol_list_schema = {
         CYAML_VALUE_MAPPING(CYAML_FLAG_DEFAULT,
-                            config_protocol_t, config_protocol_fields_schema),
+                            config_network_protocol_t, config_network_protocol_fields_schema),
+};
+
+// Allowed strings for for config -> network -> backend
+const cyaml_strval_t config_network_backend_schema_strings[] = {
+        { "io_uring", CONFIG_NETWORK_BACKEND_IO_URING },
+};
+
+// Schema for config -> network
+const cyaml_schema_field_t config_network_schema[] = {
+        CYAML_FIELD_ENUM(
+                "backend", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT,
+                config_network_t, backend, config_network_backend_schema_strings,
+                CYAML_ARRAY_LEN(config_network_backend_schema_strings)),
+        CYAML_FIELD_UINT(
+                "max_clients", CYAML_FLAG_POINTER,
+                config_network_t, max_clients),
+        CYAML_FIELD_UINT(
+                "listen_backlog", CYAML_FLAG_POINTER,
+                config_network_t, listen_backlog),
+        CYAML_FIELD_SEQUENCE(
+                "protocols", CYAML_FLAG_POINTER,
+                config_network_t, protocols,
+                &config_network_protocol_list_schema, 1, CYAML_UNLIMITED),
+        CYAML_FIELD_END
+};
+
+/**
+ * CONFIG -> STORAGE schema
+ */
+
+// Allowed strings for for config -> storage -> backend
+const cyaml_strval_t config_storage_backend_schema_strings[] = {
+        { "memory", CONFIG_STORAGE_BACKEND_MEMORY },
+        { "io_uring", CONFIG_STORAGE_BACKEND_IO_URING },
+};
+
+// Schema for config -> storage
+const cyaml_schema_field_t config_storage_schema[] = {
+        CYAML_FIELD_ENUM(
+                "backend", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT,
+                config_storage_t, backend, config_storage_backend_schema_strings,
+                CYAML_ARRAY_LEN(config_storage_backend_schema_strings)),
+        CYAML_FIELD_UINT(
+                "max_shard_size_mb", CYAML_FLAG_POINTER,
+                config_storage_t, max_shard_size_mb),
+        CYAML_FIELD_END
+};
+
+/**
+ * CONFIG -> database schema
+ */
+
+// Schema for config -> storage
+const cyaml_schema_field_t config_database_schema[] = {
+        CYAML_FIELD_UINT(
+                "max_keys", CYAML_FLAG_POINTER,
+                config_database_t, max_keys),
+        CYAML_FIELD_END
 };
 
 /**
@@ -185,17 +243,8 @@ const cyaml_schema_field_t config_sentry_schema[] = {
  * CONFIG schema
  */
 
-// Allowed strings for for config -> worker_type
-const cyaml_strval_t config_worker_type_schema_strings[] = {
-        { "io_uring", CONFIG_WORKER_TYPE_IO_URING },
-};
-
 // Schema for config
 const cyaml_schema_field_t config_fields_schema[] = {
-        CYAML_FIELD_ENUM(
-                "worker_type", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT,
-                config_t, worker_type, config_worker_type_schema_strings,
-                CYAML_ARRAY_LEN(config_worker_type_schema_strings)),
         CYAML_FIELD_SEQUENCE(
                 "cpus", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
                 config_t, cpus,
@@ -214,31 +263,23 @@ const cyaml_schema_field_t config_fields_schema[] = {
                 "use_slab_allocator", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
                 config_t, use_slab_allocator),
 
-        CYAML_FIELD_UINT(
-                "network_max_clients", CYAML_FLAG_POINTER,
-                config_t, network_max_clients),
-        CYAML_FIELD_UINT(
-                "network_listen_backlog", CYAML_FLAG_POINTER,
-                config_t, network_listen_backlog),
-        CYAML_FIELD_UINT(
-                "storage_max_partition_size_mb", CYAML_FLAG_POINTER,
-                config_t, storage_max_partition_size_mb),
-        CYAML_FIELD_UINT(
-                "memory_max_keys", CYAML_FLAG_POINTER,
-                config_t, memory_max_keys),
+        CYAML_FIELD_MAPPING_PTR(
+                "network", CYAML_FLAG_POINTER,
+                config_t, network, config_network_schema),
+        CYAML_FIELD_MAPPING_PTR(
+                "database", CYAML_FLAG_POINTER,
+                config_t, database, config_database_schema),
+        CYAML_FIELD_MAPPING_PTR(
+                "storage", CYAML_FLAG_POINTER,
+                config_t, storage, config_storage_schema),
+        CYAML_FIELD_MAPPING_PTR(
+                "sentry", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_t, sentry, config_sentry_schema),
 
-        CYAML_FIELD_SEQUENCE(
-                "protocols", CYAML_FLAG_POINTER,
-                config_t, protocols,
-                &config_protocol_list_schema, 1, CYAML_UNLIMITED),
         CYAML_FIELD_SEQUENCE(
                 "logs", CYAML_FLAG_POINTER,
                 config_t, logs,
                 &config_log_list_schema, 1, CYAML_UNLIMITED),
-
-        CYAML_FIELD_MAPPING_PTR(
-                "sentry", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
-                config_t, sentry, config_sentry_schema),
 
         CYAML_FIELD_END
 };

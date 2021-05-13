@@ -5,10 +5,10 @@
 extern "C" {
 #endif
 
-enum config_protocol_type {
+enum config_network_protocol_type {
     CONFIG_PROTOCOL_TYPE_REDIS,
 };
-typedef enum config_protocol_type config_protocol_type_t;
+typedef enum config_network_protocol_type config_network_protocol_type_t;
 
 enum config_log_type {
     CONFIG_LOG_TYPE_CONSOLE,
@@ -38,47 +38,47 @@ enum config_log_level {
 };
 typedef enum config_log_level config_log_level_t;
 
-enum config_worker_type {
-    CONFIG_WORKER_TYPE_IO_URING,
+enum config_network_backend {
+    CONFIG_NETWORK_BACKEND_IO_URING,
 };
-typedef enum config_worker_type config_worker_type_t;
+typedef enum config_network_backend config_network_backend_t;
 
-typedef struct config_protocol_binding config_protocol_binding_t;
-struct config_protocol_binding {
+typedef struct config_network_protocol_binding config_network_protocol_binding_t;
+struct config_network_protocol_binding {
     char* host;
     uint16_t port;
 };
 
-typedef struct config_protocol_timeout config_protocol_timeout_t;
-struct config_protocol_timeout {
+typedef struct config_network_protocol_timeout config_network_protocol_timeout_t;
+struct config_network_protocol_timeout {
     uint32_t connection;
     uint32_t read;
     uint32_t write;
     uint32_t inactivity;
 };
 
-typedef struct config_protocol_keepalive config_protocol_keepalive_t;
-struct config_protocol_keepalive {
+typedef struct config_network_protocol_keepalive config_network_protocol_keepalive_t;
+struct config_network_protocol_keepalive {
     uint32_t time;
     uint32_t interval;
     uint32_t probes;
 };
 
-typedef struct config_protocol_redis config_protocol_redis_t;
-struct config_protocol_redis {
+typedef struct config_network_protocol_redis config_network_protocol_redis_t;
+struct config_network_protocol_redis {
     uint32_t max_key_length;
     uint32_t max_command_length;
 };
 
-typedef struct config_protocol config_protocol_t;
-struct config_protocol {
-    config_protocol_type_t type;
-    config_protocol_timeout_t* timeout;
-    config_protocol_keepalive_t* keepalive;
+typedef struct config_network_protocol config_network_protocol_t;
+struct config_network_protocol {
+    config_network_protocol_type_t type;
+    config_network_protocol_timeout_t* timeout;
+    config_network_protocol_keepalive_t* keepalive;
 
-    config_protocol_redis_t* redis;
+    config_network_protocol_redis_t* redis;
 
-    config_protocol_binding_t* bindings;
+    config_network_protocol_binding_t* bindings;
     unsigned bindings_count;
 };
 
@@ -101,11 +101,40 @@ struct config_sentry {
     char* dsn;
 };
 
-// Do not remove the macro below as they are use to "tag" the struct in a special so that the build process can identify
-// the settings and produce a dynamic loader for the config.
+typedef struct config_network config_network_t;
+struct config_network {
+    config_network_backend_t backend;
+    uint32_t max_clients;
+    uint32_t listen_backlog;
+
+    config_network_protocol_t* protocols;
+    uint8_t protocols_count;
+};
+
+enum config_storage_backend {
+    CONFIG_STORAGE_BACKEND_MEMORY,
+    CONFIG_STORAGE_BACKEND_IO_URING,
+};
+typedef enum config_storage_backend config_storage_backend_t;
+
+typedef struct config_storage config_storage_t;
+struct config_storage {
+    config_storage_backend_t backend;
+    uint32_t max_shard_size_mb;
+    union {
+        struct {
+            char* path;
+        } io_uring;
+    };
+};
+
+typedef struct config_database config_database_t;
+struct config_database {
+    uint32_t max_keys;
+};
+
 typedef struct config config_t;
 struct config {
-    config_worker_type_t worker_type;
     char** cpus;
     unsigned cpus_count;
     uint32_t workers_per_cpus;
@@ -113,18 +142,13 @@ struct config {
     char* pidfile_path;
     bool* use_slab_allocator;
 
-    uint32_t network_max_clients;
-    uint32_t network_listen_backlog;
-    uint32_t storage_max_partition_size_mb;
-    uint32_t memory_max_keys;
-
-    config_protocol_t* protocols;
-    uint8_t protocols_count;
+    config_network_t* network;
+    config_storage_t* storage;
+    config_database_t* database;
+    config_sentry_t* sentry;
 
     config_log_t* logs;
     uint8_t logs_count;
-
-    config_sentry_t* sentry;
 };
 
 enum config_cpus_validate_error {

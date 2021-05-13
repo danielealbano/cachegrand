@@ -241,26 +241,26 @@ void worker_iouring_network_listeners_initialize(
 
     config_t *config = worker_user_data->config;
 
-    for(int protocol_index = 0; protocol_index < config->protocols_count; protocol_index++) {
+    for(int protocol_index = 0; protocol_index < config->network->protocols_count; protocol_index++) {
         network_protocols_t network_protocol;
 
-        config_protocol_t *config_protocol = config->protocols;
-        switch(config_protocol->type) {
+        config_network_protocol_t *config_network_protocol = &config->network->protocols[protocol_index];
+        switch(config_network_protocol->type) {
             default:
             case CONFIG_PROTOCOL_TYPE_REDIS:
                 network_protocol = NETWORK_PROTOCOLS_REDIS;
         }
 
-        for(int binding_index = 0; binding_index < config_protocol->bindings_count; binding_index++) {
+        for(int binding_index = 0; binding_index < config_network_protocol->bindings_count; binding_index++) {
             if (network_channel_listener_new(
-                    config_protocol->bindings[binding_index].host,
-                    config_protocol->bindings[binding_index].port,
+                    config_network_protocol->bindings[binding_index].host,
+                    config_network_protocol->bindings[binding_index].port,
                     network_protocol,
                     listener_new_cb_user_data) == false) {
 
                 LOG_E(TAG, "Unable to setup listener for <%s:%u> with protocol <%d>",
-                      config_protocol->bindings[binding_index].host,
-                      config_protocol->bindings[binding_index].port,
+                      config_network_protocol->bindings[binding_index].host,
+                      config_network_protocol->bindings[binding_index].port,
                       network_protocol);
             }
         }
@@ -912,7 +912,7 @@ void* worker_iouring_thread_func(
     LOG_I(TAG, "Worker starting");
 
     LOG_V(TAG, "Initializing listeners");
-    listener_new_cb_user_data.backlog = worker_user_data->config->network_listen_backlog;
+    listener_new_cb_user_data.backlog = worker_user_data->config->network->listen_backlog;
     listener_new_cb_user_data.core_index = worker_user_data->core_index;
     worker_iouring_network_listeners_initialize(
             worker_user_data,
@@ -948,7 +948,7 @@ void* worker_iouring_thread_func(
     ring = worker_iouring_initialize_iouring(
             worker_user_data->workers_count,
             worker_user_data->core_index,
-            worker_user_data->config->network_max_clients,
+            worker_user_data->config->network->max_clients,
             listener_new_cb_user_data.listeners_count);
 
     if (ring == NULL) {
