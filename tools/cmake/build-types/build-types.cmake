@@ -1,8 +1,8 @@
 include(CheckPIESupported)
 check_pie_supported()
 
-add_compile_options($<$<COMPILE_LANGUAGE:C>:-g>)
-add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-g>)
+add_compile_options($<$<COMPILE_LANGUAGE:C>:-ggdb3>)
+add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-ggdb3>)
 
 if (CMAKE_BUILD_TYPE MATCHES Debug)
     set(CMAKE_VERBOSE_MAKEFILE ON)
