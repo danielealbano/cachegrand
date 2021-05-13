@@ -103,6 +103,7 @@ bool network_protocol_redis_recv(
                 } else if (protocol_context->command_info->being_funcptr) {
                     if ((send_buffer_start = protocol_context->command_info->being_funcptr(
                             network_channel_user_data,
+                            protocol_context,
                             reader_context,
                             &protocol_context->command_context,
                             send_buffer_start,
@@ -125,6 +126,7 @@ bool network_protocol_redis_recv(
                     if (protocol_context->command_info->argument_processed_funcptr) {
                         if ((send_buffer_start = protocol_context->command_info->argument_processed_funcptr(
                                 network_channel_user_data,
+                                protocol_context,
                                 reader_context,
                                 &protocol_context->command_context,
                                 send_buffer_start,
@@ -208,6 +210,7 @@ bool network_protocol_redis_recv(
 
                     if ((send_buffer_start = protocol_context->command_info->end_funcptr(
                             network_channel_user_data,
+                            protocol_context,
                             reader_context,
                             &protocol_context->command_context,
                             send_buffer_start,

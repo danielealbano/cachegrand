@@ -111,6 +111,7 @@ struct network_protocol_redis_command_info {
 };
 
 struct network_protocol_redis_context {
+    protocol_redis_resp_version_t resp_version;
     protocol_redis_reader_context_t *reader_context;
     network_protocol_redis_commands_t command;
     network_protocol_redis_command_info_t *command_info;
