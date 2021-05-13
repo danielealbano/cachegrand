@@ -56,7 +56,7 @@ bool worker_fds_map_files_update(
         network_io_common_fd_t fd) {
     bool ret;
 
-    assert(fd != -1);
+    assert(fd >= 0);
 
     fds_map[index] = fd;
 
@@ -72,15 +72,12 @@ bool worker_fds_map_files_update(
             io_uring_sqe_set_flags(sqe, IOSQE_IO_LINK);
             sqe->user_data = (uintptr_t)iouring_userdata_new;
 
-            assert(fds_map[index] != -1);
-
             ret = true;
         } else {
             ret = false;
         }
     } else {
         ret = io_uring_register_files_update(ring, index, &fds_map[index], 1) == 1;
-        assert(fds_map[index] != -1);
     }
 
     if (!ret) {
@@ -123,8 +120,6 @@ int32_t worker_fds_map_add_and_enqueue_files_update(
     if ((index = worker_fds_map_find_free_index()) < 0) {
         return -1;
     }
-
-    assert(index != -1);
 
     LOG_D(
             TAG,
@@ -357,7 +352,6 @@ bool worker_iouring_process_op_files_update(
 
     if (cqe->res < 0) {
         fds_map[iouring_userdata_current->mapped_fd] = WORKER_FDS_MAP_EMPTY;
-        assert(fds_map[iouring_userdata_current->mapped_fd] != -1);
     }
 
     network_channel_iouring_entry_user_data_free(iouring_userdata_current);
