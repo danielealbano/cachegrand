@@ -35,6 +35,7 @@ RUN apt update -y \
         libssl1.1 libssl-dev \
         libnuma1 libnuma-dev \
         libyaml-0-2 libyaml-dev \
+        libcurl4-openssl-dev libcurl4 \
         lcov gcovr \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
