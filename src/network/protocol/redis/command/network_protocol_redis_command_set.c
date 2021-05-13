@@ -26,9 +26,7 @@
 
 #define TAG "network_protocol_redis_command_get"
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_BEGIN(set, {})
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_ARGUMENT_PROCESSED(set, {})
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(set, {
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
     // TODO: just an hack, the storage system is missing
     void* memptr_start, *memptr;
     memptr_start = memptr = xalloc_alloc(sizeof(size_t) + reader_context->arguments.list[2].length);
@@ -47,18 +45,20 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(set, {
         xalloc_free(memptr);
     }
 
-    NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR({
-        if (res) {
-            send_buffer_start = protocol_redis_writer_write_blob_string(
-                send_buffer_start,
-                send_buffer_end - send_buffer_start,
-                "OK",
-                2);
-        } else {
-            send_buffer_start = protocol_redis_writer_write_simple_error_printf(
-                send_buffer_start,
-                send_buffer_end - send_buffer_start,
-                "ERR set failed");
-        }
-    })
-})
+    if (res) {
+        send_buffer_start = protocol_redis_writer_write_blob_string(
+            send_buffer_start,
+            send_buffer_end - send_buffer_start,
+            "OK",
+            2);
+    } else {
+        send_buffer_start = protocol_redis_writer_write_simple_error_printf(
+            send_buffer_start,
+            send_buffer_end - send_buffer_start,
+            "ERR set failed");
+    }
+
+    NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR()
+
+    return send_buffer_start;
+}

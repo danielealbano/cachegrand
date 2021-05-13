@@ -25,9 +25,7 @@
 
 #define TAG "network_protocol_redis_command_get"
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_BEGIN(get, {})
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_ARGUMENT_PROCESSED(get, {})
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(get, {
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
     // TODO: just an hack, the storage system is missing
     size_t *value_length;
     uintptr_t memptr = 0;
@@ -43,23 +41,25 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(get, {
         memptr += sizeof(size_t);
     }
 
-    NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR({
-        if (res) {
-            send_buffer_start = protocol_redis_writer_write_blob_string(
+    if (res) {
+        send_buffer_start = protocol_redis_writer_write_blob_string(
+                send_buffer_start,
+                send_buffer_end - send_buffer_start,
+                (char*)memptr,
+                *value_length);
+    } else {
+        if (protocol_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2) {
+            send_buffer_start = protocol_redis_writer_write_blob_string_null(
                     send_buffer_start,
-                    send_buffer_end - send_buffer_start,
-                    (char*)memptr,
-                    *value_length);
+                    send_buffer_end - send_buffer_start);
         } else {
-            if (reader_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2) {
-                send_buffer_start = protocol_redis_writer_write_blob_string_null(
-                        send_buffer_start,
-                        send_buffer_end - send_buffer_start);
-            } else {
-                send_buffer_start = protocol_redis_writer_write_null(
-                        send_buffer_start,
-                        send_buffer_end - send_buffer_start);
-            }
+            send_buffer_start = protocol_redis_writer_write_null(
+                    send_buffer_start,
+                    send_buffer_end - send_buffer_start);
         }
-    })
-})
+    }
+
+    NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR()
+
+    return send_buffer_start;
+}

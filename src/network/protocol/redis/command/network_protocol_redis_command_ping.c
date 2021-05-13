@@ -24,14 +24,14 @@
 
 #define TAG "network_protocol_redis_command_ping"
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_BEGIN(ping, {})
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_ARGUMENT_PROCESSED(ping, {})
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(ping, {
-    NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR({
-        send_buffer_start = protocol_redis_writer_write_blob_string(
-                send_buffer_start,
-                send_buffer_end - send_buffer_start,
-                "PONG",
-                4);
-    })
-})
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(ping) {
+    send_buffer_start = protocol_redis_writer_write_blob_string(
+            send_buffer_start,
+            send_buffer_end - send_buffer_start,
+            "PONG",
+            4);
+
+    NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR()
+
+    return send_buffer_start;
+}

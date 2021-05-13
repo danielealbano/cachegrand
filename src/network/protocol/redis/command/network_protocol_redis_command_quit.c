@@ -24,15 +24,16 @@
 
 #define TAG "network_protocol_redis_command_quit"
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_BEGIN(quit, {})
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_ARGUMENT_PROCESSED(quit, {})
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNC_END(quit, {
-    NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR({
-        send_buffer_start = protocol_redis_writer_write_blob_string(
-                send_buffer_start,
-                send_buffer_end - send_buffer_start,
-                "OK",
-                4);
-        network_channel_user_data->close_connection_on_send = true;
-    })
-})
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(quit) {
+    send_buffer_start = protocol_redis_writer_write_blob_string(
+            send_buffer_start,
+            send_buffer_end - send_buffer_start,
+            "OK",
+            2);
+
+    network_channel_user_data->close_connection_on_send = true;
+
+    NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR()
+
+    return send_buffer_start;
+}

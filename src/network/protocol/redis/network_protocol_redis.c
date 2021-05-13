@@ -26,11 +26,12 @@
 #define TAG "network_protocol_redis"
 
 network_protocol_redis_command_info_t command_infos_map[] = {
-        NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(HELLO, "HELLO", hello, 0),
-        NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(PING, "PING", ping, 0),
-        NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(QUIT, "QUIT", quit, 0),
-        NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(SET, "SET", set, 2),
-        NETWORK_PROTOCOL_REDIS_COMMAND_INFO_MAP_ITEM(GET, "GET", get, 1),
+        NETWORK_PROTOCOL_REDIS_COMMAND_ONLY_END_FUNCPTR(HELLO, "HELLO", hello, 0),
+        NETWORK_PROTOCOL_REDIS_COMMAND_ONLY_END_FUNCPTR(PING, "PING", ping, 0),
+        NETWORK_PROTOCOL_REDIS_COMMAND_ONLY_END_FUNCPTR(QUIT, "QUIT", quit, 0),
+        NETWORK_PROTOCOL_REDIS_COMMAND_ONLY_END_FUNCPTR(SET, "SET", set, 2),
+        NETWORK_PROTOCOL_REDIS_COMMAND_ONLY_END_FUNCPTR(GET, "GET", get, 1),
+        NETWORK_PROTOCOL_REDIS_COMMAND_ONLY_END_FUNCPTR(DEL, "DEL", del, 1),
 };
 uint32_t command_infos_map_count = sizeof(command_infos_map) / sizeof(network_protocol_redis_command_info_t);
 
