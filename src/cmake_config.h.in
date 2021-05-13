@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#define CACHEGRAND_CMAKE_CONFIG_NAME                            "cachegrand"
 extern const char *CACHEGRAND_CMAKE_CONFIG_VERSION_GIT;
 extern const char *CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME;
 

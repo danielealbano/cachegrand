@@ -5,10 +5,6 @@
 extern "C" {
 #endif
 
-#define PROGRAM_NAME                "cachegrand"
-#define PROGRAM_VERSION             CACHEGRAND_CMAKE_CONFIG_VERSION_GIT
-#define PROGRAM_BUILD_DATE_TIME     CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME
-
 typedef struct program_context program_context_t;
 struct program_context {
     bool use_slab_allocator;
