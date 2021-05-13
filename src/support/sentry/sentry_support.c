@@ -9,12 +9,7 @@
 #include <unistd.h>
 
 #include "exttypes.h"
-#include "spinlock.h"
 #include "log/log.h"
-#include "data_structures/hashtable/mcmp/hashtable.h"
-#include "config.h"
-#include "worker/worker.h"
-#include "program.h"
 #include "xalloc.h"
 #include "signals_support.h"
 
@@ -50,7 +45,7 @@ void sentry_support_init(
         char* dsn) {
     if (data_path == NULL) {
         // Set the data path if it hasn't been set in the config
-        char data_path_temp[] = "/tmp/" PROGRAM_NAME;
+        char data_path_temp[] = "/tmp/" CACHEGRAND_CMAKE_CONFIG_NAME;
         mkdir(data_path_temp, 0700);
         data_path = data_path_temp;
     }
@@ -70,8 +65,8 @@ void sentry_support_init(
             release_str,
             sizeof(release_str),
             "%s@%s",
-            PROGRAM_NAME,
-            PROGRAM_VERSION);
+            CACHEGRAND_CMAKE_CONFIG_NAME,
+            CACHEGRAND_CMAKE_CONFIG_VERSION_GIT);
 
     LOG_I(TAG, "Configuring sentry.io");
     LOG_I(TAG, "> release: %s", release_str);
