@@ -300,7 +300,7 @@ TEST_CASE("config.c", "[config]") {
 
         SECTION("broken - missing field") {
             const char* str_cmp =
-                    "Load: Missing required mapping field: workers_per_cpus\nLoad: Backtrace:\n  in mapping field: worker_type\n";
+                    "Load: Missing required mapping field: workers_per_cpus\nLoad: Backtrace:\n  in mapping field 'worker_type' (line: 2, column: 14)\n";
 
             err = cyaml_load_data(
                     (const uint8_t *)(test_config_broken_missing_field_yaml_data.c_str()),
@@ -320,7 +320,7 @@ TEST_CASE("config.c", "[config]") {
 
         SECTION("broken - unknown field") {
             const char* str_cmp =
-                    "Load: Unexpected key: unknown_field\nLoad: Backtrace:\n  in mapping:\n";
+                    "Load: Unexpected key: unknown_field\nLoad: Backtrace:\n  in mapping (line: 2, column: 1)\n";
 
             err = cyaml_load_data(
                     (const uint8_t *)(test_config_broken_unknown_field_yaml_data.c_str()),
@@ -367,7 +367,7 @@ TEST_CASE("config.c", "[config]") {
 
         SECTION("broken - missing field") {
             const char* str_cmp =
-                    "Load: Missing required mapping field: workers_per_cpus\nLoad: Backtrace:\n  in mapping field: worker_type\n";
+                    "Load: Missing required mapping field: workers_per_cpus\nLoad: Backtrace:\n  in mapping field 'worker_type' (line: 2, column: 14)\n";
 
             TEST_CONFIG_FIXTURE_FILE_FROM_DATA(
                     test_config_broken_missing_field_yaml_data.c_str(),
@@ -391,7 +391,7 @@ TEST_CASE("config.c", "[config]") {
 
         SECTION("broken - unknown field") {
             const char* str_cmp =
-                    "Load: Unexpected key: unknown_field\nLoad: Backtrace:\n  in mapping:\n";
+                    "Load: Unexpected key: unknown_field\nLoad: Backtrace:\n  in mapping (line: 2, column: 1)\n";
 
             TEST_CONFIG_FIXTURE_FILE_FROM_DATA(
                     test_config_broken_unknown_field_yaml_data.c_str(),
