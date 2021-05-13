@@ -215,12 +215,12 @@ General milestones grand-plan:
         - [x] Implement network workers
             - [x] Implement an io_uring-based network worker
         - [x] Implement a redis protocol reader and writer (with pipelining support)
-        - [ ] Implement a basic support for the redis protocol
-            - [ ] GET
-            - [ ] SET
-            - [ ] DEL
-            - [ ] HELLO
-            - [ ] QUIT
+        - [X] Implement a basic support for the redis protocol
+            - [X] GET (basic)
+            - [X] SET
+            - [X] DEL
+            - [X] HELLO
+            - [X] QUIT
             - [x] PING
     - [X] Memory Management
         - [X] Implement a SLAB allocator
