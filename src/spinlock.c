@@ -48,20 +48,6 @@ bool spinlock_is_locked(
 
 bool spinlock_try_lock(
         spinlock_lock_volatile_t *spinlock) {
-#if CACHEGRAND_USE_LOCK_XCHGB == 1
-    char prev;
-
-    // Not really needed to specify the lock prefix here, the register is getting swapped with a memory location and
-    // therefore, by specs, the lock prefix is implicit but better safe than sorry.
-    __asm__ __volatile__(
-        "lock xchgb %b0,%1"
-        :"=q" (prev), "=m" (spinlock->lock)
-        :"0" (SPINLOCK_LOCKED) : "memory");
-
-    return prev != SPINLOCK_LOCKED;
-#else
-    uint8_t expected_value = SPINLOCK_UNLOCKED;
-
 #if DEBUG == 1
     long thread_id = syscall(__NR_gettid);
     uint8_t new_value = thread_id;
@@ -70,7 +56,6 @@ bool spinlock_try_lock(
 #endif
 
     return __sync_bool_compare_and_swap(&spinlock->lock, expected_value, new_value);
-#endif
 }
 
 bool spinlock_lock_internal(
