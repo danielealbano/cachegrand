@@ -17,10 +17,10 @@ extern "C" {
 typedef struct spinlock_lock spinlock_lock_t;
 typedef _Volatile(spinlock_lock_t) spinlock_lock_volatile_t;
 struct spinlock_lock {
-    uint8_volatile_t lock;
 #if DEBUG == 1
-    uint8_t magic;
+    uint16_volatile_t lock;
 #else
+    uint8_volatile_t lock;
     uint8_t padding;
 #endif
     uint16_t predicted_spins;

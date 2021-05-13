@@ -71,10 +71,6 @@ TEST_CASE("spinlock.c", "[spinlock]") {
         spinlock_init(&lock);
 
         REQUIRE(lock.lock == SPINLOCK_UNLOCKED);
-
-#if DEBUG == 1
-        REQUIRE(lock.magic == SPINLOCK_MAGIC);
-#endif
     }
 
     SECTION("spinlock_is_locked") {
@@ -84,10 +80,6 @@ TEST_CASE("spinlock.c", "[spinlock]") {
         lock.lock = SPINLOCK_LOCKED;
 
         REQUIRE(spinlock_is_locked(&lock));
-
-#if DEBUG == 1
-        REQUIRE(lock.magic == SPINLOCK_MAGIC);
-#endif
     }
 
     SECTION("spinlock_try_lock") {
@@ -98,8 +90,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             REQUIRE(spinlock_try_lock(&lock));
 #if DEBUG == 1
             long thread_id = syscall(__NR_gettid);
-            REQUIRE(lock.lock == (uint8_t)thread_id);
-            REQUIRE(lock.magic == SPINLOCK_MAGIC);
+            REQUIRE(lock.lock == (uint16_t)thread_id);
 #else
             REQUIRE(lock.lock == SPINLOCK_LOCKED);
 #endif
@@ -113,10 +104,6 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
             REQUIRE(spinlock_is_locked(&lock));
             REQUIRE(lock.lock == SPINLOCK_LOCKED);
-
-#if DEBUG == 1
-            REQUIRE(lock.magic == SPINLOCK_MAGIC);
-#endif
         }
     }
 
@@ -125,14 +112,12 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             spinlock_lock_t lock = {0};
             spinlock_init(&lock);
 
-            REQUIRE(spinlock_lock(&lock, false));
-            spinlock_unlock(&lock);
-            REQUIRE(lock.lock == SPINLOCK_UNLOCKED);
-        }
-
-        SECTION("unlock - already locked") {
-            spinlock_lock_t lock = {0};
-            spinlock_init(&lock);
+#if DEBUG == 1
+            long thread_id = syscall(__NR_gettid);
+            lock.lock = (uint16_t)thread_id;
+#else
+            lock.lock = SPINLOCK_LOCKED;
+#endif
 
             spinlock_unlock(&lock);
             REQUIRE(lock.lock == SPINLOCK_UNLOCKED);
@@ -148,8 +133,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
 #if DEBUG == 1
             long thread_id = syscall(__NR_gettid);
-            REQUIRE(lock.lock == (uint8_t)thread_id);
-            REQUIRE(lock.magic == SPINLOCK_MAGIC);
+            REQUIRE(lock.lock == (uint16_t)thread_id);
 #else
             REQUIRE(lock.lock == SPINLOCK_LOCKED);
 #endif
@@ -165,8 +149,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
 #if DEBUG == 1
             long thread_id = syscall(__NR_gettid);
-            REQUIRE(lock.lock == (uint8_t)thread_id);
-            REQUIRE(lock.magic == SPINLOCK_MAGIC);
+            REQUIRE(lock.lock == (uint16_t)thread_id);
 #else
             REQUIRE(lock.lock == SPINLOCK_LOCKED);
 #endif
@@ -190,8 +173,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
 #if DEBUG == 1
             long thread_id = syscall(__NR_gettid);
-            REQUIRE(lock.lock == (uint8_t)thread_id);
-            REQUIRE(lock.magic == SPINLOCK_MAGIC);
+            REQUIRE(lock.lock == (uint16_t)thread_id);
 #else
             REQUIRE(lock.lock == SPINLOCK_LOCKED);
 #endif

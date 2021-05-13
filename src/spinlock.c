@@ -23,9 +23,6 @@
 void spinlock_init(
         spinlock_lock_volatile_t* spinlock) {
     spinlock->lock = SPINLOCK_UNLOCKED;
-#if DEBUG == 1
-    spinlock->magic = SPINLOCK_MAGIC;
-#endif
     spinlock->predicted_spins = 0;
 }
 
@@ -33,7 +30,7 @@ void spinlock_unlock(
         spinlock_lock_volatile_t* spinlock) {
 #if DEBUG == 1
     long thread_id = syscall(__NR_gettid);
-    assert(spinlock->lock != thread_id);
+    assert(spinlock->lock == (uint16_t)thread_id);
 #endif
 
     spinlock->lock = SPINLOCK_UNLOCKED;
@@ -50,9 +47,11 @@ bool spinlock_try_lock(
         spinlock_lock_volatile_t *spinlock) {
 #if DEBUG == 1
     long thread_id = syscall(__NR_gettid);
-    uint8_t new_value = thread_id;
+    uint16_t new_value = thread_id;
+    uint16_t expected_value = SPINLOCK_UNLOCKED;
 #else
     uint8_t new_value = SPINLOCK_LOCKED;
+    uint8_t expected_value = SPINLOCK_UNLOCKED;
 #endif
 
     return __sync_bool_compare_and_swap(&spinlock->lock, expected_value, new_value);
