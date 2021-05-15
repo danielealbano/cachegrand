@@ -302,7 +302,7 @@ static void* test_support_build_keys_random_max_length_thread_func(
     LOG_DI("[Thread <%u>] waiting for start_flag", ti->thread_num);
 
     do {
-        HASHTABLE_MEMORY_FENCE_LOAD();
+        MEMORY_FENCE_LOAD();
     } while (*ti->start_flag == 0);
 
     LOG_DI("[Thread <%u>] start_flag == 1", ti->thread_num);
@@ -336,7 +336,7 @@ static void* test_support_build_keys_random_random_length_thread_func(
     LOG_DI("[Thread <%u>] waiting for start_flag", ti->thread_num);
 
     do {
-        HASHTABLE_MEMORY_FENCE_LOAD();
+        MEMORY_FENCE_LOAD();
     } while (*ti->start_flag == 0);
 
     LOG_DI("[Thread <%u>] start_flag == 1", ti->thread_num);
@@ -374,7 +374,7 @@ static void* test_support_build_keys_repeatible_set_min_max_length_thread_func(
     LOG_DI("[Thread <%u>] waiting for start_flag", ti->thread_num);
 
     do {
-        HASHTABLE_MEMORY_FENCE_LOAD();
+        MEMORY_FENCE_LOAD();
     } while (*ti->start_flag == 0);
 
     LOG_DI("[Thread <%u>] start_flag == 1", ti->thread_num);
@@ -578,7 +578,7 @@ char* test_support_init_keys(
     LOG_DI("starting threads");
 
     start_flag = 1;
-    HASHTABLE_MEMORY_FENCE_STORE();
+    MEMORY_FENCE_STORE();
 
     for(uint32_t thread_num = 0; thread_num < threads_count; thread_num++) {
         res = pthread_join(threads_info[thread_num].thread_id, &ret);
@@ -637,7 +637,7 @@ void test_support_flush_data_cache(
     void *p;
 
     // clflushopt is unordered, needs a full memory fence
-    HASHTABLE_MEMORY_FENCE_LOAD_STORE();
+    MEMORY_FENCE_LOAD_STORE();
 
     for (p = start; p < end; p += cacheline_size) {
 #if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_CLFLUSHOPT == 1
@@ -647,5 +647,5 @@ void test_support_flush_data_cache(
 #endif
     }
 
-    HASHTABLE_MEMORY_FENCE_LOAD_STORE();
+    MEMORY_FENCE_LOAD_STORE();
 }

@@ -51,7 +51,7 @@ bool hashtable_mcmp_op_get(
             uint8_t hashtable_data_index = 0;
             hashtable_data_index < hashtable_data_list_size;
             hashtable_data_index++) {
-        HASHTABLE_MEMORY_FENCE_LOAD();
+        MEMORY_FENCE_LOAD();
 
         hashtable_data_volatile_t* hashtable_data = hashtable_data_list[hashtable_data_index];
 
@@ -77,7 +77,7 @@ bool hashtable_mcmp_op_get(
 
         LOG_DI("key found, fetching value");
 
-        HASHTABLE_MEMORY_FENCE_LOAD();
+        MEMORY_FENCE_LOAD();
 
         *data = key_value->data;
 

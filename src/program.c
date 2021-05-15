@@ -158,12 +158,12 @@ bool* program_get_terminate_event_loop() {
 void program_request_terminate(
         volatile bool *terminate_event_loop) {
     *terminate_event_loop = true;
-    HASHTABLE_MEMORY_FENCE_STORE();
+    MEMORY_FENCE_STORE();
 }
 
 bool program_should_terminate(
         volatile bool *terminate_event_loop) {
-    HASHTABLE_MEMORY_FENCE_LOAD();
+    MEMORY_FENCE_LOAD();
     return *terminate_event_loop;
 }
 

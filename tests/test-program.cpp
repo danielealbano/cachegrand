@@ -52,7 +52,7 @@ void* test_program_wait_loop_terminate(
      char* cpus[] = { "0" }; \
     config_network_protocol_binding_t config_network_protocol_binding = { \
             .host = "127.0.0.1", \
-            .port = 12345, \
+            .port = 12399, \
     }; \
     config_network_protocol_t config_network_protocol = { \
             .type = CONFIG_PROTOCOL_TYPE_REDIS, \
@@ -216,7 +216,7 @@ TEST_CASE("program.c", "[program]") {
 
             // Terminate running thread
             terminate_event_loop = true;
-            HASHTABLE_MEMORY_FENCE_STORE();
+            MEMORY_FENCE_STORE();
 
             // Wait for the thread to end
             usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
@@ -249,7 +249,7 @@ TEST_CASE("program.c", "[program]") {
             pthread_yield();
 
             terminate_event_loop = true;
-            HASHTABLE_MEMORY_FENCE_STORE();
+            MEMORY_FENCE_STORE();
 
             // Wait for the thread to end
             usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
@@ -301,7 +301,7 @@ TEST_CASE("program.c", "[program]") {
             REQUIRE(network_io_common_socket_close(clientfd, false));
 
             terminate_event_loop = true;
-            HASHTABLE_MEMORY_FENCE_STORE();
+            MEMORY_FENCE_STORE();
 
             // Wait for the thread to end
             usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);

@@ -98,12 +98,12 @@ void worker_setup_user_data(
 
 bool worker_should_terminate(
         worker_user_data_t *worker_user_data) {
-    HASHTABLE_MEMORY_FENCE_LOAD();
+    MEMORY_FENCE_LOAD();
     return *worker_user_data->terminate_event_loop;
 }
 
 void worker_request_terminate(
         worker_user_data_t *worker_user_data) {
     *worker_user_data->terminate_event_loop = true;
-    HASHTABLE_MEMORY_FENCE_STORE();
+    MEMORY_FENCE_STORE();
 }

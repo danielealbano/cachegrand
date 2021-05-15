@@ -207,7 +207,7 @@ void slab_allocator_free(
         // If a thread is still allocating an hugepage while the slab allocator is getting freed wait for it to avoid
         // losing it
         do {
-            HASHTABLE_MEMORY_FENCE_LOAD();
+            MEMORY_FENCE_LOAD();
         } while (core_metadata->free_page_addr == NULL && core_metadata->free_page_addr_first_inited == true);
 
         xalloc_hugepages_free(core_metadata->free_page_addr, SLAB_PAGE_2MB);
@@ -444,7 +444,7 @@ void* slab_allocator_mem_alloc_hugepages(
                 // See comment below on ...if (core_metadata->free_page_addr == NULL)... for a bit more details on why
                 // this look is necessary
                 do {
-                    HASHTABLE_MEMORY_FENCE_LOAD();
+                    MEMORY_FENCE_LOAD();
                 } while (core_metadata->free_page_addr == NULL);
 
                 slab_allocator_grow(
@@ -475,7 +475,7 @@ void* slab_allocator_mem_alloc_hugepages(
         // only one thread can get through allocating a new huge page for the same core, if more than one thread
         // fetches the free hugepage then the read memory barrier and the check above will avoid using a null pointer.
         core_metadata->free_page_addr = xalloc_hugepages_2mb_alloc(SLAB_PAGE_2MB);
-        HASHTABLE_MEMORY_FENCE_STORE();
+        MEMORY_FENCE_STORE();
     }
 
     return slab_slot->data.memptr;

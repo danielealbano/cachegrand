@@ -93,12 +93,12 @@ bool hashtable_mcmp_op_delete(
 
         half_hashes_chunk->half_hashes[chunk_slot_index].slot_id = 0;
 
-        HASHTABLE_MEMORY_FENCE_STORE();
+        MEMORY_FENCE_STORE();
 
         key_value_flags = key_value->flags;
         key_value->flags = HASHTABLE_KEY_VALUE_FLAG_DELETED;
 
-        HASHTABLE_MEMORY_FENCE_STORE();
+        MEMORY_FENCE_STORE();
 
         if (!HASHTABLE_KEY_VALUE_HAS_FLAG(key_value_flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
             // Even if we have memory fences here, hashtable_mcmp_op_get may read from the memory that it's going to be

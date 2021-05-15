@@ -30,7 +30,7 @@ static inline spinlock_ticket_number_t spinlock_ticket_acquire(
 
 static inline spinlock_ticket_number_t spinlock_ticket_serving(
         spinlock_ticket_lock_volatile_t *spinlock_ticket) {
-    HASHTABLE_MEMORY_FENCE_LOAD();
+    MEMORY_FENCE_LOAD();
 
     return spinlock_ticket->serving;
 }
@@ -44,7 +44,7 @@ void spinlock_ticket_init(
 void spinlock_ticket_unlock(
         spinlock_ticket_lock_volatile_t *spinlock_ticket) {
     spinlock_ticket->serving++;
-    HASHTABLE_MEMORY_FENCE_STORE();
+    MEMORY_FENCE_STORE();
 }
 
 spinlock_ticket_number_t spinlock_ticket_lock_internal(

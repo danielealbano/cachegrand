@@ -8,9 +8,9 @@ using namespace std;
 extern "C" {
 #endif
 
-#define HASHTABLE_MEMORY_FENCE_LOAD() atomic_thread_fence(memory_order_acquire)
-#define HASHTABLE_MEMORY_FENCE_STORE() atomic_thread_fence(memory_order_release)
-#define HASHTABLE_MEMORY_FENCE_LOAD_STORE() atomic_thread_fence(memory_order_acq_rel)
+#define MEMORY_FENCE_LOAD() atomic_thread_fence(memory_order_acquire)
+#define MEMORY_FENCE_STORE() atomic_thread_fence(memory_order_release)
+#define MEMORY_FENCE_LOAD_STORE() atomic_thread_fence(memory_order_acq_rel)
 
 #ifdef __cplusplus
 }

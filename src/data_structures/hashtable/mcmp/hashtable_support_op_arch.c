@@ -56,7 +56,7 @@ bool concat(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
     assert(bucket_index < hashtable_data->buckets_count);
     assert(chunk_index_start_initial < hashtable_data->chunks_count);
 
-    HASHTABLE_MEMORY_FENCE_LOAD();
+    MEMORY_FENCE_LOAD();
 
     half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index_start_initial];
     uint8_volatile_t overflowed_chunks_counter = half_hashes_chunk->metadata.overflowed_chunks_counter;
@@ -95,7 +95,7 @@ bool concat(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
 
         while(true) {
             // Ensure that the fresh-est half_hashes are going to be read
-            HASHTABLE_MEMORY_FENCE_LOAD();
+            MEMORY_FENCE_LOAD();
 
             chunk_slot_index = hashtable_mcmp_support_hash_search(
                     slot_id_wrapper.slot_id,
@@ -120,7 +120,7 @@ bool concat(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
                     (chunk_index * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index];
 
             // Ensure that the fresh-est flags value is going to be read in the next code block
-            HASHTABLE_MEMORY_FENCE_LOAD();
+            MEMORY_FENCE_LOAD();
 
             LOG_DI(">> key_value->flags = 0x%08x", key_value->flags);
 
@@ -163,7 +163,7 @@ bool concat(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
 
             // Ensure that the fresh-est flags value is going to be read to avoid that the deleted flag has
             // been set after they key pointer has been read
-            HASHTABLE_MEMORY_FENCE_LOAD();
+            MEMORY_FENCE_LOAD();
 
             // Check the flags after it fetches the key, if DELETED is set the flag that specifies the
             // inline of the key is not reliable anymore and therefore we may read from some memory not owned

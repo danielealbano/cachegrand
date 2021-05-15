@@ -67,7 +67,7 @@ bool hashtable_mcmp_op_set(
 
     LOG_DI("key found or created");
 
-    HASHTABLE_MEMORY_FENCE_LOAD();
+    MEMORY_FENCE_LOAD();
 
     key_value->data = value;
 
@@ -105,7 +105,7 @@ bool hashtable_mcmp_op_set(
         // Set the FILLED flag
         HASHTABLE_KEY_VALUE_SET_FLAG(flags, HASHTABLE_KEY_VALUE_FLAG_FILLED);
 
-        HASHTABLE_MEMORY_FENCE_STORE();
+        MEMORY_FENCE_STORE();
 
         key_value->flags = flags;
 

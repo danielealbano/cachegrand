@@ -49,7 +49,7 @@ void* test_spinlock_lock__counter_thread_func(void* rawdata) {
     thread_current_set_affinity(data->thread_num);
 
     do {
-        HASHTABLE_MEMORY_FENCE_LOAD();
+        MEMORY_FENCE_LOAD();
     } while (*data->start_flag == 0);
 
     for(uint64_t i = 0; i < data->increments; i++) {
@@ -244,7 +244,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             }
 
             start_flag = 1;
-            HASHTABLE_MEMORY_FENCE_STORE();
+            MEMORY_FENCE_STORE();
 
             // Wait for all the threads to finish
             for(uint32_t thread_num = 0; thread_num < threads_count; thread_num++) {

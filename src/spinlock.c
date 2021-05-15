@@ -42,12 +42,12 @@ void spinlock_unlock(
 #endif
 
     spinlock->lock = SPINLOCK_UNLOCKED;
-    HASHTABLE_MEMORY_FENCE_STORE();
+    MEMORY_FENCE_STORE();
 }
 
 bool spinlock_is_locked(
         spinlock_lock_volatile_t *spinlock) {
-    HASHTABLE_MEMORY_FENCE_LOAD();
+    MEMORY_FENCE_LOAD();
     return spinlock->lock != SPINLOCK_UNLOCKED;
 }
 
