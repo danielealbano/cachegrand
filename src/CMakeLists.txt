@@ -106,6 +106,12 @@ add_library(
         cachegrand-internal
         ${SRC_FILES_CACHEGRAND})
 
+set_target_properties(
+        cachegrand-internal
+        PROPERTIES
+        ENABLE_EXPORTS ON
+)
+
 add_dependencies(
         cachegrand-internal
         __internal_refresh_cmake_config t1ha uring cyaml)
