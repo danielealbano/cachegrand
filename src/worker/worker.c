@@ -17,6 +17,7 @@
 #include "exttypes.h"
 #include "misc.h"
 #include "xalloc.h"
+#include "clock.h"
 #include "thread.h"
 #include "memory_fences.h"
 #include "utils_numa.h"
@@ -35,7 +36,7 @@
 void worker_publish_stats(
         worker_stats_t* worker_stats_new,
         worker_stats_volatile_t* worker_stats_public) {
-    clock_gettime(CLOCK_MONOTONIC, &worker_stats_new->last_update_timestamp);
+    clock_monotonic(&worker_stats_new->last_update_timestamp);
 
     memcpy((void*)&worker_stats_public->network, &worker_stats_new->network, sizeof(worker_stats_public->network));
     worker_stats_public->last_update_timestamp.tv_nsec = worker_stats_new->last_update_timestamp.tv_nsec;
@@ -50,11 +51,7 @@ bool worker_should_publish_stats(
         worker_stats_volatile_t* worker_stats_public) {
     struct timespec last_update_timestamp;
 
-    if (clock_gettime(CLOCK_MONOTONIC, &last_update_timestamp) < 0) {
-        LOG_E(TAG, "Unable to fetch the time");
-        LOG_E_OS_ERROR(TAG);
-        return false;
-    }
+    clock_monotonic(&last_update_timestamp);
 
     return last_update_timestamp.tv_sec >= worker_stats_public->last_update_timestamp.tv_sec + WORKER_PUBLISH_STATS_DELAY_SEC;
 }
