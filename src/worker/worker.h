@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#define WORKER_LOOP_MAX_WAIT_TIME_MS 200
+#define WORKER_LOOP_MAX_WAIT_TIME_MS 1000
 #define WORKER_LOG_PRODUCER_PREFIX_FORMAT_STRING "[WORKER: %-3u][CPU: %2d][THREAD ID: %-10ld]"
 #define WORKER_PUBLISH_STATS_DELAY_SEC  1
 
@@ -34,7 +34,32 @@ struct worker_user_data {
     uint32_t core_index;
     config_t *config;
     hashtable_t *hashtable;
-    worker_stats_volatile_t stats;
+    struct {
+        worker_stats_t internal;
+        worker_stats_volatile_t public;
+    } stats;
+    struct {
+        uint8_t listeners_count;
+        network_channel_t *listeners;
+        void* context;
+    } network;
+    void* specialized_user_data;
+};
+
+typedef struct worker_op_user_data worker_op_common_user_data_t;
+typedef bool (worker_op_completition_cb_t)(
+        worker_user_data_t* worker_user_data,
+        void* user_data);
+
+struct worker_op_user_data {
+    worker_op_completition_cb_t* cb;
+    struct {
+        network_channel_t *channel;
+        network_channel_socket_address_t listener_new_socket_address;
+    } network;
+    struct {
+
+    } storage;
 };
 
 void worker_publish_stats(
@@ -60,6 +85,12 @@ bool worker_should_terminate(
 
 void worker_request_terminate(
         worker_user_data_t *worker_user_data);
+
+uint32_t worker_thread_set_affinity(
+        uint32_t worker_index);
+
+void* worker_thread_func(
+        void* user_data);
 
 #ifdef __cplusplus
 }
