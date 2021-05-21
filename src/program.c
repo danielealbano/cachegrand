@@ -6,28 +6,21 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#include <stdio.h>
-#include <stdlib.h>
+#define _GNU_SOURCE
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdatomic.h>
-#include <malloc.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <sched.h>
 #include <pthread.h>
-#include <string.h>
 #include <strings.h>
 #include <unistd.h>
 #include <liburing.h>
 #include <assert.h>
 
 #include "pow2.h"
-#include "utils_cpu.h"
 #include "utils_numa.h"
 #include "exttypes.h"
-#include "misc.h"
 #include "xalloc.h"
 #include "log/log.h"
 #include "log/sink/log_sink.h"
@@ -36,19 +29,13 @@
 #include "spinlock.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
-#include "signals_support.h"
 #include "memory_fences.h"
-#include "support/io_uring/io_uring_support.h"
-#include "support/io_uring/io_uring_capabilities.h"
 #include "network/protocol/network_protocol.h"
-#include "protocol/redis/protocol_redis_reader.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
-#include "network/channel/network_channel_iouring.h"
 #include "config.h"
+#include "worker/worker_common.h"
 #include "worker/worker.h"
-#include "worker/worker_iouring.h"
-#include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
 #include "thread.h"
 #include "slab_allocator.h"
@@ -138,25 +125,25 @@ void program_request_terminate(
 }
 
 bool program_should_terminate(
-        volatile bool *terminate_event_loop) {
+        const volatile bool *terminate_event_loop) {
     MEMORY_FENCE_LOAD();
     return *terminate_event_loop;
 }
 
 void program_wait_loop(
-        volatile bool *terminate_event_loop) {
-    LOG_V(TAG, "Program loop started");
+        const volatile bool *terminate_event_loop) {
+    LOG_V(TAG, "Wait loop started");
 
     // Wait for the software to terminate
     do {
         usleep(WORKER_LOOP_MAX_WAIT_TIME_MS * 1000);
     } while(!program_should_terminate(terminate_event_loop));
 
-    LOG_V(TAG, "Program loop terminated");
+    LOG_V(TAG, "Wait loop terminated");
 }
 
 void program_workers_cleanup(
-        worker_user_data_t* workers_user_data,
+        worker_context_t* context,
         uint32_t workers_count) {
     int res;
     LOG_V(TAG, "Cleaning up workers");
@@ -322,7 +309,7 @@ void program_config_setup_log_sinks(
 
     // Iterate over the log sinks defined in the configuration
     for(int i = 0; i < config->logs_count; i++) {
-        log_level_t log_levels = 0;
+        log_level_t log_levels;
         log_sink_settings_t log_sink_settings = { 0 };
 
         config_log_t* config_log = &config->logs[i];
@@ -402,9 +389,8 @@ bool program_config_setup_hashtable(
 
 void program_setup_sentry(
         program_context_t program_context) {
-    if (program_context.config->sentry == NULL) {
-        return;
-    } else if (program_context.config->sentry->enable == false) {
+    if (program_context.config->sentry == NULL ||
+        program_context.config->sentry->enable == false) {
         return;
     }
 
