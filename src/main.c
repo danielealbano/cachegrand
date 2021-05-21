@@ -22,8 +22,9 @@
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
+#include "worker/worker_common.h"
 #include "worker/worker.h"
-
+#include "signal_handler_thread.h"
 #include "program.h"
 
 int main(
