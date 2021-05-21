@@ -8,14 +8,14 @@ extern "C" {
 #define SIGNALS_SUPPORT_NAME_BUFFER_SIZE 20
 #define SIGNALS_SUPPORT_NAME_WRAPPER(SIGNAL_NUMBER) \
     ({ \
-        char *signal_name; \
-        char signal_name_buffer[SIGNALS_SUPPORT_NAME_BUFFER_SIZE] = {0}; \
-        signal_name = signals_support_name(SIGNAL_NUMBER, signal_name_buffer, sizeof(signal_name_buffer)); \
-        if (!signal_name) { \
-            signal_name = unknown_signal_name; \
+        char *int_signal_name; \
+        char int_signal_name_buffer[SIGNALS_SUPPORT_NAME_BUFFER_SIZE] = {0}; \
+        int_signal_name = signals_support_name(SIGNAL_NUMBER, int_signal_name_buffer, sizeof(int_signal_name_buffer)); \
+        if (!int_signal_name) { \
+            int_signal_name = unknown_signal_name; \
         } \
         \
-        signal_name; \
+        int_signal_name; \
     })
 
 typedef void (*sighandler_t) (int);

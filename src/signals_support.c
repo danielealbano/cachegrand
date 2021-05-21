@@ -62,16 +62,16 @@ bool signals_support_register_signal_handler(
         struct sigaction* previous_action) {
     char *signal_name;
     struct sigaction action;
-    sigemptyset(&action.sa_mask);
-    action.sa_handler = signal_handler;
-    action.sa_flags = 0;
 
     if (signal_number >= NSIG) {
         return false;
     }
 
-    signal_name = SIGNALS_SUPPORT_NAME_WRAPPER(signal_number);
+    sigemptyset(&action.sa_mask);
+    action.sa_handler = signal_handler;
+    action.sa_flags = 0;
 
+    signal_name = SIGNALS_SUPPORT_NAME_WRAPPER(signal_number);
     LOG_D(
             TAG,
             "Registering signal handler <%s (%d)>",
