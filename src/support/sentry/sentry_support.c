@@ -102,9 +102,6 @@ void sentry_support_init(
     sentry_options_set_environment(
             options,
             "dev-build");
-    sentry_options_set_debug(
-            options,
-            1);
 #else
     sentry_options_set_environment(
             options,
