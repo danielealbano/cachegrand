@@ -16,8 +16,6 @@ extern "C" {
     log_message_print_os_error(tag);
 #define LOG_E(tag, ...) \
     log_message(tag, LOG_LEVEL_ERROR, __VA_ARGS__)
-#define LOG_R(tag, ...) \
-    log_message(tag, LOG_LEVEL_RECOVERABLE, __VA_ARGS__)
 #define LOG_W(tag, ...) \
     log_message(tag, LOG_LEVEL_WARNING, __VA_ARGS__)
 #define LOG_I(tag, ...) \
@@ -39,8 +37,7 @@ enum log_level {
     LOG_LEVEL_VERBOSE = 0x04,
     LOG_LEVEL_INFO = 0x08,
     LOG_LEVEL_WARNING = 0x10,
-    LOG_LEVEL_RECOVERABLE = 0x20,
-    LOG_LEVEL_ERROR = 0x40,
+    LOG_LEVEL_ERROR = 0x20,
     LOG_LEVEL_MAX
 };
 typedef enum log_level log_level_t;

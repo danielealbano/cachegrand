@@ -27,7 +27,6 @@ static struct argp_option program_arguments_parser_options[] = {
 
 const program_arguments_strval_map_t program_arguments_log_level_strings[] = {
         { "error", PROGRAM_ARGUMENTS_LOG_LEVEL_ERROR },
-        { "recoverable", PROGRAM_ARGUMENTS_LOG_LEVEL_RECOVERABLE },
         { "warning", PROGRAM_ARGUMENTS_LOG_LEVEL_WARNING },
         { "info", PROGRAM_ARGUMENTS_LOG_LEVEL_INFO },
         { "verbose", PROGRAM_ARGUMENTS_LOG_LEVEL_VERBOSE },

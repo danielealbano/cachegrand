@@ -22,8 +22,7 @@ enum config_log_level {
     CONFIG_LOG_LEVEL_VERBOSE = 0x0004,
     CONFIG_LOG_LEVEL_INFO = 0x0008,
     CONFIG_LOG_LEVEL_WARNING = 0x0010,
-    CONFIG_LOG_LEVEL_RECOVERABLE = 0x0020,
-    CONFIG_LOG_LEVEL_ERROR = 0x0040,
+    CONFIG_LOG_LEVEL_ERROR = 0x0020,
     CONFIG_LOG_LEVEL_MAX,
 
     // Extra log levels specific for the config as they are mapped directly into string to be used with cyaml
@@ -33,8 +32,7 @@ enum config_log_level {
     CONFIG_LOG_LEVEL_VERBOSE_NEGATE = 0x0400,
     CONFIG_LOG_LEVEL_INFO_NEGATE = 0x0800,
     CONFIG_LOG_LEVEL_WARNING_NEGATE = 0x1000,
-    CONFIG_LOG_LEVEL_RECOVERABLE_NEGATE = 0x2000,
-    CONFIG_LOG_LEVEL_ERROR_NEGATE = 0x4000,
+    CONFIG_LOG_LEVEL_ERROR_NEGATE = 0x2000,
 };
 typedef enum config_log_level config_log_level_t;
 

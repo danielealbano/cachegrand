@@ -190,14 +190,12 @@ const cyaml_strval_t config_log_type_schema_strings[] = {
 // Allowed strings for for config -> logs -> log -> level (config_log_level_t)
 const cyaml_strval_t config_log_level_schema_strings[] = {
         { "error", CONFIG_LOG_LEVEL_ERROR },
-        { "recoverable", CONFIG_LOG_LEVEL_RECOVERABLE },
         { "warning", CONFIG_LOG_LEVEL_WARNING },
         { "info", CONFIG_LOG_LEVEL_INFO },
         { "verbose", CONFIG_LOG_LEVEL_VERBOSE },
         { "debug", CONFIG_LOG_LEVEL_DEBUG },
         { "all", CONFIG_LOG_LEVEL_ALL },
         { "no-error", CONFIG_LOG_LEVEL_ERROR_NEGATE },
-        { "no-recoverable", CONFIG_LOG_LEVEL_RECOVERABLE_NEGATE },
         { "no-warning", CONFIG_LOG_LEVEL_WARNING_NEGATE },
         { "no-info", CONFIG_LOG_LEVEL_INFO_NEGATE },
         { "no-verbose", CONFIG_LOG_LEVEL_VERBOSE_NEGATE },

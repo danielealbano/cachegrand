@@ -203,7 +203,10 @@ void program_update_config_from_arguments(
         program_arguments_t* program_arguments,
         config_t* config) {
     if (program_arguments->log_level != PROGRAM_ARGUMENTS_LOG_LEVEL_MAX) {
-        config_log_level_t config_log_levels[] = { CONFIG_LOG_LEVEL_DEBUG, CONFIG_LOG_LEVEL_VERBOSE, CONFIG_LOG_LEVEL_INFO, CONFIG_LOG_LEVEL_WARNING, CONFIG_LOG_LEVEL_RECOVERABLE, CONFIG_LOG_LEVEL_ERROR };
+        config_log_level_t config_log_levels[] = {
+                CONFIG_LOG_LEVEL_DEBUG, CONFIG_LOG_LEVEL_VERBOSE, CONFIG_LOG_LEVEL_INFO,
+                CONFIG_LOG_LEVEL_WARNING, CONFIG_LOG_LEVEL_ERROR
+        };
         size_t config_log_levels_len = sizeof(config_log_levels) / sizeof(config_log_level_t);
 
         bool set_remaining_bits = false;
