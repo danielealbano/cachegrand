@@ -18,6 +18,4 @@ void clock_monotonic(timespec_t *timespec) {
     if (clock_gettime(CLOCK_MONOTONIC, timespec) < 0) {
         FATAL(TAG, "Unable to fetch the time");
     }
-
-    return timespec;
 }
