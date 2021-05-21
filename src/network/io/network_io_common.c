@@ -332,6 +332,8 @@ int network_io_common_socket_new_server(
 
 uint32_t network_io_common_parse_addresses_foreach(
         char *address,
+        uint16_t port,
+        uint16_t backlog,
         network_io_common_parse_addresses_foreach_callback_t callback,
         network_protocols_t protocol,
         void* user_data) {
@@ -363,6 +365,8 @@ uint32_t network_io_common_parse_addresses_foreach(
                 rp->ai_addr,
                 rp->ai_addrlen,
                 socket_address_index,
+                port,
+                backlog,
                 protocol,
                 user_data)) {
             socket_address_index++;

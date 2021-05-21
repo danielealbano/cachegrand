@@ -105,12 +105,15 @@ bool network_channel_listener_new_callback(
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
         uint16_t socket_address_index,
+        uint16_t port,
+        uint16_t backlog,
         network_protocols_t protocol,
         void* user_data);
 
 bool network_channel_listener_new(
         char* address,
         uint16_t port,
+        uint16_t backlog,
         network_protocols_t protocol,
         network_channel_listener_new_callback_user_data_t *user_data);
 

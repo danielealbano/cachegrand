@@ -100,6 +100,8 @@ bool network_channel_listener_new_callback(
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
         uint16_t socket_address_index,
+        uint16_t port,
+        uint16_t backlog,
         network_protocols_t protocol,
         void* user_data) {
     int fd;
@@ -112,8 +114,8 @@ bool network_channel_listener_new_callback(
             family,
             0,
             socket_address,
-            cb_user_data->port,
-            cb_user_data->backlog,
+            port,
+            backlog,
             network_channel_listener_new_callback_socket_setup_server_cb,
             user_data);
 
@@ -145,6 +147,7 @@ bool network_channel_listener_new_callback(
 bool network_channel_listener_new(
         char* address,
         uint16_t port,
+        uint16_t backlog,
         network_protocols_t protocol,
         network_channel_listener_new_callback_user_data_t *user_data) {
     int res;
@@ -154,6 +157,8 @@ bool network_channel_listener_new(
 
     res = network_io_common_parse_addresses_foreach(
             address,
+            port,
+            backlog,
             network_channel_listener_new_callback,
             protocol,
             user_data);
