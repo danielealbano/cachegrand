@@ -53,6 +53,7 @@
 #include "thread.h"
 #include "slab_allocator.h"
 #include "support/sentry/sentry_support.h"
+#include "signal_handler_thread.h"
 
 #include "program.h"
 #include "program_arguments.h"
@@ -61,51 +62,31 @@
 
 volatile bool program_terminate_event_loop = false;
 
-int program_signals[] = { SIGUSR1, SIGINT, SIGHUP, SIGTERM, SIGQUIT };
-uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
-
 static char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
 
-void program_signal_handlers(
-        int signal_number) {
-    char *signal_name = SIGNALS_SUPPORT_NAME_WRAPPER(signal_number);
+signal_handler_thread_context_t* program_signal_handler_thread_initialize(
+        volatile bool *terminate_event_loop,
+        program_context_t *program_context)  {
+    signal_handler_thread_context_t *signal_handler_thread_context;
 
-    int found_sig_index = -1;
-    for(uint8_t i = 0; i < program_signals_count; i++) {
-        if (program_signals[i] == signal_number) {
-            found_sig_index = i;
-            break;
-        }
+    program_context->signal_handler_thread_context = signal_handler_thread_context =
+            xalloc_alloc_zero(sizeof(signal_handler_thread_context_t));
+    signal_handler_thread_context->terminate_event_loop = terminate_event_loop;
+
+    LOG_V(TAG, "Creating signal handler thread");
+
+    if (pthread_create(
+            &signal_handler_thread_context->pthread,
+            NULL,
+            signal_handler_thread_func,
+            signal_handler_thread_context) != 0) {
+        LOG_E(TAG, "Unable to start the signal handler thread");
+        LOG_E_OS_ERROR(TAG);
+
+        return NULL;
     }
 
-    if (found_sig_index == -1) {
-        LOG_V(
-                TAG,
-                "Received un-managed signal <%s (%d)>, ignoring",
-                signal_name,
-                signal_number);
-        return;
-    }
-
-    LOG_V(
-            TAG,
-            "Received signal <%s (%d)>, requesting loop termination",
-            signal_name,
-            signal_number);
-    program_request_terminate(&program_terminate_event_loop);
-}
-
-void program_register_signal_handlers() {
-    struct sigaction action;
-    action.sa_handler = program_signal_handlers;
-    sigemptyset(&action.sa_mask);
-    action.sa_flags = 0;
-
-    signal(SIGCHLD, SIG_IGN);
-
-    for(uint8_t i = 0; i < program_signals_count; i++) {
-        signals_support_register_signal_handler(program_signals[i], program_signal_handlers, NULL);
-    }
+    return signal_handler_thread_context;
 }
 
 worker_user_data_t* program_workers_initialize(
@@ -197,6 +178,30 @@ void program_workers_cleanup(
     }
 
     xalloc_free(workers_user_data);
+void program_signal_handler_thread_cleanup(
+        signal_handler_thread_context_t *context) {
+    int res;
+
+    LOG_V(
+            TAG,
+            "Cleaning signal handler thread");
+    LOG_V(
+            TAG,
+            "Waiting for signal handler thread to terminate");
+
+    res = pthread_join(
+            context->pthread,
+            NULL);
+    if (res != 0) {
+        LOG_E(
+                TAG,
+                "Error while joining the signal handler thread");
+        LOG_E_OS_ERROR(TAG);
+    } else {
+        LOG_V(
+                TAG,
+                "Signal handler thread terminated");
+    }
 }
 
 void program_update_config_from_arguments(
@@ -399,6 +404,12 @@ void program_cleanup(
         program_context_t* program_context) {
     // TODO: free storage backend
 
+    if (program_context->signal_handler_thread_context) {
+        program_signal_handler_thread_cleanup(
+                program_context->signal_handler_thread_context);
+        xalloc_free(program_context->signal_handler_thread_context);
+    }
+
     if (program_context->hashtable) {
         hashtable_mcmp_free(program_context->hashtable);
     }
@@ -443,8 +454,8 @@ int program_main(
         return 1;
     }
 
-    // Register the signal handlers
-    program_register_signal_handlers();
+    // Signal handling
+    signal(SIGCHLD, SIG_IGN);
 
     // Enable, if allowed in the config and if the hugepages are available, the slab allocator
     program_use_slab_allocator(&program_context);
@@ -464,6 +475,13 @@ int program_main(
     if (program_context.use_slab_allocator) {
         slab_allocator_predefined_allocators_init();
         program_context.slab_allocator_inited = true;
+    }
+
+    if (program_signal_handler_thread_initialize(
+            &program_terminate_event_loop,
+            &program_context) == NULL) {
+        program_cleanup(&program_context);
+        return 1;
     }
 
     if (program_workers_initialize(
