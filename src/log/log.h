@@ -12,8 +12,6 @@ extern "C" {
 #define LOG_SINK_REGISTERED_MAX             4
 #define LOG_MESSAGE_TIMESTAMP_MAX_LENGTH    20
 
-#define LOG_E_OS_ERROR(tag) \
-    log_message_print_os_error(tag);
 #define LOG_E(tag, ...) \
     log_message(tag, LOG_LEVEL_ERROR, __VA_ARGS__)
 #define LOG_W(tag, ...) \
@@ -22,6 +20,8 @@ extern "C" {
     log_message(tag, LOG_LEVEL_INFO, __VA_ARGS__)
 #define LOG_V(tag, ...) \
     log_message(tag, LOG_LEVEL_VERBOSE, __VA_ARGS__)
+#define LOG_E_OS_ERROR(tag) \
+    log_message_print_os_error(tag)
 
 #ifndef DEBUG
 #define LOG_D(...) /* Internal debug logs disabled */
