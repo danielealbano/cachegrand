@@ -39,7 +39,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
     uintptr_t memptr = 0;
 
     bool res = hashtable_mcmp_op_get(
-            network_channel_user_data->hashtable,
+            hashtable,
             reader_context->arguments.list[1].value,
             reader_context->arguments.list[1].length,
             &memptr);

@@ -39,7 +39,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(quit) {
             "OK",
             2);
 
-    network_channel_user_data->close_connection_on_send = true;
+    //network_channel_user_data->close_connection_on_send = true;
 
     NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR()
 

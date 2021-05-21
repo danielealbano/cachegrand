@@ -68,7 +68,7 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
     }
 
     SECTION("worker_log_producer_set_early_prefix_thread") {
-        worker_user_data_t worker_user_data = {0};
+        worker_context_t worker_user_data = {0};
         char* str;
 
         str = worker_log_producer_set_early_prefix_thread(&worker_user_data);
@@ -80,14 +80,14 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
         xalloc_free(str);
     }
 
-    SECTION("worker_setup_user_data") {
+    SECTION("worker_setup_context") {
         config_t config = {};
         hashtable_t hashtable = {};
-        worker_user_data_t worker_user_data = {0};
+        worker_context_t worker_user_data = {0};
         network_channel_address_t addresses[1] = {0};
         volatile bool terminate_event_loop = false;
 
-        worker_setup_user_data(
+        worker_setup_context(
                 &worker_user_data,
                 1,
                 1,
@@ -104,7 +104,7 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
 
     SECTION("worker_request_terminate") {
         volatile bool terminate_event_loop = false;
-        worker_user_data_t worker_user_data = {0};
+        worker_context_t worker_user_data = {0};
         worker_user_data.terminate_event_loop = &terminate_event_loop;
 
         worker_request_terminate(&worker_user_data);
@@ -116,7 +116,7 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
     SECTION("worker_should_terminate") {
         SECTION("should") {
             volatile bool terminate_event_loop = true;
-            worker_user_data_t worker_user_data = {0};
+            worker_context_t worker_user_data = {0};
             worker_user_data.terminate_event_loop = &terminate_event_loop;
 
             REQUIRE(worker_should_terminate(&worker_user_data));
@@ -124,7 +124,7 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
 
         SECTION("should not") {
             volatile bool terminate_event_loop = false;
-            worker_user_data_t worker_user_data = {0};
+            worker_context_t worker_user_data = {0};
             worker_user_data.terminate_event_loop = &terminate_event_loop;
 
             REQUIRE(!worker_should_terminate(&worker_user_data));

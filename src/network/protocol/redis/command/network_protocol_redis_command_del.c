@@ -38,7 +38,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(del) {
     uint32_t deleted_keys = 0;
     for(long i = 1; i < reader_context->arguments.count; i++) {
         bool deleted = hashtable_mcmp_op_delete(
-                network_channel_user_data->hashtable,
+                hashtable,
                 reader_context->arguments.list[i].value,
                 reader_context->arguments.list[i].length);
 

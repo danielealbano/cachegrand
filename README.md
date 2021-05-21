@@ -207,7 +207,7 @@ General milestones grand-plan:
             - [x] GET, lock-free, atomic-free and wait-free
             - [x] SET, chunk-based (14 slots) locking using spin-locks
             - [x] DELETE, chunk-based (14 slots) locking using spin-locks
-    - [ ] Networking
+    - [X] Networking
         - [X] Add support for multiple protocols
         - [x] Implement a network stack able to support multiple io libraries and multiple protocols 
         - [x] Implement a network io layer based on io_uring nad liburing
@@ -259,6 +259,8 @@ General milestones grand-plan:
         - [ ] Implement garbage collection
 
 - v0.3
+    - [ ] General
+        - [ ] Switch to use co-routines
     - [ ] Hashtable
         - [ ] Add NUMA support (set_mempolicy for mmap)
     - [ ] Write documentation
@@ -274,6 +276,8 @@ General milestones grand-plan:
 
 - v0.4
     - [ ] Add AARCH64 support
+        - [ ] Switch to a AARCH64-optimized hash function
+        - [ ] Drop or replace x86/x64 intrinsic usage
     - [ ] Storage
         - [ ] Add support for epoll
     - [ ] Networking
@@ -301,5 +305,6 @@ General milestones grand-plan:
         - [ ] Redis protocol support
         - [ ] HTTPS protocol support
     - [ ] Add support for Mac OS X
+        - [ ] IO via kqueue/kevent
     - [ ] Add support for FreeBSD
-        - IO via kqueue/kevent
+        - [ ] IO via kqueue/kevent

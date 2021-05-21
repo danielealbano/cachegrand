@@ -23,7 +23,7 @@
 #include "worker/worker.h"
 #include "support/io_uring/io_uring_support.h"
 
-#include "worker/worker_iouring.h"
+#include "worker/network/worker_network_iouring_op.h"
 
 TEST_CASE("worker/worker_iouring.c", "[worker][worker_iouring]") {
     // TODO: write tests when the worker interface will stabile, do not test anything right now, the worker needs to be

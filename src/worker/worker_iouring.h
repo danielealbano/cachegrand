@@ -5,31 +5,25 @@
 extern "C" {
 #endif
 
-enum {
-    WORKER_IOURING_OP_TIMEOUT_ENSURE_LOOP = NETWORK_IO_IOURING_OP_LAST + 1u,
+typedef struct worker_iouring_context worker_iouring_context_t;
+struct worker_iouring_context {
+    worker_context_t *worker_context;
+    io_uring_t *ring;
 };
 
-uint32_t worker_iouring_thread_set_affinity(
-        uint32_t worker_index);
+worker_iouring_context_t* worker_iouring_context_get();
 
-uint32_t worker_iouring_calculate_fds_count(
-        uint32_t workers_count,
-        uint32_t max_connections,
-        uint32_t network_addresses_count);
+void worker_iouring_context_set(
+        worker_iouring_context_t *worker_iouring_context);
 
-io_uring_t* worker_iouring_initialize_iouring(
-        uint32_t workers_count,
-        uint32_t core_index,
-        uint32_t max_connections,
-        uint32_t network_listeners_count);
+void worker_iouring_context_reset();
 
-void worker_iouring_network_listeners_initialize(
-        worker_user_data_t *worker_user_data,
-        network_channel_listener_new_callback_user_data_t *listener_new_cb_user_data);
-
-void worker_iouring_listeners_enqueue(
+int32_t worker_iouring_fds_map_add_and_enqueue_files_update(
         io_uring_t *ring,
-        network_channel_listener_new_callback_user_data_t *create_listener_user_data);
+        network_channel_iouring_t *channel);
+
+int worker_iouring_fds_map_remove(
+        int index);
 
 bool worker_iouring_cqe_is_error_any(
         io_uring_cqe_t *cqe);
@@ -38,51 +32,21 @@ bool worker_iouring_cqe_is_error(
         io_uring_cqe_t *cqe);
 
 void worker_iouring_cqe_log(
-        worker_user_data_t *worker_user_data,
         io_uring_cqe_t *cqe);
 
-bool worker_iouring_process_op_timeout_ensure_loop(
-        worker_user_data_t *worker_user_data,
-        worker_stats_t* stats,
-        io_uring_t* ring,
-        io_uring_cqe_t *cqe);
+uint32_t worker_iouring_calculate_fds_count(
+        uint32_t workers_count,
+        uint32_t max_connections,
+        uint32_t network_addresses_count);
 
-bool worker_iouring_process_op_accept(
-        worker_user_data_t *worker_user_data,
-        worker_stats_t* stats,
-        io_uring_t* ring,
-        io_uring_cqe_t *cqe);
-
-bool worker_iouring_process_op_recv_close_or_error(
-        worker_user_data_t *worker_user_data,
-        worker_stats_t* stats,
-        io_uring_t* ring,
-        io_uring_cqe_t *cqe);
-
-bool worker_iouring_process_op_recv(
-        worker_user_data_t *worker_user_data,
-        worker_stats_t* stats,
-        io_uring_t* ring,
-        io_uring_cqe_t *cqe);
-
-bool worker_iouring_process_op_send(
-        worker_user_data_t *worker_user_data,
-        worker_stats_t* stats,
-        io_uring_t* ring,
-        io_uring_cqe_t *cqe);
-
-void worker_iouring_thread_process_ops_loop(
-        worker_user_data_t *worker_user_data,
-        worker_stats_t* stats,
-        io_uring_t *ring);
+bool worker_iouring_initialize(
+        worker_context_t *worker_user_data);
 
 void worker_iouring_cleanup(
-        network_channel_listener_new_callback_user_data_t *create_listener_user_data,
-        io_uring_t *ring);
+        worker_context_t *worker_user_data);
 
-void* worker_iouring_thread_func(
-        void* user_data);
-
+bool worker_iouring_process_events_loop(
+        worker_context_t *worker_user_data);
 
 #ifdef __cplusplus
 }

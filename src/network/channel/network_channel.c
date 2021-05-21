@@ -29,10 +29,10 @@
 
 bool network_channel_client_setup(
         network_io_common_fd_t fd,
-        int incoming_cpu) {
+        uint32_t incoming_cpu) {
     bool error = false;
 
-    if (!error && network_io_common_socket_set_incoming_cpu(fd, incoming_cpu) == false) {
+    if (network_io_common_socket_set_incoming_cpu(fd, (int)incoming_cpu) == false) {
         error = true;
     }
 
@@ -61,7 +61,7 @@ bool network_channel_client_setup(
 
 bool network_channel_server_setup(
         network_io_common_fd_t fd,
-        int incoming_cpu) {
+        uint32_t incoming_cpu) {
     bool error = false;
 
     // TODO: Replace with an eBPF reuseport program, example:
@@ -72,7 +72,7 @@ bool network_channel_server_setup(
             code[1] = new sock_filter { code = BPF_RET | BPF_A };
      */
 
-    if (!error && network_io_common_socket_set_incoming_cpu(fd, incoming_cpu) == false) {
+    if (network_io_common_socket_set_incoming_cpu(fd, (int)incoming_cpu) == false) {
         error = true;
     }
 
@@ -95,6 +95,13 @@ bool network_channel_listener_new_callback_socket_setup_server_cb(
     return network_channel_server_setup(fd, cb_user_data->core_index);
 }
 
+bool network_channel_init(
+        network_channel_t *channel) {
+    channel->address.size = sizeof(channel->address.socket);
+
+    return true;
+}
+
 bool network_channel_listener_new_callback(
         int family,
         struct sockaddr *socket_address,
@@ -107,8 +114,12 @@ bool network_channel_listener_new_callback(
     int fd;
     network_channel_listener_new_callback_user_data_t *cb_user_data = user_data;
 
-    assert((cb_user_data->listeners_count + socket_address_index) <
-           (sizeof(cb_user_data->listeners) / sizeof(cb_user_data->listeners[0])));
+    // If listeners is set to null the callback will do nothing, this process is used only to
+    // enumerate the listeners to allocate
+    if (cb_user_data->listeners == NULL) {
+        cb_user_data->listeners_count++;
+        return true;
+    }
 
     fd = network_io_common_socket_new_server(
             family,
@@ -123,7 +134,7 @@ bool network_channel_listener_new_callback(
         return false;
     }
 
-    uint32_t listener_id = cb_user_data->listeners_count + socket_address_index;
+    uint32_t listener_id = cb_user_data->listeners_count;
 
     cb_user_data->listeners[listener_id].fd = fd;
     cb_user_data->listeners[listener_id].address.size = socket_address_size;
@@ -141,6 +152,8 @@ bool network_channel_listener_new_callback(
 
     LOG_V(TAG, "Created listener for <%s>", cb_user_data->listeners[listener_id].address.str);
 
+    cb_user_data->listeners_count++;
+
     return true;
 }
 
@@ -151,9 +164,6 @@ bool network_channel_listener_new(
         network_protocols_t protocol,
         network_channel_listener_new_callback_user_data_t *user_data) {
     int res;
-    LOG_V(TAG, "Creating listener for <%s:%d>", address, port);
-
-    user_data->port = port;
 
     res = network_io_common_parse_addresses_foreach(
             address,
@@ -167,16 +177,5 @@ bool network_channel_listener_new(
         return false;
     }
 
-    user_data->listeners_count += res;
-
     return true;
-}
-
-network_channel_t* network_channel_new() {
-    return (network_channel_t*)xalloc_alloc_zero(sizeof(network_channel_t));
-}
-
-void network_channel_free(
-        network_channel_t* network_channel) {
-    xalloc_free(network_channel);
 }

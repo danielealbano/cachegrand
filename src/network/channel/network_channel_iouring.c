@@ -16,45 +16,35 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "slab_allocator.h"
+#include "xalloc.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 
 #include "network_channel_iouring.h"
 
-network_channel_iouring_entry_user_data_t* network_channel_iouring_entry_user_data_new(
-        uint32_t op) {
-    // TODO: implement slab allocator
+network_channel_iouring_t* network_channel_iouring_new() {
+    network_channel_iouring_t *channel =
+            (network_channel_iouring_t*)slab_allocator_mem_alloc(sizeof(network_channel_iouring_t));
 
-    network_channel_iouring_entry_user_data_t *userdata =
-            xalloc_alloc_zero(sizeof(network_channel_iouring_entry_user_data_t));
-    userdata->op = op;
+    network_channel_init(&channel->wrapped_channel);
 
-    return userdata;
+    return channel;
 }
 
-network_channel_iouring_entry_user_data_t* network_channel_iouring_entry_user_data_new_with_mapped_fd(
-        uint32_t op,
-        network_chanell_iouring_mapped_fd_t mapped_fd) {
-    network_channel_iouring_entry_user_data_t *userdata = network_channel_iouring_entry_user_data_new(op);
-    userdata->mapped_fd = mapped_fd;
+network_channel_iouring_t* network_channel_iouring_new_multi(
+        int count) {
+    network_channel_iouring_t *channels =
+            (network_channel_iouring_t*)slab_allocator_mem_alloc(sizeof(network_channel_iouring_t) * count);
 
-    return userdata;
-}
-
-void network_channel_iouring_entry_user_data_free(
-        network_channel_iouring_entry_user_data_t* iouring_user_data) {
-    if (iouring_user_data->channel) {
-        if (iouring_user_data->channel->user_data.recv_buffer.data) {
-            slab_allocator_mem_free(iouring_user_data->channel->user_data.recv_buffer.data);
-        }
-
-        if (iouring_user_data->channel->user_data.send_buffer.data) {
-            slab_allocator_mem_free(iouring_user_data->channel->user_data.send_buffer.data);
-        }
-
-        xalloc_free(iouring_user_data->channel);
+    for(int index = 0; index < count; index++) {
+        network_channel_init(&channels[index].wrapped_channel);
     }
 
-    xalloc_free(iouring_user_data);
+    return channels;
+}
+
+void network_channel_iouring_free(
+        network_channel_iouring_t* network_channel) {
+    slab_allocator_mem_free(network_channel);
 }

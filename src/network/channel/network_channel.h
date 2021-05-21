@@ -19,7 +19,6 @@ extern "C" {
 // maybe data that need still to be parsed)
 #define NETWORK_CHANNEL_RECV_BUFFER_SIZE    (NETWORK_CHANNEL_PACKET_SIZE * 4)
 #define NETWORK_CHANNEL_SEND_BUFFER_SIZE    NETWORK_CHANNEL_PACKET_SIZE * 2
-#define NETWORK_CHANNEL_LISTENERS_MAX       16
 
 typedef void network_channel_state_t;
 typedef char network_channel_buffer_t;
@@ -48,29 +47,6 @@ struct network_channel_socket_address {
     socklen_t size;
 };
 
-typedef struct network_channel_user_data network_channel_user_data_t;
-struct network_channel_user_data {
-    bool data_to_send_pending;
-    bool close_connection_on_send;
-    hashtable_t *hashtable;
-    struct {
-        network_channel_buffer_t *data;
-        size_t data_offset;
-        size_t data_size;
-        size_t length;
-    } recv_buffer;
-    struct {
-        network_channel_buffer_t *data;
-        size_t data_size;
-        size_t data_offset;
-        size_t length;
-    } send_buffer;
-    struct {
-        network_protocols_t protocol;
-        void* context;
-    } protocol;
-};
-
 typedef struct network_channel network_channel_t;
 struct network_channel {
     network_io_common_fd_t fd;
@@ -78,27 +54,26 @@ struct network_channel {
     network_protocols_t protocol;
     network_channel_socket_address_t address;
     network_channel_state_t* state;
-
-    network_channel_user_data_t user_data;
+    void* user_data;
 };
 
-// TODO: decouple the list of listeners from the listener new callback user_data
 typedef struct network_create_lister_new_user_data network_channel_listener_new_callback_user_data_t;
 struct network_create_lister_new_user_data {
-    uint16_t port;
-    uint16_t backlog;
     uint8_t core_index;
     uint8_t listeners_count;
-    network_channel_t listeners[NETWORK_CHANNEL_LISTENERS_MAX];
+    network_channel_t *listeners;
 };
 
 bool network_channel_client_setup(
         network_io_common_fd_t fd,
-        int incoming_cpu);
+        uint32_t incoming_cpu);
 
 bool network_channel_server_setup(
         network_io_common_fd_t fd,
-        int incoming_cpu);
+        uint32_t incoming_cpu);
+
+bool network_channel_init(
+        network_channel_t *channel);
 
 bool network_channel_listener_new_callback(
         int family,
@@ -116,12 +91,6 @@ bool network_channel_listener_new(
         uint16_t backlog,
         network_protocols_t protocol,
         network_channel_listener_new_callback_user_data_t *user_data);
-
-network_channel_t* network_channel_new();
-
-void network_channel_free(
-        network_channel_t* network_channel);
-
 
 #ifdef __cplusplus
 }

@@ -196,7 +196,7 @@ TEST_CASE("program.c", "[program]") {
 
     SECTION("program_workers_initialize") {
         PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345({
-            worker_user_data_t* worker_user_data;
+            worker_context_t* worker_user_data;
             volatile bool terminate_event_loop = false;
 
             program_config_thread_affinity_set_selected_cpus(&program_context);
@@ -234,7 +234,7 @@ TEST_CASE("program.c", "[program]") {
     SECTION("program_workers_cleanup") {
         PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345({
             pthread_t worker_pthread;
-            worker_user_data_t* worker_user_data;
+            worker_context_t* worker_user_data;
             volatile bool terminate_event_loop = false;
 
             program_config_thread_affinity_set_selected_cpus(&program_context);
@@ -268,7 +268,7 @@ TEST_CASE("program.c", "[program]") {
     SECTION("test redis ping/pong") {
         PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345({
             pthread_t worker_pthread;
-            worker_user_data_t *worker_user_data;
+            worker_context_t *worker_user_data;
             struct sockaddr_in address = {0};
             size_t buffer_send_data_len;
             char buffer_send[64] = {0};
