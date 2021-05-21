@@ -89,28 +89,21 @@ signal_handler_thread_context_t* program_signal_handler_thread_initialize(
     return signal_handler_thread_context;
 }
 
-worker_user_data_t* program_workers_initialize(
+worker_context_t* program_workers_initialize(
         volatile bool *terminate_event_loop,
         program_context_t *program_context)  {
-    worker_user_data_t *workers_user_data;
+    worker_context_t *workers_context;
 
-    void *(*worker_thread_func) (void *);
-    switch(program_context->config->network->backend) {
-        default:
-        case CONFIG_NETWORK_BACKEND_IO_URING:
-            worker_thread_func = worker_iouring_thread_func;
-    }
-
-    program_context->workers_count = program_context->config->workers_per_cpus * program_context->selected_cpus_count;
-    program_context->workers_user_data = xalloc_alloc_zero(sizeof(worker_user_data_t) * program_context->workers_count);
-
-    workers_user_data = program_context->workers_user_data;
+    program_context->workers_count =
+            program_context->config->workers_per_cpus * program_context->selected_cpus_count;
+    program_context->workers_context = workers_context =
+            xalloc_alloc_zero(sizeof(worker_context_t) * program_context->workers_count);
 
     for(uint32_t worker_index = 0; worker_index < program_context->workers_count; worker_index++) {
-        worker_user_data_t *worker_user_data = &workers_user_data[worker_index];
+        worker_context_t *worker_context = &workers_context[worker_index];
 
-        worker_setup_user_data(
-                worker_user_data,
+        worker_setup_context(
+                worker_context,
                 program_context->workers_count,
                 worker_index,
                 terminate_event_loop,
@@ -120,16 +113,18 @@ worker_user_data_t* program_workers_initialize(
         LOG_V(TAG, "Creating worker <%u>", worker_index);
 
         if (pthread_create(
-                &worker_user_data->pthread,
+                &worker_context->pthread,
                 NULL,
                 worker_thread_func,
-                worker_user_data) != 0) {
+                worker_context) != 0) {
             LOG_E(TAG, "Unable to start the worker <%u>", worker_index);
             LOG_E_OS_ERROR(TAG);
+
+            break;
         }
     }
 
-    return workers_user_data;
+    return workers_context;
 }
 
 bool* program_get_terminate_event_loop() {
@@ -167,17 +162,35 @@ void program_workers_cleanup(
     LOG_V(TAG, "Cleaning up workers");
 
     for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
-        LOG_V(TAG, "Waiting for worker <%lu> to terminate", worker_index);
-        res = pthread_join(workers_user_data[worker_index].pthread, NULL);
+        if (context[worker_index].pthread == 0) {
+            continue;
+        }
+
+        LOG_V(
+                TAG,
+                "Waiting for worker <%u> to terminate",
+                worker_index);
+        res = pthread_join(
+                context[worker_index].pthread,
+                NULL);
+
         if (res != 0) {
-            LOG_E(TAG, "Error while joining the worker <%u>", worker_index);
+            LOG_E(
+                    TAG,
+                    "Error while joining the worker <%u>",
+                    worker_index);
             LOG_E_OS_ERROR(TAG);
         } else {
-            LOG_V(TAG, "Worker terminated", worker_index);
+            LOG_V(
+                    TAG,
+                    "Worker <%u> terminated",
+                    worker_index);
         }
     }
+}
 
-    xalloc_free(workers_user_data);
+
+
 void program_signal_handler_thread_cleanup(
         signal_handler_thread_context_t *context) {
     int res;
@@ -404,6 +417,13 @@ void program_cleanup(
         program_context_t* program_context) {
     // TODO: free storage backend
 
+    if (program_context->workers_context) {
+        program_workers_cleanup(
+                program_context->workers_context,
+                program_context->workers_count);
+        xalloc_free(program_context->workers_context);
+    }
+
     if (program_context->signal_handler_thread_context) {
         program_signal_handler_thread_cleanup(
                 program_context->signal_handler_thread_context);
@@ -493,10 +513,9 @@ int program_main(
 
     program_wait_loop(&program_terminate_event_loop);
 
-    program_workers_cleanup(
-            program_context.workers_user_data,
-            program_context.workers_count);
+    LOG_I(TAG, "Terminating");
 
     program_cleanup(&program_context);
+
     return 0;
 }
