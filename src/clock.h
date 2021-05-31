@@ -8,6 +8,7 @@ extern "C" {
 typedef struct timespec timespec_t;
 
 void clock_monotonic(timespec_t *timespec);
+void clock_diff(timespec_t *result, timespec_t *a, timespec_t *b);
 
 #ifdef __cplusplus
 }
