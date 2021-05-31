@@ -17,11 +17,11 @@ extern "C" {
 // possible to read a full packet in addition to any partially received data while processing the buffer and that there
 // is enough room to avoid copying continuously the data at the beginning (a streaming parser is being used so there
 // maybe data that need still to be parsed)
-#define NETWORK_CHANNEL_RECV_BUFFER_SIZE    (NETWORK_CHANNEL_PACKET_SIZE * 4)
+#define NETWORK_CHANNEL_RECV_BUFFER_SIZE    (NETWORK_CHANNEL_PACKET_SIZE * 2)
 #define NETWORK_CHANNEL_SEND_BUFFER_SIZE    NETWORK_CHANNEL_PACKET_SIZE * 2
 
 typedef void network_channel_state_t;
-typedef char network_channel_buffer_t;
+typedef char network_channel_buffer_data_t;
 
 enum network_channel_type {
     NETWORK_CHANNEL_TYPE_LISTENER,
@@ -62,6 +62,14 @@ struct network_create_lister_new_user_data {
     uint8_t core_index;
     uint8_t listeners_count;
     network_channel_t *listeners;
+};
+
+typedef struct network_channel_buffer network_channel_buffer_t;
+struct network_channel_buffer {
+    network_channel_buffer_data_t *data;
+    size_t data_offset;
+    size_t data_size;
+    size_t length;
 };
 
 bool network_channel_client_setup(

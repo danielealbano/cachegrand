@@ -13,14 +13,18 @@
 #include <assert.h>
 
 #include "misc.h"
-#include "xalloc.h"
+#include "exttypes.h"
+#include "spinlock.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "slab_allocator.h"
 #include "protocol_redis.h"
 
 #include "protocol_redis_reader.h"
 
 protocol_redis_reader_context_t* protocol_redis_reader_context_init() {
     protocol_redis_reader_context_t* context =
-            (protocol_redis_reader_context_t*)xalloc_alloc_zero(sizeof(protocol_redis_reader_context_t));
+            (protocol_redis_reader_context_t*)slab_allocator_mem_alloc_zero(
+                    sizeof(protocol_redis_reader_context_t));
 
     return context;
 }
@@ -31,11 +35,11 @@ void protocol_redis_reader_context_arguments_free(
     if (context->arguments.count > 0) {
         for(int index = 0; index < context->arguments.count; index++) {
             if (context->arguments.list[index].copied_from_buffer) {
-                xalloc_free(context->arguments.list[index].value);
+                slab_allocator_mem_free(context->arguments.list[index].value);
             }
         }
 
-        xalloc_free(context->arguments.list);
+        slab_allocator_mem_free(context->arguments.list);
     }
 }
 
@@ -51,7 +55,7 @@ int protocol_redis_reader_context_arguments_clone_current(
         return -1;
     }
 
-    char* value = xalloc_alloc_zero(context->arguments.current.length);
+    char* value = slab_allocator_mem_alloc(context->arguments.current.length);
 
     memcpy(value, context->arguments.list[index].value, context->arguments.current.length);
 
@@ -70,7 +74,7 @@ void protocol_redis_reader_context_reset(
 void protocol_redis_reader_context_free(
         protocol_redis_reader_context_t* context) {
     protocol_redis_reader_context_arguments_free(context);
-    xalloc_free(context);
+    slab_allocator_mem_free(context);
 }
 
 long protocol_redis_reader_read(
@@ -133,7 +137,7 @@ long protocol_redis_reader_read(
             context->arguments.count = args_count;
 
             // TODO: use a buffer pool
-            context->arguments.list = xalloc_alloc_zero(
+            context->arguments.list = slab_allocator_mem_alloc_zero(
                     sizeof(protocol_redis_reader_context_argument_t) * context->arguments.count);
 
             unsigned long move_offset = new_line_ptr - buffer + 2;
@@ -295,9 +299,11 @@ long protocol_redis_reader_read(
                 context->arguments.current.length = data_length;
 
                 // Increase the size of the list and update the new element
-                context->arguments.list = xalloc_realloc(
+                context->arguments.list = slab_allocator_mem_realloc(
                         context->arguments.list,
-                        sizeof(protocol_redis_reader_context_argument_t) * context->arguments.count);
+                        sizeof(protocol_redis_reader_context_argument_t) * (context->arguments.count - 1),
+                        sizeof(protocol_redis_reader_context_argument_t) * context->arguments.count,
+                        true);
                 context->arguments.list[context->arguments.current.index].value = arg_start_char_ptr;
                 context->arguments.list[context->arguments.current.index].length = context->arguments.current.length;
                 context->arguments.list[context->arguments.current.index].copied_from_buffer = false;
@@ -308,9 +314,11 @@ long protocol_redis_reader_read(
             } else {
                 // If the data are not from the buffer, it needs to resize the allocated memory and copy the new data
                 if (context->arguments.list[context->arguments.current.index].copied_from_buffer) {
-                    context->arguments.list[context->arguments.current.index].value = xalloc_realloc(
+                    context->arguments.list[context->arguments.current.index].value = slab_allocator_mem_realloc(
                             context->arguments.list[context->arguments.current.index].value,
-                            context->arguments.current.length + data_length);
+                            context->arguments.current.length,
+                            context->arguments.current.length + data_length,
+                            true);
 
                     char* value_dest =
                             context->arguments.list[context->arguments.current.index].value +

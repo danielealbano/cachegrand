@@ -17,9 +17,21 @@ bool worker_network_receive(
 
 bool worker_network_send(
         network_channel_t *channel,
-        network_channel_buffer_t *buffer,
+        network_channel_buffer_data_t *buffer,
         size_t buffer_length,
         void* user_data);
+
+bool worker_network_close(
+        network_channel_t *channel,
+        void* user_data);
+
+bool worker_network_protocol_process_buffer(
+        network_channel_t *channel,
+        worker_network_channel_user_data_t *worker_network_channel_user_data);
+
+void worker_network_close_connection_on_send(
+        network_channel_t *channel,
+        bool close_connection_on_send);
 
 #ifdef __cplusplus
 }

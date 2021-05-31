@@ -246,10 +246,25 @@ bool worker_iouring_cqe_is_error(
         worker_iouring_cqe_is_error_any(cqe);
 }
 
+char* worker_iouring_get_callback_function_name(
+        void* callback,
+        char* callback_function_name,
+        size_t callback_function_name_size) {
+    Dl_info dladdr_info;
+    const char* res_cb_func_name = "{unknown}";
+
+    if (dladdr(callback, &dladdr_info) != 0) {
+        res_cb_func_name = dladdr_info.dli_sname;
+    }
+
+    strncpy(callback_function_name, res_cb_func_name, callback_function_name_size);
+
+    return callback_function_name;
+}
+
 void worker_iouring_report_op_user_completion_cb(
         worker_iouring_op_context_t *op_context) {
-    Dl_info dladdr_info;
-    const char* cb_func_name = "{unknown}";
+    char callback_function_name[256] = { 0 };
 
     char* cbs[] = {
             "op_context->user.completion_cb.timer", (char*)op_context->user.completion_cb.timer,
@@ -264,30 +279,33 @@ void worker_iouring_report_op_user_completion_cb(
 
         if (cb_fp == NULL) {
             continue;
-        } else if (dladdr(cb_fp, &dladdr_info) != 0) {
-            cb_func_name = dladdr_info.dli_sname;
         }
 
-        LOG_E(TAG, "> %s = %s", name, cb_func_name);
+        LOG_E(
+                TAG,
+                "> %s = %s",
+                name,
+                worker_iouring_get_callback_function_name(
+                        cb_fp,
+                        callback_function_name,
+                        sizeof(callback_function_name)));
     }
 }
 
 void worker_iouring_cqe_log(
         io_uring_cqe_t *cqe) {
-    Dl_info dladdr_info;
-    const char* cb_func_name = "{unknown}";
+    char callback_function_name[256] = { 0 };
 
     worker_iouring_op_context_t *op_context;
     op_context = (worker_iouring_op_context_t*)cqe->user_data;
 
-    if (dladdr(op_context->io_uring.completion_cb, &dladdr_info) != 0) {
-        cb_func_name = dladdr_info.dli_sname;
-    }
-
     LOG_E(
             TAG,
-            "[CB:%s] cqe->user_data = <0x%08lx>, cqe->res = <%s (%d)>, cqe->flags >> 16 = <%d>, cqe->flags & 0xFFFFu = <%d>",
-            cb_func_name,
+            "[CB:%s] cqe->user_data = <0x%08llx>, cqe->res = <%s (%d)>, cqe->flags >> 16 = <%d>, cqe->flags & 0xFFFFu = <%d>",
+            worker_iouring_get_callback_function_name(
+                    op_context->io_uring.completion_cb,
+                    callback_function_name,
+                    sizeof(callback_function_name)),
             cqe->user_data,
             cqe->res >= 0 ? "Success" : strerror(cqe->res * -1),
             cqe->res,
@@ -319,6 +337,7 @@ bool worker_iouring_process_events_loop(
     worker_iouring_context_t *context;
     worker_iouring_op_context_t *op_context;
     uint32_t head, count = 0;
+    char callback_function_name[256] = { 0 };
 
     context = worker_iouring_context_get();
 
@@ -346,7 +365,13 @@ bool worker_iouring_process_events_loop(
                 cqe,
                 &free_op_context) == false) {
             // TODO: the callback failed, take action, something smart!
-            FATAL(TAG, "Callback failed, unable to continue");
+            FATAL(
+                    TAG,
+                    "Callback <%s> failed, unable to continue",
+                    worker_iouring_get_callback_function_name(
+                            op_context->io_uring.completion_cb,
+                            callback_function_name,
+                            sizeof(callback_function_name)));
         }
 
         if (free_op_context) {

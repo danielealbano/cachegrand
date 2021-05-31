@@ -27,7 +27,7 @@ worker_op_network_close_fp_t* worker_op_network_close;
 
 bool worker_op_timer_completion_cb_loop(
         void* user_data) {
-    // TODO: process timeouts, keys expirations, etc.
+    // TODO: process sockets timeouts and, in general, any other timeout specifically tied to this worker, etc.
 
     // Resubmit the timer
     return worker_op_timer_loop_submit();

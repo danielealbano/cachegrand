@@ -44,7 +44,6 @@ typedef bool (worker_op_network_close_completion_cb_fp_t)(
         void* user_data);
 typedef bool (worker_op_network_close_fp_t)(
         worker_op_network_close_completion_cb_fp_t* network_close_completion_cb,
-        worker_op_network_error_completion_cb_fp_t* network_error_completion_cb,
         network_channel_t *channel,
         void* user_data);
 

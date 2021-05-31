@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <fatal.h>
 
 #include "exttypes.h"
 #include "spinlock.h"
@@ -26,6 +27,8 @@
 #include "worker/worker.h"
 #include "worker/worker_op.h"
 #include "worker/network/worker_network.h"
+#include "protocol/redis/protocol_redis_reader.h"
+#include "network/protocol/redis/network_protocol_redis.h"
 
 #include "worker_network_op.h"
 
@@ -33,7 +36,29 @@
 
 void worker_network_post_network_channel_close(
         worker_context_t *context,
-        network_channel_t *channel) {
+        network_channel_t *channel,
+        void* user_data) {
+    worker_network_channel_user_data_t *worker_network_channel_user_data =
+            (worker_network_channel_user_data_t*)channel->user_data;
+
+    switch (channel->protocol) {
+        default:
+            // This can't really happen
+            FATAL(
+                    TAG,
+                    "[FD:%5d][CLOSE] Unknown protocol <%d>",
+                    channel->fd,
+                    channel->protocol);
+            break;
+
+        case NETWORK_PROTOCOLS_REDIS:
+            network_protocol_redis_close(channel, worker_network_channel_user_data->protocol.context);
+            break;
+    }
+
+    slab_allocator_mem_free(channel->user_data);
+    channel->user_data = NULL;
+
     context->stats.internal.network.active_connections--;
 }
 
@@ -43,12 +68,18 @@ bool worker_network_op_completion_cb_network_error_client(
         char* error_message,
         void* user_data) {
 
-    LOG_V(
+    LOG_I(
             TAG,
-            "Error <%s (%d)> from client <%s>",
+            "[FD:%5d][ERROR CLIENT] Error <%s (%d)> from client <%s>",
+            channel->fd,
             error_message,
             error_number,
             channel->address.str);
+
+    worker_network_post_network_channel_close(
+            worker_context_get(),
+            channel,
+            user_data);
 
     return true;
 }
@@ -59,12 +90,20 @@ bool worker_network_op_completion_cb_network_error_listener(
         char* error_message,
         void* user_data) {
 
-    LOG_V(
+    LOG_E(
             TAG,
-            "Error <%s (%d)> from listener <%s>",
+            "[FD:%5d][ERROR LISTENER] Error <%s (%d)> from listener <%s>",
+            channel->fd,
             error_message,
             error_number,
             channel->address.str);
+
+    // TODO: a listener requires more cleanups
+
+    worker_network_post_network_channel_close(
+            worker_context_get(),
+            channel,
+            user_data);
 
     return true;
 }
@@ -75,12 +114,14 @@ bool worker_network_op_completion_cb_network_close(
 
     LOG_V(
             TAG,
-            "Connection closed for client <%s>",
+            "[FD:%5d][CLOSE] Connection closed for client <%s>",
+            channel->fd,
             channel->address.str);
 
     worker_network_post_network_channel_close(
             worker_context_get(),
-            channel);
+            channel,
+            user_data);
 
     return true;
 }
@@ -89,13 +130,17 @@ bool worker_network_op_completion_cb_network_receive(
         network_channel_t *channel,
         size_t receive_length,
         void* user_data) {
+    int processed_data_length;
+    bool result = false;
+
     worker_context_t *context = worker_context_get();
     worker_network_channel_user_data_t *worker_network_channel_user_data =
             (worker_network_channel_user_data_t*)channel->user_data;
 
-    LOG_V(
+    LOG_D(
             TAG,
-            "Received <%d> bytes from client <%s>",
+            "[FD:%5d][RECV] Received <%lu> bytes from client <%s>",
+            channel->fd,
             receive_length,
             channel->address.str);
 
@@ -103,36 +148,11 @@ bool worker_network_op_completion_cb_network_receive(
     context->stats.internal.network.received_packets_total++;
 
     // Increase the amount of actual data (data_size) in the buffer
-    worker_network_channel_user_data->recv_buffer.data_size += receive_length;
+    worker_network_channel_user_data->read_buffer.data_size += receive_length;
 
-    // TODO: do something with the data to process
-    int processed_data_length = 0;
-
-    // Update the buffer offset and size after having processed the data
-    worker_network_channel_user_data->recv_buffer.data_offset += processed_data_length;
-    worker_network_channel_user_data->recv_buffer.data_size -= processed_data_length;
-
-    char* send_buffer = slab_allocator_mem_alloc(receive_length);
-    memcpy(
-            send_buffer,
-            worker_network_channel_user_data->recv_buffer.data +
-                    worker_network_channel_user_data->recv_buffer.data_size -
-                    receive_length,
-            receive_length);
-    return worker_network_send(
+    return worker_network_protocol_process_buffer(
             channel,
-            send_buffer,
-            receive_length,
-            NULL);
-
-//    switch (iouring_userdata_current->channel->protocol) {
-//        case NETWORK_PROTOCOLS_REDIS:
-//            protocol_redis_reader_context_free(
-//                    ((network_protocol_redis_context_t*)iouring_userdata_current->channel->user_data.protocol.context)->reader_context);
-//            slab_allocator_mem_free(iouring_userdata_current->channel->user_data.protocol.context);
-//            iouring_userdata_current->channel->user_data.protocol.context = NULL;
-//            break;
-//    }
+            worker_network_channel_user_data);
 }
 
 bool worker_network_op_completion_cb_network_send(
@@ -141,70 +161,59 @@ bool worker_network_op_completion_cb_network_send(
         void* user_data) {
     worker_context_t *context = worker_context_get();
     worker_network_channel_user_data_t *worker_network_channel_user_data =
-            (worker_network_channel_user_data_t *) channel->user_data;
+            (worker_network_channel_user_data_t *)channel->user_data;
 
-    LOG_V(
+    LOG_D(
             TAG,
-            "Sent <%d> bytes to client <%s>",
+            "[FD:%5d][SEND] Sent <%lu> bytes to client <%s>",
+            channel->fd,
             send_length,
             channel->address.str);
 
     context->stats.internal.network.sent_packets_per_second++;
     context->stats.internal.network.sent_packets_total++;
 
-    return worker_network_receive(
+    if (worker_network_channel_user_data->close_connection_on_send) {
+        return worker_network_close(
+                channel,
+                user_data);
+    }
+
+    return worker_network_protocol_process_buffer(
             channel,
-            NULL);
+            worker_network_channel_user_data);
 }
 
 bool worker_network_op_completion_cb_network_accept(
         network_channel_t *listener_channel,
         network_channel_t *new_channel,
         void *user_data) {
+    bool res = false;
     worker_context_t *context = worker_context_get();
     worker_stats_t *stats = &context->stats.internal;
-
-//    switch (iouring_userdata_new->channel->protocol) {
-//        default:
-//            LOG_E(
-//                    TAG,
-//                    "Unsupported protocol type <%d>",
-//                    iouring_userdata_new->channel->protocol);
-//            network_channel_iouring_entry_user_data_free(iouring_userdata_new);
-//            break;
-//
-//        case NETWORK_PROTOCOLS_REDIS:
-//            iouring_userdata_new->channel->user_data.protocol.context = slab_allocator_mem_alloc(sizeof(network_protocol_redis_context_t));
-//            iouring_userdata_new->channel->user_data.protocol.context = slab_allocator_mem_alloc(sizeof(network_protocol_redis_context_t));
-//
-//            network_protocol_redis_context_t *context = iouring_userdata_new->channel->user_data.protocol.context;
-//            context->reader_context = protocol_redis_reader_context_init();
-//
-//            iouring_userdata_new->channel->user_data.protocol.context = context;
-//            break;
-//    }
 
     if (new_channel == NULL) {
         LOG_W(
                 TAG,
-                "Failed to accept a new connection coming from listener <%s>",
+                "[FD:%5d][ACCEPT] Failed to accept a new connection coming from listener <%s>",
+                listener_channel->fd,
                 listener_channel->address.str);
     } else {
         LOG_V(
                 TAG,
-                "Listener <%s> accepting new connection from <%s>",
+                "[FD:%5d][ACCEPT] Listener <%s> accepting new connection from <%s>",
+                listener_channel->fd,
                 listener_channel->address.str,
                 new_channel->address.str);
 
         // Setup the network channel user data
         worker_network_channel_user_data_t *worker_network_channel_user_data =
-                slab_allocator_mem_alloc(sizeof(worker_network_channel_user_data_t));
+                slab_allocator_mem_alloc_zero(sizeof(worker_network_channel_user_data_t));
         worker_network_channel_user_data->hashtable = context->hashtable;
-
-        // TODO: should get these information from the config file not from a set of defines
         worker_network_channel_user_data->packet_size = NETWORK_CHANNEL_PACKET_SIZE;
-        worker_network_channel_user_data->recv_buffer.data = (char *)slab_allocator_mem_alloc(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
-        worker_network_channel_user_data->recv_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE;
+        worker_network_channel_user_data->read_buffer.data =
+                (char *)slab_allocator_mem_alloc(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
+        worker_network_channel_user_data->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE;
 
         new_channel->user_data = worker_network_channel_user_data;
 
@@ -213,20 +222,33 @@ bool worker_network_op_completion_cb_network_accept(
         stats->network.accepted_connections_total++;
         stats->network.accepted_connections_per_second++;
 
-        // New buffer, no need of any fancy calculation on buffer & buffer_length
-        if (worker_network_receive(
-                new_channel,
-                NULL) == false) {
-            LOG_V(
-                    TAG,
-                    "Unable to start to receive from <%s>, closing connection",
-                    new_channel->address.str);
-            worker_op_network_close(
-                    worker_network_op_completion_cb_network_close,
-                    worker_network_op_completion_cb_network_error_client,
-                    new_channel,
-                    NULL);
+        switch (listener_channel->protocol) {
+            default:
+                // This can't really happen
+                FATAL(
+                        TAG,
+                        "[FD:%5d][ACCEPT] Listener unknown protocol <%d>",
+                        listener_channel->fd,
+                        listener_channel->protocol);
+                break;
+
+            case NETWORK_PROTOCOLS_REDIS:
+                res = network_protocol_redis_accept(
+                        new_channel,
+                        &worker_network_channel_user_data->protocol.context);
+                break;
         }
+    }
+
+    if (!res) {
+        LOG_V(
+                TAG,
+                "[FD:%5d][ACCEPT] Protocol failed to handle accepted connection <%s>, closing connection",
+                new_channel->fd,
+                new_channel->address.str);
+        worker_network_close(
+                new_channel,
+                NULL);
     }
 
     return worker_op_network_accept(
@@ -235,4 +257,3 @@ bool worker_network_op_completion_cb_network_accept(
             listener_channel,
             NULL);
 }
-

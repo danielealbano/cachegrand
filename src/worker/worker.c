@@ -24,9 +24,6 @@
 #include "memory_fences.h"
 #include "utils_numa.h"
 #include "log/log.h"
-#include "fatal.h"
-#include "data_structures/double_linked_list/double_linked_list.h"
-#include "slab_allocator.h"
 #include "support/io_uring/io_uring_support.h"
 #include "support/io_uring/io_uring_capabilities.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -183,7 +180,6 @@ void worker_cleanup(
         worker_iouring_cleanup(worker_context);
     }
 
-    // Terminates and frees up the listeners
     for(
             uint32_t listener_index = 0;
             listener_index < worker_context->network.listeners_count;
@@ -236,7 +232,6 @@ void* worker_thread_func(
     worker_network_listeners_listen(
             worker_context);
 
-    // Setup timeout
     worker_op_timer_loop_submit();
 
     LOG_I(TAG, "Starting events loop");
@@ -252,10 +247,10 @@ void* worker_thread_func(
             break;
         }
 
-        if (worker_should_publish_stats(&worker_context->stats.public)) {
+        if (worker_should_publish_stats(&worker_context->stats.shared)) {
             worker_publish_stats(
                     &worker_context->stats.internal,
-                    &worker_context->stats.public);
+                    &worker_context->stats.shared);
         }
     } while(!worker_should_terminate(worker_context));
 

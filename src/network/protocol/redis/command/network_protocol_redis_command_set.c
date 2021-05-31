@@ -11,8 +11,6 @@
 #include <string.h>
 #include <strings.h>
 #include <arpa/inet.h>
-#include <liburing.h>
-#include <assert.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -20,6 +18,8 @@
 #include "exttypes.h"
 #include "spinlock.h"
 #include "xalloc.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "slab_allocator.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"
 #include "protocol/redis/protocol_redis.h"
@@ -28,13 +28,17 @@
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
-#include "network/channel/network_channel_iouring.h"
-#include "support/io_uring/io_uring_support.h"
+#include "config.h"
+#include "worker/worker_common.h"
 #include "network/protocol/redis/network_protocol_redis.h"
+#include "worker/network/worker_network.h"
 
 #define TAG "network_protocol_redis_command_get"
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
+    char *send_buffer, *send_buffer_start, *send_buffer_end;
+    size_t send_buffer_length;
+
     // TODO: just an hack, the storage system is missing
     void* memptr_start, *memptr;
     memptr_start = memptr = xalloc_alloc(sizeof(size_t) + reader_context->arguments.list[2].length);
@@ -53,6 +57,10 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
         xalloc_free(memptr);
     }
 
+    send_buffer_length = 64;
+    send_buffer = send_buffer_start = slab_allocator_mem_alloc(send_buffer_length);
+    send_buffer_end = send_buffer_start + send_buffer_length;
+
     if (res) {
         send_buffer_start = protocol_redis_writer_write_blob_string(
             send_buffer_start,
@@ -66,7 +74,19 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
             "ERR set failed");
     }
 
-    NETWORK_PROTOCOL_REDIS_WRITE_ENSURE_NO_ERROR()
+    if (send_buffer_start == NULL) {
+        LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
+        slab_allocator_mem_free(send_buffer);
+        return NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_ERROR;
+    }
 
-    return send_buffer_start;
+    if (worker_network_send(
+            channel,
+            send_buffer,
+            send_buffer_start - send_buffer,
+            NULL) == false) {
+        return NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_ERROR;
+    }
+
+    return NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_STOP_WAIT_SEND_DATA;
 }

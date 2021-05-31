@@ -37,7 +37,7 @@
 worker_iouring_op_context_t* worker_iouring_op_context_init(
         worker_iouring_op_wrapper_completion_cb_fp_t *completion_cb) {
     worker_iouring_op_context_t* op_context =
-            slab_allocator_mem_alloc(sizeof(worker_iouring_op_context_t));
+            slab_allocator_mem_alloc_zero(sizeof(worker_iouring_op_context_t));
     op_context->io_uring.completion_cb = completion_cb;
 
     return op_context;
@@ -48,6 +48,7 @@ bool worker_iouring_op_timer_completion_cb(
         worker_iouring_op_context_t *op_context,
         io_uring_cqe_t *cqe,
         bool *free_op_context) {
+    *free_op_context = true;
     op_context = (worker_iouring_op_context_t*)cqe->user_data;
 
     bool res = op_context->user.completion_cb.timer(op_context->user.data);

@@ -25,7 +25,7 @@
 
 network_channel_iouring_t* network_channel_iouring_new() {
     network_channel_iouring_t *channel =
-            (network_channel_iouring_t*)slab_allocator_mem_alloc(sizeof(network_channel_iouring_t));
+            (network_channel_iouring_t*)slab_allocator_mem_alloc_zero(sizeof(network_channel_iouring_t));
 
     network_channel_init(&channel->wrapped_channel);
 
@@ -35,7 +35,7 @@ network_channel_iouring_t* network_channel_iouring_new() {
 network_channel_iouring_t* network_channel_iouring_new_multi(
         int count) {
     network_channel_iouring_t *channels =
-            (network_channel_iouring_t*)slab_allocator_mem_alloc(sizeof(network_channel_iouring_t) * count);
+            (network_channel_iouring_t*)slab_allocator_mem_alloc_zero(sizeof(network_channel_iouring_t) * count);
 
     for(int index = 0; index < count; index++) {
         network_channel_init(&channels[index].wrapped_channel);

@@ -5,6 +5,10 @@
 extern "C" {
 #endif
 
+void worker_network_post_network_channel_close(
+        worker_context_t *context,
+        network_channel_t *channel,
+        void* user_data);
 
 bool worker_network_op_completion_cb_network_error_client(
         network_channel_t *channel,

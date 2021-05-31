@@ -9,13 +9,14 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <arpa/inet.h>
 
 #include "exttypes.h"
 #include "spinlock.h"
 #include "log/log.h"
+#include "fatal.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
-#include "xalloc.h"
 #include "config.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
@@ -23,6 +24,8 @@
 #include "worker/worker_common.h"
 #include "worker/worker_op.h"
 #include "worker/network/worker_network_op.h"
+#include "protocol/redis/protocol_redis_reader.h"
+#include "network/protocol/redis/network_protocol_redis.h"
 
 #include "worker_network.h"
 
@@ -105,36 +108,89 @@ void worker_network_listeners_listen(
 bool worker_network_receive(
         network_channel_t *channel,
         void* user_data) {
-    bool ret;
+    bool res;
     worker_network_channel_user_data_t *worker_network_channel_user_data =
-            (worker_network_channel_user_data_t *) channel->user_data;
+            (worker_network_channel_user_data_t *)channel->user_data;
+
+    size_t read_buffer_needed_size_min =
+            worker_network_channel_user_data->read_buffer.data_size +
+            worker_network_channel_user_data->packet_size;
+    size_t read_buffer_needed_size =
+            worker_network_channel_user_data->read_buffer.data_offset +
+            read_buffer_needed_size_min;
+
+    if (read_buffer_needed_size_min > worker_network_channel_user_data->read_buffer.length) {
+        LOG_D(
+                TAG,
+                "[FD:%5d][RECV] Too much unprocessed data into the buffer, unable to continue",
+                channel->fd);
+
+        return worker_network_close(channel, NULL);
+    } else if (read_buffer_needed_size > worker_network_channel_user_data->read_buffer.length) {
+        switch (channel->protocol) {
+            default:
+                // This can't really happen
+                FATAL(
+                        TAG,
+                        "[FD:%5d][RECEIVE] Unknown protocol <%d>",
+                        channel->fd,
+                        channel->protocol);
+                res = false;
+                break;
+
+            case NETWORK_PROTOCOLS_REDIS:
+                res = network_protocol_redis_read_buffer_rewind(
+                        channel,
+                        &worker_network_channel_user_data->read_buffer,
+                        worker_network_channel_user_data->protocol.context);
+                break;
+        }
+
+        if (!res) {
+            // TODO: failed to prepare to rewind the data, unable to continue
+            FATAL(
+                    TAG,
+                    "[FD:%5d][RECV]Unable to rewind the data",
+                    channel->fd);
+        }
+
+        LOG_D(
+                TAG,
+                "[FD:%5d][RECV] Copying data from the end of the window to the beginning",
+                channel->fd);
+        memcpy(
+                worker_network_channel_user_data->read_buffer.data,
+                worker_network_channel_user_data->read_buffer.data +
+                worker_network_channel_user_data->read_buffer.data_offset,
+                worker_network_channel_user_data->read_buffer.data_size);
+        worker_network_channel_user_data->read_buffer.data_offset = 0;
+    }
 
     size_t buffer_offset =
-            worker_network_channel_user_data->recv_buffer.data_offset +
-            worker_network_channel_user_data->recv_buffer.data_size;
+            worker_network_channel_user_data->read_buffer.data_offset +
+            worker_network_channel_user_data->read_buffer.data_size;
 
-    network_channel_buffer_t *buffer =
-            worker_network_channel_user_data->recv_buffer.data +
+    network_channel_buffer_data_t *buffer =
+            worker_network_channel_user_data->read_buffer.data +
             buffer_offset;
     size_t buffer_length =
-            worker_network_channel_user_data->recv_buffer.length -
+            worker_network_channel_user_data->read_buffer.length -
             buffer_offset;
 
     if (buffer_length < worker_network_channel_user_data->packet_size) {
         LOG_D(
                 TAG,
-                "Needed <%d> bytes in the buffer but only <%d> are available for <%s>, closing connection",
+                "Needed <%lu> bytes in the buffer but only <%lu> are available for <%s>, closing connection",
                 worker_network_channel_user_data->packet_size,
                 buffer_length,
                 channel->address.str);
 
-        ret = worker_op_network_close(
+        res = worker_op_network_close(
                 worker_network_op_completion_cb_network_close,
-                worker_network_op_completion_cb_network_error_client,
                 channel,
                 user_data);
     } else {
-        ret = worker_op_network_receive(
+        res = worker_op_network_receive(
                 worker_network_op_completion_cb_network_receive,
                 worker_network_op_completion_cb_network_close,
                 worker_network_op_completion_cb_network_error_client,
@@ -144,12 +200,12 @@ bool worker_network_receive(
                 user_data);
     }
 
-    return ret;
+    return res;
 }
 
 bool worker_network_send(
         network_channel_t *channel,
-        network_channel_buffer_t *buffer,
+        network_channel_buffer_data_t *buffer,
         size_t buffer_length,
         void* user_data) {
 
@@ -161,4 +217,45 @@ bool worker_network_send(
             buffer,
             buffer_length,
             user_data);
+}
+
+bool worker_network_close(
+        network_channel_t *channel,
+        void* user_data) {
+
+    return worker_op_network_close(
+            worker_network_op_completion_cb_network_close,
+            channel,
+            user_data);
+}
+
+bool worker_network_protocol_process_buffer(
+        network_channel_t *channel,
+        worker_network_channel_user_data_t *worker_network_channel_user_data) {
+    bool result = false;
+
+    switch (channel->protocol) {
+        default:
+            FATAL(TAG, "Unsupported protocol type <%d>", channel->protocol);
+            break;
+
+        case NETWORK_PROTOCOLS_REDIS:
+            result = network_protocol_redis_process_events(
+                    channel,
+                    worker_network_channel_user_data);
+    }
+
+    if (result == false) {
+        return worker_network_close(channel, NULL);
+    }
+
+    return result;
+}
+
+void worker_network_close_connection_on_send(
+        network_channel_t *channel,
+        bool close_connection_on_send) {
+    worker_network_channel_user_data_t *worker_network_channel_user_data =
+            (worker_network_channel_user_data_t *)channel->user_data;
+    worker_network_channel_user_data->close_connection_on_send = close_connection_on_send;
 }

@@ -42,6 +42,7 @@ struct worker_iouring_op_context {
             } network_accept;
             struct {
                 network_channel_iouring_t *channel;
+                char temp_receive_buffer[8];
             } network_close;
             struct {
                 network_channel_iouring_t *channel;

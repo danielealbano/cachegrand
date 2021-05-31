@@ -5,6 +5,9 @@
 extern "C" {
 #endif
 
+#define WORKER_LOOP_MAX_WAIT_TIME_MS 1000
+#define WORKER_PUBLISH_STATS_DELAY_SEC  1
+
 typedef struct worker_stats worker_stats_t;
 struct worker_stats {
     struct {
@@ -14,7 +17,6 @@ struct worker_stats {
         uint64_t received_packets_total;
         uint64_t sent_packets_total;
         uint64_t accepted_connections_total;
-        uint16_t max_packet_size;
         uint16_t active_connections;
     } network;
     struct timespec last_update_timestamp;
@@ -32,7 +34,7 @@ struct worker_context {
     hashtable_t *hashtable;
     struct {
         worker_stats_t internal;
-        worker_stats_volatile_t public;
+        worker_stats_volatile_t shared;
     } stats;
     struct {
         uint8_t listeners_count;
@@ -43,16 +45,10 @@ struct worker_context {
 
 typedef struct worker_network_channel_user_data worker_network_channel_user_data_t;
 struct worker_network_channel_user_data {
-    bool data_to_send_pending;
     bool close_connection_on_send;
     hashtable_t *hashtable;
     size_t packet_size;
-    struct {
-        network_channel_buffer_t *data;
-        size_t data_offset;
-        size_t data_size;
-        size_t length;
-    } recv_buffer;
+    network_channel_buffer_t read_buffer;
     struct {
         network_protocols_t protocol;
         void* context;
