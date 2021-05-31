@@ -24,7 +24,8 @@
 #include "network/channel/network_channel.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
-#include "worker/worker.h"
+#include "worker/worker_common.h"
+#include "signal_handler_thread.h"
 
 #include "program.h"
 
@@ -118,48 +119,6 @@ TEST_CASE("program.c", "[program]") {
             bool *program_terminate_event_loop = program_get_terminate_event_loop();
             program_request_terminate(program_terminate_event_loop);
             REQUIRE(*program_get_terminate_event_loop());
-        }
-    }
-
-    SECTION("program_signal_handlers") {
-        SECTION("supported signal") {
-            bool *program_terminate_event_loop = program_get_terminate_event_loop();
-            *program_terminate_event_loop = false;
-
-            program_signal_handlers(SIGUSR1);
-
-            REQUIRE(program_should_terminate(program_terminate_event_loop));
-        }
-
-        SECTION("ignored signal") {
-            bool *program_terminate_event_loop = program_get_terminate_event_loop();
-            *program_terminate_event_loop = false;
-
-            program_signal_handlers(SIGCHLD);
-
-            REQUIRE(!program_should_terminate(program_terminate_event_loop));
-        }
-    }
-
-    SECTION("program_register_signal_handlers") {
-        program_register_signal_handlers();
-
-//        SECTION("supported signal") {
-//            bool *program_terminate_event_loop = program_get_terminate_event_loop();
-//            *program_terminate_event_loop = false;
-//
-//            REQUIRE(kill(0, SIGUSR1) == 0);
-//
-//            REQUIRE(program_should_terminate(program_terminate_event_loop));
-//        }
-
-        SECTION("ignored signal") {
-            bool *program_terminate_event_loop = program_get_terminate_event_loop();
-            *program_terminate_event_loop = false;
-
-            REQUIRE(kill(0, SIGCHLD) == 0);
-
-            REQUIRE(!program_should_terminate(program_terminate_event_loop));
         }
     }
 

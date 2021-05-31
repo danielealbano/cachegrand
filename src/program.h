@@ -18,9 +18,6 @@ struct program_context {
     signal_handler_thread_context_t *signal_handler_thread_context;
 };
 
-void program_signal_handlers(
-        int sig);
-
 worker_context_t* program_workers_initialize(
         volatile bool *terminate_event_loop,
         program_context_t *program_context);
