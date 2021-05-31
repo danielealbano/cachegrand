@@ -62,7 +62,7 @@ spinlock_ticket_number_t spinlock_ticket_lock_internal(
         }
 
         if (spins++ == UINT32_MAX) {
-            LOG_E(TAG, "Possible stuck spinlock detected for thread %d in %s at %s:%u",
+            LOG_E(TAG, "Possible stuck spinlock detected for thread %lu in %s at %s:%u",
                   pthread_self(), src_func, src_path, src_line);
         }
     }

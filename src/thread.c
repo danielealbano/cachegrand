@@ -56,7 +56,7 @@ uint32_t thread_current_set_affinity(
     if (res != 0) {
         LOG_E(
                 TAG,
-                "Unable to set current thread <%u> affinity to core <%u>",
+                "Unable to set current thread <%ld> affinity to core <%u>",
                 thread_current_get_id(),
                 logical_core_index);
         LOG_E_OS_ERROR(TAG);

@@ -115,8 +115,8 @@ char* signal_handler_thread_log_producer_set_early_prefix_thread(
 
 void* signal_handler_thread_func(
         void* user_data) {
-    sigset_t waitset;
-    siginfo_t info;
+    sigset_t waitset = { 0 };
+    siginfo_t info = { 0 };
     struct timespec timeout;
 
     int_context = (signal_handler_thread_context_t*)user_data;

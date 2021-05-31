@@ -11,7 +11,7 @@
 
 #include "random.h"
 
-static __thread random_state_t random_state = {0};
+static thread_local random_state_t random_state = { 0 };
 
 uint64_t random_init_internal_seed(
         random_init_state_t *state) {

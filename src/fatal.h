@@ -5,12 +5,12 @@
 extern "C" {
 #endif
 
-#define FATAL(tag, ...) \
-    { fatal(tag, __VA_ARGS__); }
+#define FATAL(tag, ...) fatal(tag, __VA_ARGS__)
 
 void fatal(
         const char *tag,
-        const char *message, ...);
+        const char *message,
+        ...) __attribute__ ((format(printf, 2, 3)));
 
 #ifdef __cplusplus
 }

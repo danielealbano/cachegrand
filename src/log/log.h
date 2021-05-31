@@ -71,7 +71,7 @@ void log_message(
         const char *tag,
         log_level_t level,
         const char *message,
-        ...);
+        ...) __attribute__ ((format(printf, 3, 4)));
 
 void log_message_print_os_error(
         const char *tag);

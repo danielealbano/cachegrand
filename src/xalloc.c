@@ -37,7 +37,7 @@ void* xalloc_alloc(
     memptr = malloc(size);
 
     if (memptr == NULL) {
-        FATAL(TAG, "Unable to allocate the requested memory %d", size);
+        FATAL(TAG, "Unable to allocate the requested memory %lu", size);
     }
 
     return memptr;
@@ -49,7 +49,7 @@ void* xalloc_realloc(
     memptr = realloc(memptr, size);
 
     if (memptr == NULL) {
-        FATAL(TAG, "Unable to allocate the requested memory %d to resize the pointer 0x%p", size, memptr);
+        FATAL(TAG, "Unable to allocate the requested memory %lu to resize the pointer 0x%p", size, memptr);
     }
 
     return memptr;
@@ -61,7 +61,7 @@ void* xalloc_alloc_zero(
 
     memptr = xalloc_alloc(size);
     if (memset(memptr, 0, size) != memptr) {
-        FATAL(TAG, "Unable to zero the requested memory %d", size);
+        FATAL(TAG, "Unable to zero the requested memory %lu", size);
     }
 
     return memptr;
@@ -84,7 +84,7 @@ void* xalloc_alloc_aligned(
 #endif
 
     if (failed) {
-        FATAL(TAG, "Unable to allocate the requested memory %d aligned to %d", size, alignment);
+        FATAL(TAG, "Unable to allocate the requested memory %lu aligned to %lu", size, alignment);
     }
 
     return memptr;
@@ -97,7 +97,7 @@ void* xalloc_alloc_aligned_zero(
 
     memptr = xalloc_alloc_aligned(alignment, size);
     if (memset(memptr, 0, size) != memptr) {
-        FATAL(TAG, "Unable to zero the requested memory %d", size);
+        FATAL(TAG, "Unable to zero the requested memory %lu", size);
     }
 
     return memptr;
@@ -166,7 +166,7 @@ void* xalloc_mmap_alloc(
 #endif
 
     if (failed) {
-        FATAL(TAG, "Unable to allocate the requested memory %d", size);
+        FATAL(TAG, "Unable to allocate the requested memory %lu", size);
     }
 
     return memptr;
@@ -199,7 +199,7 @@ void* xalloc_hugepages_2mb_alloc(
             0);
 
     if (memptr == (void *)-1) {
-        FATAL(TAG, "Unable to allocate the requested memory %d", size);
+        FATAL(TAG, "Unable to allocate the requested memory %lu", size);
     }
 #else
 #error Platform not supported

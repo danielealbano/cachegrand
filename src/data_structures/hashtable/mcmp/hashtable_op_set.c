@@ -30,7 +30,7 @@ bool hashtable_mcmp_op_set(
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_value_data_t value) {
-    bool created_new;
+    bool created_new = true;
     hashtable_hash_t hash;
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk = 0;
     hashtable_key_value_volatile_t* key_value = 0;

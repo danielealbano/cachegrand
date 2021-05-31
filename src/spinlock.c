@@ -82,7 +82,7 @@ bool spinlock_lock_internal(
         // TODO: implement spinlock auto balancing using the predicted_spins property of the lock struct
 
         if (spins == UINT32_MAX) {
-            LOG_E(TAG, "Possible stuck spinlock detected for thread %d in %s at %s:%u",
+            LOG_E(TAG, "Possible stuck spinlock detected for thread %lu in %s at %s:%u",
                     pthread_self(), src_func, src_path, src_line);
         }
     }
