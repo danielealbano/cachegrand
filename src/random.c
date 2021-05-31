@@ -9,6 +9,8 @@
 #include <stdint.h>
 #include <time.h>
 
+#include "clock.h"
+#include "misc.h"
 #include "random.h"
 
 static thread_local random_state_t random_state = { 0 };
@@ -36,14 +38,12 @@ random_state_t random_init(
     return result;
 }
 
-uint64_t random_generate()
-{
+uint64_t random_generate() {
     uint64_t t, s;
-    struct timespec seed;
+    timespec_t seed;
 
     if (random_state.a == 0) {
-        clock_gettime(CLOCK_REALTIME, &seed);
-
+        clock_monotonic(&seed);
         random_init(seed.tv_nsec);
     }
 
