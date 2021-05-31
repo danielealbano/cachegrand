@@ -122,7 +122,7 @@ performance reasons, is kept **always** page aligned.
 
 The field `metrics.objects_total_count` is calculated using the following code
 ```c
-size_t page_size = SLAB_PAGE_2MB;
+size_t page_size = SLAB_HUGEPAGE_SIZE_2MB;
 size_t usable_page_size = page_size - slab_os_page_size - sizeof(slab_slice_t);
 size_t slab_slot_size = sizeof(slab_slot_t);
 uint32_t item_size = slab_allocator->object_size + slab_slot_size;

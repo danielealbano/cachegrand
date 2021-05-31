@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#define SLAB_HUGEPAGE_SIZE_2MB   (2 * 1024 * 1024)
+
 #define SLAB_OBJECT_SIZE_64     0x00000040
 #define SLAB_OBJECT_SIZE_128    0x00000080
 #define SLAB_OBJECT_SIZE_256    0x00000100
@@ -123,6 +125,17 @@ void slab_allocator_ensure_core_index_and_numa_node_index_filled();
 uint8_t slab_index_by_object_size(
         size_t object_size);
 
+size_t slab_allocator_slice_calculate_usable_hugepage_size();
+
+uint32_t slab_allocator_slice_calculate_data_offset(
+        size_t usable_hugepage_size,
+        size_t object_size);
+
+uint32_t slab_allocator_slice_calculate_slots_count(
+        size_t usable_hugepage_size,
+        size_t data_offset,
+        size_t object_size);
+
 slab_slice_t* slab_allocator_slice_init(
         slab_allocator_t* slab_allocator,
         void* memptr);
@@ -137,6 +150,9 @@ void slab_allocator_slice_remove_slots_from_per_core_metadata_slots(
         slab_slice_t* slab_slice,
         uint32_t core_index);
 
+slab_slice_t* slab_allocator_slice_from_memptr(
+        void* memptr);
+
 void slab_allocator_slice_make_available(
         slab_allocator_t* slab_allocator,
         slab_slice_t* slab_slice,
@@ -148,6 +164,11 @@ bool slab_allocator_slice_try_acquire(
         slab_allocator_t* slab_allocator,
         uint32_t numa_node_index,
         uint32_t core_index);
+
+slab_slot_t* slab_allocator_slot_from_memptr(
+        slab_allocator_t* slab_allocator,
+        slab_slice_t* slab_slice,
+        void* memptr);
 
 void slab_allocator_grow(
         slab_allocator_t* slab_allocator,
@@ -176,6 +197,12 @@ void* slab_allocator_mem_alloc(
 
 void* slab_allocator_mem_alloc_zero(
         size_t size);
+
+void* slab_allocator_mem_realloc(
+        void* memptr,
+        size_t current_size,
+        size_t new_size,
+        bool zero_new_memory);
 
 bool slab_allocator_mem_try_alloc(
         size_t size,
