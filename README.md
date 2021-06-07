@@ -239,6 +239,8 @@ General milestones grand-plan:
             - [ ] Implement a disk-based storage worker based on io_uring and liburing
     
 - v0.2
+    - [ ] General
+        - [ ] Switch to fibers (implement light swapcontext, no need for signals or SIMD registers support)
     - [ ] Logging
         - [ ] Add the ability to perform multi-threaded logging via a double ring buffer per thread processed by the
               logger thread (if too many messages are submitted the caller has to wait for space in the ring).
