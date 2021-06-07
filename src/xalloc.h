@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+__attribute__((malloc))
 void* xalloc_alloc(
         size_t size);
 
@@ -12,13 +13,16 @@ void* xalloc_realloc(
         void* memptr,
         size_t size);
 
+__attribute__((malloc))
 void* xalloc_alloc_zero(
         size_t size);
 
+__attribute__((malloc))
 void* xalloc_alloc_aligned(
         size_t alignment,
         size_t size);
 
+__attribute__((malloc))
 void* xalloc_alloc_aligned_zero(
         size_t alignment,
         size_t size);
@@ -34,6 +38,7 @@ void* xalloc_mmap_align_addr(
 size_t xalloc_mmap_align_size(
         size_t size);
 
+__attribute__((malloc))
 void* xalloc_mmap_alloc(
         size_t size);
 
@@ -41,6 +46,7 @@ int xalloc_mmap_free(
         void *memptr,
         size_t size);
 
+__attribute__((malloc))
 void* xalloc_hugepages_2mb_alloc(
         size_t size);
 
