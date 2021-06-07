@@ -204,10 +204,6 @@ void* slab_allocator_mem_realloc(
         size_t new_size,
         bool zero_new_memory);
 
-bool slab_allocator_mem_try_alloc(
-        size_t size,
-        void** memptr);
-
 void slab_allocator_mem_free(
         void* memptr);
 

@@ -514,15 +514,6 @@ void* slab_allocator_mem_alloc_zero(
     return memptr;
 }
 
-bool slab_allocator_mem_try_alloc(
-        size_t size,
-        void** memptr) {
-    // TODO: need to implement a mechanism to check if the maximum allowed memory has been allocated or not
-    //       counting the allocated slices
-    *memptr = slab_allocator_mem_alloc(size);
-    return true;
-}
-
 void slab_allocator_mem_free_hugepages(
         void* memptr,
         uint32_t numa_node_index,
