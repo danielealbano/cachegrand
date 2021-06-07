@@ -6,6 +6,8 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
+#define _GNU_SOURCE
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdatomic.h>
@@ -14,6 +16,7 @@
 #include <arpa/inet.h>
 #include <config.h>
 #include <liburing.h>
+#include <pthread.h>
 
 #include "exttypes.h"
 #include "misc.h"
