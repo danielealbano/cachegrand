@@ -129,4 +129,23 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
             REQUIRE(!worker_should_terminate(&worker_user_data));
         }
     }
+
+    SECTION("worker_set_running") {
+        worker_context_t worker_context = { 0 };
+        worker_context.running = false;
+
+        worker_set_running(&worker_context);
+
+        REQUIRE(worker_context.running == true);
+    }
+
+    SECTION("worker_wait_running") {
+        worker_context_t worker_context = { 0 };
+        worker_context.running = true;
+
+        // catch2 doesn't let to define timeouts, this function call should complete immediately
+        worker_wait_running(&worker_context);
+
+        REQUIRE(true);
+    }
 }
