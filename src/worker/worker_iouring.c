@@ -39,6 +39,7 @@
 #include "worker/worker.h"
 #include "worker/worker_op.h"
 #include "worker/worker_iouring_op.h"
+#include "worker/network/worker_network_iouring_op.h"
 
 #include "worker_iouring.h"
 
@@ -196,9 +197,9 @@ bool worker_iouring_fds_register(
         uint32_t fds_count,
         io_uring_t *ring) {
 
-    // pow2_next may return a value greater than UINT32_MAX but it would mean that we are requesting to handle more than
-    // 4 billions of FDS with this thread, that can't simply be the case ... like EVER.
-    // The caller should ensure this will never happen.
+    // pow2_next may return a value greater than UINT32_MAX but it would mean that we are
+    // requesting to handle more than 4 billions of FDS with this thread, that can't simply be
+    // the case ... like EVER. The caller should ensure this will never happen.
     fds_map_count = pow2_next(fds_count);
     fds_map_mask = fds_map_count - 1;
     fds_map_registered = xalloc_alloc(sizeof(int) * fds_map_count);
@@ -267,12 +268,18 @@ void worker_iouring_report_op_user_completion_cb(
     char callback_function_name[256] = { 0 };
 
     char* cbs[] = {
-            "op_context->user.completion_cb.timer", (char*)op_context->user.completion_cb.timer,
-            "op_context->user.completion_cb.network_accept", (char*)op_context->user.completion_cb.network_accept,
-            "op_context->user.completion_cb.network_receive", (char*)op_context->user.completion_cb.network_receive,
-            "op_context->user.completion_cb.network_send", (char*)op_context->user.completion_cb.network_send,
-            "op_context->user.completion_cb.network_close", (char*)op_context->user.completion_cb.network_close,
+            "op_context->user.completion_cb.timer",
+                (char*)op_context->user.completion_cb.timer,
+            "op_context->user.completion_cb.network_accept",
+                (char*)op_context->user.completion_cb.network_accept,
+            "op_context->user.completion_cb.network_receive",
+                (char*)op_context->user.completion_cb.network_receive,
+            "op_context->user.completion_cb.network_send",
+                (char*)op_context->user.completion_cb.network_send,
+            "op_context->user.completion_cb.network_close",
+                (char*)op_context->user.completion_cb.network_close,
     };
+
     for(int i = 0; i < sizeof(cbs) / sizeof(char*); i += 2) {
         char* name = cbs[i];
         void* cb_fp = (void*)cbs[i + 1];
@@ -301,7 +308,8 @@ void worker_iouring_cqe_log(
 
     LOG_E(
             TAG,
-            "[CB:%s] cqe->user_data = <0x%08llx>, cqe->res = <%s (%d)>, cqe->flags >> 16 = <%d>, cqe->flags & 0xFFFFu = <%d>",
+            "[CB:%s] cqe->user_data = <0x%08llx>, cqe->res = <%s (%d)>, cqe->flags >> 16 = <%d>,"
+                " cqe->flags & 0xFFFFu = <%d>",
             worker_iouring_get_callback_function_name(
                     op_context->io_uring.completion_cb,
                     callback_function_name,
@@ -386,7 +394,8 @@ bool worker_iouring_process_events_loop(
 
 void worker_iouring_check_capabilities() {
     LOG_V(TAG, "Checking io_uring supported features");
-    io_uring_supports_op_files_update_link = io_uring_capabilities_is_linked_op_files_update_supported();
+    io_uring_supports_op_files_update_link =
+            io_uring_capabilities_is_linked_op_files_update_supported();
     io_uring_supports_sqpoll = io_uring_capabilities_is_sqpoll_supported();
 
     // TODO: needs more testing, the sqpoll threads use all the CPU
@@ -405,7 +414,9 @@ bool worker_iouring_initialize(
         LOG_V(
                 TAG,
                 "io_uring available features: <%s>",
-                io_uring_support_features_str(available_features_str, sizeof(available_features_str)));
+                io_uring_support_features_str(
+                        available_features_str,
+                        sizeof(available_features_str)));
 
         if (io_uring_supports_sqpoll) {
             LOG_V(TAG, "io_uring sqpoll supported and enabled");
@@ -420,7 +431,10 @@ bool worker_iouring_initialize(
                 LOG_V(TAG, "io_uring linking supported and enabled");
             }
         } else {
-            LOG_W(TAG, "io_uring linking not supported, accepting new connections will incur in a performance penalty");
+            LOG_W(
+                    TAG,
+                    "io_uring linking not supported, accepting new connections will incur in a"
+                        " performance penalty");
         }
     }
 

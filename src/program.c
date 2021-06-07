@@ -176,8 +176,6 @@ void program_workers_cleanup(
     }
 }
 
-
-
 void program_signal_handler_thread_cleanup(
         signal_handler_thread_context_t *context) {
     int res;

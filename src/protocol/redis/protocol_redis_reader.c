@@ -135,8 +135,6 @@ long protocol_redis_reader_read(
             // TODO: should limit the number of allowed elements otherwise it can be used as DDOS attack
 
             context->arguments.count = args_count;
-
-            // TODO: use a buffer pool
             context->arguments.list = slab_allocator_mem_alloc_zero(
                     sizeof(protocol_redis_reader_context_argument_t) * context->arguments.count);
 
