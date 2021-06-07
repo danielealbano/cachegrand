@@ -18,14 +18,21 @@
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
+int test_port = 123;
+int test_backlog = 234;
+int test_user_data = 345;
+
 bool test_network_io_common_parse_addresses_foreach_callback_loopback_ipv4_address(
         int family,
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
-        uint16_t socket_address_index,
+        uint16_t port,
+        uint16_t backlog,
         network_protocols_t protocol,
         void* user_data) {
-    REQUIRE(socket_address_index == 0);
+    REQUIRE(port == test_port);
+    REQUIRE(backlog == test_backlog);
+    REQUIRE(user_data == (void*)&test_user_data);
     REQUIRE(socket_address->sa_family == AF_INET);
     REQUIRE(((struct sockaddr_in*)socket_address)->sin_addr.s_addr == inet_addr("127.0.0.1"));
 
@@ -36,13 +43,16 @@ bool test_network_io_common_parse_addresses_foreach_callback_loopback_ipv6_addre
         int family,
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
-        uint16_t socket_address_index,
+        uint16_t port,
+        uint16_t backlog,
         network_protocols_t protocol,
         void* user_data) {
     struct in6_addr addr = {0};
     inet_pton(AF_INET6, "::1", &addr);
 
-    REQUIRE(socket_address_index == 0);
+    REQUIRE(port == test_port);
+    REQUIRE(backlog == test_backlog);
+    REQUIRE(user_data == (void*)&test_user_data);
     REQUIRE(socket_address->sa_family == AF_INET6);
     REQUIRE(memcmp(
             (void*)&addr,
@@ -56,7 +66,8 @@ bool test_network_io_common_parse_addresses_foreach_callback_localhost_ipv4_ipv6
         int family,
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
-        uint16_t socket_address_index,
+        uint16_t port,
+        uint16_t backlog,
         network_protocols_t protocol,
         void* user_data) {
     if (socket_address->sa_family == AF_INET) {
@@ -771,23 +782,29 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
         SECTION("loopback ipv4 address") {
             REQUIRE(network_io_common_parse_addresses_foreach(
                     "127.0.0.1",
+                    test_port,
+                    test_backlog,
                     test_network_io_common_parse_addresses_foreach_callback_loopback_ipv4_address,
                     NETWORK_PROTOCOLS_UNKNOWN,
-                    NULL) == 1);
+                    (void*)&test_user_data) == 1);
         }
 
         SECTION("loopback ipv6 address") {
             REQUIRE(network_io_common_parse_addresses_foreach(
                     "::1",
+                    test_port,
+                    test_backlog,
                     test_network_io_common_parse_addresses_foreach_callback_loopback_ipv6_address,
                     NETWORK_PROTOCOLS_UNKNOWN,
-                    NULL) == 1);
+                    (void*)&test_user_data) == 1);
         }
 
         SECTION("localhost ipv4 and ipv6 addresses") {
             uint8_t res[8] = {0};
             REQUIRE(network_io_common_parse_addresses_foreach(
                     "www.google.it",
+                    test_port,
+                    test_backlog,
                     test_network_io_common_parse_addresses_foreach_callback_localhost_ipv4_ipv6_addresses,
                     NETWORK_PROTOCOLS_UNKNOWN,
                     &res) == 2);
@@ -799,9 +816,11 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
         SECTION("invalid address") {
             REQUIRE(network_io_common_parse_addresses_foreach(
                     "this is an invalid address! should return -1",
+                    test_port,
+                    test_backlog,
                     test_network_io_common_parse_addresses_foreach_callback_loopback_ipv6_address,
                     NETWORK_PROTOCOLS_UNKNOWN,
-                    NULL) == -1);
+                    (void*)&test_user_data) == -1);
         }
     }
 }
