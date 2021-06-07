@@ -33,7 +33,7 @@
 
 #define TAG "worker_network_op"
 
-void worker_iouring_op_network_post_close(
+void worker_network_iouring_op_network_post_close(
         network_channel_iouring_t *channel) {
     if (channel->has_mapped_fd) {
         worker_iouring_fds_map_remove(channel->mapped_fd);
@@ -42,7 +42,7 @@ void worker_iouring_op_network_post_close(
     network_channel_iouring_free(channel);
 }
 
-bool worker_iouring_op_network_accept_completion_cb(
+bool worker_network_iouring_op_network_accept_completion_cb(
         worker_iouring_context_t *context,
         worker_iouring_op_context_t *op_context,
         io_uring_cqe_t *cqe,
@@ -87,7 +87,7 @@ bool worker_iouring_op_network_accept_completion_cb(
                 listener_channel->wrapped_channel.address.str);
 
         network_io_common_socket_close(new_channel->wrapped_channel.fd, true);
-        worker_iouring_op_network_post_close(new_channel);
+        worker_network_iouring_op_network_post_close(new_channel);
         new_channel = NULL;
     }
 
@@ -122,7 +122,7 @@ bool worker_network_iouring_op_network_accept(
         network_channel_t *listener_channel,
         void* user_data) {
     worker_iouring_op_context_t *op_context = worker_iouring_op_context_init(
-            worker_iouring_op_network_accept_completion_cb);
+            worker_network_iouring_op_network_accept_completion_cb);
     op_context->user.completion_cb.network_accept = accept_completion_cb;
     op_context->user.completion_cb.network_error = error_completion_cb;
     op_context->user.data = user_data;
@@ -175,7 +175,7 @@ bool worker_network_iouring_op_network_close_completion_cb(
             (network_channel_t*)channel,
             op_context->user.data);
 
-    worker_iouring_op_network_post_close(channel);
+    worker_network_iouring_op_network_post_close(channel);
 
     return ret;
 }
@@ -183,46 +183,44 @@ bool worker_network_iouring_op_network_close_completion_cb(
 bool worker_network_iouring_op_network_close(
         worker_iouring_context_t *context,
         worker_op_network_close_completion_cb_fp_t* close_completion_cb,
+        worker_op_network_error_completion_cb_fp_t* error_completion_cb,
         network_channel_t *channel,
         void* user_data) {
-    worker_iouring_op_context_t *op_context = worker_iouring_op_context_init(
-            worker_network_iouring_op_network_close_completion_cb);
-    op_context->user.completion_cb.network_close = close_completion_cb;
-    op_context->user.data = user_data;
-    op_context->io_uring.network_close.channel = (network_channel_iouring_t*)channel;
+    bool ret;
 
-    network_io_common_socket_close(
+    if (network_io_common_socket_close(
             channel->fd,
-            true);
+            false)) {
+        ret = close_completion_cb(
+                channel,
+                user_data);
+    } else {
+        int error_number = errno;
+        char* error_message = strerror(error_number * -1);
+        ret = error_completion_cb(
+                channel,
+                errno,
+                error_message,
+                user_data);
+    }
 
-    // IOURING_OP_CLOSE appears to do not close properly the sockets, the fd is closed but the
-    // client side is hung, close the socket without io_uring and then submit a recv event with
-    // a fake (8 byte) buffer to catch the recv event.
-    // As the connection has been closed at this point and as there can be only one SQE in-flight
-    // per FD there can't be data (or relevant data in general) waiting to be processed so
-    // everything can be safely discarded if received.
-    return io_uring_support_sqe_enqueue_recv(
-            context->ring,
-            op_context->io_uring.network_close.channel->fd,
-            &op_context->io_uring.network_close.temp_receive_buffer,
-            sizeof(op_context->io_uring.network_close.temp_receive_buffer),
-            0,
-            op_context->io_uring.network_close.channel->base_sqe_flags,
-            (uintptr_t)op_context);
+    return ret;
 }
 
 bool worker_network_iouring_op_network_close_wrapper(
         worker_op_network_close_completion_cb_fp_t* close_completion_cb,
+        worker_op_network_error_completion_cb_fp_t* error_completion_cb,
         network_channel_t *channel,
         void* user_data) {
     return worker_network_iouring_op_network_close(
             worker_iouring_context_get(),
             close_completion_cb,
+            error_completion_cb,
             channel,
             user_data);
 }
 
-bool worker_iouring_op_network_receive_completion_cb(
+bool worker_network_iouring_op_network_receive_completion_cb(
         worker_iouring_context_t *context,
         worker_iouring_op_context_t *op_context,
         io_uring_cqe_t *cqe,
@@ -233,6 +231,9 @@ bool worker_iouring_op_network_receive_completion_cb(
     channel = op_context->io_uring.network_close.channel;
 
     if (cqe->res != -EAGAIN && (cqe->res == 0 || worker_iouring_cqe_is_error_any(cqe))) {
+        network_io_common_socket_close(
+                channel->wrapped_channel.fd, true);
+
         if (cqe->res == 0) {
             ret = op_context->user.completion_cb.network_close(
                     (network_channel_t*)channel,
@@ -244,11 +245,9 @@ bool worker_iouring_op_network_receive_completion_cb(
                     cqe->res,
                     error_message,
                     op_context->user.data);
-            network_io_common_socket_close(
-                    channel->wrapped_channel.fd, true);
         }
 
-        worker_iouring_op_network_post_close(channel);
+        worker_network_iouring_op_network_post_close(channel);
     } else {
         // In some cases io_uring returns an EAGAIN because one of the code paths submits a
         // non blocking read. If it's the case, simply set the length and let the callback
@@ -292,7 +291,7 @@ bool worker_network_iouring_op_network_receive(
         size_t buffer_length,
         void* user_data) {
     worker_iouring_op_context_t *op_context = worker_iouring_op_context_init(
-            worker_iouring_op_network_receive_completion_cb);
+            worker_network_iouring_op_network_receive_completion_cb);
     op_context->user.completion_cb.network_receive = receive_completion_cb;
     op_context->user.completion_cb.network_close = close_completion_cb;
     op_context->user.completion_cb.network_error = error_completion_cb;
@@ -325,7 +324,7 @@ bool worker_network_iouring_op_network_receive_wrapper(
             user_data);
 }
 
-bool worker_iouring_op_network_send_completion_cb(
+bool worker_network_iouring_op_network_send_completion_cb(
         worker_iouring_context_t *context,
         worker_iouring_op_context_t *op_context,
         io_uring_cqe_t *cqe,
@@ -336,6 +335,9 @@ bool worker_iouring_op_network_send_completion_cb(
     channel = op_context->io_uring.network_close.channel;
 
     if (cqe->res != -EAGAIN && (cqe->res == 0 || worker_iouring_cqe_is_error_any(cqe))) {
+        network_io_common_socket_close(
+                channel->wrapped_channel.fd, true);
+
         if (cqe->res == 0) {
             ret = op_context->user.completion_cb.network_close(
                     (network_channel_t*)channel,
@@ -347,11 +349,9 @@ bool worker_iouring_op_network_send_completion_cb(
                     cqe->res,
                     error_message,
                     op_context->user.data);
-            network_io_common_socket_close(
-                    channel->wrapped_channel.fd, true);
         }
 
-        worker_iouring_op_network_post_close(channel);
+        worker_network_iouring_op_network_post_close(channel);
     } else {
         if (cqe->res == -EAGAIN) {
             *free_op_context = false;
@@ -394,7 +394,7 @@ bool worker_network_iouring_op_network_send(
         size_t buffer_length,
         void* user_data) {
     worker_iouring_op_context_t *op_context = worker_iouring_op_context_init(
-            worker_iouring_op_network_send_completion_cb);
+            worker_network_iouring_op_network_send_completion_cb);
     op_context->user.completion_cb.network_send = send_completion_cb;
     op_context->user.completion_cb.network_close = close_completion_cb;
     op_context->user.completion_cb.network_error = error_completion_cb;

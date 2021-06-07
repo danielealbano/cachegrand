@@ -61,6 +61,19 @@ struct worker_iouring_op_context {
 worker_iouring_op_context_t* worker_iouring_op_context_init(
         worker_iouring_op_wrapper_completion_cb_fp_t* completion_cb);
 
+
+bool worker_iouring_op_fds_map_files_update_cb(
+        worker_iouring_context_t *context,
+        worker_iouring_op_context_t *op_context,
+        io_uring_cqe_t *cqe,
+        bool *free_op_context);
+
+bool worker_iouring_op_timer_completion_cb(
+        worker_iouring_context_t *context,
+        worker_iouring_op_context_t *op_context,
+        io_uring_cqe_t *cqe,
+        bool *free_op_context);
+
 bool worker_iouring_op_timer(
         worker_iouring_context_t *context,
         worker_op_timer_completion_cb_fp_t *completion_cb,

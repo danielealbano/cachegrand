@@ -187,6 +187,7 @@ bool worker_network_receive(
 
         res = worker_op_network_close(
                 worker_network_op_completion_cb_network_close,
+                worker_network_op_completion_cb_network_error_client,
                 channel,
                 user_data);
     } else {
@@ -225,6 +226,7 @@ bool worker_network_close(
 
     return worker_op_network_close(
             worker_network_op_completion_cb_network_close,
+            worker_network_op_completion_cb_network_error_client,
             channel,
             user_data);
 }

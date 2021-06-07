@@ -5,6 +5,30 @@
 extern "C" {
 #endif
 
+bool worker_network_iouring_op_network_accept_completion_cb(
+        worker_iouring_context_t *context,
+        worker_iouring_op_context_t *op_context,
+        io_uring_cqe_t *cqe,
+        bool *free_op_context);
+
+bool worker_network_iouring_op_network_receive_completion_cb(
+        worker_iouring_context_t *context,
+        worker_iouring_op_context_t *op_context,
+        io_uring_cqe_t *cqe,
+        bool *free_op_context);
+
+bool worker_network_iouring_op_network_send_completion_cb(
+        worker_iouring_context_t *context,
+        worker_iouring_op_context_t *op_context,
+        io_uring_cqe_t *cqe,
+        bool *free_op_context);
+
+bool worker_network_iouring_op_network_close_completion_cb(
+        worker_iouring_context_t *context,
+        worker_iouring_op_context_t *op_context,
+        io_uring_cqe_t *cqe,
+        bool *free_op_context);
+
 bool worker_network_iouring_op_network_accept(
         worker_iouring_context_t *context,
         worker_op_network_accept_completion_cb_fp_t* accept_completion_cb,
@@ -38,45 +62,6 @@ void worker_network_iouring_cleanup(
         worker_context_t *worker_context);
 
 void worker_network_iouring_op_register();
-
-//bool worker_iouring_process_op_timeout_ensure_loop(
-//        worker_context_t *worker_context,
-//        worker_stats_t* stats,
-//        io_uring_t* ring,
-//        io_uring_cqe_t *cqe);
-//
-//bool worker_iouring_process_op_accept(
-//        worker_context_t *worker_context,
-//        worker_stats_t* stats,
-//        io_uring_t* ring,
-//        io_uring_cqe_t *cqe);
-//
-//bool worker_iouring_process_op_recv_close_or_error(
-//        worker_context_t *worker_context,
-//        worker_stats_t* stats,
-//        io_uring_t* ring,
-//        io_uring_cqe_t *cqe);
-//
-//bool worker_iouring_process_op_recv(
-//        worker_context_t *worker_context,
-//        worker_stats_t* stats,
-//        io_uring_t* ring,
-//        io_uring_cqe_t *cqe);
-//
-//bool worker_iouring_process_op_send(
-//        worker_context_t *worker_context,
-//        worker_stats_t* stats,
-//        io_uring_t* ring,
-//        io_uring_cqe_t *cqe);
-//
-//void worker_iouring_thread_process_ops_loop(
-//        worker_context_t *worker_context,
-//        worker_stats_t* stats,
-//        io_uring_t *ring);
-//
-//void* worker_iouring_thread_func(
-//        void* user_data);
-
 
 #ifdef __cplusplus
 }
