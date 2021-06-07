@@ -364,7 +364,6 @@ uint32_t network_io_common_parse_addresses_foreach(
                 rp->ai_family,
                 rp->ai_addr,
                 rp->ai_addrlen,
-                socket_address_index,
                 port,
                 backlog,
                 protocol,

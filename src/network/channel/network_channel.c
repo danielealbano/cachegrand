@@ -106,7 +106,6 @@ bool network_channel_listener_new_callback(
         int family,
         struct sockaddr *socket_address,
         socklen_t socket_address_size,
-        uint16_t socket_address_index,
         uint16_t port,
         uint16_t backlog,
         network_protocols_t protocol,
