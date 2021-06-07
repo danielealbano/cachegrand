@@ -114,6 +114,13 @@ worker_context_t* program_workers_initialize(
     return workers_context;
 }
 
+void program_workers_wait_start(
+        program_context_t *program_context) {
+    for(uint32_t worker_index = 0; worker_index < program_context->workers_count; worker_index++) {
+        worker_wait_running(&program_context->workers_context[worker_index]);
+    }
+}
+
 bool* program_get_terminate_event_loop() {
     return (bool*)&program_terminate_event_loop;
 }
@@ -495,6 +502,7 @@ int program_main(
         return 1;
     }
 
+    program_workers_wait_start(&program_context);
     program_wait_loop(&program_terminate_event_loop);
 
     LOG_I(TAG, "Terminating");
