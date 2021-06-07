@@ -82,7 +82,43 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
         network_channel_t test_listeners[10] = { 0 };
         network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = {0};
 
-        listener_new_cb_user_data.core_index = 0;
+        SECTION("count ipv4 address") {
+            struct sockaddr_in address = {0};
+            address.sin_family = AF_INET;
+            address.sin_addr.s_addr = loopback_ipv4.s_addr;
+
+            REQUIRE(network_channel_listener_new_callback(
+                    AF_INET,
+                    (struct sockaddr*)&address,
+                    sizeof(address),
+                    socket_port_free_ipv4,
+                    10,
+                    NETWORK_PROTOCOLS_UNKNOWN,
+                    &listener_new_cb_user_data));
+            REQUIRE(listener_new_cb_user_data.listeners_count == 1);
+        }
+
+        SECTION("count ipv6 address") {
+            listener_new_cb_user_data.listeners = test_listeners;
+
+            struct sockaddr_in6 address = {
+                    AF_INET6,
+                    0,
+                    0,
+                    IN6ADDR_LOOPBACK_INIT,
+                    0
+            };
+
+            REQUIRE(network_channel_listener_new_callback(
+                    AF_INET6,
+                    (struct sockaddr*)&address,
+                    sizeof(address),
+                    socket_port_free_ipv4,
+                    10,
+                    NETWORK_PROTOCOLS_UNKNOWN,
+                    &listener_new_cb_user_data));
+            REQUIRE(listener_new_cb_user_data.listeners_count == 1);
+        }
 
         SECTION("ipv4 address") {
             listener_new_cb_user_data.listeners = test_listeners;
