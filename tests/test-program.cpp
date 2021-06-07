@@ -49,11 +49,11 @@ void* test_program_wait_loop_terminate(
     return NULL;
 }
 
-#define PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345(...) { \
+#define PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345() \
      char* cpus[] = { "0" }; \
     config_network_protocol_binding_t config_network_protocol_binding = { \
             .host = "127.0.0.1", \
-            .port = 12399, \
+            .port = 12345, \
     }; \
     config_network_protocol_t config_network_protocol = { \
             .type = CONFIG_PROTOCOL_TYPE_REDIS, \
@@ -84,11 +84,15 @@ void* test_program_wait_loop_terminate(
     }; \
     program_context_t program_context = { \
             .config = &config \
-    }; \
-    __VA_ARGS__ \
+    };
+
+#define PROGRAM_WAIT_FOR_WORKER_RUNNING(WORKER_CONTEXT) { \
+    do { \
+        pthread_yield(); \
+        usleep(10000); \
+        MEMORY_FENCE_LOAD(); \
+    } while(!(WORKER_CONTEXT)->running); \
 }
-
-
 
 TEST_CASE("program.c", "[program]") {
     SECTION("program_request_terminate") {
@@ -154,125 +158,113 @@ TEST_CASE("program.c", "[program]") {
     }
 
     SECTION("program_workers_initialize") {
-        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345({
-            worker_context_t* worker_user_data;
-            volatile bool terminate_event_loop = false;
+        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345();
+        worker_context_t* worker_context;
+        volatile bool terminate_event_loop = false;
 
-            program_config_thread_affinity_set_selected_cpus(&program_context);
-            worker_user_data = program_workers_initialize(
-                    &terminate_event_loop,
-                    &program_context);
+        program_config_thread_affinity_set_selected_cpus(&program_context);
+        worker_context = program_workers_initialize(
+                &terminate_event_loop,
+                &program_context);
 
-            REQUIRE(worker_user_data != NULL);
-            REQUIRE(worker_user_data->workers_count == 1);
-            REQUIRE(worker_user_data->worker_index == 0);
-            REQUIRE(worker_user_data->terminate_event_loop == &terminate_event_loop);
-            REQUIRE(worker_user_data->config == &config);
-            REQUIRE(worker_user_data->pthread != 0);
+        REQUIRE(worker_context != NULL);
+        REQUIRE(worker_context->workers_count == 1);
+        REQUIRE(worker_context->worker_index == 0);
+        REQUIRE(worker_context->terminate_event_loop == &terminate_event_loop);
+        REQUIRE(worker_context->config == &config);
+        REQUIRE(worker_context->pthread != 0);
 
-            usleep(25000);
-            pthread_yield();
+        PROGRAM_WAIT_FOR_WORKER_RUNNING(worker_context);
 
-            // Terminate running thread
-            terminate_event_loop = true;
-            MEMORY_FENCE_STORE();
+        // Terminate running thread
+        terminate_event_loop = true;
+        MEMORY_FENCE_STORE();
 
-            // Wait for the thread to end
-            usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
-            pthread_yield();
+        // Wait for the thread to end
+        usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
+        pthread_yield();
 
-            // Check if the worker terminated
-            REQUIRE(pthread_kill(worker_user_data->pthread, 0) == ESRCH);
+        // Check if the worker terminated
+        REQUIRE(pthread_kill(worker_context->pthread, 0) == ESRCH);
 
-            // Cleanup
-            REQUIRE(pthread_join(worker_user_data->pthread, NULL) == 0);
-            xalloc_free(worker_user_data);
-        )}
+        // Cleanup
+        REQUIRE(pthread_join(worker_context->pthread, NULL) == 0);
+        xalloc_free(worker_context);
     }
 
     SECTION("program_workers_cleanup") {
-        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345({
-            pthread_t worker_pthread;
-            worker_context_t* worker_user_data;
-            volatile bool terminate_event_loop = false;
+        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345();
+        pthread_t worker_pthread;
+        worker_context_t* worker_context;
+        volatile bool terminate_event_loop = false;
 
-            program_config_thread_affinity_set_selected_cpus(&program_context);
-            worker_user_data = program_workers_initialize(
-                    &terminate_event_loop,
-                    &program_context);
+        program_config_thread_affinity_set_selected_cpus(&program_context);
+        worker_context = program_workers_initialize(
+                &terminate_event_loop,
+                &program_context);
 
-            // Terminate running thread
-            worker_pthread = worker_user_data->pthread;
+        PROGRAM_WAIT_FOR_WORKER_RUNNING(worker_context);
 
-            usleep(25000);
-            pthread_yield();
+        terminate_event_loop = true;
+        MEMORY_FENCE_STORE();
 
-            terminate_event_loop = true;
-            MEMORY_FENCE_STORE();
+        // Wait for the thread to end
+        usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
+        pthread_yield();
 
-            // Wait for the thread to end
-            usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
-            pthread_yield();
+        program_workers_cleanup(
+                worker_context,
+                1);
 
-            program_workers_cleanup(
-                    worker_user_data,
-                    1);
+        REQUIRE(pthread_kill(worker_context->pthread, 0) == ESRCH);
 
-            REQUIRE(pthread_kill(worker_pthread, 0) == ESRCH);
-
-            REQUIRE(mprobe(worker_user_data) == -MCHECK_FREE);
-        )}
+        REQUIRE(mprobe(worker_context) == -MCHECK_FREE);
     }
 
     SECTION("test redis ping/pong") {
-        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345({
-            pthread_t worker_pthread;
-            worker_context_t *worker_user_data;
-            struct sockaddr_in address = {0};
-            size_t buffer_send_data_len;
-            char buffer_send[64] = {0};
-            char buffer_recv[64] = {0};
-            volatile bool terminate_event_loop = false;
+        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345();
+        pthread_t worker_pthread;
+        worker_context_t *worker_context;
+        struct sockaddr_in address = {0};
+        size_t buffer_send_data_len;
+        char buffer_send[64] = {0};
+        char buffer_recv[64] = {0};
+        volatile bool terminate_event_loop = false;
 
-            program_config_thread_affinity_set_selected_cpus(&program_context);
-            worker_user_data = program_workers_initialize(
-                    &terminate_event_loop,
-                    &program_context);
+        program_config_thread_affinity_set_selected_cpus(&program_context);
+        worker_context = program_workers_initialize(
+                &terminate_event_loop,
+                &program_context);
 
-            // Terminate running thread
-            worker_pthread = worker_user_data->pthread;
+        PROGRAM_WAIT_FOR_WORKER_RUNNING(worker_context);
 
-            usleep(25000);
-            pthread_yield();
+        int clientfd = network_io_common_socket_tcp4_new(0);
 
-            int clientfd = network_io_common_socket_tcp4_new(0);
+        address.sin_family = AF_INET;
+        address.sin_port = htons(config_network_protocol_binding.port);
+        address.sin_addr.s_addr = inet_addr(config_network_protocol_binding.host);
+        snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$4\r\nPING\r\n");
+        buffer_send_data_len = strlen(buffer_send);
 
-            address.sin_family = AF_INET;
-            address.sin_port = htons(config_network_protocol_binding.port);
-            address.sin_addr.s_addr = inet_addr(config_network_protocol_binding.host);
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$4\r\nPING\r\n");
-            buffer_send_data_len = strlen(buffer_send);
+        REQUIRE(connect(clientfd, (struct sockaddr *) &address, sizeof(address)) == 0);
+        REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+        REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 10);
+        REQUIRE(strncmp(buffer_recv, "$4\r\nPONG\r\n", strlen("$4\r\nPONG\r\n")) == 0);
+        REQUIRE(network_io_common_socket_close(clientfd, false));
 
-            REQUIRE(connect(clientfd, (struct sockaddr *) &address, sizeof(address)) == 0);
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 10);
-            REQUIRE(strncmp(buffer_recv, "$4\r\nPONG\r\n", strlen("$4\r\nPONG\r\n")) == 0);
-            REQUIRE(network_io_common_socket_close(clientfd, false));
+        terminate_event_loop = true;
+        MEMORY_FENCE_STORE();
 
-            terminate_event_loop = true;
-            MEMORY_FENCE_STORE();
+        // Wait for the thread to end
+        usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
+        pthread_yield();
 
-            // Wait for the thread to end
-            usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
-            pthread_yield();
+        program_workers_cleanup(
+                worker_context,
+                1);
 
-            program_workers_cleanup(
-                    worker_user_data,
-                    1);
+        REQUIRE(pthread_kill(worker_context->pthread, 0) == ESRCH);
 
-            REQUIRE(pthread_kill(worker_pthread, 0) == ESRCH);
-
-            REQUIRE(mprobe(worker_user_data) == -MCHECK_FREE);
-        })
+        REQUIRE(mprobe(worker_context) == -MCHECK_FREE);
     }
 }
