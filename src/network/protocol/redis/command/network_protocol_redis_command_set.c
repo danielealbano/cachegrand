@@ -41,7 +41,8 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
 
     // TODO: just an hack, the storage system is missing
     void* memptr_start, *memptr;
-    memptr_start = memptr = xalloc_alloc(sizeof(size_t) + reader_context->arguments.list[2].length);
+    memptr_start = memptr = slab_allocator_mem_alloc(
+            sizeof(size_t) + reader_context->arguments.list[2].length);
 
     *(size_t*)memptr = reader_context->arguments.list[2].length;
     memptr += sizeof(size_t);
@@ -54,7 +55,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
             (uintptr_t)memptr_start);
 
     if (!res) {
-        xalloc_free(memptr);
+        slab_allocator_mem_free(memptr);
     }
 
     send_buffer_length = 64;

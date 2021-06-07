@@ -18,7 +18,8 @@
 #include "exttypes.h"
 #include "spinlock.h"
 #include "log/log.h"
-#include "xalloc.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "slab_allocator.h"
 
 #include "hashtable.h"
 #include "hashtable_op_set.h"
@@ -94,7 +95,7 @@ bool hashtable_mcmp_op_set(
             // TODO: The keys must be stored in an append-only store because potentially a get operation can be affected
             //       by a delete, never happened so far (under very high contention) but it can potentially happen and
             //       needs to be fixed.
-            ht_key = xalloc_alloc(key_size + 1);
+            ht_key = slab_allocator_mem_alloc(key_size + 1);
             ((char*)ht_key)[key_size] = '\0';
             strncpy((char*)ht_key, key, key_size);
 

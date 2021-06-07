@@ -212,7 +212,7 @@ bool worker_network_op_completion_cb_network_accept(
         worker_network_channel_user_data->hashtable = context->hashtable;
         worker_network_channel_user_data->packet_size = NETWORK_CHANNEL_PACKET_SIZE;
         worker_network_channel_user_data->read_buffer.data =
-                (char *)slab_allocator_mem_alloc(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
+                (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
         worker_network_channel_user_data->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE;
 
         new_channel->user_data = worker_network_channel_user_data;

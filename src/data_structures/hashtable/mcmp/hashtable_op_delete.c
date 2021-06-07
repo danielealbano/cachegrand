@@ -17,7 +17,8 @@
 #include "log/log.h"
 #include "exttypes.h"
 #include "spinlock.h"
-#include "xalloc.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "slab_allocator.h"
 
 #include "hashtable.h"
 #include "hashtable_support_index.h"
@@ -107,7 +108,7 @@ bool hashtable_mcmp_op_delete(
             // 2048 threads on an AMD EPYC 7502P) it can potentially happen.
             // The append only store will solve this problem once it will be implemented, for the version 0.1 this
             // potentially crash-causing implementation will do well-enough.
-            xalloc_free(key_value->external_key.data);
+            slab_allocator_mem_free(key_value->external_key.data);
             key_value->external_key.size = 0;
         }
 
