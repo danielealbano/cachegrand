@@ -6,6 +6,8 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
+#define _GNU_SOURCE
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -15,16 +17,15 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/ptrace.h>
+#include <pthread.h>
 
 #include "log/log.h"
+#include "fatal.h"
 #include "memory_fences.h"
 #include "xalloc.h"
 #include "signals_support.h"
-#include "thread.h"
-#include "utils_numa.h"
 
 #include "signal_handler_thread.h"
-#include "fatal.h"
 
 #define TAG "signal_handler_thread"
 
@@ -92,11 +93,6 @@ void signal_handler_thread_register_signal_handlers(
     signal(SIGCHLD, SIG_IGN);
 
     for(uint8_t i = 0; i < program_signals_count; i++) {
-//        // SIGINT is used by gdb to be notified when new breakpoints are added
-//        if (debugger_attached && program_signals[i] == SIGINT) {
-//            continue;
-//        }
-
         sigaddset(waitset, program_signals[i]);
         signals_support_register_signal_handler(
                 program_signals[i],
@@ -132,6 +128,13 @@ void* signal_handler_thread_func(
 
     char* log_producer_early_prefix_thread =
             signal_handler_thread_log_producer_set_early_prefix_thread(int_context);
+
+    if (pthread_setname_np(
+           pthread_self(),
+            "signal_handler") != 0) {
+        LOG_E(TAG, "Unable to set name of the signal handler thread");
+        LOG_E_OS_ERROR(TAG);
+    }
 
     signal_handler_thread_register_signal_handlers(&waitset);
     sigprocmask(SIG_BLOCK, &waitset, NULL);
