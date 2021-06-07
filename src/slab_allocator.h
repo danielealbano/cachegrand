@@ -176,6 +176,7 @@ void slab_allocator_grow(
         uint32_t core_index,
         void* memptr);
 
+__attribute__((malloc))
 void* slab_allocator_mem_alloc_hugepages(
         size_t size,
         uint32_t numa_node_index,
@@ -186,12 +187,14 @@ void slab_allocator_mem_free_hugepages(
         uint32_t numa_node_index,
         uint32_t core_index);
 
+__attribute__((malloc))
 void* slab_allocator_mem_alloc_xalloc(
         size_t size);
 
 void slab_allocator_mem_free_xalloc(
         void* memptr);
 
+__attribute__((malloc))
 void* slab_allocator_mem_alloc(
         size_t size);
 
