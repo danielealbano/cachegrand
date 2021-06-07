@@ -41,6 +41,12 @@ void worker_request_terminate(
 uint32_t worker_thread_set_affinity(
         uint32_t worker_index);
 
+void worker_wait_running(
+        worker_context_t *worker_context);
+
+void worker_set_running(
+        worker_context_t *worker_context);
+
 void* worker_thread_func(
         void* user_data);
 

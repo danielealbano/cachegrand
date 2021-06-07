@@ -17,6 +17,7 @@
 #include <config.h>
 #include <liburing.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #include "exttypes.h"
 #include "misc.h"
@@ -30,7 +31,6 @@
 #include "support/io_uring/io_uring_support.h"
 #include "support/io_uring/io_uring_capabilities.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
-#include "protocol/redis/protocol_redis_reader.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
@@ -208,6 +208,21 @@ void worker_network_listeners_listen_pre(
     }
 }
 
+void worker_wait_running(
+        worker_context_t *worker_context) {
+    do {
+        pthread_yield();
+        usleep(10000);
+        MEMORY_FENCE_LOAD();
+    } while(!worker_context->running);
+}
+
+void worker_set_running(
+    worker_context_t *worker_context) {
+    worker_context->running = true;
+    MEMORY_FENCE_STORE();
+}
+
 void* worker_thread_func(
         void* user_data) {
     char worker_thread_name[16] = { 0 };
@@ -254,8 +269,7 @@ void* worker_thread_func(
 
     LOG_I(TAG, "Starting events loop");
 
-    worker_context->started = true;
-    MEMORY_FENCE_STORE();
+    worker_set_running(worker_context);
 
     do {
         if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
