@@ -7,10 +7,12 @@ extern "C" {
 
 #define FATAL(tag, ...) fatal(tag, __VA_ARGS__)
 
+__attribute__((noreturn))
+__attribute__((format(printf, 2, 3)))
 void fatal(
         const char *tag,
         const char *message,
-        ...) __attribute__ ((format(printf, 2, 3)));
+        ...);
 
 #ifdef __cplusplus
 }
