@@ -254,6 +254,9 @@ void* worker_thread_func(
 
     LOG_I(TAG, "Starting events loop");
 
+    worker_context->started = true;
+    MEMORY_FENCE_STORE();
+
     do {
         if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
             worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {

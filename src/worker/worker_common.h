@@ -26,7 +26,8 @@ typedef _Volatile(worker_stats_t) worker_stats_volatile_t;
 typedef struct worker_context worker_context_t;
 struct worker_context {
     pthread_t pthread;
-    volatile bool *terminate_event_loop;
+    bool_volatile_t *terminate_event_loop;
+    bool_volatile_t started;
     uint32_t workers_count;
     uint32_t worker_index;
     uint32_t core_index;
