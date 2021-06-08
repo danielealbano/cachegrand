@@ -16,20 +16,25 @@
 #include "network/channel/network_channel_iouring.h"
 
 TEST_CASE("network/channel/network_channel_iouring.c", "[network][channel][network_channel_iouring]") {
-    SECTION("network_channel_iouring_entry_user_data_new") {
-        network_channel_iouring_entry_user_data_t* user_data =
-                network_channel_iouring_entry_user_data_new(NETWORK_IO_IOURING_OP_ACCEPT);
+    SECTION("network_channel_iouring_new") {
+        network_channel_iouring_t* network_channel_iouring = network_channel_iouring_new();
 
-        REQUIRE(user_data != NULL);
-        REQUIRE(user_data->op == NETWORK_IO_IOURING_OP_ACCEPT);
+        REQUIRE(network_channel_iouring != NULL);
+        REQUIRE(network_channel_iouring->wrapped_channel.address.size ==
+            sizeof(network_channel_iouring->wrapped_channel.address.socket));
+
+        network_channel_iouring_free(network_channel_iouring);
     }
 
-    SECTION("network_channel_iouring_entry_user_data_new_with_mapped_fd") {
-        network_channel_iouring_entry_user_data_t* user_data =
-                network_channel_iouring_entry_user_data_new_with_mapped_fd(NETWORK_IO_IOURING_OP_ACCEPT, 1);
+    SECTION("network_channel_iouring_new_multi") {
+        network_channel_iouring_t* network_channel_iouring = network_channel_iouring_new_multi(3);
 
-        REQUIRE(user_data != NULL);
-        REQUIRE(user_data->op == NETWORK_IO_IOURING_OP_ACCEPT);
-        REQUIRE(user_data->mapped_fd == 1);
+        REQUIRE(network_channel_iouring != NULL);
+        for(int i = 0; i < 3; i++) {
+            REQUIRE(network_channel_iouring[i].wrapped_channel.address.size ==
+                    sizeof(network_channel_iouring[i].wrapped_channel.address.socket));
+        }
+
+        network_channel_iouring_free(network_channel_iouring);
     }
 }
