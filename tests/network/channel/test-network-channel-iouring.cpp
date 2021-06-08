@@ -1,15 +1,7 @@
 #include <catch2/catch.hpp>
 
-#include <stdint.h>
 #include <arpa/inet.h>
 
-#include "xalloc.h"
-#include "exttypes.h"
-#include "spinlock.h"
-#include "data_structures/hashtable/mcmp/hashtable.h"
-
-#include "protocol/redis/protocol_redis.h"
-#include "protocol/redis/protocol_redis_reader.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
