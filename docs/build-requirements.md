@@ -36,8 +36,8 @@ Example output
 
 Command line to install the non-kernel dependencies
 ```shell
-apt-get install \
-    built-essential cmake pkg-config git \
+sudo apt-get install \
+    build-essential cmake pkg-config git \
     libssl1.1 libssl-dev \
     libnuma1 libnuma-dev \
     libcurl4-openssl-dev libcurl4 \
