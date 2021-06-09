@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
         LOG_E(TAG, "Failed to change process group");
         LOG_E_OS_ERROR(TAG);
     }
-    
+
     int returnCode = session.applyCommandLine( argc, argv );
     if( returnCode != 0 ) {
         return returnCode;
