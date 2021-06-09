@@ -78,6 +78,8 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
         network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = { 0 };
 
         SECTION("count ipv4 address") {
+            listener_new_cb_user_data.listeners = NULL;
+
             struct sockaddr_in address = {0};
             address.sin_family = AF_INET;
             address.sin_addr.s_addr = loopback_ipv4.s_addr;
@@ -94,7 +96,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
         }
 
         SECTION("count ipv6 address") {
-            listener_new_cb_user_data.listeners = test_listeners;
+            listener_new_cb_user_data.listeners = NULL;
 
             struct sockaddr_in6 address = {
                     AF_INET6,
