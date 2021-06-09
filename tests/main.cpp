@@ -32,6 +32,8 @@ void tests_init_logging() {
 int main(int argc, char* argv[]) {
     Catch::Session session;
 
+    tests_init_logging();
+
     // Switch to it's own process process group to avoid propagating the signals to the parent
     if (setpgid(getpid(),getpid()) != 0) {
         LOG_E(TAG, "Failed to change process group");
