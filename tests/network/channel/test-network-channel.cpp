@@ -14,12 +14,12 @@
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 TEST_CASE("network/channel/network_channel.c", "[network][channel][network_channel]") {
-    struct in_addr loopback_ipv4 = {0};
+    struct in_addr loopback_ipv4 = { 0 };
     char* loopback_ipv4_str = "127.0.0.1";
     char* any_ipv4_str = "0.0.0.0";
     inet_pton(AF_INET, "127.0.0.1", &loopback_ipv4);
 
-    struct in_addr loopback_ipv6 = {0};
+    struct in_addr loopback_ipv6 = { 0 };
     char* loopback_ipv6_str = "::1";
     char* any_ipv6_str = "::";
     inet_pton(AF_INET6, "::1", &loopback_ipv6);
@@ -75,7 +75,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
                 network_tests_support_search_free_port_ipv6(9999);
 
         network_channel_t test_listeners[10] = { 0 };
-        network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = {0};
+        network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = { 0 };
 
         SECTION("count ipv4 address") {
             struct sockaddr_in address = {0};
@@ -270,7 +270,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
                 network_tests_support_search_free_port_ipv6(9999);
         network_channel_t test_listeners[10] = { 0 };
 
-        network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = {0};
+        network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = { 0 };
 
         SECTION("ipv4 loopback") {
             listener_new_cb_user_data.listeners = test_listeners;
