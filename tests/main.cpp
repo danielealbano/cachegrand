@@ -35,11 +35,11 @@ int main(int argc, char* argv[]) {
     tests_init_logging();
 
     // Switch to it's own process process group to avoid propagating the signals to the parent
-    if (setpgid(getpid(),getpid()) != 0) {
+    if (setpgid(getpid(), getpid()) != 0) {
         LOG_E(TAG, "Failed to change process group");
         LOG_E_OS_ERROR(TAG);
     }
-
+    
     int returnCode = session.applyCommandLine( argc, argv );
     if( returnCode != 0 ) {
         return returnCode;
