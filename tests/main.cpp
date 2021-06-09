@@ -7,10 +7,25 @@
 #include "misc.h"
 #include "log/log.h"
 #include "signals_support.h"
+#include <log/sink/log_sink.h>
+#include <log/sink/log_sink_console.h>
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 #define TAG "tests_main"
+
+void tests_init_logging() {
+    // Enable logging
+    log_level_t level = LOG_LEVEL_ALL;
+    log_sink_settings_t settings = { 0 };
+    settings.console.use_stdout_for_errors = false;
+
+#if NDEBUG == 1
+    level -= LOG_LEVEL_DEBUG;
+#endif
+
+    log_sink_register(log_sink_console_init(level, &settings));
+}
 
 // It's necessary to setup the sigsegv fatal handler and to setup our own process group so it's not possible to use
 // the default main function provided by Catch2
