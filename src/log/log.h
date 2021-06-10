@@ -31,6 +31,24 @@ extern "C" {
     log_message(tag, LOG_LEVEL_DEBUG, __VA_ARGS__)
 #endif // DEBUG == 1
 
+#define LOG_LEVEL_STR_UNKNOWN_INDEX           0
+#define LOG_LEVEL_STR_UNKNOWN_TEXT            "UNKNOWN"
+#define LOG_LEVEL_STR_DEBUG_INTERNALS_INDEX   1
+#define LOG_LEVEL_STR_DEBUG_INTERNALS_TEXT    "DEBUGINT"
+#define LOG_LEVEL_STR_DEBUG_INDEX             2
+#define LOG_LEVEL_STR_DEBUG_TEXT              "DEBUG"
+#define LOG_LEVEL_STR_VERBOSE_INDEX           3
+#define LOG_LEVEL_STR_VERBOSE_TEXT            "VERBOSE"
+#define LOG_LEVEL_STR_INFO_INDEX              4
+#define LOG_LEVEL_STR_INFO_TEXT               "INFO"
+#define LOG_LEVEL_STR_WARNING_INDEX           5
+#define LOG_LEVEL_STR_WARNING_TEXT            "WARNING"
+#define LOG_LEVEL_STR_ERROR_INDEX             6
+#define LOG_LEVEL_STR_ERROR_TEXT              "ERROR"
+
+extern char *log_levels_text[];
+extern thread_local char *log_early_prefix_thread;
+
 enum log_level {
     LOG_LEVEL_DEBUG_INTERNALS = 0x01,
     LOG_LEVEL_DEBUG = 0x02,

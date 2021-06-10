@@ -31,24 +31,34 @@
 //       To make the logging thread safe and fast enough to cope with the performance requirements, a double ring-buffer
 //       of pre-allocated objects should be used.
 
+char* log_levels_text[] = {
+        LOG_LEVEL_STR_UNKNOWN_TEXT,
+        LOG_LEVEL_STR_DEBUG_INTERNALS_TEXT,
+        LOG_LEVEL_STR_DEBUG_TEXT,
+        LOG_LEVEL_STR_VERBOSE_TEXT,
+        LOG_LEVEL_STR_INFO_TEXT,
+        LOG_LEVEL_STR_WARNING_TEXT,
+        LOG_LEVEL_STR_ERROR_TEXT
+};
+
 thread_local char* log_early_prefix_thread = NULL;
 
 const char* log_level_to_string(log_level_t level) {
     switch(level) {
         case LOG_LEVEL_DEBUG_INTERNALS:
-            return "DEBUGINT";
+            return log_levels_text[LOG_LEVEL_STR_DEBUG_INTERNALS_INDEX];
         case LOG_LEVEL_DEBUG:
-            return "DEBUG";
+            return log_levels_text[LOG_LEVEL_STR_DEBUG_INDEX];
         case LOG_LEVEL_VERBOSE:
-            return "VERBOSE";
+            return log_levels_text[LOG_LEVEL_STR_VERBOSE_INDEX];
         case LOG_LEVEL_INFO:
-            return "INFO";
+            return log_levels_text[LOG_LEVEL_STR_INFO_INDEX];
         case LOG_LEVEL_WARNING:
-            return "WARNING";
+            return log_levels_text[LOG_LEVEL_STR_WARNING_INDEX];
         case LOG_LEVEL_ERROR:
-            return "ERROR";
+            return log_levels_text[LOG_LEVEL_STR_ERROR_INDEX];
         default:
-            return "UNKNOWN";
+            return log_levels_text[LOG_LEVEL_STR_UNKNOWN_INDEX];
     }
 }
 
