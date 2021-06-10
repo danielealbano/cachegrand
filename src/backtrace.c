@@ -14,6 +14,7 @@
 #endif
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
 #include <time.h>
@@ -24,8 +25,10 @@
 #error Platform not supported
 #endif
 
-#include "backtrace.h"
+#include "misc.h"
 #include "log/log.h"
+
+#include "backtrace.h"
 
 void backtrace_print() {
 #if defined(__linux__)

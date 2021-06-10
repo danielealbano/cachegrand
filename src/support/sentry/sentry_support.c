@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "misc.h"
 #include "exttypes.h"
 #include "log/log.h"
 #include "xalloc.h"

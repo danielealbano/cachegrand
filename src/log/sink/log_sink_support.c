@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <time.h>
 
+#include "misc.h"
 #include "log/log.h"
 
 #include "log_sink_support.h"

@@ -19,6 +19,7 @@
 #include <sys/ptrace.h>
 #include <pthread.h>
 
+#include "misc.h"
 #include "log/log.h"
 #include "fatal.h"
 #include "memory_fences.h"

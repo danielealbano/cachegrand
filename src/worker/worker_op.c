@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <arpa/inet.h>
 
+#include "misc.h"
 #include "log/log.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"

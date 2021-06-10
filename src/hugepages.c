@@ -16,6 +16,7 @@
 #include <error.h>
 #include <errno.h>
 
+#include "misc.h"
 #include "log/log.h"
 
 #include "hugepages.h"

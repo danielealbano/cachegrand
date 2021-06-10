@@ -18,8 +18,8 @@
 #error Platform not supported
 #endif
 
-#include "log/log.h"
 #include "misc.h"
+#include "log/log.h"
 #include "fatal.h"
 
 #include "xalloc.h"

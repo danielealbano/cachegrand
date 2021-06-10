@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <numa.h>
 
+#include "misc.h"
 #include "exttypes.h"
 #include "spinlock.h"
 #include "log/log.h"

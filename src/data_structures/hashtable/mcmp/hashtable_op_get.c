@@ -13,8 +13,9 @@
 #include <string.h>
 #include <numa.h>
 
-#include "memory_fences.h"
+#include "misc.h"
 #include "exttypes.h"
+#include "memory_fences.h"
 #include "spinlock.h"
 #include "log/log.h"
 

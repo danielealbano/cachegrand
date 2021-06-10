@@ -13,6 +13,7 @@
 #include <string.h>
 #include <fatal.h>
 
+#include "misc.h"
 #include "exttypes.h"
 #include "spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"

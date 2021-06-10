@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "misc.h"
 #include "exttypes.h"
 #include "log/log.h"
 

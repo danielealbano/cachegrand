@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <arpa/inet.h>
 
+#include "misc.h"
 #include "log/log.h"
 
 uint16_t network_tests_support_search_free_port_ipv4(

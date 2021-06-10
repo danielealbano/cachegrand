@@ -11,6 +11,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "misc.h"
 #include "log/log.h"
 #include "log/sink/log_sink.h"
 #include "log/sink/log_sink_support.h"

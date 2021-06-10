@@ -18,6 +18,7 @@
 #include <liburing.h>
 #include <assert.h>
 
+#include "misc.h"
 #include "pow2.h"
 #include "utils_numa.h"
 #include "exttypes.h"

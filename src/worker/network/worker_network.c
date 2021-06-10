@@ -12,6 +12,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 
+#include "misc.h"
 #include "exttypes.h"
 #include "spinlock.h"
 #include "log/log.h"
