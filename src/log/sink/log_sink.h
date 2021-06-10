@@ -66,7 +66,7 @@ log_sink_t *log_sink_factory(
 
 log_sink_t** log_sink_registered_get();
 
-uint8_t log_sink_registered_count();
+uint8_t log_sink_registered_count_get();
 
 void log_sink_registered_free();
 
