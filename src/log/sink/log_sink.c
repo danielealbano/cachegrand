@@ -49,6 +49,10 @@ log_sink_t *log_sink_init(
         log_sink_settings_t* settings,
         log_sink_printer_fn_t printer_fn,
         log_sink_free_fn_t free_fn) {
+    if (!printer_fn) {
+        return NULL;
+    }
+
     log_sink_t* log_sink = xalloc_alloc_zero(sizeof(log_sink_t));
 
     log_sink->type = type;
