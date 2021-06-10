@@ -5,6 +5,11 @@
 extern "C" {
 #endif
 
+typedef struct log_sink log_sink_t;
+
+extern log_sink_t** log_sink_registered;
+extern uint8_t log_sink_registered_count;
+
 enum log_sink_type {
     LOG_SINK_TYPE_CONSOLE = 0,
     LOG_SINK_TYPE_FILE,
@@ -37,7 +42,6 @@ typedef void (log_sink_printer_fn_t)(
 typedef void (log_sink_free_fn_t)(
         log_sink_settings_t* settings);
 
-typedef struct log_sink log_sink_t;
 struct log_sink {
     log_sink_type_t type;
     log_level_t levels;
