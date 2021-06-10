@@ -60,7 +60,9 @@ log_sink_t *log_sink_init(
     log_sink->printer_fn = printer_fn;
     log_sink->free_fn = free_fn;
 
-    memcpy(&log_sink->settings, settings, sizeof(log_sink_settings_t));
+    if (settings) {
+        memcpy(&log_sink->settings, settings, sizeof(log_sink_settings_t));
+    }
 
     return log_sink;
 }
