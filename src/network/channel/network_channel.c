@@ -55,17 +55,9 @@ bool network_channel_server_setup(
             code[1] = new sock_filter { code = BPF_RET | BPF_A };
      */
 
-    if (network_io_common_socket_set_incoming_cpu(fd, (int)incoming_cpu) == false) {
-        error = true;
-    }
-
-    if (!error && network_io_common_socket_set_reuse_port(fd, true) == false) {
-        error = true;
-    }
-
-    if (!error && network_io_common_socket_set_quickack(fd, true) == false) {
-        error = true;
-    }
+    error |= !network_io_common_socket_set_incoming_cpu(fd, (int)incoming_cpu);
+    error |= !network_io_common_socket_set_reuse_port(fd, true);
+    error |= !network_io_common_socket_set_quickack(fd, true);
 
     return !error;
 }
