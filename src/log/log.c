@@ -14,6 +14,7 @@
 #include <locale.h>
 #include <errno.h>
 #include <string.h>
+#include <assert.h>
 
 #include "misc.h"
 #include "xalloc.h"
@@ -83,6 +84,8 @@ char* log_message_timestamp_str(
         time_t timestamp,
         char* dest,
         size_t maxlen) {
+    assert(!(dest == NULL && maxlen > 0));
+
     struct tm tm = { 0 };
     gmtime_r(&timestamp, &tm);
 
