@@ -32,29 +32,12 @@ bool network_channel_client_setup(
         uint32_t incoming_cpu) {
     bool error = false;
 
-    if (network_io_common_socket_set_incoming_cpu(fd, (int)incoming_cpu) == false) {
-        error = true;
-    }
-
-    if (!error && network_io_common_socket_set_quickack(fd, true) == false) {
-        error = true;
-    }
-
-    if (!error && network_io_common_socket_set_linger(fd, true, 2) == false) {
-        error = true;
-    }
-
-    if (!error && network_io_common_socket_set_keepalive(fd, true) == false) {
-        error = true;
-    }
-
-    if (!error && network_io_common_socket_set_receive_timeout(fd, 5, 0) == false) {
-        error = true;
-    }
-
-    if (!error && network_io_common_socket_set_send_timeout(fd, 5, 0) == false) {
-        error = true;
-    }
+    error |= !network_io_common_socket_set_incoming_cpu(fd, (int)incoming_cpu);
+    error |= !network_io_common_socket_set_quickack(fd, true);
+    error |= !network_io_common_socket_set_linger(fd, true, 2);
+    error |= !network_io_common_socket_set_keepalive(fd, true);
+    error |= !network_io_common_socket_set_receive_timeout(fd, 5, 0);
+    error |= !network_io_common_socket_set_send_timeout(fd, 5, 0);
 
     return !error;
 }
