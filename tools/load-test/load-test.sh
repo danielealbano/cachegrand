@@ -2,6 +2,10 @@
 
 set -e
 
+# The load-test.sh script takes care of starting & stopping the benchmarked server and currently
+# this is supported only on the local system so the only allowed value for MEMTIER_HOST is
+# currently localhost.
+
 # Test run settings
 MEMTIER_PORT=12389
 MEMTIER_HOST="localhost"
