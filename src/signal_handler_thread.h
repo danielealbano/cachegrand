@@ -9,6 +9,11 @@ extern "C" {
 #define SIGNAL_HANDLER_THREAD_LOG_PRODUCER_PREFIX_FORMAT_STRING "[signal handler thread]"
 
 typedef struct signal_handler_thread_context signal_handler_thread_context_t;
+
+extern signal_handler_thread_context_t *signal_handler_thread_internal_context;
+extern int signal_handler_thread_managed_signals[];
+extern uint8_t signal_handler_thread_managed_signals_count;
+
 struct signal_handler_thread_context {
     pthread_t pthread;
     volatile bool *terminate_event_loop;
