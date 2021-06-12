@@ -136,7 +136,7 @@ void signal_handler_thread_setup_timeout(
 void signal_handler_thread_set_thread_name() {
     if (pthread_setname_np(
             pthread_self(),
-            "signal_handler") != 0) {
+            SIGNAL_HANDLER_THREAD_NAME) != 0) {
         LOG_E(TAG, "Unable to set name of the signal handler thread");
         LOG_E_OS_ERROR(TAG);
     }

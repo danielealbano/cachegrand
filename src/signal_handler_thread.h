@@ -7,6 +7,7 @@ extern "C" {
 
 #define SIGNAL_HANDLER_THREAD_LOOP_MAX_WAIT_TIME_MS 500
 #define SIGNAL_HANDLER_THREAD_LOG_PRODUCER_PREFIX_FORMAT_STRING "[signal handler thread]"
+#define SIGNAL_HANDLER_THREAD_NAME "signal_handler"
 
 typedef struct signal_handler_thread_context signal_handler_thread_context_t;
 
