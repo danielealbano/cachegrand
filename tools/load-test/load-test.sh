@@ -131,10 +131,6 @@ do
 
     sleep 1
 
-    echo "  starting temp report"
-    /home/daalbano/dev/cachegrand-server/tools/load-test/report-cpu-load-temp-freq.sh > $OUTPUT_CPU_REPORT &
-    CPU_REPORT_PID=$(ps aux | grep 'report-cpu-load-temp-freq.sh' | grep -v grep | awk '{ print $2 }')
-
     echo "  starting load testing"
 
     if [ "${OUTPUT_PATH_TEST_TYPE}" == "getset" ];
@@ -175,14 +171,9 @@ do
     fi
 
     echo "  load testing completed"
-
-    sleep 1
-
     echo "  killing server"
-    kill $SERVER_PID
-    echo "  killing cpu report"
-    kill $CPU_REPORT_PID
-    sleep 2
+    sleep 1
+    kill "${SERVER_PID}"
+    sleep 1
     echo "  server killed"
-
 done
