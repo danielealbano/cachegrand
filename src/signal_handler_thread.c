@@ -90,8 +90,7 @@ void signal_handler_thread_register_signal_handlers(
     }
 }
 
-char* signal_handler_thread_log_producer_set_early_prefix_thread(
-        signal_handler_thread_context_t *context) {
+char* signal_handler_thread_log_producer_set_early_prefix_thread() {
     size_t prefix_size = snprintf(
             NULL,
             0,

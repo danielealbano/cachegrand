@@ -29,8 +29,7 @@ bool signal_handler_thread_should_terminate(
 void signal_handler_thread_register_signal_handlers(
         sigset_t *waitset);
 
-char* signal_handler_thread_log_producer_set_early_prefix_thread(
-        signal_handler_thread_context_t *context);
+char* signal_handler_thread_log_producer_set_early_prefix_thread();
 
 void signal_handler_thread_main_loop(
         sigset_t *waitset,
