@@ -4,6 +4,7 @@ set -e
 
 # Test run settings
 MEMTIER_PORT=12389
+MEMTIER_HOST="localhost"
 MEMTIER_CPUS="1-3"
 MEMTIER_THREADS=3
 MEMTIER_WARMUP_RUNS=3
@@ -19,13 +20,13 @@ CACHEGRAND_SERVER_BIN_PATH="/home/daalbano/dev/cachegrand-server/cmake-build-rel
 CACHEGRAND_SERVER_CONFIG_PATH="/home/daalbano/dev/cachegrand-server/etc/cachegrand.yaml"
 REDIS_SERVER_BIN_PATH="$(which redis-server)"
 REDIS_SERVER_CONFIG_PATH="/etc/redis/redis.conf"
-REDIS_CPU="0"
+REDIS_SERVER_CPU="0"
 
 echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 
 for CLIENTS_PER_THREAD in 25 50 75 100 125 150 200;
 do
-    CLIENTS_TOTAL=$(($CLIENTS_PER_THREAD * $MEMTIER_THREADS))
+    CLIENTS_TOTAL=$((CLIENTS_PER_THREAD * MEMTIER_THREADS))
     OUTPUT_PREFIX="${OUTPUT_PATH_DIR}/${OUTPUT_PATH_TEST_CONFIG_SET_NAME}/${OUTPUT_PATH_TEST_TYPE}/${CLIENTS_TOTAL}c-1t"
     OUTPUT_SERVER_STDOUT_PATH="${OUTPUT_PREFIX}/server.stdout"
     OUTPUT_MEMTIER_STDOUT_PATH="${OUTPUT_PREFIX}/memtier.stdout"
@@ -67,7 +68,7 @@ do
     if [ "x${TEMP_SERVER_PID}" != "x" ];
     then
         echo "- server still running with PID ${TEMP_SERVER_PID}, killing it"
-        kill ${TEMP_SERVER_PID}
+        kill "${TEMP_SERVER_PID}"
         sleep 2
         TEMP_SERVER_PID=$(ps aux | grep ${SERVER_BIN_NAME} | grep -v "load-test" | grep -v "report-cpu-load-temp-freq" | grep -v clion | grep -v memcheck | grep -v grep | awk '{ print $2 }')
         if [ "x${TEMP_SERVER_PID}" != "x" ];
@@ -87,7 +88,7 @@ do
         ${CACHEGRAND_SERVER_BIN_PATH} -c ${CACHEGRAND_SERVER_CONFIG_PATH} >${OUTPUT_SERVER_STDOUT_PATH} 2>&1 &
     elif [ "${SERVER_BIN_NAME}" == "redis-server" ];
     then
-        taskset -c ${REDIS_CPU} ${REDIS_SERVER_BIN_PATH} ${REDIS_SERVER_CONFIG_PATH} --daemonize no &
+        taskset -c ${REDIS_SERVER_CPU} "${REDIS_SERVER_BIN_PATH}" "${REDIS_SERVER_CONFIG_PATH}" --daemonize no &
     else
         echo "Unsupported server ${SERVER_BIN_NAME}"
         exit 1
@@ -102,9 +103,10 @@ do
     if [ "${OUTPUT_PATH_TEST_TYPE}" == "getset" ];
     then
         taskset -c ${MEMTIER_CPUS} ${MEMTIER_BIN_PATH} \
-            -p ${MEMTIER_PORT} \
-            -c ${CLIENTS_PER_THREAD} \
-            -t ${MEMTIER_THREADS} \
+            -s "${MEMTIER_HOST}" \
+            -p "${MEMTIER_PORT}" \
+            -c "${CLIENTS_PER_THREAD}" \
+            -t "${MEMTIER_THREADS}" \
             --hide-histogram \
             --random-data \
             --randomize \
@@ -121,9 +123,10 @@ do
     elif [ "${OUTPUT_PATH_TEST_TYPE}" == "ping" ];
     then
         taskset -c ${MEMTIER_CPUS} ${MEMTIER_BIN_PATH} \
-            -p ${MEMTIER_PORT} \
-            -c ${CLIENTS_PER_THREAD} \
-            -t ${MEMTIER_THREADS} \
+            -s "${MEMTIER_HOST}" \
+            -p "${MEMTIER_PORT}" \
+            -c "${CLIENTS_PER_THREAD}" \
+            -t "${MEMTIER_THREADS}" \
             --command="PING" \
             -x ${MEMTIER_WARMUP_RUNS}
     fi
@@ -137,9 +140,10 @@ do
     if [ "${OUTPUT_PATH_TEST_TYPE}" == "getset" ];
     then
         taskset -c ${MEMTIER_CPUS} ${MEMTIER_BIN_PATH} \
-            -p ${MEMTIER_PORT} \
-            -c ${CLIENTS_PER_THREAD} \
-            -t ${MEMTIER_THREADS} \
+            -s "${MEMTIER_HOST}" \
+            -p "${MEMTIER_PORT}" \
+            -c "${CLIENTS_PER_THREAD}" \
+            -t "${MEMTIER_THREADS}" \
             --print-percentiles=50,90,95,99,99.5,99.9,100 \
             --random-data \
             --randomize \
@@ -159,9 +163,10 @@ do
     elif [ "${OUTPUT_PATH_TEST_TYPE}" == "ping" ];
     then
         taskset -c ${MEMTIER_CPUS} ${MEMTIER_BIN_PATH} \
-            -p ${MEMTIER_PORT} \
-            -c ${CLIENTS_PER_THREAD} \
-            -t ${MEMTIER_THREADS} \
+            -s "${MEMTIER_HOST}" \
+            -p "${MEMTIER_PORT}" \
+            -c "${CLIENTS_PER_THREAD}" \
+            -t "${MEMTIER_THREADS}" \
             --print-percentiles=50,90,95,99,99.5,99.9,100 \
             --command="PING" \
             --json-out-file=${OUTPUT_MEMTIER_JSON_PATH} \
