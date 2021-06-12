@@ -74,11 +74,6 @@ bool signal_handler_thread_should_terminate(
 
 void signal_handler_thread_register_signal_handlers(
         sigset_t *waitset) {
-    struct sigaction action;
-    action.sa_handler = signal_handler_thread_handle_signal;
-    sigemptyset(&action.sa_mask);
-    action.sa_flags = 0;
-
     signal(SIGCHLD, SIG_IGN);
 
     for(uint8_t i = 0; i < signal_handler_thread_managed_signals_count; i++) {
