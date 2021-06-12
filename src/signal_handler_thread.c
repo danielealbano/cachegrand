@@ -50,7 +50,7 @@ void signal_handler_thread_handle_signal(
     if (found_sig_index == -1) {
         LOG_V(
                 TAG,
-                "Received un-managed signal <%s (%d)>, ignoring",
+                "Received an un-managed signal <%s (%d)>, ignoring",
                 signal_name,
                 signal_number);
         return;
