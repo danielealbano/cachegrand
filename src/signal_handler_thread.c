@@ -147,14 +147,28 @@ void signal_handler_thread_mask_signals(
     sigprocmask(SIG_BLOCK, waitset, NULL);
 }
 
-void signal_handler_thread_teardown(
+bool signal_handler_thread_teardown(
+        sigset_t *waitset,
         char *log_producer_early_prefix_thread) {
-    // It's not really necessary to restore the signal mask or do anything else as the only
-    // reason for the thread to terminate is the the entire application is exiting.
+    bool res = true;
 
     LOG_V(TAG, "Tearing down signal handler thread");
 
     xalloc_free(log_producer_early_prefix_thread);
+    sigprocmask(SIG_UNBLOCK, waitset, NULL);
+
+    for(uint8_t i = 0; i < signal_handler_thread_managed_signals_count; i++) {
+        if (!signals_support_register_signal_handler(
+                signal_handler_thread_managed_signals[i],
+                SIG_DFL,
+                NULL)) {
+            res = false;
+            LOG_E(TAG, "Unable to set signal back to default handler");
+            LOG_E_OS_ERROR(TAG);
+        }
+    }
+
+    return res;
 }
 
 void* signal_handler_thread_func(

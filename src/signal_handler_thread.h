@@ -43,7 +43,8 @@ void signal_handler_thread_set_thread_name();
 void signal_handler_thread_mask_signals(
         sigset_t *waitset);
 
-void signal_handler_thread_teardown(
+bool signal_handler_thread_teardown(
+        sigset_t *waitset,
         char *log_producer_early_prefix_thread);
 
 void* signal_handler_thread_func(
