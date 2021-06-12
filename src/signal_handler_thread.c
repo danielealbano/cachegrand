@@ -30,18 +30,18 @@
 
 #define TAG "signal_handler_thread"
 
-static signal_handler_thread_context_t *int_context;
+signal_handler_thread_context_t *signal_handler_thread_internal_context;
 
-int program_signals[] = { SIGUSR1, SIGINT, SIGHUP, SIGTERM, SIGQUIT };
-uint8_t program_signals_count = sizeof(program_signals) / sizeof(int);
+int signal_handler_thread_managed_signals[] = { SIGUSR1, SIGINT, SIGHUP, SIGTERM, SIGQUIT };
+uint8_t signal_handler_thread_managed_signals_count = sizeof(signal_handler_thread_managed_signals) / sizeof(int);
 
 void signal_handler_thread_handle_signal(
         int signal_number) {
     char *signal_name = SIGNALS_SUPPORT_NAME_WRAPPER(signal_number);
 
     int found_sig_index = -1;
-    for(uint8_t i = 0; i < program_signals_count; i++) {
-        if (program_signals[i] == signal_number) {
+    for(uint8_t i = 0; i < signal_handler_thread_managed_signals_count; i++) {
+        if (signal_handler_thread_managed_signals[i] == signal_number) {
             found_sig_index = i;
             break;
         }
@@ -62,7 +62,7 @@ void signal_handler_thread_handle_signal(
             signal_name,
             signal_number);
 
-    *int_context->terminate_event_loop = true;
+    *signal_handler_thread_internal_context->terminate_event_loop = true;
     MEMORY_FENCE_STORE();
 }
 
@@ -81,10 +81,10 @@ void signal_handler_thread_register_signal_handlers(
 
     signal(SIGCHLD, SIG_IGN);
 
-    for(uint8_t i = 0; i < program_signals_count; i++) {
-        sigaddset(waitset, program_signals[i]);
+    for(uint8_t i = 0; i < signal_handler_thread_managed_signals_count; i++) {
+        sigaddset(waitset, signal_handler_thread_managed_signals[i]);
         signals_support_register_signal_handler(
-                program_signals[i],
+                signal_handler_thread_managed_signals[i],
                 signal_handler_thread_handle_signal,
                 NULL);
     }
@@ -119,7 +119,7 @@ void signal_handler_thread_main_loop(
         if (res == 0 && errno != EAGAIN) {
             FATAL(TAG, "Error while waiting for a signal");
         }
-    } while(!signal_handler_thread_should_terminate(int_context));
+    } while(!signal_handler_thread_should_terminate(signal_handler_thread_internal_context));
 
     LOG_V(TAG, "Events loop ended");
 }
@@ -175,7 +175,7 @@ void* signal_handler_thread_func(
     struct timespec timeout;
     sigset_t waitset = { 0 };
 
-    int_context = (signal_handler_thread_context_t*)user_data;
+    signal_handler_thread_internal_context = (signal_handler_thread_context_t*)user_data;
 
     char* log_producer_early_prefix_thread =
             signal_handler_thread_log_producer_set_early_prefix_thread(int_context);
