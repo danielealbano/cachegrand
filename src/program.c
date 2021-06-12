@@ -54,7 +54,7 @@ static char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
 
 signal_handler_thread_context_t* program_signal_handler_thread_initialize(
         volatile bool *terminate_event_loop,
-        program_context_t *program_context)  {
+        program_context_t *program_context) {
     signal_handler_thread_context_t *signal_handler_thread_context;
 
     program_context->signal_handler_thread_context = signal_handler_thread_context =
