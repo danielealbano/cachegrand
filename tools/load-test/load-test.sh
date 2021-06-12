@@ -8,6 +8,7 @@ MEMTIER_CPUS="1-3"
 MEMTIER_THREADS=3
 MEMTIER_WARMUP_RUNS=3
 MEMTIER_TEST_RUNS=5
+MEMTIER_BIN_PATH="/home/daalbano/dev/memtier_benchmark/memtier_benchmark"
 OUTPUT_PATH_DIR="/home/daalbano/benchmarks"
 OUTPUT_PATH_TEST_CONFIG_SET_NAME="cachegrand-with-slab"
 OUTPUT_PATH_TEST_TYPE="getset"
@@ -100,7 +101,7 @@ do
 
     if [ "${OUTPUT_PATH_TEST_TYPE}" == "getset" ];
     then
-        taskset -c ${MEMTIER_CPUS} /home/daalbano/dev/memtier_benchmark/memtier_benchmark \
+        taskset -c ${MEMTIER_CPUS} ${MEMTIER_BIN_PATH} \
             -p ${MEMTIER_PORT} \
             -c ${CLIENTS_PER_THREAD} \
             -t ${MEMTIER_THREADS} \
@@ -119,7 +120,7 @@ do
             -x ${MEMTIER_WARMUP_RUNS}
     elif [ "${OUTPUT_PATH_TEST_TYPE}" == "ping" ];
     then
-        taskset -c ${MEMTIER_CPUS} /home/daalbano/dev/memtier_benchmark/memtier_benchmark \
+        taskset -c ${MEMTIER_CPUS} ${MEMTIER_BIN_PATH} \
             -p ${MEMTIER_PORT} \
             -c ${CLIENTS_PER_THREAD} \
             -t ${MEMTIER_THREADS} \
@@ -135,7 +136,7 @@ do
 
     if [ "${OUTPUT_PATH_TEST_TYPE}" == "getset" ];
     then
-        taskset -c ${MEMTIER_CPUS} /home/daalbano/dev/memtier_benchmark/memtier_benchmark \
+        taskset -c ${MEMTIER_CPUS} ${MEMTIER_BIN_PATH} \
             -p ${MEMTIER_PORT} \
             -c ${CLIENTS_PER_THREAD} \
             -t ${MEMTIER_THREADS} \
@@ -157,7 +158,7 @@ do
         tee ${OUTPUT_MEMTIER_STDOUT_PATH}
     elif [ "${OUTPUT_PATH_TEST_TYPE}" == "ping" ];
     then
-        taskset -c ${MEMTIER_CPUS} /home/daalbano/dev/memtier_benchmark/memtier_benchmark \
+        taskset -c ${MEMTIER_CPUS} ${MEMTIER_BIN_PATH} \
             -p ${MEMTIER_PORT} \
             -c ${CLIENTS_PER_THREAD} \
             -t ${MEMTIER_THREADS} \
