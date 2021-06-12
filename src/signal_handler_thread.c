@@ -173,14 +173,15 @@ void* signal_handler_thread_func(
     signal_handler_thread_internal_context = (signal_handler_thread_context_t*)user_data;
 
     char* log_producer_early_prefix_thread =
-            signal_handler_thread_log_producer_set_early_prefix_thread(int_context);
-
+            signal_handler_thread_log_producer_set_early_prefix_thread();
     signal_handler_thread_set_thread_name();
     signal_handler_thread_register_signal_handlers(&waitset);
     signal_handler_thread_mask_signals(&waitset);
     signal_handler_thread_setup_timeout(&timeout);
     signal_handler_thread_main_loop(&waitset, &timeout);
-    signal_handler_thread_teardown(log_producer_early_prefix_thread);
+    signal_handler_thread_teardown(
+            &waitset,
+            log_producer_early_prefix_thread);
 
     return NULL;
 }
