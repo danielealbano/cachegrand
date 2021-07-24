@@ -10,7 +10,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <limits.h>
 #include <sys/types.h>
 #include <sys/resource.h>
 

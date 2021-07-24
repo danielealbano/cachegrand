@@ -17,7 +17,6 @@
 #include <unistd.h>
 #include <liburing.h>
 #include <assert.h>
-#include <limits.h>
 #include <sys/resource.h>
 
 #include "misc.h"

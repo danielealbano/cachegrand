@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 #define PROGRAM_ULIMIT_NOFILE 0x80000
-#define PROGRAM_ULIMIT_MEMLOCK ULONG_MAX
+#define PROGRAM_ULIMIT_MEMLOCK 0xFFFFFFFFUL
 
 typedef struct program_context program_context_t;
 struct program_context {
