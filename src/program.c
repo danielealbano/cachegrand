@@ -284,7 +284,7 @@ bool program_use_slab_allocator(
 
     if (use_slab_allocator) {
         if (!hugepages_2mb_is_available(requested_hugepages)) {
-            LOG_W(TAG, "Disabling slab allocator, 2mb hugepages not available, performances will be degraded");
+            LOG_W(TAG, "Not enough 2mb hugepages, disabling slab allocator, performances will be degraded");
             use_slab_allocator = false;
         }
     } else {
