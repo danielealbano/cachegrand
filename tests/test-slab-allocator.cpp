@@ -137,15 +137,6 @@ void test_slab_allocator_fuzzy_single_thread_single_size(
         clock_diff(&diff_time, &current_time, &start_time);
     } while(diff_time.tv_sec < duration);
 
-    fprintf(stdout, "test_slab_allocator_fuzzy_single_thread_single_size(\n\tduration = %u, object_size = %lu, min_used_slots = %u, use_max_hugepages = %u)\n",
-            duration,
-            object_size,
-            min_used_slots,
-            use_max_hugepages);
-    fprintf(stdout, "> ops_counter_total = %u\n", ops_counter_total);
-    fprintf(stdout, "> ops_counter_mem_alloc = %u\n", ops_counter_mem_alloc);
-    fprintf(stdout, "> ops_counter_mem_free = %u\n", ops_counter_mem_free);
-
     while(list->count > 0) {
         double_linked_list_item_t *item = double_linked_list_shift_item(list);
         slab_allocator_mem_free(item->data);
