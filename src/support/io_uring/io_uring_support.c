@@ -53,10 +53,15 @@ io_uring_t* io_uring_support_init(
 
     if (res < 0) {
         if (res == -ENOMEM) {
-            FATAL(TAG, "Unable to allocate or lock enough memory to initialize io_uring, please check the available memory and/or increase the memlock ulimit.");
+            LOG_E(TAG, "Unable to allocate or lock enough memory to initialize io_uring, please check the available memory and/or increase the memlock ulimit.");
         } else {
-            FATAL(TAG, "Unable to allocate io_uring using the given params");
+            LOG_E(TAG, "Unable to allocate io_uring using the given params");
         }
+        LOG_E_OS_ERROR(TAG);
+
+        xalloc_free(io_uring);
+
+        return NULL;
     }
 
     if (features != NULL) {
