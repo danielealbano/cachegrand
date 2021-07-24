@@ -430,10 +430,12 @@ bool worker_iouring_initialize(
             worker_context->config->network->max_clients,
             worker_context->network.listeners_count);
 
-    ring = io_uring_support_init(
+    if ((ring = io_uring_support_init(
             fds_count * 2,
             params,
-            NULL);
+            NULL)) == NULL) {
+        return false;
+    }
 
     if (worker_iouring_fds_register(fds_count, ring) == false) {
         io_uring_support_free(ring);
