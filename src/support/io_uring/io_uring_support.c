@@ -37,7 +37,7 @@ io_uring_t* io_uring_support_init(
         uint32_t *features) {
     int res;
     io_uring_t *io_uring;
-    io_uring_params_t temp_io_uring_params = {0};
+    io_uring_params_t temp_io_uring_params = { 0 };
 
     io_uring = xalloc_alloc(sizeof(io_uring_t));
 
