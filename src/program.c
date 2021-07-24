@@ -17,6 +17,8 @@
 #include <unistd.h>
 #include <liburing.h>
 #include <assert.h>
+#include <limits.h>
+#include <sys/resource.h>
 
 #include "misc.h"
 #include "pow2.h"
@@ -405,6 +407,49 @@ void program_setup_sentry(
             program_context.config->sentry->dsn);
 }
 
+bool program_setup_ulimit_nofile() {
+    struct rlimit limit;
+
+    // TODO: this should come from the config but 0x80000 (524288) is a value extremely high that will cover for all
+    //       the practical use cases, the current cachegrand storage architecture uses a small amount of file
+    //       descriptors therefore the vast majority are for the network and with such a high number a system should
+    //       be able to handle more than half a million of active connections (taking into account the linger time
+    //       more than 15 IP addresses should be used before saturating the file descriptors).
+    limit.rlim_cur = 0x80000;
+    limit.rlim_max = 0x80000;
+
+    LOG_V(TAG, "> Setting max opened file ulimit to %lu", limit.rlim_max);
+    if (setrlimit(RLIMIT_NOFILE, &limit) != 0) {
+        LOG_E(TAG, "Unable to set max opened file ulimit");
+        LOG_E_OS_ERROR(TAG);
+        return false;
+    }
+
+    return true;
+}
+
+bool program_setup_ulimit_memrlock() {
+    struct rlimit limit;
+
+    // Set the memlock to ULONG_MAX
+    limit.rlim_cur = ULONG_MAX;
+    limit.rlim_max = ULONG_MAX;
+
+    LOG_V(TAG, "> Setting max lockable memory ulimit to %lu", limit.rlim_max);
+    if (setrlimit(RLIMIT_MEMLOCK, &limit) != 0) {
+        LOG_E(TAG, "Unable to set the lockable memory ulimit");
+        LOG_E_OS_ERROR(TAG);
+        return false;
+    }
+
+    return true;
+}
+
+bool program_setup_ulimit() {
+    LOG_V(TAG, "Configuring process ulimits");
+    return program_setup_ulimit_nofile() && program_setup_ulimit_memrlock();
+}
+
 void program_cleanup(
         program_context_t* program_context) {
     // TODO: free storage backend
@@ -455,6 +500,12 @@ int program_main(
     program_setup_initial_log_sink_console();
 
     if ((program_context.config = program_parse_arguments_and_load_config(argc, argv)) == NULL) {
+        return 1;
+    }
+
+    if (program_setup_ulimit() == false) {
+        LOG_E(TAG, "Unable to setup the system ulimits");
+        program_cleanup(&program_context);
         return 1;
     }
 
