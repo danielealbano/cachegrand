@@ -52,7 +52,6 @@ static thread_local uint32_t fds_map_mask = 0;
 static thread_local uint32_t fds_map_last_free = 0;
 
 static thread_local bool io_uring_supports_op_files_update_link = false;
-static thread_local bool io_uring_supports_sqpoll = false;
 
 #define TAG "worker_iouring"
 
@@ -97,7 +96,7 @@ bool worker_iouring_fds_map_files_update(
         network_channel_iouring_t *channel) {
     bool ret;
 
-    if (io_uring_supports_op_files_update_link && !io_uring_supports_sqpoll) {
+    if (io_uring_supports_op_files_update_link) {
         worker_iouring_op_context_t* op_context = worker_iouring_op_context_init(
                 worker_iouring_op_fds_map_files_update_cb);
         if (!op_context) {
@@ -396,10 +395,6 @@ void worker_iouring_check_capabilities() {
     LOG_V(TAG, "Checking io_uring supported features");
     io_uring_supports_op_files_update_link =
             io_uring_capabilities_is_linked_op_files_update_supported();
-    io_uring_supports_sqpoll = io_uring_capabilities_is_sqpoll_supported();
-
-    // TODO: needs more testing, the sqpoll threads use all the CPU
-    io_uring_supports_sqpoll = false;
 }
 
 bool worker_iouring_initialize(
@@ -418,18 +413,8 @@ bool worker_iouring_initialize(
                         available_features_str,
                         sizeof(available_features_str)));
 
-        if (io_uring_supports_sqpoll) {
-            LOG_V(TAG, "io_uring sqpoll supported and enabled");
-        } else {
-            LOG_W(TAG, "Need a kernel >=5.11 to use sqpoll with io_uring");
-        }
-
         if (io_uring_supports_op_files_update_link) {
-            if (io_uring_supports_sqpoll) {
-                LOG_W(TAG, "io_uring linking supported but disabled, not compatible with sqpoll");
-            } else {
-                LOG_V(TAG, "io_uring linking supported and enabled");
-            }
+            LOG_V(TAG, "io_uring linking supported and enabled");
         } else {
             LOG_W(
                     TAG,
@@ -439,12 +424,6 @@ bool worker_iouring_initialize(
     }
 
     LOG_V(TAG, "Initializing local worker ring for io_uring");
-
-    if (io_uring_supports_sqpoll) {
-        params->flags = IORING_SETUP_SQPOLL | IORING_SETUP_SQ_AFF;
-        params->sq_thread_cpu = worker_context->core_index;
-        params->sq_thread_idle = 1000;
-    }
 
     uint32_t fds_count = worker_iouring_calculate_fds_count(
             worker_context->workers_count,
