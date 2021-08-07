@@ -181,7 +181,7 @@ docker run --volume "$PWD":/code cachegrand-build-test:latest /bin/bash -c "cd /
 
 Before compiling and running the benchmarks it's currently necessary to revise the amount of threads the benchmark will
 spawn for the testing, they are defined per set of operations and currently the only benchmark taking advantage of the
-hashtable concurrency are implemented in [benches/bench-hashtable-op-set.cpp](benches/bench-hashtable-op-set.cpp).
+hashtable concurrency is implemented in [benches/bench-hashtable-op-set.cpp](benches/bench-hashtable-op-set.cpp).
 
 The benchmarking is built on top of the google-benchmark library that gets automatically downloaded and compiled by
 the **cachegrand-benches** target.
