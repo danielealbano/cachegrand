@@ -196,6 +196,11 @@ make cachegrand-benches
 
 It's strongly discouraged to run benchmarks into a docker container.
 
+It's possible to find a setup script for the benchmarks in the following
+[gist](https://gist.github.com/danielealbano/0c1547ff85c2c22438ce1a904f9dcafe), it's the script used to run the
+benchmarking. In the following [gist](https://gist.github.com/danielealbano/0f994405ea6ba7a271172731c6cc5554) is instead
+possible to find the typical **memtier_benchmark** commands used, they require the latest version from git.
+
 #### Run the software
 
 cachegrand is still under heavy development.
