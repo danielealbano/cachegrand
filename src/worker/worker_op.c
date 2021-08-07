@@ -20,6 +20,7 @@
 worker_op_timer_fp_t* worker_op_timer;
 worker_op_network_channel_new_fp_t* worker_op_network_channel_new;
 worker_op_network_channel_new_multi_fp_t* worker_op_network_channel_new_multi;
+worker_op_network_channel_size_fp_t* worker_op_network_channel_size;
 worker_op_network_channel_free_fp_t* worker_op_network_channel_free;
 worker_op_network_accept_fp_t* worker_op_network_accept;
 worker_op_network_receive_fp_t* worker_op_network_receive;

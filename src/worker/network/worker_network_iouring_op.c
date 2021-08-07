@@ -461,9 +461,14 @@ void worker_network_iouring_network_channel_free(network_channel_t* channel) {
     network_channel_iouring_free((network_channel_iouring_t*)channel);
 }
 
+size_t worker_network_iouring_op_network_channel_size() {
+    return sizeof(network_channel_iouring_t);
+}
+
 void worker_network_iouring_op_register() {
     worker_op_network_channel_new = worker_network_iouring_network_channel_new;
     worker_op_network_channel_new_multi = worker_network_iouring_network_channel_new_multi;
+    worker_op_network_channel_size = worker_network_iouring_op_network_channel_size;
     worker_op_network_channel_free = worker_network_iouring_network_channel_free;
     worker_op_network_accept = worker_network_iouring_op_network_accept_wrapper;
     worker_op_network_receive = worker_network_iouring_op_network_receive_wrapper;

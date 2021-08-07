@@ -74,6 +74,8 @@ typedef bool (worker_op_network_send_fp_t)(
         size_t buffer_length,
         void* user_data);
 
+typedef size_t (worker_op_network_channel_size_fp_t)();
+
 extern worker_op_timer_fp_t* worker_op_timer;
 extern worker_op_network_channel_new_fp_t* worker_op_network_channel_new;
 extern worker_op_network_channel_new_multi_fp_t* worker_op_network_channel_new_multi;
@@ -82,6 +84,7 @@ extern worker_op_network_accept_fp_t* worker_op_network_accept;
 extern worker_op_network_receive_fp_t* worker_op_network_receive;
 extern worker_op_network_send_fp_t* worker_op_network_send;
 extern worker_op_network_close_fp_t* worker_op_network_close;
+extern worker_op_network_channel_size_fp_t* worker_op_network_channel_size;
 
 bool worker_op_timer_completion_cb_loop(
         void* user_data);
