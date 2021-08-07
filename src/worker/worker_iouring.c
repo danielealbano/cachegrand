@@ -326,16 +326,25 @@ void worker_iouring_cleanup(
         worker_context_t *worker_user_data) {
     io_uring_t *ring;
     worker_iouring_context_t *iouring_context = worker_iouring_context_get();
-    ring = iouring_context->ring;
 
-    // Unregister the files
-    io_uring_unregister_files(ring);
-    xalloc_free(fds_map);
-    xalloc_free((void*)fds_map_registered);
-    io_uring_support_free(ring);
+    if (iouring_context != NULL) {
+        ring = iouring_context->ring;
 
-    // Free up the context
-    xalloc_free(iouring_context);
+        // Unregister the files
+        io_uring_unregister_files(ring);
+        io_uring_support_free(ring);
+
+        // Free up the context
+        xalloc_free(iouring_context);
+    }
+
+    if (fds_map) {
+        xalloc_free(fds_map);
+    }
+
+    if (fds_map_registered) {
+        xalloc_free((void*)fds_map_registered);
+    }
 }
 
 bool worker_iouring_process_events_loop(
@@ -399,6 +408,7 @@ void worker_iouring_check_capabilities() {
 
 bool worker_iouring_initialize(
         worker_context_t *worker_context) {
+    worker_iouring_context_t *context;
     io_uring_t *ring;
     io_uring_params_t *params = xalloc_alloc_zero(sizeof(io_uring_params_t));
 
@@ -423,30 +433,34 @@ bool worker_iouring_initialize(
         }
     }
 
-    LOG_V(TAG, "Initializing local worker ring for io_uring");
-
+    context = (worker_iouring_context_t*)xalloc_alloc(sizeof(worker_iouring_context_t));
     uint32_t fds_count = worker_iouring_calculate_fds_count(
             worker_context->workers_count,
             worker_context->config->network->max_clients,
             worker_context->network.listeners_count);
 
+    LOG_V(TAG, "Initializing local worker ring for io_uring");
+
     if ((ring = io_uring_support_init(
-            fds_count * 2,
+            fds_count * 1.2,
             params,
             NULL)) == NULL) {
+        xalloc_free(context);
+
         return false;
     }
+
+    // The iouring context has to be set only after the io_uring is initialized but the actual context memory
+    // has to be allocated before, if the allocation fails the software can abort, if the ring is allocated it needs
+    // to be cleaned up so better to do it afterwards.
+    context->worker_context = worker_context;
+    context->ring = ring;
+    worker_iouring_context_set(context);
 
     if (worker_iouring_fds_register(fds_count, ring) == false) {
         io_uring_support_free(ring);
         return false;
     }
-
-    worker_iouring_context_t *context =
-            (worker_iouring_context_t*)xalloc_alloc(sizeof(worker_iouring_context_t));
-    context->worker_context = worker_context;
-    context->ring = ring;
-    worker_iouring_context_set(context);
 
     return true;
 }
