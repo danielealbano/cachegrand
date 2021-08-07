@@ -12,7 +12,7 @@ struct network_channel_iouring {
     bool has_mapped_fd;
     int base_sqe_flags;
     int fd;
-};
+} __attribute__((__aligned__(32)));
 
 network_channel_iouring_t* network_channel_iouring_new();
 
