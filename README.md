@@ -23,8 +23,15 @@ Although it's still in heavy development and therefore the current version doesn
 functionalities to use it, some benchmarking has been carried out:
 - The in-memory hashtable is able to insert up to **2.1 billions** new keys per second on an **1 x AMD EPYC 7502P** and
   **192GB RAM DDR4** using **2048 threads**;
-- The networking layer is able to process up to **5.1 millions** redis **PING** commands submitted by **12k** clients
-  per second on a **1 x AMD EPYC 7402P** with a **2 x 10Gbps** link saturating up to **5Gbit/s**.
+- The networking layer has been tested under different conditions:
+    - on a **1 x AMD EPYC 7502P** with a **2 x 25Gbps** links cachegrand was able to handle an almost fully saturated network
+      bandwidth (**45gbit/s**) using 6 **1 x AMD EPYC 7402P** to generate load with **memtier_benchmark**
+    - on a **1 x AMD EPYC 7402P** with a **2 x 10Gbps** links cachegrand was able to handle up to 4.5 million GET/SET commands
+      using three **1 x AMD EPYC 7402P** to generate load with **memtier_benchmark** 
+    - on a **2 x Intel Xeon E5-2290 v4** with a **1 x 40Gbps** link cachegrand was able to handle about the same number
+      of requests
+
+It's possible to find out more information in the benchmarks section.
 
 ### DOCS
 
