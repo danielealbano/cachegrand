@@ -454,7 +454,7 @@ network_channel_t* worker_network_iouring_network_channel_new() {
 
 network_channel_t* worker_network_iouring_network_channel_new_multi(
         int count) {
-    return (network_channel_t*)network_channel_iouring_new(count);
+    return (network_channel_t*)network_channel_iouring_new_multi(count);
 }
 
 void worker_network_iouring_network_channel_free(network_channel_t* channel) {
