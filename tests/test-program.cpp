@@ -34,9 +34,9 @@
 
 void* test_program_wait_loop_wait(
         void* user_data) {
-    volatile bool *terminate_event_loop = (volatile bool *)user_data;
+    bool_volatile_t *terminate_event_loop = (bool_volatile_t*)user_data;
 
-    program_wait_loop(terminate_event_loop);
+    program_wait_loop(NULL, 0, terminate_event_loop);
 
     return NULL;
 }
