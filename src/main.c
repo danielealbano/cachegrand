@@ -12,6 +12,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <sys/resource.h>
 
 #include "exttypes.h"
 #include "spinlock.h"
