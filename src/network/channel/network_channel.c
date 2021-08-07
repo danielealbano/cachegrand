@@ -86,6 +86,7 @@ bool network_channel_listener_new_callback(
         network_protocols_t protocol,
         void* user_data) {
     int fd;
+    network_channel_t* listener;
     network_channel_listener_new_callback_user_data_t *cb_user_data = user_data;
 
     // If listeners is set to null the callback will do nothing, this process is used only to
@@ -108,23 +109,29 @@ bool network_channel_listener_new_callback(
         return false;
     }
 
-    uint32_t listener_id = cb_user_data->listeners_count;
-
-    cb_user_data->listeners[listener_id].fd = fd;
-    cb_user_data->listeners[listener_id].address.size = socket_address_size;
-    cb_user_data->listeners[listener_id].protocol = protocol;
+    // The size of the struct is dependant on the network backend, listeners can't be accessed as a plain array as the
+    // backend may have encapsulated the generic network_channel structure into its own structure and therefore
+    // accessing the elements past 0 would actually ending up overriding the network backend own data.
+    // The network_channel_size comes into help as the network backend can set it to the appropriate value to let the
+    // code properly handle the encapsulation as needed.
+    listener =
+            ((void*)cb_user_data->listeners) +
+            (cb_user_data->network_channel_size * cb_user_data->listeners_count);
+    listener->fd = fd;
+    listener->address.size = socket_address_size;
+    listener->protocol = protocol;
 
     memcpy(
-            &cb_user_data->listeners[listener_id].address.socket.base,
+            &listener->address.socket.base,
             socket_address,
             socket_address_size);
 
     network_io_common_socket_address_str(
             socket_address,
-            cb_user_data->listeners[listener_id].address.str,
-            sizeof(cb_user_data->listeners[listener_id].address.str));
+            listener->address.str,
+            sizeof(listener->address.str));
 
-    LOG_V(TAG, "Created listener for <%s>", cb_user_data->listeners[listener_id].address.str);
+    LOG_V(TAG, "Created listener for <%s>", listener->address.str);
 
     cb_user_data->listeners_count++;
 

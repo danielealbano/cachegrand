@@ -62,6 +62,7 @@ struct network_create_lister_new_user_data {
     uint8_t core_index;
     uint8_t listeners_count;
     network_channel_t *listeners;
+    size_t network_channel_size;
 };
 
 typedef struct network_channel_buffer network_channel_buffer_t;

@@ -41,6 +41,7 @@ struct worker_context {
     struct {
         uint8_t listeners_count;
         network_channel_t *listeners;
+        size_t network_channel_size;
         void* context;
     } network;
 };

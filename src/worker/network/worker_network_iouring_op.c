@@ -438,7 +438,7 @@ void worker_network_iouring_listeners_listen_pre(
     // Update the fd in the network_channel_iouring to match the one used by the underlying channel
     for(int index = 0; index < worker_context->network.listeners_count; index++) {
         network_channel_iouring_t *channel =
-                (network_channel_iouring_t*)&worker_context->network.listeners[index];
+                &((network_channel_iouring_t*)worker_context->network.listeners)[index];
         channel->fd = channel->wrapped_channel.fd;
     }
 }

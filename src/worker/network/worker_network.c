@@ -58,6 +58,7 @@ void worker_network_listeners_initialize(
     // Allocate the needed listeners and reset listeners_count
     listener_new_cb_user_data.listeners =
             worker_op_network_channel_new_multi(listener_new_cb_user_data.listeners_count);
+    listener_new_cb_user_data.network_channel_size = worker_op_network_channel_size();
     listener_new_cb_user_data.listeners_count = 0;
 
     // Allocate the listeners (with the correct protocol config)
@@ -90,13 +91,16 @@ void worker_network_listeners_initialize(
     // Assign the listeners and listeners_count to the worker user data
     worker_context->network.listeners_count = listener_new_cb_user_data.listeners_count;
     worker_context->network.listeners = listener_new_cb_user_data.listeners;
+    worker_context->network.network_channel_size = listener_new_cb_user_data.network_channel_size;
 }
 
 void worker_network_listeners_listen(
         worker_context_t *worker_context) {
-
     for (int listener_index = 0; listener_index < worker_context->network.listeners_count; listener_index++) {
-        network_channel_t *listener_channel = &worker_context->network.listeners[listener_index];
+        network_channel_t *listener_channel = (network_channel_t*)(
+                (void*)worker_context->network.listeners +
+                (worker_context->network.network_channel_size * listener_index)
+        );
 
         worker_op_network_accept(
                 worker_network_op_completion_cb_network_accept,
