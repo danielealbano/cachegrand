@@ -76,6 +76,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
 
         network_channel_t test_listeners[10] = { 0 };
         network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = { 0 };
+        listener_new_cb_user_data.network_channel_size = sizeof(network_channel_t);
 
         SECTION("count ipv4 address") {
             listener_new_cb_user_data.listeners = NULL;
@@ -273,6 +274,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
         network_channel_t test_listeners[10] = { 0 };
 
         network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = { 0 };
+        listener_new_cb_user_data.network_channel_size = sizeof(network_channel_t);
 
         SECTION("ipv4 loopback") {
             listener_new_cb_user_data.listeners = test_listeners;
@@ -362,7 +364,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][channel][network_chann
 
             REQUIRE(network_channel_listener_new(
                     "127.0.0.1",
-                    socket_port_free_ipv6,
+                    socket_port_free_ipv4,
                     10,
                     NETWORK_PROTOCOLS_UNKNOWN,
                     &listener_new_cb_user_data));
