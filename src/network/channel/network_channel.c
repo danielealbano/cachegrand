@@ -89,13 +89,16 @@ bool network_channel_listener_new_callback(
     network_channel_t* listener;
     network_channel_listener_new_callback_user_data_t *cb_user_data = user_data;
 
-    assert(cb_user_data->network_channel_size == 0);
-
     // If listeners is set to null the callback will do nothing, this process is used only to
     // enumerate the listeners to allocate
     if (cb_user_data->listeners == NULL) {
         cb_user_data->listeners_count++;
         return true;
+    }
+
+    // If it's not enumeration ensure that the network_channel_size is greater than 0
+    if (cb_user_data->network_channel_size == 0) {
+        return false;
     }
 
     fd = network_io_common_socket_new_server(
