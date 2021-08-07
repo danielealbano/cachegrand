@@ -55,10 +55,10 @@ For more information about the build requirements check [docs/build-requirements
 #### Build
 
 ```bash
-mkdir cmake-build-debug
-cd cmake-build-debug
+mkdir cmake-build-release
+cd cmake-build-release
 cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1
-make cachegrand
+make cachegrand-server
 ```
 
 #### Run
@@ -187,8 +187,8 @@ The benchmarking is built on top of the google-benchmark library that gets autom
 the **cachegrand-benches** target.
 
 ```bash
-mkdir cmake-build-debug
-cd cmake-build-debug
+mkdir cmake-build-release
+cd cmake-build-release
 cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1 -BUILD_INTERNAL_BENCHES=1
 make cachegrand-benches
 ./benches/cachegrand-benches
