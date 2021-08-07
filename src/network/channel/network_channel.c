@@ -109,6 +109,9 @@ bool network_channel_listener_new_callback(
         return false;
     }
 
+    // TODO: all the networking is implemented in the worker but it's non sense and should be moved to the networking,
+    //       because of this nonsense it's not possible use worker_op_network_channel_multi_get here to get the
+    //       network_channel and the math is required. Has to be changed once the code is refactored.
     // The size of the struct is dependant on the network backend, listeners can't be accessed as a plain array as the
     // backend may have encapsulated the generic network_channel structure into its own structure and therefore
     // accessing the elements past 0 would actually ending up overriding the network backend own data.

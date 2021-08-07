@@ -16,7 +16,7 @@ struct network_channel_iouring {
 
 network_channel_iouring_t* network_channel_iouring_new();
 
-network_channel_iouring_t* network_channel_iouring_new_multi(
+network_channel_iouring_t* network_channel_iouring_multi_new(
         int count);
 
 void network_channel_iouring_free(

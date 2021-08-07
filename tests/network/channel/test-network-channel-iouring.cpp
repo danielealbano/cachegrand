@@ -18,8 +18,8 @@ TEST_CASE("network/channel/network_channel_iouring.c", "[network][channel][netwo
         network_channel_iouring_free(network_channel_iouring);
     }
 
-    SECTION("network_channel_iouring_new_multi") {
-        network_channel_iouring_t* network_channel_iouring = network_channel_iouring_new_multi(3);
+    SECTION("network_channel_iouring_new_new") {
+        network_channel_iouring_t* network_channel_iouring = network_channel_iouring_multi_new(3);
 
         REQUIRE(network_channel_iouring != NULL);
         for(int i = 0; i < 3; i++) {
