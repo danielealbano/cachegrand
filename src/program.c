@@ -139,14 +139,37 @@ bool program_should_terminate(
     return *terminate_event_loop;
 }
 
+bool program_has_aborted_workers(
+        worker_context_t* workers_context,
+        uint32_t workers_count) {
+
+    for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
+        if (workers_context[worker_index].pthread == 0) {
+            continue;
+        }
+
+        MEMORY_FENCE_LOAD();
+
+        if (workers_context[worker_index].aborted) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void program_wait_loop(
-        const volatile bool *terminate_event_loop) {
+        worker_context_t* workers_context,
+        uint32_t workers_count,
+        const bool_volatile_t *terminate_event_loop) {
     LOG_V(TAG, "Wait loop started");
 
     // Wait for the software to terminate
-    do {
+    while(
+            !program_should_terminate(terminate_event_loop) &&
+            !program_has_aborted_workers(workers_context, workers_count)) {
         usleep(WORKER_LOOP_MAX_WAIT_TIME_MS * 1000);
-    } while(!program_should_terminate(terminate_event_loop));
+    }
 
     LOG_V(TAG, "Wait loop terminated");
 }
@@ -554,7 +577,14 @@ int program_main(
     }
 
     program_workers_wait_start(&program_context);
-    program_wait_loop(&program_terminate_event_loop);
+    program_wait_loop(
+            program_context.workers_context,
+            program_context.workers_count,
+            &program_terminate_event_loop);
+
+    // The program_request_terminate is invoked to be sure that if the termination is being triggered because a worker
+    // thread is aborting, every other thread is also notified and will terminate the execution
+    program_request_terminate(&program_terminate_event_loop);
 
     LOG_I(TAG, "Terminating");
 

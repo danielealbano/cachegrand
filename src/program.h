@@ -34,10 +34,12 @@ bool program_should_terminate(
         const volatile bool *terminate_event_loop);
 
 void program_wait_loop(
-        const volatile bool *terminate_event_loop);
+        worker_context_t* worker_context,
+        uint32_t workers_count,
+        const bool_volatile_t *terminate_event_loop);
 
 void program_workers_cleanup(
-        worker_context_t* workers_user_data,
+        worker_context_t* worker_context,
         uint32_t workers_count);
 
 bool program_setup_ulimit_wrapper(

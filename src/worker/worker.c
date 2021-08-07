@@ -214,7 +214,7 @@ void worker_wait_running(
         pthread_yield();
         usleep(10000);
         MEMORY_FENCE_LOAD();
-    } while(!worker_context->running);
+    } while(!worker_context->running && !worker_context->aborted);
 }
 
 void worker_set_running(
@@ -255,7 +255,9 @@ void* worker_thread_func(
     if (!worker_initialize(worker_context)) {
         LOG_E(TAG, "Initialization failed!");
         xalloc_free(log_producer_early_prefix_thread);
-        return (void*)false;
+        worker_context->aborted = true;
+        MEMORY_FENCE_STORE();
+        return NULL;
     }
 
     worker_network_listeners_initialize(
