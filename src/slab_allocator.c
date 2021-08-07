@@ -603,12 +603,14 @@ void* slab_allocator_mem_realloc(
 
     new_memptr = slab_allocator_mem_alloc(new_size);
 
-    memcpy(new_memptr, memptr, current_size);
     if (zero_new_memory) {
         memset(new_memptr + current_size, 0, new_size - current_size);
     }
 
-    slab_allocator_mem_free(memptr);
+    if (memptr != NULL) {
+        memcpy(new_memptr, memptr, current_size);
+        slab_allocator_mem_free(memptr);
+    }
 
     return new_memptr;
 }
