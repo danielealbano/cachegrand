@@ -29,10 +29,6 @@ int main() {
 }"
             HOST_HAS_AVX2)
     set(CMAKE_REQUIRED_FLAGS ${OLD_CMAKE_REQUIRED_FLAGS})
-
-    if (NOT HOST_HAS_AVX2)
-        set(HOST_HAS_AVX2 0)
-    endif()
 endif()
 
 # Check if the host has AVX
