@@ -58,6 +58,16 @@ list(FILTER SRC_FILES_CACHEGRAND EXCLUDE REGEX ".*hashtable_support_hash_search_
 list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/data_structures/hashtable/mcmp/hashtable_support_hash_search_loop.c")
 
 if(ARCH_IS_X86_64)
+    message(STATUS "Enabling accelerated string functions")
+
+    # utils_string_avx2.c
+    message(STATUS "Enabling accelerated string functions -- avx2")
+    list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/utils_string_avx2.c")
+    set_source_files_properties(
+            "utils_string_avx2.c"
+            PROPERTIES COMPILE_FLAGS
+            "-mavx2 -mbmi -mfma -mtune=haswell")
+
     message(STATUS "Enabling accelerated crc32c hash")
 
     # hash/hash_crc32c_sse42.c
