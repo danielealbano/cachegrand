@@ -19,6 +19,7 @@
 #include "misc.h"
 #include "log/log.h"
 #include "spinlock.h"
+#include "utils_string.h"
 
 #include "hashtable.h"
 #include "hashtable_support_index.h"
@@ -45,7 +46,7 @@ bool concat(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
     hashtable_half_hashes_chunk_volatile_t * half_hashes_chunk;
     hashtable_key_value_volatile_t* key_value;
     volatile hashtable_key_data_t* found_key;
-    hashtable_key_size_t found_key_max_compare_size;
+    hashtable_key_size_t found_key_compare_size;
     uint32_t skip_indexes_mask;
     bool found = false;
 
@@ -144,7 +145,7 @@ bool concat(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
                 LOG_DI(">> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
                 found_key = key_value->inline_key.data;
-                found_key_max_compare_size = min(key_size, HASHTABLE_KEY_INLINE_MAX_LENGTH);
+                found_key_compare_size = key_value->inline_key.size;
             } else {
                 LOG_DI(">> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
@@ -152,10 +153,10 @@ bool concat(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
                 //       be freed immediately after the bucket is freed because it can be in use and would cause a
                 //       crash
                 found_key = key_value->external_key.data;
-                found_key_max_compare_size = min(key_size, key_value->external_key.size);
+                found_key_compare_size = key_value->external_key.size;
 
                 if (key_value->external_key.size != key_size) {
-                    LOG_DI(">> key have different length (%lu != %lu), continuing",
+                    LOG_DI(">> key have different length (%lu != %lu), skipping comparison",
                            key_size, key_value->external_key.size);
                     continue;
                 }
@@ -176,7 +177,7 @@ bool concat(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
 
             LOG_DI(">> key fetched, comparing");
 
-            if (unlikely(strncmp(key, (const char *) found_key, found_key_max_compare_size) != 0)) {
+            if (unlikely(utils_string_casecmp_eq_32(key, key_size, (const char*)found_key, found_key_compare_size) == false)) {
                 LOG_DI(">> key different (%s != %s), unable to continue", key, found_key);
                 continue;
             }
@@ -217,7 +218,7 @@ bool concat(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
     hashtable_key_value_volatile_t* key_value;
     volatile hashtable_key_data_t* found_key;
-    hashtable_key_size_t found_key_max_compare_size;
+    hashtable_key_size_t found_key_compare_size;
     uint32_t skip_indexes_mask;
     bool found = false;
     bool found_chunk_with_freespace = false;
@@ -351,15 +352,15 @@ bool concat(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                         LOG_DI(">>> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
                         found_key = key_value->inline_key.data;
-                        found_key_max_compare_size = min(key_size, HASHTABLE_KEY_INLINE_MAX_LENGTH);
+                        found_key_compare_size = key_value->inline_key.size;
                     } else {
                         LOG_DI(">>> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
                         found_key = key_value->external_key.data;
-                        found_key_max_compare_size = min(key_size, key_value->external_key.size);
+                        found_key_compare_size = key_value->external_key.size;
 
                         if (unlikely(key_value->external_key.size != key_size)) {
-                            LOG_DI(">>> key have different length (%lu != %lu), continuing",
+                            LOG_DI(">>> key have different length (%lu != %lu), skipping comparison",
                                      key_size, key_value->external_key.size);
                             continue;
                         }
@@ -367,7 +368,7 @@ bool concat(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
 
                     LOG_DI(">>> key fetched, comparing");
 
-                    if (unlikely(strncmp(key, (const char *)found_key, found_key_max_compare_size) != 0)) {
+                    if (unlikely(utils_string_casecmp_eq_32(key, key_size, (const char*)found_key, found_key_compare_size) == false)) {
                         LOG_DI(">>> key different (%s != %s), unable to continue", key, found_key);
                         continue;
                     }

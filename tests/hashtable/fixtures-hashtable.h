@@ -21,13 +21,13 @@ uint64_t buckets_count_307 = 307;
 char test_key_same_bucket_key_prefix_external[] = "same_bucket_key_not_inline_";
 char test_key_same_bucket_key_prefix_inline[] = "sb_key_inline_";
 
-char test_key_1[] = "test key 1";
+char test_key_1[32] = "test key 1";
 hashtable_key_size_t test_key_1_len = 10;
 hashtable_hash_t test_key_1_hash = (hashtable_hash_t)0xf1bdcc8aaccb614c;
 hashtable_hash_half_t test_key_1_hash_half = (test_key_1_hash >> 32u) | 0x80000000u;
 hashtable_hash_quarter_t test_key_1_hash_quarter = test_key_1_hash_half & 0xFFFF;
 
-char test_key_2[] = "test key 2";
+char test_key_2[32] = "test key 2";
 hashtable_key_size_t test_key_2_len = 10;
 hashtable_hash_t test_key_2_hash = (hashtable_hash_t)0x8c8b1b670da1324d;
 hashtable_hash_half_t test_key_2_hash_half = (test_key_2_hash >> 32u) | 0x80000000u;
@@ -100,7 +100,8 @@ hashtable_hash_quarter_t test_key_2_hash_quarter = test_key_2_hash_half & 0xFFFF
     HASHTABLE_SET_INDEX_SHARED(chunk_index, chunk_slot_index, hash, value); \
     HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).flags = \
         HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE; \
-    strncpy((char*)&HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).inline_key.data, key, HASHTABLE_KEY_INLINE_MAX_LENGTH);
+    strncpy((char*)&HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).inline_key.data, key, HASHTABLE_KEY_INLINE_MAX_LENGTH); \
+    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).inline_key.size = key_size;
 
 #define HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(chunk_index, chunk_slot_index, hash, key, key_size, value) \
     HASHTABLE_SET_INDEX_SHARED(chunk_index, chunk_slot_index, hash, value); \

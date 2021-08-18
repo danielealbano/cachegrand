@@ -11,7 +11,7 @@ extern "C" {
 
 #define HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT     14
 #define HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX      32
-#define HASHTABLE_KEY_INLINE_MAX_LENGTH             23
+#define HASHTABLE_KEY_INLINE_MAX_LENGTH             22
 
 typedef uint8_t hashtable_key_value_flags_t;
 typedef uint64_t hashtable_hash_t;
@@ -76,6 +76,7 @@ struct hashtable_key_value {
             hashtable_key_data_t* data;         // 8 bytes
         } __attribute__((packed)) external_key;
         struct {
+            uint8_t size;
             hashtable_key_data_t data[HASHTABLE_KEY_INLINE_MAX_LENGTH];
         } __attribute__((packed)) inline_key;
     };

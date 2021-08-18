@@ -90,12 +90,11 @@ bool hashtable_mcmp_op_set(
 
             ht_key = (hashtable_key_data_t *)&key_value->inline_key.data;
             strncpy((char*)ht_key, key, key_size);
+
+            key_value->inline_key.size = key_size;
         } else {
             LOG_DI("key can't be inline-ed, max length for inlining %d", HASHTABLE_KEY_INLINE_MAX_LENGTH);
 
-            // TODO: The keys must be stored in an append-only store because potentially a get operation can be affected
-            //       by a delete, never happened so far (under very high contention) but it can potentially happen and
-            //       needs to be fixed.
             ht_key = slab_allocator_mem_alloc(key_size + 1);
             ((char*)ht_key)[key_size] = '\0';
             strncpy((char*)ht_key, key, key_size);
