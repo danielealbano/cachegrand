@@ -16,6 +16,7 @@
 #include "exttypes.h"
 #include "log/log.h"
 #include "exttypes.h"
+#include "utils_string.h"
 #include "spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -150,7 +151,17 @@ bool network_protocol_redis_process_events(
                 protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_UNKNOWN;
                 for(uint32_t command_index = 0; command_index < command_infos_map_count; command_index++) {
                     network_protocol_redis_command_info_t *command_info = &command_infos_map[command_index];
-                    if (command_len == command_info->length && strncasecmp(command_str, command_info->string, command_len) == 0) {
+                    // TODO: utils_string_casecmp_eq_32 always requires 32 bytes of memory to load, therefore if
+                    //       command_str is not coming from the network buffer but the parser has re-allocated it then
+                    //       it will not have the correct size (the network buffer is padded on purpose).
+                    //       Although it should not happen as this is the command and the buffer will always have enough
+                    //       room to store 32 bytes as the minimum required is anyway the packet size (4k) it should
+                    //       never happen but better to implement a mechanism to ensure it (ie. add a flag to the argument
+                    //       list provided by the parser to identify if the value has been copied into memory and in case
+                    //       use the normal strncmp or even better always pad the memory allocated by the parser to 32
+                    //       bytes)
+                    if (command_len == command_info->length &&
+                        utils_string_casecmp_eq_32(command_str, command_len, command_info->string, command_info->string_len) == true) {
                         LOG_D(
                                 TAG,
                                 "[RECV][REDIS] <%s> command received",

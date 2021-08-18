@@ -48,6 +48,7 @@ extern "C" {
         .command = NETWORK_PROTOCOL_REDIS_COMMAND_##ID, \
         .length = sizeof(COMMAND) - 1, /* sizeof takes into account the NULL char at the end, different behaviour than strlen */ \
         .string = (COMMAND), \
+        .string_len = strlen(COMMAND), \
         .begin_funcptr = NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, begin), \
         .argument_processed_funcptr = NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, argument_processed), \
         .end_funcptr = NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, end), \
@@ -59,6 +60,7 @@ extern "C" {
         .command = NETWORK_PROTOCOL_REDIS_COMMAND_##ID, \
         .length = sizeof(COMMAND) - 1, /* sizeof takes into account the NULL char at the end, different behaviour than strlen */ \
         .string = (COMMAND), \
+        .string_len = strlen(COMMAND), \
         .begin_funcptr = NULL, \
         .argument_processed_funcptr = NULL, \
         .end_funcptr = NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, end), \
@@ -105,7 +107,8 @@ struct network_protocol_redis_command_info {
     network_protocol_redis_commands_t command;
     size_t length;
     // Redis longest command is 10 chars
-    char string[11];
+    char string[32];
+    uint8_t string_len;
     network_protocol_redis_command_begin_funcptr_t *begin_funcptr;
     network_protocol_redis_command_argument_processed_funcptr_t *argument_processed_funcptr;
     network_protocol_redis_command_end_funcptr_t *end_funcptr;

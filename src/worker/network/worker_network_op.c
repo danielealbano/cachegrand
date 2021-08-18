@@ -214,7 +214,17 @@ bool worker_network_op_completion_cb_network_accept(
         worker_network_channel_user_data->packet_size = NETWORK_CHANNEL_PACKET_SIZE;
         worker_network_channel_user_data->read_buffer.data =
                 (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
-        worker_network_channel_user_data->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE;
+
+        // To speed up the performances the code takes advantage of SIMD operations that are built to operate on
+        // specific amount of data, for example AVX/AVX2 in general operate on 256 bit (32 byte) of data at time.
+        // Therefore, to avoid implementing ad hoc checks everywhere and at the same time to ensure that the code will
+        // never ever read over the boundary of the allocated block of memory, the length of the read buffer will be
+        // initialized to the buffer receive size minus 32.
+        // TODO: 32 should be defined as magic const somewhere as it's going hard to track where "32" is in use if it
+        //          has to be changed
+        // TODO: create a test to ensure that the length of the read buffer is taking into account the 32 bytes of
+        //       padding
+        worker_network_channel_user_data->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE - 32;
 
         new_channel->user_data = worker_network_channel_user_data;
 

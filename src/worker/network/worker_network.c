@@ -152,7 +152,7 @@ bool worker_network_receive(
         }
 
         if (!res) {
-            // TODO: failed to prepare to rewind the data, unable to continue
+            // TODO: failed to prepare to rewind the data, unable to continue, it should not hard fail
             FATAL(
                     TAG,
                     "[FD:%5d][RECV]Unable to rewind the data",
