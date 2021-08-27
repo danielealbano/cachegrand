@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(cachegrand LANGUAGES C CXX)
+project(cachegrand LANGUAGES C CXX ASM)
 
 include(tools/cmake/main.cmake)
 
