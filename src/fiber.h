@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 typedef struct fiber fiber_t;
-typedef void (fiber_start_fp_t)(fiber_t* fiber);
+typedef void (fiber_start_fp_t)(fiber_t* fiber_from, fiber_t* fiber_to);
 
 struct fiber {
     struct {
