@@ -72,13 +72,3 @@ void fiber_free(
     xalloc_free(fiber->stack_base);
     xalloc_free(fiber);
 }
-
-void fiber_context_get(
-        fiber_t* fiber_context) {
-    _fiber_context_get(fiber_context);
-}
-
-void fiber_context_set(
-        fiber_t* fiber_context) {
-    _fiber_context_set(fiber_context);
-}
