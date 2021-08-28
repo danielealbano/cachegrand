@@ -47,7 +47,8 @@ fiber_t* fiber_new(
     // Align the stack_pointer to 16 bytes and leave the 128 bytes red zone free as per ABI requirements
     void* stack_pointer = (void*)((uintptr_t)(stack_base + stack_size) & -16L) - 128;
 
-    stack -= 128;
+    // Need room on the stack as we push/pop a return address to jump to our function
+    stack_pointer -= sizeof(void*) * 1;
 
     fiber->start_fp = fiber_start_fp;
     fiber->start_fp_user_data = user_data;
