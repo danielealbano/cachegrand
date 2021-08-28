@@ -23,11 +23,6 @@
 
 #define TAG "fiber"
 
-extern void _fiber_context_get(
-        fiber_t *fiber_context);
-extern void _fiber_context_set(
-        fiber_t *fiber_context);
-
 void fiber_stack_protection(
         fiber_t* fiber,
         bool enable) {

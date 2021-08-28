@@ -20,6 +20,16 @@ struct fiber {
     void* start_fp_user_data;
 };
 
+extern void fiber_context_get(
+        fiber_t *fiber_context);
+
+extern void fiber_context_set(
+        fiber_t *fiber_context);
+
+extern void fiber_context_swap(
+        fiber_t *fiber_context_from,
+        fiber_t *fiber_context_to);
+
 void fiber_stack_protection(
         fiber_t* fiber,
         bool enable);
@@ -31,12 +41,6 @@ fiber_t* fiber_new(
 
 void fiber_free(
         fiber_t* fiber);
-
-void fiber_context_get(
-        fiber_t* fiber_context);
-
-void fiber_context_set(
-        fiber_t* fiber_context);
 
 #ifdef __cplusplus
 }
