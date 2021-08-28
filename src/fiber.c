@@ -28,7 +28,7 @@ void fiber_stack_protection(
         bool enable) {
     int stack_usage_flags = enable ? PROT_NONE : PROT_READ | PROT_WRITE;
 
-    if (mprotect(fiber->stack_beginning, xalloc_get_page_size(), stack_usage_flags) != 0) {
+    if (mprotect(fiber->stack_base, xalloc_get_page_size(), stack_usage_flags) != 0) {
         if (errno == ENOMEM) {
             fatal(TAG, "Unable to protect/unprotect fiber stack, review the value of /proc/sys/vm/max_map_count");
         }
@@ -42,22 +42,22 @@ fiber_t* fiber_new(
         fiber_start_fp_t* fiber_start_fp,
         void* user_data) {
     fiber_t* fiber = xalloc_alloc_zero(sizeof(fiber_t));
-    void* stack_beginning = xalloc_alloc_aligned_zero(xalloc_get_page_size(), stack_size);
+    void* stack_base = xalloc_alloc_aligned_zero(xalloc_get_page_size(), stack_size);
 
-    // Align the stack to 16 bytes and leave the 128 bytes red zone free as per ABI requirements
-    void* stack = stack_beginning + stack_size;
-    stack = (void*)((uintptr_t)stack & -16L);
+    // Align the stack_pointer to 16 bytes and leave the 128 bytes red zone free as per ABI requirements
+    void* stack_pointer = (void*)((uintptr_t)(stack_base + stack_size) & -16L) - 128;
+
     stack -= 128;
 
     fiber->start_fp = fiber_start_fp;
     fiber->start_fp_user_data = user_data;
     fiber->stack_size = stack_size;
-    fiber->stack = stack;
-    fiber->stack_beginning = stack_beginning;
+    fiber->stack_base = stack_base;
+    fiber->stack_pointer = stack_pointer;
 
     // Set the initial fp and rsp of the fiber
-    fiber->context.rip = fiber->start_fp; // this or the stack? who knows :|
-    fiber->context.rsp = fiber->stack;
+    fiber->context.rip = fiber->start_fp; // this or the stack_base? who knows :|
+    fiber->context.rsp = fiber->stack_pointer;
 
     fiber_stack_protection(fiber, true);
 
@@ -68,7 +68,7 @@ void fiber_free(
         fiber_t* fiber) {
     fiber_stack_protection(fiber, false);
 
-    xalloc_free(fiber->stack_beginning);
+    xalloc_free(fiber->stack_base);
     xalloc_free(fiber);
 }
 

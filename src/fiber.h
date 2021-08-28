@@ -13,9 +13,9 @@ struct fiber {
         void *rip, *rsp;
         void *rbx, *rbp, *r12, *r13, *r14, *r15;
     } context;
+    void* stack_pointer;
+    void* stack_base;
     size_t stack_size;
-    void* stack;
-    void* stack_beginning;
     fiber_start_fp_t* start_fp;
     void* start_fp_user_data;
 };
