@@ -24,7 +24,7 @@
 #define TAG "fiber"
 
 void fiber_stack_protection(
-        fiber_t* fiber,
+        fiber_t *fiber,
         bool enable) {
     int stack_usage_flags = enable ? PROT_NONE : PROT_READ | PROT_WRITE;
 
@@ -37,12 +37,12 @@ void fiber_stack_protection(
     }
 }
 
-fiber_t* fiber_new(
+fiber_t *fiber_new(
         size_t stack_size,
-        fiber_start_fp_t* fiber_start_fp,
-        void* user_data) {
-    fiber_t* fiber = xalloc_alloc_zero(sizeof(fiber_t));
-    void* stack_base = xalloc_alloc_aligned_zero(xalloc_get_page_size(), stack_size);
+        fiber_start_fp_t *fiber_start_fp,
+        void *user_data) {
+    fiber_t *fiber = xalloc_alloc_zero(sizeof(fiber_t));
+    void *stack_base = xalloc_alloc_aligned_zero(xalloc_get_page_size(), stack_size);
 
     // Align the stack_pointer to 16 bytes and leave the 128 bytes red zone free as per ABI requirements
     void* stack_pointer = (void*)((uintptr_t)(stack_base + stack_size) & -16L) - 128;
@@ -66,7 +66,7 @@ fiber_t* fiber_new(
 }
 
 void fiber_free(
-        fiber_t* fiber) {
+        fiber_t *fiber) {
     fiber_stack_protection(fiber, false);
 
     xalloc_free(fiber->stack_base);
