@@ -12,4 +12,5 @@ else()
     message(STATUS "Cross-compiling: no")
 endif()
 
+include(compiler-fortify)
 include(compiler-ccache)
