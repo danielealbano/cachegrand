@@ -1,6 +1,3 @@
-include(CheckPIESupported)
-check_pie_supported()
-
 add_compile_options($<$<COMPILE_LANGUAGE:C>:-ggdb3>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-ggdb3>)
 
@@ -8,12 +5,16 @@ if (CMAKE_BUILD_TYPE MATCHES Debug)
     set(CMAKE_VERBOSE_MAKEFILE ON)
     add_definitions(-DDEBUG=1)
 
-    add_compile_options($<$<COMPILE_LANGUAGE:C>:-O0>)
-    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-O0>)
-    add_compile_options($<$<COMPILE_LANGUAGE:C>:-fno-inline>)
-    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-inline>)
-    add_compile_options($<$<COMPILE_LANGUAGE:C>:-fno-omit-frame-pointer>)
-    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-omit-frame-pointer>)
+    set(COMPILER_OPTIONS
+            "-O0"; "-fno-inline"; "-fno-omit-frame-pointer";
+            "-fsanitize=address"; "-fsanitize=pointer-compare"; "-fsanitize=pointer-subtract"; "-fsanitize=leak";
+            "-fno-omit-frame-pointer"; "-fsanitize=undefined"; "-fsanitize=bounds-strict";
+            "-fsanitize=float-divide-by-zero"; "-fsanitize=float-cast-overflow"
+            )
+    foreach(OPTION IN LISTS COMPILER_OPTIONS)
+        add_compile_options($<$<COMPILE_LANGUAGE:C>:${OPTION}>)
+        add_compile_options($<$<COMPILE_LANGUAGE:CXX>:${OPTION}>)
+    endforeach()
 
     # gcov linking required by gcc
     if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
