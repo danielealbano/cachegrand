@@ -189,7 +189,7 @@ the **cachegrand-benches** target.
 ```bash
 mkdir cmake-build-release
 cd cmake-build-release
-cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1 -BUILD_INTERNAL_BENCHES=1
+cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_INTERNAL_BENCHES=1
 make cachegrand-benches
 ./benches/cachegrand-benches
 ```
