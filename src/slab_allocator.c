@@ -12,7 +12,6 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <string.h>
-#include <sched.h>
 #include <stdatomic.h>
 
 #include "misc.h"
