@@ -62,7 +62,7 @@ void test_slab_allocator_fuzzy_single_thread_single_size(
     // page-align them so it's critical to ALWAYS have at least 1 hugepage more than the
     // ones passed to this test function
     uint32_t max_used_slots =
-            (use_max_hugepages * SLAB_HUGEPAGE_SIZE_2MB) /
+            (use_max_hugepages * HUGEPAGE_SIZE_2MB) /
             (object_size + sizeof(slab_slot_t));
 
     // If there is enough space to place the signature of the object ALSO at the end set
@@ -225,7 +225,7 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
 
     SECTION("slab_allocator_slice_calculate_usable_hugepage_size") {
         REQUIRE(slab_allocator_slice_calculate_usable_hugepage_size() ==
-            SLAB_HUGEPAGE_SIZE_2MB - xalloc_get_page_size() - sizeof(slab_slice_t));
+                HUGEPAGE_SIZE_2MB - xalloc_get_page_size() - sizeof(slab_slice_t));
     }
 
     SECTION("slab_allocator_slice_calculate_data_offset") {
@@ -275,7 +275,7 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
 
     SECTION("slab_allocator_slice_add_slots_to_per_core_metadata_slots") {
         uint32_t core_index = 0;
-        size_t slab_page_size = SLAB_HUGEPAGE_SIZE_2MB;
+        size_t slab_page_size = HUGEPAGE_SIZE_2MB;
         void* memptr = malloc(slab_page_size);
 
         slab_allocator_t* slab_allocator = slab_allocator_init(256);
@@ -299,7 +299,7 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
 
     SECTION("slab_allocator_slice_remove_slots_from_per_core_metadata_slots") {
         uint32_t core_index = 0;
-        size_t slab_page_size = SLAB_HUGEPAGE_SIZE_2MB;
+        size_t slab_page_size = HUGEPAGE_SIZE_2MB;
         void* memptr = malloc(slab_page_size);
 
         slab_allocator_t* slab_allocator = slab_allocator_init(256);
@@ -328,7 +328,7 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
     SECTION("slab_allocator_grow") {
         uint32_t core_index = 0;
         uint32_t numa_node_index = 0;
-        size_t slab_page_size = SLAB_HUGEPAGE_SIZE_2MB;
+        size_t slab_page_size = HUGEPAGE_SIZE_2MB;
         void* memptr = malloc(slab_page_size);
         slab_slice_t* slab_slice = (slab_slice_t*)memptr;
 
