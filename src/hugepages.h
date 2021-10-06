@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#define HUGEPAGE_SIZE_2MB   (2 * 1024 * 1024)
+
 #define HUGEPAGES_SYSFS_PATH "/sys/kernel/mm/hugepages/"
 #define HUGEPAGES_SYSFS_2MB_PATH HUGEPAGES_SYSFS_PATH "hugepages-2048kB/"
 #define HUGEPAGES_SYSFS_1024MB_PATH HUGEPAGES_SYSFS_PATH "hugepages-1048576kB/"

@@ -5,8 +5,6 @@
 extern "C" {
 #endif
 
-#define SLAB_HUGEPAGE_SIZE_2MB   (2 * 1024 * 1024)
-
 #define SLAB_OBJECT_SIZE_64     0x00000040
 #define SLAB_OBJECT_SIZE_128    0x00000080
 #define SLAB_OBJECT_SIZE_256    0x00000100
