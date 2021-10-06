@@ -182,7 +182,7 @@ int xalloc_mmap_free(
 #endif
 }
 
-void* xalloc_hugepages_alloc(
+void* xalloc_hugepage_alloc(
         size_t size) {
     void* memptr;
 
@@ -207,7 +207,7 @@ void* xalloc_hugepages_alloc(
     return memptr;
 }
 
-int xalloc_hugepages_free(
+int xalloc_hugepage_free(
         void *memptr,
         size_t size) {
 #if defined(__linux__)

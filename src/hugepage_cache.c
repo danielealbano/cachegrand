@@ -57,7 +57,7 @@ void hugepage_cache_free() {
     for(int numa_node_index = 0; numa_node_index < numa_node_count; numa_node_index++) {
         list = hugepage_cache_per_numa_node[numa_node_index].free_hugepages;
         while((item = double_linked_list_pop_item(list)) != NULL) {
-            xalloc_hugepages_free(item->data, HUGEPAGE_SIZE_2MB);
+            xalloc_hugepage_free(item->data, HUGEPAGE_SIZE_2MB);
             double_linked_list_item_free(item);
         }
 
@@ -123,7 +123,7 @@ void* hugepage_cache_pop() {
          * item will be NULL only on the first invocation, in all the other cases it will always be item->data == NULL
          * when no hugepages are available.
          */
-        hugepage_addr = xalloc_hugepages_alloc(HUGEPAGE_SIZE_2MB);
+        hugepage_addr = xalloc_hugepage_alloc(HUGEPAGE_SIZE_2MB);
 
         item = double_linked_list_item_init();
         item->data = NULL;

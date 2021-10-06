@@ -166,7 +166,7 @@ void slab_allocator_free(
         while(item != NULL) {
             slab_slice_t* slab_slice = item->data;
             item = item->next;
-            xalloc_hugepages_free(slab_slice->data.page_addr, HUGEPAGE_SIZE_2MB);
+            xalloc_hugepage_free(slab_slice->data.page_addr, HUGEPAGE_SIZE_2MB);
         }
 
         double_linked_list_free(numa_node_metadata->slices);
@@ -182,7 +182,7 @@ void slab_allocator_free(
             MEMORY_FENCE_LOAD();
         } while (core_metadata->free_page_addr == NULL && core_metadata->free_page_addr_first_inited == true);
 
-        xalloc_hugepages_free(core_metadata->free_page_addr, HUGEPAGE_SIZE_2MB);
+        xalloc_hugepage_free(core_metadata->free_page_addr, HUGEPAGE_SIZE_2MB);
     }
 
     xalloc_free(slab_allocator->core_metadata);
@@ -439,7 +439,7 @@ void* slab_allocator_mem_alloc_hugepages(
         if (slab_allocator_slice_try_acquire(slab_allocator, numa_node_index, core_index) == false) {
             if (!core_metadata->free_page_addr_first_inited) {
                 core_metadata->free_page_addr_first_inited = true;
-                core_metadata->free_page_addr = xalloc_hugepages_alloc(HUGEPAGE_SIZE_2MB);
+                core_metadata->free_page_addr = xalloc_hugepage_alloc(HUGEPAGE_SIZE_2MB);
             }
 
             // Ensure that free_page_addr is not null, if it is null the previous thread that used it hasn't
@@ -481,7 +481,7 @@ void* slab_allocator_mem_alloc_hugepages(
         // Can be done without locking but with a memory write fence because the spinlock above guarantees that
         // only one thread can get through allocating a new huge page for the same core, if more than one thread
         // fetches the free hugepage then the read memory barrier and the check above will avoid using a null pointer.
-        core_metadata->free_page_addr = xalloc_hugepages_alloc(HUGEPAGE_SIZE_2MB);
+        core_metadata->free_page_addr = xalloc_hugepage_alloc(HUGEPAGE_SIZE_2MB);
         MEMORY_FENCE_STORE();
     }
 
@@ -544,7 +544,7 @@ void slab_allocator_mem_free_hugepages(
     spinlock_unlock(&core_metadata->spinlock);
 
     if (can_free_slab_slice) {
-        xalloc_hugepages_free(slab_slice->data.page_addr, HUGEPAGE_SIZE_2MB);
+        xalloc_hugepage_free(slab_slice->data.page_addr, HUGEPAGE_SIZE_2MB);
     }
 }
 

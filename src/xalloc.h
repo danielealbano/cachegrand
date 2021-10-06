@@ -47,10 +47,10 @@ int xalloc_mmap_free(
         size_t size);
 
 __attribute__((malloc))
-void* xalloc_hugepages_alloc(
+void* xalloc_hugepage_alloc(
         size_t size);
 
-int xalloc_hugepages_free(
+int xalloc_hugepage_free(
         void *memptr,
         size_t size);
 
