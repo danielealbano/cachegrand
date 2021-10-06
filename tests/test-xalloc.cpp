@@ -229,11 +229,11 @@ TEST_CASE("xalloc.c", "[xalloc]") {
         REQUIRE(xalloc_mmap_free((void*)data, size) == 0);
     }
 
-    SECTION("xalloc_hugepages_2mb_alloc") {
+    SECTION("xalloc_hugepages_alloc") {
         SECTION("valid size") {
             if (hugepages_2mb_is_available(1)) {
                 size_t hugepage_2mb_size = 2 * 1024 * 1024;
-                uintptr_t data = (uintptr_t)xalloc_hugepages_2mb_alloc(hugepage_2mb_size);
+                uintptr_t data = (uintptr_t) xalloc_hugepages_alloc(hugepage_2mb_size);
 
                 REQUIRE(data != 0);
                 REQUIRE((data % (hugepage_2mb_size)) == 0);
@@ -251,7 +251,7 @@ TEST_CASE("xalloc.c", "[xalloc]") {
 
                 if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                     test_xalloc_setup_sigabrt_signal_handler();
-                    data = (uintptr_t)xalloc_hugepages_2mb_alloc(0);
+                    data = (uintptr_t) xalloc_hugepages_alloc(0);
                 } else {
                     fatal_catched = true;
                 }
