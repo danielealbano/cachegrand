@@ -28,8 +28,17 @@
 
 #define TAG "thread"
 
+thread_local uint32_t thread_current_core_index = UINT32_MAX;
+thread_local uint32_t thread_current_numa_node_index = UINT32_MAX;
+
 uint16_t* internal_selected_cpus = NULL;
 uint16_t internal_selected_cpus_count = 0;
+
+void thread_ensure_core_index_and_numa_node_index_filled() {
+    if (thread_current_core_index == UINT32_MAX || thread_current_numa_node_index == UINT32_MAX) {
+        getcpu(&thread_current_core_index, &thread_current_numa_node_index);
+    }
+}
 
 long thread_current_get_id() {
     return syscall(SYS_gettid);
@@ -81,4 +90,14 @@ void thread_affinity_set_selected_cpus(
 
     internal_selected_cpus = selected_cpus;
     internal_selected_cpus_count = selected_cpus_count;
+}
+
+uint32_t thread_get_current_numa_node_index() {
+    thread_ensure_core_index_and_numa_node_index_filled();
+    return thread_current_numa_node_index;
+}
+
+uint32_t thread_get_current_core_index() {
+    thread_ensure_core_index_and_numa_node_index_filled();
+    return thread_current_core_index;
 }

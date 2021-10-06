@@ -23,6 +23,7 @@
 #include "fatal.h"
 #include "utils_cpu.h"
 #include "utils_numa.h"
+#include "thread.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 
 #include "slab_allocator.h"
@@ -34,9 +35,6 @@
  * calculate the initial address of the page and place the index of slab slice at the beginning and use the rest of the
  * page to store the data.
  */
-
-thread_local uint32_t current_thread_core_index = UINT32_MAX;
-thread_local uint32_t current_thread_numa_node_index = UINT32_MAX;
 
 size_t slab_os_page_size;
 slab_allocator_t* predefined_slab_allocators[SLAB_PREDEFINED_OBJECT_SIZES_COUNT] = { 0 };
@@ -82,12 +80,6 @@ void slab_allocator_enable(
     slab_allocator_enabled = enable;
 }
 
-void slab_allocator_ensure_core_index_and_numa_node_index_filled() {
-    if (current_thread_core_index == UINT32_MAX || current_thread_numa_node_index == UINT32_MAX) {
-        getcpu(&current_thread_core_index, &current_thread_numa_node_index);
-    }
-}
-
 uint8_t slab_index_by_object_size(
         size_t object_size) {
     assert(object_size <= SLAB_OBJECT_SIZE_MAX);
@@ -112,16 +104,6 @@ uint8_t slab_index_by_object_size(
 slab_allocator_t* slab_allocator_predefined_get_by_size(
         size_t object_size) {
     return predefined_slab_allocators[slab_index_by_object_size(object_size)];
-}
-
-uint32_t slab_allocator_get_current_thread_numa_node_index() {
-    slab_allocator_ensure_core_index_and_numa_node_index_filled();
-    return current_thread_numa_node_index;
-}
-
-uint32_t slab_allocator_get_current_thread_core_index() {
-    slab_allocator_ensure_core_index_and_numa_node_index_filled();
-    return current_thread_core_index;
 }
 
 slab_allocator_t* slab_allocator_init(
@@ -581,12 +563,10 @@ void* slab_allocator_mem_alloc(
     void* memptr;
 
     if (slab_allocator_enabled) {
-        slab_allocator_ensure_core_index_and_numa_node_index_filled();
-
         memptr = slab_allocator_mem_alloc_hugepages(
                 size,
-                current_thread_numa_node_index,
-                current_thread_core_index);
+                thread_get_current_numa_node_index(),
+                thread_get_current_core_index());
     } else {
         memptr = slab_allocator_mem_alloc_xalloc(size);
     }
@@ -618,12 +598,10 @@ void* slab_allocator_mem_realloc(
 void slab_allocator_mem_free(
         void* memptr) {
     if (slab_allocator_enabled) {
-        slab_allocator_ensure_core_index_and_numa_node_index_filled();
-
         slab_allocator_mem_free_hugepages(
                 memptr,
-                current_thread_numa_node_index,
-                current_thread_core_index);
+                thread_get_current_numa_node_index(),
+                thread_get_current_core_index());
     } else {
         slab_allocator_mem_free_xalloc(memptr);
     }

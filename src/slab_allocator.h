@@ -110,17 +110,11 @@ void slab_allocator_enable(
 slab_allocator_t* slab_allocator_predefined_get_by_size(
         size_t object_size);
 
-uint32_t slab_allocator_get_current_thread_numa_node_index();
-
-uint32_t slab_allocator_get_current_thread_core_index();
-
 slab_allocator_t* slab_allocator_init(
         size_t object_size);
 
 void slab_allocator_free(
         slab_allocator_t* slab);
-
-void slab_allocator_ensure_core_index_and_numa_node_index_filled();
 
 uint8_t slab_index_by_object_size(
         size_t object_size);
