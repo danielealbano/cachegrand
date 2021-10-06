@@ -6,8 +6,6 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#define _GNU_SOURCE
-
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
