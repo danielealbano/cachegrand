@@ -6,8 +6,6 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#define _GNU_SOURCE
-
 #include <stdint.h>
 #include <stdbool.h>
 #include <assert.h>
@@ -18,13 +16,14 @@
 #include "exttypes.h"
 #include "memory_fences.h"
 #include "spinlock.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
 #include "xalloc.h"
 #include "fatal.h"
 #include "utils_cpu.h"
 #include "utils_numa.h"
-#include "hugepages.h"
 #include "thread.h"
-#include "data_structures/double_linked_list/double_linked_list.h"
+#include "hugepages.h"
+#include "hugepage_cache.h"
 
 #include "slab_allocator.h"
 
@@ -131,9 +130,6 @@ slab_allocator_t* slab_allocator_init(
         core_metadata->slots = double_linked_list_init();
         spinlock_init(&core_metadata->spinlock);
 
-        core_metadata->free_page_addr = NULL;
-        core_metadata->free_page_addr_first_inited = false;
-
         core_metadata->metrics.slices_free_count = 0;
         core_metadata->metrics.slices_total_count = 0;
         core_metadata->metrics.slices_inuse_count = 0;
@@ -166,7 +162,7 @@ void slab_allocator_free(
         while(item != NULL) {
             slab_slice_t* slab_slice = item->data;
             item = item->next;
-            xalloc_hugepage_free(slab_slice->data.page_addr, HUGEPAGE_SIZE_2MB);
+            hugepage_cache_push(slab_slice->data.page_addr);
         }
 
         double_linked_list_free(numa_node_metadata->slices);
@@ -175,14 +171,6 @@ void slab_allocator_free(
     for(int i = 0; i < slab_allocator->core_count; i++) {
         slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[i];
         double_linked_list_free(core_metadata->slots);
-
-        // If a thread is still allocating an hugepage while the slab allocator is getting freed wait for it to avoid
-        // losing it
-        do {
-            MEMORY_FENCE_LOAD();
-        } while (core_metadata->free_page_addr == NULL && core_metadata->free_page_addr_first_inited == true);
-
-        xalloc_hugepage_free(core_metadata->free_page_addr, HUGEPAGE_SIZE_2MB);
     }
 
     xalloc_free(slab_allocator->core_metadata);
@@ -420,7 +408,6 @@ void* slab_allocator_mem_alloc_hugepages(
         size_t size,
         uint32_t numa_node_index,
         uint32_t core_index) {
-    bool allocate_new_hugepage = false;
     slab_slot_t* slab_slot = NULL;
     slab_slice_t* slab_slice = NULL;
 
@@ -437,27 +424,13 @@ void* slab_allocator_mem_alloc_hugepages(
 
     if (slots_per_core_head_item == NULL || slab_slot->data.available == false) {
         if (slab_allocator_slice_try_acquire(slab_allocator, numa_node_index, core_index) == false) {
-            if (!core_metadata->free_page_addr_first_inited) {
-                core_metadata->free_page_addr_first_inited = true;
-                core_metadata->free_page_addr = xalloc_hugepage_alloc(HUGEPAGE_SIZE_2MB);
-            }
-
-            // Ensure that free_page_addr is not null, if it is null the previous thread that used it hasn't
-            // allocated the new one yet.
-            // See comment below on ...if (core_metadata->free_page_addr == NULL)... for a bit more details on why
-            // this look is necessary
-            do {
-                MEMORY_FENCE_LOAD();
-            } while (core_metadata->free_page_addr == NULL);
+            void* hugepage_addr = hugepage_cache_pop();
 
             slab_allocator_grow(
                     slab_allocator,
                     numa_node_index,
                     core_index,
-                    core_metadata->free_page_addr);
-
-            core_metadata->free_page_addr = NULL;
-            allocate_new_hugepage = true;
+                    hugepage_addr);
         }
 
         slots_per_core_head_item = slots_per_core_list->head;
@@ -476,14 +449,6 @@ void* slab_allocator_mem_alloc_hugepages(
     core_metadata->metrics.objects_inuse_count++;
 
     spinlock_unlock(&core_metadata->spinlock);
-
-    if (core_metadata->free_page_addr_first_inited == true && allocate_new_hugepage) {
-        // Can be done without locking but with a memory write fence because the spinlock above guarantees that
-        // only one thread can get through allocating a new huge page for the same core, if more than one thread
-        // fetches the free hugepage then the read memory barrier and the check above will avoid using a null pointer.
-        core_metadata->free_page_addr = xalloc_hugepage_alloc(HUGEPAGE_SIZE_2MB);
-        MEMORY_FENCE_STORE();
-    }
 
     return slab_slot->data.memptr;
 }
@@ -544,7 +509,7 @@ void slab_allocator_mem_free_hugepages(
     spinlock_unlock(&core_metadata->spinlock);
 
     if (can_free_slab_slice) {
-        xalloc_hugepage_free(slab_slice->data.page_addr, HUGEPAGE_SIZE_2MB);
+        hugepage_cache_push(slab_slice->data.page_addr);
     }
 }
 
