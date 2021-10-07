@@ -63,6 +63,8 @@ void hugepage_cache_free() {
     }
 
     xalloc_free(hugepage_cache_per_numa_node);
+
+    hugepage_cache_per_numa_node = NULL;
 }
 
 void* hugepage_cache_push(void* hugepage_addr) {
