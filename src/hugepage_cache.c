@@ -127,15 +127,14 @@ void* hugepage_cache_pop() {
         item->data = NULL;
         double_linked_list_unshift_item(hugepage_cache->free_hugepages, item);
 
-        hugepage_cache->stats.in_use++;
+        hugepage_cache->stats.total++;
     } else {
         hugepage_addr = item->data;
         item->data = NULL;
         double_linked_list_move_item_to_head(hugepage_cache->free_hugepages, item);
-
-        hugepage_cache->stats.total++;
-        hugepage_cache->stats.in_use++;
     }
+
+    hugepage_cache->stats.in_use++;
 
     spinlock_unlock(&hugepage_cache->lock);
 
