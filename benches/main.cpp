@@ -22,6 +22,10 @@ int main(int argc, char** argv) {
     slab_allocator_enable(true);
     slab_allocator_predefined_allocators_init();
 
+    // Ensure that the current thread is pinned to the core 0 otherwise some tests can fail if the kernel shift around
+    // the main thread of the process
+    thread_current_set_affinity(0);
+
     fprintf(stdout, "Be aware, benchmarking is configured to:\n");
     fprintf(stdout, "- spin up to 16 threads per core (with a limit to 2048 threads), pinning the threads to the cores\n");
     fprintf(stdout, "- consume up to *120GB* of memory when testing the 2bln key hashtable size\n");
