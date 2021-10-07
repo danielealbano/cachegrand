@@ -4,6 +4,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "thread.h"
+
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 // It's necessary to setup the sigsegv fatal handler and to setup our own process group so it's not possible to use
@@ -18,6 +20,10 @@ int main(int argc, char* argv[]) {
     if( returnCode != 0 ) {
         return returnCode;
     }
+
+    // Ensure that the current thread is pinned to the core 0 otherwise some tests can fail if the kernel shift around
+    // the main thread of the process
+    thread_current_set_affinity(0);
 
     return session.run();
 }
