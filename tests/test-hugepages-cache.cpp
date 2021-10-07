@@ -12,28 +12,28 @@
 #include "hugepage_cache.h"
 
 TEST_CASE("hugepage_cache.c", "[hugepage_cache]") {
-    SECTION("hugepage_cache_init") {
+    if (hugepages_2mb_is_available(128)) {
+        SECTION("hugepage_cache_init") {
 
-        int numa_node_count = utils_numa_node_configured_count();
+            int numa_node_count = utils_numa_node_configured_count();
 
-        hugepage_cache_t* hugepage_cache_per_numa_node = hugepage_cache_init();
+            hugepage_cache_t* hugepage_cache_per_numa_node = hugepage_cache_init();
 
-        REQUIRE(hugepage_cache_per_numa_node != NULL);
+            REQUIRE(hugepage_cache_per_numa_node != NULL);
 
-        for(int i = 0; i < numa_node_count; i++) {
-            REQUIRE(hugepage_cache_per_numa_node[i].lock.lock == SPINLOCK_UNLOCKED);
-            REQUIRE(hugepage_cache_per_numa_node[i].free_hugepages != NULL);
-            REQUIRE(hugepage_cache_per_numa_node[i].free_hugepages->count == 0);
-            REQUIRE(hugepage_cache_per_numa_node[i].numa_node_index == i);
-            REQUIRE(hugepage_cache_per_numa_node[i].stats.in_use == 0);
-            REQUIRE(hugepage_cache_per_numa_node[i].stats.total == 0);
+            for(int i = 0; i < numa_node_count; i++) {
+                REQUIRE(hugepage_cache_per_numa_node[i].lock.lock == SPINLOCK_UNLOCKED);
+                REQUIRE(hugepage_cache_per_numa_node[i].free_hugepages != NULL);
+                REQUIRE(hugepage_cache_per_numa_node[i].free_hugepages->count == 0);
+                REQUIRE(hugepage_cache_per_numa_node[i].numa_node_index == i);
+                REQUIRE(hugepage_cache_per_numa_node[i].stats.in_use == 0);
+                REQUIRE(hugepage_cache_per_numa_node[i].stats.total == 0);
+            }
+
+            hugepage_cache_free();
         }
 
-        hugepage_cache_free();
-    }
-
-    SECTION("hugepage_cache_pop") {
-        if (hugepages_2mb_is_available(128)) {
+        SECTION("hugepage_cache_pop") {
             uint32_t numa_node_index = thread_get_current_numa_node_index();
             hugepage_cache_t* hugepage_cache_per_numa_node = hugepage_cache_init();
 
@@ -77,13 +77,9 @@ TEST_CASE("hugepage_cache.c", "[hugepage_cache]") {
             }
 
             hugepage_cache_free();
-        } else {
-            WARN("Can't test hugepages support in slab allocator, hugepages not enabled or not enough hugepages for testing");
         }
-    }
 
-    SECTION("hugepage_cache_push") {
-        if (hugepages_2mb_is_available(128)) {
+        SECTION("hugepage_cache_push") {
             uint32_t numa_node_index = thread_get_current_numa_node_index();
             hugepage_cache_t* hugepage_cache_per_numa_node = hugepage_cache_init();
 
@@ -153,8 +149,8 @@ TEST_CASE("hugepage_cache.c", "[hugepage_cache]") {
             }
 
             hugepage_cache_free();
-        } else {
-            WARN("Can't test hugepages support in slab allocator, hugepages not enabled or not enough hugepages for testing");
         }
+    } else {
+        WARN("Can't test slab allocator, hugepages not enabled or not enough hugepages for testing, at least 128 2mb hugepages are required");
     }
 }
