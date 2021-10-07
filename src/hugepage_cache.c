@@ -71,6 +71,8 @@ void* hugepage_cache_push(void* hugepage_addr) {
     hugepage_cache_t* hugepage_cache;
     double_linked_list_item_t* item;
 
+    assert(hugepage_cache_per_numa_node != NULL);
+
     /**
      * At the beginning of the double linked list the "empty" list items are kept to avoid allocating and deallocating
      * continuously the memory. It's always possible to try to get the first and check if data is NULL or not, there
@@ -97,6 +99,8 @@ void* hugepage_cache_pop() {
     hugepage_cache_t* hugepage_cache;
     double_linked_list_item_t* item;
     void* hugepage_addr;
+
+    assert(hugepage_cache_per_numa_node != NULL);
 
     /**
      * The double linked list items used in the hugepage_cache are hold, forever, as the hugepages allocated by the
