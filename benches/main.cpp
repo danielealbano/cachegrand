@@ -6,13 +6,22 @@
 #include "spinlock.h"
 #include "misc.h"
 #include "signals_support.h"
-
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_support_hash.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "thread.h"
+#include "hugepage_cache.h"
+#include "slab_allocator.h"
+
 
 int main(int argc, char** argv) {
     signals_support_register_sigsegv_fatal_handler();
-    
+
+    // Enable the hugepage cache and the slab allocator
+    hugepage_cache_init();
+    slab_allocator_enable(true);
+    slab_allocator_predefined_allocators_init();
+
     fprintf(stdout, "Be aware, benchmarking is configured to:\n");
     fprintf(stdout, "- spin up to 16 threads per core (with a limit to 2048 threads), pinning the threads to the cores\n");
     fprintf(stdout, "- consume up to *120GB* of memory when testing the 2bln key hashtable size\n");
