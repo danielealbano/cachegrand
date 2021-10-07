@@ -38,7 +38,7 @@ TEST_CASE("hugepage_cache.c", "[hugepage_cache]") {
             hugepage_cache_t* hugepage_cache_per_numa_node = hugepage_cache_init();
 
             SECTION("pop one hugepage from cache") {
-                void* hugepage_addr = hugepage_cache_pop();
+                void* hugepage_addr1 = hugepage_cache_pop();
 
                 REQUIRE(hugepage_cache_per_numa_node[numa_node_index].lock.lock == SPINLOCK_UNLOCKED);
                 REQUIRE(hugepage_cache_per_numa_node[numa_node_index].free_hugepages != NULL);
@@ -50,7 +50,8 @@ TEST_CASE("hugepage_cache.c", "[hugepage_cache]") {
             }
 
             SECTION("pop two hugepage from cache") {
-                void* hugepage_addr = hugepage_cache_pop();
+                void* hugepage_addr1 = hugepage_cache_pop();
+                void* hugepage_addr2 = hugepage_cache_pop();
 
                 REQUIRE(hugepage_cache_per_numa_node[numa_node_index].lock.lock == SPINLOCK_UNLOCKED);
                 REQUIRE(hugepage_cache_per_numa_node[numa_node_index].free_hugepages != NULL);
@@ -62,7 +63,9 @@ TEST_CASE("hugepage_cache.c", "[hugepage_cache]") {
             }
 
             SECTION("pop three hugepage from cache") {
-                void* hugepage_addr = hugepage_cache_pop();
+                void* hugepage_addr1 = hugepage_cache_pop();
+                void* hugepage_addr2 = hugepage_cache_pop();
+                void* hugepage_addr3 = hugepage_cache_pop();
 
                 REQUIRE(hugepage_cache_per_numa_node[numa_node_index].lock.lock == SPINLOCK_UNLOCKED);
                 REQUIRE(hugepage_cache_per_numa_node[numa_node_index].free_hugepages != NULL);
