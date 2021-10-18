@@ -25,6 +25,11 @@ jobs:
             cxx: "g++"
           }
 
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
     steps:
       - name: Setup cmake
         uses: lukka/get-cmake@latest
@@ -64,3 +69,11 @@ jobs:
         shell: bash
         working-directory: ${{github.workspace}}
         run: bash <(curl -s https://codecov.io/bash) -X gcov -Z -f coverage.info
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v1
+        with:
+          languages: 'cpp'
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v1
