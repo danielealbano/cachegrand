@@ -2,9 +2,9 @@ name: Build & Test
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 env:
   BUILD_TYPE: Debug
@@ -34,13 +34,16 @@ jobs:
         with:
           submodules: true
 
+      - name: Install required dependencies
+        run: sudo apt-get install -y build-essential cmake pkg-config git libssl1.1 libssl-dev libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev
+
       - name: Create Build Environment
         run: cmake -E make_directory ${{github.workspace}}/build
 
       - name: Configure CMake
         shell: bash
         working-directory: ${{github.workspace}}/build
-        run: CC=/usr/bin/gcc-9 CXX=/usr/bin/g++-9 cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_HASHTABLE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
+        run: CC=/usr/bin/gcc-9 CXX=/usr/bin/g++-9 cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
 
       - name: Build All
         working-directory: ${{github.workspace}}/build
@@ -50,7 +53,7 @@ jobs:
       - name: Test
         working-directory: ${{github.workspace}}/build
         shell: bash
-        run: tests/cachegrand-tests
+        run: sudo tests/cachegrand-tests --order lex
 
       - name: Code Coverage - Generation
         uses: danielealbano/lcov-action@v2
