@@ -58,8 +58,8 @@ jobs:
       make release
       sudo apt-get install -y build-essential cmake pkg-config git libssl1.1 libssl-dev libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev
       cmake -E make_directory ${{github.workspace}}/build
-      CC=/usr/bin/gcc-9 CXX=/usr/bin/g++-9 cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
-      cmake --build . --target cachegrand-tests -- -j 4
+      cd $$GITHUB_WORKSPACE/build && CC=/usr/bin/gcc-9 CXX=/usr/bin/g++-9 cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
+      cd $$GITHUB_WORKSPACE/build && cmake --build . --target cachegrand-tests -- -j 4
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
