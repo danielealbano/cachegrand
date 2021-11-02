@@ -287,7 +287,7 @@ void double_jump_1_func(void* user_data) {
     context->func(context->user_data);
 }
 
-void BM_ContextSwitching_DoubleJumpOverhead(benchmark::State& state) {
+void BM_ContextSwitching_DoubleJump4XOverhead(benchmark::State& state) {
     uint core_index;
     cpu_set_t cpuset;
     uint64_t iteration = 0;
@@ -369,5 +369,5 @@ BENCHMARK(BM_ContextSwitching_OsOverheadPinned)
     ->Apply(BenchArguments);
 BENCHMARK(BM_ContextSwitching_Fiber2XPinnedOverhead)
     ->Apply(BenchArguments);
-BENCHMARK(BM_ContextSwitching_DoubleJumpOverhead)
+BENCHMARK(BM_ContextSwitching_DoubleJump4XOverhead)
     ->Apply(BenchArguments);
