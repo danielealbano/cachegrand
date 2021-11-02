@@ -18,7 +18,18 @@ struct fiber {
     size_t stack_size;
     fiber_start_fp_t* start_fp;
     void* start_fp_user_data;
-};
+    union {
+        void* ptr_value;
+        int int_value;
+        long long_value;
+        bool bool_value;
+        size_t size_value;
+        uint32_t uint32_value;
+        uint64_t uint64_value;
+        int32_t int32_value;
+        int64_t int64_value;
+    } ret;
+} __attribute__((aligned(64)));
 
 extern void fiber_context_get(
         fiber_t *fiber_context);
