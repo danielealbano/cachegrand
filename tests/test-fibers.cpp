@@ -8,26 +8,26 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wreturn-local-addr"
 void* fiber_context_get_test(fiber_t *fiber) {
-    int fiber_context_get_test_sp_first_var = 0;
-    void* fiber_context_get_test_sp_first_var_ptr = &fiber_context_get_test_sp_first_var;
+    int test_fiber_context_get_sp_first_var = 0;
+    void* test_fiber_context_get_sp_first_var_ptr = &test_fiber_context_get_sp_first_var;
     fiber_context_get(fiber);
 
-    return fiber_context_get_test_sp_first_var_ptr;
+    return test_fiber_context_get_sp_first_var_ptr;
 }
 #pragma GCC diagnostic pop
 
-void fiber_new_test_empty(fiber_t *fiber_from, fiber_t *fiber_to) {
+void test_fiber_new_empty(fiber_t *fiber_from, fiber_t *fiber_to) {
     return;
 }
 
-void fiber_context_swap_test_update_user_data_and_swap_back(fiber_t *fiber_from, fiber_t *fiber_to) {
+void test_fiber_context_swap_update_user_data_and_swap_back(fiber_t *fiber_from, fiber_t *fiber_to) {
     *(uint64_t*)fiber_from->start_fp_user_data = 1;
     *(uint64_t*)fiber_to->start_fp_user_data = 2;
 
     fiber_context_swap(fiber_to, fiber_from);
 }
 
-int fiber_stack_protection_test_find_memory_protection(void *start_address, void* end_address) {
+int test_fiber_stack_protection_find_memory_protection(void *start_address, void* end_address) {
     FILE *fp;
     int prot_return = -1;
     char line[1024], start_address_str[17] = { 0 }, end_address_str[17] = { 0 };
@@ -81,7 +81,7 @@ TEST_CASE("fiber.c", "[fiber]") {
             fiber_stack_protection(&fiber, true);
 
             // Retrieve the protection flags of the memory page
-            protection_flags = fiber_stack_protection_test_find_memory_protection(
+            protection_flags = test_fiber_stack_protection_find_memory_protection(
                     fiber.stack_base, (char*)fiber.stack_base + page_size);
 
             REQUIRE(protection_flags == PROT_NONE);
@@ -100,7 +100,7 @@ TEST_CASE("fiber.c", "[fiber]") {
             fiber_stack_protection(&fiber, false);
 
             // Check if the page is listed in /proc/self/maps
-            protection_flags = fiber_stack_protection_test_find_memory_protection(
+            protection_flags = test_fiber_stack_protection_find_memory_protection(
                     fiber.stack_base, (char*)fiber.stack_base + page_size);
 
             // The protection flags for the allocated should be entirely missing as fiber_stack_protection resets them
@@ -116,7 +116,7 @@ TEST_CASE("fiber.c", "[fiber]") {
         SECTION("allocate a new fiber") {
             int user_data = 0;
 
-            fiber_t * fiber = fiber_new(stack_size, fiber_new_test_empty, &user_data);
+            fiber_t * fiber = fiber_new(stack_size, test_fiber_new_empty, &user_data);
 
             // Calculate the end of the stack to be 16 bytes aligned and with 128 bytes free for the red zone
             uintptr_t stack_pointer = (uintptr_t)fiber->stack_base + stack_size;
@@ -128,7 +128,7 @@ TEST_CASE("fiber.c", "[fiber]") {
 
             REQUIRE(fiber);
             REQUIRE(fiber->stack_size == stack_size);
-            REQUIRE(fiber->start_fp == fiber_new_test_empty);
+            REQUIRE(fiber->start_fp == test_fiber_new_empty);
             REQUIRE(fiber->start_fp_user_data == &user_data);
             REQUIRE((uintptr_t)fiber->stack_pointer == stack_pointer);
 
@@ -168,12 +168,12 @@ TEST_CASE("fiber.c", "[fiber]") {
         SECTION("get fiber context from executing function") {
             fiber_t *fiber = fiber_new(stack_size, NULL, NULL);
 
-            void* fiber_context_get_test_sp_first_var = fiber_context_get_test(fiber);
+            void* test_fiber_context_get_sp_first_var = fiber_context_get_test(fiber);
 
             // The code below calculates the position of the address saved in the RSP register when the context was read,
             // the magic value 28 only works Linux x64 platforms as it is dependent on the ABI which changes between
             // different OSes and architectures
-            REQUIRE((char*)fiber_context_get_test_sp_first_var - 28 == fiber->context.rsp);
+            REQUIRE((char*)test_fiber_context_get_sp_first_var - 28 == fiber->context.rsp);
 
             fiber_free(fiber);
         }
@@ -189,11 +189,11 @@ TEST_CASE("fiber.c", "[fiber]") {
                     &user_data_current);
             fiber_t *fiber_to = fiber_new(
                     stack_size,
-                    fiber_context_swap_test_update_user_data_and_swap_back,
+                    test_fiber_context_swap_update_user_data_and_swap_back,
                     &user_data_to);
 
             // Swap from the current context to the newly allocated one, the function associated with the fiber
-            // fiber_context_swap_test_update_user_data_and_swap_back, will take care of switching back after having
+            // test_fiber_context_swap_update_user_data_and_swap_back, will take care of switching back after having
             // updated the user data for both the fibers to be able to test the proper switching
             fiber_context_swap(fiber_current, fiber_to);
 
