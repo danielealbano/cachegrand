@@ -32,7 +32,7 @@ void* fiber_context_get_test(fiber_t *fiber) {
 #pragma GCC diagnostic pop
 
 void test_fiber_new_empty(fiber_t *fiber_from, fiber_t *fiber_to) {
-    return;
+    // do nothing
 }
 
 void test_fiber_context_swap_update_user_data_and_swap_back(fiber_t *fiber_from, fiber_t *fiber_to) {
@@ -208,7 +208,6 @@ TEST_CASE("fiber.c", "[fiber]") {
             fiber_free(fiber_to);
         }
     }
-
 
     SECTION("test stack protection") {
         fiber_t *fiber = fiber_new(stack_size, NULL, NULL);
