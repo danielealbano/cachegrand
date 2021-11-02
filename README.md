@@ -1,42 +1,45 @@
+[![Build & Test](https://github.com/danielealbano/cachegrand/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/danielealbano/cachegrand/actions/workflows/build_and_test.yml) [![codecov](https://codecov.io/gh/danielealbano/cachegrand/branch/main/graph/badge.svg?token=H4W0N0F7MT)](https://codecov.io/gh/danielealbano/cachegrand)
+
 cachegrand
 ==========
 
-cachegrand is a redis drop in replacement designed from the ground up to take advantage of modern hardware vertical
-scalability, able to provide better performance and a larger cache at lower cost, without losing focus on distributed
-systems.
+cachegrand is an open-source fast, scalable and secure Key-Value store able to act as Redis drop-in replacement, designed
+from the ground up to take advantage of modern hardware vertical scalability, able to provide better performance and a
+larger cache at lower cost, without losing focus on distributed systems.
 
 To be able to achieve these goals, cachegrand implements a set of components tailored to provide the needed performance
 and the ability to scale-up on multi-core and multi-cpu (NUMA) servers capable of running 64bit software including the
-most recent ARM-based SoC platforms (ie. AWS Graviton, Raspberry PI 4 with 64bit kernel, etc.).
+most recent ARM-based SoC platforms (e.g. AWS Graviton, Raspberry PI 4 with 64bit kernel, etc.).
 
 Among the distinctive features:
 - Uses a custom-tailored KeyValue store able to perform GET operations without using locks or wait-loops;
 - The KeyValue store also takes advantage of SSE4.1/AVX/AVX2 if available;
-- Implements N-M threads per core approach to control what runs on which core, take advantage of the cache-locality and
-  being numa-aware;
+- Threads are pinned to specific cores and use fibers bound to the thread to control what runs on which core, to take
+  advantage of the cache-locality and being numa-aware;
 - Uses a zero-copy approach whenever possible and implements sliding window (streams) algorithms to process the data;
 - Relies on the newer io_uring kernel component to provide efficient network and disk io;
 - Stores the data on the disks, instead of the memory, using a flash-friendly algorithm to minimize the COW domino
   effect.
 
-Although it's still in heavy development and therefore the current version doesn't provide all the required
+Although it's still in heavy development and therefore the current version does not provide all the required
 functionalities to use it, some benchmarking has been carried out:
 - The in-memory hashtable is able to insert up to **2.1 billions** new keys per second on an **1 x AMD EPYC 7502P** and
-  **192GB RAM DDR4** using **2048 threads**;
+  **192 GB RAM DDR4** using **2048 threads**;
 - The networking layer has been tested under different conditions:
-    - on a **1 x AMD EPYC 7502P** with a **2 x 25Gbps** links cachegrand was able to handle an almost fully saturated network
-      bandwidth (**45gbit/s**) using 6 **1 x AMD EPYC 7402P** to generate load with **memtier_benchmark**
-    - on a **1 x AMD EPYC 7402P** with a **2 x 10Gbps** links cachegrand was able to handle up to 4.5 million GET/SET commands
-      using three **1 x AMD EPYC 7402P** to generate load with **memtier_benchmark** 
-    - on a **2 x Intel Xeon E5-2290 v4** with a **1 x 40Gbps** link cachegrand was able to handle about the same number
-      of requests
+    - on a **1 x AMD EPYC 7502P** with a **2 x 25Gbps** links cachegrand was able to handle an almost fully saturated
+      network bandwidth (**45gbit/s**) using 6 **1 x AMD EPYC 7402P** to generate load with **memtier_benchmark** with
+      small payloads
+    - on a **1 x AMD EPYC 7402P** with a **2 x 10Gbps** links cachegrand was able to handle up to 5 million GET/SET
+      commands per second using three **1 x AMD EPYC 7402P** to generate load with **memtier_benchmark** 
+    - on a **2 x Intel Xeon E5-2690 v4** with a **1 x 40Gbps** link cachegrand was able to handle about the same number
+      of requests, about 4.5 million GET/SET commands per second and saturate the load
 
 It's possible to find out more information in the benchmarks section.
 
 ### DOCS
 
-It's possible to find some documentation in the docs folder, keep in mind that it's a very dynamic projects and the
-written documentation is more a general reference.
+It's possible to find some documentation in the docs' folder, keep in mind that it's a very dynamic projects and the
+written documentation is a more general reference.
 
 ### HOW TO
 
@@ -73,7 +76,7 @@ around 5.4 and for network i/o around 5.7, to handle both the storage and the ne
 This component shares some memory between the user space process using it and the kernel side, it locks the shared
 memory region to avoid swapping, otherwise the kernel may access some other data.
 
-The maximum amount of lockable memory of a process or an user is managed via the standard limits on linux so it's
+The maximum amount of lockable memory of a process or a user is managed via the standard limits on linux, it's
 possible to use the `ulimit -a` command to check the value of `max locked memory`, a value of 65536 (65mb) or higher
 should be set.
 
@@ -92,18 +95,18 @@ open files                      (-n) 1024
 
 In this case, both the `max locked memory` and the `open files` limits are too low and need to be increased.
 
-It's a common approach to use `ulimit` directly to change these limits as root but to set in a permanently manner check
+It's a common approach to use `ulimit` directly to change these limits as root but to set in a permanent manner check
 the documentation of your distribution.
 
 ##### Hugepages
 
-The SLAB Allocator in cachegrand currently relies on 2MB hugepages, it's necessary to enable them otherwise it will
+The SLAB Allocator in cachegrand currently relies on 2 MB hugepages, it's necessary to enable them otherwise it will
 fail-back to a dummy malloc-based allocator that will perform extremely badly.
 
 A simple way to enable them is to set /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages to the desired number of
-hugepages to allocate, bare in mind that each page is 2MB.
+hugepages to allocate, bear in mind that each page is 2 MB.
 
-Here an example on how initialize 512 hugepages, 1GB fo memory will be reserved.
+Here an example on how initialize 512 hugepages, 1 GB fo memory will be reserved.
 ```shell
 echo 512 | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
 ```
@@ -134,7 +137,7 @@ LimitNOFILE=1048576
 LimitMEMLOCK=167772160
 ```
 
-Containerd override config file `/etc/systemd/system/containerd.service.d/override.conf`
+containerd override config file `/etc/systemd/system/containerd.service.d/override.conf`
 ```text
 [Service]
 LimitNOFILE=1048576
@@ -189,7 +192,7 @@ the **cachegrand-benches** target.
 ```bash
 mkdir cmake-build-release
 cd cmake-build-release
-cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1 -BUILD_INTERNAL_BENCHES=1
+cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_INTERNAL_BENCHES=1
 make cachegrand-benches
 ./benches/cachegrand-benches
 ```
@@ -207,7 +210,7 @@ cachegrand is still under heavy development.
 
 The goal is to implement a PoC for the v0.1 and a basic working caching server with by the v0.3.
 
-Until the v0.1 will be reached cachegrand will be missing essential features to make it fully usable although it's
+Until the v0.1 will be reached cachegrand will be missing essential features to make it fully usable, although it's
 already possible to run some benchmarks.
 
 ### TODO
@@ -314,7 +317,7 @@ General milestones grand-plan:
         - [ ] Implement an XDP-based network worker
 
 - Somewhere before the v1.0
-    - [ ] Rework the SLAB Allocator to not be dependant on hugepages and support multiple platforms
+    - [ ] Rework the SLAB Allocator to not be dependent on hugepages and support multiple platforms
     - [ ] ACLs for commands / data access
         - [ ] Redis protocol support
         - [ ] HTTPS protocol support

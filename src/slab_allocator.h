@@ -5,8 +5,6 @@
 extern "C" {
 #endif
 
-#define SLAB_HUGEPAGE_SIZE_2MB   (2 * 1024 * 1024)
-
 #define SLAB_OBJECT_SIZE_64     0x00000040
 #define SLAB_OBJECT_SIZE_128    0x00000080
 #define SLAB_OBJECT_SIZE_256    0x00000100
@@ -30,8 +28,6 @@ static const uint32_t slab_predefined_object_sizes[] = { SLAB_PREDEFINED_OBJECT_
 typedef struct slab_allocator_core_metadata slab_allocator_core_metadata_t;
 struct slab_allocator_core_metadata {
     spinlock_lock_volatile_t spinlock;
-    void* free_page_addr;
-    bool free_page_addr_first_inited;
 
     // The slots are sorted per availability
     double_linked_list_t* slots;
@@ -110,17 +106,11 @@ void slab_allocator_enable(
 slab_allocator_t* slab_allocator_predefined_get_by_size(
         size_t object_size);
 
-uint32_t slab_allocator_get_current_thread_numa_node_index();
-
-uint32_t slab_allocator_get_current_thread_core_index();
-
 slab_allocator_t* slab_allocator_init(
         size_t object_size);
 
 void slab_allocator_free(
         slab_allocator_t* slab);
-
-void slab_allocator_ensure_core_index_and_numa_node_index_filled();
 
 uint8_t slab_index_by_object_size(
         size_t object_size);

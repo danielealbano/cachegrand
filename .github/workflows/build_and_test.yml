@@ -1,0 +1,71 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  BUILD_TYPE: Debug
+
+jobs:
+  build:
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {
+            name: "Ubuntu Latest",
+            os: ubuntu-latest,
+            triplet: x64-linux,
+            cc: "gcc",
+            cxx: "g++"
+          }
+
+    steps:
+      - name: Setup cmake
+        uses: lukka/get-cmake@latest
+
+      - name: Ensure 200 2MB Hugepages free (required for comprehensive testing)
+        shell: bash
+        timeout-minutes: 5
+        run: while [ $(cat /proc/meminfo | grep HugePages_Free | awk '{ printf $2 }') -lt 200 ]; do echo "Requesting 256 2MB hugepages"; echo 250 | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages; cat /proc/meminfo | grep HugePages_; done
+
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Install required dependencies
+        run: sudo apt-get install -y build-essential cmake pkg-config git libssl1.1 libssl-dev libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev
+
+      - name: Create Build Environment
+        run: cmake -E make_directory ${{github.workspace}}/build
+
+      - name: Configure CMake
+        shell: bash
+        working-directory: ${{github.workspace}}/build
+        run: CC=/usr/bin/gcc-9 CXX=/usr/bin/g++-9 cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
+
+      - name: Build All
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: cmake --build . --target cachegrand-tests -- -j 4
+
+      - name: Test
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: sudo tests/cachegrand-tests --order lex
+
+      - name: Code Coverage - Generation
+        uses: danielealbano/lcov-action@v2
+        with:
+          remove_patterns: 3rdparty,tests
+
+      - name: Code Coverage - Upload to codecov.io
+        shell: bash
+        working-directory: ${{github.workspace}}
+        run: bash <(curl -s https://codecov.io/bash) -X gcov -Z -f coverage.info

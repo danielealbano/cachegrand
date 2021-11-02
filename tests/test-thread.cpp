@@ -57,4 +57,20 @@ TEST_CASE("thread.c", "[thread]") {
             }
         }
     }
+
+    SECTION("thread_get_current_core_index") {
+        uint32_t core_index;
+
+        getcpu(&core_index, NULL);
+
+        REQUIRE(thread_get_current_core_index() == core_index);
+    }
+
+    SECTION("thread_get_current_numa_node_index") {
+        uint32_t numa_node_index;
+
+        getcpu(NULL, &numa_node_index);
+
+        REQUIRE(thread_get_current_numa_node_index() == numa_node_index);
+    }
 }

@@ -7,7 +7,7 @@ set -e
 # currently localhost.
 
 # Test run settings
-MEMTIER_PORT=12389
+MEMTIER_PORT=6379
 MEMTIER_HOST="localhost"
 MEMTIER_CPUS="1-3"
 MEMTIER_THREADS=3
@@ -15,20 +15,20 @@ MEMTIER_WARMUP_RUNS=3
 MEMTIER_TEST_RUNS=5
 MEMTIER_BIN_PATH="/home/daalbano/dev/memtier_benchmark/memtier_benchmark"
 OUTPUT_PATH_DIR="/home/daalbano/benchmarks"
-OUTPUT_PATH_TEST_CONFIG_SET_NAME="cachegrand-with-slab"
+OUTPUT_PATH_TEST_CONFIG_SET_NAME="cachegrand-without-hugepage-cache"
 OUTPUT_PATH_TEST_TYPE="getset"
 SERVER_BIN_NAME="cachegrand-server"
 
 # General settings
-CACHEGRAND_SERVER_BIN_PATH="/home/daalbano/dev/cachegrand-server/cmake-build-release/src/cachegrand-server"
-CACHEGRAND_SERVER_CONFIG_PATH="/home/daalbano/dev/cachegrand-server/etc/cachegrand.yaml"
+CACHEGRAND_SERVER_BIN_PATH="/home/daalbano/dev/cachegrand/cachegrand-server/cmake-build-release/src/cachegrand-server"
+CACHEGRAND_SERVER_CONFIG_PATH="/home/daalbano/dev/cachegrand/cachegrand-server/etc/cachegrand.yaml"
 REDIS_SERVER_BIN_PATH="$(which redis-server)"
 REDIS_SERVER_CONFIG_PATH="/etc/redis/redis.conf"
 REDIS_SERVER_CPU="0"
 
 echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 
-for CLIENTS_PER_THREAD in 25 50 75 100 125 150 200;
+for CLIENTS_PER_THREAD in 100 150 200;
 do
     CLIENTS_TOTAL=$((CLIENTS_PER_THREAD * MEMTIER_THREADS))
     OUTPUT_PREFIX="${OUTPUT_PATH_DIR}/${OUTPUT_PATH_TEST_CONFIG_SET_NAME}/${OUTPUT_PATH_TEST_TYPE}/${CLIENTS_TOTAL}c-1t"
@@ -186,4 +186,20 @@ do
     kill "${SERVER_PID}"
     sleep 1
     echo "  server killed"
+done
+
+
+echo "Threads,Clients/thread,,Type,Clients,Hits/sec,Misses/sec,Ops/sec,Avg. Latency,p50 Latency,p90 Latency,p95 Latency,p99 Latency,p99.5 Latency,p99.9 Latency,p100 Latency,KB/sec"
+for I in $(find /home/daalbano/benchmarks/ -maxdepth 1 -mindepth 1 -type d);
+do
+  for X in $(find $I/getset/ -maxdepth 1 -mindepth 1 -type d | sort -n);
+  do
+    for L in $(cat $X/memtier.stdout | grep "BEST RUN RESULTS" -A 8 | grep "Totals" | awk '{ print $2 "," $3 "," $4 "," $5 "," $6 "," $7 "," $8 "," $9 "," $10 "," $11 "," $12 "," $13 }');
+    do
+      THREADS=$MEMTIER_THREADS
+      CLIENTS_TOTAL=$(basename "$X" | cut -d '-' -f1 | rev | cut -c 2- | rev)
+      CLIENTS_PER_THREAD=$((CLIENTS_TOTAL / $THREADS))
+      echo "$MEMTIER_THREADS,$CLIENTS_PER_THREAD,,$(basename $I),$CLIENTS_TOTAL,$L";
+    done
+  done
 done
