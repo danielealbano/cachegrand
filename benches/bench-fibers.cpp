@@ -363,7 +363,7 @@ void BM_ContextSwitching_DoubleJump4XOverhead(benchmark::State& state) {
 }
 
 static void BenchArguments(benchmark::internal::Benchmark* b) {
-    b->Iterations(1000000);
+    b->Iterations(1000000)->UseRealTime();
 }
 
 BENCHMARK(BM_ContextSwitching_Reference)
