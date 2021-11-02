@@ -2,8 +2,23 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <string.h>
+#include <signal.h>
+#include <setjmp.h>
 
+#include "signals_support.h"
 #include "fiber.h"
+
+sigjmp_buf test_fiber_jump_fp;
+void test_fiber_memory_stack_protection_signal_sigsegv_handler_longjmp(int signal_number) {
+    siglongjmp(test_fiber_jump_fp, 1);
+}
+
+void test_fiber_memory_stack_protection_setup_sigsegv_signal_handler() {
+    signals_support_register_signal_handler(
+            SIGSEGV,
+            test_fiber_memory_stack_protection_signal_sigsegv_handler_longjmp,
+            NULL);
+}
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wreturn-local-addr"
@@ -142,17 +157,6 @@ TEST_CASE("fiber.c", "[fiber]") {
             fiber_t *fiber = fiber_new(0, NULL, NULL);
             REQUIRE(fiber == NULL);
         }
-
-        SECTION("try to change non protected memory") {
-            fiber_t *fiber = fiber_new(stack_size, NULL, NULL);
-            *(uint64_t*)fiber->stack_pointer = 0;
-            *(uint64_t*)((char*)fiber->stack_base + page_size) = 0;
-
-            // The fiber memory is protected, the memory protection has to be disabled before freeing the memory
-            mprotect(fiber->stack_base, page_size, PROT_READ | PROT_WRITE);
-            free(fiber->stack_base);
-            free(fiber);
-        }
     }
 
     SECTION("fiber_free") {
@@ -203,5 +207,35 @@ TEST_CASE("fiber.c", "[fiber]") {
             fiber_free(fiber_current);
             fiber_free(fiber_to);
         }
+    }
+
+
+    SECTION("test stack protection") {
+        fiber_t *fiber = fiber_new(stack_size, NULL, NULL);
+
+        SECTION("alter non protected memory") {
+            *(uint64_t*)fiber->stack_pointer = 0;
+            *(uint64_t*)((char*)fiber->stack_base + page_size) = 0;
+        }
+
+        // NOTE: Will trigger a sigsegv as expected
+        SECTION("alter protected memory") {
+            bool fatal_catched = false;
+
+            if (sigsetjmp(test_fiber_jump_fp, 1) == 0) {
+                test_fiber_memory_stack_protection_setup_sigsegv_signal_handler();
+                *(uint64_t*)fiber->stack_base = 0;
+            } else {
+                fatal_catched = true;
+            }
+
+            // The fatal_catched variable has to be set to true as sigsetjmp on the second execution will return a value
+            // different from zero.
+            // A sigsegv raised by the kernel because of the memory protection means that the stack overflow protection
+            // is working as intended
+            REQUIRE(fatal_catched);
+        }
+
+        fiber_free(fiber);
     }
 }
