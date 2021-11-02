@@ -41,8 +41,17 @@ fiber_t *fiber_new(
         size_t stack_size,
         fiber_start_fp_t *fiber_start_fp,
         void *user_data) {
+    size_t page_size = xalloc_get_page_size();
+
+    // The end (beginning) of the stack is "protected" to catch any undesired access that tries to read data past the
+    // end of the allocated stack memory (e.g. memory overflow). To protect the access a page is required therefore
+    // at least 2 pages have to be allocated, one minimum for the stack and one to protect the stack.
+    if (stack_size < page_size * 2) {
+        return NULL;
+    }
+
     fiber_t *fiber = xalloc_alloc_zero(sizeof(fiber_t));
-    void *stack_base = xalloc_alloc_aligned_zero(xalloc_get_page_size(), stack_size);
+    void *stack_base = xalloc_alloc_aligned_zero(page_size, stack_size);
 
     // Align the stack_pointer to 16 bytes and leave the 128 bytes red zone free as per ABI requirements
     void* stack_pointer = (void*)((uintptr_t)(stack_base + stack_size) & -16L) - 128;

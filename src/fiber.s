@@ -6,9 +6,9 @@
  * of the BSD license.  See the LICENSE file for details.
 */
 
-.type _fiber_context_get, @function
-.global _fiber_context_get
-_fiber_context_get:
+.type fiber_context_get, @function
+.global fiber_context_get
+fiber_context_get:
     # Save the return address and stack pointer
     movq (%rsp), %r8
     movq %r8, 8*0(%rdi) # RIP
@@ -27,9 +27,9 @@ _fiber_context_get:
     xorl %eax, %eax
     ret
 
-.type _fiber_context_set, @function
-.global _fiber_context_set
-_fiber_context_set:
+.type fiber_context_set, @function
+.global fiber_context_set
+fiber_context_set:
     # Should return to the address set with {get, swap}_context
     movq 8*0(%rdi), %r8
 
