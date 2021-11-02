@@ -153,7 +153,7 @@ void BM_ContextSwitching_OsOverheadPinned(benchmark::State& state) {
     int main_to_child[2], child_to_main[2];
     uint core_index;
     const char write_buf[MSG_TEXT_SIZE] = MSG_TEXT;
-    char read_buf[MSG_TEXT_SIZE] = {0 };
+    char read_buf[MSG_TEXT_SIZE] = { 0 };
     cpu_set_t cpuset;
 
     if (pipe(main_to_child) == -1) {
