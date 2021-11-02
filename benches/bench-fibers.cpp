@@ -88,6 +88,7 @@ void BM_ContextSwitching_OsOverheadUnpinned(benchmark::State& state) {
     int main_to_child[2], child_to_main[2];
     const char write_buf[MSG_TEXT_SIZE] = MSG_TEXT;
     char read_buf[MSG_TEXT_SIZE] = { 0 };
+    cpu_set_t cpuset;
 
     if (pipe(main_to_child) == -1) {
         perror("pipe main_to_child");
@@ -111,6 +112,10 @@ void BM_ContextSwitching_OsOverheadUnpinned(benchmark::State& state) {
 
     pthread_t child_thread;
     pthread_create(&child_thread, nullptr, thread_func, (void*)&child_fds);
+
+    CPU_ZERO(&cpuset);
+    pthread_setaffinity_np(child_thread, sizeof(cpu_set_t), &cpuset);
+    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
 
     // Self test
     if (write(main_fds.write_fd, write_buf, MSG_TEXT_SIZE) != MSG_TEXT_SIZE) {
