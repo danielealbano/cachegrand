@@ -9,6 +9,17 @@ typedef struct fiber fiber_t;
 typedef void (fiber_start_fp_t)(fiber_t* fiber_from, fiber_t* fiber_to);
 
 struct fiber {
+    // The context has to be held at the beginning of the structure and the field have to be spefically kept in this
+    // order as the assembly code in fiber.s access these fields by memory location and doesn't rely on the compiler
+    // to calculate the correct address.
+    // It is possible to implement build workarounds to get a mapping between the fields and their offsets but it is
+    // fairly clunky and as this code is not going to change (most likely) it's not worth to pollute the build system
+    // just for this.
+    // For reference, here a few links describing the workaround
+    // https://www.avrfreaks.net/forum/c-assembly-access-structure-fields-assembly
+    // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/arm/kernel/asm-offsets.c
+    // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/linux/kbuild.h
+    // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Kbuild
     struct {
         void *rip, *rsp;
         void *rbx, *rbp, *r12, *r13, *r14, *r15;
