@@ -1,6 +1,7 @@
 #include <catch2/catch.hpp>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <string.h>
 
 #include "fiber.h"
 
@@ -26,9 +27,90 @@ void fiber_context_swap_test_update_user_data_and_swap_back(fiber_t *fiber_from,
     fiber_context_swap(fiber_to, fiber_from);
 }
 
+int fiber_stack_protection_test_find_memory_protection(void *start_address, void* end_address) {
+    FILE *fp;
+    int prot_return = -1;
+    char line[1024], start_address_str[17] = { 0 }, end_address_str[17] = { 0 };
+
+    sprintf(start_address_str, "%lx", (uintptr_t)start_address);
+    sprintf(end_address_str, "%lx", (uintptr_t)end_address);
+
+    fp = fopen("/proc/self/maps", "r");
+    if (fp == NULL) {
+        fprintf(stderr, "Failed to open /proc/self/maps\n");
+        return 01;
+    }
+
+    while (fgets(line, sizeof(line), fp) != NULL) {
+        int cmp1 = strncmp(line, start_address_str, strlen(start_address_str));
+        int cmp2 = strncmp(line + strlen(start_address_str) + 1, end_address_str, strlen(end_address_str));
+
+        if (cmp1 != 0 || cmp2 != 0) {
+            continue;
+        }
+
+        size_t prot_offset = strlen(start_address_str) + 1 + strlen(end_address_str) + 1;
+        prot_return = 0;
+        if (line[prot_offset + 0] == 'r') {
+            prot_return |= PROT_READ;
+        }
+        if (line[prot_offset + 1] == 'w') {
+            prot_return |= PROT_WRITE;
+        }
+        if (line[prot_offset + 2] == 'x') {
+            prot_return |= PROT_EXEC;
+        }
+    }
+
+    fclose(fp);
+
+    return prot_return;
+}
+
 TEST_CASE("fiber.c", "[fiber]") {
     size_t page_size = getpagesize();
     size_t stack_size = page_size * 2;
+
+    SECTION("fiber_stack_protection") {
+        SECTION("test enabling the memory protection") {
+            int protection_flags = -1;
+            fiber_t fiber = { NULL };
+            fiber.stack_base = aligned_alloc(page_size, page_size);
+
+            // Enable stack fiber protection
+            fiber_stack_protection(&fiber, true);
+
+            // Retrieve the protection flags of the memory page
+            protection_flags = fiber_stack_protection_test_find_memory_protection(
+                    fiber.stack_base, (char*)fiber.stack_base + page_size);
+
+            REQUIRE(protection_flags == PROT_NONE);
+
+            mprotect(fiber.stack_base, page_size, PROT_READ | PROT_WRITE);
+            free(fiber.stack_base);
+        }
+
+        SECTION("test disabling the memory protection") {
+            int protection_flags = -1;
+            fiber_t fiber = { NULL };
+            fiber.stack_base = aligned_alloc(page_size, page_size);
+
+            // Enable and disable the stack protection
+            fiber_stack_protection(&fiber, true);
+            fiber_stack_protection(&fiber, false);
+
+            // Check if the page is listed in /proc/self/maps
+            protection_flags = fiber_stack_protection_test_find_memory_protection(
+                    fiber.stack_base, (char*)fiber.stack_base + page_size);
+
+            // The protection flags for the allocated should be entirely missing as fiber_stack_protection resets them
+            // to PROT_READ | PROT_WRITE that are the default ones.
+            // This behaviour may change in the future as it's depends on the OS.
+            REQUIRE(protection_flags == -1);
+
+            free(fiber.stack_base);
+        }
+    }
 
     SECTION("fiber_new") {
         SECTION("allocate a new fiber") {
