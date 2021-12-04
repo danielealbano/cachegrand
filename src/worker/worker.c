@@ -225,7 +225,6 @@ void worker_set_running(
 
 void* worker_thread_func(
         void* user_data) {
-    char worker_thread_name[16] = { 0 };
     bool res = true;
     worker_context_t *worker_context = user_data;
 
@@ -236,15 +235,9 @@ void* worker_thread_func(
     char* log_producer_early_prefix_thread =
             worker_log_producer_set_early_prefix_thread(worker_context);
 
-    snprintf(
-            worker_thread_name,
-            sizeof(worker_thread_name) - 1,
-            "worker-%03u-%03u",
-            worker_context->core_index,
-            worker_context->worker_index);
     if (pthread_setname_np(
             pthread_self(),
-            worker_thread_name) != 0) {
+            "worker") != 0) {
         LOG_E(TAG, "Unable to set name of the worker thread");
         LOG_E_OS_ERROR(TAG);
     }
