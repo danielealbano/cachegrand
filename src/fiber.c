@@ -38,6 +38,7 @@ void fiber_stack_protection(
 }
 
 fiber_t *fiber_new(
+        char *name,
         size_t stack_size,
         fiber_start_fp_t *fiber_start_fp,
         void *user_data) {
@@ -59,11 +60,21 @@ fiber_t *fiber_new(
     // Need room on the stack as we push/pop a return address to jump to our function
     stack_pointer -= sizeof(void*) * 1;
 
+    LOG_D(
+            TAG,
+            "Initializing new fiber <%s> with a stack of <%lu> bytes starting at <%p>",
+            name,
+            stack_size,
+            stack_pointer);
+
     fiber->start_fp = fiber_start_fp;
     fiber->start_fp_user_data = user_data;
     fiber->stack_size = stack_size;
     fiber->stack_base = stack_base;
     fiber->stack_pointer = stack_pointer;
+
+    // Set the fiber name
+    fiber->name = name;
 
     // Set the initial fp and rsp of the fiber
     fiber->context.rip = fiber->start_fp; // this or the stack_base? who knows :|
