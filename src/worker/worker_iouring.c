@@ -26,6 +26,7 @@
 #include "xalloc.h"
 #include "spinlock.h"
 #include "config.h"
+#include "fiber.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "slab_allocator.h"
@@ -36,6 +37,7 @@
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
 #include "worker/worker_common.h"
+#include "worker/worker_fiber_scheduler.h"
 #include "worker/worker.h"
 #include "worker/worker_op.h"
 #include "worker/worker_iouring_op.h"
@@ -262,64 +264,22 @@ char* worker_iouring_get_callback_function_name(
     return callback_function_name;
 }
 
-void worker_iouring_report_op_user_completion_cb(
-        worker_iouring_op_context_t *op_context) {
-    char callback_function_name[256] = { 0 };
-
-    char* cbs[] = {
-            "op_context->user.completion_cb.timer",
-                (char*)op_context->user.completion_cb.timer,
-            "op_context->user.completion_cb.network_accept",
-                (char*)op_context->user.completion_cb.network_accept,
-            "op_context->user.completion_cb.network_receive",
-                (char*)op_context->user.completion_cb.network_receive,
-            "op_context->user.completion_cb.network_send",
-                (char*)op_context->user.completion_cb.network_send,
-            "op_context->user.completion_cb.network_close",
-                (char*)op_context->user.completion_cb.network_close,
-    };
-
-    for(int i = 0; i < sizeof(cbs) / sizeof(char*); i += 2) {
-        char* name = cbs[i];
-        void* cb_fp = (void*)cbs[i + 1];
-
-        if (cb_fp == NULL) {
-            continue;
-        }
-
-        LOG_E(
-                TAG,
-                "> %s = %s",
-                name,
-                worker_iouring_get_callback_function_name(
-                        cb_fp,
-                        callback_function_name,
-                        sizeof(callback_function_name)));
-    }
-}
-
 void worker_iouring_cqe_log(
         io_uring_cqe_t *cqe) {
-    char callback_function_name[256] = { 0 };
+    assert(cqe->user_data != 0);
 
-    worker_iouring_op_context_t *op_context;
-    op_context = (worker_iouring_op_context_t*)cqe->user_data;
+    fiber_t *fiber = (fiber_t*)cqe->user_data;
 
     LOG_E(
             TAG,
-            "[CB:%s] cqe->user_data = <0x%08llx>, cqe->res = <%s (%d)>, cqe->flags >> 16 = <%d>,"
+            "[FIBER:%s] cqe->user_data = <0x%08llx>, cqe->res = <%s (%d)>, cqe->flags >> 16 = <%d>,"
                 " cqe->flags & 0xFFFFu = <%d>",
-            worker_iouring_get_callback_function_name(
-                    op_context->io_uring.completion_cb,
-                    callback_function_name,
-                    sizeof(callback_function_name)),
+            fiber->name,
             cqe->user_data,
             cqe->res >= 0 ? "Success" : strerror(cqe->res * -1),
             cqe->res,
             cqe->flags >> 16u,
             cqe->flags & 0xFFFFu);
-
-    worker_iouring_report_op_user_completion_cb(op_context);
 }
 
 void worker_iouring_cleanup(
@@ -351,7 +311,7 @@ bool worker_iouring_process_events_loop(
         worker_context_t *worker_user_data) {
     io_uring_cqe_t *cqe;
     worker_iouring_context_t *context;
-    worker_iouring_op_context_t *op_context;
+    fiber_t *fiber;
     uint32_t head, count = 0;
     char callback_function_name[256] = { 0 };
 
@@ -360,39 +320,21 @@ bool worker_iouring_process_events_loop(
     io_uring_support_sqe_submit_and_wait(context->ring, 1);
 
     io_uring_for_each_cqe(context->ring, head, cqe) {
-        bool free_op_context = true;
         count++;
+        fiber = (fiber_t*)cqe->user_data;
 
         if (worker_iouring_cqe_is_error(cqe)) {
             worker_iouring_cqe_log(cqe);
         }
 
-        op_context = (worker_iouring_op_context_t *)cqe->user_data;
-
-        if (op_context->io_uring.completion_cb == NULL) {
+        if (cqe->user_data == 0) {
             FATAL(
                     TAG,
-                    "Malformed io_uring op context, completion_cb null");
+                    "Malformed io_uring cqe, fiber is null!");
         }
 
-        if (op_context->io_uring.completion_cb(
-                context,
-                op_context,
-                cqe,
-                &free_op_context) == false) {
-            // TODO: the callback failed, take action, something smart!
-            FATAL(
-                    TAG,
-                    "Callback <%s> failed, unable to continue",
-                    worker_iouring_get_callback_function_name(
-                            op_context->io_uring.completion_cb,
-                            callback_function_name,
-                            sizeof(callback_function_name)));
-        }
-
-        if (free_op_context) {
-            slab_allocator_mem_free(op_context);
-        }
+        fiber->ret.ptr_value = cqe;
+        worker_fiber_scheduler_switch_to(fiber);
     }
 
     io_uring_support_cq_advance(context->ring, count);
