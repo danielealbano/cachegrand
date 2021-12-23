@@ -41,6 +41,10 @@ bool worker_network_op_completion_cb_network_close(
         network_channel_t *channel,
         void* user_data);
 
+void worker_network_listeners_fiber(
+        fiber_t* fiber_from,
+        fiber_t* fiber_to);
+
 #ifdef __cplusplus
 }
 #endif

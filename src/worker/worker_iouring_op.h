@@ -19,10 +19,10 @@ struct worker_iouring_op_context {
         struct {
             worker_op_timer_completion_cb_fp_t* timer;
             worker_op_network_error_completion_cb_fp_t* network_error;
-            worker_op_network_accept_completion_cb_fp_t* network_accept;
-            worker_op_network_receive_completion_cb_fp_t* network_receive;
-            worker_op_network_send_completion_cb_fp_t* network_send;
-            worker_op_network_close_completion_cb_fp_t* network_close;
+//            worker_op_network_accept_completion_cb_fp_t* network_accept;
+//            worker_op_network_receive_completion_cb_fp_t* network_receive;
+//            worker_op_network_send_completion_cb_fp_t* network_send;
+//            worker_op_network_close_completion_cb_fp_t* network_close;
         } completion_cb;
         void* data;
     } user;

@@ -33,15 +33,8 @@ typedef bool (worker_op_network_error_completion_cb_fp_t)(
         char* error_string,
         void* user_data);
 
-typedef bool (worker_op_network_accept_completion_cb_fp_t)(
-        network_channel_t *listener_channel,
-        network_channel_t *new_channel,
-        void* user_data);
-typedef bool (worker_op_network_accept_fp_t)(
-        worker_op_network_accept_completion_cb_fp_t* network_accept_completion_cb,
-        worker_op_network_error_completion_cb_fp_t* network_error_completion_cb,
-        network_channel_t *listener_channel,
-        void* user_data);
+typedef network_channel_t* (worker_op_network_accept_fp_t)(
+        network_channel_t *listener_channel);
 
 typedef bool (worker_op_network_close_completion_cb_fp_t)(
         network_channel_t *channel,

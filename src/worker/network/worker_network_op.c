@@ -21,12 +21,14 @@
 #include "slab_allocator.h"
 #include "config.h"
 #include "log/log.h"
+#include "fiber.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "worker/worker_common.h"
 #include "worker/worker.h"
 #include "worker/worker_op.h"
+#include "worker/worker_fiber_scheduler.h"
 #include "worker/network/worker_network.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/protocol/redis/network_protocol_redis.h"
@@ -185,21 +187,19 @@ bool worker_network_op_completion_cb_network_send(
             worker_network_channel_user_data);
 }
 
-bool worker_network_op_completion_cb_network_accept(
-        network_channel_t *listener_channel,
-        network_channel_t *new_channel,
-        void *user_data) {
-    bool res = false;
+void worker_network_listeners_fiber(
+        fiber_t* fiber_from,
+        fiber_t* fiber_to) {
+    bool res;
+    network_channel_t* new_channel = NULL;
+    network_channel_t *listener_channel = (network_channel_t*)fiber_to->start_fp_user_data;
+
     worker_context_t *context = worker_context_get();
     worker_stats_t *stats = &context->stats.internal;
 
-    if (new_channel == NULL) {
-        LOG_W(
-                TAG,
-                "[FD:%5d][ACCEPT] Failed to accept a new connection coming from listener <%s>",
-                listener_channel->fd,
-                listener_channel->address.str);
-    } else {
+    while((new_channel = worker_op_network_accept(
+            listener_channel)) != NULL) {
+
         LOG_V(
                 TAG,
                 "[FD:%5d][ACCEPT] Listener <%s> accepting new connection from <%s>",
@@ -207,64 +207,74 @@ bool worker_network_op_completion_cb_network_accept(
                 listener_channel->address.str,
                 new_channel->address.str);
 
-        // Setup the network channel user data
-        worker_network_channel_user_data_t *worker_network_channel_user_data =
-                slab_allocator_mem_alloc_zero(sizeof(worker_network_channel_user_data_t));
-        worker_network_channel_user_data->hashtable = context->hashtable;
-        worker_network_channel_user_data->packet_size = NETWORK_CHANNEL_PACKET_SIZE;
-        worker_network_channel_user_data->read_buffer.data =
-                (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
-
-        // To speed up the performances the code takes advantage of SIMD operations that are built to operate on
-        // specific amount of data, for example AVX/AVX2 in general operate on 256 bit (32 byte) of data at time.
-        // Therefore, to avoid implementing ad hoc checks everywhere and at the same time to ensure that the code will
-        // never ever read over the boundary of the allocated block of memory, the length of the read buffer will be
-        // initialized to the buffer receive size minus 32.
-        // TODO: 32 should be defined as magic const somewhere as it's going hard to track where "32" is in use if it
-        //          has to be changed
-        // TODO: create a test to ensure that the length of the read buffer is taking into account the 32 bytes of
-        //       padding
-        worker_network_channel_user_data->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE - 32;
-
-        new_channel->user_data = worker_network_channel_user_data;
-
-        // Updates the worker stats
-        stats->network.active_connections++;
-        stats->network.accepted_connections_total++;
-        stats->network.accepted_connections_per_second++;
-
-        switch (listener_channel->protocol) {
-            default:
-                // This can't really happen
-                FATAL(
-                        TAG,
-                        "[FD:%5d][ACCEPT] Listener unknown protocol <%d>",
-                        listener_channel->fd,
-                        listener_channel->protocol);
-                break;
-
-            case NETWORK_PROTOCOLS_REDIS:
-                res = network_protocol_redis_accept(
-                        new_channel,
-                        &worker_network_channel_user_data->protocol.context);
-                break;
-        }
+        // TODO: a new fiber should be created for the client and configured to run the fiber start entry point
+        //       defined for the protocol
+//
+//        // Configure the network channel user data
+//        worker_network_channel_user_data_t *worker_network_channel_user_data =
+//                slab_allocator_mem_alloc_zero(sizeof(worker_network_channel_user_data_t));
+//        worker_network_channel_user_data->hashtable = context->hashtable;
+//        worker_network_channel_user_data->packet_size = NETWORK_CHANNEL_PACKET_SIZE;
+//        worker_network_channel_user_data->read_buffer.data =
+//                (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
+//
+//        // To speed up the performances the code takes advantage of SIMD operations that are built to operate on
+//        // specific amount of data, for example AVX/AVX2 in general operate on 256 bit (32 byte) of data at time.
+//        // Therefore, to avoid implementing ad hoc checks everywhere and at the same time to ensure that the code will
+//        // never ever read over the boundary of the allocated block of memory, the length of the read buffer will be
+//        // initialized to the buffer receive size minus 32.
+//        // TODO: 32 should be defined as magic const somewhere as it's going hard to track where "32" is in use if it
+//        //          has to be changed
+//        // TODO: create a test to ensure that the length of the read buffer is taking into account the 32 bytes of
+//        //       padding
+//        worker_network_channel_user_data->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE - 32;
+//
+//        new_channel->user_data = worker_network_channel_user_data;
+//
+//        // Updates the worker stats
+//        stats->network.active_connections++;
+//        stats->network.accepted_connections_total++;
+//        stats->network.accepted_connections_per_second++;
+//
+//        switch (listener_channel->protocol) {
+//            default:
+//                // This can't really happen
+//                FATAL(
+//                        TAG,
+//                        "[FD:%5d][ACCEPT] Listener unknown protocol <%d>",
+//                        listener_channel->fd,
+//                        listener_channel->protocol);
+//                break;
+//
+//            case NETWORK_PROTOCOLS_REDIS:
+//                res = network_protocol_redis_accept(
+//                        new_channel,
+//                        &worker_network_channel_user_data->protocol.context);
+//                break;
+//        }
+//
+//        if (!res) {
+//            LOG_V(
+//                    TAG,
+//                    "[FD:%5d][ACCEPT] Protocol failed to handle accepted connection <%s>, closing connection",
+//                    new_channel->fd,
+//                    new_channel->address.str);
+//            worker_network_close(
+//                    new_channel,
+//                    NULL);
+//        }
     }
 
-    if (!res) {
-        LOG_V(
+    if (new_channel == NULL) {
+        LOG_W(
                 TAG,
-                "[FD:%5d][ACCEPT] Protocol failed to handle accepted connection <%s>, closing connection",
-                new_channel->fd,
-                new_channel->address.str);
-        worker_network_close(
-                new_channel,
-                NULL);
+                "[FD:%5d][ACCEPT] Failed to accept a new connection coming from listener <%s>",
+                listener_channel->fd,
+                listener_channel->address.str);
     }
 
-    return worker_op_network_accept(
-            worker_network_op_completion_cb_network_accept,
-            worker_network_op_completion_cb_network_error_listener,
-            listener_channel,
-            NULL);
+    // TODO: listener should be terminated, it failed for an error
+
+    // Switch back to the scheduler, as the lister has been closed this fiber will never be invoked and will get freed
+    worker_fiber_scheduler_switch_back();
 }
