@@ -10,8 +10,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -42,6 +44,8 @@ fiber_t *fiber_new(
         size_t stack_size,
         fiber_start_fp_t *fiber_start_fp,
         void *user_data) {
+    assert(fiber_start_fp != NULL);
+
     size_t page_size = xalloc_get_page_size();
 
     // The end (beginning) of the stack is "protected" to catch any undesired access that tries to read data past the
