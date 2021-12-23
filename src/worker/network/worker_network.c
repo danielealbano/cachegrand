@@ -17,12 +17,15 @@
 #include "spinlock.h"
 #include "log/log.h"
 #include "fatal.h"
+#include "fiber.h"
+#include "xalloc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "worker/worker_common.h"
+#include "worker/worker_fiber_scheduler.h"
 #include "worker/worker_op.h"
 #include "worker/network/worker_network_op.h"
 #include "protocol/redis/protocol_redis_reader.h"
@@ -97,16 +100,23 @@ void worker_network_listeners_initialize(
 void worker_network_listeners_listen(
         worker_context_t *worker_context) {
     for (int listener_index = 0; listener_index < worker_context->network.listeners_count; listener_index++) {
+        char *fiber_name;
         network_channel_t *listener_channel = (network_channel_t*)(
                 (void*)worker_context->network.listeners +
                 (worker_context->network.network_channel_size * listener_index)
         );
 
-        worker_op_network_accept(
-                worker_network_op_completion_cb_network_accept,
-                worker_network_op_completion_cb_network_error_listener,
-                listener_channel,
-                NULL);
+        size_t fiber_name_len = snprintf(NULL, 0, "listener-%d-%s", listener_index, listener_channel->address.str) + 1;
+        fiber_name = (char*)xalloc_alloc(fiber_name_len);
+        snprintf(fiber_name, fiber_name_len,"listener-%d-%s", listener_index, listener_channel->address.str);
+
+        fiber_t* fiber_listener = fiber_new(
+                fiber_name,
+                WORKER_FIBER_STACK_SIZE,
+                worker_network_listeners_fiber,
+                (void*)listener_channel);
+
+        worker_fiber_scheduler_switch_to(fiber_listener);
     }
 }
 
