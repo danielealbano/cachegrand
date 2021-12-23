@@ -14,7 +14,6 @@
 #include <string.h>
 #include <time.h>
 #include <arpa/inet.h>
-#include <config.h>
 #include <liburing.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -28,6 +27,7 @@
 #include "memory_fences.h"
 #include "utils_numa.h"
 #include "log/log.h"
+#include "config.h"
 #include "support/io_uring/io_uring_support.h"
 #include "support/io_uring/io_uring_capabilities.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
