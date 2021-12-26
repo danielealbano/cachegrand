@@ -45,7 +45,9 @@ fiber_t *fiber_new(
         size_t stack_size,
         fiber_start_fp_t *fiber_start_fp,
         void *user_data) {
-    assert(fiber_start_fp != NULL);
+    if (fiber_start_fp == NULL) {
+        return NULL;
+    }
 
     size_t page_size = xalloc_get_page_size();
 
