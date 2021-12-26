@@ -80,6 +80,14 @@ The maximum amount of lockable memory of a process or a user is managed via the 
 possible to use the `ulimit -a` command to check the value of `max locked memory`, a value of 65536 (65mb) or higher
 should be set.
 
+The `max_clients` is directly proportional to the amount of lockable memory required, setting it to a value too high
+without having enough lockable memory may cause failures. Other softwares using lockable memory (notably gnome, kde,
+firefox, chrome, electron-based software, softwares that use gpu acceleration, etc.) may be affected as well if all the
+lockable memory is used as they wouldn't be able to allocate triggering crashes or unexpected behaviour (e.g.
+gnome crashes, chrome and electron-based software freeze, etc.).
+Especially in a desktop environment it's important to increase the lockable memory enough to accomodate for all the
+required softwares and cachegrand, keep the `max_clients` value low enough or run cachegrand with a different user.
+
 It is also important to have a value high enough for the `open files` as in Linux the network connections are counted
 towards this limit as well, to manage 10000 connections the open files limit must be greater than 10000, it is
 usually safe to set it to unlimited or to a very high value.

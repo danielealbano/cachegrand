@@ -18,13 +18,12 @@ use_slab_allocator: false
 
 network:
   backend: io_uring
-  max_clients: 10000
+  max_clients: 100
   listen_backlog: 100
 
   protocols:
     - type: redis
       timeout:
-        connection: 2000
         read: 2000
         write: 2000
         inactivity: 2000
