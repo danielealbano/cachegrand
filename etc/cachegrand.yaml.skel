@@ -18,7 +18,7 @@ use_slab_allocator: false
 
 network:
   backend: io_uring
-  max_clients: 10000
+  max_clients: 100
   listen_backlog: 100
 
   protocols:
