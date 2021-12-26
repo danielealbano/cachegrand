@@ -59,6 +59,7 @@ void fiber_stack_protection(
 
 fiber_t* fiber_new(
         char *name,
+        size_t name_len,
         size_t stack_size,
         fiber_start_fp_t* fiber_start_fp,
         void* user_data);

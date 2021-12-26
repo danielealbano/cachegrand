@@ -41,6 +41,7 @@ void fiber_stack_protection(
 
 fiber_t *fiber_new(
         char *name,
+        size_t name_len,
         size_t stack_size,
         fiber_start_fp_t *fiber_start_fp,
         void *user_data) {
@@ -78,7 +79,8 @@ fiber_t *fiber_new(
     fiber->stack_pointer = stack_pointer;
 
     // Set the fiber name
-    fiber->name = name;
+    fiber->name = (char*)xalloc_alloc(name_len);
+    strncpy(fiber->name, name, name_len);
 
     // Set the initial fp and rsp of the fiber
     fiber->context.rip = fiber->start_fp; // this or the stack_base? who knows :|
@@ -93,6 +95,7 @@ void fiber_free(
         fiber_t *fiber) {
     fiber_stack_protection(fiber, false);
 
+    xalloc_free(fiber->name);
     xalloc_free(fiber->stack_base);
     xalloc_free(fiber);
 }
