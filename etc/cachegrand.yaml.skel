@@ -24,7 +24,6 @@ network:
   protocols:
     - type: redis
       timeout:
-        connection: 2000
         read: 2000
         write: 2000
         inactivity: 2000
