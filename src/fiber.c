@@ -81,7 +81,7 @@ fiber_t *fiber_new(
     fiber->stack_pointer = stack_pointer;
 
     // Set the fiber name
-    fiber->name = (char*)xalloc_alloc(name_len);
+    fiber->name = (char*)xalloc_alloc_zero(name_len + 1);
     strncpy(fiber->name, name, name_len);
 
     // Set the initial fp and rsp of the fiber
