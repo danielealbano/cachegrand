@@ -100,18 +100,25 @@ void worker_network_listeners_initialize(
 void worker_network_listeners_listen(
         worker_context_t *worker_context) {
     for (int listener_index = 0; listener_index < worker_context->network.listeners_count; listener_index++) {
-        char *fiber_name;
+        char fiber_name[255] = { 0 };
         network_channel_t *listener_channel = (network_channel_t*)(
                 (void*)worker_context->network.listeners +
                 (worker_context->network.network_channel_size * listener_index)
         );
 
-        size_t fiber_name_len = snprintf(NULL, 0, "listener-%d-%s", listener_index, listener_channel->address.str) + 1;
-        fiber_name = (char*)xalloc_alloc(fiber_name_len);
-        snprintf(fiber_name, fiber_name_len,"listener-%d-%s", listener_index, listener_channel->address.str);
+        size_t fiber_name_len = min(
+                sizeof(fiber_name),
+                snprintf(
+                        fiber_name,
+                        sizeof(fiber_name),
+                        "worker-%d-listener-%d-%s",
+                        worker_context->worker_index,
+                        listener_index,
+                        listener_channel->address.str));
 
         fiber_t* fiber_listener = fiber_new(
                 fiber_name,
+                fiber_name_len,
                 WORKER_FIBER_STACK_SIZE,
                 worker_network_listeners_fiber,
                 (void*)listener_channel);
