@@ -17,7 +17,6 @@ typedef bool (worker_iouring_op_wrapper_completion_cb_fp_t)(
 struct worker_iouring_op_context {
     struct {
         struct {
-            worker_op_timer_completion_cb_fp_t* timer;
             worker_op_network_error_completion_cb_fp_t* network_error;
 //            worker_op_network_accept_completion_cb_fp_t* network_accept;
 //            worker_op_network_receive_completion_cb_fp_t* network_receive;
@@ -67,24 +66,6 @@ bool worker_iouring_op_fds_map_files_update_cb(
         worker_iouring_op_context_t *op_context,
         io_uring_cqe_t *cqe,
         bool *free_op_context);
-
-bool worker_iouring_op_timer_completion_cb(
-        worker_iouring_context_t *context,
-        worker_iouring_op_context_t *op_context,
-        io_uring_cqe_t *cqe,
-        bool *free_op_context);
-
-bool worker_iouring_op_timer(
-        worker_iouring_context_t *context,
-        worker_op_timer_completion_cb_fp_t *completion_cb,
-        long seconds,
-        long long nanoseconds,
-        void* user_data);
-bool worker_iouring_op_timer_wrapper(
-        worker_op_timer_completion_cb_fp_t *cb,
-        long seconds,
-        long long nanoseconds,
-        void* user_data);
 
 void worker_iouring_op_register();
 

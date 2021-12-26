@@ -260,7 +260,7 @@ void* worker_thread_func(
     worker_network_listeners_listen(
             worker_context);
 
-    worker_op_timer_loop_submit();
+    worker_timer_setup(worker_context);
 
     LOG_I(TAG, "Starting events loop");
 

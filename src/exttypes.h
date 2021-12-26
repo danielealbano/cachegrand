@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+typedef struct __kernel_timespec kernel_timespec_t;
+
 // Defines the int128_t and uint128_t
 typedef __int128 int128_t;
 typedef unsigned __int128 uint128_t;

@@ -5,15 +5,11 @@
 extern "C" {
 #endif
 
-#define WORKER_TIMER_LOOP_MS 250l
+#define WORKER_TIMER_LOOP_MS 500l
 
-typedef bool (worker_op_timer_completion_cb_fp_t)(
-        void* user_data);
 typedef bool (worker_op_timer_fp_t)(
-        worker_op_timer_completion_cb_fp_t* timer_completion_cb,
         long seconds,
-        long long nanoseconds,
-        void* user_data);
+        long long nanoseconds);
 
 typedef network_channel_t* (worker_op_network_channel_new_fp_t)();
 
@@ -73,6 +69,11 @@ typedef bool (worker_op_network_send_fp_t)(
 
 typedef size_t (worker_op_network_channel_size_fp_t)();
 
+void worker_timer_fiber_entrypoint();
+
+void worker_timer_setup(
+        worker_context_t* worker_context);
+
 extern worker_op_timer_fp_t* worker_op_timer;
 extern worker_op_network_channel_new_fp_t* worker_op_network_channel_new;
 extern worker_op_network_channel_multi_new_fp_t* worker_op_network_channel_multi_new;
@@ -83,10 +84,6 @@ extern worker_op_network_receive_fp_t* worker_op_network_receive;
 extern worker_op_network_send_fp_t* worker_op_network_send;
 extern worker_op_network_close_fp_t* worker_op_network_close;
 extern worker_op_network_channel_size_fp_t* worker_op_network_channel_size;
-
-bool worker_op_timer_completion_cb_loop(
-        void* user_data);
-bool worker_op_timer_loop_submit();
 
 #ifdef __cplusplus
 }
