@@ -7,7 +7,6 @@ extern "C" {
 
 #define WORKER_LOOP_MAX_WAIT_TIME_MS 1000
 #define WORKER_PUBLISH_STATS_DELAY_SEC  1
-#define WORKER_FIBER_STACK_SIZE (4096 * 5)
 
 typedef struct worker_stats worker_stats_t;
 struct worker_stats {

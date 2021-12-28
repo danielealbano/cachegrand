@@ -107,7 +107,7 @@ fiber_t* fiber_scheduler_new_fiber(
     fiber_t* fiber = fiber_new(
             name,
             name_len,
-            WORKER_FIBER_SCHEDULER_STACK_SIZE,
+            FIBER_SCHEDULER_STACK_SIZE,
             fiber_scheduler_new_fiber_entrypoint,
             &fiber_scheduler_new_fiber_user_data);
 
