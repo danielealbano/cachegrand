@@ -80,7 +80,8 @@ fiber_t *fiber_new(
     fiber->stack_base = stack_base;
     fiber->stack_pointer = stack_pointer;
 
-    // Set the fiber name
+    // Set the fiber additional parameters
+    fiber->terminate = false;
     fiber->name = (char*)xalloc_alloc_zero(name_len + 1);
     strncpy(fiber->name, name, name_len);
 

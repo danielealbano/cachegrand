@@ -30,6 +30,7 @@ struct fiber {
     fiber_start_fp_t* start_fp;
     void* start_fp_user_data;
     char *name;
+    bool terminate;
     union {
         void* ptr_value;
         int int_value;
