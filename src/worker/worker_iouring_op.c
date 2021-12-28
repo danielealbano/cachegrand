@@ -30,19 +30,10 @@
 #include "worker/worker_common.h"
 #include "worker/worker_iouring.h"
 #include "worker/worker_op.h"
-#include "worker_fiber_scheduler.h"
+#include "fiber_scheduler.h"
 #include "worker_iouring_op.h"
 
 #define TAG "worker_iouring_op"
-
-worker_iouring_op_context_t* worker_iouring_op_context_init(
-        worker_iouring_op_wrapper_completion_cb_fp_t *completion_cb) {
-    worker_iouring_op_context_t *op_context =
-            slab_allocator_mem_alloc_zero(sizeof(worker_iouring_op_context_t));
-    op_context->io_uring.completion_cb = completion_cb;
-
-    return op_context;
-}
 
 bool worker_iouring_op_timer(
         long seconds,
@@ -57,14 +48,14 @@ bool worker_iouring_op_timer(
             1,
             &kernel_timespec,
             0,
-            (uintptr_t)worker_fiber_scheduler_get_current());
+            (uintptr_t) fiber_scheduler_get_current());
 
     if (res == false) {
         return false;
     }
 
     // Switch the execution back to the scheduler
-    worker_fiber_scheduler_switch_back();
+    fiber_scheduler_switch_back();
 
     return true;
 }

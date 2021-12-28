@@ -58,9 +58,7 @@ bool network_protocol_redis_accept(
 
     *protocol_context = redis_protocol_context;
 
-    return worker_network_receive(
-            channel,
-            NULL);
+    return true;
 }
 
 bool network_protocol_redis_close(
@@ -102,7 +100,7 @@ bool network_protocol_redis_process_events(
         worker_network_channel_user_data_t *worker_network_channel_user_data) {
     size_t send_buffer_length;
     char *send_buffer, *send_buffer_start, *send_buffer_end;
-    long data_read_len;
+    long data_read_len = 0;
 
     network_protocol_redis_command_funcptr_retval_t funcptr_ret_val =
             NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_OK;
@@ -244,8 +242,7 @@ bool network_protocol_redis_process_events(
             return worker_network_send(
                     channel,
                     send_buffer,
-                    send_buffer_start - send_buffer,
-                    NULL);
+                    send_buffer_start - send_buffer);
         }
 
         if (reader_context->state == PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED) {
@@ -275,8 +272,7 @@ bool network_protocol_redis_process_events(
                 return worker_network_send(
                         channel,
                         send_buffer,
-                        send_buffer_start - send_buffer,
-                        NULL);
+                        send_buffer_start - send_buffer);
             } else if (protocol_context->command_info != NULL) {
                 if (protocol_context->command_info->required_positional_arguments_count > reader_context->arguments.count - 1) {
                     // In memory there are always at least 2 bytes after the arguments, the first byte after the command
@@ -303,8 +299,7 @@ bool network_protocol_redis_process_events(
                     return worker_network_send(
                             channel,
                             send_buffer,
-                            send_buffer_start - send_buffer,
-                            NULL);
+                            send_buffer_start - send_buffer);
                 } else {
                     funcptr_ret_val = protocol_context->command_info->end_funcptr(
                             channel,
@@ -330,8 +325,7 @@ bool network_protocol_redis_process_events(
 
     if (funcptr_ret_val == NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_OK) {
         return worker_network_receive(
-                channel,
-                NULL);
+                channel);
     }
 
     return true;

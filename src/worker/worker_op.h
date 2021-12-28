@@ -32,40 +32,18 @@ typedef bool (worker_op_network_error_completion_cb_fp_t)(
 typedef network_channel_t* (worker_op_network_accept_fp_t)(
         network_channel_t *listener_channel);
 
-typedef bool (worker_op_network_close_completion_cb_fp_t)(
-        network_channel_t *channel,
-        void* user_data);
 typedef bool (worker_op_network_close_fp_t)(
-        worker_op_network_close_completion_cb_fp_t* network_close_completion_cb,
-        worker_op_network_error_completion_cb_fp_t* network_error_completion_cb,
-        network_channel_t *channel,
-        void* user_data);
+        network_channel_t *channel);
 
-typedef bool (worker_op_network_receive_completion_cb_fp_t)(
-        network_channel_t *channel,
-        size_t receive_length,
-        void* user_data);
-typedef bool (worker_op_network_receive_fp_t)(
-        worker_op_network_receive_completion_cb_fp_t* network_receive_completion_cb,
-        worker_op_network_close_completion_cb_fp_t* network_close_completion_cb,
-        worker_op_network_error_completion_cb_fp_t* network_error_completion_cb,
+typedef size_t (worker_op_network_receive_fp_t)(
         network_channel_t *channel,
         char* buffer,
-        size_t buffer_length,
-        void* user_data);
+        size_t buffer_length);
 
-typedef bool (worker_op_network_send_completion_cb_fp_t)(
-        network_channel_t *channel,
-        size_t send_length,
-        void* user_data);
-typedef bool (worker_op_network_send_fp_t)(
-        worker_op_network_send_completion_cb_fp_t* network_send_completion_cb,
-        worker_op_network_close_completion_cb_fp_t* network_close_completion_cb,
-        worker_op_network_error_completion_cb_fp_t* network_error_completion_cb,
+typedef size_t (worker_op_network_send_fp_t)(
         network_channel_t *channel,
         char* buffer,
-        size_t buffer_length,
-        void* user_data);
+        size_t buffer_length);
 
 typedef size_t (worker_op_network_channel_size_fp_t)();
 

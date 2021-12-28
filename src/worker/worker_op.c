@@ -22,7 +22,7 @@
 #include "network/channel/network_channel.h"
 #include "worker/worker_common.h"
 #include "worker/worker_op.h"
-#include "worker/worker_fiber_scheduler.h"
+#include "fiber_scheduler.h"
 
 #define TAG "worker_op"
 
@@ -37,7 +37,8 @@ worker_op_network_receive_fp_t* worker_op_network_receive;
 worker_op_network_send_fp_t* worker_op_network_send;
 worker_op_network_close_fp_t* worker_op_network_close;
 
-void worker_timer_fiber_entrypoint() {
+void worker_timer_fiber_entrypoint(
+        void *user_data) {
     while(worker_op_timer(0, WORKER_TIMER_LOOP_MS * 1000000l)) {
         // TODO: process timeouts / garbage collector / etc
     }
@@ -45,17 +46,9 @@ void worker_timer_fiber_entrypoint() {
 
 void worker_timer_setup(
         worker_context_t* worker_context) {
-    char fiber_name[255] = { 0 };
-    size_t fiber_name_len = min(
-            sizeof(fiber_name),
-            snprintf(fiber_name, sizeof(fiber_name),"worker-%d-timer", worker_context->worker_index));
-
-    fiber_t* fiber_timer = fiber_new(
-            fiber_name,
-            fiber_name_len,
-            WORKER_FIBER_STACK_SIZE,
+    fiber_scheduler_new_fiber(
+            "worker-timer",
+            sizeof("worker-timer") - 1,
             worker_timer_fiber_entrypoint,
             NULL);
-
-    worker_fiber_scheduler_switch_to(fiber_timer);
 }

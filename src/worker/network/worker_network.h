@@ -12,20 +12,17 @@ void worker_network_listeners_listen(
         worker_context_t *worker_context);
 
 bool worker_network_receive(
-        network_channel_t *channel,
-        void* user_data);
+        network_channel_t *channel);
 
 bool worker_network_send(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
-        size_t buffer_length,
-        void* user_data);
+        size_t buffer_length);
 
 bool worker_network_close(
-        network_channel_t *channel,
-        void* user_data);
+        network_channel_t *channel);
 
-bool worker_network_protocol_process_buffer(
+bool worker_network_protocol_process_events(
         network_channel_t *channel,
         worker_network_channel_user_data_t *worker_network_channel_user_data);
 

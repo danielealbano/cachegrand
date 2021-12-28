@@ -37,7 +37,7 @@
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
 #include "worker/worker_common.h"
-#include "worker/worker_fiber_scheduler.h"
+#include "fiber_scheduler.h"
 #include "worker/worker.h"
 #include "worker/worker_op.h"
 #include "worker/worker_iouring_op.h"
@@ -72,25 +72,27 @@ void worker_iouring_context_reset() {
     thread_local_worker_iouring_context = NULL;
 }
 
-bool worker_iouring_op_fds_map_files_update_cb(
-        worker_iouring_context_t *context,
-        worker_iouring_op_context_t *op_context,
-        io_uring_cqe_t *cqe,
-        bool *free_op_context) {
-
-    if (cqe->res < 0) {
-        worker_iouring_fds_map_remove(
-                op_context->io_uring.files_update.channel->mapped_fd);
-        op_context->io_uring.files_update.channel->mapped_fd = WORKER_FDS_MAP_EMPTY;
-    } else {
-        op_context->io_uring.files_update.channel->has_mapped_fd = true;
-        op_context->io_uring.files_update.channel->base_sqe_flags |= IOSQE_FIXED_FILE;
-        op_context->io_uring.files_update.channel->fd =
-                op_context->io_uring.files_update.channel->mapped_fd;
-    }
-
-    return true;
-}
+// TODO: need to improve the fiber interface as currently CQEs can be executed only sequentially and having a fiber
+//       switch for each connection just to update the fds map would have an hit on the performances for no reason
+//bool worker_iouring_op_fds_map_files_update_cb(
+//        worker_iouring_context_t *context,
+//        worker_iouring_op_context_t *op_context,
+//        io_uring_cqe_t *cqe,
+//        bool *free_op_context) {
+//
+//    if (cqe->res < 0) {
+//        worker_iouring_fds_map_remove(
+//                op_context->io_uring.files_update.channel->mapped_fd);
+//        op_context->io_uring.files_update.channel->mapped_fd = WORKER_FDS_MAP_EMPTY;
+//    } else {
+//        op_context->io_uring.files_update.channel->has_mapped_fd = true;
+//        op_context->io_uring.files_update.channel->base_sqe_flags |= IOSQE_FIXED_FILE;
+//        op_context->io_uring.files_update.channel->fd =
+//                op_context->io_uring.files_update.channel->mapped_fd;
+//    }
+//
+//    return true;
+//}
 
 bool worker_iouring_fds_map_files_update(
         io_uring_t *ring,
@@ -98,33 +100,25 @@ bool worker_iouring_fds_map_files_update(
         network_channel_iouring_t *channel) {
     bool ret;
 
-    if (io_uring_supports_op_files_update_link) {
-        worker_iouring_op_context_t* op_context = worker_iouring_op_context_init(
-                worker_iouring_op_fds_map_files_update_cb);
-        if (!op_context) {
-            LOG_E(TAG, "Failed to allocate memory for the worker iouring op");
-            return false;
-        }
-
-        op_context->io_uring.files_update.channel = channel;
-
-        // TODO: need to fix the implementation in support/io_uring/io_uring_support.c
-        io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
-        if (sqe != NULL) {
-            io_uring_prep_files_update(sqe, &fds_map[index], 1, index);
-            io_uring_sqe_set_flags(sqe, IOSQE_IO_LINK);
-            sqe->user_data = (uintptr_t)op_context;
-            ret = true;
-        } else {
-            ret = false;
-        }
-    } else {
+    // TODO: async files update disabled, the fiber interface needs improvements
+//    if (io_uring_supports_op_files_update_link) {
+//        // TODO: need to fix the implementation in support/io_uring/io_uring_support.c
+//        io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
+//        if (sqe != NULL) {
+//            io_uring_prep_files_update(sqe, &fds_map[index], 1, index);
+//            io_uring_sqe_set_flags(sqe, IOSQE_IO_LINK);
+//            sqe->user_data = (uintptr_t)op_context;
+//            ret = true;
+//        } else {
+//            ret = false;
+//        }
+//    } else {
         ret = io_uring_register_files_update(
                 ring,
                 index,
                 &fds_map[index],
                 1) == 1;
-    }
+//    }
 
     if (!ret) {
         LOG_E(
@@ -283,7 +277,7 @@ void worker_iouring_cqe_log(
 }
 
 void worker_iouring_cleanup(
-        worker_context_t *worker_user_data) {
+        worker_context_t *worker_context) {
     io_uring_t *ring;
     worker_iouring_context_t *iouring_context = worker_iouring_context_get();
 
@@ -334,7 +328,7 @@ bool worker_iouring_process_events_loop(
         }
 
         fiber->ret.ptr_value = cqe;
-        worker_fiber_scheduler_switch_to(fiber);
+        fiber_scheduler_switch_to(fiber);
     }
 
     io_uring_support_cq_advance(context->ring, count);
