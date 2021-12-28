@@ -187,19 +187,13 @@ size_t worker_network_iouring_op_network_receive(
         res = cqe->res;
     } while(res == -EAGAIN);
 
-    if (res <= 0) {
-        worker_network_iouring_op_network_close(
-                (network_channel_t*)channel);
-
-        if (res < 0) {
-            // TODO: should set an appropriate error for the fiber interface
-            char* error_message = strerror(res * -1);
-            int a = 0;
+    if (res < 0) {
+        // TODO: should set an appropriate error for the fiber interface
+        char* error_message = strerror(res * -1);
 //            ret = op_context->user.completion_cb.network_error(
 //                    (network_channel_t*)channel,
 //                    res,
 //                    error_message);
-        }
     }
 
     return res;
@@ -234,19 +228,13 @@ size_t worker_network_iouring_op_network_send(
         res = cqe->res;
     } while(res == -EAGAIN);
 
-    if (res <= 0) {
-        worker_network_iouring_op_network_close(
-                (network_channel_t*)channel);
-
-        if (res < 0) {
-            // TODO: should set an appropriate error for the fiber interface
-            char* error_message = strerror(res * -1);
-            int a = 0;
+    if (res < 0) {
+        // TODO: should set an appropriate error for the fiber interface
+        char* error_message = strerror(res * -1);
 //            ret = op_context->user.completion_cb.network_error(
 //                    (network_channel_t*)channel,
 //                    res,
 //                    error_message);
-        }
     } else {
         slab_allocator_mem_free(buffer);
     }

@@ -284,7 +284,8 @@ bool worker_network_protocol_process_events(
     }
 
     if (result == false) {
-        return worker_network_close(channel);
+        worker_network_close(channel);
+        return false;
     }
 
     return result;
