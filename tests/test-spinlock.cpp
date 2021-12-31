@@ -61,6 +61,41 @@ void* test_spinlock_lock_counter_thread_func(void* rawdata) {
     return nullptr;
 }
 
+// Keep the lock locked for a while on purpose to trigger the lock detection branch
+struct test_spinlock_lock_possible_stuck_lock_detection_thread_func_data {
+    uint8_t* start_flag;
+    uint8_t* can_unlock_flag;
+    uint32_t thread_num;
+    pthread_t thread_id;
+    spinlock_lock_volatile_t *lock;
+};
+void* test_spinlock_lock_possible_stuck_lock_detection_thread_func(void* rawdata) {
+    struct test_spinlock_lock_possible_stuck_lock_detection_thread_func_data* data =
+            (struct test_spinlock_lock_possible_stuck_lock_detection_thread_func_data*)rawdata;
+
+    thread_current_set_affinity(data->thread_num);
+
+    do {
+        MEMORY_FENCE_LOAD();
+    } while (*data->start_flag == 0);
+
+    if (!spinlock_try_lock(data->lock)) {
+        // If the spinlock is already locked, this thread tries to lock it on purpose anyway to trigger the stuck lock
+        // detection branch
+        spinlock_lock(data->lock, true);
+    } else {
+        // If this thread is the holder of the lock, waits for an external signal to unlock it, the main test will
+        // monitor the logs to try to identify if the lock is stuck
+        do {
+            MEMORY_FENCE_LOAD();
+        } while (*data->can_unlock_flag == 0);
+    }
+
+    spinlock_unlock(data->lock);
+
+    return nullptr;
+}
+
 TEST_CASE("spinlock.c", "[spinlock]") {
     SECTION("sizeof(spinlock_lock_t) == 4") {
         REQUIRE(sizeof(spinlock_lock_t) == 4);
@@ -254,6 +289,60 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             free(threads_info);
 
             REQUIRE(increments_per_thread_sum == increments_per_thread * threads_count);
+        }
+
+        SECTION("test potential stuck lock detection branch") {
+            void* ret;
+            uint8_t start_flag;
+            uint8_t can_unlock_flag;
+            spinlock_lock_volatile_t lock = { 0 };
+            pthread_attr_t attr;
+
+            uint32_t threads_count = 2;
+
+            REQUIRE(pthread_attr_init(&attr) == 0);
+
+            struct test_spinlock_lock_possible_stuck_lock_detection_thread_func_data* threads_info =
+                    (struct test_spinlock_lock_possible_stuck_lock_detection_thread_func_data*)calloc(
+                            threads_count,
+                            sizeof(test_spinlock_lock_possible_stuck_lock_detection_thread_func_data));
+
+            REQUIRE(threads_info != NULL);
+
+            start_flag = 0;
+            spinlock_init(&lock);
+            for(uint32_t thread_num = 0; thread_num < threads_count; thread_num++) {
+                threads_info[thread_num].thread_num = thread_num;
+                threads_info[thread_num].start_flag = &start_flag;
+                threads_info[thread_num].can_unlock_flag = &can_unlock_flag;
+                threads_info[thread_num].lock = &lock;
+
+                REQUIRE(pthread_create(
+                        &threads_info[thread_num].thread_id,
+                        &attr,
+                        &test_spinlock_lock_possible_stuck_lock_detection_thread_func,
+                        &threads_info[thread_num]) == 0);
+            }
+
+            start_flag = 1;
+            MEMORY_FENCE_STORE();
+
+            do {
+                MEMORY_FENCE_LOAD();
+            } while (!spinlock_has_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK));
+
+            REQUIRE(spinlock_has_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK));
+
+            // Wait for all the threads to finish
+            can_unlock_flag = 1;
+            MEMORY_FENCE_STORE();
+            for(uint32_t thread_num = 0; thread_num < threads_count; thread_num++) {
+                REQUIRE(pthread_join(threads_info[thread_num].thread_id, &ret) == 0);
+            }
+
+            REQUIRE(lock.lock == SPINLOCK_UNLOCKED);
+
+            free(threads_info);
         }
     }
 }
