@@ -67,6 +67,35 @@ bool spinlock_try_lock(
     return __sync_bool_compare_and_swap(&spinlock->lock, expected_value, new_value);
 }
 
+void spinlock_set_flag(
+        spinlock_lock_volatile_t *spinlock,
+        spinlock_flag_t flag) {
+    spinlock_flag_t old_flags, new_flags;
+    old_flags = spinlock->flags;
+    do {
+        new_flags = old_flags | flag;
+    } while(__sync_val_compare_and_swap(&spinlock->flags, old_flags, new_flags) != old_flags);
+}
+
+bool spinlock_unset_flag(
+        spinlock_lock_volatile_t *spinlock,
+        spinlock_flag_t flag) {
+    spinlock_flag_t old_flags, new_flags;
+    old_flags = spinlock->flags;
+    do {
+        new_flags = old_flags & ~flag;
+    } while(__sync_val_compare_and_swap(&spinlock->flags, old_flags, new_flags) != old_flags);
+}
+
+bool spinlock_has_flag(
+        spinlock_lock_volatile_t *spinlock,
+        spinlock_flag_t flag) {
+    MEMORY_FENCE_LOAD();
+    spinlock_flag_t flags = spinlock->flags;
+
+    return (flags & flag) == flag;
+}
+
 bool spinlock_lock_internal(
         spinlock_lock_volatile_t *spinlock,
         bool retry,

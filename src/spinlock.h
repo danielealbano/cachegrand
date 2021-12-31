@@ -42,6 +42,18 @@ bool spinlock_lock_internal(
 void spinlock_unlock(
         spinlock_lock_volatile_t* spinlock);
 
+void spinlock_set_flag(
+        spinlock_lock_volatile_t *spinlock,
+        spinlock_flag_t flag);
+
+bool spinlock_unset_flag(
+        spinlock_lock_volatile_t *spinlock,
+        spinlock_flag_t flag);
+
+bool spinlock_has_flag(
+        spinlock_lock_volatile_t *spinlock,
+        spinlock_flag_t flag);
+
 /**
  * Uses a macro to wrap _spinlock_lock to automatically define the path, func and line args
  */
