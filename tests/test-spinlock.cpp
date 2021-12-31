@@ -33,6 +33,15 @@ void* test_spinlock_lock_lock_retry_try_lock_thread_func(void* rawdata) {
     }
 }
 
+void test_spinlock_lock_thread_wait_on_flag(
+        volatile bool *flag,
+        bool expecting_value) {
+
+    do {
+        MEMORY_FENCE_LOAD();
+    } while (*flag != expecting_value);
+}
+
 // Increments a number of times using the spinlock for each increment
 struct test_spinlock_lock_counter_thread_func_data {
     bool* start_flag;
@@ -48,9 +57,7 @@ void* test_spinlock_lock_counter_thread_func(void* rawdata) {
 
     thread_current_set_affinity(data->thread_num);
 
-    do {
-        MEMORY_FENCE_LOAD();
-    } while (*data->start_flag == 0);
+    test_spinlock_lock_thread_wait_on_flag(data->start_flag, true);
 
     for(uint64_t i = 0; i < data->increments; i++) {
         spinlock_lock(data->lock, true);
@@ -75,9 +82,7 @@ void* test_spinlock_lock_possible_stuck_lock_detection_thread_func(void* rawdata
 
     thread_current_set_affinity(data->thread_num);
 
-    do {
-        MEMORY_FENCE_LOAD();
-    } while (*data->start_flag == 0);
+    test_spinlock_lock_thread_wait_on_flag(data->start_flag, true);
 
     if (!spinlock_try_lock(data->lock)) {
         // If the spinlock is already locked, this thread tries to lock it on purpose anyway to trigger the stuck lock
@@ -86,9 +91,7 @@ void* test_spinlock_lock_possible_stuck_lock_detection_thread_func(void* rawdata
     } else {
         // If this thread is the holder of the lock, waits for an external signal to unlock it, the main test will
         // monitor the logs to try to identify if the lock is stuck
-        do {
-            MEMORY_FENCE_LOAD();
-        } while (*data->can_unlock_flag == 0);
+        test_spinlock_lock_thread_wait_on_flag(data->can_unlock_flag, true);
     }
 
     spinlock_unlock(data->lock);
