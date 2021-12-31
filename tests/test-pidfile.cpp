@@ -1,4 +1,3 @@
-#include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <catch2/catch.hpp>
@@ -68,53 +67,84 @@ TEST_CASE("pidfile.c", "[pidfile]") {
     int fd = -1;
 
     SECTION("pidfile_open") {
-        fd = pidfile_open(fixture_temp_path);
-        REQUIRE(fd > 0);
+        SECTION("Existing path") {
+            fd = pidfile_open(fixture_temp_path);
+            REQUIRE(fd > 0);
+        }
+
+        SECTION("Non-existing path") {
+            fd = pidfile_open("/non/existing/path/leading/nowhere");
+            REQUIRE(fd == -1);
+        }
     }
 
     SECTION("pidfile_request_close_on_exec") {
-        fd = pidfile_open(fixture_temp_path);
-        REQUIRE(fd > 0);
-        REQUIRE(pidfile_request_close_on_exec(fd));
+        SECTION("valid fd") {
+            fd = pidfile_open(fixture_temp_path);
+            REQUIRE(fd > 0);
+            REQUIRE(pidfile_request_close_on_exec(fd));
 
-        int flags = fcntl(fd, F_GETFD);
-        REQUIRE(flags != -1);
-        REQUIRE((flags & FD_CLOEXEC) == FD_CLOEXEC);
+            int flags = fcntl(fd, F_GETFD);
+            REQUIRE(flags != -1);
+            REQUIRE((flags & FD_CLOEXEC) == FD_CLOEXEC);
+        }
+
+        SECTION("invalid fd") {
+            REQUIRE(!pidfile_request_close_on_exec(-1));
+        }
     }
 
     SECTION("pidfile_request_lock") {
-        struct flock lock = { 0 };
+        SECTION("valid fd") {
+            struct flock lock = { 0 };
 
-        fd = pidfile_open(fixture_temp_path);
-        REQUIRE(fd > 0);
+            fd = pidfile_open(fixture_temp_path);
+            REQUIRE(fd > 0);
 
-        REQUIRE(pidfile_request_lock(fd));
+            REQUIRE(pidfile_request_lock(fd));
 
-        REQUIRE(test_pidfile_get_fnctl_lock(fixture_temp_path, &lock));
-        REQUIRE(lock.l_start == 0);
-        REQUIRE(lock.l_len == 0);
-        REQUIRE(lock.l_pid == getpid());
-        REQUIRE(lock.l_type == F_WRLCK);
+            REQUIRE(test_pidfile_get_fnctl_lock(fixture_temp_path, &lock));
+            REQUIRE(lock.l_start == 0);
+            REQUIRE(lock.l_len == 0);
+            REQUIRE(lock.l_pid == getpid());
+            REQUIRE(lock.l_type == F_WRLCK);
+        }
+
+        SECTION("invalid fd") {
+            REQUIRE(!pidfile_request_lock(-1));
+        }
     }
 
     SECTION("pidfile_write_pid") {
-        fd = pidfile_open(fixture_temp_path);
-        REQUIRE(fd > 0);
+        SECTION("valid fd") {
+            fd = pidfile_open(fixture_temp_path);
+            REQUIRE(fd > 0);
 
-        REQUIRE(pidfile_write_pid(fd, 12345));
-        REQUIRE(simple_file_io_read_uint32_return(fixture_temp_path) == 12345);
+            REQUIRE(pidfile_write_pid(fd, 12345));
+            REQUIRE(simple_file_io_read_uint32_return(fixture_temp_path) == 12345);
+        }
+
+        SECTION("invalid fd") {
+            REQUIRE(!pidfile_write_pid(-1, 12345));
+        }
     }
 
     SECTION("pidfile_close") {
-        fd = pidfile_open(fixture_temp_path);
-        REQUIRE(fd > 0);
+        SECTION("valid fd") {
+            fd = pidfile_open(fixture_temp_path);
+            REQUIRE(fd > 0);
 
-        pidfile_close(fd);
+            REQUIRE(pidfile_close(fd));
+            REQUIRE(fcntl(fd, F_GETFD) == -1);
+            REQUIRE(access(fixture_temp_path, F_OK) != 0);
 
-        // TODO: check the fd is actually closed
+            // Set fd to -1 to avoid the testing code trying to close it
+            fd = -1;
+        }
 
-        // Set fd to -1 to avoid the testing code trying to close it
-        fd = -1;
+        SECTION("invalid fd") {
+            REQUIRE(!pidfile_close(-1));
+        }
     }
 
     SECTION("pidfile_create") {
