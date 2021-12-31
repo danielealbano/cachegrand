@@ -12,9 +12,9 @@ using namespace std;
 
 #include "exttypes.h"
 #include "memory_fences.h"
-#include "spinlock.h"
 #include "utils_cpu.h"
 #include "thread.h"
+#include "spinlock.h"
 
 // Returns 1 if it can do the initial lock, 2 instead if it's able to reach the point in which has
 // to wait for the spinlock to become free
