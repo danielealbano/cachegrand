@@ -87,6 +87,11 @@ TEST_CASE("support/simple_file_io.c", "[support][simple_file_io]") {
 
             REQUIRE(strcmp(buf, simple_file_io_fixture_data_invalid_no_newline_uint32_str) == 0);
         }
+
+        SECTION("invalid path") {
+            char buf[512];
+            REQUIRE(!simple_file_io_read("/non/existing/path/leading/nowhere", buf, sizeof(buf)));
+        }
     }
 
     SECTION("simple_file_io_read_uint32") {
@@ -141,6 +146,11 @@ TEST_CASE("support/simple_file_io.c", "[support][simple_file_io]") {
 
             REQUIRE(val == 0);
         }
+
+        SECTION("invalid path") {
+            uint32_t val;
+            REQUIRE(!simple_file_io_read_uint32("/non/existing/path/leading/nowhere", &val));
+        }
     }
 
     SECTION("simple_file_io_read_uint32_return") {
@@ -194,6 +204,10 @@ TEST_CASE("support/simple_file_io.c", "[support][simple_file_io]") {
                     });
 
             REQUIRE(val == 0);
+        }
+
+        SECTION("invalid path") {
+            REQUIRE(simple_file_io_read_uint32_return("/non/existing/path/leading/nowhere") == 0);
         }
     }
 }
