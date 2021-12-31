@@ -261,7 +261,7 @@ const cyaml_schema_field_t config_fields_schema[] = {
                 config_t, run_in_foreground),
         CYAML_FIELD_STRING_PTR(
                 "pidfile_path", CYAML_FLAG_POINTER,
-                config_t, pidfile_path, 0, CYAML_UNLIMITED),
+                config_t, pidfile_path, 0, CYAML_UNLIMITED | CYAML_FLAG_OPTIONAL),
         CYAML_FIELD_BOOL_PTR(
                 "use_slab_allocator", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
                 config_t, use_slab_allocator),
