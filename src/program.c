@@ -24,6 +24,7 @@
 #include "utils_numa.h"
 #include "exttypes.h"
 #include "xalloc.h"
+#include "pidfile.h"
 #include "log/log.h"
 #include "log/sink/log_sink.h"
 #include "log/sink/log_sink_console.h"
@@ -434,6 +435,15 @@ void program_setup_sentry(
             program_context.config->sentry->dsn);
 }
 
+bool program_setup_pidfile(
+        program_context_t program_context) {
+    if (program_context.config->pidfile_path == NULL) {
+        return true;
+    }
+
+    return pidfile_create(program_context.config->pidfile_path);
+}
+
 bool program_setup_ulimit_wrapper(
         __rlimit_resource_t resource,
         ulong value) {
@@ -513,6 +523,11 @@ void program_cleanup(
     }
 
     log_sink_registered_free();
+
+    if (pidfile_is_owned()) {
+        pidfile_close(pidfile_get_fd());
+    }
+
     sentry_support_shutdown();
 }
 
@@ -538,6 +553,11 @@ int program_main(
     }
 
     program_setup_sentry(program_context);
+
+    if (program_setup_pidfile(program_context) == false) {
+        program_cleanup(&program_context);
+        return 1;
+    }
 
     if (program_config_thread_affinity_set_selected_cpus(&program_context) == false) {
         LOG_E(TAG, "Unable to setup cpu affinity");

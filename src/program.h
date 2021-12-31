@@ -42,6 +42,9 @@ void program_workers_cleanup(
         worker_context_t* worker_context,
         uint32_t workers_count);
 
+bool program_setup_pidfile(
+        program_context_t program_context);
+
 bool program_setup_ulimit_wrapper(
         __rlimit_resource_t resource,
         ulong value);
@@ -53,6 +56,9 @@ bool program_setup_ulimit_memlock();
 bool program_setup_ulimit();
 
 bool program_config_thread_affinity_set_selected_cpus(
+        program_context_t* program_context);
+
+void program_cleanup(
         program_context_t* program_context);
 
 int program_main(

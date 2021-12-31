@@ -15,18 +15,6 @@ extern "C" {
 #define HUGEPAGES_SYSFS_RESV_HUGEPAGES_FILENAME "resv_hugepages"
 #define HUGEPAGES_SYSFS_FREE_HUGEPAGES_FILENAME "free_hugepages"
 
-bool hugepages_file_read(
-        const char* path,
-        char* out_data,
-        size_t out_data_len);
-
-bool hugepages_file_read_uint32(
-        const char* path,
-        uint32_t* out_data);
-
-uint32_t hugepages_file_path_uint32_return(
-        const char* path);
-
 bool hugepages_2mb_is_available(
         int min_available);
 
