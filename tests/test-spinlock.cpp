@@ -345,4 +345,73 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             free(threads_info);
         }
     }
+
+    SECTION("spinlock_set_flag") {
+        SECTION("one flag") {
+            spinlock_lock_volatile_t lock = { 0 };
+
+            spinlock_set_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK);
+
+            REQUIRE(lock.flags == SPINLOCK_FLAG_POTENTIALLY_STUCK);
+        }
+
+        SECTION("two flag") {
+            spinlock_lock_volatile_t lock = { 0 };
+
+            spinlock_set_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK);
+
+            // This flag currently doesn't exist, it's just to test the code
+            spinlock_set_flag(&lock, 0x04);
+
+            REQUIRE(lock.flags == (SPINLOCK_FLAG_POTENTIALLY_STUCK | 0x04));
+        }
+    }
+
+    SECTION("spinlock_unset_flag") {
+        SECTION("one flag") {
+            spinlock_lock_volatile_t lock = { 0 };
+            lock.flags = SPINLOCK_FLAG_POTENTIALLY_STUCK;
+
+            spinlock_unset_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK);
+
+            REQUIRE(lock.flags == 0);
+        }
+
+        SECTION("two flag") {
+            spinlock_lock_volatile_t lock = { 0 };
+            lock.flags = SPINLOCK_FLAG_POTENTIALLY_STUCK | 0x04;
+
+            spinlock_unset_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK);
+
+            REQUIRE(lock.flags == 0x04);
+        }
+    }
+
+    SECTION("spinlock_has_flag") {
+        SECTION("one flag") {
+            spinlock_lock_volatile_t lock = { 0 };
+            lock.flags = SPINLOCK_FLAG_POTENTIALLY_STUCK;
+            REQUIRE(spinlock_has_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK));
+        }
+
+        SECTION("two flag") {
+            spinlock_lock_volatile_t lock = { 0 };
+            lock.flags = SPINLOCK_FLAG_POTENTIALLY_STUCK | 0x04;
+            REQUIRE(spinlock_has_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK));
+            REQUIRE(spinlock_has_flag(&lock, 0x04));
+        }
+
+        SECTION("non existent flag without other flags set") {
+            spinlock_lock_volatile_t lock = { 0 };
+            REQUIRE(spinlock_has_flag(&lock, 0x08) == false);
+        }
+
+        SECTION("non existent flag with other flags set") {
+            spinlock_lock_volatile_t lock = { 0 };
+            lock.flags = SPINLOCK_FLAG_POTENTIALLY_STUCK | 0x04;
+            REQUIRE(spinlock_has_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK));
+            REQUIRE(spinlock_has_flag(&lock, 0x04));
+            REQUIRE(spinlock_has_flag(&lock, 0x08) == false);
+        }
+    }
 }
