@@ -331,6 +331,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             start_flag = true;
             MEMORY_FENCE_STORE();
 
+            // TODO: should implement a timeout
             do {
                 MEMORY_FENCE_LOAD();
             } while (!spinlock_has_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK));
