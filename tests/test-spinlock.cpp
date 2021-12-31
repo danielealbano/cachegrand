@@ -35,7 +35,7 @@ void* test_spinlock_lock_lock_retry_try_lock_thread_func(void* rawdata) {
 
 // Increments a number of times using the spinlock for each increment
 struct test_spinlock_lock_counter_thread_func_data {
-    uint8_t* start_flag;
+    bool* start_flag;
     uint32_t thread_num;
     pthread_t thread_id;
     spinlock_lock_volatile_t* lock;
@@ -63,8 +63,8 @@ void* test_spinlock_lock_counter_thread_func(void* rawdata) {
 
 // Keep the lock locked for a while on purpose to trigger the lock detection branch
 struct test_spinlock_lock_possible_stuck_lock_detection_thread_func_data {
-    uint8_t* start_flag;
-    uint8_t* can_unlock_flag;
+    bool* start_flag;
+    bool* can_unlock_flag;
     uint32_t thread_num;
     pthread_t thread_id;
     spinlock_lock_volatile_t *lock;
@@ -241,7 +241,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
         SECTION("test lock parallelism") {
             void* ret;
-            uint8_t start_flag;
+            bool start_flag;
             spinlock_lock_volatile_t lock = { 0 };
             pthread_attr_t attr;
             uint64_t increments_per_thread_sum = 0, increments_per_thread;
@@ -262,7 +262,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
             REQUIRE(threads_info != NULL);
 
-            start_flag = 0;
+            start_flag = false;
             spinlock_init(&lock);
             for(uint32_t thread_num = 0; thread_num < threads_count; thread_num++) {
                 threads_info[thread_num].thread_num = thread_num;
@@ -278,7 +278,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
                         &threads_info[thread_num]) == 0);
             }
 
-            start_flag = 1;
+            start_flag = true;
             MEMORY_FENCE_STORE();
 
             // Wait for all the threads to finish
@@ -293,8 +293,8 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
         SECTION("test potential stuck lock detection branch") {
             void* ret;
-            uint8_t start_flag;
-            uint8_t can_unlock_flag;
+            bool start_flag;
+            bool can_unlock_flag;
             spinlock_lock_volatile_t lock = { 0 };
             pthread_attr_t attr;
 
@@ -309,7 +309,8 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
             REQUIRE(threads_info != NULL);
 
-            start_flag = 0;
+            start_flag = false;
+            can_unlock_flag = false;
             spinlock_init(&lock);
             for(uint32_t thread_num = 0; thread_num < threads_count; thread_num++) {
                 threads_info[thread_num].thread_num = thread_num;
@@ -324,7 +325,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
                         &threads_info[thread_num]) == 0);
             }
 
-            start_flag = 1;
+            start_flag = true;
             MEMORY_FENCE_STORE();
 
             do {
@@ -334,7 +335,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             REQUIRE(spinlock_has_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK));
 
             // Wait for all the threads to finish
-            can_unlock_flag = 1;
+            can_unlock_flag = true;
             MEMORY_FENCE_STORE();
             for(uint32_t thread_num = 0; thread_num < threads_count; thread_num++) {
                 REQUIRE(pthread_join(threads_info[thread_num].thread_id, &ret) == 0);
