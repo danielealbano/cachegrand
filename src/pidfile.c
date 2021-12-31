@@ -84,11 +84,16 @@ bool pidfile_create(
     int fd;
 
     if ((fd = pidfile_open(pidfile_path)) < 0) {
-        FATAL(TAG, "Failed to open the pid file <%s>", pidfile_path);
+        LOG_E(TAG, "Failed to open the pid file <%s>", pidfile_path);
+        LOG_E_OS_ERROR(TAG);
+        return false;
     }
 
     if (!pidfile_request_close_on_exec(fd)) {
-        FATAL(TAG, "Failed to set the close-on-exec flag for the pid file <%s>", pidfile_path);
+        LOG_E(TAG, "Failed to set the close-on-exec flag for the pid file <%s>", pidfile_path);
+        LOG_E_OS_ERROR(TAG);
+        pidfile_close(fd);
+        return false;
     }
 
     if (!pidfile_request_lock(fd)) {
@@ -102,7 +107,10 @@ bool pidfile_create(
     }
 
     if (!pidfile_write_pid(fd, (long)getpid())) {
-        FATAL(TAG, "Failed write the pid to the pid file <%s>", pidfile_path);
+        LOG_E(TAG, "Failed write the pid to the pid file <%s>", pidfile_path);
+        LOG_E_OS_ERROR(TAG);
+        pidfile_close(fd);
+        return false;
     }
 
     pidfile_owned = true;
