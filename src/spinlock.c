@@ -38,9 +38,11 @@ void spinlock_unlock(
         spinlock_lock_volatile_t* spinlock) {
 #if DEBUG == 1
     long thread_id = syscall(__NR_gettid);
-    assert(spinlock->lock == (uint16_t)thread_id);
+    uint8_t expected_lock = (uint8_t)thread_id;
+    assert(spinlock->lock == expected_lock);
 #endif
 
+    spinlock->flags = 0;
     spinlock->lock = SPINLOCK_UNLOCKED;
     MEMORY_FENCE_STORE();
 }
@@ -55,8 +57,8 @@ bool spinlock_try_lock(
         spinlock_lock_volatile_t *spinlock) {
 #if DEBUG == 1
     long thread_id = syscall(__NR_gettid);
-    uint16_t new_value = thread_id;
-    uint16_t expected_value = SPINLOCK_UNLOCKED;
+    uint8_t new_value = thread_id;
+    uint8_t expected_value = SPINLOCK_UNLOCKED;
 #else
     uint8_t new_value = SPINLOCK_LOCKED;
     uint8_t expected_value = SPINLOCK_UNLOCKED;
