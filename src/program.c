@@ -24,6 +24,7 @@
 #include "utils_numa.h"
 #include "exttypes.h"
 #include "xalloc.h"
+#include "pidfile.h"
 #include "log/log.h"
 #include "log/sink/log_sink.h"
 #include "log/sink/log_sink_console.h"
@@ -432,6 +433,15 @@ void program_setup_sentry(
     sentry_support_init(
             program_context.config->sentry->data_path,
             program_context.config->sentry->dsn);
+}
+
+bool program_setup_pidfile(
+        program_context_t program_context) {
+    if (program_context.config->pidfile_path == NULL) {
+        return true;
+    }
+
+    return pidfile_create(program_context.config->pidfile_path);
 }
 
 bool program_setup_ulimit_wrapper(
