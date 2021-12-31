@@ -58,6 +58,9 @@ bool program_setup_ulimit();
 bool program_config_thread_affinity_set_selected_cpus(
         program_context_t* program_context);
 
+void program_cleanup(
+        program_context_t* program_context);
+
 int program_main(
         int argc,
         char** argv);
