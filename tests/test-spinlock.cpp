@@ -38,7 +38,7 @@ struct test_spinlock_lock_counter_thread_func_data {
     uint8_t* start_flag;
     uint32_t thread_num;
     pthread_t thread_id;
-    spinlock_lock_t* lock;
+    spinlock_lock_volatile_t* lock;
     uint64_t increments;
     uint64_t* counter;
 };
@@ -207,7 +207,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
         SECTION("test lock parallelism") {
             void* ret;
             uint8_t start_flag;
-            spinlock_lock_t lock = { 0 };
+            spinlock_lock_volatile_t lock = { 0 };
             pthread_attr_t attr;
             uint64_t increments_per_thread_sum = 0, increments_per_thread;
 
