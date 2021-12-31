@@ -18,7 +18,7 @@ using namespace std;
 
 // Returns 1 if it can do the initial lock, 2 instead if it's able to reach the point in which has
 // to wait for the spinlock to become free
-void* test_spinlock_lock__lock_retry_try_lock_thread_func(void* rawdata) {
+void* test_spinlock_lock_lock_retry_try_lock_thread_func(void* rawdata) {
     spinlock_lock_t* lock = (spinlock_lock_t*)rawdata;
     if (spinlock_lock(lock, false)) {
         return (void*)1;
@@ -34,7 +34,7 @@ void* test_spinlock_lock__lock_retry_try_lock_thread_func(void* rawdata) {
 }
 
 // Increments a number a number of times using the spinlock for each increment
-struct test_spinlock_lock__counter_thread_func_data {
+struct test_spinlock_lock_counter_thread_func_data {
     uint8_t* start_flag;
     uint32_t thread_num;
     pthread_t thread_id;
@@ -42,9 +42,9 @@ struct test_spinlock_lock__counter_thread_func_data {
     uint64_t increments;
     uint64_t* counter;
 };
-void* test_spinlock_lock__counter_thread_func(void* rawdata) {
-    struct test_spinlock_lock__counter_thread_func_data* data =
-            (struct test_spinlock_lock__counter_thread_func_data*)rawdata;
+void* test_spinlock_lock_counter_thread_func(void* rawdata) {
+    struct test_spinlock_lock_counter_thread_func_data* data =
+            (struct test_spinlock_lock_counter_thread_func_data*)rawdata;
 
     thread_current_set_affinity(data->thread_num);
 
@@ -179,7 +179,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 #endif
 
             // Create the thread that wait for unlock
-            res = pthread_create(&pthread, &attr, &test_spinlock_lock__lock_retry_try_lock_thread_func, (void*)&lock);
+            res = pthread_create(&pthread, &attr, &test_spinlock_lock_lock_retry_try_lock_thread_func, (void*)&lock);
             if (res != 0) {
                 perror("pthread_create");
             }
@@ -220,10 +220,10 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
             REQUIRE(pthread_attr_init(&attr) == 0);
 
-            struct test_spinlock_lock__counter_thread_func_data* threads_info =
-                    (struct test_spinlock_lock__counter_thread_func_data*)calloc(
+            struct test_spinlock_lock_counter_thread_func_data* threads_info =
+                    (struct test_spinlock_lock_counter_thread_func_data*)calloc(
                             threads_count,
-                            sizeof(test_spinlock_lock__counter_thread_func_data));
+                            sizeof(test_spinlock_lock_counter_thread_func_data));
 
             REQUIRE(threads_info != NULL);
 
@@ -239,7 +239,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
                 REQUIRE(pthread_create(
                         &threads_info[thread_num].thread_id,
                         &attr,
-                        &test_spinlock_lock__counter_thread_func,
+                        &test_spinlock_lock_counter_thread_func,
                         &threads_info[thread_num]) == 0);
             }
 
