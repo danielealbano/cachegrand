@@ -33,7 +33,7 @@ void* test_spinlock_lock_lock_retry_try_lock_thread_func(void* rawdata) {
     }
 }
 
-// Increments a number a number of times using the spinlock for each increment
+// Increments a number of times using the spinlock for each increment
 struct test_spinlock_lock_counter_thread_func_data {
     uint8_t* start_flag;
     uint32_t thread_num;
