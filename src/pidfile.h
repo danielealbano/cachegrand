@@ -21,7 +21,7 @@ bool pidfile_write_pid(
 bool pidfile_create(
         const char* pidfile_path);
 
-void pidfile_close(
+bool pidfile_close(
         int fd);
 
 bool pidfile_is_owned();

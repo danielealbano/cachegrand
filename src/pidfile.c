@@ -14,6 +14,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys/file.h>
+#include <linux/limits.h>
 
 #include "misc.h"
 #include "log/log.h"
@@ -119,12 +120,26 @@ bool pidfile_create(
     return true;
 }
 
-void pidfile_close(
+bool pidfile_close(
         int fd) {
+    // Reads the path to the fd at runtime to ensure that the correct one will be deleted if it gets moved around
+    char fd_path[PATH_MAX] = { 0 };
+    char pidfile_path[PATH_MAX] = { 0 };
+
+    snprintf(fd_path, PATH_MAX - 1, "/proc/self/fd/%d", fd);
+
+    size_t res = readlink(fd_path, pidfile_path, PATH_MAX - 1);
+
     close(fd);
+
+    if (res != -1) {
+        unlink(pidfile_path);
+    }
 
     pidfile_fd = -1;
     pidfile_owned = false;
+
+    return res != -1;
 }
 
 bool pidfile_is_owned() {
