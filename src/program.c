@@ -523,6 +523,11 @@ void program_cleanup(
     }
 
     log_sink_registered_free();
+
+    if (pidfile_is_owned()) {
+        pidfile_close(pidfile_get_fd());
+    }
+
     sentry_support_shutdown();
 }
 
@@ -548,6 +553,11 @@ int program_main(
     }
 
     program_setup_sentry(program_context);
+
+    if (program_setup_pidfile(program_context) == false) {
+        program_cleanup(&program_context);
+        return 1;
+    }
 
     if (program_config_thread_affinity_set_selected_cpus(&program_context) == false) {
         LOG_E(TAG, "Unable to setup cpu affinity");
