@@ -10,19 +10,16 @@ extern "C" {
 #define SPINLOCK_UNLOCKED   0
 #define SPINLOCK_LOCKED     1
 
-#if DEBUG == 1
-#define SPINLOCK_MAGIC      42
-#endif
+#define SPINLOCK_FLAG_POTENTIALLY_STUCK     0x01
+
+typedef uint8_t spinlock_flag_t;
+typedef _Volatile(uint8_t) spinlock_flag_volatile_t;
 
 typedef struct spinlock_lock spinlock_lock_t;
 typedef _Volatile(spinlock_lock_t) spinlock_lock_volatile_t;
 struct spinlock_lock {
-#if DEBUG == 1
-    uint16_volatile_t lock;
-#else
     uint8_volatile_t lock;
-    uint8_t padding;
-#endif
+    spinlock_flag_volatile_t flags;
     uint16_t predicted_spins;
 } __attribute__((aligned(4)));
 
@@ -45,16 +42,23 @@ bool spinlock_lock_internal(
 void spinlock_unlock(
         spinlock_lock_volatile_t* spinlock);
 
+void spinlock_set_flag(
+        spinlock_lock_volatile_t *spinlock,
+        spinlock_flag_t flag);
+
+bool spinlock_unset_flag(
+        spinlock_lock_volatile_t *spinlock,
+        spinlock_flag_t flag);
+
+bool spinlock_has_flag(
+        spinlock_lock_volatile_t *spinlock,
+        spinlock_flag_t flag);
+
 /**
  * Uses a macro to wrap _spinlock_lock to automatically define the path, func and line args
  */
 #define spinlock_lock(spinlock, retry) \
     spinlock_lock_internal(spinlock, retry, CACHEGRAND_SRC_PATH, __func__, __LINE__)
-
-#define spinlock_section(spinlock, ...) \
-    spinlock_lock(spinlock, true); \
-    __VA_ARGS__ \
-    spinlock_unlock(spinlock);
 
 #ifdef __cplusplus
 }
