@@ -103,16 +103,17 @@ bool spinlock_lock_internal(
         const char* src_func,
         uint32_t src_line) {
     bool res = false;
+    uint32_t max_spins_before_probably_stuck = UINT32_MAX >> 1;
 
     while (unlikely(!(res = spinlock_try_lock(spinlock)) && retry)) {
         uint64_t spins = 0;
-        while (unlikely(spinlock_is_locked(spinlock) && spins < UINT32_MAX)) {
+        while (likely(spinlock_is_locked(spinlock) && spins < max_spins_before_probably_stuck)) {
             spins++;
         }
 
         // TODO: implement spinlock auto balancing using the predicted_spins property of the lock struct
 
-        if (spins == UINT32_MAX) {
+        if (spins == max_spins_before_probably_stuck) {
             spinlock_set_flag(spinlock, SPINLOCK_FLAG_POTENTIALLY_STUCK);
 
             LOG_E(TAG, "Possible stuck spinlock detected for thread %lu in %s at %s:%u",
