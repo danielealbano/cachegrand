@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <errno.h>
 
 #include "misc.h"
 #include "exttypes.h"
