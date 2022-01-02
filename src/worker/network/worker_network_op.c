@@ -295,7 +295,7 @@ void worker_network_listeners_fiber_entrypoint(
 
         fiber_scheduler_new_fiber(
                 "worker-listener-client",
-                strlen("worker-listener"),
+                strlen("worker-listener-client"),
                 worker_network_new_client_fiber_entrypoint,
                 (void *) &new_client_fiber_userdata);
     }
