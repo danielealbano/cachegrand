@@ -46,13 +46,6 @@ struct fiber_scheduler_new_fiber_user_data {
 };
 
 void fiber_scheduler_grow_stack() {
-    fiber_scheduler_stack.size++;
-    fiber_scheduler_stack.stack = xalloc_realloc(
-            fiber_scheduler_stack.stack,
-            sizeof(fiber_t*) * fiber_scheduler_stack.size);
-}
-
-bool fiber_scheduler_stack_needs_growth() {
     if (fiber_scheduler_stack.size == FIBER_SCHEDULER_STACK_MAX_SIZE) {
         FATAL(
                 TAG,
@@ -60,6 +53,13 @@ bool fiber_scheduler_stack_needs_growth() {
                 FIBER_SCHEDULER_STACK_MAX_SIZE);
     }
 
+    fiber_scheduler_stack.size++;
+    fiber_scheduler_stack.stack = xalloc_realloc(
+            fiber_scheduler_stack.stack,
+            sizeof(fiber_t*) * fiber_scheduler_stack.size);
+}
+
+bool fiber_scheduler_stack_needs_growth() {
     return fiber_scheduler_stack.size == fiber_scheduler_stack.index + 1;
 }
 
