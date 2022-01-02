@@ -31,6 +31,7 @@ struct fiber {
     void* start_fp_user_data;
     char *name;
     bool terminate;
+    int error_number;
     union {
         void* ptr_value;
         int int_value;
@@ -42,6 +43,13 @@ struct fiber {
         int32_t int32_value;
         int64_t int64_value;
     } ret;
+#if DEBUG == 1
+    struct {
+        int line;
+        const char *file;
+        const char *func;
+    } switched_back_on;
+#endif
 } __attribute__((aligned(64)));
 
 extern void fiber_context_get(

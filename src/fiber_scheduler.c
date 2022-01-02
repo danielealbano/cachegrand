@@ -136,6 +136,11 @@ void fiber_scheduler_switch_to(
                 sizeof(nested_fibers_scheduler_name),
                 "scheduler");
         nested_fibers_scheduler.name = nested_fibers_scheduler_name;
+#if DEBUG == 1
+        nested_fibers_scheduler.switched_back_on.file = (char*)CACHEGRAND_SRC_PATH;
+        nested_fibers_scheduler.switched_back_on.line = __LINE__;
+        nested_fibers_scheduler.switched_back_on.func = "fiber_scheduler_switch_to";
+#endif
 
         fiber_scheduler_stack.index++;
         fiber_scheduler_stack.stack[fiber_scheduler_stack.index] = &nested_fibers_scheduler;
@@ -171,9 +176,23 @@ void fiber_scheduler_switch_to(
     }
 }
 
+#if DEBUG == 1
+void fiber_scheduler_switch_back_internal(
+    char *file,
+    int line,
+    const char *func) {
+#else
 void fiber_scheduler_switch_back() {
+#endif
     assert(fiber_scheduler_stack.stack != NULL);
     assert(fiber_scheduler_stack.index > -1);
+
+    fiber_t *current_fiber = fiber_scheduler_stack.stack[fiber_scheduler_stack.index];
+#if DEBUG == 1
+    current_fiber->switched_back_on.file = file;
+    current_fiber->switched_back_on.line = line;
+    current_fiber->switched_back_on.func = func;
+#endif
 
     // Switch back to the scheduler execution context, leaves in its hands to update the thread_current_fiber and
     // thread_scheduler_fiber tracking variables
