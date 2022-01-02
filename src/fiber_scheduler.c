@@ -22,27 +22,12 @@
 
 #define TAG "fiber_scheduler"
 
-#define FIBER_SCHEDULER_STACK_MAX_SIZE 5
-
-typedef struct fiber_scheduler_stack fiber_scheduler_stack_t;
-struct fiber_scheduler_stack {
-    fiber_t **stack;
-    int8_t index;
-    int8_t size;
-};
-
 thread_local char nested_fibers_scheduler_name[255] = { 0 };
 thread_local fiber_t nested_fibers_scheduler = { 0 };
 thread_local fiber_scheduler_stack_t fiber_scheduler_stack = {
         .stack = NULL,
         .index = -1,
         .size = 0
-};
-
-typedef struct fiber_scheduler_new_fiber_user_data fiber_scheduler_new_fiber_user_data_t;
-struct fiber_scheduler_new_fiber_user_data {
-    fiber_scheduler_entrypoint_fp_t* caller_entrypoint_fp;
-    void *caller_user_data;
 };
 
 void fiber_scheduler_grow_stack() {

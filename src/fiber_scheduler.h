@@ -6,8 +6,30 @@ extern "C" {
 #endif
 
 #define FIBER_SCHEDULER_STACK_SIZE (4096 * 5)
+#define FIBER_SCHEDULER_STACK_MAX_SIZE 5
 
 typedef void (fiber_scheduler_entrypoint_fp_t)(void *user_data);
+
+typedef struct fiber_scheduler_stack fiber_scheduler_stack_t;
+struct fiber_scheduler_stack {
+    fiber_t **stack;
+    int8_t index;
+    int8_t size;
+};
+
+typedef struct fiber_scheduler_new_fiber_user_data fiber_scheduler_new_fiber_user_data_t;
+struct fiber_scheduler_new_fiber_user_data {
+    fiber_scheduler_entrypoint_fp_t* caller_entrypoint_fp;
+    void *caller_user_data;
+};
+
+void fiber_scheduler_grow_stack();
+
+bool fiber_scheduler_stack_needs_growth();
+
+void fiber_scheduler_new_fiber_entrypoint(
+        fiber_t *from,
+        fiber_t *to);
 
 fiber_t* fiber_scheduler_new_fiber(
         char *name,
