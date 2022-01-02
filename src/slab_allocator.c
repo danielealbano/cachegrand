@@ -480,6 +480,9 @@ void slab_allocator_mem_free_hugepages(
             memptr);
     slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[core_index];
 
+    // Debug test to catch double free
+    assert(slot->data.available == false);
+
     spinlock_lock(&core_metadata->spinlock, true);
     // Update the availability and the metrics
     slab_slice->data.metrics.objects_inuse_count--;
