@@ -324,8 +324,7 @@ bool network_protocol_redis_process_events(
     } while(data_read_len > 0 && read_buffer->data_size > 0);
 
     if (funcptr_ret_val == NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_OK) {
-        return worker_network_receive(
-                channel);
+        return worker_network_receive(channel) == NETWORK_OP_RESULT_OK;
     }
 
     return true;
