@@ -308,7 +308,7 @@ void worker_network_listeners_fiber_entrypoint(
                 listener_channel->address.str);
     }
 
-    // TODO: listener should be terminated, it failed for an error
+    // TODO: listener should be terminated, if failed for an error
 
     // Switch back to the scheduler, as the lister has been closed this fiber will never be invoked and will get freed
     fiber_scheduler_switch_back();
