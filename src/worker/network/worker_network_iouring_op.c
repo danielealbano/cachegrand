@@ -45,7 +45,7 @@ void worker_network_iouring_op_network_post_close(
     network_channel_iouring_free(channel);
 }
 
-network_channel_t* worker_network_iouring_op_network_accept_completion_cb(
+network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
         worker_iouring_context_t *context,
         network_channel_iouring_t *listener_channel,
         network_channel_iouring_t *new_channel,
@@ -55,6 +55,7 @@ network_channel_t* worker_network_iouring_op_network_accept_completion_cb(
     worker_context = context->worker_context;
 
     if (worker_iouring_cqe_is_error_any(cqe)) {
+        fiber_scheduler_set_error(cqe->res);
         LOG_E(
                 TAG,
                 "Error while waiting for connections on listener <%s>",
@@ -79,6 +80,7 @@ network_channel_t* worker_network_iouring_op_network_accept_completion_cb(
     if (network_channel_client_setup(
             new_channel->wrapped_channel.fd,
             worker_context->core_index) == false) {
+        fiber_scheduler_set_error(errno);
         LOG_E(
                 TAG,
                 "Can't accept the connection <%s> coming from listener <%s>",
@@ -95,6 +97,8 @@ network_channel_t* worker_network_iouring_op_network_accept_completion_cb(
         worker_iouring_fds_map_add_and_enqueue_files_update(
             worker_iouring_context_get()->ring,
             new_channel) < 0) {
+        fiber_scheduler_set_error(ENOMEM);
+
         LOG_E(
                 TAG,
                 "Can't accept the new connection <%s> coming from listener <%s>, unable to find a free fds slot",
@@ -114,6 +118,8 @@ network_channel_t* worker_network_iouring_op_network_accept(
     worker_iouring_context_t *context = worker_iouring_context_get();
     network_channel_iouring_t* new_channel_temp = network_channel_iouring_new();
 
+    fiber_scheduler_reset_error();
+
     bool res = io_uring_support_sqe_enqueue_accept(
             context->ring,
             listener_channel->fd,
@@ -124,7 +130,7 @@ network_channel_t* worker_network_iouring_op_network_accept(
             (uintptr_t) fiber_scheduler_get_current());
 
     if (res == false) {
-        // TODO: should set an appropriate error for the fiber interface
+        fiber_scheduler_set_error(ENOMEM);
         return NULL;
     }
 
@@ -134,9 +140,9 @@ network_channel_t* worker_network_iouring_op_network_accept(
     // When the fiber continues the execution, it has to fetch the return value
     io_uring_cqe_t *cqe = (io_uring_cqe_t*)((fiber_scheduler_get_current())->ret.ptr_value);
 
-    network_channel_t *new_channel = worker_network_iouring_op_network_accept_completion_cb(
+    network_channel_t *new_channel = worker_network_iouring_op_network_accept_setup_new_channel(
             context,
-            (network_channel_iouring_t*)listener_channel,
+            (network_channel_iouring_t *) listener_channel,
             new_channel_temp,
             cqe);
 
@@ -145,25 +151,27 @@ network_channel_t* worker_network_iouring_op_network_accept(
 
 bool worker_network_iouring_op_network_close(
         network_channel_t *channel) {
-    bool ret = false;
+    fiber_scheduler_reset_error();
 
-    if ((ret = network_io_common_socket_close(
+    bool res = network_io_common_socket_close(
             channel->fd,
-            false))) {
-        worker_network_iouring_op_network_post_close((network_channel_iouring_t*)channel);
-    } else {
-        // TODO: should set an appropriate error for the fiber interface
+            false);
+
+    if (!res) {
+        fiber_scheduler_set_error(errno);
     }
 
-    return ret;
+    return res;
 }
 
 size_t worker_network_iouring_op_network_receive(
         network_channel_t *channel,
         char* buffer,
         size_t buffer_length) {
+    size_t res;
     worker_iouring_context_t *context = worker_iouring_context_get();
-    size_t res = 0;
+
+    fiber_scheduler_reset_error();
 
     do {
         if (!io_uring_support_sqe_enqueue_recv(
@@ -174,8 +182,8 @@ size_t worker_network_iouring_op_network_receive(
                 0,
                 ((network_channel_iouring_t*)channel)->base_sqe_flags,
                 (uintptr_t) fiber_scheduler_get_current())) {
-            // TODO: should set an appropriate error for the fiber interface
-            return -EPERM;
+            fiber_scheduler_set_error(ENOMEM);
+            return -ENOMEM;
         }
 
         // Switch the execution back to the scheduler
@@ -188,12 +196,7 @@ size_t worker_network_iouring_op_network_receive(
     } while(res == -EAGAIN);
 
     if (res < 0) {
-        // TODO: should set an appropriate error for the fiber interface
-        char* error_message = strerror(res * -1);
-//            ret = op_context->user.completion_cb.network_error(
-//                    (network_channel_t*)channel,
-//                    res,
-//                    error_message);
+        fiber_scheduler_set_error((int)res);
     }
 
     return res;
@@ -203,8 +206,10 @@ size_t worker_network_iouring_op_network_send(
         network_channel_t *channel,
         char* buffer,
         size_t buffer_length) {
+    size_t res;
     worker_iouring_context_t *context = worker_iouring_context_get();
-    size_t res = 0;
+
+    fiber_scheduler_reset_error();
 
     do {
         if (!io_uring_support_sqe_enqueue_send(
@@ -215,8 +220,8 @@ size_t worker_network_iouring_op_network_send(
                 0,
                 ((network_channel_iouring_t*)channel)->base_sqe_flags,
                 (uintptr_t) fiber_scheduler_get_current())) {
-            // TODO: should set an appropriate error for the fiber interface
-            return -EPERM;
+            fiber_scheduler_set_error(ENOMEM);
+            return -ENOMEM;
         }
 
         // Switch the execution back to the scheduler
@@ -229,15 +234,11 @@ size_t worker_network_iouring_op_network_send(
     } while(res == -EAGAIN);
 
     if (res < 0) {
-        // TODO: should set an appropriate error for the fiber interface
-        char* error_message = strerror(res * -1);
-//            ret = op_context->user.completion_cb.network_error(
-//                    (network_channel_t*)channel,
-//                    res,
-//                    error_message);
-    } else {
-        slab_allocator_mem_free(buffer);
+        fiber_scheduler_set_error((int)res);
     }
+
+    // TODO: with the new fiber interface this shouldn't really be done here!
+    slab_allocator_mem_free(buffer);
 
     return res;
 }
