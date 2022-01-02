@@ -121,7 +121,7 @@ void fiber_scheduler_switch_to(
         snprintf(
                 nested_fibers_scheduler_name,
                 sizeof(nested_fibers_scheduler_name),
-                "scheduler");
+                FIBER_SCHEDULER_FIBER_NAME);
         nested_fibers_scheduler.name = nested_fibers_scheduler_name;
 #if DEBUG == 1
         nested_fibers_scheduler.switched_back_on.file = (char*)CACHEGRAND_SRC_PATH;
