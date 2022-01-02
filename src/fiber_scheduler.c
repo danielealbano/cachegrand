@@ -157,14 +157,24 @@ void fiber_scheduler_switch_to(
     fiber_scheduler_stack.index++;
     fiber_scheduler_stack.stack[fiber_scheduler_stack.index] = fiber;
 
-    LOG_D(TAG, "Switching from fiber <%s> to fiber <%s>", previous_fiber->name, fiber->name);
+    LOG_D(TAG, "Switching from fiber <%s> to fiber <%s>, file <%s:%d>, function <%s>",
+          previous_fiber->name,
+          fiber->name,
+          fiber->switched_back_on.file,
+          fiber->switched_back_on.line,
+          fiber->switched_back_on.func);
 
     // Switch to the new fiber
     fiber_context_swap(
             previous_fiber,
             fiber);
 
-    LOG_D(TAG, "Switching back from fiber <%s> to fiber <%s>", fiber->name, previous_fiber->name);
+    LOG_D(TAG, "Switching back from fiber <%s> to fiber <%s>, file <%s:%d>, function <%s>",
+          fiber->name,
+          previous_fiber->name,
+          previous_fiber->switched_back_on.file,
+          previous_fiber->switched_back_on.line,
+          previous_fiber->switched_back_on.func);
 
     // Once the code switches back remove the fiber from the stack
     fiber_scheduler_stack.stack[fiber_scheduler_stack.index] = NULL;
