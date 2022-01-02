@@ -242,10 +242,11 @@ network_op_result_t worker_network_receive(
     return res;
 }
 
-bool worker_network_send(
+network_op_result_t worker_network_send(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
         size_t buffer_length) {
+    network_op_result_t res;
     size_t send_length = worker_op_network_send(
             channel,
             buffer,
@@ -271,10 +272,28 @@ bool worker_network_send(
                     channel);
         }
 
-        return true;
+        res = NETWORK_OP_RESULT_OK;
+    } else if (send_length == 0) {
+        LOG_D(
+                TAG,
+                "[FD:%5d][SEND] The client <%s> closed the connection",
+                channel->fd,
+                channel->address.str);
+
+        res = NETWORK_OP_RESULT_CLOSE_SOCKET;
+    } else {
+        LOG_I(
+                TAG,
+                "[FD:%5d][ERROR CLIENT] Error <%s (%d)> from client <%s>",
+                channel->fd,
+                strerror(send_length),
+                (int)send_length,
+                channel->address.str);
+
+        res = NETWORK_OP_RESULT_ERROR;
     }
 
-    return false;
+    return res;
 }
 
 bool worker_network_close(
