@@ -175,7 +175,7 @@ void fiber_scheduler_switch_to(
 
 #if DEBUG == 1
 void fiber_scheduler_switch_back_internal(
-    char *file,
+    const char *file,
     int line,
     const char *func) {
 #else
