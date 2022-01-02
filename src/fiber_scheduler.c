@@ -10,6 +10,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <errno.h>
+#include <string.h>
 
 #include "misc.h"
 #include "xalloc.h"
@@ -216,4 +218,23 @@ fiber_t *fiber_scheduler_get_current() {
     assert(fiber_scheduler_stack.index > -1);
 
     return fiber_scheduler_stack.stack[fiber_scheduler_stack.index];
+}
+
+void fiber_scheduler_set_error(int error_number) {
+    fiber_t *fiber = fiber_scheduler_get_current();
+    errno = fiber->error_number = error_number;
+}
+
+int fiber_scheduler_get_error(int error_number) {
+    fiber_t *fiber = fiber_scheduler_get_current();
+    return fiber->error_number;
+}
+
+bool fiber_scheduler_has_error() {
+    fiber_t *fiber = fiber_scheduler_get_current();
+    return fiber->error_number != 0;
+}
+
+void fiber_scheduler_reset_error() {
+    fiber_scheduler_set_error(0);
 }

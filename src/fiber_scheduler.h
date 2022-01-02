@@ -30,6 +30,16 @@ void fiber_scheduler_switch_back();
 
 fiber_t *fiber_scheduler_get_current();
 
+void fiber_scheduler_set_error(
+        int error_number);
+
+int fiber_scheduler_get_error(
+        int error_number);
+
+bool fiber_scheduler_has_error();
+
+void fiber_scheduler_reset_error();
+
 void fiber_scheduler_terminate_current_fiber();
 
 #ifdef __cplusplus
