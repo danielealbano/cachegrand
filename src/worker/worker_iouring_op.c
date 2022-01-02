@@ -45,7 +45,7 @@ bool worker_iouring_op_timer(
 
     bool res = io_uring_support_sqe_enqueue_timeout(
             worker_iouring_context_get()->ring,
-            1,
+            0,
             &kernel_timespec,
             0,
             (uintptr_t) fiber_scheduler_get_current());
