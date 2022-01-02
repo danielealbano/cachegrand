@@ -65,28 +65,6 @@ void worker_network_post_network_channel_close(
     context->stats.internal.network.active_connections--;
 }
 
-bool worker_network_op_completion_cb_network_error_client(
-        network_channel_t *channel,
-        int error_number,
-        char* error_message,
-        void* user_data) {
-
-    LOG_I(
-            TAG,
-            "[FD:%5d][ERROR CLIENT] Error <%s (%d)> from client <%s>",
-            channel->fd,
-            error_message,
-            error_number,
-            channel->address.str);
-
-    worker_network_post_network_channel_close(
-            worker_context_get(),
-            channel,
-            user_data);
-
-    return true;
-}
-
 bool worker_network_op_completion_cb_network_error_listener(
         network_channel_t *channel,
         int error_number,
