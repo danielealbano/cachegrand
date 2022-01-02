@@ -114,9 +114,9 @@ void worker_network_listeners_listen(
     }
 }
 
-bool worker_network_receive(
+network_op_result_t worker_network_receive(
         network_channel_t *channel) {
-    bool res;
+    network_op_result_t res;
     worker_context_t *worker_context = worker_context_get();
     worker_network_channel_user_data_t *worker_network_channel_user_data =
             (worker_network_channel_user_data_t *)channel->user_data;
@@ -144,8 +144,8 @@ bool worker_network_receive(
                         "[FD:%5d][RECEIVE] Unknown protocol <%d>",
                         channel->fd,
                         channel->protocol);
-                res = false;
-                break;
+                errno = ENOPROTOOPT;
+                return NETWORK_OP_RESULT_ERROR;
 
             case NETWORK_PROTOCOLS_REDIS:
                 res = network_protocol_redis_read_buffer_rewind(
@@ -156,11 +156,12 @@ bool worker_network_receive(
         }
 
         if (!res) {
-            // TODO: failed to prepare to rewind the data, unable to continue, it should not hard fail
-            FATAL(
+            LOG_E(
                     TAG,
-                    "[FD:%5d][RECV]Unable to rewind the data",
+                    "[FD:%5d][RECV] Failed to rewind the receive buffer",
                     channel->fd);
+            errno = ENOMEM;
+            return NETWORK_OP_RESULT_ERROR;
         }
 
         LOG_D(
@@ -189,7 +190,7 @@ bool worker_network_receive(
     if (buffer_length < worker_network_channel_user_data->packet_size) {
         LOG_D(
                 TAG,
-                "Needed <%lu> bytes in the buffer but only <%lu> are available for <%s>, closing connection",
+                "Need <%lu> bytes in the buffer but only <%lu> are available for <%s>, too much data, closing connection",
                 worker_network_channel_user_data->packet_size,
                 buffer_length,
                 channel->address.str);
@@ -216,9 +217,25 @@ bool worker_network_receive(
             // Increase the amount of actual data (data_size) in the buffer
             worker_network_channel_user_data->read_buffer.data_size += receive_length;
 
-            res = receive_length > 0;
+            res = NETWORK_OP_RESULT_OK;
+        } else if (receive_length == 0) {
+            LOG_D(
+                    TAG,
+                    "[FD:%5d][RECV] The client <%s> closed the connection",
+                    channel->fd,
+                    channel->address.str);
+
+            res = NETWORK_OP_RESULT_CLOSE_SOCKET;
         } else {
-            res = false;
+            LOG_I(
+                    TAG,
+                    "[FD:%5d][ERROR CLIENT] Error <%s (%d)> from client <%s>",
+                    channel->fd,
+                    strerror(receive_length),
+                    (int)receive_length,
+                    channel->address.str);
+
+            res = NETWORK_OP_RESULT_ERROR;
         }
     }
 
