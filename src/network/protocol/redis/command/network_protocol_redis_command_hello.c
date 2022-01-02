@@ -198,7 +198,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(hello) {
     if (worker_network_send(
             channel,
             send_buffer,
-            send_buffer_start - send_buffer) == false) {
+            send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
         return NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_ERROR;
     }
 
