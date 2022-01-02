@@ -15,7 +15,8 @@ fiber_t* fiber_scheduler_new_fiber(
         fiber_scheduler_entrypoint_fp_t* entrypoint_fp,
         void *user_data);
 
-void fiber_scheduler_switch_to(fiber_t *fiber);
+void fiber_scheduler_switch_to(
+        fiber_t *fiber);
 
 #if DEBUG == 1
 void fiber_scheduler_switch_back_internal(
