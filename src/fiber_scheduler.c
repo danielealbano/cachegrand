@@ -225,7 +225,7 @@ void fiber_scheduler_set_error(int error_number) {
     errno = fiber->error_number = error_number;
 }
 
-int fiber_scheduler_get_error(int error_number) {
+int fiber_scheduler_get_error() {
     fiber_t *fiber = fiber_scheduler_get_current();
     return fiber->error_number;
 }

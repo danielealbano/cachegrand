@@ -33,8 +33,7 @@ fiber_t *fiber_scheduler_get_current();
 void fiber_scheduler_set_error(
         int error_number);
 
-int fiber_scheduler_get_error(
-        int error_number);
+int fiber_scheduler_get_error();
 
 bool fiber_scheduler_has_error();
 
