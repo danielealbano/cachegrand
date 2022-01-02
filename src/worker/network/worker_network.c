@@ -296,11 +296,11 @@ network_op_result_t worker_network_send(
     return res;
 }
 
-bool worker_network_close(
+network_op_result_t worker_network_close(
         network_channel_t *channel) {
-
-    return worker_op_network_close(
-            channel);
+    return worker_op_network_close(channel)
+        ? NETWORK_OP_RESULT_OK
+        : NETWORK_OP_RESULT_ERROR;
 }
 
 bool worker_network_protocol_process_events(
