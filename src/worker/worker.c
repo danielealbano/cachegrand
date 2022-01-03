@@ -218,8 +218,9 @@ void worker_wait_running(
 }
 
 void worker_set_running(
-    worker_context_t *worker_context) {
-    worker_context->running = true;
+    worker_context_t *worker_context,
+    bool running) {
+    worker_context->running = running;
     MEMORY_FENCE_STORE();
 }
 
