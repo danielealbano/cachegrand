@@ -89,12 +89,12 @@ void* test_program_wait_loop_terminate(
             .config = &config \
     };
 
-#define PROGRAM_WAIT_FOR_WORKER_RUNNING(WORKER_CONTEXT) { \
+#define PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(WORKER_CONTEXT, RUNNING) { \
     do { \
         pthread_yield(); \
         usleep(10000); \
         MEMORY_FENCE_LOAD(); \
-    } while(!(WORKER_CONTEXT)->running); \
+    } while((WORKER_CONTEXT)->running == !RUNNING); \
 }
 
 TEST_CASE("program.c", "[program]") {
