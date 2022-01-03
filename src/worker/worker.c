@@ -293,5 +293,7 @@ void* worker_thread_func(
 
     xalloc_free(log_producer_early_prefix_thread);
 
+    worker_set_running(worker_context, false);
+
     return NULL;
 }
