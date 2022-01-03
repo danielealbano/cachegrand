@@ -265,7 +265,7 @@ void* worker_thread_func(
 
     LOG_I(TAG, "Starting events loop");
 
-    worker_set_running(worker_context);
+    worker_set_running(worker_context, true);
 
     do {
         if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
