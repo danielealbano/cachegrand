@@ -132,11 +132,22 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
 
     SECTION("worker_set_running") {
         worker_context_t worker_context = { 0 };
-        worker_context.running = false;
 
-        worker_set_running(&worker_context);
+        SECTION("running") {
+            worker_context.running = false;
 
-        REQUIRE(worker_context.running == true);
+            worker_set_running(&worker_context, true);
+
+            REQUIRE(worker_context.running == true);
+        }
+
+        SECTION("not running") {
+            worker_context.running = true;
+
+            worker_set_running(&worker_context, false);
+
+            REQUIRE(worker_context.running == false);
+        }
     }
 
     SECTION("worker_wait_running") {
