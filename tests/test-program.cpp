@@ -228,13 +228,14 @@ TEST_CASE("program.c", "[program]") {
         REQUIRE(worker_context->config == &config);
         REQUIRE(worker_context->pthread != 0);
 
-        PROGRAM_WAIT_FOR_WORKER_RUNNING(worker_context);
+        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true);
 
         // Terminate running thread
         terminate_event_loop = true;
         MEMORY_FENCE_STORE();
 
         // Wait for the thread to end
+        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false);
         usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
         pthread_yield();
 
@@ -257,12 +258,13 @@ TEST_CASE("program.c", "[program]") {
                 &terminate_event_loop,
                 &program_context);
 
-        PROGRAM_WAIT_FOR_WORKER_RUNNING(worker_context);
+        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true);
 
         terminate_event_loop = true;
         MEMORY_FENCE_STORE();
 
         // Wait for the thread to end
+        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false);
         usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
         pthread_yield();
 
@@ -324,7 +326,7 @@ TEST_CASE("program.c", "[program]") {
                 &terminate_event_loop,
                 &program_context);
 
-        PROGRAM_WAIT_FOR_WORKER_RUNNING(worker_context);
+        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true);
 
         int clientfd = network_io_common_socket_tcp4_new(0);
 
@@ -344,6 +346,7 @@ TEST_CASE("program.c", "[program]") {
         MEMORY_FENCE_STORE();
 
         // Wait for the thread to end
+        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false);
         usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
         pthread_yield();
 
