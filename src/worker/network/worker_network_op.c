@@ -16,9 +16,7 @@
 #include "misc.h"
 #include "exttypes.h"
 #include "spinlock.h"
-#include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
-#include "slab_allocator.h"
 #include "config.h"
 #include "log/log.h"
 #include "fiber.h"
@@ -61,27 +59,17 @@ void worker_network_new_client_fiber_entrypoint(
             break;
 
         case NETWORK_PROTOCOLS_REDIS:
-            res = network_protocol_redis_accept(
-                    new_channel,
-                    &worker_network_channel_user_data->protocol.context);
+            network_protocol_redis_accept(
+                    context,
+                    new_channel);
             break;
     }
 
-    if (!res) {
-        LOG_V(
-                TAG,
-                "[FD:%5d][ACCEPT] Protocol failed to handle accepted connection <%s>, closing connection",
-                new_channel->fd,
-                new_channel->address.str);
-        worker_network_close(
-                new_channel);
-    } else {
-        while(worker_network_protocol_process_events(
-                new_channel,
-                new_channel->user_data)) {
-            // do nothing
-        }
-    }
+    // Close the connection
+    worker_network_close(new_channel);
+
+    // Updates the worker stats
+    stats->network.active_connections--;
 
     fiber_scheduler_terminate_current_fiber();
 }

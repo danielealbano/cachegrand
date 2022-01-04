@@ -257,35 +257,3 @@ network_op_result_t worker_network_close(
         ? NETWORK_OP_RESULT_OK
         : NETWORK_OP_RESULT_ERROR;
 }
-
-bool worker_network_protocol_process_events(
-        network_channel_t *channel,
-        worker_network_channel_user_data_t *worker_network_channel_user_data) {
-    bool result = false;
-
-    switch (channel->protocol) {
-        default:
-            FATAL(TAG, "Unsupported protocol type <%d>", channel->protocol);
-            break;
-
-        case NETWORK_PROTOCOLS_REDIS:
-            result = network_protocol_redis_process_events(
-                    channel,
-                    worker_network_channel_user_data);
-    }
-
-    if (result == false) {
-        worker_network_close(channel);
-        return false;
-    }
-
-    return result;
-}
-
-void worker_network_close_connection_on_send(
-        network_channel_t *channel,
-        bool close_connection_on_send) {
-    worker_network_channel_user_data_t *worker_network_channel_user_data =
-            (worker_network_channel_user_data_t *)channel->user_data;
-    worker_network_channel_user_data->close_connection_on_send = close_connection_on_send;
-}
