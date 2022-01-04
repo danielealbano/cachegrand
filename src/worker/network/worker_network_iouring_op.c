@@ -197,7 +197,7 @@ size_t worker_network_iouring_op_network_receive(
     } while(res == -EAGAIN);
 
     if (res < 0) {
-        fiber_scheduler_set_error((int)res);
+        fiber_scheduler_set_error((int)-res);
     }
 
     return res;
@@ -235,7 +235,7 @@ size_t worker_network_iouring_op_network_send(
     } while(res == -EAGAIN);
 
     if (res < 0) {
-        fiber_scheduler_set_error((int)res);
+        fiber_scheduler_set_error((int)-res);
     }
 
     // TODO: with the new fiber interface this shouldn't really be done here!

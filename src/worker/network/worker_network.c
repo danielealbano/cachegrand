@@ -165,7 +165,7 @@ network_op_result_t worker_network_receive(
         return NETWORK_OP_RESULT_ERROR;
     }
 
-    size_t receive_length = worker_op_network_receive(
+    int32_t receive_length = worker_op_network_receive(
             channel,
             buffer,
             buffer_length);
@@ -179,12 +179,13 @@ network_op_result_t worker_network_receive(
 
         return NETWORK_OP_RESULT_CLOSE_SOCKET;
     } else if (receive_length < 0) {
+        int error_number = -receive_length;
         LOG_I(
                 TAG,
                 "[FD:%5d][ERROR CLIENT] Error <%s (%d)> from client <%s>",
                 channel->fd,
-                strerror(receive_length),
-                (int)receive_length,
+                strerror(error_number),
+                error_number,
                 channel->address.str);
 
         return NETWORK_OP_RESULT_ERROR;
@@ -212,7 +213,7 @@ network_op_result_t worker_network_send(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
         size_t buffer_length) {
-    size_t send_length = worker_op_network_send(
+    int32_t send_length = worker_op_network_send(
             channel,
             buffer,
             buffer_length);
@@ -226,12 +227,13 @@ network_op_result_t worker_network_send(
 
         return NETWORK_OP_RESULT_CLOSE_SOCKET;
     } else if (send_length < 0) {
+        int error_number = -send_length;
         LOG_I(
                 TAG,
                 "[FD:%5d][ERROR CLIENT] Error <%s (%d)> from client <%s>",
                 channel->fd,
-                strerror(send_length),
-                (int)send_length,
+                strerror(error_number),
+                error_number,
                 channel->address.str);
 
         return NETWORK_OP_RESULT_ERROR;
@@ -239,7 +241,7 @@ network_op_result_t worker_network_send(
 
     LOG_D(
             TAG,
-            "[FD:%5d][SEND] Sent <%lu> bytes to client <%s>",
+            "[FD:%5d][SEND] Sent <%u> bytes to client <%s>",
             channel->fd,
             send_length,
             channel->address.str);
