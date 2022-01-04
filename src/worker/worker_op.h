@@ -47,7 +47,8 @@ typedef size_t (worker_op_network_send_fp_t)(
 
 typedef size_t (worker_op_network_channel_size_fp_t)();
 
-void worker_timer_fiber_entrypoint();
+void worker_timer_fiber_entrypoint(
+        void *user_data);
 
 void worker_timer_setup(
         worker_context_t* worker_context);
