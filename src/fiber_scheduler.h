@@ -13,7 +13,7 @@ typedef void (fiber_scheduler_entrypoint_fp_t)(void *user_data);
 
 typedef struct fiber_scheduler_stack fiber_scheduler_stack_t;
 struct fiber_scheduler_stack {
-    fiber_t **stack;
+    fiber_t **list;
     int8_t index;
     int8_t size;
 };

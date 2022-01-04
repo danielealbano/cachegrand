@@ -25,7 +25,7 @@
 thread_local char nested_fibers_scheduler_name[255] = { 0 };
 thread_local fiber_t nested_fibers_scheduler = { 0 };
 thread_local fiber_scheduler_stack_t fiber_scheduler_stack = {
-        .stack = NULL,
+        .list = NULL,
         .index = -1,
         .size = 0
 };
@@ -39,8 +39,8 @@ void fiber_scheduler_grow_stack() {
     }
 
     fiber_scheduler_stack.size++;
-    fiber_scheduler_stack.stack = xalloc_realloc(
-            fiber_scheduler_stack.stack,
+    fiber_scheduler_stack.list = xalloc_realloc(
+            fiber_scheduler_stack.list,
             sizeof(fiber_t*) * fiber_scheduler_stack.size);
 }
 
@@ -130,7 +130,7 @@ void fiber_scheduler_switch_to(
 #endif
 
         fiber_scheduler_stack.index++;
-        fiber_scheduler_stack.stack[fiber_scheduler_stack.index] = &nested_fibers_scheduler;
+        fiber_scheduler_stack.list[fiber_scheduler_stack.index] = &nested_fibers_scheduler;
     }
 
     if (fiber_scheduler_stack_needs_growth()) {
@@ -138,11 +138,11 @@ void fiber_scheduler_switch_to(
     }
 
     // Fetch the previous fiber (or the scheduler)
-    previous_fiber = fiber_scheduler_stack.stack[fiber_scheduler_stack.index];
+    previous_fiber = fiber_scheduler_stack.list[fiber_scheduler_stack.index];
 
     // Push the fiber onto the stack
     fiber_scheduler_stack.index++;
-    fiber_scheduler_stack.stack[fiber_scheduler_stack.index] = fiber;
+    fiber_scheduler_stack.list[fiber_scheduler_stack.index] = fiber;
 
     LOG_D(TAG, "Switching from fiber <%s> to fiber <%s>, file <%s:%d>, function <%s>",
           previous_fiber->name,
@@ -164,7 +164,7 @@ void fiber_scheduler_switch_to(
           previous_fiber->switched_back_on.func);
 
     // Once the code switches back remove the fiber from the stack
-    fiber_scheduler_stack.stack[fiber_scheduler_stack.index] = NULL;
+    fiber_scheduler_stack.list[fiber_scheduler_stack.index] = NULL;
     fiber_scheduler_stack.index--;
 
     if (fiber->terminate) {
@@ -181,10 +181,10 @@ void fiber_scheduler_switch_back_internal(
 #else
 void fiber_scheduler_switch_back() {
 #endif
-    assert(fiber_scheduler_stack.stack != NULL);
+    assert(fiber_scheduler_stack.list != NULL);
     assert(fiber_scheduler_stack.index > -1);
 
-    fiber_t *current_fiber = fiber_scheduler_stack.stack[fiber_scheduler_stack.index];
+    fiber_t *current_fiber = fiber_scheduler_stack.list[fiber_scheduler_stack.index];
 #if DEBUG == 1
     current_fiber->switched_back_on.file = file;
     current_fiber->switched_back_on.line = line;
@@ -194,15 +194,15 @@ void fiber_scheduler_switch_back() {
     // Switch back to the scheduler execution context, leaves in its hands to update the thread_current_fiber and
     // thread_scheduler_fiber tracking variables
     fiber_context_swap(
-            fiber_scheduler_stack.stack[fiber_scheduler_stack.index],
-            fiber_scheduler_stack.stack[fiber_scheduler_stack.index - 1]);
+            fiber_scheduler_stack.list[fiber_scheduler_stack.index],
+            fiber_scheduler_stack.list[fiber_scheduler_stack.index - 1]);
 }
 
 fiber_t *fiber_scheduler_get_current() {
-    assert(fiber_scheduler_stack.stack != NULL);
+    assert(fiber_scheduler_stack.list != NULL);
     assert(fiber_scheduler_stack.index > -1);
 
-    return fiber_scheduler_stack.stack[fiber_scheduler_stack.index];
+    return fiber_scheduler_stack.list[fiber_scheduler_stack.index];
 }
 
 void fiber_scheduler_set_error(int error_number) {
