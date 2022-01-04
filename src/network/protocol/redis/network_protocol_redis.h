@@ -117,7 +117,7 @@ struct network_protocol_redis_command_info {
 
 struct network_protocol_redis_context {
     protocol_redis_resp_version_t resp_version;
-    protocol_redis_reader_context_t *reader_context;
+    protocol_redis_reader_context_t reader_context;
     network_protocol_redis_commands_t command;
     network_protocol_redis_command_info_t *command_info;
     network_protocol_redis_command_context_t command_context;
@@ -140,22 +140,19 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_BEGIN(del);
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_PROCESSED(del);
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(del);
 
-bool network_protocol_redis_accept(
-        network_channel_t *channel,
-        void **protocol_context);
-
-bool network_protocol_redis_close(
-        network_channel_t *channel,
-        void *protocol_context);
+void network_protocol_redis_accept(
+        worker_context_t *worker_context,
+        network_channel_t *channel);
 
 bool network_protocol_redis_read_buffer_rewind(
-        network_channel_t *channel,
         network_channel_buffer_t *read_buffer,
-        void *protocol_context);
+        network_protocol_redis_context_t *protocol_context);
 
 bool network_protocol_redis_process_events(
+        worker_context_t *worker_context,
         network_channel_t *channel,
-        worker_network_channel_user_data_t *worker_network_channel_user_data);
+        network_channel_buffer_t *read_buffer,
+        network_protocol_redis_context_t *protocol_context);
 
 #ifdef __cplusplus
 }

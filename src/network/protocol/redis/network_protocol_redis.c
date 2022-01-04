@@ -45,46 +45,62 @@ network_protocol_redis_command_info_t command_infos_map[] = {
 };
 uint32_t command_infos_map_count = sizeof(command_infos_map) / sizeof(network_protocol_redis_command_info_t);
 
-// TODO: need an hook to track when the buffer is copied around, the data need to be cloned onto memory
 // TODO: when processing the arguments, the in-loop command handling has to handle the arguments that require to be
 //       streamed somewhere (ie. the value argument of the SET command has to be written somewhere)
 
-bool network_protocol_redis_accept(
-        network_channel_t *channel,
-        void **protocol_context) {
-    network_protocol_redis_context_t *redis_protocol_context =
-            slab_allocator_mem_alloc_zero(sizeof(network_protocol_redis_context_t));
-    redis_protocol_context->reader_context = protocol_redis_reader_context_init();
+void network_protocol_redis_accept(
+        worker_context_t *worker_context,
+        network_channel_t *channel) {
+    bool exit_loop;
+    network_protocol_redis_context_t protocol_context = { 0 };
 
-    *protocol_context = redis_protocol_context;
+    // To speed up the performances the code takes advantage of SIMD operations that are built to operate on
+    // specific amount of data, for example AVX/AVX2 in general operate on 256 bit (32 byte) of data at time.
+    // Therefore, to avoid implementing ad hoc checks everywhere and at the same time to ensure that the code will
+    // never ever read over the boundary of the allocated block of memory, the length of the read buffer will be
+    // initialized to the buffer receive size minus 32.
+    // TODO: 32 should be defined as magic const somewhere as it's going hard to track where "32" is in use if it has to
+    //       be changed
+    // TODO: create a test to ensure that the length of the read buffer is taking into account the 32 bytes of padding
+    network_channel_buffer_t read_buffer = { 0 };
+    read_buffer.data = (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
+    read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE - 32;
 
-    return true;
-}
+    do {
+        if (!worker_network_buffer_has_enough_space(&read_buffer, NETWORK_CHANNEL_PACKET_SIZE)) {
+            // TODO: send an error message to indicate that there are too much unprocessed data before closing the
+            //       socket
+            break;
+        }
 
-bool network_protocol_redis_close(
-        network_channel_t *channel,
-        void *protocol_context) {
-    network_protocol_redis_context_t *network_protocol_redis_context =
-            (network_protocol_redis_context_t*)protocol_context;
+        if (worker_network_buffer_needs_rewind(&read_buffer, NETWORK_CHANNEL_PACKET_SIZE)) {
+            network_protocol_redis_read_buffer_rewind(
+                    &read_buffer,
+                    &protocol_context);
+            worker_network_buffer_rewind(&read_buffer);
+        }
 
-    protocol_redis_reader_context_free(network_protocol_redis_context->reader_context);
-    slab_allocator_mem_free(network_protocol_redis_context);
+        exit_loop = worker_network_receive(channel, &read_buffer, NETWORK_CHANNEL_PACKET_SIZE) != NETWORK_OP_RESULT_OK;
 
-    return true;
+        if (!exit_loop) {
+            exit_loop = !network_protocol_redis_process_events(
+                    worker_context,
+                    channel,
+                    &read_buffer,
+                    &protocol_context);
+        }
+    } while(!exit_loop);
 }
 
 bool network_protocol_redis_read_buffer_rewind(
-        network_channel_t *channel,
         network_channel_buffer_t *read_buffer,
-        void *protocol_context) {
+        network_protocol_redis_context_t *protocol_context) {
     // TODO
     return true;
 }
 
 void network_protocol_redis_reset_context(
         network_protocol_redis_context_t *protocol_context) {
-    protocol_redis_reader_context_t *reader_context = protocol_context->reader_context;
-
     // Reset the reader_context to handle the next command in the buffer
     // TODO: move the reset code into its own function
     protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_NOP;
@@ -92,23 +108,22 @@ void network_protocol_redis_reset_context(
     memset(&protocol_context->command_context, 0, sizeof(protocol_context->command_context));
     protocol_context->skip_command = false;
 
-    protocol_redis_reader_context_reset(reader_context);
+    protocol_redis_reader_context_reset(&protocol_context->reader_context);
 }
 
 bool network_protocol_redis_process_events(
+        worker_context_t *worker_context,
         network_channel_t *channel,
-        worker_network_channel_user_data_t *worker_network_channel_user_data) {
+        network_channel_buffer_t *read_buffer,
+        network_protocol_redis_context_t *protocol_context) {
     size_t send_buffer_length;
     char *send_buffer, *send_buffer_start, *send_buffer_end;
     long data_read_len = 0;
 
     network_protocol_redis_command_funcptr_retval_t funcptr_ret_val =
             NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_OK;
-    hashtable_t *hashtable = worker_network_channel_user_data->hashtable;
-    network_channel_buffer_t *read_buffer = &worker_network_channel_user_data->read_buffer;
-    network_protocol_redis_context_t *protocol_context =
-            (network_protocol_redis_context_t*)worker_network_channel_user_data->protocol.context;
-    protocol_redis_reader_context_t *reader_context = protocol_context->reader_context;
+    hashtable_t *hashtable = worker_context->hashtable;
+    protocol_redis_reader_context_t *reader_context = &protocol_context->reader_context;
 
     // TODO: need to handle data copy if the buffer has to be flushed to make room to new data
 
@@ -235,14 +250,14 @@ bool network_protocol_redis_process_events(
                 return false;
             }
 
-            worker_network_close_connection_on_send(
-                    channel,
-                    true);
-
-            return worker_network_send(
+            worker_network_send(
                     channel,
                     send_buffer,
                     send_buffer_start - send_buffer);
+
+            worker_network_close(channel);
+
+            // TODO: return? who knows, this code is a mess LOL
         }
 
         if (reader_context->state == PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED) {
@@ -322,10 +337,6 @@ bool network_protocol_redis_process_events(
             }
         }
     } while(data_read_len > 0 && read_buffer->data_size > 0);
-
-    if (funcptr_ret_val == NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_OK) {
-        return worker_network_receive(channel) == NETWORK_OP_RESULT_OK;
-    }
 
     return true;
 }
