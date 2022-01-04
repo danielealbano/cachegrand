@@ -18,8 +18,22 @@ void worker_network_listeners_initialize(
 void worker_network_listeners_listen(
         worker_context_t *worker_context);
 
+
+bool worker_network_buffer_has_enough_space(
+        network_channel_buffer_t *read_buffer,
+        size_t read_length);
+
+bool worker_network_buffer_needs_rewind(
+        network_channel_buffer_t *read_buffer,
+        size_t read_length);
+
+void worker_network_buffer_rewind(
+        network_channel_buffer_t *read_buffer);
+
 network_op_result_t worker_network_receive(
-        network_channel_t *channel);
+        network_channel_t *channel,
+        network_channel_buffer_t *read_buffer,
+        size_t read_length);
 
 network_op_result_t worker_network_send(
         network_channel_t *channel,

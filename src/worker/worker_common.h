@@ -46,18 +46,6 @@ struct worker_context {
     } network;
 };
 
-typedef struct worker_network_channel_user_data worker_network_channel_user_data_t;
-struct worker_network_channel_user_data {
-    bool close_connection_on_send;
-    hashtable_t *hashtable;
-    size_t packet_size;
-    network_channel_buffer_t read_buffer;
-    struct {
-        network_protocols_t protocol;
-        void* context;
-    } protocol;
-};
-
 #ifdef __cplusplus
 }
 #endif
