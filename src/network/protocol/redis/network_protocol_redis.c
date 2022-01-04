@@ -120,8 +120,6 @@ bool network_protocol_redis_process_events(
     char *send_buffer, *send_buffer_start, *send_buffer_end;
     long data_read_len = 0;
 
-    network_protocol_redis_command_funcptr_retval_t funcptr_ret_val =
-            NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_OK;
     hashtable_t *hashtable = worker_context->hashtable;
     protocol_redis_reader_context_t *reader_context = &protocol_context->reader_context;
 
@@ -187,17 +185,14 @@ bool network_protocol_redis_process_events(
                 if (protocol_context->command == NETWORK_PROTOCOL_REDIS_COMMAND_UNKNOWN) {
                     protocol_context->skip_command = true;
                 } else if (protocol_context->command_info->begin_funcptr) {
-                    funcptr_ret_val = protocol_context->command_info->begin_funcptr(
+                    if (!protocol_context->command_info->begin_funcptr(
                             channel,
                             hashtable,
                             protocol_context,
                             reader_context,
-                            &protocol_context->command_context);
-                    if (funcptr_ret_val == NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_ERROR) {
+                            &protocol_context->command_context)) {
                         LOG_D(TAG, "[RECV][REDIS] being function for command failed");
                         return false;
-                    } else if (funcptr_ret_val == NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_STOP_WAIT_SEND_DATA) {
-                        break;
                     }
                 }
             }
@@ -211,19 +206,15 @@ bool network_protocol_redis_process_events(
                 uint32_t argument_index = reader_context->arguments.current.index;
                 if (reader_context->arguments.list[argument_index].all_read) {
                     if (protocol_context->command_info->argument_processed_funcptr) {
-                        funcptr_ret_val = protocol_context->command_info->argument_processed_funcptr(
+                        if (!protocol_context->command_info->argument_processed_funcptr(
                                 channel,
                                 hashtable,
                                 protocol_context,
                                 reader_context,
                                 &protocol_context->command_context,
-                                argument_index);
-
-                        if (funcptr_ret_val == NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_ERROR) {
+                                argument_index)) {
                             LOG_D(TAG, "[RECV][REDIS] argument processed function for command failed");
                             return false;
-                        } else if (funcptr_ret_val == NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_STOP_WAIT_SEND_DATA) {
-                            return true;
                         }
                     }
                 }
@@ -316,23 +307,17 @@ bool network_protocol_redis_process_events(
                             send_buffer,
                             send_buffer_start - send_buffer);
                 } else {
-                    funcptr_ret_val = protocol_context->command_info->end_funcptr(
+                    if (!protocol_context->command_info->end_funcptr(
                             channel,
                             hashtable,
                             protocol_context,
                             reader_context,
-                            &protocol_context->command_context);
-
-                    if (funcptr_ret_val != NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_ERROR) {
-                        network_protocol_redis_reset_context(protocol_context);
-
-                        if (funcptr_ret_val == NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_STOP_WAIT_SEND_DATA) {
-                            break;
-                        }
-                    } else {
+                            &protocol_context->command_context)) {
                         LOG_D(TAG, "[RECV][REDIS] argument processed function for command failed");
                         return false;
                     }
+
+                    network_protocol_redis_reset_context(protocol_context);
                 }
             }
         }

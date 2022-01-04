@@ -72,12 +72,7 @@ struct network_protocol_redis_command_context {
     // TODO
 };
 
-enum network_protocol_redis_command_funcptr_retval {
-    NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_OK,
-    NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_ERROR,
-    NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_STOP_WAIT_SEND_DATA,
-};
-typedef enum network_protocol_redis_command_funcptr_retval network_protocol_redis_command_funcptr_retval_t;
+typedef bool network_protocol_redis_command_funcptr_retval_t;
 
 // This typedef is needed before the declaration of the function pointers as it's used in there
 // the entire struct can't be moved because of the dependencies
