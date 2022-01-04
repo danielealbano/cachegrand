@@ -37,45 +37,12 @@
 
 #define TAG "worker_network_op"
 
-typedef struct worker_network_new_client_fiber_userdata worker_network_new_client_fiber_userdata_t;
-struct worker_network_new_client_fiber_userdata {
-    network_channel_t *listener_channel;
-    network_channel_t *new_channel;
-};
-
 void worker_network_new_client_fiber_entrypoint(
         void *user_data) {
-    // The fiber is receiving the user data from the stack of the listener therefore the pointer to the user_data
-    // shall never be used after this new fiber performs a context switch!
-
-    bool res = false;
-    worker_network_new_client_fiber_userdata_t *new_client_fiber_userdata = user_data;
     worker_context_t *context = worker_context_get();
 
-    network_channel_t *new_channel = new_client_fiber_userdata->new_channel;
-    network_channel_t *listener_channel = new_client_fiber_userdata->listener_channel;
+    network_channel_t *new_channel = user_data;
     worker_stats_t *stats = &context->stats.internal;
-
-    // Configure the network channel user data
-    worker_network_channel_user_data_t *worker_network_channel_user_data =
-            slab_allocator_mem_alloc_zero(sizeof(worker_network_channel_user_data_t));
-    worker_network_channel_user_data->hashtable = context->hashtable;
-    worker_network_channel_user_data->packet_size = NETWORK_CHANNEL_PACKET_SIZE;
-    worker_network_channel_user_data->read_buffer.data =
-            (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
-
-    // To speed up the performances the code takes advantage of SIMD operations that are built to operate on
-    // specific amount of data, for example AVX/AVX2 in general operate on 256 bit (32 byte) of data at time.
-    // Therefore, to avoid implementing ad hoc checks everywhere and at the same time to ensure that the code will
-    // never ever read over the boundary of the allocated block of memory, the length of the read buffer will be
-    // initialized to the buffer receive size minus 32.
-    // TODO: 32 should be defined as magic const somewhere as it's going hard to track where "32" is in use if it
-    //          has to be changed
-    // TODO: create a test to ensure that the length of the read buffer is taking into account the 32 bytes of
-    //       padding
-    worker_network_channel_user_data->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE - 32;
-
-    new_channel->user_data = worker_network_channel_user_data;
 
     // Updates the worker stats
     stats->network.active_connections++;
@@ -88,9 +55,9 @@ void worker_network_new_client_fiber_entrypoint(
             // This can't really happen
             FATAL(
                     TAG,
-                    "[FD:%5d][ACCEPT] Listener unknown protocol <%d>",
-                    listener_channel->fd,
-                    listener_channel->protocol);
+                    "[FD:%5d][ACCEPT] Channel unknown protocol <%d>",
+                    new_channel->fd,
+                    new_channel->protocol);
             break;
 
         case NETWORK_PROTOCOLS_REDIS:
@@ -133,20 +100,11 @@ void worker_network_listeners_fiber_entrypoint(
                 listener_channel->address.str,
                 new_channel->address.str);
 
-        // Although this may look "wrong", the fiber user data are only used at the very beginning of the fiber to
-        // acquire the pointers to the new_channel and listener_channel, therefore as the code below will continue the
-        // execution only after the entry point will have finished its initialization there is no risk of accessing
-        // freed or recycled stack memory.
-        worker_network_new_client_fiber_userdata_t new_client_fiber_userdata = {
-                .new_channel = new_channel,
-                .listener_channel = listener_channel
-        };
-
         fiber_scheduler_new_fiber(
                 "worker-listener-client",
                 strlen("worker-listener-client"),
                 worker_network_new_client_fiber_entrypoint,
-                (void *) &new_client_fiber_userdata);
+                (void *)new_channel);
     }
 
     if (new_channel == NULL) {
