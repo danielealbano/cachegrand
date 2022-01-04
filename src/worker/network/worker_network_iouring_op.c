@@ -150,12 +150,13 @@ network_channel_t* worker_network_iouring_op_network_accept(
 }
 
 bool worker_network_iouring_op_network_close(
-        network_channel_t *channel) {
+        network_channel_t *channel,
+        bool shutdown_may_fail) {
     fiber_scheduler_reset_error();
 
     bool res = network_io_common_socket_close(
             channel->fd,
-            false);
+            shutdown_may_fail);
 
     if (!res) {
         fiber_scheduler_set_error(errno);

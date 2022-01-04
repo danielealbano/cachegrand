@@ -61,7 +61,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(quit) {
         return NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_ERROR;
     }
 
-    worker_network_close(channel);
+    worker_network_close(channel, true);
 
     return NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_STOP_WAIT_SEND_DATA;
 }

@@ -252,8 +252,9 @@ network_op_result_t worker_network_send(
 }
 
 network_op_result_t worker_network_close(
-        network_channel_t *channel) {
-    return worker_op_network_close(channel)
+        network_channel_t *channel,
+        bool shutdown_may_fail) {
+    return worker_op_network_close(channel, shutdown_may_fail)
         ? NETWORK_OP_RESULT_OK
         : NETWORK_OP_RESULT_ERROR;
 }

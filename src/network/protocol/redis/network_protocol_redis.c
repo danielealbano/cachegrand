@@ -255,7 +255,7 @@ bool network_protocol_redis_process_events(
                     send_buffer,
                     send_buffer_start - send_buffer);
 
-            worker_network_close(channel);
+            worker_network_close(channel, true);
 
             // TODO: return? who knows, this code is a mess LOL
         }

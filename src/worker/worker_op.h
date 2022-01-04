@@ -27,7 +27,8 @@ typedef network_channel_t* (worker_op_network_accept_fp_t)(
         network_channel_t *listener_channel);
 
 typedef bool (worker_op_network_close_fp_t)(
-        network_channel_t *channel);
+        network_channel_t *channel,
+        bool shutdown_may_fail);
 
 typedef size_t (worker_op_network_receive_fp_t)(
         network_channel_t *channel,

@@ -66,7 +66,7 @@ void worker_network_new_client_fiber_entrypoint(
     }
 
     // Close the connection
-    worker_network_close(new_channel);
+    worker_network_close(new_channel, true);
 
     // Updates the worker stats
     stats->network.active_connections--;

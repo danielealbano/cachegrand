@@ -41,7 +41,8 @@ network_op_result_t worker_network_send(
         size_t buffer_length);
 
 network_op_result_t worker_network_close(
-        network_channel_t *channel);
+        network_channel_t *channel,
+        bool shutdown_may_fail);
 
 #ifdef __cplusplus
 }
