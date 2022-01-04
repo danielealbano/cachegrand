@@ -373,7 +373,7 @@ void program_config_setup_log_sinks(
 
         switch (log_sink_type) {
             case LOG_SINK_TYPE_CONSOLE:
-                // do nothing
+                log_sink_settings.console.use_stdout_for_errors = true;
                 break;
 
             case LOG_SINK_TYPE_FILE:
