@@ -317,9 +317,11 @@ bool worker_iouring_process_events_loop(
         count++;
         fiber = (fiber_t*)cqe->user_data;
 
+#if DEBUG == 1
         if (worker_iouring_cqe_is_error(cqe)) {
             worker_iouring_cqe_log(cqe);
         }
+#endif
 
         if (cqe->user_data == 0) {
             FATAL(
