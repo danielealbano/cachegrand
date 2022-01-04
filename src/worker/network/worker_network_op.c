@@ -37,34 +37,6 @@
 
 #define TAG "worker_network_op"
 
-void worker_network_post_network_channel_close(
-        worker_context_t *context,
-        network_channel_t *channel,
-        void* user_data) {
-    worker_network_channel_user_data_t *worker_network_channel_user_data =
-            (worker_network_channel_user_data_t*)channel->user_data;
-
-    switch (channel->protocol) {
-        default:
-            // This can't really happen
-            FATAL(
-                    TAG,
-                    "[FD:%5d][CLOSE] Unknown protocol <%d>",
-                    channel->fd,
-                    channel->protocol);
-            break;
-
-        case NETWORK_PROTOCOLS_REDIS:
-            network_protocol_redis_close(channel, worker_network_channel_user_data->protocol.context);
-            break;
-    }
-
-    slab_allocator_mem_free(channel->user_data);
-    channel->user_data = NULL;
-
-    context->stats.internal.network.active_connections--;
-}
-
 typedef struct worker_network_new_client_fiber_userdata worker_network_new_client_fiber_userdata_t;
 struct worker_network_new_client_fiber_userdata {
     network_channel_t *listener_channel;
@@ -151,8 +123,6 @@ void worker_network_listeners_fiber_entrypoint(
         void* user_data) {
     network_channel_t *new_channel = NULL;
     network_channel_t *listener_channel = user_data;
-
-    worker_context_t *context = worker_context_get();
 
     while((new_channel = worker_op_network_accept(
             listener_channel)) != NULL) {

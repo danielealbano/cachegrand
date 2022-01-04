@@ -45,13 +45,13 @@ uint32_t worker_iouring_calculate_fds_count(
         uint32_t network_addresses_count);
 
 bool worker_iouring_initialize(
-        worker_context_t *worker_user_data);
+        worker_context_t *worker_context);
 
 void worker_iouring_cleanup(
-        worker_context_t *worker_user_data);
+        worker_context_t *worker_context);
 
 bool worker_iouring_process_events_loop(
-        worker_context_t *worker_user_data);
+        worker_context_t *worker_context);
 
 #ifdef __cplusplus
 }

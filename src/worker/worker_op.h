@@ -23,12 +23,6 @@ typedef network_channel_t* (worker_op_network_channel_multi_get_fp_t)(
 typedef void (worker_op_network_channel_free_fp_t)(
     network_channel_t *network_channel);
 
-typedef bool (worker_op_network_error_completion_cb_fp_t)(
-        network_channel_t *channel,
-        int error_number,
-        char* error_string,
-        void* user_data);
-
 typedef network_channel_t* (worker_op_network_accept_fp_t)(
         network_channel_t *listener_channel);
 

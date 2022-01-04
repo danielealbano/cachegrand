@@ -302,7 +302,7 @@ void worker_iouring_cleanup(
 }
 
 bool worker_iouring_process_events_loop(
-        worker_context_t *worker_user_data) {
+        worker_context_t *worker_context) {
     io_uring_cqe_t *cqe;
     worker_iouring_context_t *context;
     fiber_t *fiber;

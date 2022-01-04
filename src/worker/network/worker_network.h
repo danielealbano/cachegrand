@@ -29,14 +29,6 @@ network_op_result_t worker_network_send(
 network_op_result_t worker_network_close(
         network_channel_t *channel);
 
-bool worker_network_protocol_process_events(
-        network_channel_t *channel,
-        worker_network_channel_user_data_t *worker_network_channel_user_data);
-
-void worker_network_close_connection_on_send(
-        network_channel_t *channel,
-        bool close_connection_on_send);
-
 #ifdef __cplusplus
 }
 #endif
