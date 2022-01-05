@@ -25,11 +25,6 @@ int32_t worker_iouring_fds_map_add_and_enqueue_files_update(
 int worker_iouring_fds_map_remove(
         int index);
 
-char* worker_iouring_get_callback_function_name(
-        void* callback,
-        char* callback_function_name,
-        size_t callback_function_name_size);
-
 bool worker_iouring_cqe_is_error_any(
         io_uring_cqe_t *cqe);
 

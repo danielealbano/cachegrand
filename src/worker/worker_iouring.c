@@ -244,22 +244,6 @@ bool worker_iouring_cqe_is_error(
         worker_iouring_cqe_is_error_any(cqe);
 }
 
-char* worker_iouring_get_callback_function_name(
-        void* callback,
-        char* callback_function_name,
-        size_t callback_function_name_size) {
-    Dl_info dladdr_info;
-    const char* res_cb_func_name = "{unknown}";
-
-    if (dladdr(callback, &dladdr_info) != 0) {
-        res_cb_func_name = dladdr_info.dli_sname;
-    }
-
-    strncpy(callback_function_name, res_cb_func_name, callback_function_name_size);
-
-    return callback_function_name;
-}
-
 void worker_iouring_cqe_log(
         io_uring_cqe_t *cqe) {
     assert(cqe->user_data != 0);
