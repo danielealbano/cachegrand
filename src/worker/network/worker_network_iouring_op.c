@@ -268,19 +268,19 @@ network_channel_t* worker_network_iouring_network_channel_new() {
     return (network_channel_t*)network_channel_iouring_new();
 }
 
-network_channel_t* worker_network_iouring_network_channel_multi_new(
-        int count) {
-    return (network_channel_t*)network_channel_iouring_multi_new(count);
-}
-
 void worker_network_iouring_network_channel_free(
         network_channel_t* channel) {
     network_channel_iouring_free((network_channel_iouring_t*)channel);
 }
 
+network_channel_t* worker_network_iouring_network_channel_multi_new(
+        uint32_t count) {
+    return (network_channel_t*)network_channel_iouring_multi_new(count);
+}
+
 network_channel_t* worker_network_iouring_network_channel_multi_get(
         network_channel_t* channels,
-        int index) {
+        uint32_t index) {
     return ((void*)channels) + (worker_network_iouring_op_network_channel_size() * index);
 }
 

@@ -33,7 +33,7 @@ network_channel_iouring_t* network_channel_iouring_new() {
 }
 
 network_channel_iouring_t* network_channel_iouring_multi_new(
-        int count) {
+        uint32_t count) {
     network_channel_iouring_t *channels =
             (network_channel_iouring_t*)slab_allocator_mem_alloc_zero(sizeof(network_channel_iouring_t) * count);
 
