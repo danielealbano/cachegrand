@@ -45,7 +45,8 @@ void worker_wait_running(
         worker_context_t *worker_context);
 
 void worker_set_running(
-        worker_context_t *worker_context);
+        worker_context_t *worker_context,
+        bool running);
 
 void* worker_thread_func(
         void* user_data);

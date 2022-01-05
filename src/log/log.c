@@ -175,7 +175,7 @@ void log_message_print_os_error(
         return;
     }
 
-    strerror_r(error_code, buf, sizeof(buf));
+    strerror_r(error_code, buf, sizeof(buf) - 1);
     error_message = buf;
 #else
 #error Platform not supported

@@ -8,6 +8,9 @@
 #include "signals_support.h"
 #include "fiber.h"
 
+char test_fiber_name[] = "test-fiber";
+size_t test_fiber_name_len = sizeof(test_fiber_name);
+
 sigjmp_buf test_fiber_jump_fp;
 void test_fiber_memory_stack_protection_signal_sigsegv_handler_longjmp(int signal_number) {
     siglongjmp(test_fiber_jump_fp, 1);
@@ -131,7 +134,12 @@ TEST_CASE("fiber.c", "[fiber]") {
         SECTION("allocate a new fiber") {
             int user_data = 0;
 
-            fiber_t * fiber = fiber_new(stack_size, test_fiber_new_empty, &user_data);
+            fiber_t * fiber = fiber_new(
+                    test_fiber_name,
+                    test_fiber_name_len,
+                    stack_size,
+                    test_fiber_new_empty,
+                    &user_data);
 
             // Calculate the end of the stack to be 16 bytes aligned and with 128 bytes free for the red zone
             uintptr_t stack_pointer = (uintptr_t)fiber->stack_base + stack_size;
@@ -153,8 +161,23 @@ TEST_CASE("fiber.c", "[fiber]") {
             free(fiber);
         }
 
+        SECTION("fail to allocate a new fiber without an entrypoint") {
+            fiber_t *fiber = fiber_new(
+                    test_fiber_name,
+                    test_fiber_name_len,
+                    stack_size,
+                    NULL,
+                    NULL);
+            REQUIRE(fiber == NULL);
+        }
+
         SECTION("fail to allocate a new fiber without stack") {
-            fiber_t *fiber = fiber_new(0, NULL, NULL);
+            fiber_t *fiber = fiber_new(
+                    test_fiber_name,
+                    test_fiber_name_len,
+                    0,
+                    test_fiber_new_empty,
+                    NULL);
             REQUIRE(fiber == NULL);
         }
     }
@@ -163,14 +186,24 @@ TEST_CASE("fiber.c", "[fiber]") {
         // There is no REQUIRE for this test, fiber_free is run to ensure it's not triggering a failure (if mprotect
         // fails the system will throw an error for trying to access a memory protected area)
         SECTION("allocate a new fiber") {
-            fiber_t *fiber = fiber_new(stack_size, NULL, NULL);
+            fiber_t *fiber = fiber_new(
+                    test_fiber_name,
+                    test_fiber_name_len,
+                    stack_size,
+                    test_fiber_new_empty,
+                    NULL);
             fiber_free(fiber);
         }
     }
 
     SECTION("fiber_context_get") {
         SECTION("get fiber context from executing function") {
-            fiber_t *fiber = fiber_new(stack_size, NULL, NULL);
+            fiber_t *fiber = fiber_new(
+                    test_fiber_name,
+                    test_fiber_name_len,
+                    stack_size,
+                    test_fiber_new_empty,
+                    NULL);
 
             void* test_fiber_context_get_sp_first_var = fiber_context_get_test(fiber);
 
@@ -188,10 +221,14 @@ TEST_CASE("fiber.c", "[fiber]") {
             uint64_t user_data_current = 0;
             uint64_t user_data_to = 0;
             fiber_t *fiber_current = fiber_new(
+                    test_fiber_name,
+                    test_fiber_name_len,
                     stack_size,
-                    NULL,
+                    test_fiber_new_empty,
                     &user_data_current);
             fiber_t *fiber_to = fiber_new(
+                    test_fiber_name,
+                    test_fiber_name_len,
                     stack_size,
                     test_fiber_context_swap_update_user_data_and_swap_back,
                     &user_data_to);
@@ -210,7 +247,7 @@ TEST_CASE("fiber.c", "[fiber]") {
     }
 
     SECTION("test stack protection") {
-        fiber_t *fiber = fiber_new(stack_size, NULL, NULL);
+        fiber_t *fiber = fiber_new(test_fiber_name, test_fiber_name_len, stack_size, test_fiber_new_empty, NULL);
 
         SECTION("alter non protected memory") {
             *(uint64_t*)fiber->stack_pointer = 0;

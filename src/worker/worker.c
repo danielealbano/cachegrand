@@ -14,7 +14,6 @@
 #include <string.h>
 #include <time.h>
 #include <arpa/inet.h>
-#include <config.h>
 #include <liburing.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -28,6 +27,7 @@
 #include "memory_fences.h"
 #include "utils_numa.h"
 #include "log/log.h"
+#include "config.h"
 #include "support/io_uring/io_uring_support.h"
 #include "support/io_uring/io_uring_capabilities.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -169,7 +169,9 @@ bool worker_initialize(
 
 void worker_cleanup(
         worker_context_t* worker_context) {
-    // TODO: should use a struck with fp pointers, not ifs
+    // TODO: the network cleanup part should be moved into worker_network as the storage cleanup part should be moved
+    //       into worker_storage
+    // TODO: should use a struct with fp pointers, not ifs
     if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
         worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
         if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING) {
@@ -187,8 +189,11 @@ void worker_cleanup(
             uint32_t listener_index = 0;
             listener_index < worker_context->network.listeners_count;
             listener_index++) {
+        network_channel_t *listener_channel = worker_op_network_channel_multi_get(
+                worker_context->network.listeners,
+                listener_index);
         network_io_common_socket_close(
-                worker_context->network.listeners[listener_index].fd,
+                listener_channel->fd,
                 true);
     }
 
@@ -218,14 +223,14 @@ void worker_wait_running(
 }
 
 void worker_set_running(
-    worker_context_t *worker_context) {
-    worker_context->running = true;
+    worker_context_t *worker_context,
+    bool running) {
+    worker_context->running = running;
     MEMORY_FENCE_STORE();
 }
 
 void* worker_thread_func(
         void* user_data) {
-    char worker_thread_name[16] = { 0 };
     bool res = true;
     worker_context_t *worker_context = user_data;
 
@@ -236,15 +241,9 @@ void* worker_thread_func(
     char* log_producer_early_prefix_thread =
             worker_log_producer_set_early_prefix_thread(worker_context);
 
-    snprintf(
-            worker_thread_name,
-            sizeof(worker_thread_name) - 1,
-            "worker-%03u-%03u",
-            worker_context->core_index,
-            worker_context->worker_index);
     if (pthread_setname_np(
             pthread_self(),
-            worker_thread_name) != 0) {
+            "worker") != 0) {
         LOG_E(TAG, "Unable to set name of the worker thread");
         LOG_E_OS_ERROR(TAG);
     }
@@ -267,11 +266,11 @@ void* worker_thread_func(
     worker_network_listeners_listen(
             worker_context);
 
-    worker_op_timer_loop_submit();
+    worker_timer_setup(worker_context);
 
     LOG_I(TAG, "Starting events loop");
 
-    worker_set_running(worker_context);
+    worker_set_running(worker_context, true);
 
     do {
         if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
@@ -298,6 +297,8 @@ void* worker_thread_func(
     LOG_V(TAG, "Tearing down");
 
     xalloc_free(log_producer_early_prefix_thread);
+
+    worker_set_running(worker_context, false);
 
     return NULL;
 }

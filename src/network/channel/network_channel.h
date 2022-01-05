@@ -54,7 +54,6 @@ struct network_channel {
     network_protocols_t protocol;
     network_channel_socket_address_t address;
     network_channel_state_t* state;
-    void* user_data;
 };
 
 typedef struct network_create_lister_new_user_data network_channel_listener_new_callback_user_data_t;

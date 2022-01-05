@@ -11,22 +11,23 @@
 #include <stdbool.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <errno.h>
 
 #include "misc.h"
 #include "exttypes.h"
 #include "spinlock.h"
 #include "log/log.h"
-#include "fatal.h"
+#include "fiber.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "worker/worker_common.h"
+#include "fiber_scheduler.h"
 #include "worker/worker_op.h"
+#include "worker/worker.h"
 #include "worker/network/worker_network_op.h"
-#include "protocol/redis/protocol_redis_reader.h"
-#include "network/protocol/redis/network_protocol_redis.h"
 
 #include "worker_network.h"
 
@@ -97,172 +98,164 @@ void worker_network_listeners_initialize(
 void worker_network_listeners_listen(
         worker_context_t *worker_context) {
     for (int listener_index = 0; listener_index < worker_context->network.listeners_count; listener_index++) {
-        network_channel_t *listener_channel = (network_channel_t*)(
-                (void*)worker_context->network.listeners +
-                (worker_context->network.network_channel_size * listener_index)
-        );
+        network_channel_t *listener_channel = worker_op_network_channel_multi_get(
+                worker_context->network.listeners,
+                listener_index);
 
-        worker_op_network_accept(
-                worker_network_op_completion_cb_network_accept,
-                worker_network_op_completion_cb_network_error_listener,
-                listener_channel,
-                NULL);
+        fiber_scheduler_new_fiber(
+                "worker-listener",
+                sizeof("worker-listener") - 1,
+                worker_network_listeners_fiber_entrypoint,
+                (void *)listener_channel);
     }
 }
 
-bool worker_network_receive(
+bool worker_network_buffer_has_enough_space(
+        network_channel_buffer_t *read_buffer,
+        size_t read_length) {
+    size_t read_buffer_needed_size_min = read_buffer->data_size + read_length;
+
+    return read_buffer->length >= read_buffer_needed_size_min;
+}
+
+bool worker_network_buffer_needs_rewind(
+        network_channel_buffer_t *read_buffer,
+        size_t read_length) {
+    size_t read_buffer_needed_size_min = read_buffer->data_size + read_length;
+    size_t read_buffer_needed_size = read_buffer->data_offset + read_buffer_needed_size_min;
+
+    return read_buffer->length >= read_buffer_needed_size;
+}
+
+void worker_network_buffer_rewind(
+        network_channel_buffer_t *read_buffer) {
+    memcpy(
+            read_buffer->data,
+            read_buffer->data +
+            read_buffer->data_offset,
+            read_buffer->data_size);
+    read_buffer->data_offset = 0;
+}
+
+network_op_result_t worker_network_receive(
         network_channel_t *channel,
-        void* user_data) {
-    bool res;
-    worker_network_channel_user_data_t *worker_network_channel_user_data =
-            (worker_network_channel_user_data_t *)channel->user_data;
-
-    size_t read_buffer_needed_size_min =
-            worker_network_channel_user_data->read_buffer.data_size +
-            worker_network_channel_user_data->packet_size;
-    size_t read_buffer_needed_size =
-            worker_network_channel_user_data->read_buffer.data_offset +
-            read_buffer_needed_size_min;
-
-    if (read_buffer_needed_size_min > worker_network_channel_user_data->read_buffer.length) {
-        LOG_D(
-                TAG,
-                "[FD:%5d][RECV] Too much unprocessed data into the buffer, unable to continue",
-                channel->fd);
-
-        return worker_network_close(channel, NULL);
-    } else if (read_buffer_needed_size > worker_network_channel_user_data->read_buffer.length) {
-        switch (channel->protocol) {
-            default:
-                // This can't really happen
-                FATAL(
-                        TAG,
-                        "[FD:%5d][RECEIVE] Unknown protocol <%d>",
-                        channel->fd,
-                        channel->protocol);
-                res = false;
-                break;
-
-            case NETWORK_PROTOCOLS_REDIS:
-                res = network_protocol_redis_read_buffer_rewind(
-                        channel,
-                        &worker_network_channel_user_data->read_buffer,
-                        worker_network_channel_user_data->protocol.context);
-                break;
-        }
-
-        if (!res) {
-            // TODO: failed to prepare to rewind the data, unable to continue, it should not hard fail
-            FATAL(
-                    TAG,
-                    "[FD:%5d][RECV]Unable to rewind the data",
-                    channel->fd);
-        }
-
-        LOG_D(
-                TAG,
-                "[FD:%5d][RECV] Copying data from the end of the window to the beginning",
-                channel->fd);
-        memcpy(
-                worker_network_channel_user_data->read_buffer.data,
-                worker_network_channel_user_data->read_buffer.data +
-                worker_network_channel_user_data->read_buffer.data_offset,
-                worker_network_channel_user_data->read_buffer.data_size);
-        worker_network_channel_user_data->read_buffer.data_offset = 0;
-    }
-
+        network_channel_buffer_t *read_buffer,
+        size_t read_length) {
     size_t buffer_offset =
-            worker_network_channel_user_data->read_buffer.data_offset +
-            worker_network_channel_user_data->read_buffer.data_size;
+            read_buffer->data_offset +
+            read_buffer->data_size;
 
     network_channel_buffer_data_t *buffer =
-            worker_network_channel_user_data->read_buffer.data +
+            read_buffer->data +
             buffer_offset;
     size_t buffer_length =
-            worker_network_channel_user_data->read_buffer.length -
+            read_buffer->length -
             buffer_offset;
 
-    if (buffer_length < worker_network_channel_user_data->packet_size) {
+    if (buffer_length < read_length) {
         LOG_D(
                 TAG,
-                "Needed <%lu> bytes in the buffer but only <%lu> are available for <%s>, closing connection",
-                worker_network_channel_user_data->packet_size,
+                "Need <%lu> bytes in the buffer but only <%lu> are available for <%s>, too much data, closing connection",
+                read_length,
                 buffer_length,
                 channel->address.str);
 
-        res = worker_op_network_close(
-                worker_network_op_completion_cb_network_close,
-                worker_network_op_completion_cb_network_error_client,
-                channel,
-                user_data);
-    } else {
-        res = worker_op_network_receive(
-                worker_network_op_completion_cb_network_receive,
-                worker_network_op_completion_cb_network_close,
-                worker_network_op_completion_cb_network_error_client,
-                channel,
-                buffer,
-                buffer_length,
-                user_data);
+        fiber_scheduler_set_error(ENOMEM);
+        return NETWORK_OP_RESULT_ERROR;
     }
 
-    return res;
-}
-
-bool worker_network_send(
-        network_channel_t *channel,
-        network_channel_buffer_data_t *buffer,
-        size_t buffer_length,
-        void* user_data) {
-
-    return worker_op_network_send(
-            worker_network_op_completion_cb_network_send,
-            worker_network_op_completion_cb_network_close,
-            worker_network_op_completion_cb_network_error_client,
+    int32_t receive_length = worker_op_network_receive(
             channel,
             buffer,
-            buffer_length,
-            user_data);
+            buffer_length);
+
+    if (receive_length == 0) {
+        LOG_D(
+                TAG,
+                "[FD:%5d][RECV] The client <%s> closed the connection",
+                channel->fd,
+                channel->address.str);
+
+        return NETWORK_OP_RESULT_CLOSE_SOCKET;
+    } else if (receive_length < 0) {
+        int error_number = -receive_length;
+        LOG_I(
+                TAG,
+                "[FD:%5d][ERROR CLIENT] Error <%s (%d)> from client <%s>",
+                channel->fd,
+                strerror(error_number),
+                error_number,
+                channel->address.str);
+
+        return NETWORK_OP_RESULT_ERROR;
+    }
+
+    // Increase the amount of actual data (data_size) in the buffer
+    read_buffer->data_size += receive_length;
+
+    LOG_D(
+            TAG,
+            "[FD:%5d][RECV] Received <%u> bytes from client <%s>",
+            channel->fd,
+            receive_length,
+            channel->address.str);
+
+    worker_context_t *worker_context = worker_context_get();
+    worker_context->stats.internal.network.received_packets_per_second++;
+    worker_context->stats.internal.network.received_packets_total++;
+
+
+    return NETWORK_OP_RESULT_OK;
 }
 
-bool worker_network_close(
+network_op_result_t worker_network_send(
         network_channel_t *channel,
-        void* user_data) {
-
-    return worker_op_network_close(
-            worker_network_op_completion_cb_network_close,
-            worker_network_op_completion_cb_network_error_client,
+        network_channel_buffer_data_t *buffer,
+        size_t buffer_length) {
+    int32_t send_length = worker_op_network_send(
             channel,
-            user_data);
-}
+            buffer,
+            buffer_length);
 
-bool worker_network_protocol_process_buffer(
-        network_channel_t *channel,
-        worker_network_channel_user_data_t *worker_network_channel_user_data) {
-    bool result = false;
+    if (send_length == 0) {
+        LOG_D(
+                TAG,
+                "[FD:%5d][SEND] The client <%s> closed the connection",
+                channel->fd,
+                channel->address.str);
 
-    switch (channel->protocol) {
-        default:
-            FATAL(TAG, "Unsupported protocol type <%d>", channel->protocol);
-            break;
+        return NETWORK_OP_RESULT_CLOSE_SOCKET;
+    } else if (send_length < 0) {
+        int error_number = -send_length;
+        LOG_I(
+                TAG,
+                "[FD:%5d][ERROR CLIENT] Error <%s (%d)> from client <%s>",
+                channel->fd,
+                strerror(error_number),
+                error_number,
+                channel->address.str);
 
-        case NETWORK_PROTOCOLS_REDIS:
-            result = network_protocol_redis_process_events(
-                    channel,
-                    worker_network_channel_user_data);
+        return NETWORK_OP_RESULT_ERROR;
     }
 
-    if (result == false) {
-        return worker_network_close(channel, NULL);
-    }
+    LOG_D(
+            TAG,
+            "[FD:%5d][SEND] Sent <%u> bytes to client <%s>",
+            channel->fd,
+            send_length,
+            channel->address.str);
 
-    return result;
+    worker_context_t *context = worker_context_get();
+    context->stats.internal.network.sent_packets_per_second++;
+    context->stats.internal.network.sent_packets_total++;
+
+    return NETWORK_OP_RESULT_OK;
 }
 
-void worker_network_close_connection_on_send(
+network_op_result_t worker_network_close(
         network_channel_t *channel,
-        bool close_connection_on_send) {
-    worker_network_channel_user_data_t *worker_network_channel_user_data =
-            (worker_network_channel_user_data_t *)channel->user_data;
-    worker_network_channel_user_data->close_connection_on_send = close_connection_on_send;
+        bool shutdown_may_fail) {
+    return worker_op_network_close(channel, shutdown_may_fail)
+        ? NETWORK_OP_RESULT_OK
+        : NETWORK_OP_RESULT_ERROR;
 }

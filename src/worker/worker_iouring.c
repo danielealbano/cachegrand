@@ -26,6 +26,7 @@
 #include "xalloc.h"
 #include "spinlock.h"
 #include "config.h"
+#include "fiber.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "slab_allocator.h"
@@ -36,6 +37,7 @@
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
 #include "worker/worker_common.h"
+#include "fiber_scheduler.h"
 #include "worker/worker.h"
 #include "worker/worker_op.h"
 #include "worker/worker_iouring_op.h"
@@ -70,25 +72,27 @@ void worker_iouring_context_reset() {
     thread_local_worker_iouring_context = NULL;
 }
 
-bool worker_iouring_op_fds_map_files_update_cb(
-        worker_iouring_context_t *context,
-        worker_iouring_op_context_t *op_context,
-        io_uring_cqe_t *cqe,
-        bool *free_op_context) {
-
-    if (cqe->res < 0) {
-        worker_iouring_fds_map_remove(
-                op_context->io_uring.files_update.channel->mapped_fd);
-        op_context->io_uring.files_update.channel->mapped_fd = WORKER_FDS_MAP_EMPTY;
-    } else {
-        op_context->io_uring.files_update.channel->has_mapped_fd = true;
-        op_context->io_uring.files_update.channel->base_sqe_flags |= IOSQE_FIXED_FILE;
-        op_context->io_uring.files_update.channel->fd =
-                op_context->io_uring.files_update.channel->mapped_fd;
-    }
-
-    return true;
-}
+// TODO: need to improve the fiber interface as currently CQEs can be executed only sequentially and having a fiber
+//       switch for each connection just to update the fds map would have an hit on the performances for no reason
+//bool worker_iouring_op_fds_map_files_update_cb(
+//        worker_iouring_context_t *context,
+//        worker_iouring_op_context_t *op_context,
+//        io_uring_cqe_t *cqe,
+//        bool *free_op_context) {
+//
+//    if (cqe->res < 0) {
+//        worker_iouring_fds_map_remove(
+//                op_context->io_uring.files_update.channel->mapped_fd);
+//        op_context->io_uring.files_update.channel->mapped_fd = WORKER_FDS_MAP_EMPTY;
+//    } else {
+//        op_context->io_uring.files_update.channel->has_mapped_fd = true;
+//        op_context->io_uring.files_update.channel->base_sqe_flags |= IOSQE_FIXED_FILE;
+//        op_context->io_uring.files_update.channel->fd =
+//                op_context->io_uring.files_update.channel->mapped_fd;
+//    }
+//
+//    return true;
+//}
 
 bool worker_iouring_fds_map_files_update(
         io_uring_t *ring,
@@ -96,33 +100,25 @@ bool worker_iouring_fds_map_files_update(
         network_channel_iouring_t *channel) {
     bool ret;
 
-    if (io_uring_supports_op_files_update_link) {
-        worker_iouring_op_context_t* op_context = worker_iouring_op_context_init(
-                worker_iouring_op_fds_map_files_update_cb);
-        if (!op_context) {
-            LOG_E(TAG, "Failed to allocate memory for the worker iouring op");
-            return false;
-        }
-
-        op_context->io_uring.files_update.channel = channel;
-
-        // TODO: need to fix the implementation in support/io_uring/io_uring_support.c
-        io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
-        if (sqe != NULL) {
-            io_uring_prep_files_update(sqe, &fds_map[index], 1, index);
-            io_uring_sqe_set_flags(sqe, IOSQE_IO_LINK);
-            sqe->user_data = (uintptr_t)op_context;
-            ret = true;
-        } else {
-            ret = false;
-        }
-    } else {
+    // TODO: async files update disabled, the fiber interface needs improvements
+//    if (io_uring_supports_op_files_update_link) {
+//        // TODO: need to fix the implementation in support/io_uring/io_uring_support.c
+//        io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
+//        if (sqe != NULL) {
+//            io_uring_prep_files_update(sqe, &fds_map[index], 1, index);
+//            io_uring_sqe_set_flags(sqe, IOSQE_IO_LINK);
+//            sqe->user_data = (uintptr_t)op_context;
+//            ret = true;
+//        } else {
+//            ret = false;
+//        }
+//    } else {
         ret = io_uring_register_files_update(
                 ring,
                 index,
                 &fds_map[index],
                 1) == 1;
-    }
+//    }
 
     if (!ret) {
         LOG_E(
@@ -133,6 +129,7 @@ bool worker_iouring_fds_map_files_update(
         LOG_E_OS_ERROR(TAG);
     } else {
         fds_map[index] = channel->wrapped_channel.fd;
+        channel->has_mapped_fd = true;
         channel->mapped_fd = index;
     }
 
@@ -145,6 +142,7 @@ int32_t worker_iouring_fds_map_find_free_index() {
         uint32_t fds_map_index = (i + fds_map_last_free) & fds_map_mask;
         if (fds_map[fds_map_index] == WORKER_FDS_MAP_EMPTY) {
             free_fds_map_index = (int32_t)fds_map_index;
+            break;
         }
     }
 
@@ -246,84 +244,26 @@ bool worker_iouring_cqe_is_error(
         worker_iouring_cqe_is_error_any(cqe);
 }
 
-char* worker_iouring_get_callback_function_name(
-        void* callback,
-        char* callback_function_name,
-        size_t callback_function_name_size) {
-    Dl_info dladdr_info;
-    const char* res_cb_func_name = "{unknown}";
-
-    if (dladdr(callback, &dladdr_info) != 0) {
-        res_cb_func_name = dladdr_info.dli_sname;
-    }
-
-    strncpy(callback_function_name, res_cb_func_name, callback_function_name_size);
-
-    return callback_function_name;
-}
-
-void worker_iouring_report_op_user_completion_cb(
-        worker_iouring_op_context_t *op_context) {
-    char callback_function_name[256] = { 0 };
-
-    char* cbs[] = {
-            "op_context->user.completion_cb.timer",
-                (char*)op_context->user.completion_cb.timer,
-            "op_context->user.completion_cb.network_accept",
-                (char*)op_context->user.completion_cb.network_accept,
-            "op_context->user.completion_cb.network_receive",
-                (char*)op_context->user.completion_cb.network_receive,
-            "op_context->user.completion_cb.network_send",
-                (char*)op_context->user.completion_cb.network_send,
-            "op_context->user.completion_cb.network_close",
-                (char*)op_context->user.completion_cb.network_close,
-    };
-
-    for(int i = 0; i < sizeof(cbs) / sizeof(char*); i += 2) {
-        char* name = cbs[i];
-        void* cb_fp = (void*)cbs[i + 1];
-
-        if (cb_fp == NULL) {
-            continue;
-        }
-
-        LOG_E(
-                TAG,
-                "> %s = %s",
-                name,
-                worker_iouring_get_callback_function_name(
-                        cb_fp,
-                        callback_function_name,
-                        sizeof(callback_function_name)));
-    }
-}
-
 void worker_iouring_cqe_log(
         io_uring_cqe_t *cqe) {
-    char callback_function_name[256] = { 0 };
+    assert(cqe->user_data != 0);
 
-    worker_iouring_op_context_t *op_context;
-    op_context = (worker_iouring_op_context_t*)cqe->user_data;
+    fiber_t *fiber = (fiber_t*)cqe->user_data;
 
     LOG_E(
             TAG,
-            "[CB:%s] cqe->user_data = <0x%08llx>, cqe->res = <%s (%d)>, cqe->flags >> 16 = <%d>,"
+            "[FIBER:%s] cqe->user_data = <0x%08llx>, cqe->res = <%s (%d)>, cqe->flags >> 16 = <%d>,"
                 " cqe->flags & 0xFFFFu = <%d>",
-            worker_iouring_get_callback_function_name(
-                    op_context->io_uring.completion_cb,
-                    callback_function_name,
-                    sizeof(callback_function_name)),
+            fiber->name,
             cqe->user_data,
             cqe->res >= 0 ? "Success" : strerror(cqe->res * -1),
             cqe->res,
             cqe->flags >> 16u,
             cqe->flags & 0xFFFFu);
-
-    worker_iouring_report_op_user_completion_cb(op_context);
 }
 
 void worker_iouring_cleanup(
-        worker_context_t *worker_user_data) {
+        worker_context_t *worker_context) {
     io_uring_t *ring;
     worker_iouring_context_t *iouring_context = worker_iouring_context_get();
 
@@ -348,10 +288,10 @@ void worker_iouring_cleanup(
 }
 
 bool worker_iouring_process_events_loop(
-        worker_context_t *worker_user_data) {
+        worker_context_t *worker_context) {
     io_uring_cqe_t *cqe;
     worker_iouring_context_t *context;
-    worker_iouring_op_context_t *op_context;
+    fiber_t *fiber;
     uint32_t head, count = 0;
     char callback_function_name[256] = { 0 };
 
@@ -360,39 +300,23 @@ bool worker_iouring_process_events_loop(
     io_uring_support_sqe_submit_and_wait(context->ring, 1);
 
     io_uring_for_each_cqe(context->ring, head, cqe) {
-        bool free_op_context = true;
         count++;
+        fiber = (fiber_t*)cqe->user_data;
 
+#if DEBUG == 1
         if (worker_iouring_cqe_is_error(cqe)) {
             worker_iouring_cqe_log(cqe);
         }
+#endif
 
-        op_context = (worker_iouring_op_context_t *)cqe->user_data;
-
-        if (op_context->io_uring.completion_cb == NULL) {
+        if (cqe->user_data == 0) {
             FATAL(
                     TAG,
-                    "Malformed io_uring op context, completion_cb null");
+                    "Malformed io_uring cqe, fiber is null!");
         }
 
-        if (op_context->io_uring.completion_cb(
-                context,
-                op_context,
-                cqe,
-                &free_op_context) == false) {
-            // TODO: the callback failed, take action, something smart!
-            FATAL(
-                    TAG,
-                    "Callback <%s> failed, unable to continue",
-                    worker_iouring_get_callback_function_name(
-                            op_context->io_uring.completion_cb,
-                            callback_function_name,
-                            sizeof(callback_function_name)));
-        }
-
-        if (free_op_context) {
-            slab_allocator_mem_free(op_context);
-        }
+        fiber->ret.ptr_value = cqe;
+        fiber_scheduler_switch_to(fiber);
     }
 
     io_uring_support_cq_advance(context->ring, count);

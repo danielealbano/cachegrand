@@ -5,33 +5,44 @@
 extern "C" {
 #endif
 
+enum network_op_result {
+    NETWORK_OP_RESULT_OK,
+    NETWORK_OP_RESULT_CLOSE_SOCKET,
+    NETWORK_OP_RESULT_ERROR,
+};
+typedef enum network_op_result network_op_result_t;
+
 void worker_network_listeners_initialize(
         worker_context_t *worker_context);
 
 void worker_network_listeners_listen(
         worker_context_t *worker_context);
 
-bool worker_network_receive(
-        network_channel_t *channel,
-        void* user_data);
 
-bool worker_network_send(
+bool worker_network_buffer_has_enough_space(
+        network_channel_buffer_t *read_buffer,
+        size_t read_length);
+
+bool worker_network_buffer_needs_rewind(
+        network_channel_buffer_t *read_buffer,
+        size_t read_length);
+
+void worker_network_buffer_rewind(
+        network_channel_buffer_t *read_buffer);
+
+network_op_result_t worker_network_receive(
+        network_channel_t *channel,
+        network_channel_buffer_t *read_buffer,
+        size_t read_length);
+
+network_op_result_t worker_network_send(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
-        size_t buffer_length,
-        void* user_data);
+        size_t buffer_length);
 
-bool worker_network_close(
+network_op_result_t worker_network_close(
         network_channel_t *channel,
-        void* user_data);
-
-bool worker_network_protocol_process_buffer(
-        network_channel_t *channel,
-        worker_network_channel_user_data_t *worker_network_channel_user_data);
-
-void worker_network_close_connection_on_send(
-        network_channel_t *channel,
-        bool close_connection_on_send);
+        bool shutdown_may_fail);
 
 #ifdef __cplusplus
 }

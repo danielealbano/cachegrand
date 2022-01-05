@@ -84,7 +84,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(hello) {
         if (send_buffer_start == NULL) {
             LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
             slab_allocator_mem_free(send_buffer);
-            return NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_ERROR;
+            return false;
         }
     } else {
         if (protocol_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2) {
@@ -102,7 +102,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(hello) {
         if (send_buffer_start == NULL) {
             LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
             slab_allocator_mem_free(send_buffer);
-            return NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_ERROR;
+            return false;
         }
 
         hello_response_item_t hello_responses[7] = {
@@ -157,7 +157,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(hello) {
             if (send_buffer_start == NULL) {
                 LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
                 slab_allocator_mem_free(send_buffer);
-                return NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_ERROR;
+                return false;
             }
 
             switch(hello_response.value_type) {
@@ -190,7 +190,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(hello) {
             if (send_buffer_start == NULL) {
                 LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
                 slab_allocator_mem_free(send_buffer);
-                return NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_ERROR;
+                return false;
             }
         }
     }
@@ -198,10 +198,9 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(hello) {
     if (worker_network_send(
             channel,
             send_buffer,
-            send_buffer_start - send_buffer,
-            NULL) == false) {
-        return NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_ERROR;
+            send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
+        return false;
     }
 
-    return NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_STOP_WAIT_SEND_DATA;
+    return true;
 }

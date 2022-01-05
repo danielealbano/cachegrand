@@ -10,8 +10,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -38,9 +40,15 @@ void fiber_stack_protection(
 }
 
 fiber_t *fiber_new(
+        char *name,
+        size_t name_len,
         size_t stack_size,
         fiber_start_fp_t *fiber_start_fp,
         void *user_data) {
+    if (fiber_start_fp == NULL) {
+        return NULL;
+    }
+
     size_t page_size = xalloc_get_page_size();
 
     // The end (beginning) of the stack is "protected" to catch any undesired access that tries to read data past the
@@ -59,11 +67,23 @@ fiber_t *fiber_new(
     // Need room on the stack as we push/pop a return address to jump to our function
     stack_pointer -= sizeof(void*) * 1;
 
+    LOG_D(
+            TAG,
+            "Initializing new fiber <%s> with a stack of <%lu> bytes starting at <%p>",
+            name,
+            stack_size,
+            stack_pointer);
+
     fiber->start_fp = fiber_start_fp;
     fiber->start_fp_user_data = user_data;
     fiber->stack_size = stack_size;
     fiber->stack_base = stack_base;
     fiber->stack_pointer = stack_pointer;
+
+    // Set the fiber additional parameters
+    fiber->terminate = false;
+    fiber->name = (char*)xalloc_alloc_zero(name_len + 1);
+    strncpy(fiber->name, name, name_len);
 
     // Set the initial fp and rsp of the fiber
     fiber->context.rip = fiber->start_fp; // this or the stack_base? who knows :|
@@ -78,6 +98,7 @@ void fiber_free(
         fiber_t *fiber) {
     fiber_stack_protection(fiber, false);
 
+    xalloc_free(fiber->name);
     xalloc_free(fiber->stack_base);
     xalloc_free(fiber);
 }

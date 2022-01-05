@@ -9,7 +9,7 @@ typedef struct fiber fiber_t;
 typedef void (fiber_start_fp_t)(fiber_t* fiber_from, fiber_t* fiber_to);
 
 struct fiber {
-    // The context has to be held at the beginning of the structure and the field have to be spefically kept in this
+    // The context has to be held at the beginning of the structure and the field have to be specifically kept in this
     // order as the assembly code in fiber.s access these fields by memory location and doesn't rely on the compiler
     // to calculate the correct address.
     // It is possible to implement build workarounds to get a mapping between the fields and their offsets but it is
@@ -29,6 +29,9 @@ struct fiber {
     size_t stack_size;
     fiber_start_fp_t* start_fp;
     void* start_fp_user_data;
+    char *name;
+    bool terminate;
+    int error_number;
     union {
         void* ptr_value;
         int int_value;
@@ -40,6 +43,13 @@ struct fiber {
         int32_t int32_value;
         int64_t int64_value;
     } ret;
+#if DEBUG == 1
+    struct {
+        int line;
+        const char *file;
+        const char *func;
+    } switched_back_on;
+#endif
 } __attribute__((aligned(64)));
 
 extern void fiber_context_get(
@@ -57,6 +67,8 @@ void fiber_stack_protection(
         bool enable);
 
 fiber_t* fiber_new(
+        char *name,
+        size_t name_len,
         size_t stack_size,
         fiber_start_fp_t* fiber_start_fp,
         void* user_data);

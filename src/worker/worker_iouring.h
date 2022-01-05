@@ -25,11 +25,6 @@ int32_t worker_iouring_fds_map_add_and_enqueue_files_update(
 int worker_iouring_fds_map_remove(
         int index);
 
-char* worker_iouring_get_callback_function_name(
-        void* callback,
-        char* callback_function_name,
-        size_t callback_function_name_size);
-
 bool worker_iouring_cqe_is_error_any(
         io_uring_cqe_t *cqe);
 
@@ -45,13 +40,13 @@ uint32_t worker_iouring_calculate_fds_count(
         uint32_t network_addresses_count);
 
 bool worker_iouring_initialize(
-        worker_context_t *worker_user_data);
+        worker_context_t *worker_context);
 
 void worker_iouring_cleanup(
-        worker_context_t *worker_user_data);
+        worker_context_t *worker_context);
 
 bool worker_iouring_process_events_loop(
-        worker_context_t *worker_user_data);
+        worker_context_t *worker_context);
 
 #ifdef __cplusplus
 }

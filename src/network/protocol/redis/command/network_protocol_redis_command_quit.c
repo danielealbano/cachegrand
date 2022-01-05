@@ -50,20 +50,18 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(quit) {
     if (send_buffer_start == NULL) {
         LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
         slab_allocator_mem_free(send_buffer);
-        return NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_ERROR;
+        return false;
     }
-
-    worker_network_close_connection_on_send(
-            channel,
-            true);
 
     if (worker_network_send(
             channel,
             send_buffer,
-            send_buffer_start - send_buffer,
-            NULL) == false) {
-        return NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_ERROR;
+            send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
+
+        return false;
     }
 
-    return NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_RETVAL_STOP_WAIT_SEND_DATA;
+    worker_network_close(channel, true);
+
+    return true;
 }
