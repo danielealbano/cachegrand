@@ -55,12 +55,12 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
     worker_context = context->worker_context;
 
     if (worker_iouring_cqe_is_error_any(cqe)) {
-        fiber_scheduler_set_error(cqe->res);
+        fiber_scheduler_set_error(-cqe->res);
         LOG_E(
                 TAG,
                 "Error while accepting a connection on listener <%s>",
                 listener_channel->wrapped_channel.address.str);
-        worker_request_terminate(worker_context);
+        LOG_E_OS_ERROR(TAG);
 
         return NULL;
     }
@@ -92,13 +92,9 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
         new_channel = NULL;
     }
 
-    // TODO: Map the fd to the iouring registered files shared memory
-    if (new_channel != NULL &&
-        worker_iouring_fds_map_add_and_enqueue_files_update(
+    if (worker_iouring_fds_map_add_and_enqueue_files_update(
             worker_iouring_context_get()->ring,
             new_channel) < 0) {
-        fiber_scheduler_set_error(ENOMEM);
-
         LOG_E(
                 TAG,
                 "Can't accept the new connection <%s> coming from listener <%s>, unable to find a free fds slot",
@@ -107,7 +103,8 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
 
         network_io_common_socket_close(new_channel->wrapped_channel.fd, true);
         network_channel_iouring_free(new_channel);
-        new_channel = NULL;
+
+        return NULL;
     }
 
     return (network_channel_t*)new_channel;

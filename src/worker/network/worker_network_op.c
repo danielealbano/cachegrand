@@ -76,11 +76,22 @@ void worker_network_new_client_fiber_entrypoint(
 
 void worker_network_listeners_fiber_entrypoint(
         void* user_data) {
+    worker_context_t *worker_context = worker_context_get();
     network_channel_t *new_channel = NULL;
     network_channel_t *listener_channel = user_data;
 
-    while((new_channel = worker_op_network_accept(
-            listener_channel)) != NULL) {
+    while(!worker_should_terminate(worker_context)) {
+        if ((new_channel = worker_op_network_accept(
+                listener_channel)) == NULL) {
+            LOG_W(
+                    TAG,
+                    "[FD:%5d][ACCEPT] Listener <%s> failed to accept a new connection",
+                    listener_channel->fd,
+                    listener_channel->address.str);
+
+            continue;
+        }
+
         LOG_V(
                 TAG,
                 "[FD:%5d][ACCEPT] Listener <%s> accepting new connection from <%s>",
@@ -94,16 +105,6 @@ void worker_network_listeners_fiber_entrypoint(
                 worker_network_new_client_fiber_entrypoint,
                 (void *)new_channel);
     }
-
-    if (new_channel == NULL) {
-        LOG_W(
-                TAG,
-                "[FD:%5d][ACCEPT] Failed to accept a new connection coming from listener <%s>",
-                listener_channel->fd,
-                listener_channel->address.str);
-    }
-
-    // TODO: listener should be terminated, if failed for an error
 
     // Switch back to the scheduler, as the lister has been closed this fiber will never be invoked and will get freed
     fiber_scheduler_switch_back();
