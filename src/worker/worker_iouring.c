@@ -129,6 +129,7 @@ bool worker_iouring_fds_map_files_update(
         LOG_E_OS_ERROR(TAG);
     } else {
         fds_map[index] = channel->wrapped_channel.fd;
+        channel->has_mapped_fd = true;
         channel->mapped_fd = index;
     }
 
@@ -141,6 +142,7 @@ int32_t worker_iouring_fds_map_find_free_index() {
         uint32_t fds_map_index = (i + fds_map_last_free) & fds_map_mask;
         if (fds_map[fds_map_index] == WORKER_FDS_MAP_EMPTY) {
             free_fds_map_index = (int32_t)fds_map_index;
+            break;
         }
     }
 
