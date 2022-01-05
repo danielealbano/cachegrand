@@ -169,7 +169,9 @@ bool worker_initialize(
 
 void worker_cleanup(
         worker_context_t* worker_context) {
-    // TODO: should use a struck with fp pointers, not ifs
+    // TODO: the network cleanup part should be moved into worker_network as the storage cleanup part should be moved
+    //       into worker_storage
+    // TODO: should use a struct with fp pointers, not ifs
     if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
         worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
         if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING) {
@@ -187,8 +189,14 @@ void worker_cleanup(
             uint32_t listener_index = 0;
             listener_index < worker_context->network.listeners_count;
             listener_index++) {
+        // TODO: this has to be managed via functions, via getter and setter, not doing "odd" calculations here and there
+        network_channel_t *listener_channel = (network_channel_t*)(
+                (void*)worker_context->network.listeners +
+                (worker_context->network.network_channel_size * listener_index)
+        );
+
         network_io_common_socket_close(
-                worker_context->network.listeners[listener_index].fd,
+                listener_channel->fd,
                 true);
     }
 
