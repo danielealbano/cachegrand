@@ -87,9 +87,11 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
                 new_channel->wrapped_channel.address.str,
                 listener_channel->wrapped_channel.address.str);
 
-        network_io_common_socket_close(new_channel->wrapped_channel.fd, true);
-        worker_network_iouring_op_network_post_close(new_channel);
-        new_channel = NULL;
+        worker_network_iouring_op_network_close(
+                (network_channel_t *)new_channel,
+                true);
+
+        return NULL;
     }
 
     if (worker_iouring_fds_map_add_and_enqueue_files_update(
@@ -158,6 +160,9 @@ bool worker_network_iouring_op_network_close(
     if (!res) {
         fiber_scheduler_set_error(errno);
     }
+
+    worker_network_iouring_op_network_post_close(
+            (network_channel_iouring_t *)channel);
 
     return res;
 }
