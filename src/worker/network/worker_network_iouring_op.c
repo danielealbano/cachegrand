@@ -58,7 +58,7 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
         fiber_scheduler_set_error(cqe->res);
         LOG_E(
                 TAG,
-                "Error while waiting for connections on listener <%s>",
+                "Error while accepting a connection on listener <%s>",
                 listener_channel->wrapped_channel.address.str);
         worker_request_terminate(worker_context);
 

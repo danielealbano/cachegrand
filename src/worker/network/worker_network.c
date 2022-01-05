@@ -195,7 +195,7 @@ network_op_result_t worker_network_receive(
 
     LOG_D(
             TAG,
-            "[FD:%5d][RECV] Received <%lu> bytes from client <%s>",
+            "[FD:%5d][RECV] Received <%u> bytes from client <%s>",
             channel->fd,
             receive_length,
             channel->address.str);
