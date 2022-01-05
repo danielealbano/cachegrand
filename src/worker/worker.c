@@ -189,12 +189,9 @@ void worker_cleanup(
             uint32_t listener_index = 0;
             listener_index < worker_context->network.listeners_count;
             listener_index++) {
-        // TODO: this has to be managed via functions, via getter and setter, not doing "odd" calculations here and there
-        network_channel_t *listener_channel = (network_channel_t*)(
-                (void*)worker_context->network.listeners +
-                (worker_context->network.network_channel_size * listener_index)
-        );
-
+        network_channel_t *listener_channel = worker_op_network_channel_multi_get(
+                worker_context->network.listeners,
+                listener_index);
         network_io_common_socket_close(
                 listener_channel->fd,
                 true);

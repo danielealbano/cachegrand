@@ -98,16 +98,15 @@ void worker_network_listeners_initialize(
 void worker_network_listeners_listen(
         worker_context_t *worker_context) {
     for (int listener_index = 0; listener_index < worker_context->network.listeners_count; listener_index++) {
-        network_channel_t *listener_channel = (network_channel_t*)(
-                (void*)worker_context->network.listeners +
-                (worker_context->network.network_channel_size * listener_index)
-        );
+        network_channel_t *listener_channel = worker_op_network_channel_multi_get(
+                worker_context->network.listeners,
+                listener_index);
 
         fiber_scheduler_new_fiber(
                 "worker-listener",
                 sizeof("worker-listener") - 1,
                 worker_network_listeners_fiber_entrypoint,
-                (void *) listener_channel);
+                (void *)listener_channel);
     }
 }
 
