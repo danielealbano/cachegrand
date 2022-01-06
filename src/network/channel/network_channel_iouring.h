@@ -8,10 +8,10 @@ extern "C" {
 typedef struct network_channel_iouring network_channel_iouring_t;
 struct network_channel_iouring {
     network_channel_t wrapped_channel;
-    int mapped_fd;
+    network_io_common_fd_t mapped_fd;
     bool has_mapped_fd;
     int base_sqe_flags;
-    int fd;
+    network_io_common_fd_t  fd;
 } __attribute__((__aligned__(32)));
 
 network_channel_iouring_t* network_channel_iouring_new();
