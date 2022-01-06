@@ -35,12 +35,15 @@
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
+#include "storage/io/storage_io_common.h"
+#include "storage/channel/storage_channel.h"
 #include "worker/worker_common.h"
 #include "worker/worker_op.h"
 #include "worker/network/worker_network.h"
 #include "worker/worker_iouring.h"
 #include "worker/worker_iouring_op.h"
 #include "worker/network/worker_network_iouring_op.h"
+#include <worker/storage/worker_storage_iouring_op.h>
 #include "worker.h"
 
 #define TAG "worker"

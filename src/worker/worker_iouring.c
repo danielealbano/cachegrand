@@ -36,6 +36,8 @@
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
+#include "storage/io/storage_io_common.h"
+#include "storage/channel/storage_channel.h"
 #include "worker/worker_common.h"
 #include "fiber_scheduler.h"
 #include "worker/worker.h"

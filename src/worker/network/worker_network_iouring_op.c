@@ -26,6 +26,8 @@
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
 #include "config.h"
+#include "storage/io/storage_io_common.h"
+#include "storage/channel/storage_channel.h"
 #include "worker/worker_common.h"
 #include "worker/worker.h"
 #include "worker/worker_op.h"
