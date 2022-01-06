@@ -46,6 +46,7 @@ worker_op_storage_open_fp_t* worker_op_storage_open;
 worker_op_storage_read_fp_t* worker_op_storage_read;
 worker_op_storage_write_fp_t* worker_op_storage_write;
 worker_op_storage_flush_fp_t* worker_op_storage_flush;
+worker_op_storage_fallocate_fp_t* worker_op_storage_fallocate;
 worker_op_storage_close_fp_t* worker_op_storage_close;
 
 void worker_timer_fiber_entrypoint(

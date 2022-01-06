@@ -62,6 +62,12 @@ typedef size_t (worker_op_storage_write_fp_t)(
 typedef bool (worker_op_storage_flush_fp_t)(
         storage_channel_t *channel);
 
+typedef bool (worker_op_storage_fallocate_fp_t)(
+        storage_channel_t *channel,
+        int mode,
+        off_t offset,
+        off_t len);
+
 typedef bool (worker_op_storage_close_fp_t)(
         storage_channel_t *channel);
 
@@ -89,6 +95,7 @@ extern worker_op_storage_open_fp_t* worker_op_storage_open;
 extern worker_op_storage_read_fp_t* worker_op_storage_read;
 extern worker_op_storage_write_fp_t* worker_op_storage_write;
 extern worker_op_storage_flush_fp_t* worker_op_storage_flush;
+extern worker_op_storage_fallocate_fp_t* worker_op_storage_fallocate;
 extern worker_op_storage_close_fp_t* worker_op_storage_close;
 
 #ifdef __cplusplus
