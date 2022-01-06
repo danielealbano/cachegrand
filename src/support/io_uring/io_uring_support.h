@@ -85,6 +85,40 @@ bool io_uring_support_sqe_enqueue_send(
         uint8_t sqe_flags,
         uint64_t user_data);
 
+bool io_uring_support_sqe_enqueue_openat(
+        io_uring_t *ring,
+        int dirfd,
+        char *path,
+        int flags,
+        mode_t mode,
+        uint8_t sqe_flags,
+        uint64_t user_data);
+
+bool io_uring_support_sqe_enqueue_readv(
+        io_uring_t *ring,
+        int fd,
+        struct iovec *iov,
+        size_t iov_nr,
+        off_t offset,
+        uint8_t sqe_flags,
+        uint64_t user_data);
+
+bool io_uring_support_sqe_enqueue_writev(
+        io_uring_t *ring,
+        int fd,
+        struct iovec *iov,
+        size_t iov_nr,
+        off_t offset,
+        uint8_t sqe_flags,
+        uint64_t user_data);
+
+bool io_uring_support_sqe_enqueue_fsync(
+        io_uring_t *ring,
+        int fd,
+        int flags,
+        uint8_t sqe_flags,
+        uint64_t user_data);
+
 bool io_uring_support_sqe_enqueue_close(
         io_uring_t *ring,
         int fd,
