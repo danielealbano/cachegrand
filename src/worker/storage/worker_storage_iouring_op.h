@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+bool worker_storage_iouring_complete_op_simple();
+
 storage_channel_t* worker_storage_iouring_op_storage_open(
         char *path,
         storage_io_common_open_flags_t flags,
@@ -24,6 +26,12 @@ size_t worker_storage_iouring_op_storage_write(
 
 bool worker_storage_iouring_op_storage_flush(
         storage_channel_t *channel);
+
+bool worker_storage_iouring_op_storage_fallocate(
+        storage_channel_t *channel,
+        int mode,
+        off_t offset,
+        off_t len);
 
 bool worker_storage_iouring_op_storage_close(
         storage_channel_t *channel);

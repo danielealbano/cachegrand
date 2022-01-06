@@ -37,6 +37,21 @@
 #include "worker/worker_iouring.h"
 #include "worker/storage/worker_storage_iouring_op.h"
 
+bool worker_storage_iouring_complete_op_simple() {
+    // Switch the execution back to the scheduler
+    fiber_scheduler_switch_back();
+
+    // When the fiber continues the execution, it has to fetch the return value
+    io_uring_cqe_t *cqe = (io_uring_cqe_t*)((fiber_scheduler_get_current())->ret.ptr_value);
+
+    if (cqe->res < 0) {
+        fiber_scheduler_set_error(errno);
+        return false;
+    }
+
+    return true;
+}
+
 storage_channel_t* worker_storage_iouring_op_storage_open(
         char *path,
         storage_io_common_open_flags_t flags,
@@ -174,18 +189,31 @@ bool worker_storage_iouring_op_storage_flush(
         return false;
     }
 
-    // Switch the execution back to the scheduler
-    fiber_scheduler_switch_back();
+    return worker_storage_iouring_complete_op_simple();
+}
 
-    // When the fiber continues the execution, it has to fetch the return value
-    io_uring_cqe_t *cqe = (io_uring_cqe_t*)((fiber_scheduler_get_current())->ret.ptr_value);
+bool worker_storage_iouring_op_storage_fallocate(
+        storage_channel_t *channel,
+        int mode,
+        off_t offset,
+        off_t len) {
+    worker_iouring_context_t *context = worker_iouring_context_get();
 
-    if (cqe->res < 0) {
-        fiber_scheduler_set_error(errno);
+    fiber_scheduler_reset_error();
+
+    if (!io_uring_support_sqe_enqueue_fallocate(
+            context->ring,
+            channel->fd,
+            mode,
+            offset,
+            len,
+            ((storage_channel_iouring_t*)channel)->base_sqe_flags,
+            (uintptr_t)fiber_scheduler_get_current())) {
+        fiber_scheduler_set_error(ENOMEM);
         return false;
     }
 
-    return true;
+    return worker_storage_iouring_complete_op_simple();
 }
 
 bool worker_storage_iouring_op_storage_close(
@@ -219,11 +247,11 @@ void worker_storage_iouring_cleanup(
     // TODO: will need to iterate all over the opened files and flush the data to ensure they are stored on the disk
 }
 
-
 void worker_storage_iouring_op_register() {
     worker_op_storage_open = worker_storage_iouring_op_storage_open;
     worker_op_storage_read = worker_storage_iouring_op_storage_read;
     worker_op_storage_write = worker_storage_iouring_op_storage_write;
     worker_op_storage_flush = worker_storage_iouring_op_storage_flush;
+    worker_op_storage_fallocate = worker_storage_iouring_op_storage_fallocate;
     worker_op_storage_close = worker_storage_iouring_op_storage_close;
 }
