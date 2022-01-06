@@ -156,12 +156,18 @@ bool worker_initialize(
                 worker_iouring_cleanup(worker_context);
                 return false;
             }
+
             worker_network_iouring_op_register();
         }
 
         if (worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
-            // TODO: worker_storage_iouring_initialize(worker_context)
-            // TODO: worker_storage_iouring_op_register();
+            if (!worker_storage_iouring_initialize(worker_context)) {
+                LOG_E(TAG, "io_uring worker storage initialization failed, terminating");
+                worker_iouring_cleanup(worker_context);
+                return false;
+            }
+
+            worker_storage_iouring_op_register();
         }
 
         worker_iouring_op_register();
@@ -182,7 +188,7 @@ void worker_cleanup(
         }
 
         if (worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
-            // TODO: worker_storage_iouring_cleanup(worker_context)
+            worker_storage_iouring_cleanup(worker_context);
         }
 
         worker_iouring_cleanup(worker_context);
