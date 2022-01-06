@@ -119,6 +119,15 @@ bool io_uring_support_sqe_enqueue_fsync(
         uint8_t sqe_flags,
         uint64_t user_data);
 
+bool io_uring_support_sqe_enqueue_fallocate(
+        io_uring_t *ring,
+        int fd,
+        int mode,
+        off_t offset,
+        off_t len,
+        uint8_t sqe_flags,
+        uint64_t user_data);
+
 bool io_uring_support_sqe_enqueue_close(
         io_uring_t *ring,
         int fd,

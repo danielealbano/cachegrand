@@ -336,6 +336,26 @@ bool io_uring_support_sqe_enqueue_fsync(
     return true;
 }
 
+bool io_uring_support_sqe_enqueue_fallocate(
+        io_uring_t *ring,
+        int fd,
+        int mode,
+        off_t offset,
+        off_t len,
+        uint8_t sqe_flags,
+        uint64_t user_data) {
+    io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
+    if (sqe == NULL) {
+        return false;
+    }
+
+    io_uring_prep_fallocate(sqe, fd, mode, offset, len);
+    io_uring_sqe_set_flags(sqe, sqe_flags);
+    sqe->user_data = user_data;
+
+    return true;
+}
+
 bool io_uring_support_sqe_enqueue_close(
         io_uring_t *ring,
         int fd,
