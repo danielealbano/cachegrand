@@ -130,12 +130,12 @@ TEST_CASE("program.c", "[program]") {
     }
 
     SECTION("program_setup_pidfile") {
+        char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+        int fixture_temp_path_suffix_len = 4;
+        close(mkstemps(fixture_temp_path, fixture_temp_path_suffix_len));
+
         SECTION("valid pidfile path") {
             PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345();
-
-            char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
-            int fixture_temp_path_suffix_len = 4;
-            REQUIRE(mkstemps(fixture_temp_path, fixture_temp_path_suffix_len));
 
             program_context.config->pidfile_path = fixture_temp_path;
 
@@ -146,16 +146,10 @@ TEST_CASE("program.c", "[program]") {
             REQUIRE(simple_file_io_read_uint32_return(program_context.config->pidfile_path) == (long)getpid());
 
             pidfile_close(pidfile_get_fd());
-
-            unlink(fixture_temp_path);
         }
 
         SECTION("valid pidfile path cleanup") {
             PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345();
-
-            char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
-            int fixture_temp_path_suffix_len = 4;
-            REQUIRE(mkstemps(fixture_temp_path, fixture_temp_path_suffix_len));
 
             program_context.config->pidfile_path = fixture_temp_path;
 
@@ -178,6 +172,8 @@ TEST_CASE("program.c", "[program]") {
             REQUIRE(pidfile_get_fd() == -1);
             REQUIRE(!pidfile_is_owned());
         }
+
+        unlink(fixture_temp_path);
     }
 
     SECTION("program_wait_loop") {
