@@ -7,7 +7,7 @@
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
 
-TEST_CASE("network/channel/network_channel_iouring.c", "[network][channel][network_channel_iouring]") {
+TEST_CASE("network/channel/network_channel_iouring.c", "[network][network_channel][network_channel_iouring]") {
     SECTION("network_channel_iouring_new") {
         network_channel_iouring_t* network_channel_iouring = network_channel_iouring_new();
 

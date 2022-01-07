@@ -22,7 +22,7 @@
 bool storage_io_common_close(
         storage_io_common_fd_t fd) {
     if (close(fd)) {
-        LOG_E(TAG, "Error closing the socket with fd <%d>", fd);
+        LOG_E(TAG, "Error closing the file descriptor with fd <%d>", fd);
         LOG_E_OS_ERROR(TAG);
         return false;
     }
