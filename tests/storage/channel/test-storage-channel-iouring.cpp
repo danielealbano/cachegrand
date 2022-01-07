@@ -14,4 +14,15 @@ TEST_CASE("storage/channel/storage_channel_iouring.c", "[storage][storage_channe
 
         storage_channel_iouring_free(storage_channel_iouring);
     }
+
+    SECTION("storage_channel_iouring_multi_new") {
+        storage_channel_iouring_t* storage_channel_iouring = storage_channel_iouring_multi_new(3);
+
+        REQUIRE(storage_channel_iouring != NULL);
+        for(int i = 0; i < 3; i++) {
+            REQUIRE(storage_channel_iouring[i].wrapped_channel.fd == 0);
+        }
+
+        storage_channel_iouring_free(storage_channel_iouring);
+    }
 }

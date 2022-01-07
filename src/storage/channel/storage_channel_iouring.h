@@ -16,6 +16,9 @@ struct storage_channel_iouring {
 
 storage_channel_iouring_t* storage_channel_iouring_new();
 
+storage_channel_iouring_t* storage_channel_iouring_multi_new(
+        uint32_t count);
+
 void storage_channel_iouring_free(
         storage_channel_iouring_t* storage_channel);
 
