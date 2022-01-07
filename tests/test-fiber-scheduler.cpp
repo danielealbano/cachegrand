@@ -256,6 +256,13 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
         REQUIRE(strcmp(fiber_scheduler_stack.list[0]->name, FIBER_SCHEDULER_FIBER_NAME) == 0);
         REQUIRE(strcmp(fiber->switched_back_on.file, CACHEGRAND_SRC_PATH) == 0);
         REQUIRE(strcmp(fiber->switched_back_on.func, "test_fiber_scheduler_fiber_switch_to_test_entrypoint") == 0);
+
+        fiber_free(fiber);
+
+        xalloc_free(fiber_scheduler_stack.list);
+        fiber_scheduler_stack.list = NULL;
+        fiber_scheduler_stack.index = -1;
+        fiber_scheduler_stack.size = 0;
     }
 
     SECTION("fiber_scheduler_new_fiber") {
@@ -273,6 +280,11 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
 
             fiber_free(fiber);
         }
+
+        xalloc_free(fiber_scheduler_stack.list);
+        fiber_scheduler_stack.list = NULL;
+        fiber_scheduler_stack.index = -1;
+        fiber_scheduler_stack.size = 0;
     }
 
     SECTION("fiber_scheduler_set_error") {
