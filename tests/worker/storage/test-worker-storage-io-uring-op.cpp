@@ -724,6 +724,58 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
         }
     }
 
+    SECTION("worker_storage_iouring_op_storage_close") {
+        SECTION("close a channel") {
+
+            SECTION("open an existing file") {
+                test_worker_storage_io_uring_op_fiber_userdata_t user_data = {
+                        .open = true,
+                        .path = fixture_temp_path,
+                        .open_flags = O_RDONLY,
+                        .open_mode = 0,
+                        .open_result = &storage_channel_iouring
+                };
+                fiber = fiber_scheduler_new_fiber(
+                        fiber_name,
+                        fiber_name_len,
+                        test_worker_storage_io_uring_op_fiber_entrypoint,
+                        &user_data);
+
+                io_uring_support_sqe_submit(ring);
+                io_uring_wait_cqe(ring, &cqe);
+                REQUIRE(cqe != NULL);
+
+                fiber->ret.ptr_value = cqe;
+                fiber_scheduler_switch_to(fiber);
+
+                REQUIRE(worker_storage_iouring_op_storage_close((storage_channel_t*)storage_channel_iouring));
+            }
+        }
+    }
+
+    SECTION("worker_storage_iouring_initialize") {
+        worker_context_t worker_context = { 0 };
+
+        REQUIRE(worker_storage_iouring_initialize(&worker_context));
+    }
+
+    SECTION("worker_storage_iouring_cleanup") {
+        worker_context_t worker_context = { 0 };
+
+        REQUIRE(worker_storage_iouring_cleanup(&worker_context));
+    }
+
+    SECTION("worker_storage_iouring_op_register") {
+        worker_storage_iouring_op_register();
+
+        REQUIRE(worker_op_storage_open == worker_storage_iouring_op_storage_open);
+        REQUIRE(worker_op_storage_read == worker_storage_iouring_op_storage_read);
+        REQUIRE(worker_op_storage_write == worker_storage_iouring_op_storage_write);
+        REQUIRE(worker_op_storage_flush == worker_storage_iouring_op_storage_flush);
+        REQUIRE(worker_op_storage_fallocate == worker_storage_iouring_op_storage_fallocate);
+        REQUIRE(worker_op_storage_close == worker_storage_iouring_op_storage_close);
+    }
+
     if (fiber) {
         fiber_free(fiber);
     }
