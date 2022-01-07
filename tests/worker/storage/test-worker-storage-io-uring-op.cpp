@@ -726,7 +726,6 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
 
     SECTION("worker_storage_iouring_op_storage_close") {
         SECTION("close a channel") {
-
             SECTION("open an existing file") {
                 test_worker_storage_io_uring_op_fiber_userdata_t user_data = {
                         .open = true,
@@ -749,6 +748,8 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
                 fiber_scheduler_switch_to(fiber);
 
                 REQUIRE(worker_storage_iouring_op_storage_close((storage_channel_t*)storage_channel_iouring));
+
+                storage_channel_iouring = NULL;
             }
         }
     }
