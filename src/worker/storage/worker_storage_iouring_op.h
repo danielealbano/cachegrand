@@ -39,10 +39,10 @@ bool worker_storage_iouring_op_storage_close(
 bool worker_storage_iouring_initialize(
         worker_context_t *worker_context);
 
-void worker_storage_iouring_cleanup(
+bool worker_storage_iouring_cleanup(
         worker_context_t *worker_context);
 
-void worker_storage_iouring_op_register();
+bool worker_storage_iouring_op_register();
 
 #ifdef __cplusplus
 }

@@ -37,7 +37,7 @@ bool worker_network_iouring_initialize(
 void worker_network_iouring_listeners_listen_pre(
         worker_context_t *worker_context);
 
-void worker_network_iouring_cleanup(
+bool worker_network_iouring_cleanup(
         worker_context_t *worker_context);
 
 network_channel_t* worker_network_iouring_network_channel_new();
@@ -54,7 +54,7 @@ network_channel_t* worker_network_iouring_network_channel_multi_get(
 
 size_t worker_network_iouring_op_network_channel_size();
 
-void worker_network_iouring_op_register();
+bool worker_network_iouring_op_register();
 
 #ifdef __cplusplus
 }

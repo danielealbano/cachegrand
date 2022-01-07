@@ -263,7 +263,7 @@ void worker_network_iouring_listeners_listen_pre(
     }
 }
 
-void worker_network_iouring_cleanup(
+bool worker_network_iouring_cleanup(
         worker_context_t *worker_context) {
     // do nothing for now
 }
@@ -292,7 +292,7 @@ size_t worker_network_iouring_op_network_channel_size() {
     return sizeof(network_channel_iouring_t);
 }
 
-void worker_network_iouring_op_register() {
+bool worker_network_iouring_op_register() {
     worker_op_network_channel_new = worker_network_iouring_network_channel_new;
     worker_op_network_channel_multi_new = worker_network_iouring_network_channel_multi_new;
     worker_op_network_channel_multi_get = worker_network_iouring_network_channel_multi_get;

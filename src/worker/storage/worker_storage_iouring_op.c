@@ -244,12 +244,12 @@ bool worker_storage_iouring_initialize(
     return true;
 }
 
-void worker_storage_iouring_cleanup(
+bool worker_storage_iouring_cleanup(
         worker_context_t *worker_context) {
     // TODO: will need to iterate all over the opened files and flush the data to ensure they are stored on the disk
 }
 
-void worker_storage_iouring_op_register() {
+bool worker_storage_iouring_op_register() {
     worker_op_storage_open = worker_storage_iouring_op_storage_open;
     worker_op_storage_read = worker_storage_iouring_op_storage_read;
     worker_op_storage_write = worker_storage_iouring_op_storage_write;
