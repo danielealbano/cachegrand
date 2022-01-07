@@ -258,6 +258,104 @@ bool io_uring_support_sqe_enqueue_send(
     return true;
 }
 
+bool io_uring_support_sqe_enqueue_openat(
+        io_uring_t *ring,
+        int dirfd,
+        char *path,
+        int flags,
+        mode_t mode,
+        uint8_t sqe_flags,
+        uint64_t user_data) {
+    io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
+    if (sqe == NULL) {
+        return false;
+    }
+
+    io_uring_prep_openat(sqe, dirfd, path, flags, mode);
+    io_uring_sqe_set_flags(sqe, sqe_flags);
+    sqe->user_data = user_data;
+
+    return true;
+}
+
+bool io_uring_support_sqe_enqueue_readv(
+        io_uring_t *ring,
+        int fd,
+        struct iovec *iov,
+        size_t iov_nr,
+        off_t offset,
+        uint8_t sqe_flags,
+        uint64_t user_data) {
+    io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
+    if (sqe == NULL) {
+        return false;
+    }
+
+    io_uring_prep_readv(sqe, fd, iov, iov_nr, offset);
+    io_uring_sqe_set_flags(sqe, sqe_flags);
+    sqe->user_data = user_data;
+
+    return true;
+}
+
+bool io_uring_support_sqe_enqueue_writev(
+        io_uring_t *ring,
+        int fd,
+        struct iovec *iov,
+        size_t iov_nr,
+        off_t offset,
+        uint8_t sqe_flags,
+        uint64_t user_data) {
+    io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
+    if (sqe == NULL) {
+        return false;
+    }
+
+    io_uring_prep_writev(sqe, fd, iov, iov_nr, offset);
+    io_uring_sqe_set_flags(sqe, sqe_flags);
+    sqe->user_data = user_data;
+
+    return true;
+}
+
+bool io_uring_support_sqe_enqueue_fsync(
+        io_uring_t *ring,
+        int fd,
+        int flags,
+        uint8_t sqe_flags,
+        uint64_t user_data) {
+    io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
+    if (sqe == NULL) {
+        return false;
+    }
+
+    io_uring_prep_fsync(sqe, fd, flags);
+    io_uring_sqe_set_flags(sqe, sqe_flags);
+    sqe->user_data = user_data;
+
+    return true;
+}
+
+bool io_uring_support_sqe_enqueue_fallocate(
+        io_uring_t *ring,
+        int fd,
+        int mode,
+        off_t offset,
+        off_t len,
+        uint8_t sqe_flags,
+        uint64_t user_data) {
+    io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
+    if (sqe == NULL) {
+        return false;
+    }
+
+    io_uring_prep_fallocate(sqe, fd, mode, offset, len);
+    io_uring_sqe_set_flags(sqe, sqe_flags);
+    sqe->user_data = user_data;
+
+    return true;
+}
+
 bool io_uring_support_sqe_enqueue_close(
         io_uring_t *ring,
         int fd,

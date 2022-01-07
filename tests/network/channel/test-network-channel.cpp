@@ -13,7 +13,7 @@
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
-TEST_CASE("network/channel/network_channel.c", "[network][channel][network_channel]") {
+TEST_CASE("network/channel/network_channel.c", "[network][network_channel][network_channel]") {
     struct in_addr loopback_ipv4 = { 0 };
     char* loopback_ipv4_str = "127.0.0.1";
     char* any_ipv4_str = "0.0.0.0";

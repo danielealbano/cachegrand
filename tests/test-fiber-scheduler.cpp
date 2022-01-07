@@ -24,30 +24,21 @@ fiber_t *test_fiber_scheduler_fiber_scheduler_stack_current_fiber = NULL;
 
 
 sigjmp_buf test_fiber_scheduler_jump_fp;
-void test_fiber_scheduler_memory_stack_protection_signal_sigabrt_handler_longjmp(int signal_number) {
+void test_fiber_scheduler_memory_stack_protection_signal_sigabrt_and_sigsegv_handler_longjmp(int signal_number) {
     siglongjmp(test_fiber_scheduler_jump_fp, 1);
 }
 
-void test_fiber_scheduler_memory_stack_protection_setup_sigabrt_signal_handler() {
+void test_fiber_scheduler_memory_stack_protection_setup_sigabrt_and_sigsegv_signal_handler() {
     signals_support_register_signal_handler(
             SIGABRT,
-            test_fiber_scheduler_memory_stack_protection_signal_sigabrt_handler_longjmp,
+            test_fiber_scheduler_memory_stack_protection_signal_sigabrt_and_sigsegv_handler_longjmp,
+            NULL);
+
+    signals_support_register_signal_handler(
+            SIGSEGV,
+            test_fiber_scheduler_memory_stack_protection_signal_sigabrt_and_sigsegv_handler_longjmp,
             NULL);
 }
-
-//fiber_t *fiber_scheduler_get_current();
-//
-//void fiber_scheduler_set_error(
-//        int error_number);
-//
-//int fiber_scheduler_get_error(
-//        int error_number);
-//
-//bool fiber_scheduler_has_error();
-//
-//void fiber_scheduler_reset_error();
-//
-//void fiber_scheduler_terminate_current_fiber();
 
 void test_fiber_scheduler_fiber_do_nothing(void *user_data) {
     test_fiber_scheduler_switched_to_fiber = true;
@@ -74,7 +65,7 @@ void test_fiber_scheduler_fiber_switch_to_test_entrypoint(fiber_t *from, fiber_t
 
 TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
     size_t page_size = getpagesize();
-    size_t stack_size = page_size * 2;
+    size_t stack_size = page_size * 8;
     test_fiber_scheduler_caller_user_data = NULL;
     test_fiber_scheduler_switched_to_fiber = false;
 
@@ -163,7 +154,7 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
 
             bool fatal_catched = false;
             if (sigsetjmp(test_fiber_scheduler_jump_fp, 1) == 0) {
-                test_fiber_scheduler_memory_stack_protection_setup_sigabrt_signal_handler();
+                test_fiber_scheduler_memory_stack_protection_setup_sigabrt_and_sigsegv_signal_handler();
                 fiber_scheduler_grow_stack();
             } else {
                 fatal_catched = true;
@@ -218,9 +209,17 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
         SECTION("test failure on switching to a terminated fiber") {
             fiber_context_swap(&fiber_1, fiber_2);
 
+            // Context switching to a terminated fiber should NEVER happen as the memory will be automatically free
+            // and therefore may become garbage right after the context is switched back but to test out the expected
+            // behaviour of the fiber scheduler entrypoint the test does it ANYWAY.
+            // The signal handler needs to handle not only the SIGABRT, as triggered by the FATAL when th terminated
+            // fiber is switched back, but also the SIGSEGV as some CI/CD agents/environments (e.g. GitHub) don't really
+            // like this operation.
+            // Intercepting the SIGSEGV will let the test to pass even if the fiber doesn't get to invoke FATAL, can't
+            // really be avoided as the memory gets freed.
             bool fatal_catched = false;
             if (sigsetjmp(test_fiber_scheduler_jump_fp, 1) == 0) {
-                test_fiber_scheduler_memory_stack_protection_setup_sigabrt_signal_handler();
+                test_fiber_scheduler_memory_stack_protection_setup_sigabrt_and_sigsegv_signal_handler();
                 fiber_context_swap(&fiber_1, fiber_2);
             } else {
                 fatal_catched = true;
@@ -257,6 +256,13 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
         REQUIRE(strcmp(fiber_scheduler_stack.list[0]->name, FIBER_SCHEDULER_FIBER_NAME) == 0);
         REQUIRE(strcmp(fiber->switched_back_on.file, CACHEGRAND_SRC_PATH) == 0);
         REQUIRE(strcmp(fiber->switched_back_on.func, "test_fiber_scheduler_fiber_switch_to_test_entrypoint") == 0);
+
+        fiber_free(fiber);
+
+        xalloc_free(fiber_scheduler_stack.list);
+        fiber_scheduler_stack.list = NULL;
+        fiber_scheduler_stack.index = -1;
+        fiber_scheduler_stack.size = 0;
     }
 
     SECTION("fiber_scheduler_new_fiber") {
@@ -274,6 +280,11 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
 
             fiber_free(fiber);
         }
+
+        xalloc_free(fiber_scheduler_stack.list);
+        fiber_scheduler_stack.list = NULL;
+        fiber_scheduler_stack.index = -1;
+        fiber_scheduler_stack.size = 0;
     }
 
     SECTION("fiber_scheduler_set_error") {

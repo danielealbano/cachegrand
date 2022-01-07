@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#define FIBER_SCHEDULER_STACK_SIZE (4096 * 5)
+#define FIBER_SCHEDULER_STACK_SIZE (4096 * 8)
 #define FIBER_SCHEDULER_STACK_MAX_SIZE 5
 #define FIBER_SCHEDULER_FIBER_NAME "scheduler"
 

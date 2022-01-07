@@ -8,6 +8,10 @@
 #include <errno.h>
 #include <arpa/inet.h>
 #include <liburing.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "support/io_uring/io_uring_support.h"
 #include "network/protocol/network_protocol.h"
@@ -865,5 +869,483 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
             io_uring_support_free(ring);
         }
+    }
+
+    SECTION("io_uring_support_sqe_enqueue_openat") {
+        int fd = -1;
+        io_uring_t *ring;
+        io_uring_cqe_t *cqe;
+        ring = io_uring_support_init(10, NULL, NULL);
+
+        char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+        int fixture_temp_path_suffix_len = 4;
+        close(mkstemps(fixture_temp_path, fixture_temp_path_suffix_len));
+
+        SECTION("allocate sqe") {
+            REQUIRE(io_uring_support_sqe_enqueue_openat(
+                    ring,
+                    0,
+                    fixture_temp_path,
+                    0,
+                    0,
+                    0,
+                    0));
+        }
+
+        SECTION("open an existing file") {
+            int flags = O_RDWR;
+
+            REQUIRE(io_uring_support_sqe_enqueue_openat(
+                    ring,
+                    0,
+                    fixture_temp_path,
+                    flags,
+                    0,
+                    0,
+                    4321));
+
+            io_uring_support_sqe_submit(ring);
+
+            cqe = NULL;
+            io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
+            REQUIRE(cqe->flags == 0);
+            REQUIRE(cqe->user_data == 4321);
+            REQUIRE(cqe->res > -1);
+
+            fd = cqe->res;
+
+            io_uring_cqe_seen(ring, cqe);
+        }
+
+        SECTION("open a non-existing file creating it") {
+            int flags = O_CREAT | O_RDWR | O_EXCL;
+            mode_t mode = S_IRUSR | S_IWUSR;
+
+            // The file gets pre-created for convenience during the test setup, need to be unlinked for the test to
+            // be able to reuse the unique file name
+            unlink(fixture_temp_path);
+
+            REQUIRE(io_uring_support_sqe_enqueue_openat(
+                    ring,
+                    0,
+                    fixture_temp_path,
+                    flags,
+                    mode,
+                    0,
+                    4321));
+
+            io_uring_support_sqe_submit(ring);
+
+            cqe = NULL;
+            io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
+            REQUIRE(cqe->flags == 0);
+            REQUIRE(cqe->user_data == 4321);
+            REQUIRE(cqe->res > -1);
+
+            fd = cqe->res;
+
+            io_uring_cqe_seen(ring, cqe);
+        }
+
+        SECTION("fail to open an non-existing file without create option") {
+            int flags = O_RDWR;
+
+            // The file gets pre-created for convenience during the test setup, need to be unlinked for the test to
+            // be able to reuse the unique file name
+            unlink(fixture_temp_path);
+
+            REQUIRE(io_uring_support_sqe_enqueue_openat(
+                    ring,
+                    0,
+                    fixture_temp_path,
+                    flags,
+                    0,
+                    0,
+                    4321));
+
+            io_uring_support_sqe_submit(ring);
+
+            cqe = NULL;
+            io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
+            REQUIRE(cqe->flags == 0);
+            REQUIRE(cqe->user_data == 4321);
+            REQUIRE(cqe->res == -ENOENT);
+
+            io_uring_cqe_seen(ring, cqe);
+        }
+
+        io_uring_support_free(ring);
+
+        if (fd > -1) {
+            close(fd);
+        }
+
+        unlink(fixture_temp_path);
+    }
+
+    SECTION("io_uring_support_sqe_enqueue_readv") {
+        int fd = -1;
+        char buffer_write[] = "cachegrand test - io_uring_support_sqe_enqueue_readv";
+        char buffer_read1[128] = { 0 }, buffer_read2[128] = { 0 };
+        struct iovec iovec[2] = { 0 };
+
+        io_uring_t *ring;
+        io_uring_cqe_t *cqe;
+        ring = io_uring_support_init(10, NULL, NULL);
+
+        char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+        int fixture_temp_path_suffix_len = 4;
+        close(mkstemps(fixture_temp_path, fixture_temp_path_suffix_len));
+
+        SECTION("allocate sqe") {
+            REQUIRE(io_uring_support_sqe_enqueue_readv(
+                    ring,
+                    0,
+                    NULL,
+                    0,
+                    0,
+                    0,
+                    0));
+        }
+
+        SECTION("read n. 1 iovec") {
+            int flags = O_RDWR;
+
+            iovec[0].iov_base = buffer_read1;
+            iovec[0].iov_len = strlen(buffer_write);
+
+            fd = openat(0, fixture_temp_path, flags, 0);
+            REQUIRE(fd > -1);
+            REQUIRE(write(fd, buffer_write, strlen(buffer_write)) == strlen(buffer_write));
+            REQUIRE(lseek(fd, 0, SEEK_SET) == 0);
+
+            REQUIRE(io_uring_support_sqe_enqueue_readv(
+                    ring,
+                    fd,
+                    iovec,
+                    1,
+                    0,
+                    0,
+                    4321));
+
+            io_uring_support_sqe_submit(ring);
+
+            cqe = NULL;
+            io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
+            REQUIRE(cqe->flags == 0);
+            REQUIRE(cqe->user_data == 4321);
+            REQUIRE(cqe->res == strlen(buffer_write));
+            REQUIRE(strncmp(buffer_write, buffer_read1, strlen(buffer_write)) == 0);
+
+            io_uring_cqe_seen(ring, cqe);
+        }
+
+        SECTION("read n. 2 iovec") {
+            int flags = O_RDWR;
+
+            iovec[0].iov_base = buffer_read1;
+            iovec[0].iov_len = strlen(buffer_write);
+            iovec[1].iov_base = buffer_read2;
+            iovec[1].iov_len = strlen(buffer_write);
+
+            fd = openat(0, fixture_temp_path, flags, 0);
+            REQUIRE(fd > -1);
+            REQUIRE(write(fd, buffer_write, strlen(buffer_write)) == strlen(buffer_write));
+            REQUIRE(write(fd, buffer_write, strlen(buffer_write)) == strlen(buffer_write));
+
+            REQUIRE(io_uring_support_sqe_enqueue_readv(
+                    ring,
+                    fd,
+                    iovec,
+                    2,
+                    0,
+                    0,
+                    4321));
+
+            io_uring_support_sqe_submit(ring);
+
+            cqe = NULL;
+            io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
+            REQUIRE(cqe->flags == 0);
+            REQUIRE(cqe->user_data == 4321);
+            REQUIRE(cqe->res == strlen(buffer_write) * 2);
+            REQUIRE(strncmp(buffer_write, buffer_read1, strlen(buffer_write)) == 0);
+            REQUIRE(strncmp(buffer_write, buffer_read2, strlen(buffer_write)) == 0);
+
+            io_uring_cqe_seen(ring, cqe);
+        }
+
+        io_uring_support_free(ring);
+
+        if (fd > -1) {
+            close(fd);
+        }
+
+        unlink(fixture_temp_path);
+    }
+
+    SECTION("io_uring_support_sqe_enqueue_writev") {
+        int fd = -1;
+        char buffer_write[] = "cachegrand test - io_uring_support_sqe_enqueue_writev";
+        char buffer_read1[128] = { 0 }, buffer_read2[128] = { 0 };
+        struct iovec iovec[2] = { 0 };
+
+        io_uring_t *ring;
+        io_uring_cqe_t *cqe;
+        ring = io_uring_support_init(10, NULL, NULL);
+
+        char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+        int fixture_temp_path_suffix_len = 4;
+        close(mkstemps(fixture_temp_path, fixture_temp_path_suffix_len));
+
+        SECTION("allocate sqe") {
+            REQUIRE(io_uring_support_sqe_enqueue_writev(
+                    ring,
+                    0,
+                    NULL,
+                    0,
+                    0,
+                    0,
+                    0));
+        }
+
+        SECTION("write n. 1 iovec") {
+            int flags = O_RDWR;
+
+            iovec[0].iov_base = buffer_write;
+            iovec[0].iov_len = strlen(buffer_write);
+
+            fd = openat(0, fixture_temp_path, flags, 0);
+            REQUIRE(fd > -1);
+
+            REQUIRE(io_uring_support_sqe_enqueue_writev(
+                    ring,
+                    fd,
+                    iovec,
+                    1,
+                    0,
+                    0,
+                    4321));
+
+            io_uring_support_sqe_submit(ring);
+
+            cqe = NULL;
+            io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
+            REQUIRE(cqe->flags == 0);
+            REQUIRE(cqe->user_data == 4321);
+            REQUIRE(cqe->res == strlen(buffer_write));
+
+            REQUIRE(pread(fd, buffer_read1, strlen(buffer_write), 0) == strlen(buffer_write));
+            REQUIRE(strncmp(buffer_write, buffer_read1, strlen(buffer_write)) == 0);
+
+            io_uring_cqe_seen(ring, cqe);
+        }
+
+        SECTION("write n. 2 iovec") {
+            int flags = O_RDWR;
+
+            iovec[0].iov_base = buffer_write;
+            iovec[0].iov_len = strlen(buffer_write);
+            iovec[1].iov_base = buffer_write;
+            iovec[1].iov_len = strlen(buffer_write);
+
+            fd = openat(0, fixture_temp_path, flags, 0);
+            REQUIRE(fd > -1);
+
+            REQUIRE(io_uring_support_sqe_enqueue_writev(
+                    ring,
+                    fd,
+                    iovec,
+                    2,
+                    0,
+                    0,
+                    4321));
+
+            io_uring_support_sqe_submit(ring);
+
+            cqe = NULL;
+            io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
+            REQUIRE(cqe->flags == 0);
+            REQUIRE(cqe->user_data == 4321);
+            REQUIRE(cqe->res == strlen(buffer_write) * 2);
+
+            REQUIRE(pread(fd, buffer_read1, strlen(buffer_write), 0) == strlen(buffer_write));
+            REQUIRE(pread(fd, buffer_read2, strlen(buffer_write), strlen(buffer_write)) == strlen(buffer_write));
+            REQUIRE(strncmp(buffer_write, buffer_read1, strlen(buffer_write)) == 0);
+            REQUIRE(strncmp(buffer_write, buffer_read2, strlen(buffer_write)) == 0);
+
+            io_uring_cqe_seen(ring, cqe);
+        }
+
+        io_uring_support_free(ring);
+
+        if (fd > -1) {
+            close(fd);
+        }
+
+        unlink(fixture_temp_path);
+    }
+
+    SECTION("io_uring_support_sqe_enqueue_fsync") {
+        int fd = -1;
+        char buffer_write[] = "cachegrand test - io_uring_support_sqe_enqueue_fsync";
+
+        io_uring_t *ring;
+        io_uring_cqe_t *cqe;
+        ring = io_uring_support_init(10, NULL, NULL);
+
+        char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+        int fixture_temp_path_suffix_len = 4;
+        close(mkstemps(fixture_temp_path, fixture_temp_path_suffix_len));
+
+        SECTION("allocate sqe") {
+            REQUIRE(io_uring_support_sqe_enqueue_fsync(
+                    ring,
+                    0,
+                    0,
+                    0,
+                    0));
+        }
+
+        SECTION("write and flush") {
+            int flags = O_RDWR;
+
+            fd = openat(0, fixture_temp_path, flags, 0);
+            REQUIRE(fd > -1);
+            REQUIRE(write(fd, buffer_write, strlen(buffer_write)) == strlen(buffer_write));
+
+            REQUIRE(io_uring_support_sqe_enqueue_fsync(
+                    ring,
+                    fd,
+                    0,
+                    0,
+                    4321));
+
+            io_uring_support_sqe_submit(ring);
+
+            cqe = NULL;
+            io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
+            REQUIRE(cqe->flags == 0);
+            REQUIRE(cqe->user_data == 4321);
+            REQUIRE(cqe->res == 0);
+
+            io_uring_cqe_seen(ring, cqe);
+        }
+
+        io_uring_support_free(ring);
+
+        if (fd > -1) {
+            close(fd);
+        }
+
+        unlink(fixture_temp_path);
+    }
+
+    SECTION("io_uring_support_sqe_enqueue_fallocate") {
+        int fd = -1;
+        char buffer_write[] = "cachegrand test - io_uring_support_sqe_enqueue_fallocate";
+
+        io_uring_t *ring;
+        io_uring_cqe_t *cqe;
+        ring = io_uring_support_init(10, NULL, NULL);
+
+        char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+        int fixture_temp_path_suffix_len = 4;
+        close(mkstemps(fixture_temp_path, fixture_temp_path_suffix_len));
+
+        SECTION("allocate sqe") {
+            REQUIRE(io_uring_support_sqe_enqueue_fallocate(
+                    ring,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0));
+        }
+
+        SECTION("create and extend to 1kb") {
+            int flags = O_RDWR;
+            struct stat statbuf = { 0 };
+            mode_t mode = 0;
+            off_t offset = 0;
+            off_t len = 1024;
+
+            fd = openat(0, fixture_temp_path, flags, 0);
+            REQUIRE(fd > -1);
+
+            REQUIRE(io_uring_support_sqe_enqueue_fallocate(
+                    ring,
+                    fd,
+                    mode,
+                    offset,
+                    len,
+                    0,
+                    4321));
+
+            io_uring_support_sqe_submit(ring);
+
+            cqe = NULL;
+            io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
+            REQUIRE(cqe->flags == 0);
+            REQUIRE(cqe->user_data == 4321);
+            REQUIRE(cqe->res == 0);
+
+            io_uring_cqe_seen(ring, cqe);
+
+            REQUIRE(fstat(fd, &statbuf) == 0);
+            REQUIRE(statbuf.st_size == 1024);
+        }
+
+        SECTION("create and extend to 1kb - no file size increase") {
+            int flags = O_RDWR;
+            struct stat statbuf = { 0 };
+            mode_t mode = FALLOC_FL_KEEP_SIZE;
+            off_t offset = 0;
+            off_t len = 1024;
+
+            fd = openat(0, fixture_temp_path, flags, 0);
+            REQUIRE(fd > -1);
+
+            REQUIRE(io_uring_support_sqe_enqueue_fallocate(
+                    ring,
+                    fd,
+                    mode,
+                    offset,
+                    len,
+                    0,
+                    4321));
+
+            io_uring_support_sqe_submit(ring);
+
+            cqe = NULL;
+            io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
+            REQUIRE(cqe->flags == 0);
+            REQUIRE(cqe->user_data == 4321);
+            REQUIRE(cqe->res == 0);
+
+            io_uring_cqe_seen(ring, cqe);
+
+            REQUIRE(fstat(fd, &statbuf) == 0);
+            REQUIRE(statbuf.st_size == 0);
+        }
+
+        io_uring_support_free(ring);
+
+        if (fd > -1) {
+            close(fd);
+        }
+
+        unlink(fixture_temp_path);
     }
 }

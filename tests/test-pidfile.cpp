@@ -63,7 +63,7 @@ bool test_pidfile_get_fnctl_lock(
 TEST_CASE("pidfile.c", "[pidfile]") {
     char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
     int fixture_temp_path_suffix_len = 4;
-    REQUIRE(mkstemps(fixture_temp_path, fixture_temp_path_suffix_len));
+    close(mkstemps(fixture_temp_path, fixture_temp_path_suffix_len));
     int fd = -1;
 
     SECTION("pidfile_open") {

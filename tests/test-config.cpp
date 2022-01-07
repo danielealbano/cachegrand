@@ -107,9 +107,7 @@ bool test_config_fixture_file_from_data_create(
         const char* data,
         size_t data_len) {
 
-    if (!mkstemps(path, path_suffix_len)) {
-        return false;
-    }
+    close(mkstemps(path, path_suffix_len));
 
     FILE* fp = fopen(path, "w");
     if (fp == NULL) {

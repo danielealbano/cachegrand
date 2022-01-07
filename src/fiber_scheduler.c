@@ -206,6 +206,8 @@ fiber_t *fiber_scheduler_get_current() {
 }
 
 void fiber_scheduler_set_error(int error_number) {
+    assert(error_number >= 0);
+
     fiber_t *fiber = fiber_scheduler_get_current();
     errno = fiber->error_number = error_number;
 }

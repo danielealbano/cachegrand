@@ -26,6 +26,8 @@
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
 #include "config.h"
+#include "storage/io/storage_io_common.h"
+#include "storage/channel/storage_channel.h"
 #include "worker/worker_common.h"
 #include "worker/worker.h"
 #include "worker/worker_op.h"
@@ -261,7 +263,7 @@ void worker_network_iouring_listeners_listen_pre(
     }
 }
 
-void worker_network_iouring_cleanup(
+bool worker_network_iouring_cleanup(
         worker_context_t *worker_context) {
     // do nothing for now
 }
@@ -290,7 +292,7 @@ size_t worker_network_iouring_op_network_channel_size() {
     return sizeof(network_channel_iouring_t);
 }
 
-void worker_network_iouring_op_register() {
+bool worker_network_iouring_op_register() {
     worker_op_network_channel_new = worker_network_iouring_network_channel_new;
     worker_op_network_channel_multi_new = worker_network_iouring_network_channel_multi_new;
     worker_op_network_channel_multi_get = worker_network_iouring_network_channel_multi_get;

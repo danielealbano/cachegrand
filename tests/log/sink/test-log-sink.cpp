@@ -282,7 +282,7 @@ TEST_CASE("log/sink/log_sink.c", "[log][sink][log_sink]") {
             char path[] = "/tmp/cachegrand-tests-XXXXXX.log";
             int path_suffix_len = 4;
 
-            REQUIRE(mkstemps(path, path_suffix_len));
+            close(mkstemps(path, path_suffix_len));
 
             log_sink_settings_t settings = {
                     .file = {
@@ -308,6 +308,8 @@ TEST_CASE("log/sink/log_sink.c", "[log][sink][log_sink]") {
             REQUIRE(strncmp(fd_link_resolved_buf, path, sizeof(path)) == 0);
 
             log_sink_free(sink);
+
+            unlink(path);
         }
 
         SECTION("unsupported sink") {

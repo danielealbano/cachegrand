@@ -23,6 +23,8 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "slab_allocator.h"
 #include "support/io_uring/io_uring_support.h"
+#include "storage/io/storage_io_common.h"
+#include "storage/channel/storage_channel.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
