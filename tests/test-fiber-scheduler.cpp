@@ -34,10 +34,12 @@ void test_fiber_scheduler_memory_stack_protection_setup_sigabrt_and_sigsegv_sign
             test_fiber_scheduler_memory_stack_protection_signal_sigabrt_and_sigsegv_handler_longjmp,
             NULL);
 
-    signals_support_register_signal_handler(
-            SIGSEGV,
-            test_fiber_scheduler_memory_stack_protection_signal_sigabrt_and_sigsegv_handler_longjmp,
-            NULL);
+    if(signal(SIGSEGV, test_fiber_scheduler_memory_stack_protection_signal_sigabrt_and_sigsegv_handler_longjmp) == SIG_ERR) {
+        fprintf(
+                stderr,
+                "WARNING, can't set the signal handler for SIGSEGV\n");
+        fflush(stderr);
+    }
 }
 
 void test_fiber_scheduler_fiber_do_nothing(void *user_data) {
