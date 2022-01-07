@@ -952,6 +952,10 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
         SECTION("fail to open an non-existing file without create option") {
             int flags = O_RDWR;
 
+            // The file gets pre-created for convenience during the test setup, need to be unlinked for the test to
+            // be able to reuse the unique file name
+            unlink(fixture_temp_path);
+
             REQUIRE(io_uring_support_sqe_enqueue_openat(
                     ring,
                     0,
@@ -968,7 +972,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             REQUIRE(cqe != NULL);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->user_data == 4321);
-            REQUIRE(cqe->res > -EACCES);
+            REQUIRE(cqe->res == -ENOENT);
 
             io_uring_cqe_seen(ring, cqe);
         }
