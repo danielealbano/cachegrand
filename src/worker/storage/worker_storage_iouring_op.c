@@ -45,7 +45,7 @@ bool worker_storage_iouring_complete_op_simple() {
     io_uring_cqe_t *cqe = (io_uring_cqe_t*)((fiber_scheduler_get_current())->ret.ptr_value);
 
     if (cqe->res < 0) {
-        fiber_scheduler_set_error(errno);
+        fiber_scheduler_set_error(-cqe->res);
         return false;
     }
 
@@ -80,7 +80,7 @@ storage_channel_t* worker_storage_iouring_op_storage_open(
     io_uring_cqe_t *cqe = (io_uring_cqe_t*)((fiber_scheduler_get_current())->ret.ptr_value);
 
     if (cqe->res < 0) {
-        fiber_scheduler_set_error(errno);
+        fiber_scheduler_set_error(-cqe->res);
         return NULL;
     }
 
@@ -92,6 +92,8 @@ storage_channel_t* worker_storage_iouring_op_storage_open(
     storage_channel_iouring->wrapped_channel.path = path;
     storage_channel_iouring->wrapped_channel.path_len = strlen(path);
 
+    // TODO: should map the fd
+
     return (storage_channel_t*)storage_channel_iouring;
 }
 
@@ -100,7 +102,7 @@ size_t worker_storage_iouring_op_storage_read(
         storage_io_common_iovec_t *iov,
         size_t iov_nr,
         off_t offset) {
-    size_t res;
+    int res;
     worker_iouring_context_t *context = worker_iouring_context_get();
 
     fiber_scheduler_reset_error();
@@ -128,10 +130,10 @@ size_t worker_storage_iouring_op_storage_read(
     } while(res == -EAGAIN);
 
     if (res < 0) {
-        fiber_scheduler_set_error((int)-res);
+        fiber_scheduler_set_error(-res);
     }
 
-    return res;
+    return (size_t)res;
 }
 
 size_t worker_storage_iouring_op_storage_write(
@@ -139,7 +141,7 @@ size_t worker_storage_iouring_op_storage_write(
         storage_io_common_iovec_t *iov,
         size_t iov_nr,
         off_t offset) {
-    size_t res;
+    int res;
     worker_iouring_context_t *context = worker_iouring_context_get();
 
     fiber_scheduler_reset_error();
@@ -167,10 +169,10 @@ size_t worker_storage_iouring_op_storage_write(
     } while(res == -EAGAIN);
 
     if (res < 0) {
-        fiber_scheduler_set_error((int)-res);
+        fiber_scheduler_set_error(-res);
     }
 
-    return res;
+    return (size_t)res;
 }
 
 bool worker_storage_iouring_op_storage_flush(
