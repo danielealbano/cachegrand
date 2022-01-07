@@ -28,10 +28,6 @@ void test_fiber_scheduler_memory_stack_protection_signal_sigabrt_and_sigsegv_han
     siglongjmp(test_fiber_scheduler_jump_fp, 1);
 }
 
-#ifndef SA_RESTORER
-#define SA_RESTORER             0x04000000
-#endif
-
 void test_fiber_scheduler_memory_stack_protection_setup_sigabrt_and_sigsegv_signal_handler() {
     signals_support_register_signal_handler(
             SIGABRT,
@@ -42,55 +38,6 @@ void test_fiber_scheduler_memory_stack_protection_setup_sigabrt_and_sigsegv_sign
             SIGSEGV,
             test_fiber_scheduler_memory_stack_protection_signal_sigabrt_and_sigsegv_handler_longjmp,
             NULL);
-
-
-    //// TEMPORARY DEBUG CODE TO INVESTIGATE AN ISSUE WHEN RUNNING IN GITHUB ACTIONS
-    struct sigaction sigabrtaction = { 0 };
-    struct sigaction sigsegvaction = { 0 };
-    sigaction(SIGABRT, NULL, &sigabrtaction);
-    sigaction(SIGSEGV, NULL, &sigsegvaction);
-
-    fprintf(stderr, "test_fiber_scheduler_memory_stack_protection_signal_sigabrt_and_sigsegv_handler_longjmp <%p>\n\n", test_fiber_scheduler_memory_stack_protection_signal_sigabrt_and_sigsegv_handler_longjmp);
-    fprintf(
-            stderr,
-            "SIGABRT\n\tsa_handler <%p>\n\tsa_flags <%s%s%s%s%s%s%s%s%s%s%s>\n\tsa_mask <%lu, %lu, %lu, %lu>\n\n",
-            sigabrtaction.sa_handler,
-            (SA_NOCLDSTOP & sigabrtaction.sa_flags) > 0 ? "SA_NOCLDSTOP, " : "",
-            (SA_NOCLDWAIT & sigabrtaction.sa_flags) > 0 ? "SA_NOCLDWAIT, " : "",
-            (SA_NODEFER & sigabrtaction.sa_flags) > 0 ? "SA_NODEFER, " : "",
-            (SA_NOMASK & sigabrtaction.sa_flags) > 0 ? "SA_NOMASK, " : "",
-            (SA_ONSTACK & sigabrtaction.sa_flags) > 0 ? "SA_ONSTACK, " : "",
-            (SA_RESETHAND & sigabrtaction.sa_flags) > 0 ? "SA_RESETHAND, " : "",
-            (SA_ONESHOT & sigabrtaction.sa_flags) > 0 ? "SA_ONESHOT, " : "",
-            (SA_RESTART & sigabrtaction.sa_flags) > 0 ? "SA_RESTART, " : "",
-            (SA_RESTORER & sigabrtaction.sa_flags) > 0 ? "SA_RESTORER, " : "",
-            (SA_SIGINFO & sigabrtaction.sa_flags) > 0 ? "SA_SIGINFO, " : "",
-            ((~(SA_NOCLDSTOP | SA_NOCLDWAIT | SA_NODEFER | SA_NOMASK | SA_ONSTACK | SA_RESETHAND | SA_ONESHOT | SA_RESTART | SA_RESTORER | SA_SIGINFO)) & sigabrtaction.sa_flags) > 0 ? "OTHER FLAGS" : "",
-            sigabrtaction.sa_mask.__val[0],
-            sigabrtaction.sa_mask.__val[0],
-            sigabrtaction.sa_mask.__val[0],
-            sigabrtaction.sa_mask.__val[0]);
-    fprintf(
-            stderr,
-            "SIGSEGV\n\tsa_handler <%p>\n\tsa_flags <%s%s%s%s%s%s%s%s%s%s%s>\n\tsa_mask <%lu, %lu, %lu, %lu>\n\n",
-            sigsegvaction.sa_handler,
-            (SA_NOCLDSTOP & sigsegvaction.sa_flags) > 0 ? "SA_NOCLDSTOP, " : "",
-            (SA_NOCLDWAIT & sigsegvaction.sa_flags) > 0 ? "SA_NOCLDWAIT, " : "",
-            (SA_NODEFER & sigsegvaction.sa_flags) > 0 ? "SA_NODEFER, " : "",
-            (SA_NOMASK & sigsegvaction.sa_flags) > 0 ? "SA_NOMASK, " : "",
-            (SA_ONSTACK & sigsegvaction.sa_flags) > 0 ? "SA_ONSTACK, " : "",
-            (SA_RESETHAND & sigsegvaction.sa_flags) > 0 ? "SA_RESETHAND, " : "",
-            (SA_ONESHOT & sigsegvaction.sa_flags) > 0 ? "SA_ONESHOT, " : "",
-            (SA_RESTART & sigsegvaction.sa_flags) > 0 ? "SA_RESTART, " : "",
-            (SA_RESTORER & sigsegvaction.sa_flags) > 0 ? "SA_RESTORER, " : "",
-            (SA_SIGINFO & sigsegvaction.sa_flags) > 0 ? "SA_SIGINFO, " : "",
-            ((~(SA_NOCLDSTOP | SA_NOCLDWAIT | SA_NODEFER | SA_NOMASK | SA_ONSTACK | SA_RESETHAND | SA_ONESHOT | SA_RESTART | SA_RESTORER | SA_SIGINFO)) & sigabrtaction.sa_flags) > 0 ? "OTHER FLAGS" : "",
-            sigsegvaction.sa_mask.__val[0],
-            sigsegvaction.sa_mask.__val[0],
-            sigsegvaction.sa_mask.__val[0],
-            sigsegvaction.sa_mask.__val[0]);
-    fflush(stderr);
-    sleep(1);
 }
 
 void test_fiber_scheduler_fiber_do_nothing(void *user_data) {
