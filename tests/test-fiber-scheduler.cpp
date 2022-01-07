@@ -35,20 +35,6 @@ void test_fiber_scheduler_memory_stack_protection_setup_sigabrt_signal_handler()
             NULL);
 }
 
-//fiber_t *fiber_scheduler_get_current();
-//
-//void fiber_scheduler_set_error(
-//        int error_number);
-//
-//int fiber_scheduler_get_error(
-//        int error_number);
-//
-//bool fiber_scheduler_has_error();
-//
-//void fiber_scheduler_reset_error();
-//
-//void fiber_scheduler_terminate_current_fiber();
-
 void test_fiber_scheduler_fiber_do_nothing(void *user_data) {
     test_fiber_scheduler_switched_to_fiber = true;
     test_fiber_scheduler_caller_user_data = user_data;
