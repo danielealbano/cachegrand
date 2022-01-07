@@ -87,7 +87,7 @@ int test_fiber_stack_protection_find_memory_protection(void *start_address, void
 
 TEST_CASE("fiber.c", "[fiber]") {
     size_t page_size = getpagesize();
-    size_t stack_size = page_size * 2;
+    size_t stack_size = page_size * 8;
 
     SECTION("fiber_stack_protection") {
         SECTION("test enabling the memory protection") {

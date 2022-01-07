@@ -118,7 +118,7 @@ void test_fiber_scheduler_fiber_switch_to_test_entrypoint(fiber_t *from, fiber_t
 
 TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
     size_t page_size = getpagesize();
-    size_t stack_size = page_size * 2;
+    size_t stack_size = page_size * 8;
     test_fiber_scheduler_caller_user_data = NULL;
     test_fiber_scheduler_switched_to_fiber = false;
 
