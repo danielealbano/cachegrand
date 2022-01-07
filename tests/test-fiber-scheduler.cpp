@@ -9,7 +9,6 @@
 #include "signals_support.h"
 #include "fiber.h"
 #include "fiber_scheduler.h"
-#include "../cmake-build-debug/_deps/sentry-src/external/third_party/lss/linux_syscall_support.h"
 
 char test_fiber_scheduler_fixture_fiber_name[] = "test-fiber";
 size_t test_fiber_scheduler_fixture_fiber_name_leb = sizeof(test_fiber_scheduler_fixture_fiber_name);
@@ -28,6 +27,10 @@ sigjmp_buf test_fiber_scheduler_jump_fp;
 void test_fiber_scheduler_memory_stack_protection_signal_sigabrt_and_sigsegv_handler_longjmp(int signal_number) {
     siglongjmp(test_fiber_scheduler_jump_fp, 1);
 }
+
+#ifndef SA_RESTORER
+#define SA_RESTORER             0x04000000
+#endif
 
 void test_fiber_scheduler_memory_stack_protection_setup_sigabrt_and_sigsegv_signal_handler() {
     signals_support_register_signal_handler(
