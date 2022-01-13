@@ -166,7 +166,7 @@ network_op_result_t worker_network_receive(
         return NETWORK_OP_RESULT_ERROR;
     }
 
-    int32_t receive_length = worker_op_network_receive(
+    int32_t receive_length = (int32_t)worker_op_network_receive(
             channel,
             buffer,
             buffer_length);
@@ -213,7 +213,7 @@ network_op_result_t worker_network_send(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
         size_t buffer_length) {
-    int32_t send_length = worker_op_network_send(
+    int32_t send_length = (int32_t)worker_op_network_send(
             channel,
             buffer,
             buffer_length);
