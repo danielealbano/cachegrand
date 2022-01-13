@@ -29,7 +29,8 @@
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "config.h"
-#include "worker/worker_common.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
 #include "network/protocol/redis/network_protocol_redis.h"
 #include "worker/network/worker_network.h"
 

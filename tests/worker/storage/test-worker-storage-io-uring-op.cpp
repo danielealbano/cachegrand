@@ -28,7 +28,7 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/channel/storage_channel_iouring.h"
-#include "worker/worker_common.h"
+#include "worker/worker_context.h"
 #include "worker/worker.h"
 #include "worker/worker_op.h"
 #include "fiber_scheduler.h"

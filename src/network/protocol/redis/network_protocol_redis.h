@@ -136,7 +136,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_PROCESSED(del);
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(del);
 
 void network_protocol_redis_accept(
-        worker_context_t *worker_context,
         network_channel_t *channel);
 
 bool network_protocol_redis_read_buffer_rewind(
@@ -144,7 +143,6 @@ bool network_protocol_redis_read_buffer_rewind(
         network_protocol_redis_context_t *protocol_context);
 
 bool network_protocol_redis_process_events(
-        worker_context_t *worker_context,
         network_channel_t *channel,
         network_channel_buffer_t *read_buffer,
         network_protocol_redis_context_t *protocol_context);

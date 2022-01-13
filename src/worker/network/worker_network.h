@@ -13,10 +13,14 @@ enum network_op_result {
 typedef enum network_op_result network_op_result_t;
 
 void worker_network_listeners_initialize(
-        worker_context_t *worker_context);
+        uint8_t core_index,
+        config_network_t *config_network,
+        network_channel_t **listeners,
+        uint8_t *listeners_count);
 
 void worker_network_listeners_listen(
-        worker_context_t *worker_context);
+        network_channel_t *listeners,
+        uint8_t listeners_count);
 
 
 bool worker_network_buffer_has_enough_space(
