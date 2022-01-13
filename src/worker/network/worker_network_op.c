@@ -37,6 +37,17 @@
 
 #define TAG "worker_network_op"
 
+// Network operations
+worker_op_network_channel_new_fp_t* worker_op_network_channel_new;
+worker_op_network_channel_multi_new_fp_t* worker_op_network_channel_multi_new;
+worker_op_network_channel_multi_get_fp_t* worker_op_network_channel_multi_get;
+worker_op_network_channel_size_fp_t* worker_op_network_channel_size;
+worker_op_network_channel_free_fp_t* worker_op_network_channel_free;
+worker_op_network_accept_fp_t* worker_op_network_accept;
+worker_op_network_receive_fp_t* worker_op_network_receive;
+worker_op_network_send_fp_t* worker_op_network_send;
+worker_op_network_close_fp_t* worker_op_network_close;
+
 void worker_network_new_client_fiber_entrypoint(
         void *user_data) {
     worker_context_t *context = worker_context_get();
