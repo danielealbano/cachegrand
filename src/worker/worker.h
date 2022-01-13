@@ -7,13 +7,6 @@ extern "C" {
 
 #define WORKER_LOG_PRODUCER_PREFIX_FORMAT_STRING "[worker][id: %02u][cpu: %02d]"
 
-worker_context_t* worker_context_get();
-
-void worker_context_set(
-        worker_context_t *worker_context);
-
-void worker_context_reset();
-
 char* worker_log_producer_set_early_prefix_thread(
         worker_context_t *worker_context);
 

@@ -38,6 +38,7 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "worker/worker_stats.h"
+#include "worker/worker_context.h"
 #include "worker/worker_op.h"
 #include "worker/network/worker_network.h"
 #include "worker/worker_iouring.h"
@@ -47,21 +48,6 @@
 #include "worker.h"
 
 #define TAG "worker"
-
-thread_local worker_context_t *thread_local_worker_context = NULL;
-
-worker_context_t* worker_context_get() {
-    return thread_local_worker_context;
-}
-
-void worker_context_set(
-        worker_context_t *worker_context) {
-    thread_local_worker_context = worker_context;
-}
-
-void worker_context_reset() {
-    thread_local_worker_context = NULL;
-}
 
 char* worker_log_producer_set_early_prefix_thread(
         worker_context_t *worker_context) {
