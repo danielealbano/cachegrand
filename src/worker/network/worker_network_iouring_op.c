@@ -156,8 +156,9 @@ bool worker_network_iouring_op_network_close(
         bool shutdown_may_fail) {
     fiber_scheduler_reset_error();
 
+    network_channel_iouring_t *channel_iouring = (network_channel_iouring_t *)channel;
     bool res = network_io_common_socket_close(
-            channel->fd,
+            channel_iouring->fd,
             shutdown_may_fail);
 
     if (!res) {
