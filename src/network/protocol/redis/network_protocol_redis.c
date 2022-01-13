@@ -50,12 +50,13 @@ uint32_t command_infos_map_count = sizeof(command_infos_map) / sizeof(network_pr
 // TODO: when processing the arguments, the in-loop command handling has to handle the arguments that require to be
 //       streamed somewhere (ie. the value argument of the SET command has to be written somewhere)
 
-void network_protocol_redis_accept(
-        worker_context_t *worker_context,
-        network_channel_t *channel) {
-    bool exit_loop;
-    network_protocol_redis_context_t protocol_context = { 0 };
+typedef struct network_protocol_redis_client network_protocol_redis_client_t;
+struct network_protocol_redis_client {
+    network_channel_buffer_t read_buffer;
+    network_channel_buffer_t send_buffer;
+};
 
+void network_protocol_redis_client_new(network_protocol_redis_client_t *network_protocol_redis_client) {
     // To speed up the performances the code takes advantage of SIMD operations that are built to operate on
     // specific amount of data, for example AVX/AVX2 in general operate on 256 bit (32 byte) of data at time.
     // Therefore, to avoid implementing ad hoc checks everywhere and at the same time to ensure that the code will
@@ -64,40 +65,76 @@ void network_protocol_redis_accept(
     // TODO: 32 should be defined as magic const somewhere as it's going hard to track where "32" is in use if it has to
     //       be changed
     // TODO: create a test to ensure that the length of the read buffer is taking into account the 32 bytes of padding
-    network_channel_buffer_t read_buffer = { 0 };
-    read_buffer.data = (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
-    read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE - 32;
+    network_protocol_redis_client->read_buffer.data = (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
+    network_protocol_redis_client->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE - 32;
+
+    network_protocol_redis_client->send_buffer.data = (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_SEND_BUFFER_SIZE);
+    network_protocol_redis_client->send_buffer.length = NETWORK_CHANNEL_SEND_BUFFER_SIZE;
+}
+
+void network_protocol_redis_client_cleanup(network_protocol_redis_client_t *network_protocol_redis_client) {
+    slab_allocator_mem_free(network_protocol_redis_client->read_buffer.data);
+    slab_allocator_mem_free(network_protocol_redis_client->send_buffer.data);
+}
+
+void network_protocol_redis_accept(
+        network_channel_t *channel) {
+    bool exit_loop = false;
+    network_protocol_redis_context_t protocol_context = { 0 };
+    network_protocol_redis_client_t network_protocol_redis_client = { 0 };
+
+    network_protocol_redis_client_new(&network_protocol_redis_client);
 
     do {
-        if (!worker_network_buffer_has_enough_space(&read_buffer, NETWORK_CHANNEL_PACKET_SIZE)) {
-            // TODO: send an error message to indicate that there are too much unprocessed data before closing the
-            //       socket
-            break;
+        if (!worker_network_buffer_has_enough_space(&network_protocol_redis_client.read_buffer, NETWORK_CHANNEL_PACKET_SIZE)) {
+            char *send_buffer, *send_buffer_start, *send_buffer_end;
+
+            send_buffer = send_buffer_start = network_protocol_redis_client.send_buffer.data;
+            send_buffer_end = network_protocol_redis_client.send_buffer.data + network_protocol_redis_client.send_buffer.length;
+            send_buffer_start = protocol_redis_writer_write_simple_error_printf(
+                    send_buffer_start,
+                    send_buffer_end - send_buffer_start,
+                    "ERR command too long");
+
+            if (send_buffer_start == NULL) {
+                LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
+            } else {
+                worker_network_send(
+                        channel,
+                        send_buffer,
+                        send_buffer_start - send_buffer);
+
+                worker_network_close(channel, true);
+            }
+            exit_loop = true;
         }
 
-        if (worker_network_buffer_needs_rewind(&read_buffer, NETWORK_CHANNEL_PACKET_SIZE)) {
-            network_protocol_redis_read_buffer_rewind(
-                    &read_buffer,
-                    &protocol_context);
-            worker_network_buffer_rewind(&read_buffer);
-        }
+        if (!exit_loop) {
+            if (worker_network_buffer_needs_rewind(&network_protocol_redis_client.read_buffer, NETWORK_CHANNEL_PACKET_SIZE)) {
+                network_protocol_redis_read_buffer_rewind(
+                        &network_protocol_redis_client.read_buffer,
+                        &protocol_context);
+                worker_network_buffer_rewind(&network_protocol_redis_client.read_buffer);
+            }
 
-        exit_loop = worker_network_receive(channel, &read_buffer, NETWORK_CHANNEL_PACKET_SIZE) != NETWORK_OP_RESULT_OK;
+            exit_loop = worker_network_receive(channel, &network_protocol_redis_client.read_buffer, NETWORK_CHANNEL_PACKET_SIZE) != NETWORK_OP_RESULT_OK;
+        }
 
         if (!exit_loop) {
             exit_loop = !network_protocol_redis_process_events(
-                    worker_context,
                     channel,
-                    &read_buffer,
+                    &network_protocol_redis_client.read_buffer,
                     &protocol_context);
         }
     } while(!exit_loop);
+
+    network_protocol_redis_client_cleanup(&network_protocol_redis_client);
 }
 
 bool network_protocol_redis_read_buffer_rewind(
         network_channel_buffer_t *read_buffer,
         network_protocol_redis_context_t *protocol_context) {
-    // TODO
+    // TODO: should flush any buffer that is marked to be written as data are going to be moved around
     return true;
 }
 
