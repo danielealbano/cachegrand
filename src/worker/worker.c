@@ -323,8 +323,8 @@ void* worker_thread_func(
             break;
         }
 
-        if (worker_should_publish_stats(&worker_context->stats.shared)) {
-            worker_publish_stats(
+        if (worker_stats_should_publish(&worker_context->stats.shared)) {
+            worker_stats_publish(
                     &worker_context->stats.internal,
                     &worker_context->stats.shared);
         }
