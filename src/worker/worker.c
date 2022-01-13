@@ -37,7 +37,7 @@
 #include "network/channel/network_channel_iouring.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
-#include "worker/worker_common.h"
+#include "worker/worker_stats.h"
 #include "worker/worker_op.h"
 #include "worker/network/worker_network.h"
 #include "worker/worker_iouring.h"
@@ -61,29 +61,6 @@ void worker_context_set(
 
 void worker_context_reset() {
     thread_local_worker_context = NULL;
-}
-
-void worker_publish_stats(
-        worker_stats_t* worker_stats_new,
-        worker_stats_volatile_t* worker_stats_public) {
-    clock_monotonic(&worker_stats_new->last_update_timestamp);
-
-    memcpy((void*)&worker_stats_public->network, &worker_stats_new->network, sizeof(worker_stats_public->network));
-    worker_stats_public->last_update_timestamp.tv_nsec = worker_stats_new->last_update_timestamp.tv_nsec;
-    worker_stats_public->last_update_timestamp.tv_sec = worker_stats_new->last_update_timestamp.tv_sec;
-
-    worker_stats_new->network.received_packets_per_second = 0;
-    worker_stats_new->network.sent_packets_per_second = 0;
-    worker_stats_new->network.accepted_connections_per_second = 0;
-}
-
-bool worker_should_publish_stats(
-        worker_stats_volatile_t* worker_stats_public) {
-    struct timespec last_update_timestamp;
-
-    clock_monotonic(&last_update_timestamp);
-
-    return last_update_timestamp.tv_sec >= worker_stats_public->last_update_timestamp.tv_sec + WORKER_PUBLISH_STATS_DELAY_SEC;
 }
 
 char* worker_log_producer_set_early_prefix_thread(

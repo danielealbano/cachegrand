@@ -14,13 +14,6 @@ void worker_context_set(
 
 void worker_context_reset();
 
-void worker_publish_stats(
-        worker_stats_t* worker_stats_new,
-        worker_stats_volatile_t* worker_stats_public);
-
-bool worker_should_publish_stats(
-        worker_stats_volatile_t* worker_stats_public);
-
 char* worker_log_producer_set_early_prefix_thread(
         worker_context_t *worker_context);
 
