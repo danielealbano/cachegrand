@@ -466,7 +466,6 @@ bool program_setup_ulimit_nofile() {
     if (program_setup_ulimit_wrapper(RLIMIT_NOFILE, PROGRAM_ULIMIT_NOFILE) == false) {
         LOG_E(TAG, "Unable to set max opened file ulimit");
         LOG_E_OS_ERROR(TAG);
-        return false;
     }
 
     return true;
@@ -477,7 +476,6 @@ bool program_setup_ulimit_memlock() {
     if (program_setup_ulimit_wrapper(RLIMIT_MEMLOCK, PROGRAM_ULIMIT_MEMLOCK) == false) {
         LOG_E(TAG, "Unable to set the lockable memory ulimit");
         LOG_E_OS_ERROR(TAG);
-        return false;
     }
 
     return true;
