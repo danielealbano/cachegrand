@@ -251,7 +251,7 @@ int32_t worker_network_iouring_op_network_send(
 }
 
 bool worker_network_iouring_initialize(
-        worker_context_t *worker_context) {
+        __attribute__((unused)) worker_context_t *worker_context) {
     return true;
 }
 
@@ -267,8 +267,10 @@ void worker_network_iouring_listeners_listen_pre(
 }
 
 bool worker_network_iouring_cleanup(
-        worker_context_t *worker_context) {
+        __attribute__((unused)) network_channel_t *listeners,
+        __attribute__((unused)) uint8_t listeners_count) {
     // do nothing for now
+    return true;
 }
 
 network_channel_t* worker_network_iouring_network_channel_new() {
@@ -305,4 +307,6 @@ bool worker_network_iouring_op_register() {
     worker_op_network_receive = worker_network_iouring_op_network_receive;
     worker_op_network_send = worker_network_iouring_op_network_send;
     worker_op_network_close = worker_network_iouring_op_network_close;
+
+    return true;
 }
