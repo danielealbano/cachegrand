@@ -203,10 +203,9 @@ network_op_result_t worker_network_receive(
             receive_length,
             channel->address.str);
 
-    worker_context_t *worker_context = worker_context_get();
-    worker_context->stats.internal.network.received_packets_per_second++;
-    worker_context->stats.internal.network.received_packets_total++;
-
+    worker_stats_t *stats = worker_stats_get();
+    stats->network.per_second.received_packets++;
+    stats->network.total.received_packets++;
 
     return NETWORK_OP_RESULT_OK;
 }
@@ -248,9 +247,9 @@ network_op_result_t worker_network_send(
             send_length,
             channel->address.str);
 
-    worker_context_t *context = worker_context_get();
-    context->stats.internal.network.sent_packets_per_second++;
-    context->stats.internal.network.sent_packets_total++;
+    worker_stats_t *stats = worker_stats_get();
+    stats->network.per_second.sent_packets++;
+    stats->network.total.sent_packets++;
 
     return NETWORK_OP_RESULT_OK;
 }
@@ -258,6 +257,7 @@ network_op_result_t worker_network_send(
 network_op_result_t worker_network_close(
         network_channel_t *channel,
         bool shutdown_may_fail) {
+
     return worker_op_network_close(channel, shutdown_may_fail)
         ? NETWORK_OP_RESULT_OK
         : NETWORK_OP_RESULT_ERROR;

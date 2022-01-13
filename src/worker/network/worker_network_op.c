@@ -51,14 +51,13 @@ worker_op_network_close_fp_t* worker_op_network_close;
 void worker_network_new_client_fiber_entrypoint(
         void *user_data) {
     worker_context_t *context = worker_context_get();
+    worker_stats_t *stats = worker_stats_get();
 
     network_channel_t *new_channel = user_data;
-    worker_stats_t *stats = &context->stats.internal;
 
-    // Updates the worker stats
-    stats->network.active_connections++;
-    stats->network.accepted_connections_total++;
-    stats->network.accepted_connections_per_second++;
+    stats->network.total.active_connections++;
+    stats->network.total.accepted_connections++;
+    stats->network.per_second.accepted_connections++;
 
     // Should not access the listener_channel directly
     switch (new_channel->protocol) {
@@ -82,7 +81,7 @@ void worker_network_new_client_fiber_entrypoint(
     worker_network_close(new_channel, true);
 
     // Updates the worker stats
-    stats->network.active_connections--;
+    stats->network.total.active_connections--;
 
     fiber_scheduler_terminate_current_fiber();
 }
