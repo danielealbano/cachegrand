@@ -18,11 +18,12 @@
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "config.h"
+#include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "worker/worker.h"
 
 TEST_CASE("worker/worker.c", "[worker][worker]") {
-    SECTION("worker_publish_stats") {
+    SECTION("worker_stats_publish") {
         worker_stats_t worker_stats_cmp = {0};
         worker_stats_t worker_stats_new = {0};
         worker_stats_volatile_t worker_stats_public = {0};
@@ -35,24 +36,24 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
         REQUIRE(clock_gettime(CLOCK_MONOTONIC, (struct timespec*)&worker_stats_new.last_update_timestamp) == 0);
         worker_stats_new.last_update_timestamp.tv_sec -= 1;
 
-        worker_publish_stats(
+        worker_stats_publish(
                 &worker_stats_new,
                 &worker_stats_public);
 
         REQUIRE(memcmp((char*)&worker_stats_cmp.network, ((char*)&worker_stats_public.network), struct_size) == 0);
-        REQUIRE(worker_stats_new.network.received_packets_per_second == 0);
-        REQUIRE(worker_stats_new.network.sent_packets_per_second == 0);
-        REQUIRE(worker_stats_new.network.accepted_connections_per_second == 0);
+        REQUIRE(worker_stats_new.network.per_second.received_packets == 0);
+        REQUIRE(worker_stats_new.network.per_second.sent_packets == 0);
+        REQUIRE(worker_stats_new.network.per_second.accepted_connections == 0);
 
         REQUIRE(worker_stats_public.last_update_timestamp.tv_nsec == worker_stats_new.last_update_timestamp.tv_nsec);
         REQUIRE(worker_stats_public.last_update_timestamp.tv_sec == worker_stats_new.last_update_timestamp.tv_sec);
     }
 
-    SECTION("worker_should_publish_stats") {
+    SECTION("worker_stats_should_publish") {
         SECTION("should") {
             worker_stats_volatile_t stats = {0};
 
-            REQUIRE(worker_should_publish_stats(&stats));
+            REQUIRE(worker_stats_should_publish(&stats));
         }
 
         SECTION("should not") {
@@ -62,7 +63,7 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
 
             stats.last_update_timestamp.tv_sec += 100;
 
-            REQUIRE(!worker_should_publish_stats(&stats));
+            REQUIRE(!worker_stats_should_publish(&stats));
         }
     }
 

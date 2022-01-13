@@ -27,6 +27,7 @@
 #include "network/channel/network_channel.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
+#include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "signal_handler_thread.h"
 
