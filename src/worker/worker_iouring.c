@@ -232,7 +232,7 @@ void worker_iouring_cqe_log(
 }
 
 void worker_iouring_cleanup(
-        worker_context_t *worker_context) {
+        __attribute__((unused)) worker_context_t *worker_context) {
     io_uring_t *ring;
     worker_iouring_context_t *iouring_context = worker_iouring_context_get();
 
@@ -300,7 +300,8 @@ void worker_iouring_check_capabilities() {
 }
 
 bool worker_iouring_initialize(
-        worker_context_t *worker_context) {
+        worker_context_t *worker_context,
+        uint32_t max_fd) {
     worker_iouring_context_t *context;
     io_uring_t *ring;
     io_uring_params_t *params = xalloc_alloc_zero(sizeof(io_uring_params_t));
@@ -327,15 +328,12 @@ bool worker_iouring_initialize(
     }
 
     context = (worker_iouring_context_t*)xalloc_alloc(sizeof(worker_iouring_context_t));
-    uint32_t fds_count = worker_iouring_calculate_fds_count(
-            worker_context->workers_count,
-            worker_context->config->network->max_clients,
-            worker_context->network.listeners_count);
+    uint32_t fds_count = max_fd;
 
     LOG_V(TAG, "Initializing local worker ring for io_uring");
 
     if ((ring = io_uring_support_init(
-            fds_count * 1.2,
+            (int)(fds_count * 1.2),
             params,
             NULL)) == NULL) {
         xalloc_free(context);
@@ -346,7 +344,7 @@ bool worker_iouring_initialize(
     // The iouring context has to be set only after the io_uring is initialized but the actual context memory
     // has to be allocated before, if the allocation fails the software can abort, if the ring is allocated it needs
     // to be cleaned up so better to do it afterwards.
-    context->worker_context = worker_context;
+    context->core_index = worker_context->core_index;
     context->ring = ring;
     worker_iouring_context_set(context);
 
