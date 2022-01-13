@@ -41,7 +41,9 @@
 void worker_network_iouring_op_network_post_close(
         network_channel_iouring_t *channel) {
     if (channel->has_mapped_fd) {
-        worker_iouring_fds_map_remove(channel->mapped_fd);
+        worker_iouring_fds_map_remove(channel->wrapped_channel.fd);
+        channel->wrapped_channel.fd = channel->fd;
+        channel->has_mapped_fd = false;
     }
 
     network_channel_iouring_free(channel);
@@ -96,9 +98,12 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
         return NULL;
     }
 
-    if (worker_iouring_fds_map_add_and_enqueue_files_update(
+    if (!worker_iouring_fds_map_add_and_enqueue_files_update(
             worker_iouring_context_get()->ring,
-            new_channel) < 0) {
+            new_channel->fd,
+            &new_channel->has_mapped_fd,
+            &new_channel->base_sqe_flags,
+            &new_channel->wrapped_channel.fd)) {
         LOG_E(
                 TAG,
                 "Can't accept the new connection <%s> coming from listener <%s>, unable to find a free fds slot",
