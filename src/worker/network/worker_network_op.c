@@ -72,7 +72,6 @@ void worker_network_new_client_fiber_entrypoint(
 
         case NETWORK_PROTOCOLS_REDIS:
             network_protocol_redis_accept(
-                    context,
                     new_channel);
             break;
     }
