@@ -54,10 +54,6 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
         network_channel_iouring_t *listener_channel,
         network_channel_iouring_t *new_channel,
         io_uring_cqe_t *cqe) {
-    worker_context_t *worker_context;
-
-    worker_context = context->worker_context;
-
     if (worker_iouring_cqe_is_error_any(cqe)) {
         fiber_scheduler_set_error(-cqe->res);
         LOG_E(
@@ -83,7 +79,7 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
     // Perform the initial setup on the new channel
     if (network_channel_client_setup(
             new_channel->wrapped_channel.fd,
-            worker_context->core_index) == false) {
+            context->core_index) == false) {
         fiber_scheduler_set_error(errno);
         LOG_E(
                 TAG,
@@ -259,11 +255,12 @@ bool worker_network_iouring_initialize(
 }
 
 void worker_network_iouring_listeners_listen_pre(
-        worker_context_t *worker_context) {
+        network_channel_t *listeners,
+        uint8_t listeners_count) {
     // Update the fd in the network_channel_iouring to match the one used by the underlying channel
-    for(int index = 0; index < worker_context->network.listeners_count; index++) {
+    for(int index = 0; index < listeners_count; index++) {
         network_channel_iouring_t *channel =
-                &((network_channel_iouring_t*)worker_context->network.listeners)[index];
+                (network_channel_iouring_t*)worker_network_iouring_network_channel_multi_get(listeners, index);
         channel->fd = channel->wrapped_channel.fd;
     }
 }
