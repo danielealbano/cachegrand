@@ -104,13 +104,15 @@ bool io_uring_capabilities_is_linked_op_files_update_supported() {
     int fd = 1;
     bool ret = false;
     uint32_t files_map_count = 16;
-    const int *files_map_registered = xalloc_alloc_zero(sizeof(int) * files_map_count);
+    int *files_map_registered = xalloc_alloc_zero(sizeof(int) * files_map_count);
 
     if ((ring = io_uring_support_init(16, NULL, NULL)) == NULL) {
+        xalloc_free(files_map_registered);
         return false;
     }
 
     if (io_uring_register_files(ring, files_map_registered, files_map_count) < 0) {
+        xalloc_free(files_map_registered);
         io_uring_support_free(ring);
         return false;
     }
@@ -127,7 +129,13 @@ bool io_uring_capabilities_is_linked_op_files_update_supported() {
     io_uring_wait_cqe(ring, &cqe2);
     io_uring_cqe_seen(ring, cqe2);
 
-    return cqe1->res == 1 && cqe2->res == 0;
+    // Fetch the result before freeing the ring, afterwards the CQEs will not be available anymore
+    ret = cqe1->res == 1 && cqe2->res == 0;
+
+    io_uring_support_free(ring);
+    xalloc_free(files_map_registered);
+
+    return ret;
 }
 
 bool io_uring_capabilities_is_fast_poll_supported() {
