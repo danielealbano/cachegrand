@@ -214,9 +214,11 @@ void worker_mask_signals() {
 }
 
 void worker_network_listeners_listen_pre(
-        worker_context_t *worker_context) {
-    if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING) {
-        worker_network_iouring_listeners_listen_pre(worker_context);
+        config_network_backend_t backend,
+        network_channel_t *listeners,
+        uint8_t listeners_count) {
+    if (backend == CONFIG_NETWORK_BACKEND_IO_URING) {
+        worker_network_iouring_listeners_listen_pre(listeners, listeners_count);
     }
 }
 
@@ -238,6 +240,8 @@ void worker_set_running(
 
 void* worker_thread_func(
         void* user_data) {
+    network_channel_t *listeners;
+    uint8_t listeners_count;
     bool res = true;
     worker_context_t *worker_context = user_data;
 
@@ -283,11 +287,17 @@ void* worker_thread_func(
     }
 
     worker_network_listeners_initialize(
-            worker_context);
+            worker_context->core_index,
+            worker_context->config->network,
+            &listeners,
+            &listeners_count);
     worker_network_listeners_listen_pre(
-            worker_context);
+            worker_context->config->network->backend,
+            listeners,
+            listeners_count);
     worker_network_listeners_listen(
-            worker_context);
+            listeners,
+            listeners_count);
 
     worker_timer_setup(worker_context);
 
@@ -295,6 +305,13 @@ void* worker_thread_func(
 
     worker_set_running(worker_context, true);
 
+    // TODO: the current loop terminates immediately when requests but this can lead to data corruption while data are
+    //       being written by the fibers. To ensure a proper flow of operations the worker should notify the fibers that
+    //       they have to terminate the execution ASAP and therefore any network communication should be halted on the
+    //       spot but any pending / in progress I/O operation should be safely completed.
+    //       In case the fibers are not terminating, even if it can lead to corruption, them should be terminated within
+    //       a maximum timeout or X seconds and an error message should be reported pointing out what a fiber is doinng
+    //       and where.
     do {
         if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
             worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {

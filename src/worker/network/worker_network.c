@@ -36,22 +36,24 @@
 #define TAG "worker_network"
 
 void worker_network_listeners_initialize(
-        worker_context_t *worker_context) {
+        uint8_t core_index,
+        config_network_t *config_network,
+        network_channel_t **listeners,
+        uint8_t *listeners_count) {
     network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = {0};
-    config_t *config = worker_context->config;
 
-    listener_new_cb_user_data.core_index = worker_context->core_index;
+    listener_new_cb_user_data.core_index = core_index;
 
     // With listeners = NULL, the number of needed listeners will be enumerated and listeners_count
     // increased as needed
     listener_new_cb_user_data.listeners = NULL;
-    for(int protocol_index = 0; protocol_index < config->network->protocols_count; protocol_index++) {
-        config_network_protocol_t *config_network_protocol = &config->network->protocols[protocol_index];
+    for(int protocol_index = 0; protocol_index < config_network->protocols_count; protocol_index++) {
+        config_network_protocol_t *config_network_protocol = &config_network->protocols[protocol_index];
         for(int binding_index = 0; binding_index < config_network_protocol->bindings_count; binding_index++) {
             if (network_channel_listener_new(
                     config_network_protocol->bindings[binding_index].host,
                     config_network_protocol->bindings[binding_index].port,
-                    worker_context->config->network->listen_backlog,
+                    config_network->listen_backlog,
                     NETWORK_PROTOCOLS_UNKNOWN,
                     &listener_new_cb_user_data) == false) {
             }
@@ -65,10 +67,10 @@ void worker_network_listeners_initialize(
     listener_new_cb_user_data.listeners_count = 0;
 
     // Allocate the listeners (with the correct protocol config)
-    for(int protocol_index = 0; protocol_index < config->network->protocols_count; protocol_index++) {
+    for(int protocol_index = 0; protocol_index < config_network->protocols_count; protocol_index++) {
         network_protocols_t network_protocol;
 
-        config_network_protocol_t *config_network_protocol = &config->network->protocols[protocol_index];
+        config_network_protocol_t *config_network_protocol = &config_network->protocols[protocol_index];
         switch(config_network_protocol->type) {
             default:
             case CONFIG_PROTOCOL_TYPE_REDIS:
@@ -79,7 +81,7 @@ void worker_network_listeners_initialize(
             if (network_channel_listener_new(
                     config_network_protocol->bindings[binding_index].host,
                     config_network_protocol->bindings[binding_index].port,
-                    worker_context->config->network->listen_backlog,
+                    config_network->listen_backlog,
                     network_protocol,
                     &listener_new_cb_user_data) == false) {
 
@@ -91,17 +93,16 @@ void worker_network_listeners_initialize(
         }
     }
 
-    // Assign the listeners and listeners_count to the worker user data
-    worker_context->network.listeners_count = listener_new_cb_user_data.listeners_count;
-    worker_context->network.listeners = listener_new_cb_user_data.listeners;
-    worker_context->network.network_channel_size = listener_new_cb_user_data.network_channel_size;
+    *listeners = listener_new_cb_user_data.listeners;
+    *listeners_count = listener_new_cb_user_data.listeners_count;
 }
 
 void worker_network_listeners_listen(
-        worker_context_t *worker_context) {
-    for (int listener_index = 0; listener_index < worker_context->network.listeners_count; listener_index++) {
+        network_channel_t *listeners,
+        uint8_t listeners_count) {
+    for (int listener_index = 0; listener_index < listeners_count; listener_index++) {
         network_channel_t *listener_channel = worker_op_network_channel_multi_get(
-                worker_context->network.listeners,
+                listeners,
                 listener_index);
 
         fiber_scheduler_new_fiber(
