@@ -12,13 +12,13 @@ storage_channel_t* worker_storage_iouring_op_storage_open(
         storage_io_common_open_flags_t flags,
         storage_io_common_open_mode_t mode);
 
-size_t worker_storage_iouring_op_storage_read(
+int32_t worker_storage_iouring_op_storage_read(
         storage_channel_t *channel,
         storage_io_common_iovec_t *iov,
         size_t iov_nr,
         off_t offset);
 
-size_t worker_storage_iouring_op_storage_write(
+int32_t worker_storage_iouring_op_storage_write(
         storage_channel_t *channel,
         storage_io_common_iovec_t *iov,
         size_t iov_nr,

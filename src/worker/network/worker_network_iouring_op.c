@@ -169,11 +169,11 @@ bool worker_network_iouring_op_network_close(
     return res;
 }
 
-size_t worker_network_iouring_op_network_receive(
+int32_t worker_network_iouring_op_network_receive(
         network_channel_t *channel,
         char* buffer,
         size_t buffer_length) {
-    size_t res;
+    int32_t res;
     worker_iouring_context_t *context = worker_iouring_context_get();
 
     fiber_scheduler_reset_error();
@@ -201,17 +201,17 @@ size_t worker_network_iouring_op_network_receive(
     } while(res == -EAGAIN);
 
     if (res < 0) {
-        fiber_scheduler_set_error((int)-res);
+        fiber_scheduler_set_error(-res);
     }
 
     return res;
 }
 
-size_t worker_network_iouring_op_network_send(
+int32_t worker_network_iouring_op_network_send(
         network_channel_t *channel,
         char* buffer,
         size_t buffer_length) {
-    size_t res;
+    int32_t res;
     worker_iouring_context_t *context = worker_iouring_context_get();
 
     fiber_scheduler_reset_error();
@@ -239,7 +239,7 @@ size_t worker_network_iouring_op_network_send(
     } while(res == -EAGAIN);
 
     if (res < 0) {
-        fiber_scheduler_set_error((int)-res);
+        fiber_scheduler_set_error(-res);
     }
 
     // TODO: with the new fiber interface this shouldn't really be done here!

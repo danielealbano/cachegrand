@@ -97,7 +97,7 @@ storage_channel_t* worker_storage_iouring_op_storage_open(
     return (storage_channel_t*)storage_channel_iouring;
 }
 
-size_t worker_storage_iouring_op_storage_read(
+int32_t worker_storage_iouring_op_storage_read(
         storage_channel_t *channel,
         storage_io_common_iovec_t *iov,
         size_t iov_nr,
@@ -133,10 +133,10 @@ size_t worker_storage_iouring_op_storage_read(
         fiber_scheduler_set_error(-res);
     }
 
-    return (size_t)res;
+    return res;
 }
 
-size_t worker_storage_iouring_op_storage_write(
+int32_t worker_storage_iouring_op_storage_write(
         storage_channel_t *channel,
         storage_io_common_iovec_t *iov,
         size_t iov_nr,
@@ -172,7 +172,7 @@ size_t worker_storage_iouring_op_storage_write(
         fiber_scheduler_set_error(-res);
     }
 
-    return (size_t)res;
+    return res;
 }
 
 bool worker_storage_iouring_op_storage_flush(

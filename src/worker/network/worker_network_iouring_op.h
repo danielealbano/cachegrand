@@ -21,12 +21,12 @@ bool worker_network_iouring_op_network_close(
         network_channel_t *channel,
         bool shutdown_may_fail);
 
-size_t worker_network_iouring_op_network_receive(
+int32_t worker_network_iouring_op_network_receive(
         network_channel_t *channel,
         char* buffer,
         size_t buffer_length);
 
-size_t worker_network_iouring_op_network_send(
+int32_t worker_network_iouring_op_network_send(
         network_channel_t *channel,
         char* buffer,
         size_t buffer_length);
