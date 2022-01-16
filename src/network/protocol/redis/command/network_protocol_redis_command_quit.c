@@ -30,7 +30,7 @@
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "network/protocol/redis/network_protocol_redis.h"
-#include "worker/network/worker_network.h"
+#include "network/network.h"
 
 #define TAG "network_protocol_redis_command_quit"
 
@@ -54,7 +54,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(quit) {
         return false;
     }
 
-    if (worker_network_send(
+    if (network_send(
             channel,
             send_buffer,
             send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
@@ -62,7 +62,9 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(quit) {
         return false;
     }
 
-    worker_network_close(channel, true);
+    network_close(channel, true);
 
-    return true;
+    // TODO: BUG! The operation is not really failing but currently there is no way to inform the caller that the client
+    //       has requested to terminate the connection.
+    return false;
 }

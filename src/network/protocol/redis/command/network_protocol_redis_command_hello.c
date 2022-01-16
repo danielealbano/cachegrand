@@ -32,7 +32,7 @@
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "network/protocol/redis/network_protocol_redis.h"
-#include "worker/network/worker_network.h"
+#include "network/network.h"
 
 #define TAG "network_protocol_redis_command_hello"
 
@@ -196,7 +196,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(hello) {
         }
     }
 
-    if (worker_network_send(
+    if (network_send(
             channel,
             send_buffer,
             send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {

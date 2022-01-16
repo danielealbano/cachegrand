@@ -31,7 +31,7 @@
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "worker/worker.h"
-#include "worker/network/worker_network.h"
+#include "network/network.h"
 
 #include "network_protocol_redis.h"
 
@@ -86,7 +86,7 @@ void network_protocol_redis_accept(
     network_protocol_redis_client_new(&network_protocol_redis_client);
 
     do {
-        if (!worker_network_buffer_has_enough_space(&network_protocol_redis_client.read_buffer, NETWORK_CHANNEL_PACKET_SIZE)) {
+        if (!network_buffer_has_enough_space(&network_protocol_redis_client.read_buffer, NETWORK_CHANNEL_PACKET_SIZE)) {
             char *send_buffer, *send_buffer_start, *send_buffer_end;
 
             send_buffer = send_buffer_start = network_protocol_redis_client.send_buffer.data;
@@ -99,25 +99,25 @@ void network_protocol_redis_accept(
             if (send_buffer_start == NULL) {
                 LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
             } else {
-                worker_network_send(
+                network_send(
                         channel,
                         send_buffer,
                         send_buffer_start - send_buffer);
 
-                worker_network_close(channel, true);
+                network_close(channel, true);
             }
             exit_loop = true;
         }
 
         if (!exit_loop) {
-            if (worker_network_buffer_needs_rewind(&network_protocol_redis_client.read_buffer, NETWORK_CHANNEL_PACKET_SIZE)) {
+            if (network_buffer_needs_rewind(&network_protocol_redis_client.read_buffer, NETWORK_CHANNEL_PACKET_SIZE)) {
                 network_protocol_redis_read_buffer_rewind(
                         &network_protocol_redis_client.read_buffer,
                         &protocol_context);
-                worker_network_buffer_rewind(&network_protocol_redis_client.read_buffer);
+                network_buffer_rewind(&network_protocol_redis_client.read_buffer);
             }
 
-            exit_loop = worker_network_receive(channel, &network_protocol_redis_client.read_buffer, NETWORK_CHANNEL_PACKET_SIZE) != NETWORK_OP_RESULT_OK;
+            exit_loop = network_receive(channel, &network_protocol_redis_client.read_buffer, NETWORK_CHANNEL_PACKET_SIZE) != NETWORK_OP_RESULT_OK;
         }
 
         if (!exit_loop) {
@@ -151,7 +151,6 @@ void network_protocol_redis_reset_context(
 }
 
 bool network_protocol_redis_process_events(
-        worker_context_t *worker_context,
         network_channel_t *channel,
         network_channel_buffer_t *read_buffer,
         network_protocol_redis_context_t *protocol_context) {
@@ -159,6 +158,7 @@ bool network_protocol_redis_process_events(
     char *send_buffer, *send_buffer_start, *send_buffer_end;
     long data_read_len = 0;
 
+    worker_context_t *worker_context = worker_context_get();
     hashtable_t *hashtable = worker_context->hashtable;
     protocol_redis_reader_context_t *reader_context = &protocol_context->reader_context;
 
@@ -280,12 +280,12 @@ bool network_protocol_redis_process_events(
                 return false;
             }
 
-            worker_network_send(
+            network_send(
                     channel,
                     send_buffer,
                     send_buffer_start - send_buffer);
 
-            worker_network_close(channel, true);
+            network_close(channel, true);
 
             // TODO: return? who knows, this code is a mess LOL
         }
@@ -314,7 +314,7 @@ bool network_protocol_redis_process_events(
 
                 network_protocol_redis_reset_context(protocol_context);
 
-                return worker_network_send(
+                return network_send(
                         channel,
                         send_buffer,
                         send_buffer_start - send_buffer);
@@ -341,7 +341,7 @@ bool network_protocol_redis_process_events(
 
                     network_protocol_redis_reset_context(protocol_context);
 
-                    return worker_network_send(
+                    return network_send(
                             channel,
                             send_buffer,
                             send_buffer_start - send_buffer);
