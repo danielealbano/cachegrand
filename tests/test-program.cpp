@@ -310,7 +310,6 @@ TEST_CASE("program.c", "[program]") {
 
     SECTION("test redis ping/pong") {
         PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345();
-        pthread_t worker_pthread;
         worker_context_t *worker_context;
         struct sockaddr_in address = {0};
         size_t buffer_send_data_len;

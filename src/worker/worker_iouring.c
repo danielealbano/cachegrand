@@ -263,7 +263,6 @@ bool worker_iouring_process_events_loop(
     worker_iouring_context_t *context;
     fiber_t *fiber;
     uint32_t head, count = 0;
-    char callback_function_name[256] = { 0 };
 
     context = worker_iouring_context_get();
 

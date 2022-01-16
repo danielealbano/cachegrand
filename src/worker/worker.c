@@ -127,9 +127,7 @@ bool worker_initialize_general(
 }
 
 bool worker_initialize_network(
-        worker_context_t* worker_context,
-        network_channel_t *listeners,
-        uint8_t listeners_count) {
+        worker_context_t* worker_context) {
     // TODO: the workers should be map the their func ops in a struct and these should be used
     //       below, can't keep doing ifs :/
 
@@ -272,8 +270,9 @@ void* worker_thread_func(
         return NULL;
     }
 
-    if (!worker_initialize_network(worker_context, listeners, listeners_count)) {
+    if (!worker_initialize_network(worker_context)) {
         LOG_E(TAG, "Initialization failed!");
+        worker_cleanup_general(worker_context);
         xalloc_free(log_producer_early_prefix_thread);
         worker_context->aborted = true;
         MEMORY_FENCE_STORE();
@@ -282,6 +281,8 @@ void* worker_thread_func(
 
     if (!worker_initialize_storage(worker_context)) {
         LOG_E(TAG, "Initialization failed!");
+        worker_cleanup_network(worker_context, NULL, 0);
+        worker_cleanup_general(worker_context);
         xalloc_free(log_producer_early_prefix_thread);
         worker_context->aborted = true;
         MEMORY_FENCE_STORE();
