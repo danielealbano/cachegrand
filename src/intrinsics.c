@@ -10,6 +10,10 @@
 
 #include "intrinsics.h"
 
+// TODO: this should be refactored as intrinsics are different per platform, instead of invoking directly
+//       intrinsic_rdtscp a performance counters component should be implemented to fetch these information to be
+//       able to provide a platform-agnostic set of them.
+
 uint64_t intrinsic_rdtscp(uint32_t *aux) {
     uint64_t rax, rdx;
     asm volatile (
