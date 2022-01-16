@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <strings.h>
-#include <arpa/inet.h>
 #include <liburing.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -13,17 +12,10 @@
 
 #include "misc.h"
 #include "exttypes.h"
-#include "log/log.h"
 #include "spinlock.h"
 #include "fiber.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
-#include "data_structures/double_linked_list/double_linked_list.h"
-#include "slab_allocator.h"
 #include "support/io_uring/io_uring_support.h"
-#include "network/protocol/network_protocol.h"
-#include "network/io/network_io_common.h"
-#include "network/channel/network_channel.h"
-#include "network/channel/network_channel_iouring.h"
 #include "config.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
@@ -52,7 +44,7 @@ struct test_worker_storage_io_uring_op_fiber_userdata {
     size_t iovec_nr;
     off_t offset;
     off_t len;
-    mode_t fallocate_mode;
+    int fallocate_mode;
     off_t fallocate_offset;
     off_t fallocate_len;
     storage_channel_iouring_t **open_result;
@@ -151,7 +143,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
     };
     worker_iouring_context_set(&worker_iouring_context);
 
-    SECTION("io_uring_support_sqe_enqueue_openat") {
+    SECTION("worker_storage_iouring_op_storage_open") {
         SECTION("open an existing file") {
             test_worker_storage_io_uring_op_fiber_userdata_t user_data = {
                     .open = true,
@@ -342,7 +334,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             REQUIRE(strncmp(buffer_write, buffer_read2, strlen(buffer_write)) == 0);
         }
 
-        SECTION("read invalid fd") {
+        SECTION("invalid fd") {
             size_t len = 0;
             iovec[0].iov_base = buffer_read1;
             iovec[0].iov_len = strlen(buffer_write);
@@ -477,7 +469,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             REQUIRE(close(fd) == 0);
         }
 
-        SECTION("read invalid fd") {
+        SECTION("invalid fd") {
             size_t len = 0;
             iovec[0].iov_base = buffer_read1;
             iovec[0].iov_len = strlen(buffer_write);
@@ -561,7 +553,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             REQUIRE(fiber->error_number == 0);
         }
 
-        SECTION("read invalid fd") {
+        SECTION("invalid fd") {
             bool res = false;
             iovec[0].iov_base = buffer_read1;
             iovec[0].iov_len = strlen(buffer_write);
@@ -685,7 +677,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             REQUIRE(close(fd) == 0);
         }
 
-        SECTION("read invalid fd") {
+        SECTION("invalid fd") {
             bool res = false;
             iovec[0].iov_base = buffer_read1;
             iovec[0].iov_len = strlen(buffer_write);
@@ -792,7 +784,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
 
     worker_iouring_context_reset();
 
-    if (storage_channel_iouring) {
+    if (storage_channel_iouring && storage_channel_iouring->wrapped_channel.fd != -1) {
         storage_channel_t *storage_channel = (storage_channel_t*)storage_channel_iouring;
 
         storage_io_common_close(storage_channel->fd);
