@@ -290,11 +290,11 @@ bool worker_iouring_process_events_loop(
 //        //       related data.
 //        //       The fiber scheduler will also have to calculate the X percentile to be used as reference when
 //        //       deciding if a fiber has to be warned or punished (skipping its execution).
-        if (!fiber->cost.postpone_execution) {
+        if (likely(!fiber->cost.postpone_execution)) {
             fiber->ret.ptr_value = cqe;
             fiber_scheduler_switch_to(fiber);
         }
-//
+
 //        fiber->cost.postpone_execution = false;
 //        if (fiber->cost.cycles > __CALCULATE_COST__) {
 //            fiber->cost.warnings++;
