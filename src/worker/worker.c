@@ -42,7 +42,7 @@
 #include "worker/worker_op.h"
 #include "worker/network/worker_network_op.h"
 #include "worker/storage/worker_storage_op.h"
-#include "worker/network/worker_network.h"
+#include "network/network.h"
 #include "worker/worker_iouring.h"
 #include "worker/worker_iouring_op.h"
 #include "worker/network/worker_network_iouring_op.h"

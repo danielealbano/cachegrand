@@ -237,13 +237,14 @@ bool worker_storage_iouring_op_storage_close(
 }
 
 bool worker_storage_iouring_initialize(
-        worker_context_t *worker_context) {
+        __attribute__((unused)) worker_context_t *worker_context) {
     return true;
 }
 
 bool worker_storage_iouring_cleanup(
-        worker_context_t *worker_context) {
+        __attribute__((unused)) worker_context_t *worker_context) {
     // TODO: will need to iterate all over the opened files and flush the data to ensure they are stored on the disk
+    return true;
 }
 
 bool worker_storage_iouring_op_register() {
@@ -253,4 +254,6 @@ bool worker_storage_iouring_op_register() {
     worker_op_storage_flush = worker_storage_iouring_op_storage_flush;
     worker_op_storage_fallocate = worker_storage_iouring_op_storage_fallocate;
     worker_op_storage_close = worker_storage_iouring_op_storage_close;
+
+    return true;
 }

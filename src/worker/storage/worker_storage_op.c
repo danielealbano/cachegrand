@@ -16,6 +16,9 @@
 
 #include "worker_storage_op.h"
 
+// TODO: need to extend the interface to manage directories (open, iterate, flush, etc.)
+// TODO: need to extend the interface to expose disk availability
+
 // Storage operations
 worker_op_storage_open_fp_t* worker_op_storage_open;
 worker_op_storage_read_fp_t* worker_op_storage_read;

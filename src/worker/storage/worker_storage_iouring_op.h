@@ -37,10 +37,10 @@ bool worker_storage_iouring_op_storage_close(
         storage_channel_t *channel);
 
 bool worker_storage_iouring_initialize(
-        worker_context_t *worker_context);
+        __attribute__((unused)) worker_context_t *worker_context);
 
 bool worker_storage_iouring_cleanup(
-        worker_context_t *worker_context);
+        __attribute__((unused)) __attribute__((unused)) worker_context_t *worker_context);
 
 bool worker_storage_iouring_op_register();
 

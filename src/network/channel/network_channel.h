@@ -29,6 +29,13 @@ enum network_channel_type {
 };
 typedef enum network_channel_type network_channel_type_t;
 
+enum network_channel_status {
+    NETWORK_CHANNEL_STATUS_UNDEFINED,
+    NETWORK_CHANNEL_STATUS_CONNECTED,
+    NETWORK_CHANNEL_STATUS_CLOSED
+};
+typedef enum network_channel_status network_channel_status_t;
+
 typedef struct network_channel_address network_channel_address_t;
 struct network_channel_address {
     char* address;
@@ -53,7 +60,7 @@ struct network_channel {
     network_channel_type_t type;
     network_protocols_t protocol;
     network_channel_socket_address_t address;
-    network_channel_state_t* state;
+    network_channel_status_t status;
 };
 
 typedef struct network_create_lister_new_user_data network_channel_listener_new_callback_user_data_t;
