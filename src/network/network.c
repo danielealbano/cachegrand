@@ -12,6 +12,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -30,89 +31,11 @@
 #include "worker/worker.h"
 #include "worker/network/worker_network_op.h"
 
-#include "worker_network.h"
+#include "network.h"
 
-#define TAG "worker_network"
+#define TAG "network"
 
-void worker_network_listeners_initialize(
-        uint8_t core_index,
-        config_network_t *config_network,
-        network_channel_t **listeners,
-        uint8_t *listeners_count) {
-    network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = {0};
-
-    listener_new_cb_user_data.core_index = core_index;
-
-    // With listeners = NULL, the number of needed listeners will be enumerated and listeners_count
-    // increased as needed
-    listener_new_cb_user_data.listeners = NULL;
-    for(int protocol_index = 0; protocol_index < config_network->protocols_count; protocol_index++) {
-        config_network_protocol_t *config_network_protocol = &config_network->protocols[protocol_index];
-        for(int binding_index = 0; binding_index < config_network_protocol->bindings_count; binding_index++) {
-            if (network_channel_listener_new(
-                    config_network_protocol->bindings[binding_index].host,
-                    config_network_protocol->bindings[binding_index].port,
-                    config_network->listen_backlog,
-                    NETWORK_PROTOCOLS_UNKNOWN,
-                    &listener_new_cb_user_data) == false) {
-            }
-        }
-    }
-
-    // Allocate the needed listeners and reset listeners_count
-    listener_new_cb_user_data.listeners =
-            worker_op_network_channel_multi_new(listener_new_cb_user_data.listeners_count);
-    listener_new_cb_user_data.network_channel_size = worker_op_network_channel_size();
-    listener_new_cb_user_data.listeners_count = 0;
-
-    // Allocate the listeners (with the correct protocol config)
-    for(int protocol_index = 0; protocol_index < config_network->protocols_count; protocol_index++) {
-        network_protocols_t network_protocol;
-
-        config_network_protocol_t *config_network_protocol = &config_network->protocols[protocol_index];
-        switch(config_network_protocol->type) {
-            default:
-            case CONFIG_PROTOCOL_TYPE_REDIS:
-                network_protocol = NETWORK_PROTOCOLS_REDIS;
-        }
-
-        for(int binding_index = 0; binding_index < config_network_protocol->bindings_count; binding_index++) {
-            if (network_channel_listener_new(
-                    config_network_protocol->bindings[binding_index].host,
-                    config_network_protocol->bindings[binding_index].port,
-                    config_network->listen_backlog,
-                    network_protocol,
-                    &listener_new_cb_user_data) == false) {
-
-                LOG_E(TAG, "Unable to setup listener for <%s:%u> with protocol <%d>",
-                      config_network_protocol->bindings[binding_index].host,
-                      config_network_protocol->bindings[binding_index].port,
-                      network_protocol);
-            }
-        }
-    }
-
-    *listeners = listener_new_cb_user_data.listeners;
-    *listeners_count = listener_new_cb_user_data.listeners_count;
-}
-
-void worker_network_listeners_listen(
-        network_channel_t *listeners,
-        uint8_t listeners_count) {
-    for (int listener_index = 0; listener_index < listeners_count; listener_index++) {
-        network_channel_t *listener_channel = worker_op_network_channel_multi_get(
-                listeners,
-                listener_index);
-
-        fiber_scheduler_new_fiber(
-                "worker-listener",
-                sizeof("worker-listener") - 1,
-                worker_network_listeners_fiber_entrypoint,
-                (void *)listener_channel);
-    }
-}
-
-bool worker_network_buffer_has_enough_space(
+bool network_buffer_has_enough_space(
         network_channel_buffer_t *read_buffer,
         size_t read_length) {
     size_t read_buffer_needed_size_min = read_buffer->data_size + read_length;
@@ -120,7 +43,7 @@ bool worker_network_buffer_has_enough_space(
     return read_buffer->length >= read_buffer_needed_size_min;
 }
 
-bool worker_network_buffer_needs_rewind(
+bool network_buffer_needs_rewind(
         network_channel_buffer_t *read_buffer,
         size_t read_length) {
     size_t read_buffer_needed_size_min = read_buffer->data_size + read_length;
@@ -129,7 +52,7 @@ bool worker_network_buffer_needs_rewind(
     return read_buffer->length >= read_buffer_needed_size;
 }
 
-void worker_network_buffer_rewind(
+void network_buffer_rewind(
         network_channel_buffer_t *read_buffer) {
     memcpy(
             read_buffer->data,
@@ -139,7 +62,7 @@ void worker_network_buffer_rewind(
     read_buffer->data_offset = 0;
 }
 
-network_op_result_t worker_network_receive(
+network_op_result_t network_receive(
         network_channel_t *channel,
         network_channel_buffer_t *read_buffer,
         size_t read_length) {
@@ -209,7 +132,7 @@ network_op_result_t worker_network_receive(
     return NETWORK_OP_RESULT_OK;
 }
 
-network_op_result_t worker_network_send(
+network_op_result_t network_send(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
         size_t buffer_length) {
@@ -253,11 +176,19 @@ network_op_result_t worker_network_send(
     return NETWORK_OP_RESULT_OK;
 }
 
-network_op_result_t worker_network_close(
+network_op_result_t network_close(
         network_channel_t *channel,
         bool shutdown_may_fail) {
+    bool res = true;
 
-    return worker_op_network_close(channel, shutdown_may_fail)
-        ? NETWORK_OP_RESULT_OK
-        : NETWORK_OP_RESULT_ERROR;
+    assert(channel->status != NETWORK_CHANNEL_STATUS_UNDEFINED);
+
+    if (channel->status != NETWORK_CHANNEL_STATUS_CLOSED) {
+        res = worker_op_network_close(channel, shutdown_may_fail)
+            ? NETWORK_OP_RESULT_OK
+            : NETWORK_OP_RESULT_ERROR;
+        channel->status = NETWORK_CHANNEL_STATUS_CLOSED;
+    }
+
+    return res;
 }
