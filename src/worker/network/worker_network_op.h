@@ -36,6 +36,16 @@ typedef int32_t (worker_op_network_send_fp_t)(
 
 typedef size_t (worker_op_network_channel_size_fp_t)();
 
+void worker_network_listeners_initialize(
+        uint8_t core_index,
+        config_network_t *config_network,
+        network_channel_t **listeners,
+        uint8_t *listeners_count);
+
+void worker_network_listeners_listen(
+        network_channel_t *listeners,
+        uint8_t listeners_count);
+
 void worker_network_post_network_channel_close(
         worker_context_t *context,
         network_channel_t *channel,
