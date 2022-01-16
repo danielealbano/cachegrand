@@ -8,6 +8,7 @@ extern "C" {
 #define FIBER_SCHEDULER_STACK_SIZE (4096 * 8)
 #define FIBER_SCHEDULER_STACK_MAX_SIZE 5
 #define FIBER_SCHEDULER_FIBER_NAME "scheduler"
+#define FIBER_SCHEDULER_COST_WARNINGS_LIMIT 10
 
 typedef void (fiber_scheduler_entrypoint_fp_t)(void *user_data);
 

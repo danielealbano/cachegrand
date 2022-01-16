@@ -24,6 +24,7 @@
 #include "fatal.h"
 #include "fiber.h"
 #include "fiber_scheduler.h"
+#include "intrinsics.h"
 
 #define TAG "fiber_scheduler"
 
@@ -160,10 +161,23 @@ void fiber_scheduler_switch_to(
     unsigned stack_id = VALGRIND_STACK_REGISTER(fiber->stack_base, fiber->stack_base + fiber->stack_size);
 #endif
 
+    uint32_t aux = 0;
+    uint64_t cost_cycles_start = intrinsic_rdtscp(&aux);
+
     // Switch to the new fiber
     fiber_context_swap(
             previous_fiber,
             fiber);
+
+    uint64_t cost_cycles_end = intrinsic_rdtscp(&aux);
+
+    if (likely(cost_cycles_end > cost_cycles_start)) {
+        fiber->cost.cycles = cost_cycles_end - cost_cycles_start;
+    } else if (cost_cycles_end < cost_cycles_start) {
+        fiber->cost.cycles = cost_cycles_start - cost_cycles_end;
+    } else {
+        fiber->cost.cycles = UINT64_MAX;
+    }
 
 #if defined(HAS_VALGRIND)
     VALGRIND_STACK_DEREGISTER(stack_id);
