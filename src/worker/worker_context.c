@@ -6,31 +6,34 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
+#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <pthread.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <netdb.h>
-#include <sys/resource.h>
 
+#include "misc.h"
 #include "exttypes.h"
-#include "spinlock.h"
-#include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
-
-#include "protocol/redis/protocol_redis_reader.h"
+#include "spinlock.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
 #include "worker/worker_stats.h"
-#include "worker/worker_context.h"
-#include "worker/worker.h"
-#include "signal_handler_thread.h"
-#include "program.h"
 
-int main(
-        int argc,
-        char** argv) {
-    return program_main(argc, argv);
+#include "worker_context.h"
+
+thread_local worker_context_t *thread_local_worker_context = NULL;
+
+worker_context_t* worker_context_get() {
+    return thread_local_worker_context;
+}
+
+void worker_context_set(
+        worker_context_t *worker_context) {
+    thread_local_worker_context = worker_context;
+}
+
+void worker_context_reset() {
+    thread_local_worker_context = NULL;
 }

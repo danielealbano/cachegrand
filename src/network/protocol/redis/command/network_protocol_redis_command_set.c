@@ -29,9 +29,10 @@
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "config.h"
-#include "worker/worker_common.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
 #include "network/protocol/redis/network_protocol_redis.h"
-#include "worker/network/worker_network.h"
+#include "network/network.h"
 
 #define TAG "network_protocol_redis_command_get"
 
@@ -81,7 +82,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
         return false;
     }
 
-    if (worker_network_send(
+    if (network_send(
             channel,
             send_buffer,
             send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {

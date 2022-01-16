@@ -88,6 +88,7 @@ typedef network_protocol_redis_command_funcptr_retval_t (network_protocol_redis_
 enum network_protocol_redis_commands {
     NETWORK_PROTOCOL_REDIS_COMMAND_NOP = 0,
     NETWORK_PROTOCOL_REDIS_COMMAND_UNKNOWN,
+    NETWORK_PROTOCOL_REDIS_COMMAND_SHUTDOWN,
     NETWORK_PROTOCOL_REDIS_COMMAND_HELLO,
     NETWORK_PROTOCOL_REDIS_COMMAND_QUIT,
     NETWORK_PROTOCOL_REDIS_COMMAND_PING,
@@ -120,6 +121,7 @@ struct network_protocol_redis_context {
 };
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(hello);
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(shutdown);
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(quit);
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(ping);
 
@@ -136,7 +138,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_PROCESSED(del);
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(del);
 
 void network_protocol_redis_accept(
-        worker_context_t *worker_context,
         network_channel_t *channel);
 
 bool network_protocol_redis_read_buffer_rewind(
@@ -144,7 +145,6 @@ bool network_protocol_redis_read_buffer_rewind(
         network_protocol_redis_context_t *protocol_context);
 
 bool network_protocol_redis_process_events(
-        worker_context_t *worker_context,
         network_channel_t *channel,
         network_channel_buffer_t *read_buffer,
         network_protocol_redis_context_t *protocol_context);

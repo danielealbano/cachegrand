@@ -1,5 +1,5 @@
-#ifndef CACHEGRAND_STORAGE_H
-#define CACHEGRAND_STORAGE_H
+#ifndef CACHEGRAND_STORAGE_IO_COMMON_H
+#define CACHEGRAND_STORAGE_IO_COMMON_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,4 +18,4 @@ bool storage_io_common_close(
 }
 #endif
 
-#endif //CACHEGRAND_STORAGE_H
+#endif //CACHEGRAND_STORAGE_IO_COMMON_H

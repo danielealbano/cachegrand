@@ -31,10 +31,11 @@
 #include "worker/worker_context.h"
 #include "network/protocol/redis/network_protocol_redis.h"
 #include "network/network.h"
+#include "worker/worker.h"
 
-#define TAG "network_protocol_redis_command_quit"
+#define TAG "network_protocol_redis_command_shutdown"
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(quit) {
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(shutdown) {
     char *send_buffer, *send_buffer_start, *send_buffer_end;
     size_t send_buffer_length;
 
@@ -58,13 +59,12 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(quit) {
             channel,
             send_buffer,
             send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
-
         return false;
     }
 
     network_close(channel, true);
 
-    // TODO: BUG! The operation is not really failing but currently there is no way to inform the caller that the client
-    //       has requested to terminate the connection.
-    return false;
+    worker_request_terminate(worker_context_get());
+
+    return true;
 }

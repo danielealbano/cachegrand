@@ -21,20 +21,17 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "slab_allocator.h"
 #include "support/io_uring/io_uring_support.h"
-#include "network/protocol/network_protocol.h"
-#include "network/io/network_io_common.h"
-#include "network/channel/network_channel.h"
-#include "network/channel/network_channel_iouring.h"
 #include "config.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/channel/storage_channel_iouring.h"
-#include "worker/worker_common.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
 #include "worker/worker.h"
-#include "worker/worker_op.h"
 #include "fiber_scheduler.h"
 #include "worker/worker_iouring_op.h"
 #include "worker/worker_iouring.h"
+#include "worker/storage/worker_storage_op.h"
 #include "worker/storage/worker_storage_iouring_op.h"
 
 bool worker_storage_iouring_complete_op_simple() {
@@ -97,7 +94,7 @@ storage_channel_t* worker_storage_iouring_op_storage_open(
     return (storage_channel_t*)storage_channel_iouring;
 }
 
-size_t worker_storage_iouring_op_storage_read(
+int32_t worker_storage_iouring_op_storage_read(
         storage_channel_t *channel,
         storage_io_common_iovec_t *iov,
         size_t iov_nr,
@@ -133,10 +130,10 @@ size_t worker_storage_iouring_op_storage_read(
         fiber_scheduler_set_error(-res);
     }
 
-    return (size_t)res;
+    return res;
 }
 
-size_t worker_storage_iouring_op_storage_write(
+int32_t worker_storage_iouring_op_storage_write(
         storage_channel_t *channel,
         storage_io_common_iovec_t *iov,
         size_t iov_nr,
@@ -172,7 +169,7 @@ size_t worker_storage_iouring_op_storage_write(
         fiber_scheduler_set_error(-res);
     }
 
-    return (size_t)res;
+    return res;
 }
 
 bool worker_storage_iouring_op_storage_flush(
@@ -240,13 +237,14 @@ bool worker_storage_iouring_op_storage_close(
 }
 
 bool worker_storage_iouring_initialize(
-        worker_context_t *worker_context) {
+        __attribute__((unused)) worker_context_t *worker_context) {
     return true;
 }
 
 bool worker_storage_iouring_cleanup(
-        worker_context_t *worker_context) {
+        __attribute__((unused)) worker_context_t *worker_context) {
     // TODO: will need to iterate all over the opened files and flush the data to ensure they are stored on the disk
+    return true;
 }
 
 bool worker_storage_iouring_op_register() {
@@ -256,4 +254,6 @@ bool worker_storage_iouring_op_register() {
     worker_op_storage_flush = worker_storage_iouring_op_storage_flush;
     worker_op_storage_fallocate = worker_storage_iouring_op_storage_fallocate;
     worker_op_storage_close = worker_storage_iouring_op_storage_close;
+
+    return true;
 }

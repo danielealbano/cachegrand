@@ -37,7 +37,8 @@
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "config.h"
-#include "worker/worker_common.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
 #include "worker/worker.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
 #include "thread.h"
@@ -465,7 +466,6 @@ bool program_setup_ulimit_nofile() {
     if (program_setup_ulimit_wrapper(RLIMIT_NOFILE, PROGRAM_ULIMIT_NOFILE) == false) {
         LOG_E(TAG, "Unable to set max opened file ulimit");
         LOG_E_OS_ERROR(TAG);
-        return false;
     }
 
     return true;
@@ -476,7 +476,6 @@ bool program_setup_ulimit_memlock() {
     if (program_setup_ulimit_wrapper(RLIMIT_MEMLOCK, PROGRAM_ULIMIT_MEMLOCK) == false) {
         LOG_E(TAG, "Unable to set the lockable memory ulimit");
         LOG_E_OS_ERROR(TAG);
-        return false;
     }
 
     return true;

@@ -38,7 +38,8 @@
 #include "network/channel/network_channel_iouring.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
-#include "worker/worker_common.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
 #include "fiber_scheduler.h"
 #include "worker/worker.h"
 #include "worker/worker_op.h"
@@ -74,65 +75,35 @@ void worker_iouring_context_reset() {
     thread_local_worker_iouring_context = NULL;
 }
 
-// TODO: need to improve the fiber interface as currently CQEs can be executed only sequentially and having a fiber
-//       switch for each connection just to update the fds map would have an hit on the performances for no reason
-//bool worker_iouring_op_fds_map_files_update_cb(
-//        worker_iouring_context_t *context,
-//        worker_iouring_op_context_t *op_context,
-//        io_uring_cqe_t *cqe,
-//        bool *free_op_context) {
-//
-//    if (cqe->res < 0) {
-//        worker_iouring_fds_map_remove(
-//                op_context->io_uring.files_update.channel->mapped_fd);
-//        op_context->io_uring.files_update.channel->mapped_fd = WORKER_FDS_MAP_EMPTY;
-//    } else {
-//        op_context->io_uring.files_update.channel->has_mapped_fd = true;
-//        op_context->io_uring.files_update.channel->base_sqe_flags |= IOSQE_FIXED_FILE;
-//        op_context->io_uring.files_update.channel->fd =
-//                op_context->io_uring.files_update.channel->mapped_fd;
-//    }
-//
-//    return true;
-//}
-
 bool worker_iouring_fds_map_files_update(
         io_uring_t *ring,
         int index,
-        network_channel_iouring_t *channel) {
+        int fd,
+        bool *has_mapped_fd,
+        int *base_sqe_flags,
+        int *wrapped_channel_fd) {
     bool ret;
 
-    // TODO: async files update disabled, the fiber interface needs improvements
-//    if (io_uring_supports_op_files_update_link) {
-//        // TODO: need to fix the implementation in support/io_uring/io_uring_support.c
-//        io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
-//        if (sqe != NULL) {
-//            io_uring_prep_files_update(sqe, &fds_map[index], 1, index);
-//            io_uring_sqe_set_flags(sqe, IOSQE_IO_LINK);
-//            sqe->user_data = (uintptr_t)op_context;
-//            ret = true;
-//        } else {
-//            ret = false;
-//        }
-//    } else {
-        ret = io_uring_register_files_update(
-                ring,
-                index,
-                &fds_map[index],
-                1) == 1;
-//    }
+    fds_map[index] = fd;
+
+    ret = io_uring_register_files_update(
+            ring,
+            index,
+            &fds_map[index],
+            1) == 1;
 
     if (!ret) {
+        fds_map[index] = WORKER_FDS_MAP_EMPTY;
         LOG_E(
                 TAG,
                 "Failed to update the registered fd <%d> with index <%u> in the registered files",
-                channel->wrapped_channel.fd,
+                fd,
                 index);
         LOG_E_OS_ERROR(TAG);
     } else {
-        fds_map[index] = channel->wrapped_channel.fd;
-        channel->has_mapped_fd = true;
-        channel->mapped_fd = index;
+        *has_mapped_fd = true;
+        *base_sqe_flags |= IOSQE_FIXED_FILE;
+        *wrapped_channel_fd = index;
     }
 
     return ret;
@@ -159,9 +130,12 @@ int32_t worker_iouring_fds_map_find_free_index() {
     return free_fds_map_index;
 }
 
-int32_t worker_iouring_fds_map_add_and_enqueue_files_update(
+bool worker_iouring_fds_map_add_and_enqueue_files_update(
         io_uring_t *ring,
-        network_channel_iouring_t *channel) {
+        int fd,
+        bool *has_mapped_fd,
+        int *base_sqe_flags,
+        int *wrapped_channel_fd) {
     int32_t index;
 
     if ((index = worker_iouring_fds_map_find_free_index()) < 0) {
@@ -170,18 +144,21 @@ int32_t worker_iouring_fds_map_add_and_enqueue_files_update(
 
     LOG_D(
             TAG,
-            "Registering fd <%d> with index <%d>", channel->wrapped_channel.fd, index);
+            "Registering fd <%d> with index <%d>", fd, index);
 
     if (!worker_iouring_fds_map_files_update(
             ring,
             index,
-            channel)) {
-        return -1;
+            fd,
+            has_mapped_fd,
+            base_sqe_flags,
+            wrapped_channel_fd)) {
+        return false;
     }
 
     fds_map_last_free = (index + 1) & fds_map_mask;
 
-    return 0;
+    return true;
 }
 
 int worker_iouring_fds_map_remove(
@@ -223,15 +200,6 @@ bool worker_iouring_fds_register(
     return true;
 }
 
-uint32_t worker_iouring_calculate_fds_count(
-        uint32_t workers_count,
-        uint32_t max_connections,
-        uint32_t network_addresses_count) {
-    uint32_t max_connections_per_worker = (max_connections / workers_count) * 2;
-
-    return max_connections_per_worker + network_addresses_count;
-}
-
 bool worker_iouring_cqe_is_error_any(
         io_uring_cqe_t *cqe) {
     return cqe->res < 0;
@@ -265,7 +233,7 @@ void worker_iouring_cqe_log(
 }
 
 void worker_iouring_cleanup(
-        worker_context_t *worker_context) {
+        __attribute__((unused)) worker_context_t *worker_context) {
     io_uring_t *ring;
     worker_iouring_context_t *iouring_context = worker_iouring_context_get();
 
@@ -295,7 +263,6 @@ bool worker_iouring_process_events_loop(
     worker_iouring_context_t *context;
     fiber_t *fiber;
     uint32_t head, count = 0;
-    char callback_function_name[256] = { 0 };
 
     context = worker_iouring_context_get();
 
@@ -317,8 +284,26 @@ bool worker_iouring_process_events_loop(
                     "Malformed io_uring cqe, fiber is null!");
         }
 
-        fiber->ret.ptr_value = cqe;
-        fiber_scheduler_switch_to(fiber);
+//        // TODO: the logic that handles the cost of a fiber and it postponement if needed has to be moved into the
+//        //       fiber scheduler, as it's not tied to the worker itself. It requires though to change how the
+//        //       fiber scheduler is initialized (no more thread local variables to handle the nested fibers or the
+//        //       related data.
+//        //       The fiber scheduler will also have to calculate the X percentile to be used as reference when
+//        //       deciding if a fiber has to be warned or punished (skipping its execution).
+        if (likely(!fiber->cost.postpone_execution)) {
+            fiber->ret.ptr_value = cqe;
+            fiber_scheduler_switch_to(fiber);
+        }
+
+//        fiber->cost.postpone_execution = false;
+//        if (fiber->cost.cycles > __CALCULATE_COST__) {
+//            fiber->cost.warnings++;
+//            if (fiber->cost.warnings > FIBER_SCHEDULER_COST_WARNINGS_LIMIT) {
+//                fiber->cost.postpone_execution = true;
+//            }
+//        } else if (fiber->cost.warnings > 0){
+//            fiber->cost.warnings--;
+//        }
     }
 
     io_uring_support_cq_advance(context->ring, count);
@@ -333,7 +318,8 @@ void worker_iouring_check_capabilities() {
 }
 
 bool worker_iouring_initialize(
-        worker_context_t *worker_context) {
+        worker_context_t *worker_context,
+        uint32_t max_fd) {
     worker_iouring_context_t *context;
     io_uring_t *ring;
     io_uring_params_t *params = xalloc_alloc_zero(sizeof(io_uring_params_t));
@@ -360,15 +346,12 @@ bool worker_iouring_initialize(
     }
 
     context = (worker_iouring_context_t*)xalloc_alloc(sizeof(worker_iouring_context_t));
-    uint32_t fds_count = worker_iouring_calculate_fds_count(
-            worker_context->workers_count,
-            worker_context->config->network->max_clients,
-            worker_context->network.listeners_count);
+    uint32_t fds_count = max_fd;
 
     LOG_V(TAG, "Initializing local worker ring for io_uring");
 
     if ((ring = io_uring_support_init(
-            fds_count * 1.2,
+            (int)(fds_count * 1.2),
             params,
             NULL)) == NULL) {
         xalloc_free(context);
@@ -379,7 +362,7 @@ bool worker_iouring_initialize(
     // The iouring context has to be set only after the io_uring is initialized but the actual context memory
     // has to be allocated before, if the allocation fails the software can abort, if the ring is allocated it needs
     // to be cleaned up so better to do it afterwards.
-    context->worker_context = worker_context;
+    context->core_index = worker_context->core_index;
     context->ring = ring;
     worker_iouring_context_set(context);
 

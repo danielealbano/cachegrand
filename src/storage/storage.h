@@ -5,48 +5,48 @@
 extern "C" {
 #endif
 
-enum storage_kval_record_type {
-    STORAGE_KVAL_RECORD_TYPE_BLOB,
-    STORAGE_KVAL_RECORD_TYPE_KEYVALUE,
-};
-typedef enum storage_kval_record_type storage_kval_record_type_t;
+storage_channel_t* storage_open(
+        char *path,
+        storage_io_common_open_flags_t flags,
+        storage_io_common_open_mode_t mode);
 
-enum storage_kval_record_flag {
-    STORAGE_KVAL_RECORD_FLAG_DATA_BEGIN,
-    STORAGE_KVAL_RECORD_FLAG_DATA_END
-};
-typedef enum storage_kval_record_flag storage_kval_record_flag_t;
+bool storage_readv(
+        storage_channel_t *channel,
+        storage_io_common_iovec_t *iov,
+        size_t iov_nr,
+        size_t expected_read_len,
+        off_t offset);
 
-typedef struct storage_kval_record_address storage_kval_record_address_t;
-struct storage_kval_record_address {
-    uint32_t shard_index;
-    uint32_t shard_offset;
-};
+bool storage_read(
+        storage_channel_t *channel,
+        char *buffer,
+        size_t buffer_len,
+        off_t offset);
 
-typedef struct storage_kval_record_timestamp storage_kval_record_timestamp_t;
-struct storage_kval_record_timestamp {
-    uint64_t seconds;
-    uint64_t nanoseconds;
-};
+bool storage_writev(
+        storage_channel_t *channel,
+        storage_io_common_iovec_t *iov,
+        size_t iov_nr,
+        size_t expected_write_len,
+        off_t offset);
 
-typedef struct storage_kval_record storage_kval_record_header_t;
-struct storage_kval_record_header {
-    storage_kval_record_type_t type;
-    storage_kval_record_flag_t flags;
-    storage_kval_record_timestamp_t timestamp;
-    union {
-        struct {
-            storage_kval_record_address_t previous_record;
-            size_t data_length;
-            char* data;
-        } blob;
-        struct {
-            hashtable_hash_t hash;
-            uint32_t key_record_addresses_count;
-            uint32_t value_record_addresses_count;
-        } keyvalue;
-    };
-};
+bool storage_write(
+        storage_channel_t *channel,
+        char *buffer,
+        size_t buffer_len,
+        off_t offset);
+
+bool storage_flush(
+        storage_channel_t *channel);
+
+bool storage_fallocate(
+        storage_channel_t *channel,
+        int mode,
+        off_t offset,
+        off_t len);
+
+bool storage_close(
+        storage_channel_t *channel);
 
 #ifdef __cplusplus
 }

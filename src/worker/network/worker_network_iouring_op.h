@@ -21,24 +21,26 @@ bool worker_network_iouring_op_network_close(
         network_channel_t *channel,
         bool shutdown_may_fail);
 
-size_t worker_network_iouring_op_network_receive(
+int32_t worker_network_iouring_op_network_receive(
         network_channel_t *channel,
         char* buffer,
         size_t buffer_length);
 
-size_t worker_network_iouring_op_network_send(
+int32_t worker_network_iouring_op_network_send(
         network_channel_t *channel,
         char* buffer,
         size_t buffer_length);
 
 bool worker_network_iouring_initialize(
-        worker_context_t *worker_context);
+        __attribute__((unused)) worker_context_t *worker_context);
 
 void worker_network_iouring_listeners_listen_pre(
-        worker_context_t *worker_context);
+        network_channel_t *listeners,
+        uint8_t listeners_count);
 
 bool worker_network_iouring_cleanup(
-        worker_context_t *worker_context);
+        __attribute__((unused)) __attribute__((unused)) network_channel_t *listeners,
+        __attribute__((unused)) __attribute__((unused)) uint8_t listeners_count);
 
 network_channel_t* worker_network_iouring_network_channel_new();
 

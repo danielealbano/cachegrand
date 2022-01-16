@@ -13,12 +13,18 @@
 #include <errno.h>
 #include <string.h>
 
+#if __has_include(<valgrind/valgrind.h>)
+#include <valgrind/valgrind.h>
+#define HAS_VALGRIND
+#endif
+
 #include "misc.h"
 #include "xalloc.h"
 #include "log/log.h"
 #include "fatal.h"
 #include "fiber.h"
 #include "fiber_scheduler.h"
+#include "intrinsics.h"
 
 #define TAG "fiber_scheduler"
 
@@ -151,17 +157,39 @@ void fiber_scheduler_switch_to(
           fiber->switched_back_on.line,
           fiber->switched_back_on.func);
 
+#if defined(HAS_VALGRIND)
+    unsigned stack_id = VALGRIND_STACK_REGISTER(fiber->stack_base, fiber->stack_base + fiber->stack_size);
+#endif
+
+    uint32_t aux = 0;
+    uint64_t cost_cycles_start = intrinsic_rdtscp(&aux);
+
     // Switch to the new fiber
     fiber_context_swap(
             previous_fiber,
             fiber);
 
-    LOG_D(TAG, "Switching back from fiber <%s> to fiber <%s>, file <%s:%d>, function <%s>",
+    uint64_t cost_cycles_end = intrinsic_rdtscp(&aux);
+
+    if (likely(cost_cycles_end > cost_cycles_start)) {
+        fiber->cost.cycles = cost_cycles_end - cost_cycles_start;
+    } else if (cost_cycles_end < cost_cycles_start) {
+        fiber->cost.cycles = cost_cycles_start - cost_cycles_end;
+    } else {
+        fiber->cost.cycles = UINT64_MAX;
+    }
+
+#if defined(HAS_VALGRIND)
+    VALGRIND_STACK_DEREGISTER(stack_id);
+#endif
+
+    LOG_D(TAG, "Switching back from fiber <%s>, file <%s:%d>, to fiber <%s>, file <%s:%d>",
           fiber->name,
+          fiber->switched_back_on.file,
+          fiber->switched_back_on.line,
           previous_fiber->name,
           previous_fiber->switched_back_on.file,
-          previous_fiber->switched_back_on.line,
-          previous_fiber->switched_back_on.func);
+          previous_fiber->switched_back_on.line);
 
     // Once the code switches back remove the fiber from the stack
     fiber_scheduler_stack.list[fiber_scheduler_stack.index] = NULL;

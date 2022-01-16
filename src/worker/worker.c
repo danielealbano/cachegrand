@@ -37,9 +37,12 @@
 #include "network/channel/network_channel_iouring.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
-#include "worker/worker_common.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
 #include "worker/worker_op.h"
-#include "worker/network/worker_network.h"
+#include "worker/network/worker_network_op.h"
+#include "worker/storage/worker_storage_op.h"
+#include "network/network.h"
 #include "worker/worker_iouring.h"
 #include "worker/worker_iouring_op.h"
 #include "worker/network/worker_network_iouring_op.h"
@@ -47,44 +50,6 @@
 #include "worker.h"
 
 #define TAG "worker"
-
-thread_local worker_context_t *thread_local_worker_context = NULL;
-
-worker_context_t* worker_context_get() {
-    return thread_local_worker_context;
-}
-
-void worker_context_set(
-        worker_context_t *worker_context) {
-    thread_local_worker_context = worker_context;
-}
-
-void worker_context_reset() {
-    thread_local_worker_context = NULL;
-}
-
-void worker_publish_stats(
-        worker_stats_t* worker_stats_new,
-        worker_stats_volatile_t* worker_stats_public) {
-    clock_monotonic(&worker_stats_new->last_update_timestamp);
-
-    memcpy((void*)&worker_stats_public->network, &worker_stats_new->network, sizeof(worker_stats_public->network));
-    worker_stats_public->last_update_timestamp.tv_nsec = worker_stats_new->last_update_timestamp.tv_nsec;
-    worker_stats_public->last_update_timestamp.tv_sec = worker_stats_new->last_update_timestamp.tv_sec;
-
-    worker_stats_new->network.received_packets_per_second = 0;
-    worker_stats_new->network.sent_packets_per_second = 0;
-    worker_stats_new->network.accepted_connections_per_second = 0;
-}
-
-bool worker_should_publish_stats(
-        worker_stats_volatile_t* worker_stats_public) {
-    struct timespec last_update_timestamp;
-
-    clock_monotonic(&last_update_timestamp);
-
-    return last_update_timestamp.tv_sec >= worker_stats_public->last_update_timestamp.tv_sec + WORKER_PUBLISH_STATS_DELAY_SEC;
-}
 
 char* worker_log_producer_set_early_prefix_thread(
         worker_context_t *worker_context) {
@@ -138,36 +103,21 @@ uint32_t worker_thread_set_affinity(
     return thread_current_set_affinity(worker_index);
 }
 
-bool worker_initialize(
+bool worker_initialize_general(
         worker_context_t* worker_context) {
     // TODO: the workers should be map the their func ops in a struct and these should be used
     //       below, can't keep doing ifs :/
     if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
         worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
-        if (!worker_iouring_initialize(worker_context)) {
+
+        // TODO: Add some (10) fds for the listeners, this should be calculated dynamically
+        uint32_t max_connections_per_worker =
+                (worker_context->config->network->max_clients / worker_context->workers_count) + 1 + 10;
+
+        if (!worker_iouring_initialize(worker_context, max_connections_per_worker)) {
             LOG_E(TAG, "io_uring worker initialization failed, terminating");
             worker_iouring_cleanup(worker_context);
             return false;
-        }
-
-        if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING) {
-            if (!worker_network_iouring_initialize(worker_context)) {
-                LOG_E(TAG, "io_uring worker network initialization failed, terminating");
-                worker_iouring_cleanup(worker_context);
-                return false;
-            }
-
-            worker_network_iouring_op_register();
-        }
-
-        if (worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
-            if (!worker_storage_iouring_initialize(worker_context)) {
-                LOG_E(TAG, "io_uring worker storage initialization failed, terminating");
-                worker_iouring_cleanup(worker_context);
-                return false;
-            }
-
-            worker_storage_iouring_op_register();
         }
 
         worker_iouring_op_register();
@@ -176,37 +126,85 @@ bool worker_initialize(
     return true;
 }
 
-void worker_cleanup(
+bool worker_initialize_network(
         worker_context_t* worker_context) {
-    // TODO: the network cleanup part should be moved into worker_network as the storage cleanup part should be moved
-    //       into worker_storage
+    // TODO: the workers should be map the their func ops in a struct and these should be used
+    //       below, can't keep doing ifs :/
+
+    if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING) {
+        if (!worker_network_iouring_initialize(worker_context)) {
+            LOG_E(TAG, "io_uring worker network initialization failed, terminating");
+            worker_iouring_cleanup(worker_context);
+            return false;
+        }
+
+        worker_network_iouring_op_register();
+    }
+
+    return true;
+}
+
+bool worker_initialize_storage(
+        worker_context_t* worker_context) {
+    // TODO: the workers should be map the their func ops in a struct and these should be used
+    //       below, can't keep doing ifs :/
+    if (worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
+        if (!worker_storage_iouring_initialize(worker_context)) {
+            LOG_E(TAG, "io_uring worker storage initialization failed, terminating");
+            worker_iouring_cleanup(worker_context);
+            return false;
+        }
+
+        worker_storage_iouring_op_register();
+    }
+
+    return true;
+}
+
+void worker_cleanup_network(
+        worker_context_t* worker_context,
+        network_channel_t *listeners,
+        uint8_t listeners_count) {
     // TODO: should use a struct with fp pointers, not ifs
-    if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
-        worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
-        if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING) {
-            worker_network_iouring_cleanup(worker_context);
-        }
-
-        if (worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
-            worker_storage_iouring_cleanup(worker_context);
-        }
-
-        worker_iouring_cleanup(worker_context);
+    if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING) {
+        worker_network_iouring_cleanup(
+                listeners,
+                listeners_count);
     }
 
     for(
-            uint32_t listener_index = 0;
-            listener_index < worker_context->network.listeners_count;
-            listener_index++) {
+            uint32_t listener_index = 0; listener_index < listeners_count; listener_index++) {
         network_channel_t *listener_channel = worker_op_network_channel_multi_get(
-                worker_context->network.listeners,
+                listeners,
                 listener_index);
         network_io_common_socket_close(
                 listener_channel->fd,
                 true);
     }
 
-    worker_op_network_channel_free(worker_context->network.listeners);
+    worker_op_network_channel_free(listeners);
+}
+
+void worker_cleanup_storage(
+        worker_context_t* worker_context) {
+    // TODO: should use a struct with fp pointers, not ifs
+    if (worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
+        worker_storage_iouring_cleanup(worker_context);
+    }
+
+    // TODO: at this point in time there may be data in the buffers waiting to be written and this can lead to potential
+    //       data loss / data corruption
+
+    // TODO: Should flush any open fd (device, file or directory) and then close them to ensure data are synced on the
+    //       disk
+}
+
+void worker_cleanup_general(
+        worker_context_t* worker_context) {
+    if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
+        worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
+        worker_iouring_cleanup(worker_context);
+    }
 }
 
 void worker_mask_signals() {
@@ -216,9 +214,11 @@ void worker_mask_signals() {
 }
 
 void worker_network_listeners_listen_pre(
-        worker_context_t *worker_context) {
-    if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING) {
-        worker_network_iouring_listeners_listen_pre(worker_context);
+        config_network_backend_t backend,
+        network_channel_t *listeners,
+        uint8_t listeners_count) {
+    if (backend == CONFIG_NETWORK_BACKEND_IO_URING) {
+        worker_network_iouring_listeners_listen_pre(listeners, listeners_count);
     }
 }
 
@@ -240,6 +240,8 @@ void worker_set_running(
 
 void* worker_thread_func(
         void* user_data) {
+    network_channel_t *listeners;
+    uint8_t listeners_count;
     bool res = true;
     worker_context_t *worker_context = user_data;
 
@@ -260,7 +262,7 @@ void* worker_thread_func(
     worker_mask_signals();
 
     LOG_I(TAG, "Initialization");
-    if (!worker_initialize(worker_context)) {
+    if (!worker_initialize_general(worker_context)) {
         LOG_E(TAG, "Initialization failed!");
         xalloc_free(log_producer_early_prefix_thread);
         worker_context->aborted = true;
@@ -268,12 +270,37 @@ void* worker_thread_func(
         return NULL;
     }
 
+    if (!worker_initialize_network(worker_context)) {
+        LOG_E(TAG, "Initialization failed!");
+        worker_cleanup_general(worker_context);
+        xalloc_free(log_producer_early_prefix_thread);
+        worker_context->aborted = true;
+        MEMORY_FENCE_STORE();
+        return NULL;
+    }
+
+    if (!worker_initialize_storage(worker_context)) {
+        LOG_E(TAG, "Initialization failed!");
+        worker_cleanup_network(worker_context, NULL, 0);
+        worker_cleanup_general(worker_context);
+        xalloc_free(log_producer_early_prefix_thread);
+        worker_context->aborted = true;
+        MEMORY_FENCE_STORE();
+        return NULL;
+    }
+
     worker_network_listeners_initialize(
-            worker_context);
+            worker_context->core_index,
+            worker_context->config->network,
+            &listeners,
+            &listeners_count);
     worker_network_listeners_listen_pre(
-            worker_context);
+            worker_context->config->network->backend,
+            listeners,
+            listeners_count);
     worker_network_listeners_listen(
-            worker_context);
+            listeners,
+            listeners_count);
 
     worker_timer_setup(worker_context);
 
@@ -281,6 +308,13 @@ void* worker_thread_func(
 
     worker_set_running(worker_context, true);
 
+    // TODO: the current loop terminates immediately when requests but this can lead to data corruption while data are
+    //       being written by the fibers. To ensure a proper flow of operations the worker should notify the fibers that
+    //       they have to terminate the execution ASAP and therefore any network communication should be halted on the
+    //       spot but any pending / in progress I/O operation should be safely completed.
+    //       In case the fibers are not terminating, even if it can lead to corruption, them should be terminated within
+    //       a maximum timeout or X seconds and an error message should be reported pointing out what a fiber is doinng
+    //       and where.
     do {
         if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
             worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
@@ -292,8 +326,8 @@ void* worker_thread_func(
             break;
         }
 
-        if (worker_should_publish_stats(&worker_context->stats.shared)) {
-            worker_publish_stats(
+        if (worker_stats_should_publish(&worker_context->stats.shared)) {
+            worker_stats_publish(
                     &worker_context->stats.internal,
                     &worker_context->stats.shared);
         }
@@ -301,7 +335,9 @@ void* worker_thread_func(
 
     LOG_V(TAG, "Process events loop ended, cleaning up");
 
-    worker_cleanup(worker_context);
+    worker_cleanup_network(worker_context, listeners, listeners_count);
+    worker_cleanup_storage(worker_context);
+    worker_cleanup_general(worker_context);
 
     LOG_V(TAG, "Tearing down");
 

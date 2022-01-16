@@ -26,22 +26,24 @@
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
 #include "config.h"
-#include "storage/io/storage_io_common.h"
-#include "storage/channel/storage_channel.h"
-#include "worker/worker_common.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
 #include "worker/worker.h"
-#include "worker/worker_op.h"
 #include "fiber_scheduler.h"
 #include "worker/worker_iouring_op.h"
 #include "worker/worker_iouring.h"
-#include "worker/network/worker_network_iouring_op.h"
+#include "worker/network/worker_network_op.h"
+
+#include "worker_network_iouring_op.h"
 
 #define TAG "worker_network_op"
 
 void worker_network_iouring_op_network_post_close(
         network_channel_iouring_t *channel) {
     if (channel->has_mapped_fd) {
-        worker_iouring_fds_map_remove(channel->mapped_fd);
+        worker_iouring_fds_map_remove(channel->wrapped_channel.fd);
+        channel->wrapped_channel.fd = channel->fd;
+        channel->has_mapped_fd = false;
     }
 
     network_channel_iouring_free(channel);
@@ -52,10 +54,6 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
         network_channel_iouring_t *listener_channel,
         network_channel_iouring_t *new_channel,
         io_uring_cqe_t *cqe) {
-    worker_context_t *worker_context;
-
-    worker_context = context->worker_context;
-
     if (worker_iouring_cqe_is_error_any(cqe)) {
         fiber_scheduler_set_error(-cqe->res);
         LOG_E(
@@ -81,7 +79,7 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
     // Perform the initial setup on the new channel
     if (network_channel_client_setup(
             new_channel->wrapped_channel.fd,
-            worker_context->core_index) == false) {
+            context->core_index) == false) {
         fiber_scheduler_set_error(errno);
         LOG_E(
                 TAG,
@@ -96,9 +94,12 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
         return NULL;
     }
 
-    if (worker_iouring_fds_map_add_and_enqueue_files_update(
+    if (!worker_iouring_fds_map_add_and_enqueue_files_update(
             worker_iouring_context_get()->ring,
-            new_channel) < 0) {
+            new_channel->fd,
+            &new_channel->has_mapped_fd,
+            &new_channel->base_sqe_flags,
+            &new_channel->wrapped_channel.fd)) {
         LOG_E(
                 TAG,
                 "Can't accept the new connection <%s> coming from listener <%s>, unable to find a free fds slot",
@@ -155,8 +156,9 @@ bool worker_network_iouring_op_network_close(
         bool shutdown_may_fail) {
     fiber_scheduler_reset_error();
 
+    network_channel_iouring_t *channel_iouring = (network_channel_iouring_t *)channel;
     bool res = network_io_common_socket_close(
-            channel->fd,
+            channel_iouring->fd,
             shutdown_may_fail);
 
     if (!res) {
@@ -169,11 +171,11 @@ bool worker_network_iouring_op_network_close(
     return res;
 }
 
-size_t worker_network_iouring_op_network_receive(
+int32_t worker_network_iouring_op_network_receive(
         network_channel_t *channel,
         char* buffer,
         size_t buffer_length) {
-    size_t res;
+    int32_t res;
     worker_iouring_context_t *context = worker_iouring_context_get();
 
     fiber_scheduler_reset_error();
@@ -201,17 +203,17 @@ size_t worker_network_iouring_op_network_receive(
     } while(res == -EAGAIN);
 
     if (res < 0) {
-        fiber_scheduler_set_error((int)-res);
+        fiber_scheduler_set_error(-res);
     }
 
     return res;
 }
 
-size_t worker_network_iouring_op_network_send(
+int32_t worker_network_iouring_op_network_send(
         network_channel_t *channel,
         char* buffer,
         size_t buffer_length) {
-    size_t res;
+    int32_t res;
     worker_iouring_context_t *context = worker_iouring_context_get();
 
     fiber_scheduler_reset_error();
@@ -239,7 +241,7 @@ size_t worker_network_iouring_op_network_send(
     } while(res == -EAGAIN);
 
     if (res < 0) {
-        fiber_scheduler_set_error((int)-res);
+        fiber_scheduler_set_error(-res);
     }
 
     // TODO: with the new fiber interface this shouldn't really be done here!
@@ -249,23 +251,26 @@ size_t worker_network_iouring_op_network_send(
 }
 
 bool worker_network_iouring_initialize(
-        worker_context_t *worker_context) {
+        __attribute__((unused)) worker_context_t *worker_context) {
     return true;
 }
 
 void worker_network_iouring_listeners_listen_pre(
-        worker_context_t *worker_context) {
+        network_channel_t *listeners,
+        uint8_t listeners_count) {
     // Update the fd in the network_channel_iouring to match the one used by the underlying channel
-    for(int index = 0; index < worker_context->network.listeners_count; index++) {
+    for(int index = 0; index < listeners_count; index++) {
         network_channel_iouring_t *channel =
-                &((network_channel_iouring_t*)worker_context->network.listeners)[index];
+                (network_channel_iouring_t*)worker_network_iouring_network_channel_multi_get(listeners, index);
         channel->fd = channel->wrapped_channel.fd;
     }
 }
 
 bool worker_network_iouring_cleanup(
-        worker_context_t *worker_context) {
+        __attribute__((unused)) network_channel_t *listeners,
+        __attribute__((unused)) uint8_t listeners_count) {
     // do nothing for now
+    return true;
 }
 
 network_channel_t* worker_network_iouring_network_channel_new() {
@@ -302,4 +307,6 @@ bool worker_network_iouring_op_register() {
     worker_op_network_receive = worker_network_iouring_op_network_receive;
     worker_op_network_send = worker_network_iouring_op_network_send;
     worker_op_network_close = worker_network_iouring_op_network_close;
+
+    return true;
 }

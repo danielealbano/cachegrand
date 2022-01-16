@@ -25,11 +25,12 @@
 #include "network/channel/network_channel.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
-#include "worker/worker_common.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
 #include "worker/worker.h"
 #include "worker/worker_op.h"
 #include "fiber_scheduler.h"
-#include "worker/network/worker_network.h"
+#include "network/network.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/protocol/redis/network_protocol_redis.h"
 
@@ -37,17 +38,107 @@
 
 #define TAG "worker_network_op"
 
+// Network operations
+worker_op_network_channel_new_fp_t* worker_op_network_channel_new;
+worker_op_network_channel_multi_new_fp_t* worker_op_network_channel_multi_new;
+worker_op_network_channel_multi_get_fp_t* worker_op_network_channel_multi_get;
+worker_op_network_channel_size_fp_t* worker_op_network_channel_size;
+worker_op_network_channel_free_fp_t* worker_op_network_channel_free;
+worker_op_network_accept_fp_t* worker_op_network_accept;
+worker_op_network_receive_fp_t* worker_op_network_receive;
+worker_op_network_send_fp_t* worker_op_network_send;
+worker_op_network_close_fp_t* worker_op_network_close;
+
+// TODO: the listener and accept operations should be refactored to split them in an user frontend operation and in an
+//       internal operation like for all the other ops (recv, send, close, etc.)
+void worker_network_listeners_initialize(
+        uint8_t core_index,
+        config_network_t *config_network,
+        network_channel_t **listeners,
+        uint8_t *listeners_count) {
+    network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = {0};
+
+    listener_new_cb_user_data.core_index = core_index;
+
+    // With listeners = NULL, the number of needed listeners will be enumerated and listeners_count
+    // increased as needed
+    listener_new_cb_user_data.listeners = NULL;
+    for(int protocol_index = 0; protocol_index < config_network->protocols_count; protocol_index++) {
+        config_network_protocol_t *config_network_protocol = &config_network->protocols[protocol_index];
+        for(int binding_index = 0; binding_index < config_network_protocol->bindings_count; binding_index++) {
+            if (network_channel_listener_new(
+                    config_network_protocol->bindings[binding_index].host,
+                    config_network_protocol->bindings[binding_index].port,
+                    config_network->listen_backlog,
+                    NETWORK_PROTOCOLS_UNKNOWN,
+                    &listener_new_cb_user_data) == false) {
+            }
+        }
+    }
+
+    // Allocate the needed listeners and reset listeners_count
+    listener_new_cb_user_data.listeners =
+            worker_op_network_channel_multi_new(listener_new_cb_user_data.listeners_count);
+    listener_new_cb_user_data.network_channel_size = worker_op_network_channel_size();
+    listener_new_cb_user_data.listeners_count = 0;
+
+    // Allocate the listeners (with the correct protocol config)
+    for(int protocol_index = 0; protocol_index < config_network->protocols_count; protocol_index++) {
+        network_protocols_t network_protocol;
+
+        config_network_protocol_t *config_network_protocol = &config_network->protocols[protocol_index];
+        switch(config_network_protocol->type) {
+            default:
+            case CONFIG_PROTOCOL_TYPE_REDIS:
+                network_protocol = NETWORK_PROTOCOLS_REDIS;
+        }
+
+        for(int binding_index = 0; binding_index < config_network_protocol->bindings_count; binding_index++) {
+            if (network_channel_listener_new(
+                    config_network_protocol->bindings[binding_index].host,
+                    config_network_protocol->bindings[binding_index].port,
+                    config_network->listen_backlog,
+                    network_protocol,
+                    &listener_new_cb_user_data) == false) {
+
+                LOG_E(TAG, "Unable to setup listener for <%s:%u> with protocol <%d>",
+                      config_network_protocol->bindings[binding_index].host,
+                      config_network_protocol->bindings[binding_index].port,
+                      network_protocol);
+            }
+        }
+    }
+
+    *listeners = listener_new_cb_user_data.listeners;
+    *listeners_count = listener_new_cb_user_data.listeners_count;
+}
+
+void worker_network_listeners_listen(
+        network_channel_t *listeners,
+        uint8_t listeners_count) {
+    for (int listener_index = 0; listener_index < listeners_count; listener_index++) {
+        network_channel_t *listener_channel = worker_op_network_channel_multi_get(
+                listeners,
+                listener_index);
+
+        fiber_scheduler_new_fiber(
+                "worker-listener",
+                sizeof("worker-listener") - 1,
+                worker_network_listeners_fiber_entrypoint,
+                (void *)listener_channel);
+    }
+}
+
 void worker_network_new_client_fiber_entrypoint(
         void *user_data) {
     worker_context_t *context = worker_context_get();
+    worker_stats_t *stats = worker_stats_get();
 
     network_channel_t *new_channel = user_data;
-    worker_stats_t *stats = &context->stats.internal;
 
-    // Updates the worker stats
-    stats->network.active_connections++;
-    stats->network.accepted_connections_total++;
-    stats->network.accepted_connections_per_second++;
+    stats->network.total.active_connections++;
+    stats->network.total.accepted_connections++;
+    stats->network.per_second.accepted_connections++;
 
     // Should not access the listener_channel directly
     switch (new_channel->protocol) {
@@ -62,16 +153,17 @@ void worker_network_new_client_fiber_entrypoint(
 
         case NETWORK_PROTOCOLS_REDIS:
             network_protocol_redis_accept(
-                    context,
                     new_channel);
             break;
     }
 
     // Close the connection
-    worker_network_close(new_channel, true);
+    if (new_channel->status != NETWORK_CHANNEL_STATUS_CLOSED) {
+        worker_op_network_close(new_channel, true);
+    }
 
     // Updates the worker stats
-    stats->network.active_connections--;
+    stats->network.total.active_connections--;
 
     fiber_scheduler_terminate_current_fiber();
 }
@@ -93,6 +185,8 @@ void worker_network_listeners_fiber_entrypoint(
 
             continue;
         }
+
+        new_channel->status = NETWORK_CHANNEL_STATUS_CONNECTED;
 
         LOG_V(
                 TAG,

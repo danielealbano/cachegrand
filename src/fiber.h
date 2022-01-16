@@ -32,6 +32,11 @@ struct fiber {
     char *name;
     bool terminate;
     int error_number;
+    struct {
+        uint64_t cycles;
+        uint8_t warnings;
+        bool postpone_execution;
+    } cost;
     union {
         void* ptr_value;
         int int_value;
