@@ -15,6 +15,14 @@ struct storage_channel {
 bool storage_channel_init(
         storage_channel_t *channel);
 
+storage_channel_t* storage_channel_new();
+
+storage_channel_t* storage_channel_multi_new(
+        uint32_t count);
+
+void storage_channel_free(
+        storage_channel_t* storage_channel);
+
 #ifdef __cplusplus
 }
 #endif
