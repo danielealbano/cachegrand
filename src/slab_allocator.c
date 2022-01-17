@@ -459,6 +459,10 @@ void* slab_allocator_mem_alloc_hugepages(
 
     spinlock_unlock(&core_metadata->spinlock);
 
+#if defined(HAS_VALGRIND)
+    VALGRIND_MEMPOOL_ALLOC(slab_slice->data.page_addr, slab_slot->data.memptr, size);
+#endif
+
     return slab_slot->data.memptr;
 }
 
@@ -519,6 +523,10 @@ void slab_allocator_mem_free_hugepages(
         }
     }
     spinlock_unlock(&core_metadata->spinlock);
+
+#if defined(HAS_VALGRIND)
+    VALGRIND_MEMPOOL_FREE(slab_slice->data.page_addr, memptr);
+#endif
 
     if (can_free_slab_slice) {
 #if defined(HAS_VALGRIND)
