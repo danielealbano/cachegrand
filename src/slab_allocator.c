@@ -12,6 +12,11 @@
 #include <string.h>
 #include <stdatomic.h>
 
+#if __has_include(<valgrind/valgrind.h>)
+#include <valgrind/valgrind.h>
+#define HAS_VALGRIND
+#endif
+
 #include "misc.h"
 #include "exttypes.h"
 #include "memory_fences.h"
