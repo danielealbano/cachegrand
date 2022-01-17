@@ -89,6 +89,10 @@ network_op_result_t network_receive(
         return NETWORK_OP_RESULT_ERROR;
     }
 
+    if (channel->status == NETWORK_CHANNEL_STATUS_CLOSED) {
+        return NETWORK_OP_RESULT_CLOSE_SOCKET;
+    }
+
     int32_t receive_length = (int32_t)worker_op_network_receive(
             channel,
             buffer,
