@@ -149,6 +149,8 @@ bool signal_handler_thread_teardown(
     LOG_V(TAG, "Tearing down signal handler thread");
 
     xalloc_free(log_producer_early_prefix_thread);
+    log_unset_early_prefix_thread();
+
     sigprocmask(SIG_UNBLOCK, waitset, NULL);
 
     for(uint8_t i = 0; i < signal_handler_thread_managed_signals_count; i++) {
