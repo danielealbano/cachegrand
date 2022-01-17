@@ -431,6 +431,10 @@ void* slab_allocator_mem_alloc_hugepages(
         if (slab_allocator_slice_try_acquire(slab_allocator, numa_node_index, core_index) == false) {
             void* hugepage_addr = hugepage_cache_pop();
 
+#if defined(HAS_VALGRIND)
+            VALGRIND_CREATE_MEMPOOL(hugepage_addr, 0, false);
+#endif
+
             slab_allocator_grow(
                     slab_allocator,
                     numa_node_index,
@@ -517,6 +521,10 @@ void slab_allocator_mem_free_hugepages(
     spinlock_unlock(&core_metadata->spinlock);
 
     if (can_free_slab_slice) {
+#if defined(HAS_VALGRIND)
+        VALGRIND_DESTROY_MEMPOOL(slab_slice->data.page_addr);
+#endif
+
         hugepage_cache_push(slab_slice->data.page_addr);
     }
 }
