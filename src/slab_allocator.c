@@ -568,6 +568,8 @@ void* slab_allocator_mem_realloc(
         size_t current_size,
         size_t new_size,
         bool zero_new_memory) {
+    // TODO: the implementation is terrible, it's not even checking if the new size fits within the provided slot
+    //       because in case nothing is needed
     void* new_memptr;
 
     new_memptr = slab_allocator_mem_alloc(new_size);
