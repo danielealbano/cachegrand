@@ -31,7 +31,6 @@ storage_channel_t* storage_open(
         char *path,
         storage_io_common_open_flags_t flags,
         storage_io_common_open_mode_t mode) {
-
     storage_channel_t *res = worker_op_storage_open(path, flags, mode);
 
     if (likely(res)) {
