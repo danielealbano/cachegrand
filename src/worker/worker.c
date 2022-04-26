@@ -294,6 +294,11 @@ void* worker_thread_func(
     worker_mask_signals();
 
     LOG_I(TAG, "Initialization");
+
+    // TODO: too much duplicated code for no reason, should use a centralized cleanup function instead of checking what
+    //       needs to be cleaned up here if something fails so the code can be greatly simplified as the init functions
+    //       currently take all the same set of parameters (only worker_context), a simple list of func pointers can be
+    //       used
     if (!worker_initialize_general(worker_context)) {
         LOG_E(TAG, "Initialization failed!");
         xalloc_free(log_producer_early_prefix_thread);
