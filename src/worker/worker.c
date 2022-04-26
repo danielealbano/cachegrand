@@ -37,6 +37,7 @@
 #include "network/channel/network_channel_iouring.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
+#include "storage/db/storage_db.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "worker/worker_op.h"
@@ -47,6 +48,8 @@
 #include "worker/worker_iouring_op.h"
 #include "worker/network/worker_network_iouring_op.h"
 #include <worker/storage/worker_storage_iouring_op.h>
+#include "fiber.h"
+#include "fiber_scheduler.h"
 #include "worker.h"
 
 #define TAG "worker"

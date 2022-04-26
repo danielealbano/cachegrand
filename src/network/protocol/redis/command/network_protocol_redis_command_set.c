@@ -29,10 +29,13 @@
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "config.h"
-#include "worker/worker_stats.h"
-#include "worker/worker_context.h"
 #include "network/protocol/redis/network_protocol_redis.h"
 #include "network/network.h"
+#include "storage/io/storage_io_common.h"
+#include "storage/channel/storage_channel.h"
+#include "storage/db/storage_db.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
 
 #define TAG "network_protocol_redis_command_get"
 

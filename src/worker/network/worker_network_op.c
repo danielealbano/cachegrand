@@ -25,6 +25,7 @@
 #include "network/channel/network_channel.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
+#include "storage/db/storage_db.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "worker/worker.h"
