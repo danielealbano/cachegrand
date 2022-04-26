@@ -247,9 +247,6 @@ int32_t worker_network_iouring_op_network_send(
         fiber_scheduler_set_error(-res);
     }
 
-    // TODO: with the new fiber interface this shouldn't really be done here!
-    slab_allocator_mem_free(buffer);
-
     return res;
 }
 
