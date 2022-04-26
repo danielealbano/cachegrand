@@ -16,6 +16,7 @@ struct program_context {
     uint16_t *selected_cpus;
     uint16_t selected_cpus_count;
     hashtable_t *hashtable;
+    storage_db_t *db;
     uint32_t workers_count;
     worker_context_t *workers_context;
     signal_handler_thread_context_t *signal_handler_thread_context;

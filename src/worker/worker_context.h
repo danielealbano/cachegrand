@@ -18,6 +18,7 @@ struct worker_context {
     uint32_t core_index;
     config_t *config;
     hashtable_t *hashtable;
+    storage_db_t *db;
     struct {
         worker_stats_t internal;
         worker_stats_volatile_t shared;
