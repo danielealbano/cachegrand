@@ -100,7 +100,8 @@ worker_context_t* program_workers_initialize(
                 worker_index,
                 terminate_event_loop,
                 program_context->config,
-                program_context->hashtable);
+                program_context->hashtable,
+                program_context->db);
 
         LOG_V(TAG, "Creating worker <%u>", worker_index);
 
@@ -424,6 +425,30 @@ bool program_config_setup_hashtable(
     return program_context->hashtable;
 }
 
+bool program_config_setup_storage_db(
+        program_context_t* program_context) {
+    // TODO: read the configuration from the config file
+    storage_db_config_t *config = storage_db_config_new();
+    config->shard_size_mb = program_context->config->storage->shard_size_mb;
+
+    if (program_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
+        config->backend.file.basedir_path = program_context->config->storage->io_uring->path;
+
+        if (program_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
+            config->backend_type = STORAGE_DB_BACKEND_TYPE_FILE;
+        } else {
+            config->backend_type = STORAGE_DB_BACKEND_TYPE_BLOCK_DEVICE;
+        }
+    }
+
+    program_context->db = storage_db_new(config);
+    if (!program_context->db) {
+        storage_db_config_free(config);
+    }
+
+    return program_context->db;
+}
+
 void program_setup_sentry(
         program_context_t program_context) {
     if (program_context.config->sentry == NULL ||
@@ -503,6 +528,11 @@ void program_cleanup(
         xalloc_free(program_context->signal_handler_thread_context);
     }
 
+    if (program_context->db) {
+        storage_db_close(program_context->db);
+        storage_db_free(program_context->db);
+    }
+
     if (program_context->hashtable) {
         hashtable_mcmp_free(program_context->hashtable);
     }
@@ -574,17 +604,21 @@ int program_main(
     // temporary log sink defined initially
     program_config_setup_log_sinks(program_context.config);
 
+    if (program_context.use_slab_allocator) {
+        slab_allocator_predefined_allocators_init();
+        program_context.slab_allocator_inited = true;
+    }
+
     if (program_config_setup_hashtable(&program_context) == false) {
         LOG_E(TAG, "Unable to initialize the hashtable");
         program_cleanup(&program_context);
         return 1;
     }
 
-    // TODO: initialize the storage
-
-    if (program_context.use_slab_allocator) {
-        slab_allocator_predefined_allocators_init();
-        program_context.slab_allocator_inited = true;
+    if (program_config_setup_storage_db(&program_context) == false) {
+        LOG_E(TAG, "Unable to initialize the database");
+        program_cleanup(&program_context);
+        return 1;
     }
 
     if (program_signal_handler_thread_initialize(
