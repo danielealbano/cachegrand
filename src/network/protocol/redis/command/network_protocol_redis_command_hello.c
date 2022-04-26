@@ -54,12 +54,12 @@ struct hello_response_item {
 };
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(hello) {
-    char *send_buffer, *send_buffer_start, *send_buffer_end;
+    char send_buffer[512], *send_buffer_start, *send_buffer_end;
     size_t send_buffer_length;
     bool invalid_protocol_error = false;
 
-    send_buffer_length = 256;
-    send_buffer = send_buffer_start = slab_allocator_mem_alloc(send_buffer_length);
+    send_buffer_length = sizeof(send_buffer);
+    send_buffer_start = send_buffer;
     send_buffer_end = send_buffer_start + send_buffer_length;
 
     if (reader_context->arguments.count == 2) {

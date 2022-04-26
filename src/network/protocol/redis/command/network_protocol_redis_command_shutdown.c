@@ -39,11 +39,11 @@
 #define TAG "network_protocol_redis_command_shutdown"
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(shutdown) {
-    char *send_buffer, *send_buffer_start, *send_buffer_end;
+    char send_buffer[64], *send_buffer_start, *send_buffer_end;
     size_t send_buffer_length;
 
-    send_buffer_length = 64;
-    send_buffer = send_buffer_start = slab_allocator_mem_alloc(send_buffer_length);
+    send_buffer_length = sizeof(send_buffer);
+    send_buffer_start = send_buffer;
     send_buffer_end = send_buffer_start + send_buffer_length;
 
     send_buffer_start = protocol_redis_writer_write_blob_string(
