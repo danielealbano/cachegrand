@@ -65,8 +65,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             .protocols_count = 1,
     };
     config_storage_t config_storage = {
-            .backend = CONFIG_STORAGE_BACKEND_IO_URING,
-            .max_shard_size_mb = 50,
+            .backend = CONFIG_STORAGE_BACKEND_IO_URING_FILE,
+            .shard_size_mb = 50,
     };
     config_database_t config_database = {
             .max_keys = 1000,
