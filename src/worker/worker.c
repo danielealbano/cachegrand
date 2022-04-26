@@ -78,12 +78,14 @@ void worker_setup_context(
         uint32_t worker_index,
         volatile bool *terminate_event_loop,
         config_t *config,
-        hashtable_t *hashtable) {
+        hashtable_t *hashtable,
+        storage_db_t *db) {
     worker_context->workers_count = workers_count;
     worker_context->worker_index = worker_index;
     worker_context->terminate_event_loop = terminate_event_loop;
     worker_context->config = config;
     worker_context->hashtable = hashtable;
+    worker_context->db = db;
 }
 
 bool worker_should_terminate(
@@ -238,6 +240,33 @@ void worker_set_running(
     MEMORY_FENCE_STORE();
 }
 
+
+
+void worker_initialize_storage_db_fiber_entrypoint(
+        void* user_data) {
+    worker_context_t *worker_context = worker_context_get();
+
+    if (!storage_db_open(worker_context->db)) {
+        // TODO: execution has to terminate
+        LOG_E(TAG, "Failed to open the database, terminating");
+    }
+
+    // Switch back to the scheduler, as the lister has been closed this fiber will never be invoked and will get freed
+    fiber_scheduler_switch_back();
+}
+
+bool worker_initialize_storage_db(
+        worker_context_t *worker_context_t) {
+
+    fiber_scheduler_new_fiber(
+            "worker-storage-db-one-shot",
+            sizeof("worker-storage-db-one-shot") - 1,
+            worker_initialize_storage_db_fiber_entrypoint,
+            NULL);
+
+    return true;
+}
+
 void* worker_thread_func(
         void* user_data) {
     network_channel_t *listeners;
@@ -267,25 +296,40 @@ void* worker_thread_func(
         xalloc_free(log_producer_early_prefix_thread);
         worker_context->aborted = true;
         MEMORY_FENCE_STORE();
+
         return NULL;
     }
 
     if (!worker_initialize_network(worker_context)) {
-        LOG_E(TAG, "Initialization failed!");
+        LOG_E(TAG, "Unable to initialize the network, can't continue!");
         worker_cleanup_general(worker_context);
         xalloc_free(log_producer_early_prefix_thread);
         worker_context->aborted = true;
         MEMORY_FENCE_STORE();
+
         return NULL;
     }
 
     if (!worker_initialize_storage(worker_context)) {
-        LOG_E(TAG, "Initialization failed!");
+        LOG_E(TAG, "Unable to initialize the storage, can't continue!");
         worker_cleanup_network(worker_context, NULL, 0);
         worker_cleanup_general(worker_context);
         xalloc_free(log_producer_early_prefix_thread);
         worker_context->aborted = true;
         MEMORY_FENCE_STORE();
+
+        return NULL;
+    }
+
+    if (worker_initialize_storage_db(worker_context) == false) {
+        LOG_E(TAG, "Unable to initialize the database, can't continue!");
+        worker_cleanup_storage(worker_context);
+        worker_cleanup_network(worker_context, NULL, 0);
+        worker_cleanup_general(worker_context);
+        xalloc_free(log_producer_early_prefix_thread);
+        worker_context->aborted = true;
+        MEMORY_FENCE_STORE();
+
         return NULL;
     }
 
