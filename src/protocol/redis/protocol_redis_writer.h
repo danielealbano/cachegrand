@@ -68,6 +68,109 @@ PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(set, (uint32_t set_count));
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(attribute, (uint32_t attributes_count));
 PROTOCOL_REDIS_WRITER_WRITE_FUNC_NAME(push, (uint32_t messages_count));
 
+bool protocol_redis_writer_enough_space_in_buffer(
+        size_t length,
+        size_t requested_size);
+
+unsigned protocol_redis_writer_uint64_str_length(
+        uint64_t number);
+
+unsigned protocol_redis_writer_int64_str_length(
+        int64_t number);
+
+char* protocol_redis_writer_uint64_to_str(
+        uint64_t number,
+        size_t number_str_length,
+        char* buffer,
+        size_t buffer_length);
+
+char* protocol_redis_writer_int64_to_str(
+        int64_t number,
+        size_t number_str_length,
+        char* buffer,
+        size_t buffer_length);
+
+unsigned protocol_redis_writer_double_str_length(
+        double number,
+        int round_to_digits,
+        size_t* integer_part_length,
+        size_t* fraction_part_length);
+
+char* protocol_redis_writer_double_to_str(
+        double number,
+        int round_to_digits,
+        size_t integer_part_length,
+        size_t fraction_part_length,
+        char* buffer,
+        size_t buffer_length);
+
+char* protocol_redis_writer_write_argument_type(
+        char* buffer,
+        size_t buffer_length,
+        protocol_redis_types_t type);
+
+char* protocol_redis_writer_write_argument_boolean(
+        char* buffer,
+        size_t buffer_length,
+        bool is_true);
+
+char* protocol_redis_writer_write_argument_number(
+        char* buffer,
+        size_t buffer_length,
+        int64_t number);
+
+char* protocol_redis_writer_write_argument_double(
+        char* buffer,
+        size_t buffer_length,
+        double number);
+
+char* protocol_redis_writer_write_argument_string(
+        char* buffer,
+        size_t buffer_length,
+        char* string,
+        size_t string_length);
+
+char* protocol_redis_writer_write_argument_string_printf(
+        char* buffer,
+        size_t buffer_length,
+        char* string,
+        va_list args);
+
+char* protocol_redis_writer_write_argument_eol(
+        char* buffer,
+        size_t buffer_length);
+
+char* protocol_redis_writer_write_argument_blob_start(
+        char* buffer,
+        size_t buffer_length,
+        bool is_error,
+        int64_t string_length);
+
+char* protocol_redis_writer_write_argument_blob_end(
+        char* buffer,
+        size_t buffer_length);
+
+char* protocol_redis_writer_write_argument_blob(
+        char* buffer,
+        size_t buffer_length,
+        bool is_error,
+        char* string,
+        int64_t string_length);
+
+char* protocol_redis_writer_write_argument_simple(
+        char* buffer,
+        size_t buffer_length,
+        bool is_error,
+        char* string,
+        int64_t string_length);
+
+char* protocol_redis_writer_write_argument_simple_printf(
+        char* buffer,
+        size_t buffer_length,
+        bool is_error,
+        char* string,
+        va_list args);
+
 #ifdef __cplusplus
 }
 #endif
