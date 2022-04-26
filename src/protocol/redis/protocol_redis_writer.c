@@ -306,7 +306,7 @@ char* protocol_redis_writer_write_argument_blob_start(
         char* buffer,
         size_t buffer_length,
         bool is_error,
-        int string_length) {
+        int64_t string_length) {
     char* buffer_start = buffer;
 
     PROTOCOL_REDIS_WRITER_WRITE_ARGUMENT_WRAPPER_COMMON_VARS(
@@ -339,7 +339,7 @@ char* protocol_redis_writer_write_argument_blob(
         size_t buffer_length,
         bool is_error,
         char* string,
-        int string_length) {
+        int64_t string_length) {
     char* buffer_start = buffer;
 
     PROTOCOL_REDIS_WRITER_WRITE_ARGUMENT_WRAPPER_COMMON_VARS(
@@ -365,7 +365,7 @@ char* protocol_redis_writer_write_argument_simple(
         size_t buffer_length,
         bool is_error,
         char* string,
-        int string_length) {
+        int64_t string_length) {
     char* buffer_start = buffer;
 
     PROTOCOL_REDIS_WRITER_WRITE_ARGUMENT_WRAPPER_COMMON_VARS(
