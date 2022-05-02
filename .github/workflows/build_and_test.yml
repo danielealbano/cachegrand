@@ -19,7 +19,7 @@ jobs:
         config:
           - {
             name: "Ubuntu Latest",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             triplet: x64-linux,
             cc: "gcc",
             cxx: "g++"
@@ -41,7 +41,7 @@ jobs:
           fetch-dept: 2
 
       - name: Install required dependencies
-        run: sudo apt-get install -y build-essential cmake pkg-config git libssl3 libssl-dev libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev valgrind
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config git libssl1.1 libssl-dev libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev valgrind
 
       - name: Create Build Environment
         run: cmake -E make_directory ${{github.workspace}}/build
@@ -49,7 +49,7 @@ jobs:
       - name: Configure CMake
         shell: bash
         working-directory: ${{github.workspace}}/build
-        run: CC=/usr/bin/gcc-11 CXX=/usr/bin/g++-11 cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
+        run: CC=/usr/bin/gcc-9 CXX=/usr/bin/g++-9 cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
 
       - name: Build All
         working-directory: ${{github.workspace}}/build
@@ -64,6 +64,7 @@ jobs:
       - name: Code Coverage - Generation
         uses: danielealbano/lcov-action@v3
         with:
+          gcov_tool: /usr/bin/gcov-9
           remove_patterns: 3rdparty,tests
 
       - name: Code Coverage - Upload to codecov.io
