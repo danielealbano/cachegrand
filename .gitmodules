@@ -1,6 +1,6 @@
 [submodule "3rdparty/t1ha"]
 	path = 3rdparty/t1ha
-	url = https://github.com/leo-yuriev/t1ha.git
+	url = https://github.com/danielealbano/erthink-t1ha.git
 [submodule "3rdparty/liburing"]
 	path = 3rdparty/liburing
 	url = https://github.com/axboe/liburing.git
