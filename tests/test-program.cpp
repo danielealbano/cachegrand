@@ -92,7 +92,7 @@ void* test_program_wait_loop_terminate(
 
 #define PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(WORKER_CONTEXT, RUNNING) { \
     do { \
-        pthread_yield(); \
+        sched_yield(); \
         usleep(10000); \
         MEMORY_FENCE_LOAD(); \
     } while((WORKER_CONTEXT)->running == !RUNNING); \
@@ -191,7 +191,7 @@ TEST_CASE("program.c", "[program]") {
                 (void*)&terminate_event_loop) == 0);
 
         usleep(25000);
-        pthread_yield();
+        sched_yield();
 
         REQUIRE(pthread_create(
                 &pthread_terminate,
@@ -200,7 +200,7 @@ TEST_CASE("program.c", "[program]") {
                 (void*)&terminate_event_loop) == 0);
 
         usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
-        pthread_yield();
+        sched_yield();
 
         REQUIRE(pthread_join(pthread_terminate, NULL) == 0);
 
@@ -234,7 +234,7 @@ TEST_CASE("program.c", "[program]") {
         // Wait for the thread to end
         PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false);
         usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
-        pthread_yield();
+        sched_yield();
 
         // Check if the worker terminated
         REQUIRE(pthread_kill(worker_context->pthread, 0) == ESRCH);
@@ -263,7 +263,7 @@ TEST_CASE("program.c", "[program]") {
         // Wait for the thread to end
         PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false);
         usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
-        pthread_yield();
+        sched_yield();
 
         program_workers_cleanup(
                 worker_context,
