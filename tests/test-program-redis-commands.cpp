@@ -38,7 +38,7 @@
 
 #define PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(WORKER_CONTEXT, RUNNING) { \
     do { \
-        pthread_yield(); \
+        sched_yield(); \
         usleep(10000); \
         MEMORY_FENCE_LOAD(); \
     } while((WORKER_CONTEXT)->running == !RUNNING); \
@@ -337,7 +337,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false);
         usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
     }
-    pthread_yield();
+    sched_yield();
 
     program_workers_cleanup(
             worker_context,

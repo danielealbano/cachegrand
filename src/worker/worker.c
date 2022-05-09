@@ -225,7 +225,7 @@ void worker_network_listeners_listen_pre(
 void worker_wait_running(
         worker_context_t *worker_context) {
     do {
-        pthread_yield();
+        sched_yield();
         usleep(10000);
         MEMORY_FENCE_LOAD();
     } while(!worker_context->running && !worker_context->aborted);
