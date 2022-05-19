@@ -31,12 +31,12 @@ typedef uint32_t storage_db_shard_index_t;
 //    } creation_time;
 //};
 
-typedef enum storage_db_backend_type storage_db_backend_type_t;
 enum storage_db_backend_type {
     STORAGE_DB_BACKEND_TYPE_UNKNOWN = 0,
     STORAGE_DB_BACKEND_TYPE_FILE = 1,
     STORAGE_DB_BACKEND_TYPE_BLOCK_DEVICE = 2
 };
+typedef enum storage_db_backend_type storage_db_backend_type_t;
 
 // general config parameters to initialize and use the internal storage db (e.g. storage backend, amount of memory for
 // the hashtable, other optional stuff)
