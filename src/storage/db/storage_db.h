@@ -54,20 +54,25 @@ struct storage_db_config {
     size_t shard_size_mb;
 };
 
+typedef struct storage_db_shard storage_db_shard_t;
+struct storage_db_shard {
+    storage_db_shard_index_t index;
+    size_t offset;
+    size_t size;
+    storage_channel_t *storage_channel;
+    char* path;
+};
+
 // contains the necessary information to manage the db, holds a pointer to storage_db_config required during the
 // the initialization
 typedef struct storage_db storage_db_t;
 struct storage_db {
-    storage_channel_t *shard_channel;
-    storage_db_shard_index_t shard_index;
-    size_t shard_offset;
-
-//    struct {
-//        storage_db_shard_index new_index;
-//        storage_db_shard_t *active_per_cpu;
-//        storage_db_shard_t *opened_by_index;
-//        spinlock_t write_spinlock;
-//    } shards;
+    struct {
+        storage_db_shard_t **active_per_worker;
+        double_linked_list_t *opened_shards;
+        storage_db_shard_index_t new_index;
+        spinlock_lock_volatile_t write_spinlock;
+    } shards;
     storage_db_config_t *config;
 };
 
@@ -75,7 +80,7 @@ struct storage_db {
 // offsets up to 4 GB
 typedef struct storage_db_chunk_info storage_db_chunk_info_t;
 struct storage_db_chunk_info {
-    storage_db_shard_index_t shard_index;
+    storage_channel_t *shard_storage_channel;
     storage_db_chunk_offset_t chunk_offset;
     storage_db_chunk_length_t chunk_length;
 };
@@ -90,7 +95,6 @@ struct storage_db_entry_index {
     storage_db_chunk_info_t *value_chunks_info;
 };
 
-
 char *storage_db_shard_build_path(
         char *basedir_path,
         storage_db_shard_index_t shard_index);
@@ -101,9 +105,22 @@ void storage_db_config_free(
         storage_db_config_t* config);
 
 storage_db_t* storage_db_new(
-        storage_db_config_t *config);
+        storage_db_config_t *config,
+        uint32_t workers_count);
 
-storage_channel_t *storage_db_shard_open_or_create(
+storage_db_shard_t *storage_db_new_active_shard(
+        storage_db_t *db,
+        uint32_t worker_index);
+
+storage_db_shard_t *storage_db_new_active_shard_per_current_worker(
+        storage_db_t *db);
+
+storage_db_shard_t* storage_db_shard_new(
+        storage_db_shard_index_t index,
+        char *path,
+        uint32_t shard_size_mb);
+
+        storage_channel_t *storage_db_shard_open_or_create_file(
         char *path,
         bool create);
 
@@ -115,7 +132,14 @@ bool storage_db_close(
 void storage_db_free(
         storage_db_t *db);
 
-void storage_db_shard_allocate_chunk(
+storage_db_shard_t *storage_db_shard_get_active_per_current_worker(
+        storage_db_t *db);
+
+bool storage_db_shard_new_is_needed(
+        storage_db_shard_t *shard,
+        size_t chunk_length);
+
+bool storage_db_shard_allocate_chunk(
         storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
         size_t chunk_length);
@@ -136,12 +160,10 @@ storage_db_entry_index_t *storage_db_entry_index_free(
         storage_db_entry_index_t *entry_index);
 
 bool storage_db_entry_chunk_read(
-        storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
         char *buffer);
 
 bool storage_db_entry_chunk_write(
-        storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
         char *buffer);
 

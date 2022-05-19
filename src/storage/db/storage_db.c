@@ -4,15 +4,18 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
-#include <unistd.h>
 #include <fcntl.h>
 
 #include "misc.h"
 #include "exttypes.h"
-#include "data_structures/double_linked_list/double_linked_list.h"
 #include "spinlock.h"
-#include "log/log.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
 #include "slab_allocator.h"
+#include "log/log.h"
+#include "config.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/storage.h"
@@ -53,7 +56,6 @@ char *storage_db_shard_build_path(
     return path;
 }
 
-
 storage_db_config_t* storage_db_config_new() {
     return slab_allocator_mem_alloc_zero(sizeof(storage_db_config_t));
 }
@@ -64,24 +66,24 @@ void storage_db_config_free(
 }
 
 storage_db_t* storage_db_new(
-        storage_db_config_t *config) {
+        storage_db_config_t *config,
+        uint32_t workers_count) {
     storage_db_t *db = slab_allocator_mem_alloc_zero(sizeof(storage_db_t));
 
-    // TODO: can this actually happen? If memory can't be allocated the application with the current implementation
-    //       should just crash
     if (!db) {
         return NULL;
     }
 
     db->config = config;
-
-    // TODO: this should be done via shards, not embedded here
-    db->shard_channel = NULL;
+    db->shards.active_per_worker = slab_allocator_mem_alloc_zero(sizeof(storage_db_shard_t*) * workers_count);
+    db->shards.new_index = 0;
+    db->shards.opened_shards = double_linked_list_init();
+    spinlock_init(&db->shards.write_spinlock);
 
     return db;
 }
 
-storage_channel_t *storage_db_shard_open_or_create(
+storage_channel_t *storage_db_shard_open_or_create_file(
         char *path,
         bool create) {
     storage_channel_t *storage_channel = storage_open(
@@ -98,55 +100,164 @@ bool storage_db_shard_ensure_size_preallocated(
     return storage_fallocate(storage_channel, 0, 0, size_mb * 1024 * 1024);
 }
 
-bool storage_db_open(
+storage_db_shard_t *storage_db_shard_get_active_per_current_worker(
         storage_db_t *db) {
-    // TODO: the shard index is currently hard coded but this should be determined automatically
-    // TODO: the db open should not open or create a shard, this should be done when writing and reading
-    storage_channel_t *shard_channel = storage_db_shard_open_or_create(
-            storage_db_shard_build_path(db->config->backend.file.basedir_path, 0),
-            true);
+    worker_context_t *worker_context = worker_context_get();
+    uint32_t worker_index = worker_context->worker_index;
 
-    if (shard_channel) {
-        if (!storage_db_shard_ensure_size_preallocated(shard_channel, db->config->shard_size_mb)) {
-            storage_close(shard_channel);
-            shard_channel = NULL;
+    return db->shards.active_per_worker[worker_index];
+}
+
+bool storage_db_shard_new_is_needed(
+        storage_db_shard_t *shard,
+        size_t chunk_length) {
+    return shard->offset + chunk_length > shard->size;
+}
+
+bool storage_db_shard_allocate_chunk(
+        storage_db_t *db,
+        storage_db_chunk_info_t *chunk_info,
+        size_t chunk_length) {
+    storage_db_shard_t *shard;
+
+    if ((shard = storage_db_shard_get_active_per_current_worker(db)) != NULL) {
+        if (storage_db_shard_new_is_needed(shard, chunk_length)) {
+            LOG_V(
+                    TAG,
+                    "Shard for worker <%u> full, need to allocate a new one",
+                    worker_context_get()->worker_index);
+            shard = NULL;
+        }
+    } else {
+        LOG_V(
+                TAG,
+                "No shard allocated for worker <%u> full, need to allocate a new one",
+                worker_context_get()->worker_index);
+    }
+
+    if (!shard) {
+        LOG_V(
+                TAG,
+                "Allocating a new shard <%lumb> for worker <%u>",
+                db->config->shard_size_mb,
+                worker_context_get()->worker_index);
+
+        if ((shard = storage_db_new_active_shard_per_current_worker(db)) == false) {
+            LOG_E(
+                    TAG,
+                    "Unable to allocate a new shard for worker <%u>",
+                    worker_context_get()->worker_index);
+            return false;
         }
     }
 
-    if (!shard_channel) {
-        return false;
-    }
+    chunk_info->shard_storage_channel = shard->storage_channel;
+    chunk_info->chunk_offset = shard->offset;
+    chunk_info->chunk_length = chunk_length;
 
-    db->shard_channel = shard_channel;
-    db->shard_index = 0;
-    db->shard_offset = 0;
+    shard->offset += chunk_length;
 
     return true;
 }
-bool storage_db_close(
+
+storage_db_shard_t* storage_db_shard_new(
+        storage_db_shard_index_t index,
+        char *path,
+        uint32_t shard_size_mb) {
+    storage_channel_t *storage_channel = storage_db_shard_open_or_create_file(
+            path,
+            true);
+
+    if (!storage_channel) {
+        LOG_E(
+                TAG,
+                "Unable to open or create the new shard <%s> on disk",
+                path);
+        return NULL;
+    }
+
+    if (!storage_db_shard_ensure_size_preallocated(storage_channel, shard_size_mb)) {
+        LOG_E(
+                TAG,
+                "Unable to preallocate <%umb> for the shard <%s>",
+                shard_size_mb,
+                path);
+        storage_close(storage_channel);
+        return NULL;
+    }
+
+    storage_db_shard_t *shard = slab_allocator_mem_alloc_zero(sizeof(storage_db_shard_t));
+
+    shard->storage_channel = storage_channel;
+    shard->index = index;
+    shard->offset = 0;
+    shard->size = shard_size_mb * 1024 * 1024;
+    shard->path = path;
+
+    return shard;
+}
+
+bool storage_db_open(
         storage_db_t *db) {
-    // TODO: should iterate on all the active shards and close them
+    // TODO: leaving this as placeholder for when the support to load the time series database from the disk will be
+    //       added
+    return true;
+}
+
+storage_db_shard_t *storage_db_new_active_shard(
+        storage_db_t *db,
+        uint32_t worker_index) {
+
+    spinlock_lock(&db->shards.write_spinlock, true);
+
+    storage_db_shard_t *shard = storage_db_shard_new(
+            db->shards.new_index,
+            storage_db_shard_build_path(db->config->backend.file.basedir_path, db->shards.new_index),
+            db->config->shard_size_mb);
+    db->shards.new_index++;
+    db->shards.active_per_worker[worker_index] = shard;
+
+    double_linked_list_item_t *item = double_linked_list_item_init();
+    item->data = shard;
+    double_linked_list_push_item(db->shards.opened_shards, item);
+
+    spinlock_unlock(&db->shards.write_spinlock);
+
+    return shard;
+}
+
+void storage_db_shard_free(
+        storage_db_t *db,
+        storage_db_shard_t *shard) {
     // TODO: should also ensure that all the in-flight data being written are actually written
     // TODO: should close the shards properly writing the footer to be able to carry out a quick read
-    storage_close(db->shard_channel);
+    storage_close(shard->storage_channel);
+    slab_allocator_mem_free(shard);
+}
+
+storage_db_shard_t *storage_db_new_active_shard_per_current_worker(
+        storage_db_t *db) {
+    worker_context_t *worker_context = worker_context_get();
+    uint32_t worker_index = worker_context->worker_index;
+
+    return storage_db_new_active_shard(db, worker_index);
+}
+
+bool storage_db_close(
+    storage_db_t *db) {
+    double_linked_list_item_t* item = NULL;
+    while((item = db->shards.opened_shards->head) != NULL) {
+        storage_db_shard_free(db, (storage_db_shard_t*)item->data);
+        double_linked_list_remove_item(db->shards.opened_shards, item);
+        double_linked_list_item_free(item);
+    }
 }
 
 void storage_db_free(
         storage_db_t *db) {
+    double_linked_list_free(db->shards.opened_shards);
     storage_db_config_free(db->config);
     slab_allocator_mem_free(db);
-}
-
-void storage_db_shard_allocate_chunk(
-        storage_db_t *db,
-        storage_db_chunk_info_t *chunk_info,
-        size_t chunk_length) {
-
-    chunk_info->shard_index = db->shard_index;
-    chunk_info->chunk_offset = db->shard_offset;
-    chunk_info->chunk_length = chunk_length;
-
-    db->shard_offset += chunk_length;
 }
 
 storage_db_entry_index_t *storage_db_entry_index_new() {
@@ -204,12 +315,10 @@ storage_db_entry_index_t *storage_db_entry_index_free(
 }
 
 bool storage_db_entry_chunk_read(
-        storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
         char *buffer) {
 
-    // TODO: should get the correct shard from the db structure depending on the worker index
-    storage_channel_t *channel = db->shard_channel;
+    storage_channel_t *channel = chunk_info->shard_storage_channel;
 
     if (!storage_read(
             channel,
@@ -218,10 +327,9 @@ bool storage_db_entry_chunk_read(
             chunk_info->chunk_offset)) {
         LOG_E(
                 TAG,
-                "[ENTRY_GET_CHUNK_INTERNAL] Failed to read chunk with offset <%u> long <%u> bytes in shard <%u> (path <%s>)",
+                "[ENTRY_GET_CHUNK_INTERNAL] Failed to read chunk with offset <%u> long <%u> bytes (path <%s>)",
                 chunk_info->chunk_offset,
                 chunk_info->chunk_length,
-                chunk_info->shard_index,
                 channel->path);
 
         return false;
@@ -231,12 +339,10 @@ bool storage_db_entry_chunk_read(
 }
 
 bool storage_db_entry_chunk_write(
-        storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
         char *buffer) {
 
-    // TODO: should get the correct shard from the db structure depending on the worker index
-    storage_channel_t *channel = db->shard_channel;
+    storage_channel_t *channel = chunk_info->shard_storage_channel;
 
     if (!storage_write(
             channel,
@@ -245,10 +351,9 @@ bool storage_db_entry_chunk_write(
             chunk_info->chunk_offset)) {
         LOG_E(
                 TAG,
-                "[ENTRY_CHUNK_WRITE] Failed to write chunk with offset <%u> long <%u> bytes in shard <%u> (path <%s>)",
+                "[ENTRY_CHUNK_WRITE] Failed to write chunk with offset <%u> long <%u> bytes (path <%s>)",
                 chunk_info->chunk_offset,
                 chunk_info->chunk_length,
-                chunk_info->shard_index,
                 channel->path);
 
         return false;
