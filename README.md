@@ -256,10 +256,10 @@ General milestones grand-plan:
         - [X] Update the implement code to rely on the dynamic configuration instead of the hardcoded settings
     - [X] Logging
         - [X] Add logging to disk sink
-    - [ ] Storage (WIP)
-        - [ ] Implement storage workers (WIP)
-            - [ ] Implement a memory-based storage worker (WIP)
-            - [ ] Implement a disk-based storage worker based on io_uring and liburing
+    - [ ] Storage
+        - [ ] Implement storage workers
+            - [ ] Implement a memory-based storage worker
+            - [X] Implement a disk-based storage worker based on io_uring and liburing
     
 - v0.2
     - [ ] General
