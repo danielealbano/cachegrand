@@ -582,26 +582,23 @@ int program_main(
     program_setup_initial_log_sink_console();
 
     if ((program_context.config = program_parse_arguments_and_load_config(argc, argv)) == NULL) {
-        return 1;
+        goto fail;
     }
 
     if (program_setup_ulimit() == false) {
         LOG_E(TAG, "Unable to setup the system ulimits");
-        program_cleanup(&program_context);
-        return 1;
+        goto fail;
     }
 
     program_setup_sentry(program_context);
 
     if (program_setup_pidfile(program_context) == false) {
-        program_cleanup(&program_context);
-        return 1;
+        goto fail;
     }
 
     if (program_config_thread_affinity_set_selected_cpus(&program_context) == false) {
         LOG_E(TAG, "Unable to setup cpu affinity");
-        program_cleanup(&program_context);
-        return 1;
+        goto fail;
     }
 
     // Signal handling
@@ -624,28 +621,24 @@ int program_main(
 
     if (program_config_setup_hashtable(&program_context) == false) {
         LOG_E(TAG, "Unable to initialize the hashtable");
-        program_cleanup(&program_context);
-        return 1;
+        goto fail;
     }
 
     if (program_config_setup_storage_db(&program_context) == false) {
         LOG_E(TAG, "Unable to initialize the database");
-        program_cleanup(&program_context);
-        return 1;
+        goto fail;
     }
 
     if (program_signal_handler_thread_initialize(
             &program_terminate_event_loop,
             &program_context) == NULL) {
-        program_cleanup(&program_context);
-        return 1;
+        goto fail;
     }
 
     if (program_workers_initialize_context(
             &program_terminate_event_loop,
             &program_context) == NULL) {
-        program_cleanup(&program_context);
-        return 1;
+        goto fail;
     }
 
     program_workers_wait_start(&program_context);
@@ -663,4 +656,8 @@ int program_main(
     program_cleanup(&program_context);
 
     return 0;
+
+fail:
+    program_cleanup(&program_context);
+    return 1;
 }
