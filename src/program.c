@@ -434,10 +434,13 @@ bool program_config_setup_hashtable(
 
 bool program_config_setup_storage_db(
         program_context_t* program_context) {
-    // TODO: read the configuration from the config file
     storage_db_config_t *config = storage_db_config_new();
     config->shard_size_mb = program_context->config->storage->shard_size_mb;
 
+    // TODO: revise how the backend is set, it doesn't make sense to allow the end user to pick one or another internal
+    //       backend, the user just needs to choose between memory and storage, then the system will determine via
+    //       other parameters (e.g. if a device is used as path) if it's a path or a device when the support will be
+    //       added
     if (program_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
         config->backend.file.basedir_path = program_context->config->storage->io_uring->path;
 
