@@ -607,8 +607,11 @@ int program_main(
     // Enable, if allowed in the config and if the hugepages are available, the slab allocator
     program_use_slab_allocator(&program_context);
 
-    // Initialize the log sinks defined in the configuration, if any. The function will take care of dropping the
-    // temporary log sink defined initially
+    // Calculate workers count
+    program_workers_initialize_count(&program_context);
+
+    // Initialize the log sinks defined in the configuration, if any is defined. The function will take care of dropping
+    // the temporary log sink defined initially
     program_config_setup_log_sinks(program_context.config);
 
     if (program_context.use_slab_allocator) {
@@ -635,7 +638,7 @@ int program_main(
         return 1;
     }
 
-    if (program_workers_initialize(
+    if (program_workers_initialize_context(
             &program_terminate_event_loop,
             &program_context) == NULL) {
         program_cleanup(&program_context);
