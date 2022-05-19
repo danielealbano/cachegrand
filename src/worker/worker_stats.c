@@ -18,6 +18,7 @@
 #include "exttypes.h"
 #include "spinlock.h"
 #include "config.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"

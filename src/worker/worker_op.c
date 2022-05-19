@@ -16,6 +16,7 @@
 #include "log/log.h"
 #include "spinlock.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
 #include "config.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"

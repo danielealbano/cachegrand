@@ -7,6 +7,9 @@ extern "C" {
 
 #define WORKER_LOOP_MAX_WAIT_TIME_MS 1000
 
+// Circular dependency between the storage_db and the worker_context
+typedef struct storage_db storage_db_t;
+
 typedef struct worker_context worker_context_t;
 struct worker_context {
     pthread_t pthread;
