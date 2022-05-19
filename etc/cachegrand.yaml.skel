@@ -7,18 +7,18 @@ cpus:
 
 # Suggested 2 thread per cpu, depending on the hardware up to 4 threads will still scale well
 # The number of workers that will be started will be n. cpus * threads_per_count
-workers_per_cpus: 2
+workers_per_cpus: 1
 
 run_in_foreground: false
 
-pidfile_path: /var/run/cachegrand.pid
+pidfile_path: /var/run/cachegrand/cachegrand.pid
 
 # The slab allocator requires huge pages
 use_slab_allocator: false
 
 network:
   backend: io_uring
-  max_clients: 100
+  max_clients: 250
   listen_backlog: 100
 
   protocols:
@@ -80,4 +80,4 @@ logs:
   - type: file
     level: [ all, no-verbose, no-debug ]
     file:
-      path: /var/log/cachegrand.log
+      path: /var/log/cachegrand/cachegrand.log
