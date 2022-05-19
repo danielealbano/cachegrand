@@ -84,13 +84,17 @@ signal_handler_thread_context_t* program_signal_handler_thread_initialize(
     return signal_handler_thread_context;
 }
 
-worker_context_t* program_workers_initialize(
+void program_workers_initialize_count(
+        program_context_t *program_context) {
+    program_context->workers_count =
+            program_context->config->workers_per_cpus * program_context->selected_cpus_count;
+}
+
+worker_context_t* program_workers_initialize_context(
         volatile bool *terminate_event_loop,
         program_context_t *program_context)  {
     worker_context_t *workers_context;
 
-    program_context->workers_count =
-            program_context->config->workers_per_cpus * program_context->selected_cpus_count;
     program_context->workers_context = workers_context =
             xalloc_alloc_zero(sizeof(worker_context_t) * program_context->workers_count);
 
