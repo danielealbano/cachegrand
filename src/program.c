@@ -448,7 +448,7 @@ bool program_config_setup_storage_db(
         }
     }
 
-    program_context->db = storage_db_new(config);
+    program_context->db = storage_db_new(config, program_context->workers_count);
     if (!program_context->db) {
         storage_db_config_free(config);
     }
