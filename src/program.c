@@ -36,6 +36,9 @@
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
+#include "storage/io/storage_io_common.h"
+#include "storage/channel/storage_channel.h"
+#include "storage/db/storage_db.h"
 #include "config.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
@@ -81,13 +84,17 @@ signal_handler_thread_context_t* program_signal_handler_thread_initialize(
     return signal_handler_thread_context;
 }
 
-worker_context_t* program_workers_initialize(
+void program_workers_initialize_count(
+        program_context_t *program_context) {
+    program_context->workers_count =
+            program_context->config->workers_per_cpus * program_context->selected_cpus_count;
+}
+
+worker_context_t* program_workers_initialize_context(
         volatile bool *terminate_event_loop,
         program_context_t *program_context)  {
     worker_context_t *workers_context;
 
-    program_context->workers_count =
-            program_context->config->workers_per_cpus * program_context->selected_cpus_count;
     program_context->workers_context = workers_context =
             xalloc_alloc_zero(sizeof(worker_context_t) * program_context->workers_count);
 
@@ -100,7 +107,8 @@ worker_context_t* program_workers_initialize(
                 worker_index,
                 terminate_event_loop,
                 program_context->config,
-                program_context->hashtable);
+                program_context->hashtable,
+                program_context->db);
 
         LOG_V(TAG, "Creating worker <%u>", worker_index);
 
@@ -424,6 +432,33 @@ bool program_config_setup_hashtable(
     return program_context->hashtable;
 }
 
+bool program_config_setup_storage_db(
+        program_context_t* program_context) {
+    storage_db_config_t *config = storage_db_config_new();
+    config->shard_size_mb = program_context->config->storage->shard_size_mb;
+
+    // TODO: revise how the backend is set, it doesn't make sense to allow the end user to pick one or another internal
+    //       backend, the user just needs to choose between memory and storage, then the system will determine via
+    //       other parameters (e.g. if a device is used as path) if it's a path or a device when the support will be
+    //       added
+    if (program_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
+        config->backend.file.basedir_path = program_context->config->storage->io_uring->path;
+
+        if (program_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
+            config->backend_type = STORAGE_DB_BACKEND_TYPE_FILE;
+        } else {
+            config->backend_type = STORAGE_DB_BACKEND_TYPE_BLOCK_DEVICE;
+        }
+    }
+
+    program_context->db = storage_db_new(config, program_context->workers_count);
+    if (!program_context->db) {
+        storage_db_config_free(config);
+    }
+
+    return program_context->db;
+}
+
 void program_setup_sentry(
         program_context_t program_context) {
     if (program_context.config->sentry == NULL ||
@@ -503,6 +538,11 @@ void program_cleanup(
         xalloc_free(program_context->signal_handler_thread_context);
     }
 
+    if (program_context->db) {
+        storage_db_close(program_context->db);
+        storage_db_free(program_context->db);
+    }
+
     if (program_context->hashtable) {
         hashtable_mcmp_free(program_context->hashtable);
     }
@@ -542,26 +582,23 @@ int program_main(
     program_setup_initial_log_sink_console();
 
     if ((program_context.config = program_parse_arguments_and_load_config(argc, argv)) == NULL) {
-        return 1;
+        goto fail;
     }
 
     if (program_setup_ulimit() == false) {
         LOG_E(TAG, "Unable to setup the system ulimits");
-        program_cleanup(&program_context);
-        return 1;
+        goto fail;
     }
 
     program_setup_sentry(program_context);
 
     if (program_setup_pidfile(program_context) == false) {
-        program_cleanup(&program_context);
-        return 1;
+        goto fail;
     }
 
     if (program_config_thread_affinity_set_selected_cpus(&program_context) == false) {
         LOG_E(TAG, "Unable to setup cpu affinity");
-        program_cleanup(&program_context);
-        return 1;
+        goto fail;
     }
 
     // Signal handling
@@ -570,35 +607,38 @@ int program_main(
     // Enable, if allowed in the config and if the hugepages are available, the slab allocator
     program_use_slab_allocator(&program_context);
 
-    // Initialize the log sinks defined in the configuration, if any. The function will take care of dropping the
-    // temporary log sink defined initially
+    // Calculate workers count
+    program_workers_initialize_count(&program_context);
+
+    // Initialize the log sinks defined in the configuration, if any is defined. The function will take care of dropping
+    // the temporary log sink defined initially
     program_config_setup_log_sinks(program_context.config);
-
-    if (program_config_setup_hashtable(&program_context) == false) {
-        LOG_E(TAG, "Unable to initialize the hashtable");
-        program_cleanup(&program_context);
-        return 1;
-    }
-
-    // TODO: initialize the storage
 
     if (program_context.use_slab_allocator) {
         slab_allocator_predefined_allocators_init();
         program_context.slab_allocator_inited = true;
     }
 
+    if (program_config_setup_hashtable(&program_context) == false) {
+        LOG_E(TAG, "Unable to initialize the hashtable");
+        goto fail;
+    }
+
+    if (program_config_setup_storage_db(&program_context) == false) {
+        LOG_E(TAG, "Unable to initialize the database");
+        goto fail;
+    }
+
     if (program_signal_handler_thread_initialize(
             &program_terminate_event_loop,
             &program_context) == NULL) {
-        program_cleanup(&program_context);
-        return 1;
+        goto fail;
     }
 
-    if (program_workers_initialize(
+    if (program_workers_initialize_context(
             &program_terminate_event_loop,
             &program_context) == NULL) {
-        program_cleanup(&program_context);
-        return 1;
+        goto fail;
     }
 
     program_workers_wait_start(&program_context);
@@ -616,4 +656,8 @@ int program_main(
     program_cleanup(&program_context);
 
     return 0;
+
+fail:
+    program_cleanup(&program_context);
+    return 1;
 }

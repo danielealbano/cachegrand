@@ -193,7 +193,7 @@ network:
 
 storage:
   backend: memory
-  max_shard_size_mb: 0
+  shard_size_mb: 0
 
 database:
   max_keys: 10000

@@ -13,7 +13,7 @@ extern "C" {
 
 /* gcc doesn't know _Thread_local from C11 yet */
 #ifdef __GNUC__
-# define thread_local __thread
+#define thread_local __thread
 #elif __STDC_VERSION__ >= 201112L
 # define thread_local _Thread_local
 #elif defined(_MSC_VER)

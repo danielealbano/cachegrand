@@ -25,6 +25,9 @@
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
+#include "storage/io/storage_io_common.h"
+#include "storage/channel/storage_channel.h"
+#include "storage/db/storage_db.h"
 #include "config.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
@@ -243,9 +246,6 @@ int32_t worker_network_iouring_op_network_send(
     if (res < 0) {
         fiber_scheduler_set_error(-res);
     }
-
-    // TODO: with the new fiber interface this shouldn't really be done here!
-    slab_allocator_mem_free(buffer);
 
     return res;
 }

@@ -31,12 +31,14 @@
 #include "support/io_uring/io_uring_support.h"
 #include "support/io_uring/io_uring_capabilities.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
+#include "storage/db/storage_db.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "worker/worker_op.h"
@@ -47,6 +49,8 @@
 #include "worker/worker_iouring_op.h"
 #include "worker/network/worker_network_iouring_op.h"
 #include <worker/storage/worker_storage_iouring_op.h>
+#include "fiber.h"
+#include "fiber_scheduler.h"
 #include "worker.h"
 
 #define TAG "worker"
@@ -78,12 +82,14 @@ void worker_setup_context(
         uint32_t worker_index,
         volatile bool *terminate_event_loop,
         config_t *config,
-        hashtable_t *hashtable) {
+        hashtable_t *hashtable,
+        storage_db_t *db) {
     worker_context->workers_count = workers_count;
     worker_context->worker_index = worker_index;
     worker_context->terminate_event_loop = terminate_event_loop;
     worker_context->config = config;
     worker_context->hashtable = hashtable;
+    worker_context->db = db;
 }
 
 bool worker_should_terminate(
@@ -108,7 +114,7 @@ bool worker_initialize_general(
     // TODO: the workers should be map the their func ops in a struct and these should be used
     //       below, can't keep doing ifs :/
     if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
-        worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
+        worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
 
         // TODO: Add some (10) fds for the listeners, this should be calculated dynamically
         uint32_t max_connections_per_worker =
@@ -148,7 +154,7 @@ bool worker_initialize_storage(
         worker_context_t* worker_context) {
     // TODO: the workers should be map the their func ops in a struct and these should be used
     //       below, can't keep doing ifs :/
-    if (worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
+    if (worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
         if (!worker_storage_iouring_initialize(worker_context)) {
             LOG_E(TAG, "io_uring worker storage initialization failed, terminating");
             worker_iouring_cleanup(worker_context);
@@ -188,7 +194,7 @@ void worker_cleanup_network(
 void worker_cleanup_storage(
         worker_context_t* worker_context) {
     // TODO: should use a struct with fp pointers, not ifs
-    if (worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
+    if (worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
         worker_storage_iouring_cleanup(worker_context);
     }
 
@@ -202,7 +208,7 @@ void worker_cleanup_storage(
 void worker_cleanup_general(
         worker_context_t* worker_context) {
     if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
-        worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
+        worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
         worker_iouring_cleanup(worker_context);
     }
 }
@@ -238,6 +244,33 @@ void worker_set_running(
     MEMORY_FENCE_STORE();
 }
 
+
+
+void worker_initialize_storage_db_fiber_entrypoint(
+        void* user_data) {
+    worker_context_t *worker_context = worker_context_get();
+
+    if (!storage_db_open(worker_context->db)) {
+        // TODO: execution has to terminate
+        LOG_E(TAG, "Failed to open the database, terminating");
+    }
+
+    // Switch back to the scheduler, as the lister has been closed this fiber will never be invoked and will get freed
+    fiber_scheduler_switch_back();
+}
+
+bool worker_initialize_storage_db(
+        worker_context_t *worker_context_t) {
+
+    fiber_scheduler_new_fiber(
+            "worker-storage-db-one-shot",
+            sizeof("worker-storage-db-one-shot") - 1,
+            worker_initialize_storage_db_fiber_entrypoint,
+            NULL);
+
+    return true;
+}
+
 void* worker_thread_func(
         void* user_data) {
     network_channel_t *listeners;
@@ -262,30 +295,50 @@ void* worker_thread_func(
     worker_mask_signals();
 
     LOG_I(TAG, "Initialization");
+
+    // TODO: too much duplicated code for no reason, should use a centralized cleanup function instead of checking what
+    //       needs to be cleaned up here if something fails so the code can be greatly simplified as the init functions
+    //       currently take all the same set of parameters (only worker_context), a simple list of func pointers can be
+    //       used
     if (!worker_initialize_general(worker_context)) {
         LOG_E(TAG, "Initialization failed!");
         xalloc_free(log_producer_early_prefix_thread);
         worker_context->aborted = true;
         MEMORY_FENCE_STORE();
+
         return NULL;
     }
 
     if (!worker_initialize_network(worker_context)) {
-        LOG_E(TAG, "Initialization failed!");
+        LOG_E(TAG, "Unable to initialize the network, can't continue!");
         worker_cleanup_general(worker_context);
         xalloc_free(log_producer_early_prefix_thread);
         worker_context->aborted = true;
         MEMORY_FENCE_STORE();
+
         return NULL;
     }
 
     if (!worker_initialize_storage(worker_context)) {
-        LOG_E(TAG, "Initialization failed!");
+        LOG_E(TAG, "Unable to initialize the storage, can't continue!");
         worker_cleanup_network(worker_context, NULL, 0);
         worker_cleanup_general(worker_context);
         xalloc_free(log_producer_early_prefix_thread);
         worker_context->aborted = true;
         MEMORY_FENCE_STORE();
+
+        return NULL;
+    }
+
+    if (worker_initialize_storage_db(worker_context) == false) {
+        LOG_E(TAG, "Unable to initialize the database, can't continue!");
+        worker_cleanup_storage(worker_context);
+        worker_cleanup_network(worker_context, NULL, 0);
+        worker_cleanup_general(worker_context);
+        xalloc_free(log_producer_early_prefix_thread);
+        worker_context->aborted = true;
+        MEMORY_FENCE_STORE();
+
         return NULL;
     }
 
@@ -317,7 +370,7 @@ void* worker_thread_func(
     //       and where.
     do {
         if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
-            worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING) {
+            worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
             res = worker_iouring_process_events_loop(worker_context);
         }
 

@@ -110,18 +110,22 @@ struct config_network {
 
 enum config_storage_backend {
     CONFIG_STORAGE_BACKEND_MEMORY,
-    CONFIG_STORAGE_BACKEND_IO_URING,
+    CONFIG_STORAGE_BACKEND_IO_URING_FILE
 };
 typedef enum config_storage_backend config_storage_backend_t;
+
+struct config_storage_io_uring {
+    char *path;
+    uint32_t max_opened_shards;
+};
+typedef struct config_storage_io_uring config_storage_io_uring_t;
 
 typedef struct config_storage config_storage_t;
 struct config_storage {
     config_storage_backend_t backend;
-    uint32_t max_shard_size_mb;
+    uint32_t shard_size_mb;
     union {
-        struct {
-            char* path;
-        } io_uring;
+        config_storage_io_uring_t *io_uring;
     };
 };
 

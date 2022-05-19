@@ -142,7 +142,18 @@ const cyaml_schema_field_t config_network_schema[] = {
 // Allowed strings for for config -> storage -> backend
 const cyaml_strval_t config_storage_backend_schema_strings[] = {
         { "memory", CONFIG_STORAGE_BACKEND_MEMORY },
-        { "io_uring", CONFIG_STORAGE_BACKEND_IO_URING },
+        { "file-io_uring", CONFIG_STORAGE_BACKEND_IO_URING_FILE }
+};
+
+// Schema for config -> network -> protocols -> protocol-> redis
+const cyaml_schema_field_t config_storage_io_uring_schema[] = {
+        CYAML_FIELD_STRING_PTR(
+                "path", CYAML_FLAG_POINTER,
+                config_storage_io_uring_t, path, 0, CYAML_UNLIMITED),
+        CYAML_FIELD_UINT(
+                "max_opened_shards", CYAML_FLAG_POINTER,
+                config_storage_io_uring_t, max_opened_shards),
+        CYAML_FIELD_END
 };
 
 // Schema for config -> storage
@@ -152,8 +163,11 @@ const cyaml_schema_field_t config_storage_schema[] = {
                 config_storage_t, backend, config_storage_backend_schema_strings,
                 CYAML_ARRAY_LEN(config_storage_backend_schema_strings)),
         CYAML_FIELD_UINT(
-                "max_shard_size_mb", CYAML_FLAG_POINTER,
-                config_storage_t, max_shard_size_mb),
+                "shard_size_mb", CYAML_FLAG_POINTER,
+                config_storage_t, shard_size_mb),
+        CYAML_FIELD_MAPPING_PTR(
+                "io_uring", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_storage_t, io_uring, config_storage_io_uring_schema),
         CYAML_FIELD_END
 };
 

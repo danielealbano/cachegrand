@@ -16,7 +16,8 @@ void worker_setup_context(
         uint32_t worker_index,
         volatile bool *terminate_event_loop,
         config_t *config,
-        hashtable_t *hashtable);
+        hashtable_t *hashtable,
+        storage_db_t *db);
 
 bool worker_should_terminate(
         worker_context_t *worker_context);

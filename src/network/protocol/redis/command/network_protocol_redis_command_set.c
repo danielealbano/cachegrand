@@ -29,39 +29,94 @@
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "config.h"
-#include "worker/worker_stats.h"
-#include "worker/worker_context.h"
 #include "network/protocol/redis/network_protocol_redis.h"
 #include "network/network.h"
+#include "storage/io/storage_io_common.h"
+#include "storage/channel/storage_channel.h"
+#include "storage/db/storage_db.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
 
 #define TAG "network_protocol_redis_command_get"
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
-    char *send_buffer, *send_buffer_start, *send_buffer_end;
+    char send_buffer[64] = { 0 }, *send_buffer_start, *send_buffer_end;
     size_t send_buffer_length;
+    void* key_ptr;
 
-    // TODO: just an hack, the storage system is missing
-    void* memptr_start, *memptr;
-    memptr_start = memptr = slab_allocator_mem_alloc(
-            sizeof(size_t) + reader_context->arguments.list[2].length);
+    send_buffer_length = sizeof(send_buffer);
+    send_buffer_start = send_buffer;
+    send_buffer_end = send_buffer_start + send_buffer_length;
 
-    *(size_t*)memptr = reader_context->arguments.list[2].length;
-    memptr += sizeof(size_t);
-    memcpy(memptr, reader_context->arguments.list[2].value, reader_context->arguments.list[2].length);
+    storage_db_t *db = worker_context_get()->db;
+
+    // Initialize the database entry
+    storage_db_entry_index_t *entry_index = storage_db_entry_index_new();
+    if (!entry_index) {
+        LOG_E(TAG, "[REDIS][SET] Critical error, unable to allocate index entry in memory");
+        return false;
+    }
+
+    storage_db_entry_index_allocate_key_chunks(
+            db,
+            entry_index,
+            reader_context->arguments.list[1].length);
+    storage_db_entry_index_allocate_value_chunks(
+            db,
+            entry_index,
+            reader_context->arguments.list[2].length);
+
+    // Write the chunks for the key
+    key_ptr = reader_context->arguments.list[1].value;
+    for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->key_chunks_count; chunk_index++) {
+        storage_db_chunk_info_t *chunk_info = storage_db_entry_key_chunk_get(entry_index, chunk_index);
+        bool res = storage_db_entry_chunk_write(
+                chunk_info,
+                key_ptr + (chunk_index * STORAGE_DB_CHUNK_MAX_SIZE));
+
+        if (!res) {
+            LOG_E(
+                    TAG,
+                    "[REDIS][SET] Critical error, unable to write key chunk <%u> at offset <%u> long <%u> bytes",
+                    chunk_index,
+                    chunk_info->chunk_offset,
+                    chunk_info->chunk_length);
+
+            storage_db_entry_index_free(entry_index);
+            return false;
+        }
+    }
+
+    // Build the chunks for the value
+    void* value_ptr = reader_context->arguments.list[2].value;
+    for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->key_chunks_count; chunk_index++) {
+        storage_db_chunk_info_t *chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
+        bool res = storage_db_entry_chunk_write(
+                chunk_info,
+                value_ptr + (chunk_index * STORAGE_DB_CHUNK_MAX_SIZE));
+
+        if (!res) {
+            LOG_E(
+                    TAG,
+                    "[REDIS][SET] Critical error, unable to write value chunk <%u> at offset <%u> long <%u> bytes",
+                    chunk_index,
+                    chunk_info->chunk_offset,
+                    chunk_info->chunk_length);
+
+            storage_db_entry_index_free(entry_index);
+            return false;
+        }
+    }
 
     bool res = hashtable_mcmp_op_set(
             hashtable,
-            reader_context->arguments.list[1].value,
+            key_ptr,
             reader_context->arguments.list[1].length,
-            (uintptr_t)memptr_start);
+            (uintptr_t)entry_index);
 
     if (!res) {
-        slab_allocator_mem_free(memptr);
+        storage_db_entry_index_free(entry_index);
     }
-
-    send_buffer_length = 64;
-    send_buffer = send_buffer_start = slab_allocator_mem_alloc(send_buffer_length);
-    send_buffer_end = send_buffer_start + send_buffer_length;
 
     if (res) {
         send_buffer_start = protocol_redis_writer_write_blob_string(

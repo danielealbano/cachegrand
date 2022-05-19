@@ -18,12 +18,16 @@
 #include "exttypes.h"
 #include "spinlock.h"
 #include "config.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
+#include "storage/io/storage_io_common.h"
+#include "storage/channel/storage_channel.h"
+#include "storage/db/storage_db.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 
-// Needed to be defined there as there is a recursive dependency betweek worker_context and worker_stats
+// Needed to be defined there as there is a recursive dependency between worker_context and worker_stats
 typedef struct worker_context worker_context_t;
 
 #include "worker_stats.h"
