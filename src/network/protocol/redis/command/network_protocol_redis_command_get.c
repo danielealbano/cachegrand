@@ -89,18 +89,16 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
         for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->key_chunks_count; chunk_index++) {
             chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
             res = storage_db_entry_chunk_read(
-                    db,
                     chunk_info,
                     send_buffer_start);
 
             if (!res) {
                 LOG_E(
                         TAG,
-                        "[REDIS][GET] Critical error, unable to read chunk <%u> at offset <%u> long <%u> bytes from shard <%u>",
+                        "[REDIS][GET] Critical error, unable to read chunk <%u> at offset <%u> long <%u> bytes",
                         chunk_index,
                         chunk_info->chunk_offset,
-                        chunk_info->chunk_length,
-                        chunk_info->shard_index);
+                        chunk_info->chunk_length);
 
                 goto fail;
             }
@@ -118,11 +116,10 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
                         send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
                     LOG_E(
                             TAG,
-                            "[REDIS][GET] Critical error, unable to send chunk <%u> at offset <%u> long <%u> bytes from shard <%u>",
+                            "[REDIS][GET] Critical error, unable to send chunk <%u> at offset <%u> long <%u> bytes",
                             chunk_index,
                             chunk_info->chunk_offset,
-                            chunk_info->chunk_length,
-                            chunk_info->shard_index);
+                            chunk_info->chunk_length);
 
                     goto fail;
                 }

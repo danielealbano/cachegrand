@@ -71,18 +71,16 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
     for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->key_chunks_count; chunk_index++) {
         storage_db_chunk_info_t *chunk_info = storage_db_entry_key_chunk_get(entry_index, chunk_index);
         bool res = storage_db_entry_chunk_write(
-                db,
                 chunk_info,
                 key_ptr + (chunk_index * STORAGE_DB_CHUNK_MAX_SIZE));
 
         if (!res) {
             LOG_E(
                     TAG,
-                    "[REDIS][SET] Critical error, unable to write key chunk <%u> at offset <%u> long <%u> bytes from shard <%u>",
+                    "[REDIS][SET] Critical error, unable to write key chunk <%u> at offset <%u> long <%u> bytes",
                     chunk_index,
                     chunk_info->chunk_offset,
-                    chunk_info->chunk_length,
-                    chunk_info->shard_index);
+                    chunk_info->chunk_length);
 
             storage_db_entry_index_free(entry_index);
             return false;
@@ -94,18 +92,16 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
     for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->key_chunks_count; chunk_index++) {
         storage_db_chunk_info_t *chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
         bool res = storage_db_entry_chunk_write(
-                db,
                 chunk_info,
                 value_ptr + (chunk_index * STORAGE_DB_CHUNK_MAX_SIZE));
 
         if (!res) {
             LOG_E(
                     TAG,
-                    "[REDIS][SET] Critical error, unable to write value chunk <%u> at offset <%u> long <%u> bytes from shard <%u>",
+                    "[REDIS][SET] Critical error, unable to write value chunk <%u> at offset <%u> long <%u> bytes",
                     chunk_index,
                     chunk_info->chunk_offset,
-                    chunk_info->chunk_length,
-                    chunk_info->shard_index);
+                    chunk_info->chunk_length);
 
             storage_db_entry_index_free(entry_index);
             return false;
