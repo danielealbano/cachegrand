@@ -91,6 +91,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
     };
 
     program_config_thread_affinity_set_selected_cpus(&program_context);
+    program_workers_initialize_count(&program_context);
     worker_context = program_workers_initialize_context(
             &terminate_event_loop,
             &program_context);

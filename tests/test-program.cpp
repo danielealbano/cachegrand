@@ -208,12 +208,20 @@ TEST_CASE("program.c", "[program]") {
         REQUIRE(pthread_join(pthread_wait, NULL) == 0);
     }
 
+    SECTION("program_workers_initialize_count") {
+        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345();
+        program_config_thread_affinity_set_selected_cpus(&program_context);
+        program_workers_initialize_count(&program_context);
+        REQUIRE(program_context.workers_count == 1);
+    }
+
     SECTION("program_workers_initialize_context") {
         PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345();
         worker_context_t* worker_context;
         volatile bool terminate_event_loop = false;
 
         program_config_thread_affinity_set_selected_cpus(&program_context);
+        program_workers_initialize_count(&program_context);
         worker_context = program_workers_initialize_context(
                 &terminate_event_loop,
                 &program_context);
@@ -251,6 +259,7 @@ TEST_CASE("program.c", "[program]") {
         volatile bool terminate_event_loop = false;
 
         program_config_thread_affinity_set_selected_cpus(&program_context);
+        program_workers_initialize_count(&program_context);
         worker_context = program_workers_initialize_context(
                 &terminate_event_loop,
                 &program_context);
