@@ -41,7 +41,7 @@
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
     char *send_buffer, *send_buffer_start, *send_buffer_end;
     size_t send_buffer_length;
-    uintptr_t memptr = 0;
+    bool res;
     storage_db_entry_index_t *entry_index = NULL;
     storage_db_chunk_info_t *chunk_info = NULL;
 
@@ -50,15 +50,12 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
     send_buffer_start = send_buffer;
     send_buffer_end = send_buffer_start + send_buffer_length;
 
-    bool res = hashtable_mcmp_op_get(
-            hashtable,
+    entry_index = storage_db_get(
+            db,
             reader_context->arguments.list[1].value,
-            reader_context->arguments.list[1].length,
-            &memptr);
+            reader_context->arguments.list[1].length);
 
-    if (res) {
-        entry_index = (storage_db_entry_index_t*)memptr;
-
+    if (entry_index) {
         // Prepend the blog start in the buffer which is never sent at the very beginning because there will always be
         // a chunk big enough to hold always at least the necessary protocol data and 1 database chunk.
         send_buffer_start = protocol_redis_writer_write_argument_blob_start(

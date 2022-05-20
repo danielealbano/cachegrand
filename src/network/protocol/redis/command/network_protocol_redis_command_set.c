@@ -106,11 +106,11 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
         }
     }
 
-    bool res = hashtable_mcmp_op_set(
-            hashtable,
+    bool res = storage_db_set(
+            db,
             key_ptr,
             reader_context->arguments.list[1].length,
-            (uintptr_t)entry_index);
+            entry_index);
 
     if (!res) {
         storage_db_entry_index_free(entry_index);
