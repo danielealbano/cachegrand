@@ -112,7 +112,7 @@ bool worker_initialize_general(
     // TODO: the workers should be map the their func ops in a struct and these should be used
     //       below, can't keep doing ifs :/
     if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
-        worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
+        worker_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
 
         // TODO: Add some (10) fds for the listeners, this should be calculated dynamically
         uint32_t max_connections_per_worker =
@@ -152,7 +152,7 @@ bool worker_initialize_storage(
         worker_context_t* worker_context) {
     // TODO: the workers should be map the their func ops in a struct and these should be used
     //       below, can't keep doing ifs :/
-    if (worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
+    if (worker_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
         if (!worker_storage_iouring_initialize(worker_context)) {
             LOG_E(TAG, "io_uring worker storage initialization failed, terminating");
             worker_iouring_cleanup(worker_context);
@@ -192,7 +192,7 @@ void worker_cleanup_network(
 void worker_cleanup_storage(
         worker_context_t* worker_context) {
     // TODO: should use a struct with fp pointers, not ifs
-    if (worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
+    if (worker_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
         worker_storage_iouring_cleanup(worker_context);
     }
 
@@ -206,7 +206,7 @@ void worker_cleanup_storage(
 void worker_cleanup_general(
         worker_context_t* worker_context) {
     if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
-        worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
+        worker_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
         worker_iouring_cleanup(worker_context);
     }
 }
@@ -368,7 +368,7 @@ void* worker_thread_func(
     //       and where.
     do {
         if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
-            worker_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
+            worker_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
             res = worker_iouring_process_events_loop(worker_context);
         }
 
