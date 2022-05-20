@@ -41,8 +41,14 @@ network:
           port: 6379
 
 storage:
-  backend: memory
   shard_size_mb: 0
+  backend: memory
+  
+#  backend: file
+#  file:
+#    path: /var/lib/cachegrand
+#    shard_size_mb: 100
+#    max_opened_shards: 1000
 
 database:
   max_keys: 10000
