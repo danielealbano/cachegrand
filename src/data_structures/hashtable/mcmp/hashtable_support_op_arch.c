@@ -177,7 +177,11 @@ bool concat(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
 
             LOG_DI(">> key fetched, comparing");
 
-            if (unlikely(utils_string_casecmp_eq_32(key, key_size, (const char*)found_key, found_key_compare_size) == false)) {
+            if (unlikely(utils_string_casecmp_eq_32(
+                    key,
+                    key_size,
+                    (const char*)found_key,
+                    found_key_compare_size) == false)) {
                 LOG_DI(">> key different (%s != %s), unable to continue", key, found_key);
                 continue;
             }
@@ -368,7 +372,11 @@ bool concat(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
 
                     LOG_DI(">>> key fetched, comparing");
 
-                    if (unlikely(utils_string_casecmp_eq_32(key, key_size, (const char*)found_key, found_key_compare_size) == false)) {
+                    if (unlikely(utils_string_casecmp_eq_32(
+                            key,
+                            key_size,
+                            (const char*)found_key,
+                            found_key_compare_size) == false)) {
                         LOG_DI(">>> key different (%s != %s), unable to continue", key, found_key);
                         continue;
                     }
