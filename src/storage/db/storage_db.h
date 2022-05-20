@@ -71,6 +71,7 @@ struct storage_db {
         storage_db_shard_index_t new_index;
         spinlock_lock_volatile_t write_spinlock;
     } shards;
+    hashtable_t *hashtable;
     storage_db_config_t *config;
 };
 

@@ -416,22 +416,6 @@ bool program_config_thread_affinity_set_selected_cpus(
     return true;
 }
 
-bool program_config_setup_hashtable(
-        program_context_t* program_context) {
-    hashtable_config_t* hashtable_config = hashtable_mcmp_config_init();
-    hashtable_config->can_auto_resize = false;
-    hashtable_config->initial_size = pow2_next(program_context->config->database->max_keys);
-
-    program_context->hashtable = hashtable_mcmp_init(hashtable_config);
-
-    if (!program_context->hashtable) {
-        hashtable_mcmp_config_free(hashtable_config);
-        program_context->hashtable = NULL;
-    }
-
-    return program_context->hashtable;
-}
-
 bool program_config_setup_storage_db(
         program_context_t* program_context) {
     storage_db_config_t *config = storage_db_config_new();
@@ -543,10 +527,6 @@ void program_cleanup(
         storage_db_free(program_context->db);
     }
 
-    if (program_context->hashtable) {
-        hashtable_mcmp_free(program_context->hashtable);
-    }
-
     if (program_context->slab_allocator_inited) {
         slab_allocator_predefined_allocators_free();
         hugepage_cache_init();
@@ -617,11 +597,6 @@ int program_main(
     if (program_context.use_slab_allocator) {
         slab_allocator_predefined_allocators_init();
         program_context.slab_allocator_inited = true;
-    }
-
-    if (program_config_setup_hashtable(&program_context) == false) {
-        LOG_E(TAG, "Unable to initialize the hashtable");
-        goto fail;
     }
 
     if (program_config_setup_storage_db(&program_context) == false) {

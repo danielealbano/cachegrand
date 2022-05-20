@@ -5,12 +5,14 @@
 #include <stdbool.h>
 #include <math.h>
 #include <fcntl.h>
+#include <pow2.h>
 
 #include "misc.h"
 #include "exttypes.h"
 #include "spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/hashtable/mcmp/hashtable_config.h"
 #include "slab_allocator.h"
 #include "log/log.h"
 #include "config.h"
@@ -68,17 +70,38 @@ void storage_db_config_free(
 storage_db_t* storage_db_new(
         storage_db_config_t *config,
         uint32_t workers_count) {
-    storage_db_t *db = slab_allocator_mem_alloc_zero(sizeof(storage_db_t));
+    // Initialize the hashtable configuration
+    hashtable_config_t* hashtable_config = hashtable_mcmp_config_init();
+    if (!hashtable_config) {
+        // TODO: log
+        return NULL;
+    }
+    hashtable_config->can_auto_resize = false;
+    hashtable_config->initial_size = pow2_next(config->max_keys);
 
-    if (!db) {
+    // Initialize the hashtable
+    hashtable_t *hashtable = hashtable_mcmp_init(hashtable_config);
+    if (!hashtable) {
+        // TODO: log
+        hashtable_mcmp_config_free(hashtable_config);
         return NULL;
     }
 
+    // Initialize the db wrapper structure
+    storage_db_t *db = slab_allocator_mem_alloc_zero(sizeof(storage_db_t));
+    if (!db) {
+        hashtable_mcmp_config_free(hashtable_config);
+        // TODO: log
+        return NULL;
+    }
+
+    // Sets up all the db related information
     db->config = config;
     db->shards.active_per_worker = slab_allocator_mem_alloc_zero(sizeof(storage_db_shard_t*) * workers_count);
     db->shards.new_index = 0;
     db->shards.opened_shards = double_linked_list_init();
     spinlock_init(&db->shards.write_spinlock);
+    db->hashtable = hashtable;
 
     return db;
 }
@@ -256,6 +279,7 @@ bool storage_db_close(
 void storage_db_free(
         storage_db_t *db) {
     double_linked_list_free(db->shards.opened_shards);
+    hashtable_mcmp_free(db->hashtable);
     storage_db_config_free(db->config);
     slab_allocator_mem_free(db);
 }
