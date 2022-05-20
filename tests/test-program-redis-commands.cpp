@@ -64,19 +64,15 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             .protocols = &config_network_protocol,
             .protocols_count = 1,
     };
-    config_storage_t config_storage = {
-            .backend = CONFIG_STORAGE_BACKEND_IO_URING_FILE,
-            .shard_size_mb = 50,
-    };
     config_database_t config_database = {
             .max_keys = 1000,
+            .backend = CONFIG_DATABASE_BACKEND_MEMORY,
     };
     config_t config = {
             .cpus = cpus,
             .cpus_count = 1,
             .workers_per_cpus = 1,
             .network = &config_network,
-            .storage = &config_storage,
             .database = &config_database,
     };
 

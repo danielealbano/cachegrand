@@ -191,12 +191,9 @@ network:
         - host: "::"
           port: 6379
 
-storage:
-  backend: memory
-  shard_size_mb: 0
-
 database:
   max_keys: 10000
+  backend: memory
 
 # The sentry.io service is used to automatically collect minidumps in case of crashes, it doesn't
 # store them after that they are processed but be aware that minidumps will contain memory regions
