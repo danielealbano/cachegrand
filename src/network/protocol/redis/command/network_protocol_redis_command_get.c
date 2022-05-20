@@ -50,8 +50,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
     send_buffer_start = send_buffer;
     send_buffer_end = send_buffer_start + send_buffer_length;
 
-    storage_db_t *db = worker_context_get()->db;
-
     bool res = hashtable_mcmp_op_get(
             hashtable,
             reader_context->arguments.list[1].value,

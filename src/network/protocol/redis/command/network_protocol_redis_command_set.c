@@ -48,8 +48,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
     send_buffer_start = send_buffer;
     send_buffer_end = send_buffer_start + send_buffer_length;
 
-    storage_db_t *db = worker_context_get()->db;
-
     // Initialize the database entry
     storage_db_entry_index_t *entry_index = storage_db_entry_index_new();
     if (!entry_index) {
