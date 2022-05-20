@@ -107,7 +107,6 @@ worker_context_t* program_workers_initialize_context(
                 worker_index,
                 terminate_event_loop,
                 program_context->config,
-                program_context->hashtable,
                 program_context->db);
 
         LOG_V(TAG, "Creating worker <%u>", worker_index);

@@ -82,13 +82,11 @@ void worker_setup_context(
         uint32_t worker_index,
         volatile bool *terminate_event_loop,
         config_t *config,
-        hashtable_t *hashtable,
         storage_db_t *db) {
     worker_context->workers_count = workers_count;
     worker_context->worker_index = worker_index;
     worker_context->terminate_event_loop = terminate_event_loop;
     worker_context->config = config;
-    worker_context->hashtable = hashtable;
     worker_context->db = db;
 }
 

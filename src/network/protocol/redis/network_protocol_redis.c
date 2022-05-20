@@ -163,7 +163,7 @@ bool network_protocol_redis_process_events(
     long data_read_len = 0;
 
     worker_context_t *worker_context = worker_context_get();
-    hashtable_t *hashtable = worker_context->hashtable;
+    storage_db_t *db = worker_context->db;
     protocol_redis_reader_context_t *reader_context = &protocol_context->reader_context;
 
     // TODO: need to handle data copy if the buffer has to be flushed to make room to new data
@@ -230,7 +230,7 @@ bool network_protocol_redis_process_events(
                 } else if (protocol_context->command_info->begin_funcptr) {
                     if (!protocol_context->command_info->begin_funcptr(
                             channel,
-                            hashtable,
+                            db,
                             protocol_context,
                             reader_context,
                             &protocol_context->command_context)) {
@@ -251,7 +251,7 @@ bool network_protocol_redis_process_events(
                     if (protocol_context->command_info->argument_processed_funcptr) {
                         if (!protocol_context->command_info->argument_processed_funcptr(
                                 channel,
-                                hashtable,
+                                db,
                                 protocol_context,
                                 reader_context,
                                 &protocol_context->command_context,
@@ -352,7 +352,7 @@ bool network_protocol_redis_process_events(
                 } else {
                     if (!protocol_context->command_info->end_funcptr(
                             channel,
-                            hashtable,
+                            db,
                             protocol_context,
                             reader_context,
                             &protocol_context->command_context)) {
