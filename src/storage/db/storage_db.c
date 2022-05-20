@@ -139,7 +139,7 @@ bool storage_db_shard_allocate_chunk(
         LOG_V(
                 TAG,
                 "Allocating a new shard <%lumb> for worker <%u>",
-                db->config->shard_size_mb,
+                db->config->backend.file.shard_size_mb,
                 worker_context_get()->worker_index);
 
         if ((shard = storage_db_new_active_shard_per_current_worker(db)) == false) {
@@ -213,7 +213,7 @@ storage_db_shard_t *storage_db_new_active_shard(
     storage_db_shard_t *shard = storage_db_shard_new(
             db->shards.new_index,
             storage_db_shard_build_path(db->config->backend.file.basedir_path, db->shards.new_index),
-            db->config->shard_size_mb);
+            db->config->backend.file.shard_size_mb);
     db->shards.new_index++;
     db->shards.active_per_worker[worker_index] = shard;
 

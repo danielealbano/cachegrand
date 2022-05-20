@@ -33,8 +33,8 @@ typedef uint32_t storage_db_shard_index_t;
 
 enum storage_db_backend_type {
     STORAGE_DB_BACKEND_TYPE_UNKNOWN = 0,
-    STORAGE_DB_BACKEND_TYPE_FILE = 1,
-    STORAGE_DB_BACKEND_TYPE_BLOCK_DEVICE = 2
+    STORAGE_DB_BACKEND_TYPE_MEMORY = 1,
+    STORAGE_DB_BACKEND_TYPE_FILE = 2,
 };
 typedef enum storage_db_backend_type storage_db_backend_type_t;
 
@@ -43,15 +43,13 @@ typedef enum storage_db_backend_type storage_db_backend_type_t;
 typedef struct storage_db_config storage_db_config_t;
 struct storage_db_config {
     storage_db_backend_type_t backend_type;
+    hashtable_bucket_count_t max_keys;
     union {
         struct {
             char *basedir_path;
+            size_t shard_size_mb;
         } file;
-        struct {
-            char *block_device_path;
-        } block_device;
     } backend;
-    size_t shard_size_mb;
 };
 
 typedef struct storage_db_shard storage_db_shard_t;
