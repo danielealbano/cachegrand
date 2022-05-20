@@ -19,6 +19,7 @@
 #include "xalloc.h"
 #include "memory_fences.h"
 #include "spinlock.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
 #include "protocol/redis/protocol_redis.h"
@@ -31,6 +32,9 @@
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "signal_handler_thread.h"
+#include "storage/io/storage_io_common.h"
+#include "storage/channel/storage_channel.h"
+#include "storage/db/storage_db.h"
 
 #include "program.h"
 
@@ -76,14 +80,16 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             .database = &config_database,
     };
 
-    hashtable_config_t* hashtable_config = hashtable_mcmp_config_init();
-    hashtable_config->initial_size = config_database.max_keys;
-    hashtable_config->can_auto_resize = false;
-    hashtable_t* hashtable = hashtable_mcmp_init(hashtable_config);
+    storage_db_config_t *db_config = storage_db_config_new();
+    db_config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY;
+    db_config->max_keys = 1000;
+
+    storage_db_t *db = storage_db_new(db_config, config.cpus_count * config.workers_per_cpus);
+    storage_db_open(db);
 
     program_context_t program_context = {
             .config = &config,
-            .hashtable = hashtable,
+            .db = db,
     };
 
     program_config_thread_affinity_set_selected_cpus(&program_context);
@@ -344,5 +350,6 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
     REQUIRE(mprobe(worker_context) == -MCHECK_FREE);
 
-    hashtable_mcmp_free(hashtable);
+    storage_db_close(db);
+    storage_db_free(db);
 }
