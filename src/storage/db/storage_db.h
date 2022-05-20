@@ -174,6 +174,22 @@ storage_db_chunk_info_t *storage_db_entry_value_chunk_get(
         storage_db_entry_index_t* entry_index,
         storage_db_chunk_index_t chunk_index);
 
+storage_db_entry_index_t *storage_db_get(
+        storage_db_t *db,
+        char *key,
+        size_t key_length);
+
+bool storage_db_set(
+        storage_db_t *db,
+        char *key,
+        size_t key_length,
+        storage_db_entry_index_t *entry_index);
+
+bool storage_db_delete(
+        storage_db_t *db,
+        char *key,
+        size_t key_length);
+
 #ifdef __cplusplus
 }
 #endif

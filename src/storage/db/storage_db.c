@@ -13,6 +13,9 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_get.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_set.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_delete.h"
 #include "slab_allocator.h"
 #include "log/log.h"
 #include "config.h"
@@ -398,4 +401,47 @@ storage_db_chunk_info_t *storage_db_entry_value_chunk_get(
         storage_db_chunk_index_t chunk_index) {
 
     return entry_index->value_chunks_info + chunk_index;
+}
+
+storage_db_entry_index_t *storage_db_get(
+        storage_db_t *db,
+        char *key,
+        size_t key_length) {
+    hashtable_value_data_t memptr = 0;
+
+    bool res = hashtable_mcmp_op_get(
+            db->hashtable,
+            key,
+            key_length,
+            &memptr);
+
+    if (!res) {
+        return NULL;
+    }
+
+    return (storage_db_entry_index_t *)memptr;
+}
+
+bool storage_db_set(
+        storage_db_t *db,
+        char *key,
+        size_t key_length,
+        storage_db_entry_index_t *entry_index) {
+    bool res = hashtable_mcmp_op_set(
+            db->hashtable,
+            key,
+            key_length,
+            (uintptr_t)entry_index);
+
+    return res;
+}
+
+bool storage_db_delete(
+        storage_db_t *db,
+        char *key,
+        size_t key_length) {
+    return hashtable_mcmp_op_delete(
+            db->hashtable,
+            key,
+            key_length);
 }
