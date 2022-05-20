@@ -419,20 +419,15 @@ bool program_config_thread_affinity_set_selected_cpus(
 bool program_config_setup_storage_db(
         program_context_t* program_context) {
     storage_db_config_t *config = storage_db_config_new();
-    config->shard_size_mb = program_context->config->storage->shard_size_mb;
 
-    // TODO: revise how the backend is set, it doesn't make sense to allow the end user to pick one or another internal
-    //       backend, the user just needs to choose between memory and storage, then the system will determine via
-    //       other parameters (e.g. if a device is used as path) if it's a path or a device when the support will be
-    //       added
-    if (program_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
-        config->backend.file.basedir_path = program_context->config->storage->io_uring->path;
+    config->max_keys = program_context->config->database->max_keys;
 
-        if (program_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
-            config->backend_type = STORAGE_DB_BACKEND_TYPE_FILE;
-        } else {
-            config->backend_type = STORAGE_DB_BACKEND_TYPE_BLOCK_DEVICE;
-        }
+    if (program_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
+        config->backend.file.shard_size_mb = program_context->config->database->file->shard_size_mb;
+        config->backend.file.basedir_path = program_context->config->database->file->path;
+        config->backend_type = STORAGE_DB_BACKEND_TYPE_FILE;
+    } else if (program_context->config->database->backend == CONFIG_DATABASE_BACKEND_MEMORY) {
+        config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY;
     }
 
     program_context->db = storage_db_new(config, program_context->workers_count);
