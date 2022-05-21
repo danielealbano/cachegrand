@@ -33,7 +33,7 @@ uint32_t* init_hashes() {
     void bench_template_hashtable_mcmp_support_hash_search_##METHOD##_##SUFFIX(benchmark::State& state) { \
         uint32_t* hashes = NULL; \
         \
-        test_support_set_thread_affinity(state.thread_index); \
+        test_support_set_thread_affinity(state.thread_index()); \
         \
         for (auto _ : state) { \
             hashes = init_hashes(); \

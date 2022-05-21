@@ -9,6 +9,9 @@
 
 #include "fiber.h"
 
+#define FIBER_NAME "fiber-test"
+#define FIBER_NAME_LEN (strlen(FIBER_NAME))
+
 #define MSG_TEXT "tst"
 #define MSG_TEXT_SIZE (strlen(MSG_TEXT) + 1)
 
@@ -244,7 +247,7 @@ void BM_ContextSwitching_Fiber2XPinnedOverhead(benchmark::State& state) {
     CPU_SET(core_index, &cpuset);
     pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
 
-    fiber_t* child_fiber = fiber_new(getpagesize() * 8, fiber_func, nullptr);
+    fiber_t* child_fiber = fiber_new(FIBER_NAME, FIBER_NAME_LEN, getpagesize() * 8, fiber_func, nullptr);
 
     for (auto _ : state) {
         fiber_context_swap(&main_context, child_fiber);
