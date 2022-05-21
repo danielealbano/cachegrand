@@ -26,7 +26,7 @@ REDIS_SERVER_BIN_PATH="$(which redis-server)"
 REDIS_SERVER_CONFIG_PATH="/etc/redis/redis.conf"
 REDIS_SERVER_CPU="0"
 
-echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 
 for CLIENTS_PER_THREAD in 100 150 200;
 do
