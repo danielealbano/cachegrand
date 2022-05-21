@@ -3,7 +3,7 @@ include(FetchContent)
 FetchContent_Declare(
         sentry
         GIT_REPOSITORY https://github.com/getsentry/sentry-native
-        GIT_TAG        0.4.9
+        GIT_TAG        0.4.17
 )
 
 FetchContent_MakeAvailable(sentry)
