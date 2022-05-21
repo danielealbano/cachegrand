@@ -316,9 +316,16 @@ storage_db_entry_index_t *storage_db_entry_index_allocate_key_chunks(
     size_t remaining_length = key_length;
     for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->key_chunks_count; chunk_index++) {
         storage_db_chunk_info_t *chunk_info = storage_db_entry_key_chunk_get(entry_index, chunk_index);
-        storage_db_shard_allocate_chunk(db, chunk_info, min(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE));
+
+        if (!storage_db_shard_allocate_chunk(db, chunk_info, min(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
+            slab_allocator_mem_free(entry_index->key_chunks_info);
+            return NULL;
+        }
+
         remaining_length -= STORAGE_DB_CHUNK_MAX_SIZE;
     }
+
+    return entry_index;
 }
 
 storage_db_entry_index_t *storage_db_entry_index_allocate_value_chunks(
@@ -334,7 +341,12 @@ storage_db_entry_index_t *storage_db_entry_index_allocate_value_chunks(
     size_t remaining_length = value_length;
     for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value_chunks_count; chunk_index++) {
         storage_db_chunk_info_t *chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
-        storage_db_shard_allocate_chunk(db, chunk_info, min(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE));
+
+        if (!storage_db_shard_allocate_chunk(db, chunk_info, min(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
+            slab_allocator_mem_free(entry_index->value_chunks_info);
+            return NULL;
+        }
+
         remaining_length -= STORAGE_DB_CHUNK_MAX_SIZE;
     }
 }
