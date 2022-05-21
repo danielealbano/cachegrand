@@ -95,13 +95,13 @@ static void hashtable_op_set_new(benchmark::State& state) {
     bool result;
     char error_message[150] = {0};
 
-    if (bench_support_check_if_too_many_threads_per_core(state.threads, BENCHES_MAX_THREADS_PER_CORE)) {
+    if (bench_support_check_if_too_many_threads_per_core(state.threads(), BENCHES_MAX_THREADS_PER_CORE)) {
         sprintf(error_message, "Too many threads per core, max allowed <%d>", BENCHES_MAX_THREADS_PER_CORE);
         state.SkipWithError(error_message);
         return;
     }
 
-    if (state.thread_index == 0) {
+    if (state.thread_index() == 0) {
         hashtable = test_support_init_hashtable(state.range(0));
 
         double requested_load_factor = (double)state.range(1) / 100;
@@ -120,10 +120,10 @@ static void hashtable_op_set_new(benchmark::State& state) {
         test_support_flush_data_cache(keyset, TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * requested_keyset_size);
     }
 
-    test_support_set_thread_affinity(state.thread_index);
+    test_support_set_thread_affinity(state.thread_index());
 
     for (auto _ : state) {
-        for(long int i = state.thread_index; i < requested_keyset_size; i += state.threads) {
+        for(long int i = state.thread_index(); i < requested_keyset_size; i += state.threads()) {
             uint64_t keyset_offset = TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i;
             char* key = keyset + keyset_offset;
 
@@ -139,14 +139,14 @@ static void hashtable_op_set_new(benchmark::State& state) {
                         "Unable to set the key <%s> with index <%ld> for the thread <%d>",
                         key,
                         i,
-                        state.thread_index);
+                        state.thread_index());
                 state.SkipWithError(error_message);
                 break;
             }
         }
     }
 
-    if (state.thread_index == 0) {
+    if (state.thread_index() == 0) {
         bench_support_collect_hashtable_stats_and_update_state(state, hashtable);
         hashtable_mcmp_free(hashtable);
     }
@@ -158,13 +158,13 @@ static void hashtable_op_set_update(benchmark::State& state) {
     bool result;
     char error_message[150] = {0};
 
-    if (bench_support_check_if_too_many_threads_per_core(state.threads, BENCHES_MAX_THREADS_PER_CORE)) {
+    if (bench_support_check_if_too_many_threads_per_core(state.threads(), BENCHES_MAX_THREADS_PER_CORE)) {
         sprintf(error_message, "Too many threads per core, max allowed <%d>", BENCHES_MAX_THREADS_PER_CORE);
         state.SkipWithError(error_message);
         return;
     }
 
-    if (state.thread_index == 0) {
+    if (state.thread_index() == 0) {
         hashtable = test_support_init_hashtable(state.range(0));
 
         double requested_load_factor = (double)state.range(1) / 100;
@@ -193,10 +193,10 @@ static void hashtable_op_set_update(benchmark::State& state) {
         test_support_flush_data_cache(keyset, TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * requested_keyset_size);
     }
 
-    test_support_set_thread_affinity(state.thread_index);
+    test_support_set_thread_affinity(state.thread_index());
 
     for (auto _ : state) {
-        for(long int i = state.thread_index; i < requested_keyset_size; i += state.threads) {
+        for(long int i = state.thread_index(); i < requested_keyset_size; i += state.threads()) {
             char* key = keyset + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
 
             benchmark::DoNotOptimize((result = hashtable_mcmp_op_set(
@@ -211,14 +211,14 @@ static void hashtable_op_set_update(benchmark::State& state) {
                         "Unable to set the key <%s> with index <%ld> for the thread <%d>",
                         key,
                         i,
-                        state.thread_index);
+                        state.thread_index());
                 state.SkipWithError(error_message);
                 break;
             }
         }
     }
 
-    if (state.thread_index == 0) {
+    if (state.thread_index() == 0) {
         bench_support_collect_hashtable_stats_and_update_state(state, hashtable);
         hashtable_mcmp_free(hashtable);
     }

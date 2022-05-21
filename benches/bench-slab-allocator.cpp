@@ -43,7 +43,7 @@ static void memory_allocation_slab_allocator_only_alloc(benchmark::State& state)
     size_t object_size = state.range(0);
     uint32_t objects_count = state.range(1);
 
-    thread_current_set_affinity(state.thread_index);
+    thread_current_set_affinity(state.thread_index());
 
     std::vector<void*> memptrs = std::vector<void*>(objects_count);
 
@@ -62,7 +62,7 @@ static void memory_allocation_slab_allocator_alloc_and_free(benchmark::State& st
     size_t object_size = state.range(0);
     uint32_t objects_count = state.range(1);
 
-    thread_current_set_affinity(state.thread_index);
+    thread_current_set_affinity(state.thread_index());
 
     std::vector<void*> memptrs = std::vector<void*>(objects_count);
 
@@ -82,7 +82,7 @@ static void memory_allocation_slab_allocator_fragment_memory(benchmark::State& s
     uint32_t objects_count = state.range(1);
     uint32_t objects_count_1_of_4 = objects_count >> 2;
 
-    thread_current_set_affinity(state.thread_index);
+    thread_current_set_affinity(state.thread_index());
 
     std::random_device rd;
     std::mt19937 g(rd());
@@ -157,7 +157,7 @@ static void memory_allocation_os_malloc_only_alloc(benchmark::State& state) {
     size_t object_size = state.range(0);
     uint32_t objects_count = state.range(1);
 
-    thread_current_set_affinity(state.thread_index);
+    thread_current_set_affinity(state.thread_index());
 
     void** memptrs = (void**)malloc(sizeof(void*) * objects_count);
     memset(memptrs, 0, sizeof(void*) * objects_count);
@@ -177,7 +177,7 @@ static void memory_allocation_os_malloc_alloc_and_free(benchmark::State& state) 
     size_t object_size = state.range(0);
     uint32_t objects_count = state.range(1);
 
-    thread_current_set_affinity(state.thread_index);
+    thread_current_set_affinity(state.thread_index());
 
     void** memptrs = (void**)malloc(sizeof(void*) * objects_count);
     memset(memptrs, 0, sizeof(void*) * objects_count);
@@ -198,7 +198,7 @@ static void memory_allocation_os_malloc_fragment_memory(benchmark::State& state)
     uint32_t objects_count = state.range(1);
     uint32_t objects_count_1_of_4 = objects_count >> 2;
 
-    thread_current_set_affinity(state.thread_index);
+    thread_current_set_affinity(state.thread_index());
 
     std::random_device rd;
     std::mt19937 g(rd());
