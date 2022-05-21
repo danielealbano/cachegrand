@@ -139,7 +139,7 @@ bool io_uring_capabilities_is_linked_op_files_update_supported() {
 }
 
 bool io_uring_capabilities_is_fast_poll_supported() {
-    long kernel_version[3] = {0};
+    long kernel_version[4] = {0};
 
     // Check kernel minimum version, the io_uring probe op has been introduced in recent kernel versions and we also
     // need IORING_FEAT_FAST_POLL that is available only from the kernel version 5.7.0 onwards
@@ -162,7 +162,7 @@ bool io_uring_capabilities_is_fast_poll_supported() {
 }
 
 bool io_uring_capabilities_is_sqpoll_supported() {
-    long kernel_version[3] = {0};
+    long kernel_version[4] = {0};
 
     // SQPOLL requires the kernel 5.11 to work properly on the sockets
     version_parse((char*)minimum_kernel_version_IORING_SQPOLL, (long*)kernel_version, sizeof(kernel_version));
