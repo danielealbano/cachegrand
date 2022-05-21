@@ -17,6 +17,8 @@
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_delete.h"
 #include "slab_allocator.h"
+#include "fiber.h"
+#include "fiber_scheduler.h"
 #include "log/log.h"
 #include "config.h"
 #include "worker/worker_stats.h"
@@ -168,7 +170,7 @@ bool storage_db_shard_allocate_chunk(
                 db->config->backend.file.shard_size_mb,
                 worker_context_get()->worker_index);
 
-        if ((shard = storage_db_new_active_shard_per_current_worker(db)) == false) {
+        if (!(shard = storage_db_new_active_shard_per_current_worker(db))) {
             LOG_E(
                     TAG,
                     "Unable to allocate a new shard for worker <%u>",
@@ -234,18 +236,28 @@ storage_db_shard_t *storage_db_new_active_shard(
         storage_db_t *db,
         uint32_t worker_index) {
 
-    spinlock_lock(&db->shards.write_spinlock, true);
+    // The storage_db_shard_new might trigger a fiber context switch, if it's the case another request, trying to do a
+    // write operation in the same thread will also try to acquire the spinlock causing the execution to get stuck as
+    // the initial owner of the lock will never get the chance to finish the operation.
+    // For this reason, if the lock is in use, the fiber yields to ensure that at some point the original fiber that
+    // acquired the lock will get the chance to complete the operations.
+    while (!spinlock_lock(&db->shards.write_spinlock, false)) {
+        fiber_scheduler_switch_back();
+    }
 
     storage_db_shard_t *shard = storage_db_shard_new(
             db->shards.new_index,
             storage_db_shard_build_path(db->config->backend.file.basedir_path, db->shards.new_index),
             db->config->backend.file.shard_size_mb);
-    db->shards.new_index++;
-    db->shards.active_per_worker[worker_index] = shard;
 
-    double_linked_list_item_t *item = double_linked_list_item_init();
-    item->data = shard;
-    double_linked_list_push_item(db->shards.opened_shards, item);
+    if (shard) {
+        db->shards.new_index++;
+        db->shards.active_per_worker[worker_index] = shard;
+
+        double_linked_list_item_t *item = double_linked_list_item_init();
+        item->data = shard;
+        double_linked_list_push_item(db->shards.opened_shards, item);
+    }
 
     spinlock_unlock(&db->shards.write_spinlock);
 
