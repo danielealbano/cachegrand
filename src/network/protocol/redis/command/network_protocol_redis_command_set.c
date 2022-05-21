@@ -43,6 +43,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
     char send_buffer[64] = { 0 }, *send_buffer_start, *send_buffer_end;
     size_t send_buffer_length;
     void* key_ptr;
+    bool res;
 
     send_buffer_length = sizeof(send_buffer);
     send_buffer_start = send_buffer;
@@ -55,20 +56,35 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
         return false;
     }
 
-    storage_db_entry_index_allocate_key_chunks(
+    res = storage_db_entry_index_allocate_key_chunks(
             db,
             entry_index,
             reader_context->arguments.list[1].length);
-    storage_db_entry_index_allocate_value_chunks(
+    if (!res) {
+        LOG_E(
+                TAG,
+                "[REDIS][SET] Critical error, unable to allocate database chunks for the key");
+        storage_db_entry_index_free(entry_index);
+        return false;
+    }
+
+    res = storage_db_entry_index_allocate_value_chunks(
             db,
             entry_index,
             reader_context->arguments.list[2].length);
+    if (!res) {
+        LOG_E(
+                TAG,
+                "[REDIS][SET] Critical error, unable to allocate database chunks for the value");
+        storage_db_entry_index_free(entry_index);
+        return false;
+    }
 
     // Write the chunks for the key
     key_ptr = reader_context->arguments.list[1].value;
     for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->key_chunks_count; chunk_index++) {
         storage_db_chunk_info_t *chunk_info = storage_db_entry_key_chunk_get(entry_index, chunk_index);
-        bool res = storage_db_entry_chunk_write(
+        res = storage_db_entry_chunk_write(
                 chunk_info,
                 key_ptr + (chunk_index * STORAGE_DB_CHUNK_MAX_SIZE));
 
@@ -89,7 +105,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
     void* value_ptr = reader_context->arguments.list[2].value;
     for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->key_chunks_count; chunk_index++) {
         storage_db_chunk_info_t *chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
-        bool res = storage_db_entry_chunk_write(
+        res = storage_db_entry_chunk_write(
                 chunk_info,
                 value_ptr + (chunk_index * STORAGE_DB_CHUNK_MAX_SIZE));
 
@@ -106,7 +122,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
         }
     }
 
-    bool res = storage_db_set(
+    res = storage_db_set(
             db,
             key_ptr,
             reader_context->arguments.list[1].length,
