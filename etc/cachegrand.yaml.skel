@@ -40,18 +40,15 @@ network:
         - host: "::"
           port: 6379
 
-storage:
+database:
+  max_keys: 10000
   shard_size_mb: 0
   backend: memory
-  
 #  backend: file
 #  file:
 #    path: /var/lib/cachegrand
 #    shard_size_mb: 100
 #    max_opened_shards: 1000
-
-database:
-  max_keys: 10000
 
 # The sentry.io service is used to automatically collect minidumps in case of crashes, it doesn't
 # store them after that they are processed but be aware that minidumps will contain memory regions
