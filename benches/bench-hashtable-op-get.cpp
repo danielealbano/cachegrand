@@ -47,11 +47,11 @@ static void hashtable_op_get_not_found_key(benchmark::State& state) {
     static hashtable_t* hashtable;
     hashtable_value_data_t value;
 
-    if (state.thread_index == 0) {
+    if (state.thread_index() == 0) {
         hashtable = test_support_init_hashtable(state.range(0));
     }
 
-    test_support_set_thread_affinity(state.thread_index);
+    test_support_set_thread_affinity(state.thread_index());
 
     for (auto _ : state) {
         benchmark::DoNotOptimize(hashtable_mcmp_op_get(
@@ -61,7 +61,7 @@ static void hashtable_op_get_not_found_key(benchmark::State& state) {
                 &value));
     }
 
-    if (state.thread_index == 0) {
+    if (state.thread_index() == 0) {
         hashtable_mcmp_free(hashtable);
     }
 }
@@ -75,7 +75,7 @@ static void hashtable_op_get_single_key_inline(benchmark::State& state) {
     bool result;
     char error_message[150] = {0};
 
-    if (state.thread_index == 0) {
+    if (state.thread_index() == 0) {
         hashtable = test_support_init_hashtable(state.range(0));
 
         bucket_index = test_key_1_hash % hashtable->ht_current->buckets_count;
@@ -91,7 +91,7 @@ static void hashtable_op_get_single_key_inline(benchmark::State& state) {
                 test_value_1);
     }
 
-    test_support_set_thread_affinity(state.thread_index);
+    test_support_set_thread_affinity(state.thread_index());
 
     for (auto _ : state) {
         benchmark::DoNotOptimize((result = hashtable_mcmp_op_get(
@@ -108,13 +108,13 @@ static void hashtable_op_get_single_key_inline(benchmark::State& state) {
                     bucket_index,
                     chunk_index,
                     chunk_slot_index,
-                    state.thread_index);
+                    state.thread_index());
             state.SkipWithError(error_message);
             break;
         }
     }
 
-    if (state.thread_index == 0) {
+    if (state.thread_index() == 0) {
         hashtable_mcmp_free(hashtable);
     }
 }
@@ -128,7 +128,7 @@ static void hashtable_op_get_single_key_external(benchmark::State& state) {
     bool result;
     char error_message[150] = {0};
 
-    if (state.thread_index == 0) {
+    if (state.thread_index() == 0) {
         hashtable = test_support_init_hashtable(state.range(0));
 
         bucket_index = test_key_1_hash % hashtable->ht_current->buckets_count;
@@ -144,7 +144,7 @@ static void hashtable_op_get_single_key_external(benchmark::State& state) {
                 test_value_1);
     }
 
-    test_support_set_thread_affinity(state.thread_index);
+    test_support_set_thread_affinity(state.thread_index());
 
     for (auto _ : state) {
         benchmark::DoNotOptimize((result = hashtable_mcmp_op_get(
@@ -161,13 +161,13 @@ static void hashtable_op_get_single_key_external(benchmark::State& state) {
                     bucket_index,
                     chunk_index,
                     chunk_slot_index,
-                    state.thread_index);
+                    state.thread_index());
             state.SkipWithError(error_message);
             break;
         }
     }
 
-    if (state.thread_index == 0) {
+    if (state.thread_index() == 0) {
         hashtable_mcmp_free(hashtable);
     }
 }

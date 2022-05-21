@@ -5,7 +5,7 @@ set (CMAKE_CXX_STANDARD 17)
 ExternalProject_Add(benchmark-install
         PREFIX benchmark-sources
         INSTALL_DIR ${CMAKE_BINARY_DIR}/benchmark-install
-        URL https://github.com/google/benchmark/archive/v1.5.0.tar.gz
+        URL https://github.com/google/benchmark/archive/v1.6.1.tar.gz
         CMAKE_CACHE_ARGS
             -DCMAKE_C_COMPILER:STRING=${CMAKE_C_COMPILER}
             -DCMAKE_CXX_COMPILER:STRING=${CMAKE_CXX_COMPILER}
