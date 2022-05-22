@@ -73,10 +73,18 @@ struct storage_db_chunk_info {
     storage_db_chunk_length_t chunk_length;
 };
 
+typedef union storage_db_entry_index_status storage_db_entry_index_status_t;
+union storage_db_entry_index_status {
+    uint32_t _cas_wrapper;
+    struct {
+        uint16_t readers_counter;
+        bool deleted;
+    };
+};
+
 typedef struct storage_db_entry_index storage_db_entry_index_t;
 struct storage_db_entry_index {
-    uint16_volatile_t readers_counter;
-    bool_volatile_t deleted;
+    storage_db_entry_index_status_t status;
     uint16_t key_length;
     uint32_t value_length;
     storage_db_chunk_index_t key_chunks_count;
@@ -159,22 +167,41 @@ bool storage_db_entry_chunk_write(
 
 storage_db_chunk_info_t *storage_db_entry_key_chunk_get(
         storage_db_entry_index_t* entry_index,
-        storage_db_chunk_index_t chunk_index) ;
+        storage_db_chunk_index_t chunk_index);
 
 storage_db_chunk_info_t *storage_db_entry_value_chunk_get(
         storage_db_entry_index_t* entry_index,
         storage_db_chunk_index_t chunk_index);
 
-uint16_t storage_db_entry_index_status_readers_counter_increment(
+void storage_db_entry_index_status_update_prep_expected_and_new(
+        storage_db_entry_index_t* entry_index,
+        storage_db_entry_index_status_t *expected_status,
+        storage_db_entry_index_status_t *new_status);
+
+bool storage_db_entry_index_status_compare_and_swap(
+        storage_db_entry_index_t* entry_index,
+        storage_db_entry_index_status_t *expected_status,
+        storage_db_entry_index_status_t *new_status);
+
+void storage_db_entry_index_status_load(
+        storage_db_entry_index_t* entry_index,
+        storage_db_entry_index_status_t *status);
+
+bool storage_db_entry_index_status_increment_readers_counter(
+        storage_db_entry_index_t* entry_index,
+        uint16_t *old_readers_counter);
+
+bool storage_db_entry_index_status_decrement_readers_counter(
+        storage_db_entry_index_t* entry_index,
+        uint16_t *old_readers_counter);
+
+bool storage_db_entry_index_status_set_deleted(
         storage_db_entry_index_t* entry_index);
 
-uint16_t storage_db_entry_index_status_readers_counter_decrement(
+bool storage_db_entry_index_status_get_deleted(
         storage_db_entry_index_t* entry_index);
 
-void storage_db_entry_index_status_deleted_set(
-        storage_db_entry_index_t* entry_index);
-
-bool storage_db_entry_index_status_deleted_is(
+uint16_t storage_db_entry_index_status_get_readers_counter(
         storage_db_entry_index_t* entry_index);
 
 storage_db_entry_index_t *storage_db_get(

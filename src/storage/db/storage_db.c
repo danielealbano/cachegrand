@@ -432,26 +432,99 @@ storage_db_chunk_info_t *storage_db_entry_value_chunk_get(
     return entry_index->value_chunks_info + chunk_index;
 }
 
-uint16_t storage_db_entry_index_status_readers_counter_increment(
-        storage_db_entry_index_t* entry_index) {
-    return atomic_fetch_add(&entry_index->readers_counter, 1);
+void storage_db_entry_index_status_update_prep_expected_and_new(
+        storage_db_entry_index_t* entry_index,
+        storage_db_entry_index_status_t *expected_status,
+        storage_db_entry_index_status_t *new_status) {
+    expected_status->_cas_wrapper = entry_index->status._cas_wrapper;
+    new_status->_cas_wrapper = expected_status->_cas_wrapper;
 }
 
-uint16_t storage_db_entry_index_status_readers_counter_decrement(
-        storage_db_entry_index_t* entry_index) {
-    return atomic_fetch_sub(&entry_index->readers_counter, 1);
+bool storage_db_entry_index_status_compare_and_swap(
+        storage_db_entry_index_t* entry_index,
+        storage_db_entry_index_status_t *expected_status,
+        storage_db_entry_index_status_t *new_status) {
+    return atomic_compare_exchange_strong(
+            &entry_index->status._cas_wrapper,
+            &expected_status->_cas_wrapper,
+            new_status->_cas_wrapper);
 }
 
-void storage_db_entry_index_status_deleted_set(
-        storage_db_entry_index_t* entry_index) {
-    entry_index->deleted = true;
-    MEMORY_FENCE_STORE();
+void storage_db_entry_index_status_load(
+        storage_db_entry_index_t* entry_index,
+        storage_db_entry_index_status_t *status) {
+    status->_cas_wrapper = atomic_load(&entry_index->status._cas_wrapper);
 }
 
-bool storage_db_entry_index_status_deleted_is(
+bool storage_db_entry_index_status_increment_readers_counter(
+        storage_db_entry_index_t* entry_index,
+        uint16_t *old_readers_counter) {
+    storage_db_entry_index_status_t expected_status, new_status;
+    storage_db_entry_index_status_update_prep_expected_and_new(
+            entry_index,
+            &expected_status,
+            &new_status);
+    new_status.readers_counter++;
+
+    if (old_readers_counter) {
+        *old_readers_counter = expected_status.readers_counter;
+    }
+
+    return storage_db_entry_index_status_compare_and_swap(
+            entry_index,
+            &expected_status,
+            &new_status);
+}
+
+bool storage_db_entry_index_status_decrement_readers_counter(
+        storage_db_entry_index_t* entry_index,
+        uint16_t *old_readers_counter) {
+    storage_db_entry_index_status_t expected_status, new_status;
+    storage_db_entry_index_status_update_prep_expected_and_new(
+            entry_index,
+            &expected_status,
+            &new_status);
+    new_status.readers_counter--;
+
+    if (old_readers_counter) {
+        *old_readers_counter = expected_status.readers_counter;
+    }
+
+    return storage_db_entry_index_status_compare_and_swap(
+            entry_index,
+            &expected_status,
+            &new_status);
+}
+
+bool storage_db_entry_index_status_set_deleted(
         storage_db_entry_index_t* entry_index) {
-    MEMORY_FENCE_LOAD();
-    return entry_index->deleted;
+    storage_db_entry_index_status_t expected_status, new_status;
+    storage_db_entry_index_status_update_prep_expected_and_new(
+            entry_index,
+            &expected_status,
+            &new_status);
+    new_status.deleted = true;
+
+    return storage_db_entry_index_status_compare_and_swap(
+            entry_index,
+            &expected_status,
+            &new_status);
+}
+
+bool storage_db_entry_index_status_get_deleted(
+        storage_db_entry_index_t* entry_index) {
+    storage_db_entry_index_status_t status;
+    storage_db_entry_index_status_load(entry_index, &status);
+
+    return status.deleted;
+}
+
+uint16_t storage_db_entry_index_status_get_readers_counter(
+        storage_db_entry_index_t* entry_index) {
+    storage_db_entry_index_status_t status;
+    storage_db_entry_index_status_load(entry_index, &status);
+
+    return status.readers_counter;
 }
 
 storage_db_entry_index_t *storage_db_get(
@@ -478,11 +551,19 @@ bool storage_db_set(
         char *key,
         size_t key_length,
         storage_db_entry_index_t *entry_index) {
+    storage_db_entry_index_t *previous_entry_index = NULL;
+
+    // TODO: fetch previous value and mark it as deleted, if the readers count is set to 0
     bool res = hashtable_mcmp_op_set(
             db->hashtable,
             key,
             key_length,
-            (uintptr_t)entry_index);
+            (uintptr_t)entry_index,
+            (uintptr_t*)&previous_entry_index);
+
+    if (res && previous_entry_index != NULL) {
+
+    }
 
     return res;
 }
@@ -491,8 +572,18 @@ bool storage_db_delete(
         storage_db_t *db,
         char *key,
         size_t key_length) {
-    return hashtable_mcmp_op_delete(
+    storage_db_entry_index_t *previous_entry_index = NULL;
+
+    // TODO: fetch previous value
+    bool res = hashtable_mcmp_op_delete(
             db->hashtable,
             key,
-            key_length);
+            key_length,
+            (uintptr_t*)&previous_entry_index);
+
+    if (res && previous_entry_index != NULL) {
+
+    }
+
+    return res;
 }
