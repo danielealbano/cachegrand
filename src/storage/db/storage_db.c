@@ -11,6 +11,7 @@
 
 #include "misc.h"
 #include "exttypes.h"
+#include "clock.h"
 #include "spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -223,6 +224,8 @@ storage_db_shard_t* storage_db_shard_new(
     shard->offset = 0;
     shard->size = shard_size_mb * 1024 * 1024;
     shard->path = path;
+    shard->version = STORAGE_DB_SHARD_VERSION;
+    clock_monotonic(&shard->creation_time);
 
     return shard;
 }

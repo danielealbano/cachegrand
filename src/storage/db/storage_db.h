@@ -10,26 +10,13 @@ extern "C" {
 //#define STORAGE_DB_SHARD_MAGIC_NUMBER_HIGH 0x4341434845475241
 //#define STORAGE_DB_SHARD_MAGIC_NUMBER_LOW  0x5241000000000000
 
-
+#define STORAGE_DB_SHARD_VERSION 1
 #define STORAGE_DB_CHUNK_MAX_SIZE (64 * 1024)
 
 typedef uint16_t storage_db_chunk_index_t;
 typedef uint16_t storage_db_chunk_length_t;
 typedef uint32_t storage_db_chunk_offset_t;
 typedef uint32_t storage_db_shard_index_t;
-
-//// contains the necessary information to manage the db, holds a pointer to storage_db_config required during the
-//// the initialization
-//typedef struct storage_db_shard storage_db_shard_t;
-//struct storage_db_shard {
-//    uint16_t version;
-//    uint32_t index;
-//    size_t size;
-//    struct {
-//        uint64_t sec;
-//        uint64_t nsec;
-//    } creation_time;
-//};
 
 enum storage_db_backend_type {
     STORAGE_DB_BACKEND_TYPE_UNKNOWN = 0,
@@ -59,6 +46,8 @@ struct storage_db_shard {
     size_t size;
     storage_channel_t *storage_channel;
     char* path;
+    uint32_t version;
+    timespec_t creation_time;
 };
 
 // contains the necessary information to manage the db, holds a pointer to storage_db_config required during the
