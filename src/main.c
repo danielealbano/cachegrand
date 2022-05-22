@@ -16,6 +16,7 @@
 
 #include "exttypes.h"
 #include "spinlock.h"
+#include "clock.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "config.h"

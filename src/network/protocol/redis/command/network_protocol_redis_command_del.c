@@ -15,7 +15,7 @@
 #include "misc.h"
 #include "exttypes.h"
 #include "log/log.h"
-#include "exttypes.h"
+#include "clock.h"
 #include "spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "slab_allocator.h"

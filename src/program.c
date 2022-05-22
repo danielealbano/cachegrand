@@ -23,6 +23,7 @@
 #include "pow2.h"
 #include "utils_numa.h"
 #include "exttypes.h"
+#include "clock.h"
 #include "xalloc.h"
 #include "pidfile.h"
 #include "log/log.h"

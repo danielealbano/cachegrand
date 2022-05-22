@@ -19,6 +19,7 @@
 
 #include "misc.h"
 #include "exttypes.h"
+#include "clock.h"
 #include "pow2.h"
 #include "log/log.h"
 #include "log/log_debug.h"

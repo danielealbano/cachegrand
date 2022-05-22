@@ -16,6 +16,7 @@
 
 #include "misc.h"
 #include "exttypes.h"
+#include "clock.h"
 #include "spinlock.h"
 #include "log/log.h"
 #include "fiber.h"
