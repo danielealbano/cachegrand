@@ -13,7 +13,7 @@ extern "C" {
 
 #define STORAGE_DB_CHUNK_MAX_SIZE (64 * 1024)
 
-typedef uint32_t storage_db_chunk_index_t;
+typedef uint16_t storage_db_chunk_index_t;
 typedef uint16_t storage_db_chunk_length_t;
 typedef uint32_t storage_db_chunk_offset_t;
 typedef uint32_t storage_db_shard_index_t;
@@ -86,13 +86,15 @@ struct storage_db_chunk_info {
 
 typedef struct storage_db_entry_index storage_db_entry_index_t;
 struct storage_db_entry_index {
-    size_t key_length;
-    size_t value_length;
+    uint16_volatile_t readers_counter;
+    bool_volatile_t deleted;
+    uint16_t key_length;
+    uint32_t value_length;
     storage_db_chunk_index_t key_chunks_count;
     storage_db_chunk_index_t value_chunks_count;
     storage_db_chunk_info_t *key_chunks_info;
     storage_db_chunk_info_t *value_chunks_info;
-};
+} __attribute__((aligned(32)));
 
 char *storage_db_shard_build_path(
         char *basedir_path,
@@ -173,6 +175,18 @@ storage_db_chunk_info_t *storage_db_entry_key_chunk_get(
 storage_db_chunk_info_t *storage_db_entry_value_chunk_get(
         storage_db_entry_index_t* entry_index,
         storage_db_chunk_index_t chunk_index);
+
+uint16_t storage_db_entry_index_status_readers_counter_increment(
+        storage_db_entry_index_t* entry_index);
+
+uint16_t storage_db_entry_index_status_readers_counter_decrement(
+        storage_db_entry_index_t* entry_index);
+
+void storage_db_entry_index_status_deleted_set(
+        storage_db_entry_index_t* entry_index);
+
+bool storage_db_entry_index_status_deleted_is(
+        storage_db_entry_index_t* entry_index);
 
 storage_db_entry_index_t *storage_db_get(
         storage_db_t *db,

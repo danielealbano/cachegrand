@@ -6,6 +6,8 @@
 #include <math.h>
 #include <fcntl.h>
 #include <pow2.h>
+#include <stdatomic.h>
+#include <memory_fences.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -425,6 +427,28 @@ storage_db_chunk_info_t *storage_db_entry_value_chunk_get(
         storage_db_chunk_index_t chunk_index) {
 
     return entry_index->value_chunks_info + chunk_index;
+}
+
+uint16_t storage_db_entry_index_status_readers_counter_increment(
+        storage_db_entry_index_t* entry_index) {
+    return atomic_fetch_add(&entry_index->readers_counter, 1);
+}
+
+uint16_t storage_db_entry_index_status_readers_counter_decrement(
+        storage_db_entry_index_t* entry_index) {
+    return atomic_fetch_sub(&entry_index->readers_counter, 1);
+}
+
+void storage_db_entry_index_status_deleted_set(
+        storage_db_entry_index_t* entry_index) {
+    entry_index->deleted = true;
+    MEMORY_FENCE_STORE();
+}
+
+bool storage_db_entry_index_status_deleted_is(
+        storage_db_entry_index_t* entry_index) {
+    MEMORY_FENCE_LOAD();
+    return entry_index->deleted;
 }
 
 storage_db_entry_index_t *storage_db_get(
