@@ -178,7 +178,7 @@ void storage_db_entry_index_status_update_prep_expected_and_new(
         storage_db_entry_index_status_t *expected_status,
         storage_db_entry_index_status_t *new_status);
 
-bool storage_db_entry_index_status_compare_and_swap(
+bool storage_db_entry_index_status_try_compare_and_swap(
         storage_db_entry_index_t* entry_index,
         storage_db_entry_index_status_t *expected_status,
         storage_db_entry_index_status_t *new_status);
@@ -187,16 +187,17 @@ void storage_db_entry_index_status_load(
         storage_db_entry_index_t* entry_index,
         storage_db_entry_index_status_t *status);
 
-bool storage_db_entry_index_status_increment_readers_counter(
+bool storage_db_entry_index_status_try_acquire_reader_lock(
         storage_db_entry_index_t* entry_index,
-        uint16_t *old_readers_counter);
+        storage_db_entry_index_status_t *new_status);
 
-bool storage_db_entry_index_status_decrement_readers_counter(
+bool storage_db_entry_index_status_try_free_reader_lock(
         storage_db_entry_index_t* entry_index,
-        uint16_t *old_readers_counter);
+        storage_db_entry_index_status_t *new_status);
 
-bool storage_db_entry_index_status_set_deleted(
-        storage_db_entry_index_t* entry_index);
+bool storage_db_entry_index_status_try_set_deleted(
+        storage_db_entry_index_t* entry_index,
+        storage_db_entry_index_status_t *new_status);
 
 bool storage_db_entry_index_status_get_deleted(
         storage_db_entry_index_t* entry_index);
