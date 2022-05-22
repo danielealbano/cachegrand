@@ -226,6 +226,7 @@ bool concat(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
     uint32_t skip_indexes_mask;
     bool found = false;
     bool found_chunk_with_freespace = false;
+    *created_new = false;
 
     bucket_index = hashtable_mcmp_support_index_from_hash(hashtable_data->buckets_count, hash);
     chunk_index_start = chunk_index_start_initial = bucket_index / HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
