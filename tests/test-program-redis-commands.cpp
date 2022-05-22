@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <sys/resource.h>
 
+#include "clock.h"
 #include "exttypes.h"
 #include "support/simple_file_io.h"
 #include "pidfile.h"

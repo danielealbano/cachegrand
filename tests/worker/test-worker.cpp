@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include "clock.h"
 #include "exttypes.h"
 #include "xalloc.h"
 #include "log/log.h"
