@@ -20,6 +20,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
     SECTION("hashtable_mcmp_op_set") {
         SECTION("set 1 bucket") {
             HASHTABLE(0x7FFF, false, {
+                uintptr_t prev_value = 0;
                 hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
@@ -34,7 +35,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         hashtable,
                         test_key_1,
                         test_key_1_len,
-                        test_value_1));
+                        test_value_1,
+                        &prev_value));
 
                 // Check if the write lock has been released
                 REQUIRE(!spinlock_is_locked(&half_hashes_chunk->write_lock));
@@ -51,6 +53,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         test_key_1,
                         test_key_1_len) == 0);
                 REQUIRE(key_value->data == test_value_1);
+                REQUIRE(prev_value == 0);
 
                 // Check if the subsequent element has been affected by the changes
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index + 1].slot_id == 0);
@@ -59,6 +62,9 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
 
         SECTION("set and update 1 slot") {
             HASHTABLE(0x7FFF, false, {
+                uintptr_t prev_value1 = 0;
+                uintptr_t prev_value2 = 0;
+
                 hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
@@ -73,13 +79,16 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         hashtable,
                         test_key_1,
                         test_key_1_len,
-                        test_value_1));
+                        test_value_1,
+                        &prev_value1));
 
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         test_key_1,
                         test_key_1_len,
-                        test_value_1 + 1));
+                        test_value_1 + 1,
+                        &prev_value2));
+
                 // Check if the first slot of the chain ring contains the correct key/value
                 REQUIRE(half_hashes_chunk->metadata.changes_counter == 2);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
@@ -92,6 +101,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         test_key_1,
                         test_key_1_len) == 0);
                 REQUIRE(key_value->data == test_value_1 + 1);
+                REQUIRE(prev_value1 == 0);
+                REQUIRE(prev_value2 == test_value_1);
 
                 // Check if the subsequent element has been affected by the changes
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index + 1].slot_id == 0);
@@ -125,13 +136,15 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         hashtable,
                         test_key_1,
                         test_key_1_len,
-                        test_value_1));
+                        test_value_1,
+                        NULL));
 
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         test_key_2,
                         test_key_2_len,
-                        test_value_2));
+                        test_value_2,
+                        NULL));
 
                 // Check the first set
                 REQUIRE(half_hashes_chunk1->half_hashes[chunk_slot_index1].filled == true);
@@ -172,7 +185,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                             hashtable,
                             (char *) test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len,
-                            test_value_1 + i));
+                            test_value_1 + i,
+                            NULL));
                 }
 
                 hashtable_chunk_index_t chunk_index_base =
@@ -218,7 +232,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                             hashtable,
                             (char *) test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len,
-                            test_value_1 + i));
+                            test_value_1 + i,
+                            NULL));
                 }
 
                 hashtable_chunk_index_t chunk_index_base =
@@ -270,7 +285,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                             hashtable,
                             (char *) test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len,
-                            test_value_1 + i));
+                            test_value_1 + i,
+                            NULL));
                 }
 
                 hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
@@ -299,14 +315,16 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                             hashtable,
                             (char *) test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len,
-                            test_value_1 + i));
+                            test_value_1 + i,
+                            NULL));
                 }
 
                 REQUIRE(!hashtable_mcmp_op_set(
                         hashtable,
                         (char *) test_key_same_bucket[i].key,
                         test_key_same_bucket[i].key_len,
-                        test_value_1 + i));
+                        test_value_1 + i,
+                        NULL));
 
                 test_support_same_hash_mod_fixtures_free(test_key_same_bucket);
             })
@@ -329,7 +347,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                             hashtable,
                             test_key_1,
                             test_key_1_len,
-                            test_value_1));
+                            test_value_1,
+                            NULL));
 
                     // Check if the write lock has been released
                     REQUIRE(!spinlock_is_locked(&half_hashes_chunk->write_lock));
