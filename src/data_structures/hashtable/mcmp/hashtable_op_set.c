@@ -31,7 +31,8 @@ bool hashtable_mcmp_op_set(
         hashtable_t *hashtable,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
-        hashtable_value_data_t value) {
+        hashtable_value_data_t value,
+        hashtable_value_data_t *previous_value) {
     bool created_new = true;
     hashtable_hash_t hash;
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk = 0;
@@ -71,6 +72,9 @@ bool hashtable_mcmp_op_set(
 
     MEMORY_FENCE_LOAD();
 
+    if (!created_new && previous_value != NULL) {
+        *previous_value = key_value->data;
+    }
     key_value->data = value;
 
     LOG_DI("updating value to 0x%016x", value);

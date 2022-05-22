@@ -30,7 +30,8 @@
 bool hashtable_mcmp_op_delete(
         hashtable_t* hashtable,
         hashtable_key_data_t* key,
-        hashtable_key_size_t key_size) {
+        hashtable_key_size_t key_size,
+        hashtable_value_data_t *current_value) {
     hashtable_hash_t hash;
     hashtable_key_value_flags_t key_value_flags = 0;
     hashtable_chunk_index_t chunk_index = 0;
@@ -90,6 +91,10 @@ bool hashtable_mcmp_op_delete(
 
         // The get operation is not using locks so the memory fences are needed as well
         spinlock_lock(&half_hashes_chunk->write_lock, true);
+
+        if (current_value != NULL) {
+            *current_value = key_value->data;
+        }
 
         half_hashes_chunk->metadata.is_full = 0;
 
