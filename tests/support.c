@@ -616,7 +616,8 @@ bool test_support_hashtable_prefill(
                 hashtable,
                 key,
                 strlen(key),
-                value + i);
+                value + i,
+                NULL);
 
         if (!result) {
             return false;
