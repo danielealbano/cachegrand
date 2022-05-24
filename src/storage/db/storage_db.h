@@ -139,7 +139,10 @@ bool storage_db_close(
 void storage_db_free(
         storage_db_t *db);
 
-storage_db_shard_t *storage_db_shard_get_active_per_current_worker(
+storage_db_shard_t *storage_db_worker_active_shard(
+        storage_db_t *db);
+
+small_circular_queue_t *storage_db_worker_entry_index_ringbuffer(
         storage_db_t *db);
 
 bool storage_db_shard_new_is_needed(

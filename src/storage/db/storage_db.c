@@ -179,12 +179,20 @@ bool storage_db_shard_ensure_size_preallocated(
     return storage_fallocate(storage_channel, 0, 0, size_mb * 1024 * 1024);
 }
 
-storage_db_shard_t *storage_db_shard_get_active_per_current_worker(
+storage_db_shard_t *storage_db_worker_active_shard(
         storage_db_t *db) {
     worker_context_t *worker_context = worker_context_get();
     uint32_t worker_index = worker_context->worker_index;
 
     return db->workers[worker_index].active_shard;
+}
+
+small_circular_queue_t *storage_db_worker_entry_index_ringbuffer(
+        storage_db_t *db) {
+    worker_context_t *worker_context = worker_context_get();
+    uint32_t worker_index = worker_context->worker_index;
+
+    return db->workers[worker_index].entry_index_ringbuffer;
 }
 
 bool storage_db_shard_new_is_needed(
@@ -199,7 +207,7 @@ bool storage_db_shard_allocate_chunk(
         size_t chunk_length) {
     storage_db_shard_t *shard;
 
-    if ((shard = storage_db_shard_get_active_per_current_worker(db)) != NULL) {
+    if ((shard = storage_db_worker_active_shard(db)) != NULL) {
         if (storage_db_shard_new_is_needed(shard, chunk_length)) {
             LOG_V(
                     TAG,
@@ -350,6 +358,44 @@ void storage_db_free(
     hashtable_mcmp_free(db->hashtable);
     storage_db_config_free(db->config);
     slab_allocator_mem_free(db);
+}
+
+storage_db_entry_index_t *storage_db_entry_index_ringbuffer_new(
+        storage_db_t *db) {
+    // The storage_db_entry_indexes are stored into the hashtable and used as reference to keep track of the
+    // key and chunks of the value mapped to the index.
+    // When the entry on the hashtable is updated, the existing one can't freed right away even if the readers_counter
+    // is set to zero because potentially one of the worker threads running on a different core might just have
+    // fetched the pointer and it might be trying to access it.
+    // To avoid a potential issue all the storage_db_entry_index are fetched from a ring buffer which is large.
+    // The ring buffer is used in a bit of an odd way, the entries are feteched from it only if the underlying
+    // circular queue is full, because this will guarantee that enough time will have passed for any context
+    // switch happened in between reading the value from the hashtable and checking if the value is still viable.
+    // The size of the ring buffer (so when it's full) is dictated by having enough room to allow any CPU that
+    // might be trying to access the value stored in the hashtable to be checked.
+    // if the queue is not full then a new entry_index is allocated
+
+    small_circular_queue_t *scb = storage_db_worker_entry_index_ringbuffer(db);
+
+    if (small_circular_queue_is_full(scb)) {
+        return small_circular_queue_dequeue(scb);
+    } else {
+        return storage_db_entry_index_new();
+    }
+}
+
+void storage_db_entry_index_ringbuffer_free(
+        storage_db_t *db,
+        storage_db_entry_index_t *entry_index) {
+    small_circular_queue_t *scb = storage_db_worker_entry_index_ringbuffer(db);
+
+    // If the queue is full, the entry in the head can be dequeued and freed because it means it has lived enough
+    if (small_circular_queue_is_full(scb)) {
+        storage_db_entry_index_t *entry_index_to_free = small_circular_queue_dequeue(scb);
+        storage_db_entry_index_free(entry_index_to_free);
+    }
+
+    small_circular_queue_enqueue(scb, entry_index);
 }
 
 storage_db_entry_index_t *storage_db_entry_index_new() {
