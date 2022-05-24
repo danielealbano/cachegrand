@@ -213,7 +213,9 @@ uint32_t slab_allocator_slice_calculate_slots_count(
 
 slab_slice_t* slab_allocator_slice_init(
         slab_allocator_t* slab_allocator,
-        void* memptr) {
+        void* memptr,
+        uint8_t numa_node_index,
+        uint16_t core_index) {
     slab_slice_t* slab_slice = (slab_slice_t*)memptr;
 
     size_t usable_hugepage_size = slab_allocator_slice_calculate_usable_hugepage_size();
@@ -230,6 +232,8 @@ slab_slice_t* slab_allocator_slice_init(
     slab_slice->data.data_addr = (uintptr_t)memptr + data_offset;
     slab_slice->data.metrics.objects_total_count = slots_count;
     slab_slice->data.metrics.objects_inuse_count = 0;
+    slab_slice->data.numa_node_index = numa_node_index;
+    slab_slice->data.core_index = core_index;
     slab_slice->data.available = true;
 
     return slab_slice;
@@ -238,7 +242,7 @@ slab_slice_t* slab_allocator_slice_init(
 void slab_allocator_slice_add_slots_to_per_core_metadata_slots(
         slab_allocator_t* slab_allocator,
         slab_slice_t* slab_slice,
-        uint32_t core_index) {
+        uint16_t core_index) {
     slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[core_index];
 
     // The caller must ensure the lock
@@ -259,7 +263,7 @@ void slab_allocator_slice_add_slots_to_per_core_metadata_slots(
 void slab_allocator_slice_remove_slots_from_per_core_metadata_slots(
         slab_allocator_t* slab_allocator,
         slab_slice_t* slab_slice,
-        uint32_t core_index) {
+        uint16_t core_index) {
     slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[core_index];
 
     // The caller must ensure the lock
@@ -283,8 +287,8 @@ slab_slice_t* slab_allocator_slice_from_memptr(
 void slab_allocator_slice_make_available(
         slab_allocator_t* slab_allocator,
         slab_slice_t* slab_slice,
-        uint32_t numa_node_index,
-        uint32_t core_index,
+        uint8_t numa_node_index,
+        uint16_t core_index,
         bool* can_free_slice) {
     *can_free_slice = false;
     slab_allocator_numa_node_metadata_t* numa_node_metadata = &slab_allocator->numa_node_metadata[numa_node_index];
@@ -325,8 +329,8 @@ void slab_allocator_slice_make_available(
 
 bool slab_allocator_slice_try_acquire(
         slab_allocator_t* slab_allocator,
-        uint32_t numa_node_index,
-        uint32_t core_index) {
+        uint8_t numa_node_index,
+        uint16_t core_index) {
     slab_allocator_numa_node_metadata_t* numa_node_metadata = &slab_allocator->numa_node_metadata[numa_node_index];
     slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[core_index];
 
@@ -376,8 +380,8 @@ slab_slot_t* slab_allocator_slot_from_memptr(
 
 void slab_allocator_grow(
         slab_allocator_t* slab_allocator,
-        uint32_t numa_node_index,
-        uint32_t core_index,
+        uint8_t numa_node_index,
+        uint16_t core_index,
         void* memptr) {
     slab_allocator_numa_node_metadata_t* numa_node_metadata = &slab_allocator->numa_node_metadata[numa_node_index];
     slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[core_index];
@@ -386,7 +390,11 @@ void slab_allocator_grow(
     assert(core_metadata->spinlock.lock != 0);
 
     // Initialize the new slice and set it to non available because it's going to be immediately used
-    slab_slice_t* slab_slice = slab_allocator_slice_init(slab_allocator, memptr);
+    slab_slice_t* slab_slice = slab_allocator_slice_init(
+            slab_allocator,
+            memptr,
+            numa_node_index,
+            core_index);
     slab_slice->data.available = false;
 
     // Add all the slots to the double linked list
@@ -411,8 +419,8 @@ void slab_allocator_grow(
 
 void* slab_allocator_mem_alloc_hugepages(
         size_t size,
-        uint32_t numa_node_index,
-        uint32_t core_index) {
+        uint8_t numa_node_index,
+        uint16_t core_index) {
     slab_slot_t* slab_slot = NULL;
     slab_slice_t* slab_slice = NULL;
 
@@ -475,12 +483,7 @@ void* slab_allocator_mem_alloc_zero(
 }
 
 void slab_allocator_mem_free_hugepages(
-        void* memptr,
-        uint32_t numa_node_index,
-        uint32_t core_index) {
-    assert(core_index < UINT32_MAX);
-    assert(numa_node_index < UINT32_MAX);
-
+        void* memptr) {
     bool can_free_slab_slice = false;
 
     // Acquire the slab_slice, the slab_allocator, the slab_slot and the core_metadata for the current core on which
@@ -491,7 +494,7 @@ void slab_allocator_mem_free_hugepages(
             slab_allocator,
             slab_slice,
             memptr);
-    slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[core_index];
+    slab_allocator_core_metadata_t* core_metadata = &slab_allocator->core_metadata[slab_slice->data.core_index];
 
     // Debug test to catch double free
     assert(slot->data.available == false);
@@ -517,8 +520,8 @@ void slab_allocator_mem_free_hugepages(
             slab_allocator_slice_make_available(
                     slab_allocator,
                     slab_slice,
-                    numa_node_index,
-                    core_index,
+                    slab_slice->data.numa_node_index,
+                    slab_slice->data.core_index,
                     &can_free_slab_slice);
         }
     }
@@ -590,9 +593,7 @@ void slab_allocator_mem_free(
         void* memptr) {
     if (slab_allocator_enabled) {
         slab_allocator_mem_free_hugepages(
-                memptr,
-                thread_get_current_numa_node_index(),
-                thread_get_current_core_index());
+                memptr);
     } else {
         slab_allocator_mem_free_xalloc(memptr);
     }

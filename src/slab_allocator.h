@@ -88,6 +88,8 @@ typedef union {
         void* page_addr;
         uintptr_t data_addr;
         bool available;
+        uint8_t numa_node_index;
+        uint16_t core_index;
         struct {
             uint32_t objects_total_count;
             uint32_t objects_inuse_count;
@@ -128,17 +130,19 @@ uint32_t slab_allocator_slice_calculate_slots_count(
 
 slab_slice_t* slab_allocator_slice_init(
         slab_allocator_t* slab_allocator,
-        void* memptr);
+        void* memptr,
+        uint8_t numa_node_index,
+        uint16_t core_index);
 
 void slab_allocator_slice_add_slots_to_per_core_metadata_slots(
         slab_allocator_t* slab_allocator,
         slab_slice_t* slab_slice,
-        uint32_t core_index);
+        uint16_t core_index);
 
 void slab_allocator_slice_remove_slots_from_per_core_metadata_slots(
         slab_allocator_t* slab_allocator,
         slab_slice_t* slab_slice,
-        uint32_t core_index);
+        uint16_t core_index);
 
 slab_slice_t* slab_allocator_slice_from_memptr(
         void* memptr);
@@ -146,14 +150,14 @@ slab_slice_t* slab_allocator_slice_from_memptr(
 void slab_allocator_slice_make_available(
         slab_allocator_t* slab_allocator,
         slab_slice_t* slab_slice,
-        uint32_t numa_node_index,
-        uint32_t core_index,
+        uint8_t numa_node_index,
+        uint16_t core_index,
         bool* can_free_slice);
 
 bool slab_allocator_slice_try_acquire(
         slab_allocator_t* slab_allocator,
-        uint32_t numa_node_index,
-        uint32_t core_index);
+        uint8_t numa_node_index,
+        uint16_t core_index);
 
 slab_slot_t* slab_allocator_slot_from_memptr(
         slab_allocator_t* slab_allocator,
@@ -162,20 +166,18 @@ slab_slot_t* slab_allocator_slot_from_memptr(
 
 void slab_allocator_grow(
         slab_allocator_t* slab_allocator,
-        uint32_t numa_node_index,
-        uint32_t core_index,
+        uint8_t numa_node_index,
+        uint16_t core_index,
         void* memptr);
 
 __attribute__((malloc))
 void* slab_allocator_mem_alloc_hugepages(
         size_t size,
-        uint32_t numa_node_index,
-        uint32_t core_index);
+        uint8_t numa_node_index,
+        uint16_t core_index);
 
 void slab_allocator_mem_free_hugepages(
-        void* memptr,
-        uint32_t numa_node_index,
-        uint32_t core_index);
+        void* memptr);
 
 __attribute__((malloc))
 void* slab_allocator_mem_alloc_xalloc(
