@@ -13,6 +13,7 @@
 #include "exttypes.h"
 #include "clock.h"
 #include "spinlock.h"
+#include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
@@ -78,40 +79,87 @@ void storage_db_config_free(
 storage_db_t* storage_db_new(
         storage_db_config_t *config,
         uint32_t workers_count) {
+    hashtable_config_t* hashtable_config = NULL;
+    hashtable_t *hashtable = NULL;
+    storage_db_worker_t *workers = NULL;
+    storage_db_t *db = NULL;
+
     // Initialize the hashtable configuration
-    hashtable_config_t* hashtable_config = hashtable_mcmp_config_init();
+    hashtable_config = hashtable_mcmp_config_init();
     if (!hashtable_config) {
-        // TODO: log
-        return NULL;
+        LOG_E(TAG, "Unable to allocate memory for the hashtable configuration");
+        goto fail;
     }
     hashtable_config->can_auto_resize = false;
     hashtable_config->initial_size = pow2_next(config->max_keys);
 
     // Initialize the hashtable
-    hashtable_t *hashtable = hashtable_mcmp_init(hashtable_config);
+    hashtable = hashtable_mcmp_init(hashtable_config);
     if (!hashtable) {
-        // TODO: log
-        hashtable_mcmp_config_free(hashtable_config);
-        return NULL;
+        LOG_E(TAG, "Unable to allocate memory for the hashtable");
+        goto fail;
+    }
+
+    // Initialize the per worker set of information
+    workers = slab_allocator_mem_alloc_zero(sizeof(storage_db_worker_t) * workers_count);
+    if (!workers) {
+        LOG_E(TAG, "Unable to allocate memory for the per worker configurations");
+        goto fail;
+    }
+
+    // Initialize the per worker needed information
+    for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
+        small_circular_queue_t *entry_index_ringbuffer =
+                small_circular_queue_init(STORAGE_DB_WORKER_ENTRY_INDEX_RING_BUFFER_SIZE);
+
+        if (entry_index_ringbuffer) {
+            LOG_E(TAG, "Unable to allocate memory for the entry index ring buffer per worker");
+            goto fail;
+        }
+
+        workers[worker_index].entry_index_ringbuffer = entry_index_ringbuffer;
     }
 
     // Initialize the db wrapper structure
-    storage_db_t *db = slab_allocator_mem_alloc_zero(sizeof(storage_db_t));
+    db = slab_allocator_mem_alloc_zero(sizeof(storage_db_t));
     if (!db) {
-        hashtable_mcmp_config_free(hashtable_config);
-        // TODO: log
-        return NULL;
+        LOG_E(TAG, "Unable to allocate memory for the storage db");
+        goto fail;
     }
 
     // Sets up all the db related information
     db->config = config;
-    db->shards.active_per_worker = slab_allocator_mem_alloc_zero(sizeof(storage_db_shard_t*) * workers_count);
+    db->workers = workers;
+    db->hashtable = hashtable;
     db->shards.new_index = 0;
     db->shards.opened_shards = double_linked_list_init();
     spinlock_init(&db->shards.write_spinlock);
-    db->hashtable = hashtable;
 
     return db;
+fail:
+    if (hashtable) {
+        hashtable_mcmp_free(hashtable);
+        hashtable_config = NULL;
+    }
+
+    if (hashtable_config) {
+        hashtable_mcmp_config_free(hashtable_config);
+    }
+
+    if (workers) {
+        for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
+            small_circular_queue_free(workers[worker_index].entry_index_ringbuffer);
+        }
+
+        slab_allocator_mem_free(workers);
+    }
+
+    // This condition is actually always false but it's here for clarity
+    if (db) {
+        slab_allocator_mem_free(db);
+    }
+
+    return NULL;
 }
 
 storage_channel_t *storage_db_shard_open_or_create_file(
@@ -136,7 +184,7 @@ storage_db_shard_t *storage_db_shard_get_active_per_current_worker(
     worker_context_t *worker_context = worker_context_get();
     uint32_t worker_index = worker_context->worker_index;
 
-    return db->shards.active_per_worker[worker_index];
+    return db->workers[worker_index].active_shard;
 }
 
 bool storage_db_shard_new_is_needed(
@@ -257,7 +305,7 @@ storage_db_shard_t *storage_db_new_active_shard(
 
     if (shard) {
         db->shards.new_index++;
-        db->shards.active_per_worker[worker_index] = shard;
+        db->workers[worker_index].active_shard = shard;
 
         double_linked_list_item_t *item = double_linked_list_item_init();
         item->data = shard;
@@ -413,9 +461,7 @@ bool storage_db_entry_chunk_write(
                 channel->path);
 
         return false;
-  void storage_db_entry_index_status_load(
-        storage_db_entry_index_t* entry_index,
-        storage_db_entry_index_status_t *status)  }
+    }
 
     return true;
 }

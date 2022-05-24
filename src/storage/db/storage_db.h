@@ -5,13 +5,13 @@
 extern "C" {
 #endif
 
-//#define STORAGE_DB_SHARD_BLOCK_MAX_SIZE (64 * 1024)
 //#define STORAGE_DB_SHARD_VERSION 1
 //#define STORAGE_DB_SHARD_MAGIC_NUMBER_HIGH 0x4341434845475241
 //#define STORAGE_DB_SHARD_MAGIC_NUMBER_LOW  0x5241000000000000
 
 #define STORAGE_DB_SHARD_VERSION 1
 #define STORAGE_DB_CHUNK_MAX_SIZE (64 * 1024)
+#define STORAGE_DB_WORKER_ENTRY_INDEX_RING_BUFFER_SIZE 4096
 
 typedef uint16_t storage_db_chunk_index_t;
 typedef uint16_t storage_db_chunk_length_t;
@@ -50,6 +50,12 @@ struct storage_db_shard {
     timespec_t creation_time;
 };
 
+typedef struct storage_db_worker storage_db_worker_t;
+struct storage_db_worker {
+    storage_db_shard_t *active_shard;
+    small_circular_queue_t *entry_index_ringbuffer;
+};
+
 // contains the necessary information to manage the db, holds a pointer to storage_db_config required during the
 // the initialization
 typedef struct storage_db storage_db_t;
@@ -62,6 +68,7 @@ struct storage_db {
     } shards;
     hashtable_t *hashtable;
     storage_db_config_t *config;
+    storage_db_worker_t *workers;
 };
 
 // For performance reasons shards should never be bigger than a few hundred of MBs, having an uin32 allows to have
@@ -119,12 +126,13 @@ storage_db_shard_t* storage_db_shard_new(
         char *path,
         uint32_t shard_size_mb);
 
-        storage_channel_t *storage_db_shard_open_or_create_file(
+    storage_channel_t *storage_db_shard_open_or_create_file(
         char *path,
         bool create);
 
 bool storage_db_open(
         storage_db_t *db);
+
 bool storage_db_close(
         storage_db_t *db);
 
