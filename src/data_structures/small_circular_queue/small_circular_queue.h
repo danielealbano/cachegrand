@@ -19,26 +19,26 @@ small_circular_queue_t* small_circular_queue_init(
         int16_t length);
 
 void small_circular_queue_free(
-        small_circular_queue_t *cq);
+        small_circular_queue_t *scq);
 
 int16_t small_circular_queue_count(
-        small_circular_queue_t *cq);
+        small_circular_queue_t *scq);
 
 bool small_circular_queue_is_empty(
-        small_circular_queue_t *cq);
+        small_circular_queue_t *scq);
 
 bool small_circular_queue_is_full(
-        small_circular_queue_t *cq);
+        small_circular_queue_t *scq);
 
 void *small_circular_queue_peek(
-        small_circular_queue_t *cq);
+        small_circular_queue_t *scq);
 
 bool small_circular_queue_enqueue(
-        small_circular_queue_t *cq,
+        small_circular_queue_t *scq,
         void *value);
 
 void *small_circular_queue_dequeue(
-        small_circular_queue_t *cq);
+        small_circular_queue_t *scq);
 
 #ifdef __cplusplus
 }

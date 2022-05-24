@@ -26,84 +26,84 @@ small_circular_queue_t* small_circular_queue_init(
     // size of the circular_queue struct. On 64 bit systems this should be equal to 4096
     assert(length < (SLAB_OBJECT_SIZE_MAX / sizeof(small_circular_queue_t)));
 
-    small_circular_queue_t *cq = NULL;
-    cq = (small_circular_queue_t*)slab_allocator_mem_alloc(sizeof(small_circular_queue_t));
+    small_circular_queue_t *scq = NULL;
+    scq = (small_circular_queue_t*)slab_allocator_mem_alloc(sizeof(small_circular_queue_t));
 
-    if (!cq) {
+    if (!scq) {
         return NULL;
     }
 
-    cq->items = (void**)slab_allocator_mem_alloc(length * sizeof(void*));
+    scq->items = (void**)slab_allocator_mem_alloc(length * sizeof(void*));
 
-    if (!cq->items) {
-        slab_allocator_mem_free(cq);
+    if (!scq->items) {
+        slab_allocator_mem_free(scq);
         return NULL;
     }
 
-    cq->maxsize = length;
-    cq->head = 0;
-    cq->tail = -1;
-    cq->count = 0;
+    scq->maxsize = length;
+    scq->head = 0;
+    scq->tail = -1;
+    scq->count = 0;
 
-    return cq;
+    return scq;
 }
 
 void small_circular_queue_free(
-        small_circular_queue_t *cq) {
-    slab_allocator_mem_free(cq->items);
-    slab_allocator_mem_free(cq);
+        small_circular_queue_t *scq) {
+    slab_allocator_mem_free(scq->items);
+    slab_allocator_mem_free(scq);
 }
 
 int16_t small_circular_queue_count(
-        small_circular_queue_t *cq) {
-    return cq->count;
+        small_circular_queue_t *scq) {
+    return scq->count;
 }
 
 bool small_circular_queue_is_empty(
-        small_circular_queue_t *cq) {
-    return !small_circular_queue_count(cq);
+        small_circular_queue_t *scq) {
+    return !small_circular_queue_count(scq);
 }
 
 bool small_circular_queue_is_full(
-        small_circular_queue_t *cq) {
-    return small_circular_queue_count(cq) == cq->maxsize;
+        small_circular_queue_t *scq) {
+    return small_circular_queue_count(scq) == scq->maxsize;
 }
 
 void *small_circular_queue_peek(
-        small_circular_queue_t *cq) {
-    if (small_circular_queue_is_empty(cq)) {
+        small_circular_queue_t *scq) {
+    if (small_circular_queue_is_empty(scq)) {
         return NULL;
     }
 
-    return cq->items[cq->head];
+    return scq->items[scq->head];
 }
 
 bool small_circular_queue_enqueue(
-        small_circular_queue_t *cq,
+        small_circular_queue_t *scq,
         void *value) {
-    if (small_circular_queue_is_full(cq)) {
+    if (small_circular_queue_is_full(scq)) {
         return false;
     }
 
-    cq->tail = (cq->tail + 1) % cq->maxsize;
-    cq->items[cq->tail] = value;
-    cq->count++;
+    scq->tail = (scq->tail + 1) % scq->maxsize;
+    scq->items[scq->tail] = value;
+    scq->count++;
 
     return true;
 }
 
 void *small_circular_queue_dequeue(
-        small_circular_queue_t *cq) {
-    // No need to check if cq->head == cq->tail because if it's the case cq->count will be zero and
+        small_circular_queue_t *scq) {
+    // No need to check if scq->head == scq->tail because if it's the case scq->count will be zero and
     // small_circular_queue_is_empty will return true
-    if (small_circular_queue_is_empty(cq)) {
+    if (small_circular_queue_is_empty(scq)) {
         return NULL;
     }
 
-    void *value = small_circular_queue_peek(cq);
+    void *value = small_circular_queue_peek(scq);
 
-    cq->head = (cq->head + 1) % cq->maxsize;
-    cq->count--;
+    scq->head = (scq->head + 1) % scq->maxsize;
+    scq->count--;
 
     return value;
 }

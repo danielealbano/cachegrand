@@ -4,192 +4,192 @@
 
 TEST_CASE("data_structures/circular_queue/small_circular_queue.c", "[data_structures][small_circular_queue]") {
     SECTION("small_circular_queue_init") {
-        small_circular_queue_t* cq = small_circular_queue_init(10);
+        small_circular_queue_t* scq = small_circular_queue_init(10);
 
-        REQUIRE(cq != NULL);
-        REQUIRE(cq->maxsize == 10);
-        REQUIRE(cq->head == 0);
-        REQUIRE(cq->tail == -1);
-        REQUIRE(cq->count == 0);
-        REQUIRE(cq->items != NULL);
+        REQUIRE(scq != NULL);
+        REQUIRE(scq->maxsize == 10);
+        REQUIRE(scq->head == 0);
+        REQUIRE(scq->tail == -1);
+        REQUIRE(scq->count == 0);
+        REQUIRE(scq->items != NULL);
 
-        small_circular_queue_free(cq);
+        small_circular_queue_free(scq);
     }
 
     SECTION("small_circular_queue_count") {
-        small_circular_queue_t* cq = small_circular_queue_init(10);
+        small_circular_queue_t* scq = small_circular_queue_init(10);
 
-        cq->count = 5;
-        REQUIRE(small_circular_queue_count(cq) == 5);
+        scq->count = 5;
+        REQUIRE(small_circular_queue_count(scq) == 5);
 
-        small_circular_queue_free(cq);
+        small_circular_queue_free(scq);
     }
 
     SECTION("small_circular_queue_is_empty") {
-        small_circular_queue_t* cq = small_circular_queue_init(10);
+        small_circular_queue_t* scq = small_circular_queue_init(10);
 
         SECTION("empty") {
-            cq->count = 0;
-            REQUIRE(small_circular_queue_is_empty(cq) == true);
+            scq->count = 0;
+            REQUIRE(small_circular_queue_is_empty(scq) == true);
         }
 
         SECTION("not empty") {
-            cq->count = 5;
-            REQUIRE(small_circular_queue_is_empty(cq) == false);
+            scq->count = 5;
+            REQUIRE(small_circular_queue_is_empty(scq) == false);
         }
 
-        small_circular_queue_free(cq);
+        small_circular_queue_free(scq);
     }
 
     SECTION("small_circular_queue_is_full") {
-        small_circular_queue_t* cq = small_circular_queue_init(10);
+        small_circular_queue_t* scq = small_circular_queue_init(10);
 
         SECTION("full") {
-            cq->count = cq->maxsize;
-            REQUIRE(small_circular_queue_is_full(cq) == true);
+            scq->count = scq->maxsize;
+            REQUIRE(small_circular_queue_is_full(scq) == true);
         }
 
         SECTION("not full") {
-            cq->count = 0;
-            REQUIRE(small_circular_queue_is_full(cq) == false);
+            scq->count = 0;
+            REQUIRE(small_circular_queue_is_full(scq) == false);
         }
 
-        small_circular_queue_free(cq);
+        small_circular_queue_free(scq);
     }
 
     SECTION("small_circular_queue_enqueue") {
         bool res;
-        small_circular_queue_t* cq = small_circular_queue_init(10);
-        void** random_values_from_memory = (void**)malloc(sizeof(void*) * cq->maxsize);
+        small_circular_queue_t* scq = small_circular_queue_init(10);
+        void** random_values_from_memory = (void**)malloc(sizeof(void*) * scq->maxsize);
 
         SECTION("enqueue 1") {
-            res = small_circular_queue_enqueue(cq, random_values_from_memory[0]);
+            res = small_circular_queue_enqueue(scq, random_values_from_memory[0]);
 
             REQUIRE(res == true);
-            REQUIRE(cq->count == 1);
-            REQUIRE(cq->head == 0);
-            REQUIRE(cq->tail == 0);
-            REQUIRE(cq->items[0] == random_values_from_memory[0]);
+            REQUIRE(scq->count == 1);
+            REQUIRE(scq->head == 0);
+            REQUIRE(scq->tail == 0);
+            REQUIRE(scq->items[0] == random_values_from_memory[0]);
         }
 
         SECTION("enqueue 2") {
-            res = small_circular_queue_enqueue(cq, random_values_from_memory[0]);
+            res = small_circular_queue_enqueue(scq, random_values_from_memory[0]);
             REQUIRE(res == true);
 
-            res = small_circular_queue_enqueue(cq, random_values_from_memory[1]);
+            res = small_circular_queue_enqueue(scq, random_values_from_memory[1]);
             REQUIRE(res == true);
 
-            REQUIRE(cq->count == 2);
-            REQUIRE(cq->head == 0);
-            REQUIRE(cq->tail == 1);
-            REQUIRE(cq->items[1] == random_values_from_memory[1]);
+            REQUIRE(scq->count == 2);
+            REQUIRE(scq->head == 0);
+            REQUIRE(scq->tail == 1);
+            REQUIRE(scq->items[1] == random_values_from_memory[1]);
         }
 
         SECTION("fill circular queue") {
-            for(int i = 0; i < cq->maxsize; i++) {
-                res = small_circular_queue_enqueue(cq, random_values_from_memory[i]);
+            for(int i = 0; i < scq->maxsize; i++) {
+                res = small_circular_queue_enqueue(scq, random_values_from_memory[i]);
                 REQUIRE(res == true);
             }
 
-            REQUIRE(cq->count == cq->maxsize);
-            REQUIRE(cq->head == 0);
-            REQUIRE(cq->tail == cq->maxsize - 1);
+            REQUIRE(scq->count == scq->maxsize);
+            REQUIRE(scq->head == 0);
+            REQUIRE(scq->tail == scq->maxsize - 1);
         }
 
         SECTION("overflow circular queue") {
-            for(int i = 0; i < cq->maxsize; i++) {
-                res = small_circular_queue_enqueue(cq, random_values_from_memory[i]);
+            for(int i = 0; i < scq->maxsize; i++) {
+                res = small_circular_queue_enqueue(scq, random_values_from_memory[i]);
                 REQUIRE(res == true);
             }
 
-            res = small_circular_queue_enqueue(cq, random_values_from_memory[0]);
+            res = small_circular_queue_enqueue(scq, random_values_from_memory[0]);
             REQUIRE(res == false);
         }
 
-        small_circular_queue_free(cq);
+        small_circular_queue_free(scq);
         free(random_values_from_memory);
     }
 
     SECTION("small_circular_queue_peek") {
-        small_circular_queue_t* cq = small_circular_queue_init(10);
-        void** random_values_from_memory = (void**)malloc(sizeof(void*) * cq->maxsize);
+        small_circular_queue_t* scq = small_circular_queue_init(10);
+        void** random_values_from_memory = (void**)malloc(sizeof(void*) * scq->maxsize);
 
         SECTION("enqueue 1") {
-            small_circular_queue_enqueue(cq, random_values_from_memory[0]);
+            small_circular_queue_enqueue(scq, random_values_from_memory[0]);
 
-            REQUIRE(small_circular_queue_peek(cq) == random_values_from_memory[0]);
+            REQUIRE(small_circular_queue_peek(scq) == random_values_from_memory[0]);
         }
 
         SECTION("enqueue 2") {
-            small_circular_queue_enqueue(cq, random_values_from_memory[0]);
-            small_circular_queue_enqueue(cq, random_values_from_memory[1]);
+            small_circular_queue_enqueue(scq, random_values_from_memory[0]);
+            small_circular_queue_enqueue(scq, random_values_from_memory[1]);
 
-            REQUIRE(small_circular_queue_peek(cq) == random_values_from_memory[0]);
+            REQUIRE(small_circular_queue_peek(scq) == random_values_from_memory[0]);
         }
 
-        small_circular_queue_free(cq);
+        small_circular_queue_free(scq);
         free(random_values_from_memory);
     }
 
     SECTION("small_circular_queue_dequeue") {
-        small_circular_queue_t* cq = small_circular_queue_init(10);
-        void** random_values_from_memory = (void**)malloc(sizeof(void*) * cq->maxsize);
+        small_circular_queue_t* scq = small_circular_queue_init(10);
+        void** random_values_from_memory = (void**)malloc(sizeof(void*) * scq->maxsize);
 
         SECTION("dequeue 1") {
-            small_circular_queue_enqueue(cq, random_values_from_memory[0]);
+            small_circular_queue_enqueue(scq, random_values_from_memory[0]);
 
-            void* value = small_circular_queue_dequeue(cq);
+            void* value = small_circular_queue_dequeue(scq);
 
             REQUIRE(value == random_values_from_memory[0]);
-            REQUIRE(cq->count == 0);
-            REQUIRE(cq->head == 1);
-            REQUIRE(cq->tail == 0);
+            REQUIRE(scq->count == 0);
+            REQUIRE(scq->head == 1);
+            REQUIRE(scq->tail == 0);
         }
 
         SECTION("dequeue 2") {
-            small_circular_queue_enqueue(cq, random_values_from_memory[0]);
-            small_circular_queue_enqueue(cq, random_values_from_memory[1]);
+            small_circular_queue_enqueue(scq, random_values_from_memory[0]);
+            small_circular_queue_enqueue(scq, random_values_from_memory[1]);
 
-            void* value1 = small_circular_queue_dequeue(cq);
-            void* value2 = small_circular_queue_dequeue(cq);
+            void* value1 = small_circular_queue_dequeue(scq);
+            void* value2 = small_circular_queue_dequeue(scq);
 
             REQUIRE(value1 == random_values_from_memory[0]);
             REQUIRE(value2 == random_values_from_memory[1]);
-            REQUIRE(cq->count == 0);
-            REQUIRE(cq->head == 2);
-            REQUIRE(cq->tail == 1);
+            REQUIRE(scq->count == 0);
+            REQUIRE(scq->head == 2);
+            REQUIRE(scq->tail == 1);
         }
 
         SECTION("enqueue and dequeue twice 2") {
-            small_circular_queue_enqueue(cq, random_values_from_memory[0]);
-            void* value1 = small_circular_queue_dequeue(cq);
+            small_circular_queue_enqueue(scq, random_values_from_memory[0]);
+            void* value1 = small_circular_queue_dequeue(scq);
 
-            small_circular_queue_enqueue(cq, random_values_from_memory[1]);
-            void* value2 = small_circular_queue_dequeue(cq);
+            small_circular_queue_enqueue(scq, random_values_from_memory[1]);
+            void* value2 = small_circular_queue_dequeue(scq);
 
             REQUIRE(value1 == random_values_from_memory[0]);
             REQUIRE(value2 == random_values_from_memory[1]);
-            REQUIRE(cq->count == 0);
-            REQUIRE(cq->head == 2);
-            REQUIRE(cq->tail == 1);
+            REQUIRE(scq->count == 0);
+            REQUIRE(scq->head == 2);
+            REQUIRE(scq->tail == 1);
         }
 
         SECTION("fill and empty circular queue") {
-            for(int i = 0; i < cq->maxsize; i++) {
-                small_circular_queue_enqueue(cq, random_values_from_memory[i]);
+            for(int i = 0; i < scq->maxsize; i++) {
+                small_circular_queue_enqueue(scq, random_values_from_memory[i]);
             }
 
-            for(int i = 0; i < cq->maxsize; i++) {
-                void* value = small_circular_queue_dequeue(cq);
+            for(int i = 0; i < scq->maxsize; i++) {
+                void* value = small_circular_queue_dequeue(scq);
                 REQUIRE(value == random_values_from_memory[i]);
             }
 
-            REQUIRE(cq->count == 0);
-            REQUIRE(cq->head == 0);
-            REQUIRE(cq->tail == cq->maxsize - 1);
+            REQUIRE(scq->count == 0);
+            REQUIRE(scq->head == 0);
+            REQUIRE(scq->tail == scq->maxsize - 1);
         }
 
-        small_circular_queue_free(cq);
+        small_circular_queue_free(scq);
         free(random_values_from_memory);
     }
 }
