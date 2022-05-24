@@ -548,8 +548,39 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
 
                 slab_allocator_mem_free_hugepages(
                         memptr);
+
+                REQUIRE(slab_allocator->metrics.total_slices_count == 1);
+                REQUIRE(slab_allocator->metrics.free_slices_count == 0);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.total_slices_count == 1);
+                REQUIRE(slab_allocator->numa_node_metadata[numa_node_index].metrics.free_slices_count == 0);
+                REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.metrics.objects_inuse_count == 0);
+                REQUIRE(((slab_slice_t *) slab_allocator->numa_node_metadata[numa_node_index].slices->head)->data.available == false);
+                REQUIRE(slab_allocator->core_metadata[core_index].slots->head->data == memptr);
+                REQUIRE(slab_allocator->core_metadata[core_index].slots->tail->data != memptr);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head)->data.available == true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->head->next)->data.available == true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail)->data.available == true);
+                REQUIRE(((slab_slot_t *) slab_allocator->core_metadata[core_index].slots->tail->prev)->data.available == true);
+            }
+
+            SECTION("allocate and free 1 object on different cores") {
+                slab_allocator_t *slab_allocator = slab_allocator_predefined_get_by_size(
+                        slab_predefined_object_sizes[0]);
+
+                void *memptr = slab_allocator_mem_alloc_hugepages(
+                        slab_predefined_object_sizes[0],
                         numa_node_index,
                         core_index);
+
+                REQUIRE(slab_allocator->core_metadata[core_index].slots->head->data != memptr);
+                REQUIRE(slab_allocator->core_metadata[core_index].slots->tail->data == memptr);
+
+                thread_current_set_affinity(1);
+
+                slab_allocator_mem_free_hugepages(
+                        memptr);
+
+                thread_current_set_affinity(core_index);
 
                 REQUIRE(slab_allocator->metrics.total_slices_count == 1);
                 REQUIRE(slab_allocator->metrics.free_slices_count == 0);
