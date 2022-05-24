@@ -77,8 +77,9 @@ typedef union storage_db_entry_index_status storage_db_entry_index_status_t;
 union storage_db_entry_index_status {
     uint32_t _cas_wrapper;
     struct {
+        bool deleted:1;
+        uint16_t changes_counter:15;
         uint16_t readers_counter;
-        bool deleted;
     };
 };
 
