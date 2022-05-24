@@ -32,6 +32,7 @@
 #include "hugepages.h"
 #include "spinlock.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "memory_fences.h"
 #include "network/protocol/network_protocol.h"

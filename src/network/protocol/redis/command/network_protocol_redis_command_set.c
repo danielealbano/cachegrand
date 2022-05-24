@@ -18,6 +18,7 @@
 #include "clock.h"
 #include "spinlock.h"
 #include "xalloc.h"
+#include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "slab_allocator.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"

@@ -22,6 +22,7 @@
 #include "spinlock.h"
 #include "fiber.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "config.h"
 #include "storage/io/storage_io_common.h"

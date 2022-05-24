@@ -17,6 +17,7 @@
 #include "log/log.h"
 #include "clock.h"
 #include "spinlock.h"
+#include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "slab_allocator.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -42,6 +43,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
     char *send_buffer, *send_buffer_start, *send_buffer_end;
     size_t send_buffer_length;
     bool res;
+    storage_db_entry_index_status_t new_status;
     storage_db_entry_index_t *entry_index = NULL;
     storage_db_chunk_info_t *chunk_info = NULL;
 
@@ -56,6 +58,22 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
             reader_context->arguments.list[1].length);
 
     if (entry_index) {
+        // Ensure that the entry hasn't been deleted in between the get and the execution of the code afterwards
+//        do {
+//            // Try to acquire a reader lock which can fail if the entry is market as deleted
+//            if (!storage_db_entry_index_status_try_acquire_reader_lock(entry_index, &new_status)) {
+//
+//            }
+//            if (storage_db_entry_index_status_get_deleted(entry_index)) {
+//                // The current entry has been marked as deleted
+//                break;
+//            }
+//
+//            res = storage_db_entry_index_status_try_acquire_reader_lock(
+//                    entry_index,
+//                    NULL);
+//        }
+
         // Prepend the blog start in the buffer which is never sent at the very beginning because there will always be
         // a chunk big enough to hold always at least the necessary protocol data and 1 database chunk.
         send_buffer_start = protocol_redis_writer_write_argument_blob_start(
