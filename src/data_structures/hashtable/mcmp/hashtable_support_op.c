@@ -27,13 +27,17 @@
         __builtin_cpu_init(); \
         LOG_DI("Selecting optimal " #FUNC); \
         \
-        LOG_DI("   CPU FOUND: %s", "X64"); \
-        LOG_DI(">   HAS SSE3: %s", __builtin_cpu_supports("sse3") ? "yes" : "no"); \
-        LOG_DI("> HAS SSE4.2: %s", __builtin_cpu_supports("sse4.2") ? "yes" : "no"); \
-        LOG_DI(">    HAS AVX: %s", __builtin_cpu_supports("avx") ? "yes" : "no"); \
-        LOG_DI(">   HAS AVX2: %s", __builtin_cpu_supports("avx2") ? "yes" : "no"); \
+        LOG_DI("    CPU FOUND: %s", "X64"); \
+        LOG_DI(">    HAS SSE3: %s", __builtin_cpu_supports("sse3") ? "yes" : "no"); \
+        LOG_DI(">  HAS SSE4.2: %s", __builtin_cpu_supports("sse4.2") ? "yes" : "no"); \
+        LOG_DI(">     HAS AVX: %s", __builtin_cpu_supports("avx") ? "yes" : "no"); \
+        LOG_DI(">    HAS AVX2: %s", __builtin_cpu_supports("avx2") ? "yes" : "no"); \
+        LOG_DI("> HAS AVX512F: %s", __builtin_cpu_supports("avx512f") ? "yes" : "no"); \
         \
-        if (__builtin_cpu_supports("avx2")) { \
+        if (__builtin_cpu_supports("avx512f")) { \
+            LOG_DI("Selecting AVX512F"); \
+            return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, avx512f); \
+        } else if (__builtin_cpu_supports("avx2")) { \
             LOG_DI("Selecting AVX2"); \
             return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, avx2); \
         } else if (__builtin_cpu_supports("avx")) { \

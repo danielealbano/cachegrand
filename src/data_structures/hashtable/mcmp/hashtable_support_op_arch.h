@@ -29,6 +29,7 @@ extern "C" {
             hashtable_key_value_volatile_t **found_key_value);
 
 #if defined(__x86_64__)
+HASHTABLE_MCMP_SUPPORT_OP_ARCH(avx512f)
 HASHTABLE_MCMP_SUPPORT_OP_ARCH(avx2)
 HASHTABLE_MCMP_SUPPORT_OP_ARCH(avx)
 HASHTABLE_MCMP_SUPPORT_OP_ARCH(sse42)
