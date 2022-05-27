@@ -34,8 +34,13 @@ static void *hashtable_mcmp_support_hash_search_resolve(void) {
     LOG_DI("CPU FOUND: %s", "X64");
     LOG_DI(">  HAS AVX: %s", __builtin_cpu_supports("avx") ? "yes" : "no");
     LOG_DI("> HAS AVX2: %s", __builtin_cpu_supports("avx2") ? "yes" : "no");
+    LOG_DI("> HAS AVX512F: %s", __builtin_cpu_supports("avx512f") ? "yes" : "no");
 
-    if (__builtin_cpu_supports("avx2")) {
+    if (__builtin_cpu_supports("avx512f")) {
+        LOG_DI("Selecting AVX512F");
+
+        return HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_METHOD_SIZE(avx512f, 14);
+    } else if (__builtin_cpu_supports("avx2")) {
         LOG_DI("Selecting AVX2");
 
         return HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_METHOD_SIZE(avx2, 14);
