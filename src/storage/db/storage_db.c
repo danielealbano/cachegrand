@@ -454,6 +454,7 @@ void storage_db_free(
 
 storage_db_entry_index_t *storage_db_entry_index_ring_buffer_new(
         storage_db_t *db) {
+    storage_db_entry_index_t *entry_index;
     // The storage_db_entry_indexes are stored into the hashtable and used as reference to keep track of the
     // key and chunks of the value mapped to the index.
     // When the entry on the hashtable is updated, the existing one can't free right away even if the readers_counter
@@ -470,11 +471,13 @@ storage_db_entry_index_t *storage_db_entry_index_ring_buffer_new(
     small_circular_queue_t *scb = storage_db_worker_deleted_entry_index_ring_buffer(db);
 
     if (small_circular_queue_is_full(scb)) {
-        storage_db_entry_index_t *entry_index = small_circular_queue_dequeue(scb);
+        entry_index = small_circular_queue_dequeue(scb);
         entry_index->status._cas_wrapper = 0;
     } else {
-        return storage_db_entry_index_new();
+        entry_index = storage_db_entry_index_new();
     }
+
+    return entry_index;
 }
 
 void storage_db_entry_index_ring_buffer_free(
@@ -671,7 +674,7 @@ void storage_db_entry_index_status_acquire_reader_lock(
     storage_db_entry_index_status_t old_status_internal;
     uint32_t old_cas_wrapper_ret = __sync_fetch_and_add(
             &entry_index->status._cas_wrapper,
-            1);
+            (uint32_t)1);
 
     // The MSB bit of _cas_wrapper is used for the deleted flag, if the readers_counter gets to 0x7FFFFFFF another lock
     // request would implicitly set the "deleted" flag to true.
@@ -689,7 +692,7 @@ void storage_db_entry_index_status_acquire_reader_lock(
     if (unlikely(old_status_internal.deleted)) {
         old_cas_wrapper_ret = __sync_fetch_and_sub(
                 &entry_index->status._cas_wrapper,
-                1);
+                (uint32_t)1);
     }
 
     if (likely(old_status)) {
@@ -702,14 +705,14 @@ void storage_db_entry_index_status_free_reader_lock(
         storage_db_entry_index_status_t *old_status) {
     uint32_t old_cas_wrapper_ret = __sync_fetch_and_sub(
             &entry_index->status._cas_wrapper,
-            1);
+            (uint32_t)1);
 
     // If the previous value of old_cas_wrapper_ret & 0x7FFFFFFF is zero the previous operation caused a negative
     // overflow which set the MSB bit used for "deleted" to 1 triggering corruption, can't really happen unless there
     // is a bug in the reader lock management
     assert((old_cas_wrapper_ret & 0x7FFFFFFF) > 0);
 
-    if (likely(old_status)) {
+    if (unlikely(old_status)) {
         old_status->_cas_wrapper = old_cas_wrapper_ret;
     }
 }
@@ -773,7 +776,7 @@ void storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
         storage_db_entry_index_status_set_deleted(
                 previous_entry_index,
                 true,
-                &old_status);
+                NULL);
 
         storage_db_entry_index_chunks_free(db, previous_entry_index);
 
