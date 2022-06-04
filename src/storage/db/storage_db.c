@@ -392,10 +392,25 @@ bool storage_db_close(
 }
 
 void storage_db_free(
-        storage_db_t *db) {
-    double_linked_list_free(db->shards.opened_shards);
+        storage_db_t *db,
+        uint32_t workers_count) {
+    for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
+        if (db->workers[worker_index].deleted_entry_index_ring_buffer) {
+            small_circular_queue_free(db->workers[worker_index].deleted_entry_index_ring_buffer);
+        }
+
+        if (db->workers[worker_index].deleting_entry_index_list) {
+            double_linked_list_free(db->workers[worker_index].deleting_entry_index_list);
+        }
+    }
+
+    if (db->shards.opened_shards) {
+        double_linked_list_free(db->shards.opened_shards);
+    }
+
     hashtable_mcmp_free(db->hashtable);
     storage_db_config_free(db->config);
+    slab_allocator_mem_free(db->workers);
     slab_allocator_mem_free(db);
 }
 

@@ -520,7 +520,7 @@ void program_cleanup(
 
     if (program_context->db) {
         storage_db_close(program_context->db);
-        storage_db_free(program_context->db);
+        storage_db_free(program_context->db, program_context->workers_count);
     }
 
     if (program_context->slab_allocator_inited) {
