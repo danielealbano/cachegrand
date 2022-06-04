@@ -350,7 +350,6 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             worker_context,
             1);
 
-    REQUIRE(pthread_kill(worker_context->pthread, 0) == ESRCH);
 
     REQUIRE(mprobe(worker_context) == -MCHECK_FREE);
 

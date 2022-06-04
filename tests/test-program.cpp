@@ -200,7 +200,6 @@ TEST_CASE("program.c", "[program]") {
 
         REQUIRE(pthread_join(pthread_terminate, NULL) == 0);
 
-        REQUIRE(pthread_kill(pthread_wait, 0) == ESRCH);
         REQUIRE(pthread_join(pthread_wait, NULL) == 0);
     }
 
@@ -240,9 +239,6 @@ TEST_CASE("program.c", "[program]") {
         usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
         sched_yield();
 
-        // Check if the worker terminated
-        REQUIRE(pthread_kill(worker_context->pthread, 0) == ESRCH);
-
         // Cleanup
         REQUIRE(pthread_join(worker_context->pthread, NULL) == 0);
         xalloc_free(worker_context);
@@ -273,8 +269,6 @@ TEST_CASE("program.c", "[program]") {
         program_workers_cleanup(
                 worker_context,
                 1);
-
-        REQUIRE(pthread_kill(worker_context->pthread, 0) == ESRCH);
 
         REQUIRE(mprobe(worker_context) == -MCHECK_FREE);
     }

@@ -212,7 +212,6 @@ TEST_CASE("signal_handler_thread.c", "[signal_handler_thread]") {
             usleep((SIGNAL_HANDLER_THREAD_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
             sched_yield();
 
-            REQUIRE(pthread_kill(context.pthread, 0) == ESRCH);
             REQUIRE(pthread_join(context.pthread, NULL) == 0);
 
             usleep((SIGNAL_HANDLER_THREAD_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
@@ -252,7 +251,6 @@ TEST_CASE("signal_handler_thread.c", "[signal_handler_thread]") {
             usleep((SIGNAL_HANDLER_THREAD_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
             sched_yield();
 
-            REQUIRE(pthread_kill(context.pthread, 0) == ESRCH);
             REQUIRE(pthread_join(context.pthread, NULL) == 0);
         }
 
@@ -262,7 +260,6 @@ TEST_CASE("signal_handler_thread.c", "[signal_handler_thread]") {
             usleep((SIGNAL_HANDLER_THREAD_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
             sched_yield();
 
-            REQUIRE(pthread_kill(context.pthread, 0) == ESRCH);
             REQUIRE(pthread_join(context.pthread, NULL) == 0);
         }
 
