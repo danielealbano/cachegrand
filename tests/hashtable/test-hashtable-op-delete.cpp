@@ -189,7 +189,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
                 REQUIRE(key_value->data == test_value_1 + random_slot_index);
 
-                test_support_same_hash_mod_fixtures_free(test_key_same_bucket);
+                // The delete operation in the hash table already frees all the keys so it's enough to free test_key_same_bucket
+                free(test_key_same_bucket);
             })
         }
 
@@ -245,7 +246,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_FILLED);
                 REQUIRE(key_value->data == test_value_1 + slots_to_fill - 1);
 
-                test_support_same_hash_mod_fixtures_free(test_key_same_bucket);
+                // The delete operation in the hash table already frees all the keys so it's enough to free test_key_same_bucket
+                free(test_key_same_bucket);
             })
         }
     }
