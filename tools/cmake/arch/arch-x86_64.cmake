@@ -4,6 +4,7 @@ include(CheckCSourceRuns)
 
 EXEC_PROGRAM(cat ARGS "/proc/cpuinfo" OUTPUT_VARIABLE CPUINFO)
 
+check_c_compiler_flag(-mavx512f                           COMPILER_HAS_MAVX512F_FLAG)
 check_c_compiler_flag(-mavx2                              COMPILER_HAS_MAVX2_FLAG)
 check_c_compiler_flag(-mavx                               COMPILER_HAS_MAVX_FLAG)
 check_c_compiler_flag(-msse42                             COMPILER_HAS_MSSE42_FLAG)
@@ -12,7 +13,26 @@ check_c_compiler_flag(-mbmi                               COMPILER_HAS_MBMI_FLAG
 check_c_compiler_flag(-mlzcnt                             COMPILER_HAS_MLZCNT_FLAG)
 check_c_compiler_flag(-mclflushopt                        COMPILER_HAS_CLFLUSHOPT_FLAG)
 
-# Check if the host has AVX2
+# Check if the host supports AVX512F
+if (COMPILER_HAS_MAVX512F_FLAG)
+    set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
+    list(APPEND CMAKE_REQUIRED_FLAGS "-mavx512f")
+    check_c_source_runs("
+#include <stdint.h>
+#include <immintrin.h>
+int main() {
+    uint32_t hash1 = 1234;
+    uint32_t hash2 = 4321;
+    __m512i cmp_vector1 = _mm512_set1_epi32(hash1);
+    __m512i cmp_vector2 = _mm512_set1_epi32(hash2);
+    uint32_t result_mask_vector = _mm512_cmpeq_epi32_mask(cmp_vector1, cmp_vector2);
+    return 0;
+}"
+            HOST_HAS_AVX512F)
+    set(CMAKE_REQUIRED_FLAGS ${OLD_CMAKE_REQUIRED_FLAGS})
+endif()
+
+# Check if the host supports AVX2
 if (COMPILER_HAS_MAVX2_FLAG)
     set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
     list(APPEND CMAKE_REQUIRED_FLAGS "-mavx2")
@@ -31,7 +51,7 @@ int main() {
     set(CMAKE_REQUIRED_FLAGS ${OLD_CMAKE_REQUIRED_FLAGS})
 endif()
 
-# Check if the host has AVX
+# Check if the host supports AVX
 if (COMPILER_HAS_MAVX_FLAG)
     set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
     list(APPEND CMAKE_REQUIRED_FLAGS "-mavx -mno-avx2")
@@ -54,7 +74,7 @@ int main() {
     endif()
 endif()
 
-# Check if the host has CLFLUSHOPT
+# Check if the host supports CLFLUSHOPT
 if (COMPILER_HAS_CLFLUSHOPT_FLAG)
     set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
     list(APPEND CMAKE_REQUIRED_FLAGS "-mclflushopt")
@@ -73,7 +93,7 @@ int main() {
     endif()
 endif()
 
-# Check if the host has SSE4.2
+# Check if the host supports SSE4.2
 message(STATUS "Performing Test HOST_HAS_SSE42")
 
 string(REGEX REPLACE "^.*(sse4_2).*$" "\\1" SSE_THERE ${CPUINFO})
