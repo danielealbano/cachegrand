@@ -723,7 +723,7 @@ void storage_db_entry_index_status_set_deleted(
         storage_db_entry_index_status_t *old_status) {
     uint32_t cas_wrapper_ret = __sync_fetch_and_or(
             &entry_index->status._cas_wrapper,
-            deleted ? 0x8000 : 0);
+            deleted ? 0x80000000 : 0);
 
     if (likely(old_status)) {
         old_status->_cas_wrapper = cas_wrapper_ret;
@@ -732,10 +732,14 @@ void storage_db_entry_index_status_set_deleted(
 
 void storage_db_worker_garbage_collect_deleting_entry_index_when_no_readers(
         storage_db_t *db) {
-    double_linked_list_item_t *item = NULL;
+    double_linked_list_item_t *item = NULL, *item_next = NULL;
     double_linked_list_t *list = storage_db_worker_deleting_entry_index_list(db);
 
-    while((item = double_linked_list_iter_next(list, item)) != NULL) {
+    // Can't use double_linked_list_iter_next because the code might remove from the list the current item and
+    // double_linked_list_iter_next needs access to it
+    item_next = list->head;
+    while((item = item_next) != NULL) {
+        item_next = item->next;
         storage_db_entry_index_t *entry_index = item->data;
 
         // No need of an atomic load or a memory barrier, if this code will read an outdated readers_counter and leave
