@@ -99,11 +99,7 @@ bool hashtable_mcmp_op_set(
         } else {
             LOG_DI("key can't be inline-ed, max length for inlining %d", HASHTABLE_KEY_INLINE_MAX_LENGTH);
 
-            ht_key = slab_allocator_mem_alloc(key_size + 1);
-            ((char*)ht_key)[key_size] = '\0';
-            strncpy((char*)ht_key, key, key_size);
-
-            key_value->external_key.data = ht_key;
+            key_value->external_key.data = key;
             key_value->external_key.size = key_size;
         }
 
@@ -117,7 +113,7 @@ bool hashtable_mcmp_op_set(
         LOG_DI("key_value->flags = %d", key_value->flags);
     }
 
-    // The unlock will perform the memory fence for us
+    // Will perform the memory fence for us
     spinlock_unlock(&half_hashes_chunk->write_lock);
 
     LOG_DI("unlocking half_hashes_chunk 0x%016x", half_hashes_chunk);
