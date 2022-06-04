@@ -89,8 +89,7 @@ union storage_db_entry_index_status {
     uint32_volatile_t _cas_wrapper;
     struct {
         bool_volatile_t deleted:1;
-        bool_volatile_t deleting:1;
-        uint32_volatile_t readers_counter:30;
+        uint32_volatile_t readers_counter:31;
     };
 };
 
