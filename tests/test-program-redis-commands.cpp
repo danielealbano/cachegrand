@@ -54,6 +54,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
     worker_context_t *worker_context;
     volatile bool terminate_event_loop = false;
     char* cpus[] = { "0" };
+
     config_network_protocol_binding_t config_network_protocol_binding = {
             .host = "127.0.0.1",
             .port = 12345,
@@ -81,17 +82,18 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             .network = &config_network,
             .database = &config_database,
     };
+    uint32_t workers_count = config.cpus_count * config.workers_per_cpus;
 
     storage_db_config_t *db_config = storage_db_config_new();
     db_config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY;
     db_config->max_keys = 1000;
 
-    storage_db_t *db = storage_db_new(db_config, config.cpus_count * config.workers_per_cpus);
+    storage_db_t *db = storage_db_new(db_config, workers_count);
     storage_db_open(db);
 
     program_context_t program_context = {
             .config = &config,
-            .db = db,
+            .db = db
     };
 
     program_config_thread_affinity_set_selected_cpus(&program_context);
@@ -353,5 +355,5 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
     REQUIRE(mprobe(worker_context) == -MCHECK_FREE);
 
     storage_db_close(db);
-    storage_db_free(db);
+    storage_db_free(db, workers_count);
 }
