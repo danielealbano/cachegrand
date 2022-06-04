@@ -57,16 +57,21 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
         return false;
     }
 
-    res = storage_db_entry_index_allocate_key_chunks(
-            db,
-            entry_index,
-            reader_context->arguments.list[1].length);
-    if (!res) {
-        LOG_E(
-                TAG,
-                "[REDIS][SET] Critical error, unable to allocate database chunks for the key");
-        storage_db_entry_index_free(entry_index);
-        return false;
+    // If the backend is in memory it's not necessary to write the key to the storage because it will never be used as
+    // the only case in which the keys are read from the storage is when the database gets loaded from the disk at the
+    // startup
+    if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
+        res = storage_db_entry_index_allocate_key_chunks(
+                db,
+                entry_index,
+                reader_context->arguments.list[1].length);
+        if (!res) {
+            LOG_E(
+                    TAG,
+                    "[REDIS][SET] Critical error, unable to allocate database chunks for the key");
+            storage_db_entry_index_free(db, entry_index);
+            return false;
+        }
     }
 
     res = storage_db_entry_index_allocate_value_chunks(
@@ -77,48 +82,56 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
         LOG_E(
                 TAG,
                 "[REDIS][SET] Critical error, unable to allocate database chunks for the value");
-        storage_db_entry_index_free(entry_index);
+        storage_db_entry_index_free(db, entry_index);
         return false;
     }
 
     // Write the chunks for the key
     key_ptr = reader_context->arguments.list[1].value;
-    for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->key_chunks_count; chunk_index++) {
-        storage_db_chunk_info_t *chunk_info = storage_db_entry_key_chunk_get(entry_index, chunk_index);
-        res = storage_db_entry_chunk_write(
-                chunk_info,
-                key_ptr + (chunk_index * STORAGE_DB_CHUNK_MAX_SIZE));
 
-        if (!res) {
-            LOG_E(
-                    TAG,
-                    "[REDIS][SET] Critical error, unable to write key chunk <%u> at offset <%u> long <%u> bytes",
-                    chunk_index,
-                    chunk_info->chunk_offset,
-                    chunk_info->chunk_length);
+    // If the backend is in memory it's not necessary to write the key to the storage because it will never be used as
+    // the only case in which the keys are read from the storage is when the database gets loaded from the disk at the
+    // startup
+    // TODO: the design needs a review as a the consumer of storage_db shouldn't decide if the keys should be written or
+    //       not but instead this should be managed internally transparently
+    if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
+        for (storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->key_chunks_count; chunk_index++) {
+            storage_db_chunk_info_t *chunk_info = storage_db_entry_key_chunk_get(entry_index, chunk_index);
+            res = storage_db_entry_chunk_write(
+                    db,
+                    chunk_info,
+                    key_ptr + (chunk_index * STORAGE_DB_CHUNK_MAX_SIZE));
 
-            storage_db_entry_index_free(entry_index);
-            return false;
+            if (!res) {
+                LOG_E(
+                        TAG,
+                        "[REDIS][SET] Critical error, unable to write key chunk <%u> long <%u> bytes",
+                        chunk_index,
+                        chunk_info->chunk_length);
+
+                storage_db_entry_index_free(db, entry_index);
+                return false;
+            }
         }
     }
 
     // Build the chunks for the value
     void* value_ptr = reader_context->arguments.list[2].value;
-    for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->key_chunks_count; chunk_index++) {
+    for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value_chunks_count; chunk_index++) {
         storage_db_chunk_info_t *chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
         res = storage_db_entry_chunk_write(
+                db,
                 chunk_info,
                 value_ptr + (chunk_index * STORAGE_DB_CHUNK_MAX_SIZE));
 
         if (!res) {
             LOG_E(
                     TAG,
-                    "[REDIS][SET] Critical error, unable to write value chunk <%u> at offset <%u> long <%u> bytes",
+                    "[REDIS][SET] Critical error, unable to write value chunk <%u> long <%u> bytes",
                     chunk_index,
-                    chunk_info->chunk_offset,
                     chunk_info->chunk_length);
 
-            storage_db_entry_index_free(entry_index);
+            storage_db_entry_index_free(db, entry_index);
             return false;
         }
     }
@@ -130,7 +143,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
             entry_index);
 
     if (!res) {
-        storage_db_entry_index_free(entry_index);
+        storage_db_entry_index_free(db, entry_index);
     }
 
     if (res) {

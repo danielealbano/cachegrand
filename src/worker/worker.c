@@ -378,7 +378,11 @@ void* worker_thread_func(
             break;
         }
 
-        storage_db_worker_garbage_collect_deleting_entry_index_when_no_readers(worker_context->db);
+        // The condition checked below is mostly for the tests, as there are some simple tests that should setup the
+        // storage_db otherwise
+        if (worker_context->db) {
+            storage_db_worker_garbage_collect_deleting_entry_index_when_no_readers(worker_context->db);
+        }
 
         if (worker_stats_should_publish(&worker_context->stats.shared)) {
             worker_stats_publish(

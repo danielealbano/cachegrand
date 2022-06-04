@@ -15,14 +15,14 @@ MEMTIER_WARMUP_RUNS=3
 MEMTIER_TEST_RUNS=5
 MEMTIER_BIN_PATH="/home/daalbano/dev/memtier_benchmark/memtier_benchmark"
 OUTPUT_PATH_DIR="/home/daalbano/benchmarks"
-OUTPUT_PATH_TEST_CONFIG_SET_NAME="cachegrand-without-hugepage-cache"
+OUTPUT_PATH_TEST_CONFIG_SET_NAME="cachegrand-temp"
 OUTPUT_PATH_TEST_TYPE="getset"
 SERVER_BIN_NAME="cachegrand-server"
 
 # General settings
-CACHEGRAND_SERVER_BIN_PATH="/home/daalbano/dev/cachegrand/cachegrand-server/cmake-build-release/src/cachegrand-server"
-CACHEGRAND_SERVER_CONFIG_PATH="/home/daalbano/dev/cachegrand/cachegrand-server/etc/cachegrand.yaml"
-REDIS_SERVER_BIN_PATH="$(which redis-server)"
+CACHEGRAND_SERVER_BIN_PATH="/home/daalbano/dev/cachegrand/cmake-build-release/src/cachegrand-server"
+CACHEGRAND_SERVER_CONFIG_PATH="/home/daalbano/dev/cachegrand/etc/cachegrand.yaml"
+REDIS_SERVER_BIN_PATH="/home/daalbano/dev/redis-7.0.0/src/redis-server"
 REDIS_SERVER_CONFIG_PATH="/etc/redis/redis.conf"
 REDIS_SERVER_CPU="0"
 

@@ -75,12 +75,17 @@ struct storage_db {
     storage_db_worker_t *workers;
 };
 
-// For performance reasons shards should never be bigger than a few hundred of MBs, having an uin32 allows to have
-// offsets up to 4 GB
 typedef struct storage_db_chunk_info storage_db_chunk_info_t;
 struct storage_db_chunk_info {
-    storage_channel_t *shard_storage_channel;
-    storage_db_chunk_offset_t chunk_offset;
+    union {
+        struct {
+            storage_channel_t *shard_storage_channel;
+            storage_db_chunk_offset_t chunk_offset;
+        } file;
+        struct {
+            void *chunk_data;
+        } memory;
+    };
     storage_db_chunk_length_t chunk_length;
 };
 
@@ -88,8 +93,8 @@ typedef union storage_db_entry_index_status storage_db_entry_index_status_t;
 union storage_db_entry_index_status {
     uint32_volatile_t _cas_wrapper;
     struct {
-        bool_volatile_t deleted:1;
         uint32_volatile_t readers_counter:31;
+        bool_volatile_t deleted:1;
     };
 };
 
@@ -159,10 +164,14 @@ bool storage_db_shard_new_is_needed(
         storage_db_shard_t *shard,
         size_t chunk_length);
 
-bool storage_db_shard_allocate_chunk(
+bool storage_db_chunk_data_pre_allocate(
         storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
         size_t chunk_length);
+
+void storage_db_chunk_data_free(
+        storage_db_t *db,
+        storage_db_chunk_info_t *chunk_info);
 
 storage_db_entry_index_t *storage_db_entry_index_new();
 
@@ -176,7 +185,12 @@ storage_db_entry_index_t *storage_db_entry_index_allocate_value_chunks(
         storage_db_entry_index_t *entry_index,
         size_t value_length);
 
-storage_db_entry_index_t *storage_db_entry_index_free(
+void *storage_db_entry_index_chunks_free(
+        storage_db_t *db,
+        storage_db_entry_index_t *entry_index);
+
+void *storage_db_entry_index_free(
+        storage_db_t *db,
         storage_db_entry_index_t *entry_index);
 
 storage_db_entry_index_t *storage_db_entry_index_ring_buffer_new(
@@ -187,10 +201,12 @@ void storage_db_entry_index_ring_buffer_free(
         storage_db_entry_index_t *entry_index);
 
 bool storage_db_entry_chunk_read(
+        storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
         char *buffer);
 
 bool storage_db_entry_chunk_write(
+        storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
         char *buffer);
 
