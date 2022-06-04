@@ -378,6 +378,8 @@ void* worker_thread_func(
             break;
         }
 
+        storage_db_worker_garbage_collect_deleting_entry_index_when_no_readers(worker_context->db);
+
         if (worker_stats_should_publish(&worker_context->stats.shared)) {
             worker_stats_publish(
                     &worker_context->stats.internal,

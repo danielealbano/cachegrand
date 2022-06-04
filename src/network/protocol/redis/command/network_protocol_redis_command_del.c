@@ -49,7 +49,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(del) {
     send_buffer_end = send_buffer_start + send_buffer_length;
 
     for(long i = 1; i < reader_context->arguments.count; i++) {
-        bool deleted = storage_db_get(
+        bool deleted = storage_db_delete_entry_index(
                 db,
                 reader_context->arguments.list[1].value,
                 reader_context->arguments.list[1].length);

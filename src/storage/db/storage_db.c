@@ -7,11 +7,12 @@
 #include <fcntl.h>
 #include <pow2.h>
 #include <stdatomic.h>
-#include <memory_fences.h>
+#include <assert.h>
 
 #include "misc.h"
 #include "exttypes.h"
 #include "clock.h"
+#include "memory_fences.h"
 #include "spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
@@ -100,7 +101,7 @@ storage_db_t* storage_db_new(
         goto fail;
     }
 
-    // Initialize the per worker set of information
+    // Initialize the per-worker set of information
     workers = slab_allocator_mem_alloc_zero(sizeof(storage_db_worker_t) * workers_count);
     if (!workers) {
         LOG_E(TAG, "Unable to allocate memory for the per worker configurations");
@@ -109,15 +110,24 @@ storage_db_t* storage_db_new(
 
     // Initialize the per worker needed information
     for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
-        small_circular_queue_t *entry_index_ringbuffer =
+        small_circular_queue_t *deleted_entry_index_ring_buffer =
                 small_circular_queue_init(STORAGE_DB_WORKER_ENTRY_INDEX_RING_BUFFER_SIZE);
 
-        if (entry_index_ringbuffer) {
-            LOG_E(TAG, "Unable to allocate memory for the entry index ring buffer per worker");
+        if (deleted_entry_index_ring_buffer) {
+            LOG_E(TAG, "Unable to allocate memory for the deleted entry index ring buffer per worker");
             goto fail;
         }
 
-        workers[worker_index].entry_index_ringbuffer = entry_index_ringbuffer;
+        workers[worker_index].deleted_entry_index_ring_buffer = deleted_entry_index_ring_buffer;
+
+        double_linked_list_t *deleting_entry_index_list = double_linked_list_init();
+
+        if (deleting_entry_index_list) {
+            LOG_E(TAG, "Unable to allocate memory for the deleting entry index ring buffer per worker");
+            goto fail;
+        }
+
+        workers[worker_index].deleting_entry_index_list = deleting_entry_index_list;
     }
 
     // Initialize the db wrapper structure
@@ -132,8 +142,13 @@ storage_db_t* storage_db_new(
     db->workers = workers;
     db->hashtable = hashtable;
     db->shards.new_index = 0;
-    db->shards.opened_shards = double_linked_list_init();
     spinlock_init(&db->shards.write_spinlock);
+    db->shards.opened_shards = double_linked_list_init();
+
+    if (!db->shards.opened_shards) {
+        LOG_E(TAG, "Unable to allocate for the list of opened shards");
+        goto fail;
+    }
 
     return db;
 fail:
@@ -148,14 +163,25 @@ fail:
 
     if (workers) {
         for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
-            small_circular_queue_free(workers[worker_index].entry_index_ringbuffer);
+            if (workers[worker_index].deleted_entry_index_ring_buffer) {
+                small_circular_queue_free(workers[worker_index].deleted_entry_index_ring_buffer);
+            }
+
+            if (workers[worker_index].deleting_entry_index_list) {
+                double_linked_list_free(workers[worker_index].deleting_entry_index_list);
+            }
         }
 
         slab_allocator_mem_free(workers);
     }
 
-    // This condition is actually always false but it's here for clarity
     if (db) {
+        // This can't really happen with the current implementation but better to have it in place to avoid future
+        // bugs caused by code refactorings
+        if (!db->shards.opened_shards) {
+            double_linked_list_free(db->shards.opened_shards);
+        }
+
         slab_allocator_mem_free(db);
     }
 
@@ -173,7 +199,7 @@ storage_channel_t *storage_db_shard_open_or_create_file(
     return storage_channel;
 }
 
-bool storage_db_shard_ensure_size_preallocated(
+bool storage_db_shard_ensure_size_pre_allocated(
         storage_channel_t *storage_channel,
         uint32_t size_mb) {
     return storage_fallocate(storage_channel, 0, 0, size_mb * 1024 * 1024);
@@ -187,12 +213,20 @@ storage_db_shard_t *storage_db_worker_active_shard(
     return db->workers[worker_index].active_shard;
 }
 
-small_circular_queue_t *storage_db_worker_entry_index_ringbuffer(
+small_circular_queue_t *storage_db_worker_deleted_entry_index_ring_buffer(
         storage_db_t *db) {
     worker_context_t *worker_context = worker_context_get();
     uint32_t worker_index = worker_context->worker_index;
 
-    return db->workers[worker_index].entry_index_ringbuffer;
+    return db->workers[worker_index].deleted_entry_index_ring_buffer;
+}
+
+double_linked_list_t *storage_db_worker_deleting_entry_index_list(
+        storage_db_t *db) {
+    worker_context_t *worker_context = worker_context_get();
+    uint32_t worker_index = worker_context->worker_index;
+
+    return db->workers[worker_index].deleting_entry_index_list;
 }
 
 bool storage_db_shard_new_is_needed(
@@ -263,7 +297,7 @@ storage_db_shard_t* storage_db_shard_new(
         return NULL;
     }
 
-    if (!storage_db_shard_ensure_size_preallocated(storage_channel, shard_size_mb)) {
+    if (!storage_db_shard_ensure_size_pre_allocated(storage_channel, shard_size_mb)) {
         LOG_E(
                 TAG,
                 "Unable to preallocate <%umb> for the shard <%s>",
@@ -360,34 +394,35 @@ void storage_db_free(
     slab_allocator_mem_free(db);
 }
 
-storage_db_entry_index_t *storage_db_entry_index_ringbuffer_new(
+storage_db_entry_index_t *storage_db_entry_index_ring_buffer_new(
         storage_db_t *db) {
     // The storage_db_entry_indexes are stored into the hashtable and used as reference to keep track of the
     // key and chunks of the value mapped to the index.
-    // When the entry on the hashtable is updated, the existing one can't freed right away even if the readers_counter
-    // is set to zero because potentially one of the worker threads running on a different core might just have
-    // fetched the pointer and it might be trying to access it.
+    // When the entry on the hashtable is updated, the existing one can't free right away even if the readers_counter
+    // is set to zero because potentially one of the workers running on a different core might just have
+    // fetched the pointer trying to access it.
     // To avoid a potential issue all the storage_db_entry_index are fetched from a ring buffer which is large.
-    // The ring buffer is used in a bit of an odd way, the entries are feteched from it only if the underlying
+    // The ring buffer is used in a bit of an odd way, the entries are fetched from it only if the underlying
     // circular queue is full, because this will guarantee that enough time will have passed for any context
     // switch happened in between reading the value from the hashtable and checking if the value is still viable.
     // The size of the ring buffer (so when it's full) is dictated by having enough room to allow any CPU that
     // might be trying to access the value stored in the hashtable to be checked.
     // if the queue is not full then a new entry_index is allocated
 
-    small_circular_queue_t *scb = storage_db_worker_entry_index_ringbuffer(db);
+    small_circular_queue_t *scb = storage_db_worker_deleted_entry_index_ring_buffer(db);
 
     if (small_circular_queue_is_full(scb)) {
-        return small_circular_queue_dequeue(scb);
+        storage_db_entry_index_t *entry_index = small_circular_queue_dequeue(scb);
+        entry_index->status._cas_wrapper = 0;
     } else {
         return storage_db_entry_index_new();
     }
 }
 
-void storage_db_entry_index_ringbuffer_free(
+void storage_db_entry_index_ring_buffer_free(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index) {
-    small_circular_queue_t *scb = storage_db_worker_entry_index_ringbuffer(db);
+    small_circular_queue_t *scb = storage_db_worker_deleted_entry_index_ring_buffer(db);
 
     // If the queue is full, the entry in the head can be dequeued and freed because it means it has lived enough
     if (small_circular_queue_is_full(scb)) {
@@ -526,97 +561,120 @@ storage_db_chunk_info_t *storage_db_entry_value_chunk_get(
     return entry_index->value_chunks_info + chunk_index;
 }
 
-void storage_db_entry_index_status_update_prep_expected_and_new(
+void storage_db_entry_index_status_acquire_reader_lock(
         storage_db_entry_index_t* entry_index,
-        storage_db_entry_index_status_t *expected_status,
-        storage_db_entry_index_status_t *new_status) {
-    expected_status->_cas_wrapper = entry_index->status._cas_wrapper;
-    new_status->_cas_wrapper = expected_status->_cas_wrapper;
-}
-
-bool storage_db_entry_index_status_try_compare_and_swap(
-        storage_db_entry_index_t* entry_index,
-        storage_db_entry_index_status_t *expected_status,
-        storage_db_entry_index_status_t *new_status) {
-    return atomic_compare_exchange_strong(
+        storage_db_entry_index_status_t *old_status) {
+    storage_db_entry_index_status_t *old_status_internal;
+    uint32_t old_cas_wrapper_ret = __sync_fetch_and_add(
             &entry_index->status._cas_wrapper,
-            &expected_status->_cas_wrapper,
-            new_status->_cas_wrapper);
+            1);
+
+    // The MSB bit of _cas_wrapper is used for the deleted flag, if the readers_counter gets to 0x7FFFFFFF another lock
+    // request would implicitly set the "deleted" flag to true.
+    // Although this scenario would cause corruption it's not something we need to solve, it would mean that there are
+    // +2 billion clients trying to access the same key which is not really possible with the current hardware
+    // available or the current software implementation.
+    // A way to solve the issue though is to have enough padding which would allow the counter to be decreased without
+    // risking that other worker threads would increase it further causing the overflow.
+    // In general just keeping the second MSB "free" for that scenario, the amount of padding required depends on the
+    // amount of hardware threads that the cpu(s) are able to run in parallel.
+    assert((old_cas_wrapper_ret & 0x7FFFFFFF) != 0x7FFFFFFF);
+
+    // If the entry is marked as deleted reduce the readers counter to drop the lock
+    old_status_internal->_cas_wrapper = old_cas_wrapper_ret;
+    if (unlikely(old_status_internal->deleted)) {
+        old_cas_wrapper_ret = __sync_fetch_and_sub(
+                &entry_index->status._cas_wrapper,
+                1);
+    }
+
+    if (likely(old_status)) {
+        old_status->_cas_wrapper = old_cas_wrapper_ret;
+    }
 }
 
-void storage_db_entry_index_status_load(
+void storage_db_entry_index_status_free_reader_lock(
         storage_db_entry_index_t* entry_index,
-        storage_db_entry_index_status_t *status) {
-    status->_cas_wrapper = atomic_load(&entry_index->status._cas_wrapper);
+        storage_db_entry_index_status_t *old_status) {
+    uint32_t old_cas_wrapper_ret = __sync_fetch_and_sub(
+            &entry_index->status._cas_wrapper,
+            1);
+
+    // If the previous value of old_cas_wrapper_ret & 0x7FFFFFFF is zero the previous operation caused a negative
+    // overflow which set the MSB bit used for "deleted" to 1 triggering corruption, can't really happen unless there
+    // is a bug in the reader lock management
+    assert((old_cas_wrapper_ret & 0x7FFFFFFF) > 0);
+
+    if (likely(old_status)) {
+        old_status->_cas_wrapper = old_cas_wrapper_ret;
+    }
 }
 
-bool storage_db_entry_index_status_try_acquire_reader_lock(
+void storage_db_entry_index_status_set_deleted(
         storage_db_entry_index_t* entry_index,
-        storage_db_entry_index_status_t *new_status) {
-    storage_db_entry_index_status_t expected_status;
-    storage_db_entry_index_status_update_prep_expected_and_new(
-            entry_index,
-            &expected_status,
-            new_status);
-    new_status->deleted = false;
-    new_status->readers_counter++;
+        bool deleted,
+        storage_db_entry_index_status_t *old_status) {
+    uint32_t cas_wrapper_ret = __sync_fetch_and_or(
+            &entry_index->status._cas_wrapper,
+            deleted ? 0x8000 : 0);
 
-    return storage_db_entry_index_status_try_compare_and_swap(
-            entry_index,
-            &expected_status,
-            new_status);
+    if (likely(old_status)) {
+        old_status->_cas_wrapper = cas_wrapper_ret;
+    }
 }
 
-bool storage_db_entry_index_status_try_free_reader_lock(
-        storage_db_entry_index_t* entry_index,
-        storage_db_entry_index_status_t *new_status) {
-    storage_db_entry_index_status_t expected_status;
-    storage_db_entry_index_status_update_prep_expected_and_new(
-            entry_index,
-            &expected_status,
-            new_status);
-    new_status->readers_counter--;
+void storage_db_worker_garbage_collect_deleting_entry_index_when_no_readers(
+        storage_db_t *db) {
+    double_linked_list_item_t *item = NULL;
+    double_linked_list_t *list = storage_db_worker_deleting_entry_index_list(db);
 
-    return storage_db_entry_index_status_try_compare_and_swap(
-            entry_index,
-            &expected_status,
-            new_status);
+    while((item = double_linked_list_iter_next(list, item)) != NULL) {
+        storage_db_entry_index_t *entry_index = item->data;
+
+        // No need of an atomic load or a memory barrier, if this code will read an outdated readers_counter and leave
+        // the item in the list it will simply reprocess it the next iteration.
+        // It is, however, unlikely that an outdated value will be read because of the memory fences and atomic ops
+        // everywhere in the code base.
+        if (entry_index->status.readers_counter == 0) {
+            double_linked_list_remove_item(list, item);
+            double_linked_list_item_free(item);
+            storage_db_entry_index_ring_buffer_free(db, entry_index);
+        }
+    }
 }
 
-bool storage_db_entry_index_status_try_set_deleted(
-        storage_db_entry_index_t* entry_index,
-        storage_db_entry_index_status_t *new_status) {
-    storage_db_entry_index_status_t expected_status;
-    storage_db_entry_index_status_update_prep_expected_and_new(
-            entry_index,
-            &expected_status,
-            new_status);
-    expected_status.deleted = false;
-    new_status->deleted = true;
+void storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
+        storage_db_t *db,
+        storage_db_entry_index_t *previous_entry_index) {
+    // hashtable_mcmp_op_set and hashtable_mcmp_op_delete use a lock so there will never be a case with the current
+    // implementation where to different invocations of these 2 commands will be returning the same
+    // previous_entry_index pointer therefore it's safe to assume that the current thread is the one that is
+    // going to do the delete operation moving the entry_index into the deleting list or the deleted ring buffer.
+    storage_db_entry_index_status_t old_status;
+    storage_db_entry_index_status_set_deleted(
+            previous_entry_index,
+            true,
+            &old_status);
 
-    return storage_db_entry_index_status_try_compare_and_swap(
-            entry_index,
-            &expected_status,
-            new_status);
+    // if readers counter is set to zero, the entry_index can be enqueued to the ring buffer, for future use, but
+    // if there are readers, the entry index can't be freed or reused until readers_counter gets down to zero
+    if (old_status.readers_counter == 0) {
+        storage_db_entry_index_status_set_deleted(
+                previous_entry_index,
+                true,
+                &old_status);
+
+        storage_db_entry_index_ring_buffer_free(db, previous_entry_index);
+    } else {
+        double_linked_list_item_t *item = double_linked_list_item_init();
+        item->data = previous_entry_index;
+        double_linked_list_push_item(
+                storage_db_worker_deleting_entry_index_list(db),
+                item);
+    }
 }
 
-bool storage_db_entry_index_status_get_deleted(
-        storage_db_entry_index_t* entry_index) {
-    storage_db_entry_index_status_t status;
-    storage_db_entry_index_status_load(entry_index, &status);
-
-    return status.deleted;
-}
-
-uint16_t storage_db_entry_index_status_get_readers_counter(
-        storage_db_entry_index_t* entry_index) {
-    storage_db_entry_index_status_t status;
-    storage_db_entry_index_status_load(entry_index, &status);
-
-    return status.readers_counter;
-}
-
-storage_db_entry_index_t *storage_db_get(
+storage_db_entry_index_t *storage_db_get_entry_index(
         storage_db_t *db,
         char *key,
         size_t key_length) {
@@ -635,15 +693,13 @@ storage_db_entry_index_t *storage_db_get(
     return (storage_db_entry_index_t *)memptr;
 }
 
-bool storage_db_set(
+bool storage_db_set_entry_index(
         storage_db_t *db,
         char *key,
         size_t key_length,
         storage_db_entry_index_t *entry_index) {
-    storage_db_entry_index_status_t entry_index_status;
     storage_db_entry_index_t *previous_entry_index = NULL;
 
-    // TODO: fetch previous value and mark it as deleted, if the readers count is set to 0
     bool res = hashtable_mcmp_op_set(
             db->hashtable,
             key,
@@ -652,24 +708,18 @@ bool storage_db_set(
             (uintptr_t*)&previous_entry_index);
 
     if (res && previous_entry_index != NULL) {
-
-        if (storage_db_entry_index_status_try_set_deleted(
-                previous_entry_index,
-                &entry_index_status)) {
-
-        }
+        storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, previous_entry_index);
     }
 
     return res;
 }
 
-bool storage_db_delete(
+bool storage_db_delete_entry_index(
         storage_db_t *db,
         char *key,
         size_t key_length) {
     storage_db_entry_index_t *previous_entry_index = NULL;
 
-    // TODO: fetch previous value
     bool res = hashtable_mcmp_op_delete(
             db->hashtable,
             key,
@@ -677,7 +727,7 @@ bool storage_db_delete(
             (uintptr_t*)&previous_entry_index);
 
     if (res && previous_entry_index != NULL) {
-
+        storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, previous_entry_index);
     }
 
     return res;

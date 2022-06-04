@@ -51,7 +51,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
     send_buffer_end = send_buffer_start + send_buffer_length;
 
     // Initialize the database entry
-    storage_db_entry_index_t *entry_index = storage_db_entry_index_new();
+    storage_db_entry_index_t *entry_index = storage_db_entry_index_ring_buffer_new(db);
     if (!entry_index) {
         LOG_E(TAG, "[REDIS][SET] Critical error, unable to allocate index entry in memory");
         return false;
@@ -123,7 +123,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(set) {
         }
     }
 
-    res = storage_db_set(
+    res = storage_db_set_entry_index(
             db,
             key_ptr,
             reader_context->arguments.list[1].length,

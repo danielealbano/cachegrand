@@ -11,7 +11,10 @@ extern "C" {
 
 #define STORAGE_DB_SHARD_VERSION 1
 #define STORAGE_DB_CHUNK_MAX_SIZE (64 * 1024)
-#define STORAGE_DB_WORKER_ENTRY_INDEX_RING_BUFFER_SIZE 4096
+
+// This magic value defines the size of the ring buffer used to keep in memory data long enough to be sure they are not
+// being in use anymore.
+#define STORAGE_DB_WORKER_ENTRY_INDEX_RING_BUFFER_SIZE 512
 
 typedef uint16_t storage_db_chunk_index_t;
 typedef uint16_t storage_db_chunk_length_t;
@@ -53,7 +56,8 @@ struct storage_db_shard {
 typedef struct storage_db_worker storage_db_worker_t;
 struct storage_db_worker {
     storage_db_shard_t *active_shard;
-    small_circular_queue_t *entry_index_ringbuffer;
+    small_circular_queue_t *deleted_entry_index_ring_buffer;
+    double_linked_list_t *deleting_entry_index_list;
 };
 
 // contains the necessary information to manage the db, holds a pointer to storage_db_config required during the
@@ -82,11 +86,11 @@ struct storage_db_chunk_info {
 
 typedef union storage_db_entry_index_status storage_db_entry_index_status_t;
 union storage_db_entry_index_status {
-    uint32_t _cas_wrapper;
+    uint32_volatile_t _cas_wrapper;
     struct {
-        bool deleted:1;
-        uint16_t changes_counter:15;
-        uint16_t readers_counter;
+        bool_volatile_t deleted:1;
+        bool_volatile_t deleting:1;
+        uint32_volatile_t readers_counter:30;
     };
 };
 
@@ -142,7 +146,13 @@ void storage_db_free(
 storage_db_shard_t *storage_db_worker_active_shard(
         storage_db_t *db);
 
-small_circular_queue_t *storage_db_worker_entry_index_ringbuffer(
+small_circular_queue_t *storage_db_worker_deleted_entry_index_ring_buffer(
+        storage_db_t *db);
+
+void storage_db_worker_garbage_collect_deleting_entry_index_when_no_readers(
+        storage_db_t *db);
+
+double_linked_list_t *storage_db_worker_deleting_entry_index_list(
         storage_db_t *db);
 
 bool storage_db_shard_new_is_needed(
@@ -169,6 +179,13 @@ storage_db_entry_index_t *storage_db_entry_index_allocate_value_chunks(
 storage_db_entry_index_t *storage_db_entry_index_free(
         storage_db_entry_index_t *entry_index);
 
+storage_db_entry_index_t *storage_db_entry_index_ring_buffer_new(
+        storage_db_t *db);
+
+void storage_db_entry_index_ring_buffer_free(
+        storage_db_t *db,
+        storage_db_entry_index_t *entry_index);
+
 bool storage_db_entry_chunk_read(
         storage_db_chunk_info_t *chunk_info,
         char *buffer);
@@ -185,50 +202,31 @@ storage_db_chunk_info_t *storage_db_entry_value_chunk_get(
         storage_db_entry_index_t* entry_index,
         storage_db_chunk_index_t chunk_index);
 
-void storage_db_entry_index_status_update_prep_expected_and_new(
+void storage_db_entry_index_status_acquire_reader_lock(
         storage_db_entry_index_t* entry_index,
-        storage_db_entry_index_status_t *expected_status,
-        storage_db_entry_index_status_t *new_status);
+        storage_db_entry_index_status_t *old_status);
 
-bool storage_db_entry_index_status_try_compare_and_swap(
+void storage_db_entry_index_status_free_reader_lock(
         storage_db_entry_index_t* entry_index,
-        storage_db_entry_index_status_t *expected_status,
-        storage_db_entry_index_status_t *new_status);
+        storage_db_entry_index_status_t *old_status);
 
-void storage_db_entry_index_status_load(
+void storage_db_entry_index_status_set_deleted(
         storage_db_entry_index_t* entry_index,
-        storage_db_entry_index_status_t *status);
+        bool deleted,
+        storage_db_entry_index_status_t *old_status);
 
-bool storage_db_entry_index_status_try_acquire_reader_lock(
-        storage_db_entry_index_t* entry_index,
-        storage_db_entry_index_status_t *new_status);
-
-bool storage_db_entry_index_status_try_free_reader_lock(
-        storage_db_entry_index_t* entry_index,
-        storage_db_entry_index_status_t *new_status);
-
-bool storage_db_entry_index_status_try_set_deleted(
-        storage_db_entry_index_t* entry_index,
-        storage_db_entry_index_status_t *new_status);
-
-bool storage_db_entry_index_status_get_deleted(
-        storage_db_entry_index_t* entry_index);
-
-uint16_t storage_db_entry_index_status_get_readers_counter(
-        storage_db_entry_index_t* entry_index);
-
-storage_db_entry_index_t *storage_db_get(
+storage_db_entry_index_t *storage_db_get_entry_index(
         storage_db_t *db,
         char *key,
         size_t key_length);
 
-bool storage_db_set(
+bool storage_db_set_entry_index(
         storage_db_t *db,
         char *key,
         size_t key_length,
         storage_db_entry_index_t *entry_index);
 
-bool storage_db_delete(
+bool storage_db_delete_entry_index(
         storage_db_t *db,
         char *key,
         size_t key_length);

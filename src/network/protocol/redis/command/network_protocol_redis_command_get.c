@@ -11,6 +11,7 @@
 #include <string.h>
 #include <strings.h>
 #include <arpa/inet.h>
+#include <assert.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -43,7 +44,8 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
     char *send_buffer, *send_buffer_start, *send_buffer_end;
     size_t send_buffer_length;
     bool res;
-    storage_db_entry_index_status_t new_status;
+    bool return_res = false;
+    storage_db_entry_index_status_t old_status;
     storage_db_entry_index_t *entry_index = NULL;
     storage_db_chunk_info_t *chunk_info = NULL;
 
@@ -52,28 +54,23 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
     send_buffer_start = send_buffer;
     send_buffer_end = send_buffer_start + send_buffer_length;
 
-    entry_index = storage_db_get(
+    entry_index = storage_db_get_entry_index(
             db,
             reader_context->arguments.list[1].value,
             reader_context->arguments.list[1].length);
 
-    if (entry_index) {
-        // Ensure that the entry hasn't been deleted in between the get and the execution of the code afterwards
-//        do {
-//            // Try to acquire a reader lock which can fail if the entry is market as deleted
-//            if (!storage_db_entry_index_status_try_acquire_reader_lock(entry_index, &new_status)) {
-//
-//            }
-//            if (storage_db_entry_index_status_get_deleted(entry_index)) {
-//                // The current entry has been marked as deleted
-//                break;
-//            }
-//
-//            res = storage_db_entry_index_status_try_acquire_reader_lock(
-//                    entry_index,
-//                    NULL);
-//        }
+    if (likely(entry_index)) {
+        // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
+        storage_db_entry_index_status_acquire_reader_lock(
+                entry_index,
+                &old_status);
 
+        if (unlikely(!old_status.deleted)) {
+            entry_index = NULL;
+        }
+    }
+
+    if (likely(entry_index)) {
         // Prepend the blog start in the buffer which is never sent at the very beginning because there will always be
         // a chunk big enough to hold always at least the necessary protocol data and 1 database chunk.
         send_buffer_start = protocol_redis_writer_write_argument_blob_start(
@@ -178,10 +175,15 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
         }
     }
 
-    slab_allocator_mem_free(send_buffer);
-    return true;
+    // return_res is set to false at the beginning and switched to true only at this stage, this helps to avoid code
+    // duplication for the cleanup
+    return_res = true;
 
 fail:
+    if (entry_index) {
+        storage_db_entry_index_status_free_reader_lock(entry_index, NULL);
+    }
+
     slab_allocator_mem_free(send_buffer);
-    return false;
+    return return_res;
 }
