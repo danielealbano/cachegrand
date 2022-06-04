@@ -9,11 +9,13 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include "clock.h"
 #include "exttypes.h"
 #include "xalloc.h"
 #include "log/log.h"
 #include "spinlock.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
@@ -21,6 +23,7 @@
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "config.h"
+#include "fiber.h"
 #include "storage/db/storage_db.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
@@ -86,7 +89,6 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
 
     SECTION("worker_setup_context") {
         config_t config = {};
-        hashtable_t hashtable = {};
         storage_db_t storage_db = { };
         worker_context_t worker_user_data = {0};
         network_channel_address_t addresses[1] = {0};
@@ -98,14 +100,12 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
                 1,
                 &terminate_event_loop,
                 &config,
-                &hashtable,
                 &storage_db);
 
         REQUIRE(worker_user_data.workers_count == 1);
         REQUIRE(worker_user_data.worker_index == 1);
         REQUIRE(worker_user_data.terminate_event_loop == &terminate_event_loop);
         REQUIRE(worker_user_data.config == &config);
-        REQUIRE(worker_user_data.hashtable == &hashtable);
     }
 
     SECTION("worker_request_terminate") {

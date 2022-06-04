@@ -6,6 +6,9 @@ message(STATUS "Fetching architecture -- ${CACHEGRAND_ARCH_TARGET}")
 
 include("arch-${CACHEGRAND_ARCH_TARGET}")
 
+if (NOT HOST_HAS_AVX512F)
+    set(HOST_HAS_AVX512F 0)
+endif()
 if (NOT HOST_HAS_AVX2)
     set(HOST_HAS_AVX2 0)
 endif()

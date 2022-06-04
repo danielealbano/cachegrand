@@ -1,9 +1,9 @@
 macro(CACHEGRAND_BUILD_ADHOC_HASHTABLE_MCMP_SUPPORT_OP_ARCH ARCH)
-    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx512 -mavx512f -mbmi -mfma -mtune=skylake)
-    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx2 -mavx2 -mbmi -mfma -mtune=haswell)
-    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx -mno-avx256-split-unaligned-load -mno-avx2 -mavx -mbmi)
-    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_sse42 -msse4.2)
-    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_sse3 -msse3)
+    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx512f -mno-avx256-split-unaligned-load -mavx512f -mavx2 -mavx -mbmi -mfma -mtune=skylake)
+    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx2 -mno-avx256-split-unaligned-load -mavx2 -mavx -mbmi -mfma -mtune=haswell)
+    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx -mno-avx256-split-unaligned-load -mno-avx512f -mno-avx2 -mavx -mbmi)
+    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_sse42 -mno-avx512f -mno-avx2 -mno-avx -msse4.2)
+    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_sse3 -mno-avx512f -mno-avx2 -mno-avx -mno-sse4.2 -msse3)
 
     message(STATUS "Enabling accelerated hashtable support operations -- ${ARCH}")
 
@@ -67,7 +67,7 @@ if(ARCH_IS_X86_64)
     set_source_files_properties(
             "utils_string_avx2.c"
             PROPERTIES COMPILE_FLAGS
-            "-mavx2 -mbmi -mfma -mtune=haswell")
+            "-mno-avx256-split-unaligned-load -mavx2 -mbmi -mfma -mtune=haswell")
 
     message(STATUS "Enabling accelerated crc32c hash")
 
@@ -95,7 +95,7 @@ if(ARCH_IS_X86_64)
     set_source_files_properties(
             "data_structures/hashtable/mcmp/hashtable_support_hash_search_avx2.c"
             PROPERTIES COMPILE_FLAGS
-            "-mno-avx256-split-unaligned-load -mavx2 -mavx -mbmi -mfma -mtune=haswell")
+            "-mno-avx256-split-unaligned-load -mno-avx512f -mavx2 -mavx -mbmi -mfma -mtune=haswell")
 
     # hashtable/hashtable_support_hash_search_avx.c
     message(STATUS "Enabling accelerated hash search -- avx")

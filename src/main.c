@@ -16,9 +16,12 @@
 
 #include "exttypes.h"
 #include "spinlock.h"
+#include "clock.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "config.h"
+#include "fiber.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"

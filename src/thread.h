@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+void thread_flush_cached_core_index_and_numa_node_index();
+
 long thread_current_get_id();
 
 uint32_t thread_current_set_affinity(
@@ -18,9 +20,9 @@ void thread_affinity_set_selected_cpus(
         uint16_t* selected_cpus,
         uint16_t selected_cpus_count);
 
-uint32_t thread_get_current_numa_node_index();
+uint8_t thread_get_current_numa_node_index();
 
-uint32_t thread_get_current_core_index();
+uint16_t thread_get_current_core_index();
 
 #ifdef __cplusplus
 }

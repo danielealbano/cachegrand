@@ -23,6 +23,7 @@
 #include "pow2.h"
 #include "utils_numa.h"
 #include "exttypes.h"
+#include "clock.h"
 #include "xalloc.h"
 #include "pidfile.h"
 #include "log/log.h"
@@ -31,6 +32,7 @@
 #include "hugepages.h"
 #include "spinlock.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "memory_fences.h"
 #include "network/protocol/network_protocol.h"
@@ -40,6 +42,7 @@
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
 #include "config.h"
+#include "fiber.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "worker/worker.h"
@@ -107,7 +110,6 @@ worker_context_t* program_workers_initialize_context(
                 worker_index,
                 terminate_event_loop,
                 program_context->config,
-                program_context->hashtable,
                 program_context->db);
 
         LOG_V(TAG, "Creating worker <%u>", worker_index);
@@ -416,39 +418,18 @@ bool program_config_thread_affinity_set_selected_cpus(
     return true;
 }
 
-bool program_config_setup_hashtable(
-        program_context_t* program_context) {
-    hashtable_config_t* hashtable_config = hashtable_mcmp_config_init();
-    hashtable_config->can_auto_resize = false;
-    hashtable_config->initial_size = pow2_next(program_context->config->database->max_keys);
-
-    program_context->hashtable = hashtable_mcmp_init(hashtable_config);
-
-    if (!program_context->hashtable) {
-        hashtable_mcmp_config_free(hashtable_config);
-        program_context->hashtable = NULL;
-    }
-
-    return program_context->hashtable;
-}
-
 bool program_config_setup_storage_db(
         program_context_t* program_context) {
     storage_db_config_t *config = storage_db_config_new();
-    config->shard_size_mb = program_context->config->storage->shard_size_mb;
 
-    // TODO: revise how the backend is set, it doesn't make sense to allow the end user to pick one or another internal
-    //       backend, the user just needs to choose between memory and storage, then the system will determine via
-    //       other parameters (e.g. if a device is used as path) if it's a path or a device when the support will be
-    //       added
-    if (program_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
-        config->backend.file.basedir_path = program_context->config->storage->io_uring->path;
+    config->max_keys = program_context->config->database->max_keys;
 
-        if (program_context->config->storage->backend == CONFIG_STORAGE_BACKEND_IO_URING_FILE) {
-            config->backend_type = STORAGE_DB_BACKEND_TYPE_FILE;
-        } else {
-            config->backend_type = STORAGE_DB_BACKEND_TYPE_BLOCK_DEVICE;
-        }
+    if (program_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
+        config->backend.file.shard_size_mb = program_context->config->database->file->shard_size_mb;
+        config->backend.file.basedir_path = program_context->config->database->file->path;
+        config->backend_type = STORAGE_DB_BACKEND_TYPE_FILE;
+    } else if (program_context->config->database->backend == CONFIG_DATABASE_BACKEND_MEMORY) {
+        config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY;
     }
 
     program_context->db = storage_db_new(config, program_context->workers_count);
@@ -540,11 +521,7 @@ void program_cleanup(
 
     if (program_context->db) {
         storage_db_close(program_context->db);
-        storage_db_free(program_context->db);
-    }
-
-    if (program_context->hashtable) {
-        hashtable_mcmp_free(program_context->hashtable);
+        storage_db_free(program_context->db, program_context->workers_count);
     }
 
     if (program_context->slab_allocator_inited) {
@@ -617,11 +594,6 @@ int program_main(
     if (program_context.use_slab_allocator) {
         slab_allocator_predefined_allocators_init();
         program_context.slab_allocator_inited = true;
-    }
-
-    if (program_config_setup_hashtable(&program_context) == false) {
-        LOG_E(TAG, "Unable to initialize the hashtable");
-        goto fail;
     }
 
     if (program_config_setup_storage_db(&program_context) == false) {

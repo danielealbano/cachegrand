@@ -59,6 +59,9 @@
 TEST_CASE("hashtable/hashtable_mcmp_support_hash_search.c",
         "[hashtable][hashtable_support][hashtable_support_hash][hashtable_mcmp_support_hash_search]") {
 #if defined(__x86_64__)
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_AVX512F == 1
+    TEST_HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_PLATFORM_DEPENDENT(_avx512f_14)
+#endif
 #if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_AVX2 == 1
     TEST_HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_PLATFORM_DEPENDENT(_avx2_14)
 #endif

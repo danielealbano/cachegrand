@@ -19,6 +19,7 @@
 
 #include "misc.h"
 #include "exttypes.h"
+#include "clock.h"
 #include "pow2.h"
 #include "log/log.h"
 #include "log/log_debug.h"
@@ -27,6 +28,7 @@
 #include "spinlock.h"
 #include "config.h"
 #include "fiber.h"
+#include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "slab_allocator.h"
@@ -355,10 +357,13 @@ bool worker_iouring_initialize(
             (int)(fds_count * 1.2),
             params,
             NULL)) == NULL) {
+        xalloc_free(params);
         xalloc_free(context);
 
         return false;
     }
+
+    xalloc_free(params);
 
     // The iouring context has to be set only after the io_uring is initialized but the actual context memory
     // has to be allocated before, if the allocation fails the software can abort, if the ring is allocated it needs

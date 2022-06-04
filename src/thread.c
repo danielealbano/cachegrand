@@ -40,6 +40,11 @@ void thread_ensure_core_index_and_numa_node_index_filled() {
     }
 }
 
+void thread_flush_cached_core_index_and_numa_node_index() {
+    thread_current_core_index = UINT32_MAX;
+    thread_current_numa_node_index = UINT32_MAX;
+}
+
 long thread_current_get_id() {
     return syscall(SYS_gettid);
 }
@@ -72,6 +77,8 @@ uint32_t thread_current_set_affinity(
         logical_core_index = 0;
     }
 
+    thread_flush_cached_core_index_and_numa_node_index();
+
     return logical_core_index;
 }
 
@@ -92,12 +99,12 @@ void thread_affinity_set_selected_cpus(
     internal_selected_cpus_count = selected_cpus_count;
 }
 
-uint32_t thread_get_current_numa_node_index() {
+uint8_t thread_get_current_numa_node_index() {
     thread_ensure_core_index_and_numa_node_index_filled();
     return thread_current_numa_node_index;
 }
 
-uint32_t thread_get_current_core_index() {
+uint16_t thread_get_current_core_index() {
     thread_ensure_core_index_and_numa_node_index_filled();
     return thread_current_core_index;
 }

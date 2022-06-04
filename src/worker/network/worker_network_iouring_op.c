@@ -14,10 +14,12 @@
 
 #include "misc.h"
 #include "exttypes.h"
+#include "clock.h"
 #include "log/log.h"
 #include "spinlock.h"
 #include "fiber.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "slab_allocator.h"
 #include "support/io_uring/io_uring_support.h"
@@ -120,6 +122,8 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
 
 network_channel_t* worker_network_iouring_op_network_accept(
         network_channel_t *listener_channel) {
+    // The memory allocated here will get lost (valgrind will report it) when cachegrand shutdown because the fiber
+    // never gets the chance to terminate. This is a wanted behaviour.
     worker_iouring_context_t *context = worker_iouring_context_get();
     network_channel_iouring_t* new_channel_temp = network_channel_iouring_new();
 
@@ -135,6 +139,7 @@ network_channel_t* worker_network_iouring_op_network_accept(
             (uintptr_t) fiber_scheduler_get_current());
 
     if (res == false) {
+        network_channel_iouring_free(new_channel_temp);
         fiber_scheduler_set_error(ENOMEM);
         return NULL;
     }

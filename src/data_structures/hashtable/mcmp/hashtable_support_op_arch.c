@@ -177,7 +177,11 @@ bool concat(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
 
             LOG_DI(">> key fetched, comparing");
 
-            if (unlikely(utils_string_casecmp_eq_32(key, key_size, (const char*)found_key, found_key_compare_size) == false)) {
+            if (unlikely(utils_string_casecmp_eq_32(
+                    key,
+                    key_size,
+                    (const char*)found_key,
+                    found_key_compare_size) == false)) {
                 LOG_DI(">> key different (%s != %s), unable to continue", key, found_key);
                 continue;
             }
@@ -222,6 +226,7 @@ bool concat(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
     uint32_t skip_indexes_mask;
     bool found = false;
     bool found_chunk_with_freespace = false;
+    *created_new = false;
 
     bucket_index = hashtable_mcmp_support_index_from_hash(hashtable_data->buckets_count, hash);
     chunk_index_start = chunk_index_start_initial = bucket_index / HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
@@ -368,7 +373,11 @@ bool concat(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
 
                     LOG_DI(">>> key fetched, comparing");
 
-                    if (unlikely(utils_string_casecmp_eq_32(key, key_size, (const char*)found_key, found_key_compare_size) == false)) {
+                    if (unlikely(utils_string_casecmp_eq_32(
+                            key,
+                            key_size,
+                            (const char*)found_key,
+                            found_key_compare_size) == false)) {
                         LOG_DI(">>> key different (%s != %s), unable to continue", key, found_key);
                         continue;
                     }

@@ -27,6 +27,7 @@
 #include "network/channel/network_channel.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
+#include "fiber.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "signal_handler_thread.h"
@@ -71,19 +72,15 @@ void* test_program_wait_loop_terminate(
             .protocols = &config_network_protocol, \
             .protocols_count = 1, \
     }; \
-    config_storage_t config_storage = { \
-            .backend = CONFIG_STORAGE_BACKEND_IO_URING_FILE, \
-            .shard_size_mb = 50, \
-    }; \
     config_database_t config_database = { \
             .max_keys = 1000, \
+            .backend = CONFIG_DATABASE_BACKEND_MEMORY, \
     }; \
     config_t config = { \
             .cpus = cpus, \
             .cpus_count = 1, \
             .workers_per_cpus = 1, \
             .network = &config_network, \
-            .storage = &config_storage, \
             .database = &config_database, \
     }; \
     program_context_t program_context = { \
@@ -204,7 +201,6 @@ TEST_CASE("program.c", "[program]") {
 
         REQUIRE(pthread_join(pthread_terminate, NULL) == 0);
 
-        REQUIRE(pthread_kill(pthread_wait, 0) == ESRCH);
         REQUIRE(pthread_join(pthread_wait, NULL) == 0);
     }
 
@@ -244,9 +240,6 @@ TEST_CASE("program.c", "[program]") {
         usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
         sched_yield();
 
-        // Check if the worker terminated
-        REQUIRE(pthread_kill(worker_context->pthread, 0) == ESRCH);
-
         // Cleanup
         REQUIRE(pthread_join(worker_context->pthread, NULL) == 0);
         xalloc_free(worker_context);
@@ -277,8 +270,6 @@ TEST_CASE("program.c", "[program]") {
         program_workers_cleanup(
                 worker_context,
                 1);
-
-        REQUIRE(pthread_kill(worker_context->pthread, 0) == ESRCH);
 
         REQUIRE(mprobe(worker_context) == -MCHECK_FREE);
     }

@@ -13,12 +13,15 @@
 #include <sys/types.h>
 #include <sys/resource.h>
 
+#include "clock.h"
 #include "exttypes.h"
 #include "support/simple_file_io.h"
 #include "pidfile.h"
 #include "xalloc.h"
 #include "memory_fences.h"
 #include "spinlock.h"
+#include "data_structures/small_circular_queue/small_circular_queue.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
 #include "protocol/redis/protocol_redis.h"
@@ -28,9 +31,13 @@
 #include "network/channel/network_channel.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
+#include "fiber.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "signal_handler_thread.h"
+#include "storage/io/storage_io_common.h"
+#include "storage/channel/storage_channel.h"
+#include "storage/db/storage_db.h"
 
 #include "program.h"
 
@@ -48,6 +55,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
     worker_context_t *worker_context;
     volatile bool terminate_event_loop = false;
     char* cpus[] = { "0" };
+
     config_network_protocol_binding_t config_network_protocol_binding = {
             .host = "127.0.0.1",
             .port = 12345,
@@ -64,30 +72,29 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             .protocols = &config_network_protocol,
             .protocols_count = 1,
     };
-    config_storage_t config_storage = {
-            .backend = CONFIG_STORAGE_BACKEND_IO_URING_FILE,
-            .shard_size_mb = 50,
-    };
     config_database_t config_database = {
             .max_keys = 1000,
+            .backend = CONFIG_DATABASE_BACKEND_MEMORY,
     };
     config_t config = {
             .cpus = cpus,
             .cpus_count = 1,
             .workers_per_cpus = 1,
             .network = &config_network,
-            .storage = &config_storage,
             .database = &config_database,
     };
+    uint32_t workers_count = config.cpus_count * config.workers_per_cpus;
 
-    hashtable_config_t* hashtable_config = hashtable_mcmp_config_init();
-    hashtable_config->initial_size = config_database.max_keys;
-    hashtable_config->can_auto_resize = false;
-    hashtable_t* hashtable = hashtable_mcmp_init(hashtable_config);
+    storage_db_config_t *db_config = storage_db_config_new();
+    db_config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY;
+    db_config->max_keys = 1000;
+
+    storage_db_t *db = storage_db_new(db_config, workers_count);
+    storage_db_open(db);
 
     program_context_t program_context = {
             .config = &config,
-            .hashtable = hashtable,
+            .db = db
     };
 
     program_config_thread_affinity_set_selected_cpus(&program_context);
@@ -111,11 +118,36 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
     REQUIRE(connect(clientfd, (struct sockaddr *) &address, sizeof(address)) == 0);
 
     SECTION("Redis - command - HELLO") {
-        char *hello_v2_expected_response_start = "*14\r\n$6\r\nserver\r\n$10\r\ncachegrand\r\n$7\r\nversion\r\n$";
-        char *hello_v2_expected_response_end = "\r\n$5\r\nproto\r\n:2\r\n$2\r\nid\r\n:0\r\n$4\r\nmode\r\n$10\r\nstandalone\r\n$4\r\nrole\r\n$6\r\nmaster\r\n$7\r\nmodules\r\n*0\r\n";
+        char *hello_v2_expected_response_start =
+                "*14\r\n"
+                "$6\r\nserver\r\n"
+                "$10\r\ncachegrand\r\n"
+                "$7\r\nversion\r\n"
+                "$";
+        char *hello_v2_expected_response_end =
+                "\r\n"
+                "$5\r\nproto\r\n"
+                ":2\r\n"
+                "$2\r\nid\r\n"
+                ":0\r\n"
+                "$4\r\nmode\r\n"
+                "$10\r\nstandalone\r\n"
+                "$4\r\nrole\r\n"
+                "$6\r\nmaster\r\n"
+                "$7\r\nmodules\r\n"
+                "*0\r\n";
 
-        char *hello_v3_expected_response_start = "%7\r\n$6\r\nserver\r\n$10\r\ncachegrand\r\n$7\r\nversion\r\n$";
-        char *hello_v3_expected_response_end = "\r\n$5\r\nproto\r\n:3\r\n$2\r\nid\r\n:0\r\n$4\r\nmode\r\n$10\r\nstandalone\r\n$4\r\nrole\r\n$6\r\nmaster\r\n$7\r\nmodules\r\n*0\r\n";
+        char *hello_v3_expected_response_start =
+                "%7\r\n"
+                "$6\r\nserver\r\n$10\r\ncachegrand\r\n"
+                "$7\r\nversion\r\n$";
+        char *hello_v3_expected_response_end =
+                "\r\n"
+                "$5\r\nproto\r\n:3\r\n"
+                "$2\r\nid\r\n:0\r\n"
+                "$4\r\nmode\r\n$10\r\nstandalone\r\n"
+                "$4\r\nrole\r\n$6\r\nmaster\r\n"
+                "$7\r\nmodules\r\n*0\r\n";
 
         SECTION("HELLO - no version") {
             snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$5\r\nHELLO\r\n");
@@ -127,7 +159,10 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             REQUIRE(len > strlen(hello_v2_expected_response_start) + strlen(hello_v2_expected_response_end));
 
             REQUIRE(strncmp(buffer_recv, hello_v2_expected_response_start, strlen(hello_v2_expected_response_start)) == 0);
-            REQUIRE(strncmp(buffer_recv + (len - strlen(hello_v2_expected_response_end)), hello_v2_expected_response_end, strlen(hello_v2_expected_response_end)) == 0);
+            REQUIRE(strncmp(
+                    buffer_recv + (len - strlen(hello_v2_expected_response_end)),
+                    hello_v2_expected_response_end,
+                    strlen(hello_v2_expected_response_end)) == 0);
         }
 
         SECTION("HELLO - v2") {
@@ -140,7 +175,10 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             REQUIRE(len > strlen(hello_v2_expected_response_start) + strlen(hello_v2_expected_response_end));
 
             REQUIRE(strncmp(buffer_recv, hello_v2_expected_response_start, strlen(hello_v2_expected_response_start)) == 0);
-            REQUIRE(strncmp(buffer_recv + (len - strlen(hello_v2_expected_response_end)), hello_v2_expected_response_end, strlen(hello_v2_expected_response_end)) == 0);
+            REQUIRE(strncmp(
+                    buffer_recv + (len - strlen(hello_v2_expected_response_end)),
+                    hello_v2_expected_response_end,
+                    strlen(hello_v2_expected_response_end)) == 0);
         }
 
         SECTION("HELLO - v3") {
@@ -153,14 +191,14 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             REQUIRE(len > strlen(hello_v3_expected_response_start) + strlen(hello_v3_expected_response_end));
 
             REQUIRE(strncmp(buffer_recv, hello_v3_expected_response_start, strlen(hello_v3_expected_response_start)) == 0);
-            REQUIRE(strncmp(buffer_recv + (len - strlen(hello_v3_expected_response_end)), hello_v3_expected_response_end, strlen(hello_v3_expected_response_end)) == 0);
+            REQUIRE(strncmp(
+                    buffer_recv + (len - strlen(hello_v3_expected_response_end)),
+                    hello_v3_expected_response_end,
+                    strlen(hello_v3_expected_response_end)) == 0);
         }
     }
 
     SECTION("Redis - command - SET") {
-        char *key_name = "a_key";
-        char *key_value_1 = "b_value";
-        char *key_value_2 = "value_z";
         char *cmd_buffer_1 = "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nb_value\r\n";
         char *cmd_buffer_2 = "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nvalue_z\r\n";
 
@@ -199,7 +237,10 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
             REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 50);
-            REQUIRE(strncmp(buffer_recv, "-ERR wrong number of arguments for 'SET' command\r\n", strlen("-ERR wrong number of arguments for 'SET' command\r\n")) == 0);
+            REQUIRE(strncmp(
+                    buffer_recv,
+                    "-ERR wrong number of arguments for 'SET' command\r\n",
+                    strlen("-ERR wrong number of arguments for 'SET' command\r\n")) == 0);
 
         }
 
@@ -209,7 +250,10 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
             REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 50);
-            REQUIRE(strncmp(buffer_recv, "-ERR wrong number of arguments for 'SET' command\r\n", strlen("-ERR wrong number of arguments for 'SET' command\r\n")) == 0);
+            REQUIRE(strncmp(
+                    buffer_recv,
+                    "-ERR wrong number of arguments for 'SET' command\r\n",
+                    strlen("-ERR wrong number of arguments for 'SET' command\r\n")) == 0);
         }
 
         // TODO: this test should fail but the current implementation accepts and ignores the extra parameters, needs fixing!
@@ -255,7 +299,10 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
             REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 50);
-            REQUIRE(strncmp(buffer_recv, "-ERR wrong number of arguments for 'DEL' command\r\n", strlen("-ERR wrong number of arguments for 'DEL' command\r\n")) == 0);
+            REQUIRE(strncmp(
+                    buffer_recv,
+                    "-ERR wrong number of arguments for 'DEL' command\r\n",
+                    strlen("-ERR wrong number of arguments for 'DEL' command\r\n")) == 0);
         }
     }
 
@@ -291,7 +338,10 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
             REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 50);
-            REQUIRE(strncmp(buffer_recv, "-ERR wrong number of arguments for 'GET' command\r\n", strlen("-ERR wrong number of arguments for 'GET' command\r\n")) == 0);
+            REQUIRE(strncmp(
+                    buffer_recv,
+                    "-ERR wrong number of arguments for 'GET' command\r\n",
+                    strlen("-ERR wrong number of arguments for 'GET' command\r\n")) == 0);
         }
     }
 
@@ -344,9 +394,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             worker_context,
             1);
 
-    REQUIRE(pthread_kill(worker_context->pthread, 0) == ESRCH);
-
     REQUIRE(mprobe(worker_context) == -MCHECK_FREE);
 
-    hashtable_mcmp_free(hashtable);
+    storage_db_close(db);
+    storage_db_free(db, workers_count);
 }

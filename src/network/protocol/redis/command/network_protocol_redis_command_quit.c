@@ -15,8 +15,9 @@
 #include "misc.h"
 #include "exttypes.h"
 #include "log/log.h"
-#include "exttypes.h"
+#include "clock.h"
 #include "spinlock.h"
+#include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "slab_allocator.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -27,11 +28,12 @@
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "config.h"
-#include "network/protocol/redis/network_protocol_redis.h"
-#include "network/network.h"
+#include "fiber.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
+#include "network/protocol/redis/network_protocol_redis.h"
+#include "network/network.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 
@@ -64,8 +66,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(quit) {
 
         return false;
     }
-
-    network_close(channel, true);
 
     // TODO: BUG! The operation is not really failing but currently there is no way to inform the caller that the client
     //       has requested to terminate the connection.

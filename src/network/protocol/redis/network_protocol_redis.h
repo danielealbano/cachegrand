@@ -13,7 +13,7 @@ extern "C" {
 
 #define NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENTS_BEGIN \
     network_channel_t *channel, \
-    hashtable_t *hashtable, \
+    storage_db_t *db, \
     network_protocol_redis_context_t *protocol_context, \
     protocol_redis_reader_context_t *reader_context, \
     network_protocol_redis_command_context_t *command_context

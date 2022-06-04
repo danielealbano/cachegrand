@@ -15,7 +15,6 @@ struct program_context {
     config_t *config;
     uint16_t *selected_cpus;
     uint16_t selected_cpus_count;
-    hashtable_t *hashtable;
     storage_db_t *db;
     uint32_t workers_count;
     worker_context_t *workers_context;

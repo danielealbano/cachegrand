@@ -12,10 +12,12 @@
 
 #include "exttypes.h"
 #include "misc.h"
+#include "clock.h"
 #include "fiber.h"
 #include "log/log.h"
 #include "spinlock.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "config.h"
 #include "network/protocol/network_protocol.h"
@@ -42,7 +44,7 @@ void worker_timer_fiber_entrypoint(
 
 void worker_timer_setup(
         worker_context_t* worker_context) {
-    fiber_scheduler_new_fiber(
+    worker_context->fibers.timer_fiber = fiber_scheduler_new_fiber(
             "worker-timer",
             sizeof("worker-timer") - 1,
             worker_timer_fiber_entrypoint,

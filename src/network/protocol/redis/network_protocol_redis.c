@@ -15,13 +15,15 @@
 #include "misc.h"
 #include "exttypes.h"
 #include "log/log.h"
-#include "exttypes.h"
+#include "clock.h"
 #include "utils_string.h"
 #include "spinlock.h"
+#include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "slab_allocator.h"
 #include "config.h"
+#include "fiber.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "protocol/redis/protocol_redis_writer.h"
@@ -163,7 +165,7 @@ bool network_protocol_redis_process_events(
     long data_read_len = 0;
 
     worker_context_t *worker_context = worker_context_get();
-    hashtable_t *hashtable = worker_context->hashtable;
+    storage_db_t *db = worker_context->db;
     protocol_redis_reader_context_t *reader_context = &protocol_context->reader_context;
 
     // TODO: need to handle data copy if the buffer has to be flushed to make room to new data
@@ -230,7 +232,7 @@ bool network_protocol_redis_process_events(
                 } else if (protocol_context->command_info->begin_funcptr) {
                     if (!protocol_context->command_info->begin_funcptr(
                             channel,
-                            hashtable,
+                            db,
                             protocol_context,
                             reader_context,
                             &protocol_context->command_context)) {
@@ -251,7 +253,7 @@ bool network_protocol_redis_process_events(
                     if (protocol_context->command_info->argument_processed_funcptr) {
                         if (!protocol_context->command_info->argument_processed_funcptr(
                                 channel,
-                                hashtable,
+                                db,
                                 protocol_context,
                                 reader_context,
                                 &protocol_context->command_context,
@@ -350,17 +352,18 @@ bool network_protocol_redis_process_events(
                             send_buffer,
                             send_buffer_start - send_buffer);
                 } else {
-                    if (!protocol_context->command_info->end_funcptr(
+                    bool res = protocol_context->command_info->end_funcptr(
                             channel,
-                            hashtable,
+                            db,
                             protocol_context,
                             reader_context,
-                            &protocol_context->command_context)) {
+                            &protocol_context->command_context);
+                    network_protocol_redis_reset_context(protocol_context);
+
+                    if (!res) {
                         LOG_D(TAG, "[RECV][REDIS] argument processed function for command failed");
                         return false;
                     }
-
-                    network_protocol_redis_reset_context(protocol_context);
                 }
             }
         }

@@ -108,30 +108,26 @@ struct config_network {
     uint8_t protocols_count;
 };
 
-enum config_storage_backend {
-    CONFIG_STORAGE_BACKEND_MEMORY,
-    CONFIG_STORAGE_BACKEND_IO_URING_FILE
+enum config_database_backend {
+    CONFIG_DATABASE_BACKEND_MEMORY,
+    CONFIG_DATABASE_BACKEND_FILE
 };
-typedef enum config_storage_backend config_storage_backend_t;
+typedef enum config_database_backend config_database_backend_t;
 
-struct config_storage_io_uring {
+typedef struct config_database_file config_database_file_t;
+struct config_database_file {
     char *path;
     uint32_t max_opened_shards;
-};
-typedef struct config_storage_io_uring config_storage_io_uring_t;
-
-typedef struct config_storage config_storage_t;
-struct config_storage {
-    config_storage_backend_t backend;
     uint32_t shard_size_mb;
-    union {
-        config_storage_io_uring_t *io_uring;
-    };
 };
 
 typedef struct config_database config_database_t;
 struct config_database {
     uint32_t max_keys;
+    config_database_backend_t backend;
+    union {
+        config_database_file_t *file;
+    };
 };
 
 typedef struct config config_t;
@@ -144,7 +140,6 @@ struct config {
     bool* use_slab_allocator;
 
     config_network_t* network;
-    config_storage_t* storage;
     config_database_t* database;
     config_sentry_t* sentry;
 
