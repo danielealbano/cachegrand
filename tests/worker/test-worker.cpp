@@ -23,6 +23,7 @@
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "config.h"
+#include "fiber.h"
 #include "storage/db/storage_db.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
