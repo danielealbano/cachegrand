@@ -20,6 +20,7 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "slab_allocator.h"
 #include "config.h"
 #include "log/log.h"
 #include "fiber.h"
@@ -118,6 +119,7 @@ void worker_network_listeners_initialize(
 }
 
 void worker_network_listeners_listen(
+        fiber_t **listeners_fibers,
         network_channel_t *listeners,
         uint8_t listeners_count) {
     for (int listener_index = 0; listener_index < listeners_count; listener_index++) {
@@ -125,7 +127,7 @@ void worker_network_listeners_listen(
                 listeners,
                 listener_index);
 
-        fiber_scheduler_new_fiber(
+        listeners_fibers[listener_index] = fiber_scheduler_new_fiber(
                 "worker-listener",
                 sizeof("worker-listener") - 1,
                 worker_network_listeners_fiber_entrypoint,
@@ -198,7 +200,7 @@ void worker_network_listeners_fiber_entrypoint(
                 listener_channel->fd,
                 listener_channel->address.str,
                 new_channel->address.str);
-
+        
         fiber_scheduler_new_fiber(
                 "worker-listener-client",
                 strlen("worker-listener-client"),

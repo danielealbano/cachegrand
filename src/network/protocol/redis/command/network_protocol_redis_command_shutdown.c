@@ -28,6 +28,7 @@
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "config.h"
+#include "fiber.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
@@ -66,9 +67,9 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(shutdown) {
         return false;
     }
 
-    network_close(channel, true);
-
     worker_request_terminate(worker_context_get());
 
-    return true;
+    // TODO: BUG! The operation is not really failing but currently there is no way to inform the caller that the client
+    //       has requested to terminate the connection.
+    return false;
 }

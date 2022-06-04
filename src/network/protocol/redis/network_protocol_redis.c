@@ -23,6 +23,7 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "slab_allocator.h"
 #include "config.h"
+#include "fiber.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "protocol/redis/protocol_redis_writer.h"
@@ -351,17 +352,18 @@ bool network_protocol_redis_process_events(
                             send_buffer,
                             send_buffer_start - send_buffer);
                 } else {
-                    if (!protocol_context->command_info->end_funcptr(
+                    bool res = protocol_context->command_info->end_funcptr(
                             channel,
                             db,
                             protocol_context,
                             reader_context,
-                            &protocol_context->command_context)) {
+                            &protocol_context->command_context);
+                    network_protocol_redis_reset_context(protocol_context);
+
+                    if (!res) {
                         LOG_D(TAG, "[RECV][REDIS] argument processed function for command failed");
                         return false;
                     }
-
-                    network_protocol_redis_reset_context(protocol_context);
                 }
             }
         }

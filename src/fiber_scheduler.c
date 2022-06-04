@@ -36,6 +36,16 @@ thread_local fiber_scheduler_stack_t fiber_scheduler_stack = {
         .size = 0
 };
 
+void fiber_scheduler_free() {
+    if (fiber_scheduler_stack.list) {
+        xalloc_free(fiber_scheduler_stack.list);
+        fiber_scheduler_stack.list = NULL;
+    }
+
+    fiber_scheduler_stack.index = -1;
+    fiber_scheduler_stack.size = 0;
+}
+
 void fiber_scheduler_grow_stack() {
     if (fiber_scheduler_stack.size == FIBER_SCHEDULER_STACK_MAX_SIZE) {
         FATAL(
@@ -171,6 +181,10 @@ void fiber_scheduler_switch_to(
 
     uint64_t cost_cycles_end = intrinsic_rdtscp(&aux);
 
+#if defined(HAS_VALGRIND)
+    VALGRIND_STACK_DEREGISTER(stack_id);
+#endif
+
     if (likely(cost_cycles_end > cost_cycles_start)) {
         fiber->cost.cycles = cost_cycles_end - cost_cycles_start;
     } else if (cost_cycles_end < cost_cycles_start) {
@@ -178,10 +192,6 @@ void fiber_scheduler_switch_to(
     } else {
         fiber->cost.cycles = UINT64_MAX;
     }
-
-#if defined(HAS_VALGRIND)
-    VALGRIND_STACK_DEREGISTER(stack_id);
-#endif
 
     LOG_D(TAG, "Switching back from fiber <%s>, file <%s:%d>, to fiber <%s>, file <%s:%d>",
           fiber->name,

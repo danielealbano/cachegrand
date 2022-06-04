@@ -25,6 +25,8 @@ struct fiber_scheduler_new_fiber_user_data {
     void *caller_user_data;
 };
 
+void fiber_scheduler_free();
+
 void fiber_scheduler_grow_stack();
 
 bool fiber_scheduler_stack_needs_growth();

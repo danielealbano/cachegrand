@@ -357,10 +357,13 @@ bool worker_iouring_initialize(
             (int)(fds_count * 1.2),
             params,
             NULL)) == NULL) {
+        xalloc_free(params);
         xalloc_free(context);
 
         return false;
     }
+
+    xalloc_free(params);
 
     // The iouring context has to be set only after the io_uring is initialized but the actual context memory
     // has to be allocated before, if the allocation fails the software can abort, if the ring is allocated it needs

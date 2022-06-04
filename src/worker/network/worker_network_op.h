@@ -43,6 +43,7 @@ void worker_network_listeners_initialize(
         uint8_t *listeners_count);
 
 void worker_network_listeners_listen(
+        fiber_t **listeners_fibers,
         network_channel_t *listeners,
         uint8_t listeners_count);
 

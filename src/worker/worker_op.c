@@ -44,7 +44,7 @@ void worker_timer_fiber_entrypoint(
 
 void worker_timer_setup(
         worker_context_t* worker_context) {
-    fiber_scheduler_new_fiber(
+    worker_context->fibers.timer_fiber = fiber_scheduler_new_fiber(
             "worker-timer",
             sizeof("worker-timer") - 1,
             worker_timer_fiber_entrypoint,

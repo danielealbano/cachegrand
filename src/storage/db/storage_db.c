@@ -419,10 +419,25 @@ void storage_db_free(
         uint32_t workers_count) {
     for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
         if (db->workers[worker_index].deleted_entry_index_ring_buffer) {
+            storage_db_entry_index_t *entry_index = NULL;
+            while((entry_index = small_circular_queue_dequeue(
+                    db->workers[worker_index].deleted_entry_index_ring_buffer)) != NULL) {
+                storage_db_entry_index_free(db, entry_index);
+            }
+
             small_circular_queue_free(db->workers[worker_index].deleted_entry_index_ring_buffer);
         }
 
         if (db->workers[worker_index].deleting_entry_index_list) {
+            double_linked_list_item_t *item = NULL;
+            while((item = double_linked_list_pop_item(
+                    db->workers[worker_index].deleting_entry_index_list)) != NULL) {
+                storage_db_entry_index_t *entry_index = item->data;
+
+                double_linked_list_item_free(item);
+                storage_db_entry_index_free(db, entry_index);
+            }
+
             double_linked_list_free(db->workers[worker_index].deleting_entry_index_list);
         }
     }
