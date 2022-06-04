@@ -141,13 +141,18 @@ storage_db_t* storage_db_new(
     db->config = config;
     db->workers = workers;
     db->hashtable = hashtable;
-    db->shards.new_index = 0;
-    spinlock_init(&db->shards.write_spinlock);
-    db->shards.opened_shards = double_linked_list_init();
 
-    if (!db->shards.opened_shards) {
-        LOG_E(TAG, "Unable to allocate for the list of opened shards");
-        goto fail;
+    // Sets up the shards only if it has to write to the disk
+    if (config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY)
+    {
+        db->shards.new_index = 0;
+        spinlock_init(&db->shards.write_spinlock);
+        db->shards.opened_shards = double_linked_list_init();
+
+        if (!db->shards.opened_shards) {
+            LOG_E(TAG, "Unable to allocate for the list of opened shards");
+            goto fail;
+        }
     }
 
     return db;
@@ -178,7 +183,7 @@ fail:
     if (db) {
         // This can't really happen with the current implementation but better to have it in place to avoid future
         // bugs caused by code refactorings
-        if (!db->shards.opened_shards) {
+        if (db->shards.opened_shards) {
             double_linked_list_free(db->shards.opened_shards);
         }
 
