@@ -287,26 +287,8 @@ bool worker_iouring_process_events_loop(
                     "Malformed io_uring cqe, fiber is null!");
         }
 
-//        // TODO: the logic that handles the cost of a fiber and it postponement if needed has to be moved into the
-//        //       fiber scheduler, as it's not tied to the worker itself. It requires though to change how the
-//        //       fiber scheduler is initialized (no more thread local variables to handle the nested fibers or the
-//        //       related data.
-//        //       The fiber scheduler will also have to calculate the X percentile to be used as reference when
-//        //       deciding if a fiber has to be warned or punished (skipping its execution).
-        if (likely(!fiber->cost.postpone_execution)) {
-            fiber->ret.ptr_value = cqe;
-            fiber_scheduler_switch_to(fiber);
-        }
-
-//        fiber->cost.postpone_execution = false;
-//        if (fiber->cost.cycles > __CALCULATE_COST__) {
-//            fiber->cost.warnings++;
-//            if (fiber->cost.warnings > FIBER_SCHEDULER_COST_WARNINGS_LIMIT) {
-//                fiber->cost.postpone_execution = true;
-//            }
-//        } else if (fiber->cost.warnings > 0){
-//            fiber->cost.warnings--;
-//        }
+        fiber->ret.ptr_value = cqe;
+        fiber_scheduler_switch_to(fiber);
     }
 
     io_uring_support_cq_advance(context->ring, count);
