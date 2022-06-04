@@ -117,11 +117,36 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
     REQUIRE(connect(clientfd, (struct sockaddr *) &address, sizeof(address)) == 0);
 
     SECTION("Redis - command - HELLO") {
-        char *hello_v2_expected_response_start = "*14\r\n$6\r\nserver\r\n$10\r\ncachegrand\r\n$7\r\nversion\r\n$";
-        char *hello_v2_expected_response_end = "\r\n$5\r\nproto\r\n:2\r\n$2\r\nid\r\n:0\r\n$4\r\nmode\r\n$10\r\nstandalone\r\n$4\r\nrole\r\n$6\r\nmaster\r\n$7\r\nmodules\r\n*0\r\n";
+        char *hello_v2_expected_response_start =
+                "*14\r\n"
+                "$6\r\nserver\r\n"
+                "$10\r\ncachegrand\r\n"
+                "$7\r\nversion\r\n"
+                "$";
+        char *hello_v2_expected_response_end =
+                "\r\n"
+                "$5\r\nproto\r\n"
+                ":2\r\n"
+                "$2\r\nid\r\n"
+                ":0\r\n"
+                "$4\r\nmode\r\n"
+                "$10\r\nstandalone\r\n"
+                "$4\r\nrole\r\n"
+                "$6\r\nmaster\r\n"
+                "$7\r\nmodules\r\n"
+                "*0\r\n";
 
-        char *hello_v3_expected_response_start = "%7\r\n$6\r\nserver\r\n$10\r\ncachegrand\r\n$7\r\nversion\r\n$";
-        char *hello_v3_expected_response_end = "\r\n$5\r\nproto\r\n:3\r\n$2\r\nid\r\n:0\r\n$4\r\nmode\r\n$10\r\nstandalone\r\n$4\r\nrole\r\n$6\r\nmaster\r\n$7\r\nmodules\r\n*0\r\n";
+        char *hello_v3_expected_response_start =
+                "%7\r\n"
+                "$6\r\nserver\r\n$10\r\ncachegrand\r\n"
+                "$7\r\nversion\r\n$";
+        char *hello_v3_expected_response_end =
+                "\r\n"
+                "$5\r\nproto\r\n:3\r\n"
+                "$2\r\nid\r\n:0\r\n"
+                "$4\r\nmode\r\n$10\r\nstandalone\r\n"
+                "$4\r\nrole\r\n$6\r\nmaster\r\n"
+                "$7\r\nmodules\r\n*0\r\n";
 
         SECTION("HELLO - no version") {
             snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$5\r\nHELLO\r\n");
@@ -133,7 +158,10 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             REQUIRE(len > strlen(hello_v2_expected_response_start) + strlen(hello_v2_expected_response_end));
 
             REQUIRE(strncmp(buffer_recv, hello_v2_expected_response_start, strlen(hello_v2_expected_response_start)) == 0);
-            REQUIRE(strncmp(buffer_recv + (len - strlen(hello_v2_expected_response_end)), hello_v2_expected_response_end, strlen(hello_v2_expected_response_end)) == 0);
+            REQUIRE(strncmp(
+                    buffer_recv + (len - strlen(hello_v2_expected_response_end)),
+                    hello_v2_expected_response_end,
+                    strlen(hello_v2_expected_response_end)) == 0);
         }
 
         SECTION("HELLO - v2") {
@@ -146,7 +174,10 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             REQUIRE(len > strlen(hello_v2_expected_response_start) + strlen(hello_v2_expected_response_end));
 
             REQUIRE(strncmp(buffer_recv, hello_v2_expected_response_start, strlen(hello_v2_expected_response_start)) == 0);
-            REQUIRE(strncmp(buffer_recv + (len - strlen(hello_v2_expected_response_end)), hello_v2_expected_response_end, strlen(hello_v2_expected_response_end)) == 0);
+            REQUIRE(strncmp(
+                    buffer_recv + (len - strlen(hello_v2_expected_response_end)),
+                    hello_v2_expected_response_end,
+                    strlen(hello_v2_expected_response_end)) == 0);
         }
 
         SECTION("HELLO - v3") {
@@ -159,14 +190,14 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             REQUIRE(len > strlen(hello_v3_expected_response_start) + strlen(hello_v3_expected_response_end));
 
             REQUIRE(strncmp(buffer_recv, hello_v3_expected_response_start, strlen(hello_v3_expected_response_start)) == 0);
-            REQUIRE(strncmp(buffer_recv + (len - strlen(hello_v3_expected_response_end)), hello_v3_expected_response_end, strlen(hello_v3_expected_response_end)) == 0);
+            REQUIRE(strncmp(
+                    buffer_recv + (len - strlen(hello_v3_expected_response_end)),
+                    hello_v3_expected_response_end,
+                    strlen(hello_v3_expected_response_end)) == 0);
         }
     }
 
     SECTION("Redis - command - SET") {
-        char *key_name = "a_key";
-        char *key_value_1 = "b_value";
-        char *key_value_2 = "value_z";
         char *cmd_buffer_1 = "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nb_value\r\n";
         char *cmd_buffer_2 = "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nvalue_z\r\n";
 
@@ -205,7 +236,10 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
             REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 50);
-            REQUIRE(strncmp(buffer_recv, "-ERR wrong number of arguments for 'SET' command\r\n", strlen("-ERR wrong number of arguments for 'SET' command\r\n")) == 0);
+            REQUIRE(strncmp(
+                    buffer_recv,
+                    "-ERR wrong number of arguments for 'SET' command\r\n",
+                    strlen("-ERR wrong number of arguments for 'SET' command\r\n")) == 0);
 
         }
 
@@ -215,7 +249,10 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
             REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 50);
-            REQUIRE(strncmp(buffer_recv, "-ERR wrong number of arguments for 'SET' command\r\n", strlen("-ERR wrong number of arguments for 'SET' command\r\n")) == 0);
+            REQUIRE(strncmp(
+                    buffer_recv,
+                    "-ERR wrong number of arguments for 'SET' command\r\n",
+                    strlen("-ERR wrong number of arguments for 'SET' command\r\n")) == 0);
         }
 
         // TODO: this test should fail but the current implementation accepts and ignores the extra parameters, needs fixing!
@@ -261,7 +298,10 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
             REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 50);
-            REQUIRE(strncmp(buffer_recv, "-ERR wrong number of arguments for 'DEL' command\r\n", strlen("-ERR wrong number of arguments for 'DEL' command\r\n")) == 0);
+            REQUIRE(strncmp(
+                    buffer_recv,
+                    "-ERR wrong number of arguments for 'DEL' command\r\n",
+                    strlen("-ERR wrong number of arguments for 'DEL' command\r\n")) == 0);
         }
     }
 
@@ -297,7 +337,10 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
             REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 50);
-            REQUIRE(strncmp(buffer_recv, "-ERR wrong number of arguments for 'GET' command\r\n", strlen("-ERR wrong number of arguments for 'GET' command\r\n")) == 0);
+            REQUIRE(strncmp(
+                    buffer_recv,
+                    "-ERR wrong number of arguments for 'GET' command\r\n",
+                    strlen("-ERR wrong number of arguments for 'GET' command\r\n")) == 0);
         }
     }
 
@@ -349,7 +392,6 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
     program_workers_cleanup(
             worker_context,
             1);
-
 
     REQUIRE(mprobe(worker_context) == -MCHECK_FREE);
 
