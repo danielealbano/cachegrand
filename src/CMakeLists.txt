@@ -34,6 +34,10 @@ endmacro()
 
 # Check the selected hash algorithm
 set(HASH_ALGORITHM_SELECTED_COUNTER 0)
+if (USE_HASH_ALGORITHM_XXH3)
+    math(EXPR HASH_ALGORITHM_SELECTED_COUNTER "${HASH_ALGORITHM_SELECTED_COUNTER}+1")
+    message(STATUS "Hashtable hashing algorithm - xxh3")
+endif()
 
 if (USE_HASH_ALGORITHM_T1HA2)
     math(EXPR HASH_ALGORITHM_SELECTED_COUNTER "${HASH_ALGORITHM_SELECTED_COUNTER}+1")
@@ -46,7 +50,7 @@ if (USE_HASH_ALGORITHM_CRC32C)
 endif()
 
 if(HASH_ALGORITHM_SELECTED_COUNTER GREATER 1)
-    message(FATAL_ERROR "Can't enable multiple hashing algorithm for the hashtable, select one between t1ha2 and crc32c")
+    message(FATAL_ERROR "Can't enable multiple hashing algorithm for the hashtable, select one between xxh3, t1ha2 and crc32c")
 elseif(HASH_ALGORITHM_SELECTED_COUNTER EQUAL 0)
     message(FATAL_ERROR "Please select one hashing algorithm for the hashtable")
 endif()
