@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#define SLAB_OBJECT_SIZE_16     0x00000010
+#define SLAB_OBJECT_SIZE_32     0x00000020
 #define SLAB_OBJECT_SIZE_64     0x00000040
 #define SLAB_OBJECT_SIZE_128    0x00000080
 #define SLAB_OBJECT_SIZE_256    0x00000100
@@ -16,12 +18,14 @@ extern "C" {
 #define SLAB_OBJECT_SIZE_16384  0x00004000
 #define SLAB_OBJECT_SIZE_32768  0x00008000
 #define SLAB_OBJECT_SIZE_65536  0x00010000
+#define SLAB_OBJECT_SIZE_MIN    SLAB_OBJECT_SIZE_16
 #define SLAB_OBJECT_SIZE_MAX    SLAB_OBJECT_SIZE_65536
 
-#define SLAB_PREDEFINED_OBJECT_SIZES    SLAB_OBJECT_SIZE_64, SLAB_OBJECT_SIZE_128, SLAB_OBJECT_SIZE_256, \
-                                        SLAB_OBJECT_SIZE_512, SLAB_OBJECT_SIZE_1024, SLAB_OBJECT_SIZE_2048, \
-                                        SLAB_OBJECT_SIZE_4096, SLAB_OBJECT_SIZE_8192, SLAB_OBJECT_SIZE_16384, \
-                                        SLAB_OBJECT_SIZE_32768, SLAB_OBJECT_SIZE_65536
+#define SLAB_PREDEFINED_OBJECT_SIZES    SLAB_OBJECT_SIZE_16, SLAB_OBJECT_SIZE_32, SLAB_OBJECT_SIZE_64, \
+                                        SLAB_OBJECT_SIZE_128, SLAB_OBJECT_SIZE_256, SLAB_OBJECT_SIZE_512, \
+                                        SLAB_OBJECT_SIZE_1024, SLAB_OBJECT_SIZE_2048, SLAB_OBJECT_SIZE_4096, \
+                                        SLAB_OBJECT_SIZE_8192, SLAB_OBJECT_SIZE_16384, SLAB_OBJECT_SIZE_32768, \
+                                        SLAB_OBJECT_SIZE_65536
 static const uint32_t slab_predefined_object_sizes[] = { SLAB_PREDEFINED_OBJECT_SIZES };
 #define SLAB_PREDEFINED_OBJECT_SIZES_COUNT (sizeof(slab_predefined_object_sizes) / sizeof(uint32_t))
 

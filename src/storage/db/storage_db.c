@@ -571,7 +571,7 @@ void *storage_db_entry_index_chunks_free(
         }
     }
 
-    if (entry_index->key_chunks_info) {
+    if (entry_index->value_chunks_info) {
         for (
                 storage_db_chunk_index_t chunk_index = 0;
                 chunk_index < entry_index->value_chunks_count;
@@ -592,6 +592,29 @@ void *storage_db_entry_index_free(
     storage_db_entry_index_chunks_free(db, entry_index);
 
     slab_allocator_mem_free(entry_index);
+}
+
+bool storage_db_entry_chunk_can_read_from_memory(
+        storage_db_t *db,
+        storage_db_chunk_info_t *chunk_info) {
+    if (db->config->backend_type == STORAGE_DB_BACKEND_TYPE_MEMORY) {
+        return true;
+    }
+
+    // TODO: with the storage backend the data can be read from the cache only if already available there
+    return false;
+}
+
+char* storage_db_entry_chunk_read_fast_from_memory(
+        storage_db_t *db,
+        storage_db_chunk_info_t *chunk_info) {
+    if (db->config->backend_type == STORAGE_DB_BACKEND_TYPE_MEMORY) {
+        return chunk_info->memory.chunk_data;
+    }
+
+    // This should never happen so if it does it is better to catch it
+    assert(false);
+    return NULL;
 }
 
 bool storage_db_entry_chunk_read(
@@ -668,7 +691,7 @@ storage_db_chunk_info_t *storage_db_entry_value_chunk_get(
     return entry_index->value_chunks_info + chunk_index;
 }
 
-void storage_db_entry_index_status_acquire_reader_lock(
+void storage_db_entry_index_status_increase_readers_counter(
         storage_db_entry_index_t* entry_index,
         storage_db_entry_index_status_t *old_status) {
     storage_db_entry_index_status_t old_status_internal;
@@ -700,7 +723,7 @@ void storage_db_entry_index_status_acquire_reader_lock(
     }
 }
 
-void storage_db_entry_index_status_free_reader_lock(
+void storage_db_entry_index_status_decrease_readers_counter(
         storage_db_entry_index_t* entry_index,
         storage_db_entry_index_status_t *old_status) {
     uint32_t old_cas_wrapper_ret = __sync_fetch_and_sub(

@@ -17,6 +17,8 @@
 
 #define SET_BENCH_ARGS() \
     DisplayAggregatesOnly(true)-> \
+    Args({SLAB_OBJECT_SIZE_16, 0x1000})-> \
+    Args({SLAB_OBJECT_SIZE_32, 0x1000})-> \
     Args({SLAB_OBJECT_SIZE_64, 0x1000})-> \
     Args({SLAB_OBJECT_SIZE_128, 0x1000})-> \
     Args({SLAB_OBJECT_SIZE_256, 0x1000})-> \

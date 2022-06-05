@@ -58,7 +58,7 @@ void slab_allocator_predefined_allocators_init() {
         uint32_t predefined_slab_allocators_index = slab_index_by_object_size(object_size);
 
         predefined_slab_allocators[predefined_slab_allocators_index] =
-                slab_allocator_init(SLAB_OBJECT_SIZE_64 << i);
+                slab_allocator_init(SLAB_OBJECT_SIZE_MIN << i);
     }
 }
 
@@ -88,8 +88,8 @@ uint8_t slab_index_by_object_size(
         size_t object_size) {
     assert(object_size <= SLAB_OBJECT_SIZE_MAX);
 
-    if (object_size < SLAB_OBJECT_SIZE_64) {
-        object_size = SLAB_OBJECT_SIZE_64;
+    if (object_size < SLAB_OBJECT_SIZE_MIN) {
+        object_size = SLAB_OBJECT_SIZE_MIN;
     }
 
     // Round up the object_size to the next power of 2
@@ -102,7 +102,7 @@ uint8_t slab_index_by_object_size(
     rounded_up_object_size |= rounded_up_object_size >> 16;
     rounded_up_object_size++;
 
-    return 32 - __builtin_clz(rounded_up_object_size) - 7;
+    return 32 - __builtin_clz(rounded_up_object_size) - (32 - __builtin_clz(SLAB_OBJECT_SIZE_MIN));
 }
 
 slab_allocator_t* slab_allocator_predefined_get_by_size(

@@ -184,18 +184,20 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
         }
 
         SECTION("slab_index_by_object_size") {
-            REQUIRE(slab_index_by_object_size(20) == 0);
-            REQUIRE(slab_index_by_object_size(64) == 0);
-            REQUIRE(slab_index_by_object_size(128) == 1);
-            REQUIRE(slab_index_by_object_size(256) == 2);
-            REQUIRE(slab_index_by_object_size(512) == 3);
-            REQUIRE(slab_index_by_object_size(1024) == 4);
-            REQUIRE(slab_index_by_object_size(2048) == 5);
-            REQUIRE(slab_index_by_object_size(4096) == 6);
-            REQUIRE(slab_index_by_object_size(8192) == 7);
-            REQUIRE(slab_index_by_object_size(16384) == 8);
-            REQUIRE(slab_index_by_object_size(32768) == 9);
-            REQUIRE(slab_index_by_object_size(65536) == 10);
+            REQUIRE(slab_index_by_object_size(SLAB_OBJECT_SIZE_16 - 1) == 0);
+            REQUIRE(slab_index_by_object_size(SLAB_OBJECT_SIZE_16) == 0);
+            REQUIRE(slab_index_by_object_size(SLAB_OBJECT_SIZE_32) == 1);
+            REQUIRE(slab_index_by_object_size(SLAB_OBJECT_SIZE_64) == 2);
+            REQUIRE(slab_index_by_object_size(SLAB_OBJECT_SIZE_128) == 3);
+            REQUIRE(slab_index_by_object_size(SLAB_OBJECT_SIZE_256) == 4);
+            REQUIRE(slab_index_by_object_size(SLAB_OBJECT_SIZE_512) == 5);
+            REQUIRE(slab_index_by_object_size(SLAB_OBJECT_SIZE_1024) == 6);
+            REQUIRE(slab_index_by_object_size(SLAB_OBJECT_SIZE_2048) == 7);
+            REQUIRE(slab_index_by_object_size(SLAB_OBJECT_SIZE_4096) == 8);
+            REQUIRE(slab_index_by_object_size(SLAB_OBJECT_SIZE_8192) == 9);
+            REQUIRE(slab_index_by_object_size(SLAB_OBJECT_SIZE_16384) == 10);
+            REQUIRE(slab_index_by_object_size(SLAB_OBJECT_SIZE_32768) == 11);
+            REQUIRE(slab_index_by_object_size(SLAB_OBJECT_SIZE_65536) == 12);
         }
 
         SECTION("sizeof(slab_slice_t)") {
