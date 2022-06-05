@@ -102,7 +102,7 @@ uint8_t slab_index_by_object_size(
     rounded_up_object_size |= rounded_up_object_size >> 16;
     rounded_up_object_size++;
 
-    return 32 - __builtin_clz(rounded_up_object_size) - 7;
+    return 32 - __builtin_clz(rounded_up_object_size) - (32 - __builtin_clz(SLAB_OBJECT_SIZE_MIN));
 }
 
 slab_allocator_t* slab_allocator_predefined_get_by_size(
