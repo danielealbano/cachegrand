@@ -668,7 +668,7 @@ storage_db_chunk_info_t *storage_db_entry_value_chunk_get(
     return entry_index->value_chunks_info + chunk_index;
 }
 
-void storage_db_entry_index_status_acquire_reader_lock(
+void storage_db_entry_index_status_increase_readers_counter(
         storage_db_entry_index_t* entry_index,
         storage_db_entry_index_status_t *old_status) {
     storage_db_entry_index_status_t old_status_internal;
@@ -700,7 +700,7 @@ void storage_db_entry_index_status_acquire_reader_lock(
     }
 }
 
-void storage_db_entry_index_status_free_reader_lock(
+void storage_db_entry_index_status_decrease_readers_counter(
         storage_db_entry_index_t* entry_index,
         storage_db_entry_index_status_t *old_status) {
     uint32_t old_cas_wrapper_ret = __sync_fetch_and_sub(

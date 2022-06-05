@@ -56,7 +56,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
 
     if (likely(entry_index)) {
         // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
-        storage_db_entry_index_status_acquire_reader_lock(
+        storage_db_entry_index_status_increase_readers_counter(
                 entry_index,
                 &old_status);
 
@@ -194,7 +194,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
 
 fail:
     if (entry_index) {
-        storage_db_entry_index_status_free_reader_lock(entry_index, NULL);
+        storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
     }
 
     if (send_buffer) {

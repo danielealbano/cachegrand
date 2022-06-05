@@ -218,11 +218,11 @@ storage_db_chunk_info_t *storage_db_entry_value_chunk_get(
         storage_db_entry_index_t* entry_index,
         storage_db_chunk_index_t chunk_index);
 
-void storage_db_entry_index_status_acquire_reader_lock(
+void storage_db_entry_index_status_increase_readers_counter(
         storage_db_entry_index_t* entry_index,
         storage_db_entry_index_status_t *old_status);
 
-void storage_db_entry_index_status_free_reader_lock(
+void storage_db_entry_index_status_decrease_readers_counter(
         storage_db_entry_index_t* entry_index,
         storage_db_entry_index_status_t *old_status);
 
