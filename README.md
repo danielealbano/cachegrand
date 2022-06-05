@@ -57,10 +57,19 @@ For more information about the build requirements check [docs/build-requirements
 
 #### Build
 
+Using the t1ha2 hashing algorithm
 ```bash
 mkdir cmake-build-release
 cd cmake-build-release
 cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1
+make cachegrand-server
+```
+
+Using the xxh3 (xxhash) hashing algorithm
+```bash
+mkdir cmake-build-release
+cd cmake-build-release
+cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_XXH3=1
 make cachegrand-server
 ```
 
