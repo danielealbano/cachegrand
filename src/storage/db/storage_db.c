@@ -571,7 +571,7 @@ void *storage_db_entry_index_chunks_free(
         }
     }
 
-    if (entry_index->key_chunks_info) {
+    if (entry_index->value_chunks_info) {
         for (
                 storage_db_chunk_index_t chunk_index = 0;
                 chunk_index < entry_index->value_chunks_count;
