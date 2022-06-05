@@ -1,10 +1,23 @@
 #ifndef CACHEGRAND_FIXTURES_HASHTABLE_H
 #define CACHEGRAND_FIXTURES_HASHTABLE_H
 
+#define HASHTABLE_SUPPORT_HASH_SEED    42U
+
+#if CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2 == 1
+#include "t1ha.h"
+#elif CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_XXH3 == 1
+#include "xxhash.h"
+#elif CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_CRC32C == 1
+#include "hash/hash_crc32c.h"
+#else
+#error "Unsupported hash algorithm"
+#endif
+
 #ifdef __cplusplus
 namespace
 {
 #endif
+
 
 // Fixtures
 uintptr_t test_value_1 = 12345;
@@ -23,13 +36,27 @@ char test_key_same_bucket_key_prefix_inline[] = "sb_key_inline_";
 
 char test_key_1[32] = "test key 1";
 hashtable_key_size_t test_key_1_len = 10;
-hashtable_hash_t test_key_1_hash = (hashtable_hash_t)0xf1bdcc8aaccb614c;
+#if CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2 == 1
+    hashtable_hash_t test_key_1_hash = (hashtable_hash_t)t1ha2_atonce(test_key_1, test_key_1_len, HASHTABLE_SUPPORT_HASH_SEED);
+#elif CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_XXH3 == 1
+    hashtable_hash_t test_key_1_hash = (hashtable_hash_t)XXH3_64bits_withSeed(test_key_1, test_key_1_len, HASHTABLE_SUPPORT_HASH_SEED);
+#elif CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_CRC32 == 1
+    uint32_t crc32 = hash_crc32c(test_key_1, test_key_1_len, HASHTABLE_SUPPORT_HASH_SEED);
+    hashtable_hash_t test_key_1_hash = ((uint64_t)hash_crc32c(test_key_1, test_key_1_len, crc32) << 32u) | crc32;
+#endif
 hashtable_hash_half_t test_key_1_hash_half = (test_key_1_hash >> 32u) | 0x80000000u;
 hashtable_hash_quarter_t test_key_1_hash_quarter = test_key_1_hash_half & 0xFFFF;
 
 char test_key_2[32] = "test key 2";
 hashtable_key_size_t test_key_2_len = 10;
-hashtable_hash_t test_key_2_hash = (hashtable_hash_t)0x8c8b1b670da1324d;
+#if CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2 == 1
+    hashtable_hash_t test_key_2_hash = (hashtable_hash_t)t1ha2_atonce(test_key_2, test_key_2_len, HASHTABLE_SUPPORT_HASH_SEED);
+#elif CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_XXH3 == 1
+    hashtable_hash_t test_key_2_hash = (hashtable_hash_t)XXH3_64bits_withSeed(test_key_2, test_key_2_len, HASHTABLE_SUPPORT_HASH_SEED);
+#elif CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_CRC32 == 1
+    uint32_t crc32 = hash_crc32c(test_key_2, test_key_2_len, HASHTABLE_SUPPORT_HASH_SEED);
+    hashtable_hash_t test_key_2_hash = ((uint64_t)hash_crc32c(test_key_2, test_key_2_len, crc32) << 32u) | crc32;
+#endif
 hashtable_hash_half_t test_key_2_hash_half = (test_key_2_hash >> 32u) | 0x80000000u;
 hashtable_hash_quarter_t test_key_2_hash_quarter = test_key_2_hash_half & 0xFFFF;
 
