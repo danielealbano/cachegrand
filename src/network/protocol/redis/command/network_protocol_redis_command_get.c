@@ -88,7 +88,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
                 (int)entry_index->value_length);
 
         // Check if the first chunk fits into the buffer, will always be fails if there is more than one chunk
-        if (send_buffer_length_needs_max) {
+        if (unlikely(send_buffer_length_needs_max)) {
             if (network_send(
                     channel,
                     send_buffer,
@@ -103,30 +103,45 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
 
         // Build the chunks for the value
         for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value_chunks_count; chunk_index++) {
+            char *buffer_to_send = NULL;
+            size_t buffer_to_send_length = 0;
+
             chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
-            res = storage_db_entry_chunk_read(
-                    db,
-                    chunk_info,
-                    send_buffer_start);
 
-            if (!res) {
-                LOG_E(
-                        TAG,
-                        "[REDIS][GET] Critical error, unable to read chunk <%u> long <%u> bytes",
-                        chunk_index,
-                        chunk_info->chunk_length);
+            if (send_buffer_length_needs_max && storage_db_entry_chunk_can_read_from_memory(db, chunk_info)) {
+                buffer_to_send = storage_db_entry_chunk_read_fast_from_memory(db, chunk_info);
+                buffer_to_send_length = chunk_info->chunk_length;
+            } else {
+                res = storage_db_entry_chunk_read(
+                        db,
+                        chunk_info,
+                        send_buffer_start);
 
-                goto fail;
+                if (!res) {
+                    LOG_E(
+                            TAG,
+                            "[REDIS][GET] Critical error, unable to read chunk <%u> long <%u> bytes",
+                            chunk_index,
+                            chunk_info->chunk_length);
+
+                    goto fail;
+                }
+
+                buffer_to_send = send_buffer;
+                buffer_to_send_length = send_buffer_start - send_buffer;
+
+                send_buffer_start += chunk_info->chunk_length;
             }
 
-            send_buffer_start += chunk_info->chunk_length;
-
-            // Check if it's the last chunk and if the argument blob terminator (a \r\n) will fit in the current
-            // buffer or not, if it's the case will skip the network send to avoid a fiber switch
             bool is_last_chunk = entry_index->value_chunks_count == chunk_index + 1;
             bool does_chunk_fits_in_buffer =
                     chunk_info->chunk_length + send_buffer_start + 2 <= send_buffer_end;
-            if (!is_last_chunk || (is_last_chunk && !does_chunk_fits_in_buffer)) {
+            if (
+                    send_buffer_length_needs_max
+                    ||
+                    !is_last_chunk
+                    ||
+                    (!send_buffer_length_needs_max && is_last_chunk && !does_chunk_fits_in_buffer)) {
                 if (network_send(
                         channel,
                         send_buffer,
@@ -143,6 +158,11 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
                 send_buffer_start = send_buffer;
             }
         }
+
+        // At this stage the entry index is not accessed further therefore the readers counter can be decreased. The
+        // entry_index has to be set to null to avoid that it's freed again at the end of the function
+        storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
+        entry_index = NULL;
 
         send_buffer_start = protocol_redis_writer_write_argument_blob_end(
                 send_buffer_start,

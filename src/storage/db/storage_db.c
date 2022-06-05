@@ -594,6 +594,29 @@ void *storage_db_entry_index_free(
     slab_allocator_mem_free(entry_index);
 }
 
+bool storage_db_entry_chunk_can_read_from_memory(
+        storage_db_t *db,
+        storage_db_chunk_info_t *chunk_info) {
+    if (db->config->backend_type == STORAGE_DB_BACKEND_TYPE_MEMORY) {
+        return true;
+    }
+
+    // TODO: with the storage backend the data can be read from the cache only if already available there
+    return false;
+}
+
+char* storage_db_entry_chunk_read_fast_from_memory(
+        storage_db_t *db,
+        storage_db_chunk_info_t *chunk_info) {
+    if (db->config->backend_type == STORAGE_DB_BACKEND_TYPE_MEMORY) {
+        return chunk_info->memory.chunk_data;
+    }
+
+    // This should never happen so if it does it is better to catch it
+    assert(false);
+    return NULL;
+}
+
 bool storage_db_entry_chunk_read(
         storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,

@@ -200,6 +200,14 @@ void storage_db_entry_index_ring_buffer_free(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index);
 
+bool storage_db_entry_chunk_can_read_from_memory(
+        storage_db_t *db,
+        storage_db_chunk_info_t *chunk_info);
+
+char* storage_db_entry_chunk_read_fast_from_memory(
+        storage_db_t *db,
+        storage_db_chunk_info_t *chunk_info);
+
 bool storage_db_entry_chunk_read(
         storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
