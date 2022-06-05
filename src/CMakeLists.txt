@@ -33,17 +33,22 @@ macro(CACHEGRAND_BUILD_ADHOC_HASHTABLE_MCMP_SUPPORT_OP_ARCH ARCH)
 endmacro()
 
 # Check the selected hash algorithm
-if(USE_HASH_ALGORITHM_T1HA2 AND USE_HASH_ALGORITHM_CRC32C)
-    message(FATAL_ERROR "Can't enable at the same time T1HA2 and CRC32C for the hashtable")
-elseif(NOT USE_HASH_ALGORITHM_T1HA2 AND NOT USE_HASH_ALGORITHM_CRC32C)
-    message(FATAL_ERROR "Please select T1HA2 and CRC32C as hashing algorithm for the hashtable")
-else()
-    message(STATUS "Hashtable hashing algorithm")
-    if (USE_HASH_ALGORITHM_T1HA2)
-        message(STATUS "Hashtable hashing algorithm - t1ha2")
-    elseif (USE_HASH_ALGORITHM_CRC32C)
-        message(STATUS "Hashtable hashing algorithm - crc32c")
-    endif()
+set(HASH_ALGORITHM_SELECTED_COUNTER 0)
+
+if (USE_HASH_ALGORITHM_T1HA2)
+    math(EXPR HASH_ALGORITHM_SELECTED_COUNTER "${HASH_ALGORITHM_SELECTED_COUNTER}+1")
+    message(STATUS "Hashtable hashing algorithm - t1ha2")
+endif()
+
+if (USE_HASH_ALGORITHM_CRC32C)
+    math(EXPR HASH_ALGORITHM_SELECTED_COUNTER "${HASH_ALGORITHM_SELECTED_COUNTER}+1")
+    message(STATUS "Hashtable hashing algorithm - crc32c")
+endif()
+
+if(HASH_ALGORITHM_SELECTED_COUNTER GREATER 1)
+    message(FATAL_ERROR "Can't enable multiple hashing algorithm for the hashtable, select one between t1ha2 and crc32c")
+elseif(HASH_ALGORITHM_SELECTED_COUNTER EQUAL 0)
+    message(FATAL_ERROR "Please select one hashing algorithm for the hashtable")
 endif()
 
 # Build the base cachegrand library
@@ -134,7 +139,7 @@ set_target_properties(
 
 add_dependencies(
         cachegrand-internal
-        __internal_refresh_cmake_config t1ha uring cyaml)
+        __internal_refresh_cmake_config uring cyaml)
 
 target_compile_options(
         cachegrand-internal
@@ -179,7 +184,7 @@ add_executable(
 
 add_dependencies(
         cachegrand-server
-        cachegrand-internal t1ha)
+        cachegrand-internal)
 
 target_link_libraries(
         cachegrand-server

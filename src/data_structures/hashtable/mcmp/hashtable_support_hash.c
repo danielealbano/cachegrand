@@ -8,13 +8,19 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
-#include <t1ha.h>
 #include <numa.h>
+
+#if CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2 == 1
+#include "t1ha.h"
+#elif CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_CRC32C == 1
+#include "hash/hash_crc32c.h"
+#else
+#error "Unsupported hash algorithm"
+#endif
 
 #include "exttypes.h"
 #include "spinlock.h"
 
-#include "hash/hash_crc32c.h"
 #include "hashtable.h"
 #include "hashtable_support_hash.h"
 
@@ -25,9 +31,7 @@ hashtable_hash_t hashtable_mcmp_support_hash_calculate(hashtable_key_data_t *key
     uint32_t crc32 = hash_crc32c(key, key_size, HASHTABLE_SUPPORT_HASH_SEED);
     hashtable_hash_t hash = ((uint64_t)hash_crc32c(key, key_size, crc32) << 32u) | crc32;
 
-   return hash;
-#else
-#error "Unsupported hash algorithm"
+    return hash;
 #endif
 }
 
