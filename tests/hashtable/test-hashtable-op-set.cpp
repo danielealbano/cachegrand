@@ -303,7 +303,15 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
 
         SECTION("fill entire hashtable and fail") {
             HASHTABLE(0x7F, false, {
+#if CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2 == 1
                 uint32_t slots_to_fill = 448 + 1;
+#elif CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_XXH3 == 1
+                uint32_t slots_to_fill = 450 + 1;
+#elif CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_CRC32C == 1
+                uint32_t slots_to_fill = 448 + 1;
+#else
+#error "Unsupported hash algorithm"
+#endif
                 test_key_same_bucket_t *test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
                         hashtable->ht_current->buckets_count,
                         test_key_same_bucket_key_prefix_external,
