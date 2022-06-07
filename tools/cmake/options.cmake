@@ -1,4 +1,4 @@
-option(BUILD_TESTS "Build Tests" ON)
+option(BUILD_TESTS "Build Tests" OFF)
 option(BUILD_INTERNAL_BENCHES "Build Internal Benches" OFF)
 
 option(USE_HASH_ALGORITHM_XXH3 "Use xxh3 (xxHash) as hash algorithm for the hashtable" 0)
