@@ -36,7 +36,7 @@ bool test_pidfile_get_fnctl_lock(
 
         if ((fd = open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR)) > -1) {
             if (fcntl(fd, F_GETLK, &child_lock) > -1) {
-                write(pipe_fd[1], &child_lock, sizeof(struct flock));
+                ssize_t ignore = write(pipe_fd[1], &child_lock, sizeof(struct flock));
                 fsync(pipe_fd[1]);
             }
         }

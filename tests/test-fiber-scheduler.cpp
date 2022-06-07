@@ -254,8 +254,11 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
         REQUIRE(fiber_scheduler_stack.index == 0);
         REQUIRE(fiber_scheduler_stack.size == 2);
         REQUIRE(strcmp(fiber_scheduler_stack.list[0]->name, FIBER_SCHEDULER_FIBER_NAME) == 0);
+
+#if DEBUG == 1
         REQUIRE(strcmp(fiber->switched_back_on.file, CACHEGRAND_SRC_PATH) == 0);
         REQUIRE(strcmp(fiber->switched_back_on.func, "test_fiber_scheduler_fiber_switch_to_test_entrypoint") == 0);
+#endif
 
         fiber_free(fiber);
 

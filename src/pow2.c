@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-//https://jameshfisher.com/2018/03/30/round-up-power-2/
+// https://jameshfisher.com/2018/03/30/round-up-power-2/
 uint64_t pow2_next_pow2m1(
         uint64_t x) {
     x |= x>>1;
@@ -21,6 +21,7 @@ uint64_t pow2_next_pow2m1(
 
     return x;
 }
+
 uint64_t pow2_next(
         uint64_t x) {
     return pow2_next_pow2m1(x-1)+1;
@@ -28,5 +29,5 @@ uint64_t pow2_next(
 
 bool pow2_is(
         uint64_t x) {
-    return x && (!(x&(x-1)));
+    return x && (!(x & (x-1)));
 }

@@ -569,9 +569,9 @@ int program_main(
 
     program_setup_sentry(program_context);
 
-    if (program_setup_pidfile(program_context) == false) {
-        goto fail;
-    }
+    // If it fails to create the pidfile reports an error and continues the execution, no need to check for the result
+    // of the operation
+    program_setup_pidfile(program_context);
 
     if (program_config_thread_affinity_set_selected_cpus(&program_context) == false) {
         LOG_E(TAG, "Unable to setup cpu affinity");
