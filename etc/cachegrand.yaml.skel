@@ -41,6 +41,10 @@ network:
           port: 6379
 
 database:
+  # Currently the internal cachegrand hashtable doesn't support the automatic resizing so if there isn't enough room
+  # the SET command will just fail with a generic error.
+  # For performance reason, the max amount of keys is always rounded up to the next power of 2 of max_keys, in this case
+  # 1000000 is rounded up to 1048576
   max_keys: 1000000
   backend: memory
 #  backend: file
