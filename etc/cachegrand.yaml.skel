@@ -41,8 +41,7 @@ network:
           port: 6379
 
 database:
-  max_keys: 10000
-  shard_size_mb: 0
+  max_keys: 1000000
   backend: memory
 #  backend: file
 #  file:
