@@ -131,7 +131,8 @@ static void hashtable_op_set_new(benchmark::State& state) {
                     hashtable,
                     key,
                     strlen(key),
-                    i)));
+                    i,
+                    NULL)));
 
             if (!result) {
                 sprintf(
@@ -203,7 +204,8 @@ static void hashtable_op_set_update(benchmark::State& state) {
                     hashtable,
                     key,
                     strlen(key),
-                    i)));
+                    i,
+                    NULL)));
 
             if (!result) {
                 sprintf(
