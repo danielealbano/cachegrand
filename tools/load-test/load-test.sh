@@ -26,6 +26,8 @@ REDIS_SERVER_BIN_PATH="/home/daalbano/dev/redis-7.0.0/src/redis-server"
 REDIS_SERVER_CONFIG_PATH="/etc/redis/redis.conf"
 REDIS_SERVER_CPU="0"
 
+# Disable syn flooding protection as it might impact
+sudo sysctl net.ipv4.tcp_syncookies=0
 echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 
 for CLIENTS_PER_THREAD in 100 150 200;

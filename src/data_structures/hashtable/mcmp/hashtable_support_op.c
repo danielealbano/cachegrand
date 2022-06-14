@@ -34,7 +34,7 @@
         LOG_DI(">    HAS AVX2: %s", __builtin_cpu_supports("avx2") ? "yes" : "no"); \
         LOG_DI("> HAS AVX512F: %s", __builtin_cpu_supports("avx512f") ? "yes" : "no"); \
         \
-        if (__builtin_cpu_supports("avx512f")) { \
+        if (CACHEGRAND_CMAKE_CONFIG_ENABLE_SUPPORT_AVX512F && __builtin_cpu_supports("avx512f")) { \
             LOG_DI("Selecting AVX512F"); \
             return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, avx512f); \
         } else if (__builtin_cpu_supports("avx2")) { \
