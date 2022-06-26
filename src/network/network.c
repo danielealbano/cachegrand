@@ -55,7 +55,7 @@ bool network_buffer_needs_rewind(
     size_t read_buffer_needed_size_min = read_buffer->data_size + read_length;
     size_t read_buffer_needed_size = read_buffer->data_offset + read_buffer_needed_size_min;
 
-    return read_buffer->length >= read_buffer_needed_size;
+    return read_buffer_needed_size > read_buffer->length;
 }
 
 void network_buffer_rewind(

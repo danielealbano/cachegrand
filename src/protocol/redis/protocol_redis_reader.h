@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#define PROTOCOL_REDIS_READER_MAX_ARGUMENTS_PER_COMMAND 128
+
 enum protocol_redis_reader_errors {
     PROTOCOL_REDIS_READER_ERROR_OK,
     PROTOCOL_REDIS_READER_ERROR_NO_DATA,
@@ -32,6 +34,12 @@ enum protocol_redis_resp_version {
 };
 typedef enum protocol_redis_resp_version protocol_redis_resp_version_t;
 
+enum protocol_redis_reader_protocol_types {
+    PROTOCOL_REDIS_READER_PROTOCOL_TYPE_INLINE,
+    PROTOCOL_REDIS_READER_PROTOCOL_TYPE_RESP
+};
+typedef enum protocol_redis_reader_protocol_types protocol_redis_reader_protocol_types_t;
+
 struct protocol_redis_reader_context_argument {
     char* value;
     size_t length;
@@ -42,6 +50,7 @@ typedef struct protocol_redis_reader_context_argument protocol_redis_reader_cont
 
 struct protocol_redis_reader_context {
     protocol_redis_reader_states_t state;
+    protocol_redis_reader_protocol_types_t protocol_type;
     protocol_redis_reader_errors_t error;
 
     struct {

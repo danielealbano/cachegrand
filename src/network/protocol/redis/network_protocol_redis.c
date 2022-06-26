@@ -92,11 +92,14 @@ void network_protocol_redis_accept(
     network_protocol_redis_client_new(&network_protocol_redis_client);
 
     do {
-        if (!network_buffer_has_enough_space(&network_protocol_redis_client.read_buffer, NETWORK_CHANNEL_PACKET_SIZE)) {
+        if (!network_buffer_has_enough_space(
+                &network_protocol_redis_client.read_buffer,
+                NETWORK_CHANNEL_PACKET_SIZE)) {
             char *send_buffer, *send_buffer_start, *send_buffer_end;
 
             send_buffer = send_buffer_start = network_protocol_redis_client.send_buffer.data;
-            send_buffer_end = network_protocol_redis_client.send_buffer.data + network_protocol_redis_client.send_buffer.length;
+            send_buffer_end =
+                    network_protocol_redis_client.send_buffer.data + network_protocol_redis_client.send_buffer.length;
             send_buffer_start = protocol_redis_writer_write_simple_error_printf(
                     send_buffer_start,
                     send_buffer_end - send_buffer_start,
@@ -112,18 +115,24 @@ void network_protocol_redis_accept(
 
                 network_close(channel, true);
             }
+
             exit_loop = true;
         }
 
         if (!exit_loop) {
-            if (network_buffer_needs_rewind(&network_protocol_redis_client.read_buffer, NETWORK_CHANNEL_PACKET_SIZE)) {
+            if (network_buffer_needs_rewind(
+                    &network_protocol_redis_client.read_buffer,
+                    NETWORK_CHANNEL_PACKET_SIZE)) {
                 network_protocol_redis_read_buffer_rewind(
                         &network_protocol_redis_client.read_buffer,
                         &protocol_context);
                 network_buffer_rewind(&network_protocol_redis_client.read_buffer);
             }
 
-            exit_loop = network_receive(channel, &network_protocol_redis_client.read_buffer, NETWORK_CHANNEL_PACKET_SIZE) != NETWORK_OP_RESULT_OK;
+            exit_loop = network_receive(
+                    channel,
+                    &network_protocol_redis_client.read_buffer,
+                    NETWORK_CHANNEL_PACKET_SIZE) != NETWORK_OP_RESULT_OK;
         }
 
         if (!exit_loop) {
@@ -140,7 +149,44 @@ void network_protocol_redis_accept(
 bool network_protocol_redis_read_buffer_rewind(
         network_channel_buffer_t *read_buffer,
         network_protocol_redis_context_t *protocol_context) {
-    // TODO: should flush any buffer that is marked to be written as data are going to be moved around
+    if (protocol_context->reader_context.arguments.count == 0) {
+        return true;
+    }
+
+    for(long index = 0; index <= protocol_context->reader_context.arguments.current.index; index++) {
+        size_t data_received_length;
+        protocol_redis_reader_context_argument_t *argument = &protocol_context->reader_context.arguments.list[index];
+        if (argument->copied_from_buffer) {
+            continue;
+        }
+
+        if (argument->all_read) {
+            data_received_length = argument->length;
+        } else {
+            // If the command is not marked all_read it means that it's necessary to determine if it's a resp3 command
+            // or not, resp3 commands provide the full length of the argument in advance and therefore argument->length
+            // contains that.
+            if (protocol_context->reader_context.protocol_type == PROTOCOL_REDIS_READER_PROTOCOL_TYPE_INLINE) {
+                data_received_length = argument->length;
+            } else {
+                data_received_length = protocol_context->reader_context.arguments.resp_protocol.current.received_length;
+            }
+        }
+
+        char* value = slab_allocator_mem_alloc(argument->length);
+        if (!value) {
+            return false;
+        }
+
+        memcpy(
+                value,
+                argument->value,
+                data_received_length);
+
+        argument->value = value;
+        argument->copied_from_buffer = true;
+    }
+
     return true;
 }
 
@@ -148,7 +194,7 @@ void network_protocol_redis_reset_context(
         network_protocol_redis_context_t *protocol_context) {
     // Reset the reader_context to handle the next command in the buffer
     // TODO: move the reset code into its own function
-    protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_NOP;
+    protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_NOP;ss
     protocol_context->command_info = NULL;
     memset(&protocol_context->command_context, 0, sizeof(protocol_context->command_context));
     protocol_context->skip_command = false;
@@ -168,7 +214,8 @@ bool network_protocol_redis_process_events(
     storage_db_t *db = worker_context->db;
     protocol_redis_reader_context_t *reader_context = &protocol_context->reader_context;
 
-    // TODO: need to handle data copy if the buffer has to be flushed to make room to new data
+    // TODO: need to handle stream mode, if stream mode is enabled data must not be copied to the value by
+    //       protocol_redis_reader_read
 
     do {
         // Keep reading till there are data in the buffer
@@ -194,9 +241,12 @@ bool network_protocol_redis_process_events(
                 continue;
             }
 
-            // TODO: handle arguments!
-
+            // Checks if the redis command has been identified, if not tries to identify the request
             if (protocol_context->command == NETWORK_PROTOCOL_REDIS_COMMAND_NOP) {
+                // TODO: should check if the length of the first argument is greater than the length of the longest
+                //       supported command, if it's the case the command is certainly not supported and can be skipped
+
+                // Checks if the first argument has been entirely read, if not retries
                 if (!reader_context->arguments.list[0].all_read) {
                     continue;
                 }
@@ -204,32 +254,30 @@ bool network_protocol_redis_process_events(
                 size_t command_len = reader_context->arguments.list[0].length;
                 char* command_str = reader_context->arguments.list[0].value;
 
+                // Set the current command to UNKNOWN
                 protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_UNKNOWN;
+
+                // Search the command_str in the commands table
                 for(uint32_t command_index = 0; command_index < command_infos_map_count; command_index++) {
                     network_protocol_redis_command_info_t *command_info = &command_infos_map[command_index];
-                    // TODO: utils_string_casecmp_eq_32 always requires 32 bytes of memory to load, therefore if
-                    //       command_str is not coming from the network buffer but the parser has re-allocated it then
-                    //       it will not have the correct size (the network buffer is padded on purpose).
-                    //       Although it should not happen as this is the command and the buffer will always have enough
-                    //       room to store 32 bytes as the minimum required is anyway the packet size (4k) it should
-                    //       never happen but better to implement a mechanism to ensure it (ie. add a flag to the argument
-                    //       list provided by the parser to identify if the value has been copied into memory and in case
-                    //       use the normal strncmp or even better always pad the memory allocated by the parser to 32
-                    //       bytes)
                     if (command_len == command_info->length &&
-                        utils_string_casecmp_eq_32(command_str, command_len, command_info->string, command_info->string_len) == true) {
+                        strncasecmp(command_str, command_info->string, command_len) == 0) {
                         LOG_D(
                                 TAG,
                                 "[RECV][REDIS] <%s> command received",
                                 command_info->string);
                         protocol_context->command = command_info->command;
                         protocol_context->command_info = command_info;
+
+                        break;
                     }
                 }
 
+                // Check if the command has been found
                 if (protocol_context->command == NETWORK_PROTOCOL_REDIS_COMMAND_UNKNOWN) {
                     protocol_context->skip_command = true;
                 } else if (protocol_context->command_info->begin_funcptr) {
+                    // Invoke the being function callback if it has been set
                     if (!protocol_context->command_info->begin_funcptr(
                             channel,
                             db,
@@ -242,31 +290,29 @@ bool network_protocol_redis_process_events(
                 }
             }
 
-            // TODO: need to handle stream mode
-
-            if (
-                    protocol_context->skip_command == false &&
-                    protocol_context->command != NETWORK_PROTOCOL_REDIS_COMMAND_NOP &&
-                    reader_context->arguments.current.index > 0) {
-                uint32_t argument_index = reader_context->arguments.current.index;
-                if (reader_context->arguments.list[argument_index].all_read) {
-                    if (protocol_context->command_info->argument_processed_funcptr) {
-                        if (!protocol_context->command_info->argument_processed_funcptr(
-                                channel,
-                                db,
-                                protocol_context,
-                                reader_context,
-                                &protocol_context->command_context,
-                                argument_index)) {
-                            LOG_D(TAG, "[RECV][REDIS] argument processed function for command failed");
-                            return false;
-                        }
-                    }
-                }
+            // Check the command has to be processed, if the command has been identified and if any argument, apart from
+            // the command, has been received. If not, continue the loop.
+            if (protocol_context->skip_command == true ||
+                protocol_context->command == NETWORK_PROTOCOL_REDIS_COMMAND_NOP &&
+                reader_context->arguments.current.index == 0) {
+                continue;
             }
 
-            // TODO: add an stream_data_to_storage to the reader_context and if it's true stream the data here and
-            //       get the pointer to them if it's the first invocation
+            uint32_t argument_index = reader_context->arguments.current.index;
+
+            if (reader_context->arguments.list[argument_index].all_read &&
+                protocol_context->command_info->argument_processed_funcptr) {
+                if (!protocol_context->command_info->argument_processed_funcptr(
+                        channel,
+                        db,
+                        protocol_context,
+                        reader_context,
+                        &protocol_context->command_context,
+                        argument_index)) {
+                    LOG_D(TAG, "[RECV][REDIS] argument processed function for command failed");
+                    return false;
+                }
+            }
         } while(read_buffer->data_size > 0 &&
                 reader_context->state != PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED);
 
@@ -293,7 +339,7 @@ bool network_protocol_redis_process_events(
 
             network_close(channel, true);
 
-            // TODO: return? who knows, this code is a mess LOL
+            return true;
         }
 
         if (reader_context->state == PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED) {
@@ -325,7 +371,8 @@ bool network_protocol_redis_process_events(
                         send_buffer,
                         send_buffer_start - send_buffer);
             } else if (protocol_context->command_info != NULL) {
-                if (protocol_context->command_info->required_positional_arguments_count > reader_context->arguments.count - 1) {
+                if (protocol_context->command_info->required_positional_arguments_count >
+                    reader_context->arguments.count - 1) {
                     // In memory there are always at least 2 bytes after the arguments, the first byte after the command
                     // can be converted into a null to insert it into the the error message
                     *(reader_context->arguments.list[0].value + reader_context->arguments.list[0].length) = 0;

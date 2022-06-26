@@ -43,28 +43,6 @@ void protocol_redis_reader_context_arguments_free(
     }
 }
 
-int protocol_redis_reader_context_arguments_clone_current(
-        protocol_redis_reader_context_t* context) {
-    if (context->arguments.count == 0) {
-        return -1;
-    }
-
-    long index = context->arguments.current.index;
-
-    if (context->arguments.list[index].copied_from_buffer) {
-        return -1;
-    }
-
-    char* value = slab_allocator_mem_alloc(context->arguments.current.length);
-
-    memcpy(value, context->arguments.list[index].value, context->arguments.current.length);
-
-    context->arguments.list[index].value = value;
-    context->arguments.list[index].copied_from_buffer = true;
-
-    return 0;
-}
-
 void protocol_redis_reader_context_reset(
         protocol_redis_reader_context_t* context) {
     protocol_redis_reader_context_arguments_free(context);
@@ -102,47 +80,48 @@ long protocol_redis_reader_read(
         bool is_inline = first_byte != PROTOCOL_REDIS_TYPE_ARRAY;
 
         if (is_inline) {
+            context->protocol_type = PROTOCOL_REDIS_READER_PROTOCOL_TYPE_INLINE;
             context->state = PROTOCOL_REDIS_READER_STATE_INLINE_WAITING_ARGUMENT;
             context->arguments.count = 0;
         } else {
             char *new_line_ptr = memchr(buffer, '\n', length);
             if (new_line_ptr == NULL) {
-                // If the new line can't be find, it means that we received partial data and need to wait for more
-                // before trying to parse again.
-                // The state is not changed on purpose
+                // If the new line can't be found, it means that we received partial data and need to wait for more
+                // before trying to parse again, the state is not changed on purpose.
                 return 0;
             }
 
-            // No need to error check if new_line_ptr - 1 < buffer, there is always at least 1 byte before
-            if (*(new_line_ptr - 1) == '\r') {
-                new_line_ptr--;
+            // Ensure that there is at least 1 character and the \r before the found \n
+            if (new_line_ptr - buffer < 2 || *(new_line_ptr - 1) != '\r') {
+                context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_ARRAY_INVALID_LENGTH;
+                return -1;
             }
 
+            // Convert the argument count to a number
             char *args_count_end_ptr = NULL;
             long args_count = strtol(buffer + 1, &args_count_end_ptr, 10);
 
-            // Ensure that the tail ptr matches the new line, otherwise means there are invalid chars
-            if (new_line_ptr != args_count_end_ptr) {
+            if (
+                    new_line_ptr - 1 != args_count_end_ptr ||
+                    args_count <= 0 ||
+                    args_count > PROTOCOL_REDIS_READER_MAX_ARGUMENTS_PER_COMMAND) {
                 context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_ARRAY_INVALID_LENGTH;
                 return -1;
             }
 
-            if (args_count <= 0) {
-                context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_ARRAY_INVALID_LENGTH;
-                return -1;
-            }
-
-            // TODO: should limit the number of allowed elements otherwise it can be used as DDOS attack
-
+            // Update context arguments count and allocates the memory for the arguments
             context->arguments.count = args_count;
             context->arguments.list = slab_allocator_mem_alloc_zero(
                     sizeof(protocol_redis_reader_context_argument_t) * context->arguments.count);
 
-            unsigned long move_offset = new_line_ptr - buffer + 2;
+            // Update the amount of processed data
+            unsigned long move_offset = new_line_ptr - buffer + 1;
             read_offset += move_offset;
             buffer += move_offset;
             length -= move_offset;
 
+            // Update the state
+            context->protocol_type = PROTOCOL_REDIS_READER_PROTOCOL_TYPE_RESP;
             context->state = PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_LENGTH;
         }
 
@@ -345,46 +324,37 @@ long protocol_redis_reader_read(
     }
 
     if (length > 0 && context->state == PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_LENGTH) {
-        char first_byte = *(char*)buffer;
-        bool is_blob_string = first_byte == PROTOCOL_REDIS_TYPE_BLOB_STRING;
-
-        if (!is_blob_string) {
+        // Only blob strings are allowed when making a request
+        if (*buffer != PROTOCOL_REDIS_TYPE_BLOB_STRING) {
             context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_EXPECTED;
             return -1;
         }
 
         char *new_line_ptr = memchr(buffer, '\n', length);
         if (new_line_ptr == NULL) {
-            // If the new line can't be find, it means that we received partial data and need to wait for more
-            // before trying to parse again.
-            // The state is not changed on purpose
+            // If the new line can't be found, it means that we received partial data and need to wait for more
+            // before trying to parse again, the state is not changed on purpose.
             return read_offset;
         }
 
-        // No need to error check if new_line_ptr - 1 < buffer, there is always at least 1 byte before
-        if (*(new_line_ptr - 1) == '\r') {
-            new_line_ptr--;
+        // Ensure that there is at least 1 charater and the \r before the found \n
+        if (new_line_ptr - buffer < 2 || *(new_line_ptr - 1) != '\r') {
+            context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_ARRAY_INVALID_LENGTH;
+            return -1;
         }
 
+        // Convert the data length to a number
         char *data_length_end_ptr = NULL;
         long data_length = strtol(buffer + 1, &data_length_end_ptr, 10);
 
-        // Ensure that the tail ptr matches the new line, otherwise means there are invalid chars
-        if (new_line_ptr != data_length_end_ptr) {
+        if (new_line_ptr - 1 != data_length_end_ptr || data_length < 0) {
             context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_INVALID_LENGTH;
             return -1;
         }
 
-        if (data_length < 0) {
-            context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_INVALID_LENGTH;
-            return -1;
-        }
-
-        // Increase read_offset
-        unsigned long move_offset = new_line_ptr - buffer + 2;
+        // Update the amount of processed data
+        unsigned long move_offset = new_line_ptr - buffer + 1;
         read_offset += move_offset;
-
-        // Move forward the initial point of the buffer and update the length
         buffer += move_offset;
         length -= move_offset;
 
@@ -411,14 +381,16 @@ long protocol_redis_reader_read(
     if (length > 0 && context->state == PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA) {
         // Check if the current buffer may contain the entire / remaining response, take into account that every data
         // blob has to be followed by a \r\n
+        size_t data_length;
+        bool end_found = false;
         size_t waiting_data_length =
                 context->arguments.current.length -
                 context->arguments.resp_protocol.current.received_length +
                 2;
 
+        // Determine the amount of data found
         if (length < waiting_data_length) {
-            read_offset += length;
-            context->arguments.resp_protocol.current.received_length += length;
+            data_length = length;
         } else {
             // Check if the end of the data has the proper signature (\r\n)
             char* signature_ptr = buffer + waiting_data_length - 2;
@@ -427,12 +399,26 @@ long protocol_redis_reader_read(
                 return -1;
             }
 
-            read_offset += waiting_data_length;
+            data_length = waiting_data_length;
+            end_found = true;
+        }
 
+        // If the value has been copied into a temporary buffer, then copy the received part there as well
+        if (context->arguments.list[context->arguments.current.index].copied_from_buffer) {
+            char* value_dest =
+                    context->arguments.list[context->arguments.current.index].value +
+                            context->arguments.resp_protocol.current.received_length;
+            memcpy(value_dest, buffer, data_length);
+        }
+
+        // Update the various offsets (and pointers)
+        read_offset += data_length;
+        buffer += data_length;
+        context->arguments.resp_protocol.current.received_length += data_length;
+
+        // If the end has been found, update the status of the current argument
+        if (end_found) {
             // Update the current status
-            context->arguments.current.length = 0;
-            context->arguments.current.beginning = true;
-
             context->arguments.list[context->arguments.current.index].all_read = true;
 
             // Check if this is the last argument of the array
