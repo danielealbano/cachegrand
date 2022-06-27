@@ -41,18 +41,109 @@
 
 #define TAG "network_protocol_redis_command_get"
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
-    char *send_buffer = NULL;
-    bool res;
-    bool return_res = false;
-    storage_db_entry_index_status_t old_status;
-    storage_db_entry_index_t *entry_index = NULL;
-    storage_db_chunk_info_t *chunk_info = NULL;
+struct get_command_context {
+    char error_message[250];
+    bool has_error;
+    storage_db_entry_index_t *entry_index;
+    char *key;
+    size_t key_length;
+    size_t key_offset;
+    bool key_copied_in_buffer;
+};
+typedef struct get_command_context get_command_context_t;
 
-    entry_index = storage_db_get_entry_index(
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(get) {
+    protocol_context->command_context = slab_allocator_mem_alloc(sizeof(get_command_context_t));
+
+    get_command_context_t *get_command_context = (get_command_context_t*)protocol_context->command_context;
+    get_command_context->has_error = false;
+    get_command_context->entry_index = NULL;
+
+    return true;
+}
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_REQUIRE_STREAM(get) {
+    // All the arguments passed to del are keys
+    return true;
+}
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(get) {
+    // Require stream always returns true, the code should never get here
+    assert(0);
+    return false;
+}
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(get) {
+    get_command_context_t *get_command_context = (get_command_context_t*)protocol_context->command_context;
+
+    if (get_command_context->has_error) {
+        return true;
+    }
+
+    if (argument_length > NETWORK_PROTOCOL_REDIS_KEY_MAX_LENGTH) {
+        get_command_context->has_error = true;
+        snprintf(
+                get_command_context->error_message,
+                sizeof(get_command_context->error_message) - 1,
+                "ERR The key '%d' has exceeded the allowed size",
+                (int)argument_length);
+        get_command_context->has_error = true;
+        return true;
+    }
+
+    get_command_context->key = NULL;
+    get_command_context->key_copied_in_buffer = false;
+    get_command_context->key_length = argument_length;
+    get_command_context->key_offset = 0;
+
+    return true;
+}
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_DATA(get) {
+    get_command_context_t *get_command_context = (get_command_context_t*)protocol_context->command_context;
+
+    if (get_command_context->has_error) {
+        return true;
+    }
+
+    // The scenario tested in this assert can't happen, but if it does happen it's a bug in the protocol parser and
+    // there is no way to be sure that there is no corruption or data loss, so it's better to dramatically abort
+    // (in debug mode)
+    assert(get_command_context->key_offset + chunk_length <= get_command_context->key_length);
+
+    if (!get_command_context->key_copied_in_buffer) {
+        if (chunk_length != get_command_context->key_length) {
+            get_command_context->key_copied_in_buffer = true;
+            get_command_context->key = slab_allocator_mem_alloc(get_command_context->key_length);
+        } else {
+            // The argument stream end is ALWAYS processed right after the last argument stream data so if the size of the
+            // data of the chunk matches the size of the key then it was received in one go and can be used directly without
+            // copying it around
+            get_command_context->key_copied_in_buffer = false;
+            get_command_context->key = chunk_data;
+        }
+    }
+
+    if (get_command_context->key_copied_in_buffer) {
+        memcpy(get_command_context->key, chunk_data, chunk_length);
+        get_command_context->key_offset += chunk_length;
+    }
+
+    return true;
+}
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(get) {
+    storage_db_entry_index_status_t old_status;
+    get_command_context_t *get_command_context = (get_command_context_t*)protocol_context->command_context;
+
+    if (get_command_context->has_error) {
+        goto end;
+    }
+
+    storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
             db,
-            reader_context->arguments.list[1].value,
-            reader_context->arguments.list[1].length);
+            get_command_context->key,
+            get_command_context->key_length);
 
     if (likely(entry_index)) {
         // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
@@ -64,6 +155,27 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(get) {
             entry_index = NULL;
         }
     }
+
+    get_command_context->entry_index = entry_index;
+
+end:
+    if (get_command_context->key_copied_in_buffer) {
+        slab_allocator_mem_free(get_command_context->key);
+        get_command_context->key_copied_in_buffer = false;
+    }
+
+    return true;
+}
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
+    bool res;
+    char *send_buffer = NULL;
+    bool return_res = false;
+    storage_db_entry_index_t *entry_index = NULL;
+    storage_db_chunk_info_t *chunk_info = NULL;
+
+    get_command_context_t *get_command_context = (get_command_context_t*)protocol_context->command_context;
+    entry_index = get_command_context->entry_index;
 
     if (likely(entry_index)) {
         char *send_buffer_start, *send_buffer_end;
