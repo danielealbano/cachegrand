@@ -39,7 +39,11 @@
 
 #define TAG "network_protocol_redis_command_ping"
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(ping) {
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(ping) {
+    return true;
+}
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(ping) {
     char send_buffer[64], *send_buffer_start, *send_buffer_end;
     size_t send_buffer_length;
 
