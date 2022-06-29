@@ -53,7 +53,7 @@ typedef enum protocol_redis_reader_op_type protocol_redis_reader_op_type_t;
 typedef struct protocol_redis_reader_op protocol_redis_reader_op_t;
 struct protocol_redis_reader_op {
     protocol_redis_reader_op_type_t type;
-    size_t data_read_len;
+    off_t data_read_len;
     union {
         struct {
             uint32_t arguments_count;
