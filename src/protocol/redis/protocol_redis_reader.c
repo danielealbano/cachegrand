@@ -420,14 +420,21 @@ int32_t protocol_redis_reader_read(
         // blob has to be followed by a \r\n
         size_t data_length;
         bool end_found = false;
-        size_t waiting_data_length =
+        size_t argument_waiting_data_length =
                 context->arguments.current.length -
-                context->arguments.current.received_length +
-                2;
+                context->arguments.current.received_length;
+        size_t waiting_data_length = argument_waiting_data_length + 2;
 
         // Determine the amount of data found
         if (length < waiting_data_length) {
             data_length = length;
+
+            // Check if the length of the data received is greater than argument_waiting_data_length, if yes it means
+            // that the received data include part of the end signature (just the \r), if it's the case data_length has
+            // to be decreased to ensure that the \r is not considered data and it's kept in the buffer if it is rewound
+            if (data_length > argument_waiting_data_length) {
+                data_length--;
+            }
         } else {
             // Check if the end of the data has the proper signature (\r\n)
             char* signature_ptr = buffer + waiting_data_length - 2;
@@ -451,7 +458,10 @@ int32_t protocol_redis_reader_read(
         ops[op_index].data.argument.index = context->arguments.current.index;
         ops[op_index].data.argument.length = context->arguments.current.length;
         ops[op_index].data.argument.offset = read_offset - data_length;
-        ops[op_index].data.argument.data_length = data_length;
+
+        // If the end is found the length of the end signature (\r\n) has to be removed from the data_length of the
+        // argument
+        ops[op_index].data.argument.data_length = data_length - (end_found ? 2 : 0);
         op_index++;
 
         // If the end has been found, update the status of the current argument
