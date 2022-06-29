@@ -650,9 +650,11 @@ bool storage_db_entry_chunk_read(
 bool storage_db_entry_chunk_write(
         storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
-        char *buffer) {
+        off_t chunk_offset,
+        char *buffer,
+        size_t buffer_length) {
     if (db->config->backend_type == STORAGE_DB_BACKEND_TYPE_MEMORY) {
-        if (!memcpy(chunk_info->memory.chunk_data, buffer, chunk_info->chunk_length)) {
+        if (!memcpy(chunk_info->memory.chunk_data + chunk_offset, buffer, buffer_length)) {
             return false;
         }
     } else {
@@ -661,8 +663,8 @@ bool storage_db_entry_chunk_write(
         if (!storage_write(
                 channel,
                 buffer,
-                chunk_info->chunk_length,
-                chunk_info->file.chunk_offset)) {
+                buffer_length,
+                chunk_info->file.chunk_offset + chunk_offset)) {
             LOG_E(
                     TAG,
                     "[ENTRY_CHUNK_WRITE] Failed to write chunk with offset <%u> long <%u> bytes (path <%s>)",

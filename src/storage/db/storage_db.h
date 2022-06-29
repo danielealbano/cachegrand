@@ -216,7 +216,9 @@ bool storage_db_entry_chunk_read(
 bool storage_db_entry_chunk_write(
         storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
-        char *buffer);
+        off_t chunk_offset,
+        char *buffer,
+        size_t buffer_length);
 
 storage_db_chunk_info_t *storage_db_entry_key_chunk_get(
         storage_db_entry_index_t* entry_index,
