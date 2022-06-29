@@ -3,6 +3,7 @@
 
 #include "protocol/redis/protocol_redis_reader.h"
 
+#pragma GCC diagnostic ignored "-Wwrite-strings"
 
 TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][protocol_redis_reader][resp]") {
     SECTION("protocol_redis_reader_read") {
@@ -78,11 +79,10 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
             REQUIRE(ops[2].data_read_len == 7);
             REQUIRE(ops[2].data.argument.length == 5);
             REQUIRE(ops[2].data.argument.data_length == 5);
-            REQUIRE(ops[2].data.argument.offset == 5);
+            REQUIRE(ops[2].data.argument.offset == 8);
             REQUIRE(strncmp(buffer + ops[2].data.argument.offset, "HELLO", ops[2].data.argument.length) == 0);
-            REQUIRE(context->arguments.current.beginning == true);
-            REQUIRE(context->arguments.current.length == 0);
-            REQUIRE(context->arguments.current.index == 1);
+            REQUIRE(context->arguments.current.length == 5);
+            REQUIRE(context->arguments.current.index == 0);
             REQUIRE(context->state == PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED);
 
             protocol_redis_reader_context_free(context);
@@ -95,20 +95,21 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
 
             int32_t ops_found = protocol_redis_reader_read(buffer, strlen(buffer), context, ops, ops_size);
 
-            REQUIRE(ops_found == 5);
+            REQUIRE(ops_found == 4);
             REQUIRE(context->error == 0);
             REQUIRE(ops[0].type == PROTOCOL_REDIS_READER_OP_TYPE_COMMAND_BEGIN);
             REQUIRE(ops[1].type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_BEGIN);
-            REQUIRE(ops[2].type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA);
-            REQUIRE(ops[3].type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END);
-            REQUIRE(ops[4].type == PROTOCOL_REDIS_READER_OP_TYPE_COMMAND_END);
-            REQUIRE(ops[2].data_read_len == 7);
+            REQUIRE(ops[2].type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END);
+            REQUIRE(ops[3].type == PROTOCOL_REDIS_READER_OP_TYPE_COMMAND_END);
+            REQUIRE(ops[0].data_read_len == 4);
+            REQUIRE(ops[1].data_read_len == 4);
+            REQUIRE(ops[2].data_read_len == 0);
+            REQUIRE(ops[3].data_read_len == 0);
             REQUIRE(ops[2].data.argument.length == 0);
             REQUIRE(ops[2].data.argument.data_length == 0);
-            REQUIRE(ops[2].data.argument.offset == 5);
-            REQUIRE(context->arguments.current.beginning == true);
+            REQUIRE(ops[2].data.argument.offset == 4);
             REQUIRE(context->arguments.current.length == 0);
-            REQUIRE(context->arguments.current.index == 1);
+            REQUIRE(context->arguments.current.index == 0);
             REQUIRE(context->state == PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED);
 
             protocol_redis_reader_context_free(context);
@@ -138,7 +139,7 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
             REQUIRE(ops[2].data.argument.length == 5);
             REQUIRE(strncmp(buffer + ops[2].data.argument.offset, "HELLO", ops[2].data.argument.length) == 0);
 
-            ops_found = protocol_redis_reader_read(buffer, strlen(buffer) - data_read_len1, context, ops, ops_size);
+            ops_found = protocol_redis_reader_read(buffer + data_read_len1, strlen(buffer) - data_read_len1, context, ops, ops_size);
 
             REQUIRE(context->error == 0);
             REQUIRE(ops_found == 4);
@@ -153,9 +154,8 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
 
             REQUIRE(data_read_len1 + data_read_len2 == strlen(buffer));
             REQUIRE(ops[2].data.argument.length == 8);
-            REQUIRE(strncmp(buffer + ops[2].data.argument.offset, "NEWWORLD", ops[2].data.argument.length) == 0);
-            REQUIRE(context->arguments.current.beginning == true);
-            REQUIRE(context->arguments.current.length == 0);
+            REQUIRE(strncmp(buffer + data_read_len1 + ops[1].data.argument.offset, "NEWWORLD", ops[1].data.argument.length) == 0);
+            REQUIRE(context->arguments.current.length == 8);
             REQUIRE(context->arguments.current.index == 1);
             REQUIRE(context->state == PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED);
 
@@ -251,7 +251,8 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
             protocol_redis_reader_context_t* context = protocol_redis_reader_context_init();
 
             do {
-                ops_found = protocol_redis_reader_read(buffer, strlen(buffer), context, ops, ops_size);
+                data_read_len = 0;
+                ops_found = protocol_redis_reader_read(buffer_read, strlen(buffer_read), context, ops, ops_size);
 
                 REQUIRE(ops_found != -1);
                 REQUIRE(context->error == 0);
@@ -268,13 +269,13 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
                     // First argument
                     if (expected_op_type_index == 2) {
                         REQUIRE(ops[op_index].data.argument.length == 5);
-                        REQUIRE(strncmp(buffer + ops[op_index].data.argument.offset, "FIRST", ops[op_index].data.argument.length) == 0);
+                        REQUIRE(strncmp(buffer_read + ops[op_index].data.argument.offset, "FIRST", ops[op_index].data.argument.length) == 0);
                     }
 
                     // Second argument
                     if (expected_op_type_index == 5) {
                         REQUIRE(ops[op_index].data.argument.length == 8);
-                        REQUIRE(strncmp(buffer + ops[op_index].data.argument.offset, "ARGUMENT", ops[op_index].data.argument.length) == 0);
+                        REQUIRE(strncmp(buffer_read + ops[op_index].data.argument.offset, "ARGUMENT", ops[op_index].data.argument.length) == 0);
                     }
 
                     expected_op_type_index++;
@@ -290,7 +291,9 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
             protocol_redis_reader_context_reset(context);
 
             do {
-                ops_found = protocol_redis_reader_read(buffer, strlen(buffer), context, ops, ops_size);
+                data_read_len = 0;
+                ops_found = protocol_redis_reader_read(buffer_read, strlen(buffer_read), context, ops, ops_size);
+
                 REQUIRE(ops_found != -1);
                 REQUIRE(context->error == 0);
 
@@ -299,26 +302,26 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
                     data_read_len += ops[op_index].data_read_len;
 
                     // Validate the number of arguments read with the first op index
-                    if (expected_op_type_index == 9) {
+                    if (expected_op_type_index == 8) {
                         REQUIRE(ops[op_index].data.command.arguments_count == 3);
                     }
 
                     // First argument
                     if (expected_op_type_index == 10) {
                         REQUIRE(ops[op_index].data.argument.length == 3);
-                        REQUIRE(strncmp(buffer + ops[op_index].data.argument.offset, "FOR", ops[op_index].data.argument.length) == 0);
+                        REQUIRE(strncmp(buffer_read + ops[op_index].data.argument.offset, "FOR", ops[op_index].data.argument.length) == 0);
                     }
 
                     // Second argument
                     if (expected_op_type_index == 13) {
                         REQUIRE(ops[op_index].data.argument.length == 2);
-                        REQUIRE(strncmp(buffer + ops[op_index].data.argument.offset, "AN", ops[op_index].data.argument.length) == 0);
+                        REQUIRE(strncmp(buffer_read + ops[op_index].data.argument.offset, "AN", ops[op_index].data.argument.length) == 0);
                     }
 
                     // Third argument
                     if (expected_op_type_index == 16) {
                         REQUIRE(ops[op_index].data.argument.length == 12);
-                        REQUIRE(strncmp(buffer + ops[op_index].data.argument.offset, "HELLO WORLD!", ops[op_index].data.argument.length) == 0);
+                        REQUIRE(strncmp(buffer_read + ops[op_index].data.argument.offset, "HELLO WORLD!", ops[op_index].data.argument.length) == 0);
                     }
 
                     expected_op_type_index++;
@@ -339,18 +342,38 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
                     PROTOCOL_REDIS_READER_OP_TYPE_COMMAND_BEGIN,
                     PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_BEGIN,
                     PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
-                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END,
-                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_BEGIN,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
                     PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
                     PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END,
                     PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_BEGIN,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_BEGIN,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
                     PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
                     PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END,
                     PROTOCOL_REDIS_READER_OP_TYPE_COMMAND_END,
             };
             size_t buffer_length = strlen(buffer);
-            off_t data_read_len = 0;
             uint32_t expected_op_type_index = 0;
+            off_t data_read_len;
 
             protocol_redis_reader_context_t* context = protocol_redis_reader_context_init();
 
@@ -359,6 +382,7 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
             unsigned long buffer_new_length = 0;
             unsigned long buffer_new_offset = 0;
             for(int i = 0; i < buffer_length; i++) {
+                data_read_len = 0;
                 buffer_new[i] = buffer[i];
                 buffer_new_length++;
 
@@ -376,25 +400,48 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
                     }
 
                     // First argument
-                    if (expected_op_type_index == 2) {
+                    if (expected_op_type_index >= 2 && expected_op_type_index <= 4) {
+                        char *buffer_cmp_1 = buffer_new + buffer_new_offset + ops[op_index].data.argument.offset;
+                        char *buffer_cmp_2 = "FOR";
+                        REQUIRE(ops[op_index].data.argument.data_length == 1);
+                        REQUIRE(ops[op_index].data.argument.length == strlen(buffer_cmp_2));
+                        REQUIRE(*buffer_cmp_1 == buffer_cmp_2[expected_op_type_index - 2]);
+                    }
+                    if (expected_op_type_index == 5 || expected_op_type_index == 6) {
+                        REQUIRE(ops[op_index].data.argument.data_length == 0);
                         REQUIRE(ops[op_index].data.argument.length == 3);
-                        REQUIRE(strncmp(buffer + ops[op_index].data.argument.offset, "FOR", ops[op_index].data.argument.length) == 0);
                     }
 
                     // Second argument
-                    if (expected_op_type_index == 5) {
+                    if (expected_op_type_index >= 9 && expected_op_type_index <= 10) {
+                        char *buffer_cmp_1 = buffer_new + buffer_new_offset + ops[op_index].data.argument.offset;
+                        char *buffer_cmp_2 = "AN";
+                        REQUIRE(ops[op_index].data.argument.data_length == 1);
+                        REQUIRE(ops[op_index].data.argument.length == strlen(buffer_cmp_2));
+                        REQUIRE(*buffer_cmp_1 == buffer_cmp_2[expected_op_type_index - 9]);
+                    }
+                    if (expected_op_type_index == 11 || expected_op_type_index == 12) {
+                        REQUIRE(ops[op_index].data.argument.data_length == 0);
                         REQUIRE(ops[op_index].data.argument.length == 2);
-                        REQUIRE(strncmp(buffer + ops[op_index].data.argument.offset, "AN", ops[op_index].data.argument.length) == 0);
                     }
 
                     // Third argument
-                    if (expected_op_type_index == 8) {
+                    if (expected_op_type_index >= 15 && expected_op_type_index <= 26) {
+                        char *buffer_cmp_1 = buffer_new + buffer_new_offset + ops[op_index].data.argument.offset;
+                        char *buffer_cmp_2 = "HELLO WORLD!";
+                        REQUIRE(ops[op_index].data.argument.data_length == 1);
+                        REQUIRE(ops[op_index].data.argument.length == strlen(buffer_cmp_2));
+                        REQUIRE(*buffer_cmp_1 == buffer_cmp_2[expected_op_type_index - 15]);
+                    }
+                    if (expected_op_type_index == 27 || expected_op_type_index == 28) {
+                        REQUIRE(ops[op_index].data.argument.data_length == 0);
                         REQUIRE(ops[op_index].data.argument.length == 12);
-                        REQUIRE(strncmp(buffer + ops[op_index].data.argument.offset, "HELLO WORLD!", ops[op_index].data.argument.length) == 0);
                     }
 
                     expected_op_type_index++;
                 }
+
+                buffer_new_offset += data_read_len;
             }
 
             REQUIRE(context->state == PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED);
@@ -416,6 +463,7 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
                     PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
                     PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END,
                     PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_BEGIN,
+                    PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
                     PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
                     PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
                     PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA,
@@ -445,7 +493,7 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
 
                         // Validate the number of arguments read with the first op index
                         if (expected_op_type_index == 0) {
-                            REQUIRE(ops[op_index].data.command.arguments_count == 3);
+                            REQUIRE(ops[op_index].data.command.arguments_count == 2);
                         }
 
                         // First argument
@@ -473,6 +521,12 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
                             REQUIRE(ops[op_index].data.argument.length == 35);
                             REQUIRE(ops[op_index].data.argument.data_length == 15);
                             REQUIRE(strncmp(buffer_read + ops[op_index].data.argument.offset, "MNBVCXZLKJ12345", ops[op_index].data.argument.length) == 0);
+                        }
+
+                        // Second argument fourth block of data (terminator)
+                        if (expected_op_type_index == 8) {
+                            REQUIRE(ops[op_index].data.argument.length == 35);
+                            REQUIRE(ops[op_index].data.argument.data_length == 0);
                         }
 
                         expected_op_type_index++;
