@@ -42,7 +42,7 @@
 #define TAG "network_protocol_redis_command_del"
 
 struct del_command_context {
-    char error_message[250];
+    char error_message[256];
     bool has_error;
     uint32_t deleted_keys;
     char *key;
@@ -85,8 +85,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(del) {
         snprintf(
                 del_command_context->error_message,
                 sizeof(del_command_context->error_message) - 1,
-                "ERR The key '%d' has exceeded the allowed size",
-                (int)argument_length);
+                "ERR The key has exceeded the allowed size of 64KB");
         del_command_context->has_error = true;
         return true;
     }
@@ -158,7 +157,7 @@ end:
 }
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
-    bool result;
+    bool return_res = false;
     char send_buffer[256], *send_buffer_start, *send_buffer_end;
     size_t send_buffer_length;
 
@@ -177,7 +176,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
 
         if (send_buffer_start == NULL) {
             LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-            result = false;
             goto end;
         }
 
@@ -185,11 +183,9 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
                 channel,
                 send_buffer,
                 send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
-            result = false;
             goto end;
         }
 
-        result = true;
         goto end;
     }
 
@@ -201,7 +197,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
     if (send_buffer_start == NULL) {
         LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
         slab_allocator_mem_free(send_buffer);
-        result = false;
         goto end;
     }
 
@@ -209,13 +204,13 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
             channel,
             send_buffer,
             send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
-        result = false;
         goto end;
     }
 
-    result = true;
+    return_res = true;
+
 end:
     slab_allocator_mem_free(protocol_context->command_context);
 
-    return result;
+    return return_res;
 }

@@ -85,8 +85,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(get) {
         snprintf(
                 get_command_context->error_message,
                 sizeof(get_command_context->error_message) - 1,
-                "ERR The key '%d' has exceeded the allowed size",
-                (int)argument_length);
+                "ERR The key has exceeded the allowed size of 64KB");
         get_command_context->has_error = true;
         return true;
     }
@@ -177,6 +176,34 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
     get_command_context_t *get_command_context = (get_command_context_t*)protocol_context->command_context;
     entry_index = get_command_context->entry_index;
 
+    if (get_command_context->has_error) {
+        char error_send_buffer[256], *error_send_buffer_start, *error_send_buffer_end;
+        size_t error_send_buffer_length;
+        error_send_buffer_length = sizeof(error_send_buffer);
+        error_send_buffer_start = error_send_buffer;
+        error_send_buffer_end = error_send_buffer_start + error_send_buffer_length;
+
+        error_send_buffer_start = protocol_redis_writer_write_simple_error(
+                error_send_buffer_start,
+                error_send_buffer_end - error_send_buffer_start,
+                get_command_context->error_message,
+                (int)strlen(get_command_context->error_message));
+
+        if (error_send_buffer_start == NULL) {
+            LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
+            goto end;
+        }
+
+        if (network_send(
+                channel,
+                error_send_buffer,
+                error_send_buffer_start - error_send_buffer) != NETWORK_OP_RESULT_OK) {
+            goto end;
+        }
+
+        goto end;
+    }
+
     if (likely(entry_index)) {
         char *send_buffer_start, *send_buffer_end;
         size_t send_buffer_length;
@@ -207,7 +234,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
                     send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
                 LOG_E(TAG, "[REDIS][GET] Critical error, unable to send argument blob start");
 
-                goto fail;
+                goto end;
             }
 
             send_buffer_start = send_buffer;
@@ -236,7 +263,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
                             chunk_index,
                             chunk_info->chunk_length);
 
-                    goto fail;
+                    goto end;
                 }
 
                 buffer_to_send = send_buffer;
@@ -264,7 +291,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
                             chunk_index,
                             chunk_info->chunk_length);
 
-                    goto fail;
+                    goto end;
                 }
 
                 send_buffer_start = send_buffer;
@@ -288,7 +315,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
                     TAG,
                     "[REDIS][GET] Critical error, unable to send blob argument terminator");
 
-            goto fail;
+            goto end;
         }
     } else {
         char error_send_buffer[64] = { 0 }, *error_send_buffer_start, *error_send_buffer_end;
@@ -316,7 +343,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
                     TAG,
                     "[REDIS][GET] Critical error, unable to send blob argument");
 
-            goto fail;
+            goto end;
         }
     }
 
@@ -324,7 +351,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
     // duplication for the cleanup
     return_res = true;
 
-fail:
+end:
     if (entry_index) {
         storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
     }
@@ -332,6 +359,8 @@ fail:
     if (send_buffer) {
         slab_allocator_mem_free(send_buffer);
     }
+
+    slab_allocator_mem_free(protocol_context->command_context);
 
     return return_res;
 }

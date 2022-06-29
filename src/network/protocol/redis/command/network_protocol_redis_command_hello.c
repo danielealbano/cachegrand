@@ -113,7 +113,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(hello) {
 }
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
-    bool result;
+    bool return_res = false;
     char send_buffer[512], *send_buffer_start, *send_buffer_end;
     size_t send_buffer_length;
 
@@ -132,7 +132,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
 
         if (send_buffer_start == NULL) {
             LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-            result = false;
             goto end;
         }
 
@@ -140,11 +139,9 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
                 channel,
                 send_buffer,
                 send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
-            result = false;
             goto end;
         }
 
-        result = true;
         goto end;
     }
 
@@ -203,7 +200,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
 
     if (send_buffer_start == NULL) {
         LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-        result = false;
         goto end;
     }
 
@@ -217,7 +213,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
 
         if (send_buffer_start == NULL) {
             LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-            result = false;
             goto end;
         }
 
@@ -250,7 +245,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
 
         if (send_buffer_start == NULL) {
             LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-            result = false;
             goto end;
         }
     }
@@ -259,13 +253,12 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
             channel,
             send_buffer,
             send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
-        result = false;
         goto end;
     }
 
-    result = true;
+    return_res = true;
 end:
     slab_allocator_mem_free(protocol_context->command_context);
 
-    return result;
+    return return_res;
 }
