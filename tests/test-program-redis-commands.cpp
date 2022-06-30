@@ -117,6 +117,16 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
     REQUIRE(connect(clientfd, (struct sockaddr *) &address, sizeof(address)) == 0);
 
+    SECTION("Redis - command - unknown / unsupported command") {
+        snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$15\r\nUNKNOWN COMMAND\r\n");
+        buffer_send_data_len = strlen(buffer_send);
+
+        REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+        REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 54);
+        REQUIRE(strncmp(buffer_recv, "-ERR unknown command `UNKNOWN COMMAND` with `0` args\r\n",
+                        strlen("-ERR unknown command `UNKNOWN COMMAND` with `0` args\r\n")) == 0);
+    }
+
     SECTION("Redis - command - HELLO") {
         char *hello_v2_expected_response_start =
                 "*14\r\n"
@@ -256,15 +266,14 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                     strlen("-ERR wrong number of arguments for 'SET' command\r\n")) == 0);
         }
 
-        // TODO: this test should fail but the current implementation accepts and ignores the extra parameters, needs fixing!
-//        SECTION("Too many parameters - one extra parameter") {
-//            snprintf(buffer_send, sizeof(buffer_send) - 1, "*4\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nb_value\r\n$15\r\nextra parameter\r\n");
-//            buffer_send_data_len = strlen(buffer_send);
-//
-//            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-//            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 8);
-//            REQUIRE(strncmp(buffer_recv, "$2\r\nOK\r\n", strlen("$2\r\nOK\r\n")) == 0);
-//        }
+        SECTION("Too many parameters - one extra parameter") {
+            snprintf(buffer_send, sizeof(buffer_send) - 1, "*4\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nb_value\r\n$15\r\nextra parameter\r\n");
+            buffer_send_data_len = strlen(buffer_send);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 8);
+            REQUIRE(strncmp(buffer_recv, "$2\r\nOK\r\n", strlen("$2\r\nOK\r\n")) == 0);
+        }
     }
 
     SECTION("Redis - command - DEL") {
@@ -321,6 +330,41 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
             REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 13);
             REQUIRE(strncmp(buffer_recv, "$7\r\nb_value\r\n", strlen("$7\r\nb_value\r\n")) == 0);
+        }
+
+        SECTION("Existing key - pipelining") {
+            char buffer_recv_expected[512] = { 0 };
+            char *buffer_send_start = buffer_send;
+            char *buffer_recv_expected_start = buffer_recv_expected;
+
+            snprintf(buffer_send, sizeof(buffer_send) - 1, "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nb_value\r\n");
+            buffer_send_data_len = strlen(buffer_send);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 8);
+            REQUIRE(strncmp(buffer_recv, "$2\r\nOK\r\n", strlen("$2\r\nOK\r\n")) == 0);
+
+            for(int index = 0; index < 10; index++) {
+                buffer_send_start += snprintf(
+                        buffer_send_start,
+                        sizeof(buffer_send) - (buffer_send_start - buffer_send) - 1,
+                        "*2\r\n$3\r\nGET\r\n$5\r\na_key\r\n");
+
+                buffer_recv_expected_start += snprintf(
+                        buffer_recv_expected_start,
+                        sizeof(buffer_recv_expected) - (buffer_recv_expected_start - buffer_recv_expected) - 1,
+                        "$7\r\nb_value\r\n");
+            }
+            buffer_send_data_len = strlen(buffer_send);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+
+            size_t recv_len = 0;
+            do {
+                recv_len += recv(clientfd, buffer_recv, sizeof(buffer_recv), 0);
+            } while(recv_len < 130);
+
+            REQUIRE(strncmp(buffer_recv, buffer_recv_expected_start, strlen(buffer_recv_expected_start)) == 0);
         }
 
         SECTION("Non-existing key") {
