@@ -57,7 +57,7 @@ struct hello_response_item {
 typedef struct hello_response_item hello_response_item_t;
 
 struct hello_command_context {
-    char error_message[250];
+    char error_message[200];
     bool has_error;
 };
 typedef struct hello_command_context hello_command_context_t;
@@ -258,7 +258,17 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
 
     return_res = true;
 end:
-    slab_allocator_mem_free(protocol_context->command_context);
 
     return return_res;
+}
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(hello) {
+    if (!protocol_context->command_context) {
+        return true;
+    }
+
+    slab_allocator_mem_free(protocol_context->command_context);
+    protocol_context->command_context = NULL;
+
+    return true;
 }

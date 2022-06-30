@@ -77,3 +77,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(shutdown) {
     //       has requested to terminate the connection.
     return false;
 }
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(shutdown) {
+    return true;
+}

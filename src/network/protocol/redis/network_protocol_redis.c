@@ -11,6 +11,7 @@
 #include <string.h>
 #include <strings.h>
 #include <arpa/inet.h>
+#include <assert.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -54,13 +55,9 @@ network_protocol_redis_command_info_t command_infos_map[] = {
 };
 uint32_t command_infos_map_count = sizeof(command_infos_map) / sizeof(network_protocol_redis_command_info_t);
 
-// TODO: when processing the arguments, the in-loop command handling has to handle the arguments that require to be
-//       streamed somewhere (ie. the value argument of the SET command has to be written somewhere)
-
 typedef struct network_protocol_redis_client network_protocol_redis_client_t;
 struct network_protocol_redis_client {
     network_channel_buffer_t read_buffer;
-    network_channel_buffer_t send_buffer;
 };
 
 void network_protocol_redis_client_new(network_protocol_redis_client_t *network_protocol_redis_client) {
@@ -74,14 +71,10 @@ void network_protocol_redis_client_new(network_protocol_redis_client_t *network_
     // TODO: create a test to ensure that the length of the read buffer is taking into account the 32 bytes of padding
     network_protocol_redis_client->read_buffer.data = (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
     network_protocol_redis_client->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE - 32;
-
-    network_protocol_redis_client->send_buffer.data = (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_SEND_BUFFER_SIZE);
-    network_protocol_redis_client->send_buffer.length = NETWORK_CHANNEL_SEND_BUFFER_SIZE;
 }
 
 void network_protocol_redis_client_cleanup(network_protocol_redis_client_t *network_protocol_redis_client) {
     slab_allocator_mem_free(network_protocol_redis_client->read_buffer.data);
-    slab_allocator_mem_free(network_protocol_redis_client->send_buffer.data);
 }
 
 void network_protocol_redis_accept(
@@ -98,11 +91,13 @@ void network_protocol_redis_accept(
         if (!network_buffer_has_enough_space(
                 &network_protocol_redis_client.read_buffer,
                 NETWORK_CHANNEL_PACKET_SIZE)) {
-            char *send_buffer, *send_buffer_start, *send_buffer_end;
+            char send_buffer[64], *send_buffer_start, *send_buffer_end;
+            size_t send_buffer_length;
 
-            send_buffer = send_buffer_start = network_protocol_redis_client.send_buffer.data;
-            send_buffer_end =
-                    network_protocol_redis_client.send_buffer.data + network_protocol_redis_client.send_buffer.length;
+            send_buffer_length = sizeof(send_buffer);
+            send_buffer_start = send_buffer;
+            send_buffer_end = send_buffer_start + send_buffer_length;
+
             send_buffer_start = protocol_redis_writer_write_simple_error_printf(
                     send_buffer_start,
                     send_buffer_end - send_buffer_start,
@@ -115,8 +110,6 @@ void network_protocol_redis_accept(
                         channel,
                         send_buffer,
                         send_buffer_start - send_buffer);
-
-                network_close(channel, true);
             }
 
             exit_loop = true;
@@ -126,9 +119,6 @@ void network_protocol_redis_accept(
             if (network_buffer_needs_rewind(
                     &network_protocol_redis_client.read_buffer,
                     NETWORK_CHANNEL_PACKET_SIZE)) {
-//                network_protocol_redis_read_buffer_rewind(
-//                        &network_protocol_redis_client.read_buffer,
-//                        &protocol_context);
                 network_buffer_rewind(&network_protocol_redis_client.read_buffer);
             }
 
@@ -148,50 +138,6 @@ void network_protocol_redis_accept(
 
     network_protocol_redis_client_cleanup(&network_protocol_redis_client);
 }
-//
-//bool network_protocol_redis_read_buffer_rewind(
-//        network_channel_buffer_t *read_buffer,
-//        network_protocol_redis_context_t *protocol_context) {
-//    if (protocol_context->reader_context.arguments.count == 0) {
-//        return true;
-//    }
-//
-//    for(long index = 0; index <= protocol_context->reader_context.arguments.current.index; index++) {
-//        size_t data_received_length;
-//        protocol_redis_reader_context_argument_t *argument = &protocol_context->reader_context.arguments.list[index];
-//        if (argument->copied_from_buffer) {
-//            continue;
-//        }
-//
-//        if (argument->all_read) {
-//            data_received_length = argument->length;
-//        } else {
-//            // If the command is not marked all_read it means that it's necessary to determine if it's a resp3 command
-//            // or not, resp3 commands provide the full length of the argument in advance and therefore argument->length
-//            // contains that.
-//            if (protocol_context->reader_context.protocol_type == PROTOCOL_REDIS_READER_PROTOCOL_TYPE_INLINE) {
-//                data_received_length = argument->length;
-//            } else {
-//                data_received_length = protocol_context->reader_context.arguments.current.received_length;
-//            }
-//        }
-//
-//        char* value = slab_allocator_mem_alloc(argument->length);
-//        if (!value) {
-//            return false;
-//        }
-//
-//        memcpy(
-//                value,
-//                argument->value,
-//                data_received_length);
-//
-//        argument->value = value;
-//        argument->copied_from_buffer = true;
-//    }
-//
-//    return true;
-//}
 
 void network_protocol_redis_reset_context(
         network_protocol_redis_context_t *protocol_context) {
@@ -209,11 +155,16 @@ bool network_protocol_redis_process_events(
         network_channel_t *channel,
         network_channel_buffer_t *read_buffer,
         network_protocol_redis_context_t *protocol_context) {
+    char send_buffer[256], *send_buffer_start, *send_buffer_end;
     size_t send_buffer_length;
-    char *send_buffer, *send_buffer_start, *send_buffer_end;
+    int32_t ops_found;
+    bool return_result = false;
     protocol_redis_reader_op_t ops[8] = { 0 };
     uint8_t ops_size = (sizeof(ops) / sizeof(protocol_redis_reader_op_t));
-    int32_t ops_found;
+
+    send_buffer_length = sizeof(send_buffer);
+    send_buffer_start = send_buffer;
+    send_buffer_end = send_buffer_start + send_buffer_length;
 
     worker_context_t *worker_context = worker_context_get();
     storage_db_t *db = worker_context->db;
@@ -290,10 +241,6 @@ bool network_protocol_redis_process_events(
                         // command can be converted into a null to insert it into the error message
                         *(command_data + command_length) = 0;
 
-                        send_buffer_length = 64 + command_length;
-                        send_buffer = send_buffer_start = slab_allocator_mem_alloc(send_buffer_length);
-                        send_buffer_end = send_buffer_start + send_buffer_length;
-
                         send_buffer_start = protocol_redis_writer_write_simple_error_printf(
                                 send_buffer_start,
                                 send_buffer_end - send_buffer_start,
@@ -303,28 +250,36 @@ bool network_protocol_redis_process_events(
 
                         if (send_buffer_start == NULL) {
                             LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
-                            return false;
+                            goto end;
                         }
 
                         if (!network_send(
                                 channel,
                                 send_buffer,
                                 send_buffer_start - send_buffer)) {
-                            return false;
+                            goto end;
                         }
-                    } else if (protocol_context->command_info->command_begin_funcptr) {
-                        // Invoke the being function callback if it has been set
-                        if (!protocol_context->command_info->command_begin_funcptr(
-                                channel,
-                                db,
-                                protocol_context,
-                                reader_context)) {
-                            LOG_D(TAG, "[RECV][REDIS] being function for command failed");
-                            return false;
+                    } else {
+                        if (protocol_context->command_info->required_positional_arguments_count >
+                            reader_context->arguments.count - 1) {
+                            protocol_context->skip_command = true;
+                            continue;
                         }
 
-                        // If a command has been identified it's possible to move to the next op
-                        continue;
+                        if (protocol_context->command_info->command_begin_funcptr) {
+                            // Invoke the being function callback if it has been set
+                            if (!protocol_context->command_info->command_begin_funcptr(
+                                    channel,
+                                    db,
+                                    protocol_context,
+                                    reader_context)) {
+                                LOG_D(TAG, "[RECV][REDIS] command callback <command begin> failed");
+                                goto end;
+                            }
+
+                            // If a command has been identified it's possible to move to the next op
+                            continue;
+                        }
                     }
                 }
 
@@ -347,7 +302,7 @@ bool network_protocol_redis_process_events(
                     if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA) {
                         // If the require_stream flag is false, the argument_full callback will be called once all the data
                         // have been processed but to ensure that if the buffer gets rewind these data will not be lost
-                        // the buffer pointer is moved back as well if there isn't an another op or if op_index + 1 isn't an
+                        // the buffer pointer is moved back as well if there isn't another op or if op_index + 1 isn't an
                         // argument-end op.
                         bool last_op = op_index == (uint8_t) ops_found - 1;
                         bool op_followed_by_argument_end =
@@ -371,8 +326,8 @@ bool network_protocol_redis_process_events(
                                     reader_context,
                                     op->data.argument.index - 1,
                                     op->data.argument.length)) {
-                                LOG_D(TAG, "[RECV][REDIS] callback argument stream function for command failed");
-                                return false;
+                                LOG_D(TAG, "[RECV][REDIS] command callback <argument stream begin> failed");
+                                goto end;
                             }
                         }
                     } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA && require_stream) {
@@ -388,8 +343,8 @@ bool network_protocol_redis_process_events(
                                     op->data.argument.index - 1,
                                     chunk_data,
                                     chunk_length)) {
-                                LOG_D(TAG, "[RECV][REDIS] callback argument stream_data function for command failed");
-                                return false;
+                                LOG_D(TAG, "[RECV][REDIS] command callback <argument stream data> failed");
+                                goto end;
                             }
                         }
                     } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END && require_stream) {
@@ -400,8 +355,8 @@ bool network_protocol_redis_process_events(
                                     protocol_context,
                                     reader_context,
                                     op->data.argument.index - 1)) {
-                                LOG_D(TAG, "[RECV][REDIS] callback argument stream end function for command failed");
-                                return false;
+                                LOG_D(TAG, "[RECV][REDIS] command callback <argument stream end> failed");
+                                goto end;
                             }
                         }
                     } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END && !require_stream) {
@@ -417,8 +372,8 @@ bool network_protocol_redis_process_events(
                                     op->data.argument.index - 1,
                                     chunk_data,
                                     chunk_length)) {
-                                LOG_D(TAG, "[RECV][REDIS] callback argument full function for command failed");
-                                return false;
+                                LOG_D(TAG, "[RECV][REDIS] command callback <argument full> failed");
+                                goto end;
                             }
                         }
                     }
@@ -428,8 +383,8 @@ bool network_protocol_redis_process_events(
                             db,
                             protocol_context,
                             reader_context)) {
-                        LOG_D(TAG, "[RECV][REDIS] callback command end function for command failed");
-                        return false;
+                        LOG_D(TAG, "[RECV][REDIS] command callback <command end> failed");
+                        goto end;
                     }
                 }
             }
@@ -437,15 +392,7 @@ bool network_protocol_redis_process_events(
         while (read_buffer->data_size > 0 &&
                reader_context->state != PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED);
 
-        if (protocol_context->command == NETWORK_PROTOCOL_REDIS_COMMAND_UNKNOWN) {
-            // The context can be reset only once the ops have all been parsed and the command has been fully read
-            network_protocol_redis_reset_context(protocol_context);
-            break;
-        } else if (reader_context->error != PROTOCOL_REDIS_READER_ERROR_OK) {
-            send_buffer_length = 64;
-            send_buffer = send_buffer_start = slab_allocator_mem_alloc(send_buffer_length);
-            send_buffer_end = send_buffer_start + send_buffer_length;
-
+        if (reader_context->error != PROTOCOL_REDIS_READER_ERROR_OK) {
             send_buffer_start = protocol_redis_writer_write_simple_error_printf(
                     send_buffer_start,
                     send_buffer_end - send_buffer_start,
@@ -454,7 +401,7 @@ bool network_protocol_redis_process_events(
 
             if (send_buffer_start == NULL) {
                 LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
-                return false;
+                goto end;
             }
 
             network_send(
@@ -464,40 +411,71 @@ bool network_protocol_redis_process_events(
 
             network_close(channel, true);
 
-            return true;
+            goto end;
         } else if (reader_context->state == PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED) {
             if (protocol_context->command == NETWORK_PROTOCOL_REDIS_COMMAND_UNKNOWN) {
                 // The context can be reset only once the ops have all been parsed and the command has been fully read
                 network_protocol_redis_reset_context(protocol_context);
                 break;
-            } else if (protocol_context->command_info != NULL) {
-                if (protocol_context->command_info->required_positional_arguments_count >
-                    reader_context->arguments.count - 1) {
-                    send_buffer_length = 64 + protocol_context->command_info->string_len;
-                    send_buffer = send_buffer_start = slab_allocator_mem_alloc(send_buffer_length);
-                    send_buffer_end = send_buffer_start + send_buffer_length;
-
-                    send_buffer_start = protocol_redis_writer_write_simple_error_printf(
-                            send_buffer_start,
-                            send_buffer_end - send_buffer_start,
-                            "ERR wrong number of arguments for '%s' command",
-                            protocol_context->command_info->string);
-
-                    if (send_buffer_start == NULL) {
-                        LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
-                        return false;
-                    }
-
-                    network_protocol_redis_reset_context(protocol_context);
-
-                    return network_send(
-                            channel,
-                            send_buffer,
-                            send_buffer_start - send_buffer);
-                }
             }
+
+            assert(protocol_context->command_info != NULL);
+
+            if (protocol_context->command_info->required_positional_arguments_count >
+                reader_context->arguments.count - 1) {
+                send_buffer_start = protocol_redis_writer_write_simple_error_printf(
+                        send_buffer_start,
+                        send_buffer_end - send_buffer_start,
+                        "ERR wrong number of arguments for '%s' command",
+                        protocol_context->command_info->string);
+
+                network_protocol_redis_reset_context(protocol_context);
+
+                if (send_buffer_start == NULL) {
+                    LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
+                    goto end;
+                }
+
+                return_result = network_send(
+                        channel,
+                        send_buffer,
+                        send_buffer_start - send_buffer);
+                goto end;
+            }
+
+            // If the command is all parsed the command data in protocol context can be freed
+            if (!protocol_context->command_info->command_free_funcptr(
+                    channel,
+                    db,
+                    protocol_context,
+                    reader_context)) {
+                network_protocol_redis_reset_context(protocol_context);
+                LOG_D(TAG, "[RECV][REDIS] command callback <command free> failed");
+                goto end;
+            }
+
+            network_protocol_redis_reset_context(protocol_context);
         }
     } while(read_buffer->data_size > 0);
 
-    return true;
+    return_result = true;
+end:
+    if (!return_result) {
+        // If the data processing failed it might be necessary to free up the resources
+        if (protocol_context->command_info != NULL) {
+            // Potentially command free might be double invoked, the callback must be idempotent to ensure that no
+            // memory will try to be get freed
+            if (!protocol_context->command_info->command_free_funcptr(
+                    channel,
+                    db,
+                    protocol_context,
+                    reader_context)) {
+                LOG_D(TAG, "[RECV][REDIS] command callback <command free> failed");
+            }
+        }
+
+        network_protocol_redis_reset_context(protocol_context);
+    }
+
+    return return_result;
 }

@@ -47,6 +47,9 @@ extern "C" {
 #define NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_END \
     NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_BEGIN
 
+#define NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_FREE \
+    NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_BEGIN
+
 #define NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(COMMAND_FUNC_PTR) \
     NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_GENERIC( \
         COMMAND_FUNC_PTR, \
@@ -89,6 +92,12 @@ extern "C" {
         command_end, \
         NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_END)
 
+#define NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(COMMAND_FUNC_PTR) \
+    NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_GENERIC( \
+        COMMAND_FUNC_PTR, \
+        command_free, \
+        NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_END)
+
 #define NETWORK_PROTOCOL_REDIS_COMMAND(ID, COMMAND, COMMAND_FUNC_PTR, POS_ARGS_COUNT) \
     { \
         .command = NETWORK_PROTOCOL_REDIS_COMMAND_##ID, \
@@ -102,6 +111,7 @@ extern "C" {
         .argument_stream_end_funcptr = NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, argument_stream_end), \
         .argument_full_funcptr = NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, argument_full), \
         .command_end_funcptr = NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, command_end), \
+        .command_free_funcptr = NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, command_free), \
         .required_positional_arguments_count = (POS_ARGS_COUNT) \
     }
 
@@ -118,6 +128,7 @@ extern "C" {
         .argument_stream_end_funcptr = NULL, \
         .argument_full_funcptr = NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, argument_full), \
         .command_end_funcptr = NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, command_end), \
+        .command_free_funcptr = NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, command_free), \
         .required_positional_arguments_count = (POS_ARGS_COUNT) \
     }
 
@@ -134,6 +145,7 @@ extern "C" {
         .argument_stream_end_funcptr = NULL, \
         .argument_full_funcptr = NULL, \
         .command_end_funcptr = NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, command_end), \
+        .command_free_funcptr = NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, command_free), \
         .required_positional_arguments_count = (POS_ARGS_COUNT) \
     }
 
@@ -158,6 +170,8 @@ typedef network_protocol_redis_command_funcptr_retval_t (network_protocol_redis_
         NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_FULL);
 typedef network_protocol_redis_command_funcptr_retval_t (network_protocol_redis_command_end_funcptr_t)(
         NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_END);
+typedef network_protocol_redis_command_funcptr_retval_t (network_protocol_redis_command_free_funcptr_t)(
+        NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_FREE);
 
 enum network_protocol_redis_commands {
     NETWORK_PROTOCOL_REDIS_COMMAND_NOP = 0,
@@ -186,6 +200,7 @@ struct network_protocol_redis_command_info {
     network_protocol_redis_command_argument_stream_end_funcptr_t *argument_stream_end_funcptr;
     network_protocol_redis_command_argument_full_funcptr_t *argument_full_funcptr;
     network_protocol_redis_command_end_funcptr_t *command_end_funcptr;
+    network_protocol_redis_command_free_funcptr_t *command_free_funcptr;
     uint8_t required_positional_arguments_count;
 };
 

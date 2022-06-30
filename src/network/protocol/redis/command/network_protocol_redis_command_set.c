@@ -43,8 +43,9 @@
 #define TAG "network_protocol_redis_command_set"
 
 struct set_command_context {
-    char error_message[250];
+    char error_message[200];
     bool has_error;
+    bool entry_index_saved;
     storage_db_entry_index_t *entry_index;
     storage_db_chunk_index_t chunk_index;
     off_t chunk_offset;
@@ -66,6 +67,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(set) {
 
     set_command_context_t *set_command_context = (set_command_context_t*)protocol_context->command_context;
     set_command_context->has_error = false;
+    set_command_context->entry_index_saved = false;
     set_command_context->entry_index = entry_index;
 
     return true;
@@ -109,13 +111,13 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(set) {
                     set_command_context->error_message,
                     sizeof(set_command_context->error_message) - 1,
                     "ERR The key has exceeded the allowed size of 64KB");
-            set_command_context->has_error = true;
+
             return true;
         }
 
-        set_command_context->key = slab_allocator_mem_alloc(set_command_context->key_length);;
         set_command_context->key_length = argument_length;
         set_command_context->key_offset = 0;
+        set_command_context->key = slab_allocator_mem_alloc(set_command_context->key_length);;
 
         // If the backend is in memory it's not necessary to write the key to the storage because it will never be used as
         // the only case in which the keys are read from the storage is when the database gets loaded from the disk at the
@@ -129,7 +131,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(set) {
                 LOG_E(
                         TAG,
                         "[REDIS][SET] Critical error, unable to allocate database chunks for the key");
-                storage_db_entry_index_free(db, set_command_context->entry_index);
                 return false;
             }
         }
@@ -144,7 +145,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(set) {
             LOG_E(
                     TAG,
                     "[REDIS][SET] Critical error, unable to allocate database chunks for the value");
-            storage_db_entry_index_free(db, set_command_context->entry_index);
             return false;
         }
 
@@ -308,19 +308,19 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
 
     if (!res) {
         storage_db_entry_index_free(db, entry_index);
-    }
 
-    if (res) {
+        send_buffer_start = protocol_redis_writer_write_simple_error_printf(
+                send_buffer_start,
+                send_buffer_end - send_buffer_start,
+                "ERR set failed");
+    } else  {
+        set_command_context->entry_index_saved = true;
+
         send_buffer_start = protocol_redis_writer_write_blob_string(
             send_buffer_start,
             send_buffer_end - send_buffer_start,
             "OK",
             2);
-    } else {
-        send_buffer_start = protocol_redis_writer_write_simple_error_printf(
-            send_buffer_start,
-            send_buffer_end - send_buffer_start,
-            "ERR set failed");
     }
 
     if (send_buffer_start == NULL) {
@@ -338,7 +338,23 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
     return_res = true;
 
 end:
-    slab_allocator_mem_free(protocol_context->command_context);
 
     return return_res;
+}
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(set) {
+    if (!protocol_context->command_context) {
+        return true;
+    }
+
+    set_command_context_t *set_command_context = (set_command_context_t*)protocol_context->command_context;
+
+    if (!set_command_context->entry_index_saved) {
+        storage_db_entry_index_free(db, set_command_context->entry_index);
+    }
+
+    slab_allocator_mem_free(protocol_context->command_context);
+    protocol_context->command_context = NULL;
+
+    return true;
 }

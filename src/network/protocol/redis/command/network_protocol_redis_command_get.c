@@ -42,7 +42,7 @@
 #define TAG "network_protocol_redis_command_get"
 
 struct get_command_context {
-    char error_message[250];
+    char error_message[200];
     bool has_error;
     storage_db_entry_index_t *entry_index;
     char *key;
@@ -80,13 +80,21 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(get) {
         return true;
     }
 
+    if (argument_index > 0) {
+        get_command_context->has_error = true;
+        snprintf(
+                get_command_context->error_message,
+                sizeof(get_command_context->error_message) - 1,
+                "ERR wrong number of arguments for 'get' command");
+        return true;
+    }
+
     if (argument_length > NETWORK_PROTOCOL_REDIS_KEY_MAX_LENGTH) {
         get_command_context->has_error = true;
         snprintf(
                 get_command_context->error_message,
                 sizeof(get_command_context->error_message) - 1,
                 "ERR The key has exceeded the allowed size of 64KB");
-        get_command_context->has_error = true;
         return true;
     }
 
@@ -158,11 +166,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(get) {
     get_command_context->entry_index = entry_index;
 
 end:
-    if (get_command_context->key_copied_in_buffer) {
-        slab_allocator_mem_free(get_command_context->key);
-        get_command_context->key_copied_in_buffer = false;
-    }
-
     return true;
 }
 
@@ -301,7 +304,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
         // At this stage the entry index is not accessed further therefore the readers counter can be decreased. The
         // entry_index has to be set to null to avoid that it's freed again at the end of the function
         storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
-        entry_index = NULL;
+        get_command_context->entry_index = entry_index = NULL;
 
         send_buffer_start = protocol_redis_writer_write_argument_blob_end(
                 send_buffer_start,
@@ -352,15 +355,32 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
     return_res = true;
 
 end:
-    if (entry_index) {
-        storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
-    }
-
     if (send_buffer) {
         slab_allocator_mem_free(send_buffer);
     }
 
-    slab_allocator_mem_free(protocol_context->command_context);
-
     return return_res;
+}
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(get) {
+    if (!protocol_context->command_context) {
+        return true;
+    }
+
+    get_command_context_t *get_command_context = (get_command_context_t*)protocol_context->command_context;
+
+    if (get_command_context->entry_index) {
+        storage_db_entry_index_status_decrease_readers_counter(get_command_context->entry_index, NULL);
+        get_command_context->entry_index = NULL;
+    }
+
+    if (get_command_context->key_copied_in_buffer) {
+        slab_allocator_mem_free(get_command_context->key);
+        get_command_context->key_copied_in_buffer = false;
+    }
+
+    slab_allocator_mem_free(protocol_context->command_context);
+    protocol_context->command_context = NULL;
+
+    return true;
 }
