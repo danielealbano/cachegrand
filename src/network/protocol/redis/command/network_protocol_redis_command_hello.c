@@ -13,6 +13,7 @@
 #include <arpa/inet.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -41,7 +42,6 @@
 
 #define TAG "network_protocol_redis_command_hello"
 
-typedef struct hello_response_item hello_response_item_t;
 struct hello_response_item {
     char* key;
     protocol_redis_types_t value_type;
@@ -54,150 +54,198 @@ struct hello_response_item {
         } array;
     } value;
 };
+typedef struct hello_response_item hello_response_item_t;
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(hello) {
+struct hello_command_context {
+    char error_message[200];
+    bool has_error;
+};
+typedef struct hello_command_context hello_command_context_t;
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(hello) {
+    protocol_context->command_context = slab_allocator_mem_alloc(sizeof(hello_command_context_t));
+    ((hello_command_context_t*)protocol_context->command_context)->has_error = false;
+
+    return true;
+}
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(hello) {
+    hello_command_context_t *hello_command_context = (hello_command_context_t*)protocol_context->command_context;
+
+    if (argument_index == 0) {
+        char *endptr = NULL;
+        long version;
+
+        version = strtol(chunk_data, &endptr, 10);
+
+        // Validate the parameters
+        if (errno == ERANGE || endptr != chunk_data + chunk_length) {
+            hello_command_context->has_error = true;
+            snprintf(
+                    hello_command_context->error_message,
+                    sizeof(hello_command_context->error_message) - 1,
+                    "ERR Protocol version is not an integer or out of range");
+        } else if (version < 2 || version > 3) {
+            hello_command_context->has_error = true;
+            snprintf(
+                    hello_command_context->error_message,
+                    sizeof(hello_command_context->error_message) - 1,
+                    "NOPROTO unsupported protocol version");
+        } else  {
+            protocol_context->resp_version = version == 2
+                                             ? PROTOCOL_REDIS_RESP_VERSION_2
+                                             : PROTOCOL_REDIS_RESP_VERSION_3;
+        }
+    } else {
+        if (!hello_command_context->has_error) {
+            char *error_msg_format = "ERR Syntax error in HELLO option '%.*s'";
+            hello_command_context->has_error = true;
+            snprintf(
+                    hello_command_context->error_message,
+                    sizeof(hello_command_context->error_message) - 1,
+                    error_msg_format,
+                    sizeof(hello_command_context->error_message) - 1 - strlen(error_msg_format) + 4,
+                    chunk_data);
+        }
+    }
+
+    return true;
+}
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
+    bool return_res = false;
     char send_buffer[512], *send_buffer_start, *send_buffer_end;
     size_t send_buffer_length;
-    bool invalid_protocol_error = false;
+
+    hello_command_context_t *hello_command_context = (hello_command_context_t*)protocol_context->command_context;
 
     send_buffer_length = sizeof(send_buffer);
     send_buffer_start = send_buffer;
     send_buffer_end = send_buffer_start + send_buffer_length;
 
-    if (reader_context->arguments.count == 2) {
-        // Covert the argument into a number
-        long version = 0;
-        char* endptr = NULL;
-
-        version = strtol(reader_context->arguments.list[1].value, &endptr, 10);
-
-        if (endptr == reader_context->arguments.list[1].value || version < 2 || version > 3) {
-            invalid_protocol_error = true;
-        } else {
-            protocol_context->resp_version = version == 2
-                    ? PROTOCOL_REDIS_RESP_VERSION_2
-                    : PROTOCOL_REDIS_RESP_VERSION_3;
-        }
-    }
-
-    if (invalid_protocol_error) {
+    if (hello_command_context->has_error) {
         send_buffer_start = protocol_redis_writer_write_simple_error(
                 send_buffer_start,
                 send_buffer_end - send_buffer_start,
-                "NOPROTO unsupported protocol version",
-                36);
+                hello_command_context->error_message,
+                (int)strlen(hello_command_context->error_message));
 
         if (send_buffer_start == NULL) {
             LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-            slab_allocator_mem_free(send_buffer);
-            return false;
+            goto end;
         }
+
+        if (network_send(
+                channel,
+                send_buffer,
+                send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
+            goto end;
+        }
+
+        goto end;
+    }
+
+    hello_response_item_t hello_responses[7] = {
+            {
+                    .key = "server",
+                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
+                    .value.string = CACHEGRAND_CMAKE_CONFIG_NAME
+            },
+            {
+                    .key = "version",
+                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
+                    .value.string = CACHEGRAND_CMAKE_CONFIG_VERSION_GIT
+            },
+            {
+                    .key = "proto",
+                    .value_type = PROTOCOL_REDIS_TYPE_NUMBER,
+                    .value.number = protocol_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2
+                            ? 2
+                            : 3
+            },
+            {
+                    .key = "id",
+                    .value_type = PROTOCOL_REDIS_TYPE_NUMBER,
+                    .value.number = 0
+            },
+            {
+                    .key = "mode",
+                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
+                    .value.string = "standalone"
+            },
+            {
+                    .key = "role",
+                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
+                    .value.string = "master"
+            },
+            {
+                    .key = "modules",
+                    .value_type = PROTOCOL_REDIS_TYPE_ARRAY,
+                    .value.array.list = NULL,
+                    .value.array.count = 0
+            },
+    };
+
+    if (protocol_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2) {
+        send_buffer_start = protocol_redis_writer_write_array(
+                send_buffer_start,
+                send_buffer_end - send_buffer_start,
+                sizeof(hello_responses) / sizeof(hello_response_item_t) * 2);
     } else {
-        if (protocol_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2) {
-            send_buffer_start = protocol_redis_writer_write_array(
-                    send_buffer_start,
-                    send_buffer_end - send_buffer_start,
-                    14);
-        } else {
-            send_buffer_start = protocol_redis_writer_write_map(
-                    send_buffer_start,
-                    send_buffer_end - send_buffer_start,
-                    7);
+        send_buffer_start = protocol_redis_writer_write_map(
+                send_buffer_start,
+                send_buffer_end - send_buffer_start,
+                sizeof(hello_responses) / sizeof(hello_response_item_t));
+    }
+
+    if (send_buffer_start == NULL) {
+        LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
+        goto end;
+    }
+
+    for(int i = 0; i < sizeof(hello_responses) / sizeof(hello_response_item_t); i++) {
+        hello_response_item_t hello_response = hello_responses[i];
+        send_buffer_start = protocol_redis_writer_write_blob_string(
+                send_buffer_start,
+                send_buffer_end - send_buffer_start,
+                hello_response.key,
+                (int)strlen(hello_response.key));
+
+        if (send_buffer_start == NULL) {
+            LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
+            goto end;
+        }
+
+        switch(hello_response.value_type) {
+            case PROTOCOL_REDIS_TYPE_SIMPLE_STRING:
+                send_buffer_start = protocol_redis_writer_write_blob_string(
+                        send_buffer_start,
+                        send_buffer_end - send_buffer_start,
+                        (char*)hello_response.value.string,
+                        (int)strlen(hello_response.value.string));
+                break;
+            case PROTOCOL_REDIS_TYPE_NUMBER:
+                send_buffer_start = protocol_redis_writer_write_number(
+                        send_buffer_start,
+                        send_buffer_end - send_buffer_start,
+                        hello_response.value.number);
+                break;
+            case PROTOCOL_REDIS_TYPE_ARRAY:
+                // not implemented, will simply report an empty array with the count set to 0
+                assert(hello_response.value.array.count == 0);
+
+                send_buffer_start = protocol_redis_writer_write_array(
+                        send_buffer_start,
+                        send_buffer_end - send_buffer_start,
+                        hello_response.value.array.count);
+                break;
+            default:
+                assert(0);
         }
 
         if (send_buffer_start == NULL) {
             LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-            slab_allocator_mem_free(send_buffer);
-            return false;
-        }
-
-        hello_response_item_t hello_responses[7] = {
-                {
-                        .key = "server",
-                        .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
-                        .value.string = CACHEGRAND_CMAKE_CONFIG_NAME
-                },
-                {
-                        .key = "version",
-                        .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
-                        .value.string = CACHEGRAND_CMAKE_CONFIG_VERSION_GIT
-                },
-                {
-                        .key = "proto",
-                        .value_type = PROTOCOL_REDIS_TYPE_NUMBER,
-                        .value.number = protocol_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2
-                                ? 2
-                                : 3
-                },
-                {
-                        .key = "id",
-                        .value_type = PROTOCOL_REDIS_TYPE_NUMBER,
-                        .value.number = 0
-                },
-                {
-                        .key = "mode",
-                        .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
-                        .value.string = "standalone"
-                },
-                {
-                        .key = "role",
-                        .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
-                        .value.string = "master"
-                },
-                {
-                        .key = "modules",
-                        .value_type = PROTOCOL_REDIS_TYPE_ARRAY,
-                        .value.array.list = NULL,
-                        .value.array.count = 0
-                },
-        };
-
-        for(int i = 0; i < sizeof(hello_responses) / sizeof(hello_response_item_t); i++) {
-            hello_response_item_t hello_response = hello_responses[i];
-            send_buffer_start = protocol_redis_writer_write_blob_string(
-                    send_buffer_start,
-                    send_buffer_end - send_buffer_start,
-                    hello_response.key,
-                    strlen(hello_response.key));
-
-            if (send_buffer_start == NULL) {
-                LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-                slab_allocator_mem_free(send_buffer);
-                return false;
-            }
-
-            switch(hello_response.value_type) {
-                case PROTOCOL_REDIS_TYPE_SIMPLE_STRING:
-                    send_buffer_start = protocol_redis_writer_write_blob_string(
-                            send_buffer_start,
-                            send_buffer_end - send_buffer_start,
-                            (char*)hello_response.value.string,
-                            strlen(hello_response.value.string));
-                    break;
-                case PROTOCOL_REDIS_TYPE_NUMBER:
-                    send_buffer_start = protocol_redis_writer_write_number(
-                            send_buffer_start,
-                            send_buffer_end - send_buffer_start,
-                            hello_response.value.number);
-                    break;
-                case PROTOCOL_REDIS_TYPE_ARRAY:
-                    // not implemented, will simply report an empty array with the count set to 0
-                    assert(hello_response.value.array.count == 0);
-
-                    send_buffer_start = protocol_redis_writer_write_array(
-                            send_buffer_start,
-                            send_buffer_end - send_buffer_start,
-                            hello_response.value.array.count);
-                    break;
-                default:
-                    assert(0);
-            }
-
-            if (send_buffer_start == NULL) {
-                LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-                slab_allocator_mem_free(send_buffer);
-                return false;
-            }
+            goto end;
         }
     }
 
@@ -205,8 +253,22 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_END(hello) {
             channel,
             send_buffer,
             send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
-        return false;
+        goto end;
     }
+
+    return_res = true;
+end:
+
+    return return_res;
+}
+
+NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(hello) {
+    if (!protocol_context->command_context) {
+        return true;
+    }
+
+    slab_allocator_mem_free(protocol_context->command_context);
+    protocol_context->command_context = NULL;
 
     return true;
 }
