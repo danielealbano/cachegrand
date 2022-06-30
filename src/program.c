@@ -526,7 +526,7 @@ void program_cleanup(
 
     if (program_context->slab_allocator_inited) {
         slab_allocator_predefined_allocators_free();
-        hugepage_cache_init();
+        hugepage_cache_free();
     }
 
     if (program_context->selected_cpus) {
