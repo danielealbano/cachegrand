@@ -24,8 +24,8 @@ if (CMAKE_BUILD_TYPE MATCHES Debug)
 elseif (CMAKE_BUILD_TYPE MATCHES Release)
     add_definitions(-DNDEBUG=1)
 
-    add_compile_options($<$<COMPILE_LANGUAGE:C>:-O3>)
-    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-O3>)
+    add_compile_options($<$<COMPILE_LANGUAGE:C>:-O2>)
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-O2>)
 
     message(STATUS "Release build")
 endif()
