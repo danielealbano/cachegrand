@@ -32,7 +32,7 @@
 #include WRAPFORINCLUDE(CONCAT(hashtable_support_hash_search,CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX).h)
 #define HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_FUNC CONCAT(CONCAT(hashtable_mcmp_support_hash_search, CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX), 14)
 
-bool concat(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX)(
+bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX)(
         hashtable_data_volatile_t *hashtable_data,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
@@ -206,7 +206,7 @@ bool concat(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
     return found;
 }
 
-bool concat(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX)(
+bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX)(
         hashtable_data_volatile_t *hashtable_data,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
