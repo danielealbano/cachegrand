@@ -33,6 +33,8 @@ extern "C" {
 #define STRINGIZE_NX(a) #a
 #define STRINGIZE(a)    STRINGIZE_NX(a)
 
+#define WRAPFORINCLUDE(a)    <a>
+
 #define max(a, b) \
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
