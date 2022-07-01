@@ -27,8 +27,8 @@ extern "C" {
 
 #define ELF_SECTION( S ) __attribute__ ((section ( S )))
 
-#define concat_(a, b)   a ## _ ## b
-#define concat(a, b)    concat_(a, b)
+#define CONCAT_(a, b)   a ## _ ## b
+#define CONCAT(a, b)    CONCAT_(a, b)
 
 #define STRINGIZE_NX(a) #a
 #define STRINGIZE(a)    STRINGIZE_NX(a)
@@ -49,12 +49,12 @@ extern "C" {
     }
 
 #define FUNCTION_CTOR_DTOR(SECTION_TYPE, SECTION_TYPE_STR, NAME, FUNC_BODY) \
-    static void concat(NAME, SECTION_TYPE) (){ \
+    static void CONCAT(NAME, SECTION_TYPE) (){ \
         FUNC_BODY \
     } \
     \
-    void (*concat(concat(NAME, SECTION_TYPE), fp))(void) ELF_SECTION(SECTION_TYPE_STR) = \
-        concat(NAME, SECTION_TYPE); \
+    void (*CONCAT(CONCAT(NAME, SECTION_TYPE), fp))(void) ELF_SECTION(SECTION_TYPE_STR) = \
+        CONCAT(NAME, SECTION_TYPE); \
 
 #define FUNCTION_CTOR(NAME, ...) FUNCTION_CTOR_DTOR(ctors, ".ctors", NAME, __VA_ARGS__)
 #define FUNCTION_DTOR(NAME, ...) FUNCTION_CTOR_DTOR(dtors, ".dtors", NAME, __VA_ARGS__)
