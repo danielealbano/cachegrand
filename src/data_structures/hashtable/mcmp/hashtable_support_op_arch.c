@@ -131,8 +131,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
             if (unlikely(HASHTABLE_KEY_VALUE_IS_EMPTY(key_value->flags))) {
                 LOG_DI(">> key_value->flags = 0 - terminating loop");
                 break;
-            } else if (unlikely(HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
-                    HASHTABLE_KEY_VALUE_FLAG_DELETED))) {
+            } else if (unlikely(HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_DELETED))) {
                 LOG_DI(">> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED - continuing");
                 continue;
             }
@@ -151,9 +150,6 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
             } else {
                 LOG_DI(">> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 
-                // TODO: The keys must be stored in an append only memory structure to avoid locking, memory can't
-                //       be freed immediately after the bucket is freed because it can be in use and would cause a
-                //       crash
                 found_key = key_value->external_key.data;
                 found_key_compare_size = key_value->external_key.size;
 
