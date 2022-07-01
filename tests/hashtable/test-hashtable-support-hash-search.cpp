@@ -11,7 +11,22 @@
 #include "data_structures/hashtable/mcmp/hashtable_support_op.h"
 #include "data_structures/hashtable/mcmp/hashtable_support_hash_search.h"
 
+#if defined(__x86_64__)
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_AVX512F == 1
+#include "data_structures/hashtable/mcmp/hashtable_support_hash_search_avx512f.h"
+#endif
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_AVX2 == 1
+#include "data_structures/hashtable/mcmp/hashtable_support_hash_search_avx2.h"
+#endif
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_AVX == 1
+#include "data_structures/hashtable/mcmp/hashtable_support_hash_search_avx.h"
+#endif
+#endif
+#include "data_structures/hashtable/mcmp/hashtable_support_hash_search_loop.h"
+
 #include "fixtures-hashtable.h"
+
+#define HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_FUNC CONCAT(CONCAT(hashtable_mcmp_support_hash_search, CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX), 14)
 
 #define TEST_HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_PLATFORM_DEPENDENT(SUFFIX) \
     SECTION("hashtable_mcmp_support_hash_search" STRINGIZE(SUFFIX)) { \
@@ -72,8 +87,4 @@ TEST_CASE("hashtable/hashtable_mcmp_support_hash_search.c",
 #endif
 #endif
     TEST_HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_PLATFORM_DEPENDENT(_loop_14)
-
-    // Same as one of the tested above but via ifunc and resolver, needed to check if the resolver is functioning
-    // properly and for code coverage
-    TEST_HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_PLATFORM_DEPENDENT()
 }
