@@ -17,7 +17,7 @@
 #include "hashtable.h"
 #include "hashtable_support_hash_search.h"
 
-hashtable_chunk_slot_index_t hashtable_mcmp_support_hash_search_loop_n(
+static inline hashtable_chunk_slot_index_t hashtable_mcmp_support_hash_search_loop_n(
         hashtable_hash_half_t hash,
         hashtable_hash_half_volatile_t* hashes,
         uint32_t skip_indexes_mask,
@@ -33,7 +33,7 @@ hashtable_chunk_slot_index_t hashtable_mcmp_support_hash_search_loop_n(
     return HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_NOT_FOUND;
 }
 
-hashtable_chunk_slot_index_t hashtable_mcmp_support_hash_search_loop_14(
+static inline hashtable_chunk_slot_index_t hashtable_mcmp_support_hash_search_loop_14(
         hashtable_hash_half_t hash,
         hashtable_hash_half_volatile_t* hashes,
         uint32_t skip_indexes_mask) {

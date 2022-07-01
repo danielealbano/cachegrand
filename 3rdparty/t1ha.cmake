@@ -44,7 +44,7 @@ if (USE_HASH_ALGORITHM_T1HA2)
         target_compile_definitions(
                 t1ha
                 PUBLIC
-                -DT1HA0_RUNTIME_SELECT=1 -DT1HA_USE_INDIRECT_FUNCTIONS=1 -Dt1ha_EXPORTS)
+                T1HA0_RUNTIME_SELECT=1 T1HA_USE_INDIRECT_FUNCTIONS=1 t1ha_EXPORTS)
 
         target_include_directories(
                 t1ha

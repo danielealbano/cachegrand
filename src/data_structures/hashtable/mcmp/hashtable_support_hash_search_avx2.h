@@ -23,7 +23,7 @@
  *
  * https://stackoverflow.com/a/62123631/169278
  **/
-hashtable_chunk_slot_index_t hashtable_mcmp_support_hash_search_avx2_14(
+static inline hashtable_chunk_slot_index_t hashtable_mcmp_support_hash_search_avx2_14(
         hashtable_hash_half_t hash,
         hashtable_hash_half_volatile_t* hashes,
         uint32_t skip_indexes_mask) {

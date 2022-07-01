@@ -28,8 +28,6 @@
         LOG_DI("Selecting optimal " #FUNC); \
         \
         LOG_DI("    CPU FOUND: %s", "X64"); \
-        LOG_DI(">    HAS SSE3: %s", __builtin_cpu_supports("sse3") ? "yes" : "no"); \
-        LOG_DI(">  HAS SSE4.2: %s", __builtin_cpu_supports("sse4.2") ? "yes" : "no"); \
         LOG_DI(">     HAS AVX: %s", __builtin_cpu_supports("avx") ? "yes" : "no"); \
         LOG_DI(">    HAS AVX2: %s", __builtin_cpu_supports("avx2") ? "yes" : "no"); \
         LOG_DI("> HAS AVX512F: %s", __builtin_cpu_supports("avx512f") ? "yes" : "no"); \
@@ -43,17 +41,11 @@
         } else if (__builtin_cpu_supports("avx")) { \
             LOG_DI("Selecting AVX"); \
             return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, avx); \
-        } else if (__builtin_cpu_supports("sse4.2")) { \
-            LOG_DI("Selecting SSE4.2"); \
-            return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, sse42); \
-        } else if (__builtin_cpu_supports("sse3")) { \
-            LOG_DI("Selecting SSE3"); \
-            return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, sse3); \
         } \
         \
         LOG_DI("No optimized function available for the current architecture, switching to generic"); \
         \
-        return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, defaultopt); \
+        return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, loop); \
     }
 #else
 #define HASHTABLE_MCMP_SUPPORT_OP_FUNC_RESOLVER(FUNC) \

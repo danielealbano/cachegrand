@@ -27,6 +27,27 @@ if(HOST_HAS_CLFLUSHOPT)
             -mclflushopt)
 endif()
 
+if (HOST_HAS_AVX512F)
+    target_compile_options(
+            cachegrand-tests
+            PRIVATE
+            -mavx512f)
+endif()
+
+if (HOST_HAS_AVX2)
+    target_compile_options(
+            cachegrand-tests
+            PRIVATE
+            -mno-avx256-split-unaligned-load -mavx2 -mfma)
+endif()
+
+if (HOST_HAS_AVX)
+    target_compile_options(
+            cachegrand-tests
+            PRIVATE
+            -mavx -mbmi -mbmi2)
+endif()
+
 # The libcyaml library can't be statically linked for the tests, the C++ compiler will fail to link the libyaml library
 # as it is compiled for C and the C++ is not properly configured.
 # Linking it dynamically will avoid the issue, it has a number of side effects but for the tests it's fine (at least
