@@ -91,7 +91,7 @@ int32_t protocol_redis_reader_read(
         char first_byte = *(char*)buffer;
         bool is_inline = first_byte != PROTOCOL_REDIS_TYPE_ARRAY;
 
-        if (is_inline) {
+        if (unlikely(is_inline)) {
             context->error = PROTOCOL_REDIS_READER_ERROR_INLINE_PROTOCOL_NOT_SUPPORTED;
             return -1;
 //            context->protocol_type = PROTOCOL_REDIS_READER_PROTOCOL_TYPE_INLINE;
@@ -100,14 +100,14 @@ int32_t protocol_redis_reader_read(
         }
 
         char *new_line_ptr = memchr(buffer, '\n', length);
-        if (new_line_ptr == NULL) {
+        if (unlikely(new_line_ptr == NULL)) {
             // If the new line can't be found, it means that we received partial data and need to wait for more
             // before trying to parse again, the state is not changed on purpose.
             return op_index;
         }
 
         // Ensure that there is at least 1 character and the \r before the found \n
-        if (new_line_ptr - buffer < 2 || *(new_line_ptr - 1) != '\r') {
+        if (unlikely(new_line_ptr - buffer < 2 || *(new_line_ptr - 1) != '\r')) {
             context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_ARRAY_INVALID_LENGTH;
             return -1;
         }
@@ -346,20 +346,20 @@ int32_t protocol_redis_reader_read(
 
     if (length > 0 && context->state == PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_LENGTH) {
         // Only blob strings are allowed when making a request
-        if (*buffer != PROTOCOL_REDIS_TYPE_BLOB_STRING) {
+        if (unlikely(*buffer != PROTOCOL_REDIS_TYPE_BLOB_STRING)) {
             context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_EXPECTED;
             return -1;
         }
 
         char *new_line_ptr = memchr(buffer, '\n', length);
-        if (new_line_ptr == NULL) {
+        if (unlikely(new_line_ptr == NULL)) {
             // If the new line can't be found, it means that we received partial data and need to wait for more
             // before trying to parse again, the state is not changed on purpose.
             return op_index;
         }
 
         // Ensure that there is at least 1 charater and the \r before the found \n
-        if (new_line_ptr - buffer < 2 || *(new_line_ptr - 1) != '\r') {
+        if (unlikely(new_line_ptr - buffer < 2 || *(new_line_ptr - 1) != '\r')) {
             context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_ARRAY_INVALID_LENGTH;
             return -1;
         }
@@ -368,7 +368,7 @@ int32_t protocol_redis_reader_read(
         char *data_length_end_ptr = NULL;
         long data_length = strtol(buffer + 1, &data_length_end_ptr, 10);
 
-        if (new_line_ptr - 1 != data_length_end_ptr || data_length < 0) {
+        if (unlikely(new_line_ptr - 1 != data_length_end_ptr || data_length < 0)) {
             context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_INVALID_LENGTH;
             return -1;
         }
@@ -392,7 +392,7 @@ int32_t protocol_redis_reader_read(
         op_index++;
 
         // Change the state to PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA only if there are data
-        if (data_length > 0) {
+        if (likely(data_length > 0)) {
             context->state = PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA;
         } else {
             // Update the OPs list

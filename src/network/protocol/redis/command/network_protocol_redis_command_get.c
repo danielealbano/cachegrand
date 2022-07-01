@@ -208,86 +208,119 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
     }
 
     if (likely(entry_index)) {
-        char *send_buffer_start, *send_buffer_end;
-        size_t send_buffer_length;
+        // Check if the value is small enough to be contained in 1 single chunk and if it would fit in a memory single
+        // memory allocation leaving enough space for the protocol begin and end signatures themselves
+        if (entry_index->value_chunks_count == 1 && entry_index->value_length < SLAB_OBJECT_SIZE_MAX - 32) {
+            char *send_buffer_start, *send_buffer_end;
+            size_t send_buffer_length;
 
-        // Try to do not allocate a STORAGE_DB_CHUNK_MAX_SIZE if the data to send are much smaller. Takes into account
-        // an additional 64 bytes for the data needed to be added for the protocol
-        bool send_buffer_length_needs_max = entry_index->value_length + 64 > STORAGE_DB_CHUNK_MAX_SIZE;
-        send_buffer_length = send_buffer_length_needs_max
-                ? STORAGE_DB_CHUNK_MAX_SIZE
-                : entry_index->value_length + 64;
-        send_buffer = slab_allocator_mem_alloc(send_buffer_length);
-        send_buffer_start = send_buffer;
-        send_buffer_end = send_buffer_start + send_buffer_length;
+            send_buffer_length = min(entry_index->value_length + 32, STORAGE_DB_CHUNK_MAX_SIZE);
+            send_buffer_start = send_buffer = slab_allocator_mem_alloc(send_buffer_length);
+            send_buffer_end = send_buffer_start + send_buffer_length;
 
-        // Prepend the blog start in the buffer which is never sent at the very beginning because there will always be
-        // a chunk big enough to hold always at least the necessary protocol data and 1 database chunk.
-        send_buffer_start = protocol_redis_writer_write_argument_blob_start(
-                send_buffer_start,
-                send_buffer_length,
-                false,
-                (int)entry_index->value_length);
+            // Prepend the blog start in the buffer which is never sent at the very beginning because there will always be
+            // a chunk big enough to hold always at least the necessary protocol data and 1 database chunk.
+            send_buffer_start = protocol_redis_writer_write_argument_blob_start(
+                    send_buffer_start,
+                    send_buffer_length,
+                    false,
+                    (int)entry_index->value_length);
 
-        // Check if the first chunk fits into the buffer, will always be fails if there is more than one chunk
-        if (unlikely(send_buffer_length_needs_max)) {
+            chunk_info = storage_db_entry_value_chunk_get(entry_index, 0);
+
+            res = storage_db_entry_chunk_read(
+                    db,
+                    chunk_info,
+                    send_buffer_start);
+
+            if (!res) {
+                LOG_E(
+                        TAG,
+                        "[REDIS][GET] Critical error, unable to read chunk <%u> long <%u> bytes",
+                        0,
+                        chunk_info->chunk_length);
+                goto end;
+            }
+
+            send_buffer_start += chunk_info->chunk_length;
+
+            // At this stage the entry_index is not accessed further therefore the readers counter can be decreased. The
+            // entry_index has to be set to null to avoid that it's freed again at the end of the function
+            storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
+            get_command_context->entry_index = entry_index = NULL;
+
+            send_buffer_start = protocol_redis_writer_write_argument_blob_end(
+                    send_buffer_start,
+                    send_buffer_end - send_buffer_start);
+
             if (network_send(
                     channel,
                     send_buffer,
                     send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
+                LOG_E(
+                        TAG,
+                        "[REDIS][GET] Critical error, unable to send blob argument terminator");
+
+                goto end;
+            }
+        } else {
+            char protocol_send_buffer[64] = { 0 };
+            size_t protocol_send_buffer_length = sizeof(protocol_send_buffer);
+            char *protocol_send_buffer_start;
+
+            protocol_send_buffer_start = protocol_redis_writer_write_argument_blob_start(
+                    protocol_send_buffer,
+                    protocol_send_buffer_length,
+                    false,
+                    (int)entry_index->value_length);
+
+            if (network_send(
+                    channel,
+                    protocol_send_buffer,
+                    protocol_send_buffer_start - protocol_send_buffer) != NETWORK_OP_RESULT_OK) {
                 LOG_E(TAG, "[REDIS][GET] Critical error, unable to send argument blob start");
 
                 goto end;
             }
 
-            send_buffer_start = send_buffer;
-        }
+            // Build the chunks for the value
+            for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value_chunks_count; chunk_index++) {
+                char *buffer_to_send;
+                size_t buffer_to_send_length;
 
-        // Build the chunks for the value
-        for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value_chunks_count; chunk_index++) {
-            char *buffer_to_send = NULL;
-            size_t buffer_to_send_length = 0;
+                chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
 
-            chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
+                if (storage_db_entry_chunk_can_read_from_memory(db, chunk_info)) {
+                    buffer_to_send = storage_db_entry_chunk_read_fast_from_memory(db, chunk_info);
+                    buffer_to_send_length = chunk_info->chunk_length;
+                } else {
+                    if (send_buffer == NULL) {
+                        send_buffer = slab_allocator_mem_alloc(STORAGE_DB_CHUNK_MAX_SIZE);
+                    }
 
-            if (send_buffer_length_needs_max && storage_db_entry_chunk_can_read_from_memory(db, chunk_info)) {
-                buffer_to_send = storage_db_entry_chunk_read_fast_from_memory(db, chunk_info);
-                buffer_to_send_length = chunk_info->chunk_length;
-            } else {
-                res = storage_db_entry_chunk_read(
-                        db,
-                        chunk_info,
-                        send_buffer_start);
+                    res = storage_db_entry_chunk_read(
+                            db,
+                            chunk_info,
+                            send_buffer);
 
-                if (!res) {
-                    LOG_E(
-                            TAG,
-                            "[REDIS][GET] Critical error, unable to read chunk <%u> long <%u> bytes",
-                            chunk_index,
-                            chunk_info->chunk_length);
+                    if (!res) {
+                        LOG_E(
+                                TAG,
+                                "[REDIS][GET] Critical error, unable to read chunk <%u> long <%u> bytes",
+                                chunk_index,
+                                chunk_info->chunk_length);
 
-                    goto end;
+                        goto end;
+                    }
+
+                    buffer_to_send = send_buffer;
+                    buffer_to_send_length = chunk_info->chunk_length;
                 }
 
-                buffer_to_send = send_buffer;
-                buffer_to_send_length = send_buffer_start - send_buffer;
-
-                send_buffer_start += chunk_info->chunk_length;
-            }
-
-            bool is_last_chunk = entry_index->value_chunks_count == chunk_index + 1;
-            bool does_chunk_fits_in_buffer =
-                    chunk_info->chunk_length + send_buffer_start + 2 <= send_buffer_end;
-            if (
-                    send_buffer_length_needs_max
-                    ||
-                    !is_last_chunk
-                    ||
-                    (!send_buffer_length_needs_max && is_last_chunk && !does_chunk_fits_in_buffer)) {
                 if (network_send(
                         channel,
-                        send_buffer,
-                        send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
+                        buffer_to_send,
+                        buffer_to_send_length) != NETWORK_OP_RESULT_OK) {
                     LOG_E(
                             TAG,
                             "[REDIS][GET] Critical error, unable to send chunk <%u> long <%u> bytes",
@@ -296,29 +329,25 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
 
                     goto end;
                 }
-
-                send_buffer_start = send_buffer;
             }
-        }
 
-        // At this stage the entry index is not accessed further therefore the readers counter can be decreased. The
-        // entry_index has to be set to null to avoid that it's freed again at the end of the function
-        storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
-        get_command_context->entry_index = entry_index = NULL;
+            // At this stage the entry index is not accessed further therefore the readers counter can be decreased. The
+            // entry_index has to be set to null to avoid that it's freed again at the end of the function
+            storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
+            get_command_context->entry_index = entry_index = NULL;
 
-        send_buffer_start = protocol_redis_writer_write_argument_blob_end(
-                send_buffer_start,
-                send_buffer_end - send_buffer_start);
+            protocol_send_buffer_start = protocol_redis_writer_write_argument_blob_end(
+                    protocol_send_buffer,
+                    protocol_send_buffer_length);
 
-        if (network_send(
-                channel,
-                send_buffer,
-                send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
-            LOG_E(
-                    TAG,
-                    "[REDIS][GET] Critical error, unable to send blob argument terminator");
+            if (network_send(
+                    channel,
+                    protocol_send_buffer,
+                    protocol_send_buffer_start - protocol_send_buffer) != NETWORK_OP_RESULT_OK) {
+                LOG_E(TAG, "[REDIS][GET] Critical error, unable to send argument blob terminator");
 
-            goto end;
+                goto end;
+            }
         }
     } else {
         char error_send_buffer[64] = { 0 }, *error_send_buffer_start, *error_send_buffer_end;
