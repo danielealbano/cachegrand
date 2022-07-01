@@ -24,11 +24,13 @@
 #include "hashtable.h"
 #include "hashtable_support_index.h"
 #include "hashtable_support_hash.h"
-#include "hashtable_support_hash_search.h"
 
 #ifndef CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX
-#define CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX defaultopt
+#define CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX loop
 #endif
+
+#include WRAPFORINCLUDE(CONCAT(hashtable_support_hash_search,CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX).h)
+#define HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_FUNC CONCAT(CONCAT(hashtable_mcmp_support_hash_search, CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX), 14)
 
 bool concat(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX)(
         hashtable_data_volatile_t *hashtable_data,
@@ -98,7 +100,7 @@ bool concat(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
             // Ensure that the fresh-est half_hashes are going to be read
             MEMORY_FENCE_LOAD();
 
-            chunk_slot_index = hashtable_mcmp_support_hash_search(
+            chunk_slot_index = HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_FUNC(
                     slot_id_wrapper.slot_id,
                     (hashtable_hash_half_volatile_t *) half_hashes_chunk->half_hashes,
                     skip_indexes_mask);
@@ -328,7 +330,7 @@ bool concat(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
             while (true) {
                 // It's not necessary to have a memory fence here, these data are not going to change because of the
                 // write lock and a full barrier is issued by the lock operation
-                chunk_slot_index = hashtable_mcmp_support_hash_search(
+                chunk_slot_index = HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_FUNC(
                         searching_or_creating == 0 ? slot_id_wrapper.slot_id : 0,
                         (hashtable_hash_half_volatile_t *) half_hashes_chunk->half_hashes,
                         skip_indexes_mask);

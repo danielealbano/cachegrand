@@ -1,9 +1,8 @@
 macro(CACHEGRAND_BUILD_ADHOC_HASHTABLE_MCMP_SUPPORT_OP_ARCH ARCH)
-#    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx512f -mno-avx256-split-unaligned-load -mavx512f -mavx2 -mavx -mbmi -mbmi2 -mfma -mtune=skylake)
-    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx2 -mno-avx512f -mno-avx256-split-unaligned-load -mavx2 -mavx -mbmi -mbmi2 -mfma -mtune=haswell)
+    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx512f -mno-avx256-split-unaligned-load -mavx512f -mavx2 -mavx -mbmi -mbmi2 -mfma -mtune=skylake)
+    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx2 -mno-avx512f -mno-avx256-split-unaligned-load -mavx2 -mavx -mavx -mbmi -mbmi2 -mfma -mtune=haswell)
     set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx -mno-avx512f -mno-avx2 -mno-avx256-split-unaligned-load -mavx -mbmi -mbmi2)
-    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_sse42 -mno-avx512f -mno-avx2 -mno-avx -msse4.2)
-    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_sse3 -mno-avx512f -mno-avx2 -mno-avx -mno-sse4.2 -msse3)
+    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_loop -mno-avx512f -mno-avx2 -mno-avx)
 
     message(STATUS "Enabling accelerated hashtable support operations -- ${ARCH}")
 
@@ -15,9 +14,9 @@ macro(CACHEGRAND_BUILD_ADHOC_HASHTABLE_MCMP_SUPPORT_OP_ARCH ARCH)
             "${CMAKE_CURRENT_SOURCE_DIR}/data_structures/hashtable/mcmp/hashtable_support_op_arch.c")
 
     target_compile_definitions(
-            "${hashtable_mcmp_support_op_arch_target_name}"
+            ${hashtable_mcmp_support_op_arch_target_name}
             PRIVATE
-            "-DCACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX=${ARCH}")
+            CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX=${ARCH})
 
     target_compile_options(
             "${hashtable_mcmp_support_op_arch_target_name}"
@@ -27,7 +26,7 @@ macro(CACHEGRAND_BUILD_ADHOC_HASHTABLE_MCMP_SUPPORT_OP_ARCH ARCH)
     target_include_directories(
             ${hashtable_mcmp_support_op_arch_target_name}
             PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR} ${DEPS_LIST_INCLUDE_DIRS})
+            ${CMAKE_CURRENT_SOURCE_DIR} ${DEPS_LIST_INCLUDE_DIRS} "${CMAKE_CURRENT_SOURCE_DIR}/data_structures/hashtable/mcmp")
 
     list(APPEND SRC_FILES_CACHEGRAND "$<TARGET_OBJECTS:${hashtable_mcmp_support_op_arch_target_name}>")
 endmacro()
@@ -64,8 +63,7 @@ list(REMOVE_ITEM SRC_FILES_CACHEGRAND ${CMAKE_CURRENT_SOURCE_DIR}/main.c)
 list(REMOVE_ITEM SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hash/hash_crc32c_sse42.c")
 
 # Remove all the architecture dependant implementation of the search loop and re-inglude it
-list(FILTER SRC_FILES_CACHEGRAND EXCLUDE REGEX ".*hashtable_support_hash_search_[a-z0-9]+.c$")
-list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/data_structures/hashtable/mcmp/hashtable_support_hash_search_loop.c")
+list(FILTER SRC_FILES_CACHEGRAND EXCLUDE REGEX ".*hashtable_support_op_arch.c$")
 
 if(ARCH_IS_X86_64)
     message(STATUS "Enabling accelerated string functions")
@@ -88,44 +86,16 @@ if(ARCH_IS_X86_64)
             PROPERTIES COMPILE_FLAGS
             "-msse4.2 -mpclmul")
 
-    message(STATUS "Enabling accelerated hash search")
-
-    if (ENABLE_SUPPORT_AVX512F)
-        # hashtable/hashtable_support_hash_search_avx512.c
-        message(STATUS "Enabling accelerated hash search -- avx512")
-        list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/data_structures/hashtable/mcmp/hashtable_support_hash_search_avx512f.c")
-        set_source_files_properties(
-                "data_structures/hashtable/mcmp/hashtable_support_hash_search_avx512f.c"
-                PROPERTIES COMPILE_FLAGS
-                "-mno-avx256-split-unaligned-load -mavx512f -mavx2 -mavx -mbmi -mfma -mtune=skylake")
-    endif()
-
-    # hashtable/hashtable_support_hash_search_avx2.c
-    message(STATUS "Enabling accelerated hash search -- avx2")
-    list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/data_structures/hashtable/mcmp/hashtable_support_hash_search_avx2.c")
-    set_source_files_properties(
-            "data_structures/hashtable/mcmp/hashtable_support_hash_search_avx2.c"
-            PROPERTIES COMPILE_FLAGS
-            "-mno-avx256-split-unaligned-load -mno-avx512f -mavx2 -mavx -mbmi -mbmi2 -mfma -mtune=haswell")
-
-    # hashtable/hashtable_support_hash_search_avx.c
-    message(STATUS "Enabling accelerated hash search -- avx")
-    list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/data_structures/hashtable/mcmp/hashtable_support_hash_search_avx.c")
-    set_source_files_properties(
-            "data_structures/hashtable/mcmp/hashtable_support_hash_search_avx.c"
-            PROPERTIES COMPILE_FLAGS
-            "-mno-avx256-split-unaligned-load -mno-avx512f -mno-avx2 -mavx -mbmi -mbmi2")
-
     message(STATUS "Enabling accelerated hashtable support operations")
 
     if (ENABLE_SUPPORT_AVX512F)
         CACHEGRAND_BUILD_ADHOC_HASHTABLE_MCMP_SUPPORT_OP_ARCH("avx512f")
     endif()
+
     foreach(HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX
             avx2
             avx
-            sse42
-            sse3)
+            loop)
         CACHEGRAND_BUILD_ADHOC_HASHTABLE_MCMP_SUPPORT_OP_ARCH(
                 ${HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX})
     endforeach()

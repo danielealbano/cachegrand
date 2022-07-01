@@ -18,7 +18,7 @@
 #include "hashtable.h"
 #include "hashtable_support_hash_search.h"
 
-hashtable_chunk_slot_index_t hashtable_mcmp_support_hash_search_avx_14(
+static inline hashtable_chunk_slot_index_t hashtable_mcmp_support_hash_search_avx_14(
         hashtable_hash_half_t hash,
         hashtable_hash_half_volatile_t* hashes,
         uint32_t skip_indexes_mask) {
