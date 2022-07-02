@@ -147,6 +147,7 @@ void network_protocol_redis_reset_context(
     protocol_context->command_info = NULL;
     protocol_context->command_context  = NULL;
     protocol_context->skip_command = false;
+    protocol_context->command_length = 0;
 
     protocol_redis_reader_context_reset(&protocol_context->reader_context);
 }
@@ -196,6 +197,7 @@ bool network_protocol_redis_process_events(
 
                 read_buffer->data_offset += op->data_read_len;
                 read_buffer->data_size -= op->data_read_len;
+                protocol_context->command_length += op->data_read_len;
 
                 // protocol_redis_reader_read will at best parse one command till the end therefore ops will never
                 // contain data from other commands and therefore it's not necessary to check for COMMAND_END in the
