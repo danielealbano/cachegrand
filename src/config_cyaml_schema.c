@@ -34,12 +34,12 @@ const cyaml_schema_field_t config_network_protocol_binding_schema[] = {
 
 // Schema for config -> network -> protocols -> protocol-> timeout
 const cyaml_schema_field_t config_network_protocol_timeout_schema[] = {
-        CYAML_FIELD_UINT(
-                "read", CYAML_FLAG_DEFAULT,
-                config_network_protocol_timeout_t, read),
-        CYAML_FIELD_UINT(
-                "write", CYAML_FLAG_DEFAULT,
-                config_network_protocol_timeout_t, write),
+        CYAML_FIELD_INT(
+                "read_ms", CYAML_FLAG_DEFAULT,
+                config_network_protocol_timeout_t, read_ms),
+        CYAML_FIELD_INT(
+                "write_ms", CYAML_FLAG_DEFAULT,
+                config_network_protocol_timeout_t, write_ms),
         CYAML_FIELD_END
 };
 

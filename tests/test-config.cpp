@@ -175,8 +175,8 @@ network:
   protocols:
     - type: redis
       timeout:
-        read: 2000
-        write: 2000
+        read_ms: 2000
+        write_ms: 2000
       keepalive:
         time: 0
         interval: 0
