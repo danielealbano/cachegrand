@@ -226,6 +226,10 @@ bool network_protocol_redis_process_events(
         network_channel_buffer_t *read_buffer,
         network_protocol_redis_context_t *protocol_context);
 
+bool network_protocol_redis_is_key_too_long(
+        network_channel_t *channel,
+        size_t key_length);
+
 #ifdef __cplusplus
 }
 #endif

@@ -105,12 +105,13 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(set) {
 
     // Check if it's the key
     if (argument_index == 0) {
-        if (argument_length > NETWORK_PROTOCOL_REDIS_KEY_MAX_LENGTH) {
+        if (network_protocol_redis_is_key_too_long(channel, argument_length)) {
             set_command_context->has_error = true;
             snprintf(
                     set_command_context->error_message,
                     sizeof(set_command_context->error_message) - 1,
-                    "ERR The key has exceeded the allowed size of 64KB");
+                    "ERR The key has exceeded the allowed size of <%u>",
+                    channel->protocol_config->redis->max_key_length);
 
             return true;
         }

@@ -508,3 +508,13 @@ end:
 
     return return_result;
 }
+
+bool network_protocol_redis_is_key_too_long(
+        network_channel_t *channel,
+        size_t key_length) {
+    if (unlikely(key_length > channel->protocol_config->redis->max_key_length)) {
+        return true;
+    }
+
+    return false;
+}
