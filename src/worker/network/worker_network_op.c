@@ -206,6 +206,14 @@ void worker_network_listeners_fiber_entrypoint(
 
         new_channel->status = NETWORK_CHANNEL_STATUS_CONNECTED;
 
+        // TODO: should implement a wrapper for this
+        new_channel->timeout.read_ns = new_channel->protocol_config->timeout->read_ms > 0
+                                        ? new_channel->protocol_config->timeout->read_ms * 1000000
+                                        : new_channel->protocol_config->timeout->read_ms;
+        new_channel->timeout.write_ns = new_channel->protocol_config->timeout->write_ms > 0
+                                        ? new_channel->protocol_config->timeout->write_ms * 1000000
+                                        : new_channel->protocol_config->timeout->write_ms;
+
         LOG_V(
                 TAG,
                 "[FD:%5d][ACCEPT] Listener <%s> accepting new connection from <%s>",

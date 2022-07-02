@@ -74,6 +74,8 @@ bool network_channel_listener_new_callback_socket_setup_server_cb(
 bool network_channel_init(
         network_channel_t *channel) {
     channel->address.size = sizeof(channel->address.socket);
+    channel->timeout.read_ns = -1;
+    channel->timeout.write_ns = -1;
 
     return true;
 }

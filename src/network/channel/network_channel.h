@@ -62,6 +62,10 @@ struct network_channel {
     config_network_protocol_t *protocol_config;
     network_channel_socket_address_t address;
     network_channel_status_t status;
+    struct {
+        int64_t read_ns;
+        int64_t write_ns;
+    } timeout;
 };
 
 typedef struct network_create_lister_new_user_data network_channel_listener_new_callback_user_data_t;
