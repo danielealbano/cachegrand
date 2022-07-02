@@ -64,8 +64,13 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             .max_key_length = 256,
             .max_command_length = 2048,
     };
+    config_network_protocol_timeout_t config_network_protocol_timeout = {
+            .read_ms = -1,
+            .write_ms = -1,
+    };
     config_network_protocol_t config_network_protocol = {
             .type = CONFIG_PROTOCOL_TYPE_REDIS,
+            .timeout = &config_network_protocol_timeout,
             .redis = &config_network_protocol_redis,
             .bindings = &config_network_protocol_binding,
             .bindings_count = 1,
