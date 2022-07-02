@@ -28,9 +28,9 @@
 #include "protocol/redis/protocol_redis_writer.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
-#include "network/channel/network_channel.h"
 #include "config.h"
 #include "fiber.h"
+#include "network/channel/network_channel.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
@@ -89,12 +89,13 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(get) {
         return true;
     }
 
-    if (argument_length > NETWORK_PROTOCOL_REDIS_KEY_MAX_LENGTH) {
+    if (network_protocol_redis_is_key_too_long(channel, argument_length)) {
         get_command_context->has_error = true;
         snprintf(
                 get_command_context->error_message,
                 sizeof(get_command_context->error_message) - 1,
-                "ERR The key has exceeded the allowed size of 64KB");
+                "ERR The key has exceeded the allowed size of <%u>",
+                channel->protocol_config->redis->max_key_length);
         return true;
     }
 
@@ -197,12 +198,10 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
             goto end;
         }
 
-        if (network_send(
+        return_res = network_send(
                 channel,
                 error_send_buffer,
-                error_send_buffer_start - error_send_buffer) != NETWORK_OP_RESULT_OK) {
-            goto end;
-        }
+                error_send_buffer_start - error_send_buffer) == NETWORK_OP_RESULT_OK;
 
         goto end;
     }

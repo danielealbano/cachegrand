@@ -376,6 +376,43 @@ TEST_CASE("config.c", "[config]") {
         }
     }
 
+    SECTION("config_validate_after_load") {
+        SECTION("valid") {
+            err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    NULL);
+
+            REQUIRE(config != NULL);
+            REQUIRE(err == CYAML_OK);
+
+            REQUIRE(config_validate_after_load(config) == true);
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
+
+        SECTION("broken - network redis max_key_length > slab object size max") {
+            err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    NULL);
+
+            REQUIRE(config != NULL);
+            REQUIRE(err == CYAML_OK);
+
+            config->network->protocols[0].redis->max_key_length = 64 * 1024 + 1;
+            REQUIRE(config_validate_after_load(config) == false);
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
+    }
+
     SECTION("config_internal_cyaml_load") {
         SECTION("correct - all fields") {
             TEST_CONFIG_FIXTURE_FILE_FROM_DATA(

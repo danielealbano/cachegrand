@@ -60,7 +60,9 @@ struct network_protocol_redis_client {
     network_channel_buffer_t read_buffer;
 };
 
-void network_protocol_redis_client_new(network_protocol_redis_client_t *network_protocol_redis_client) {
+void network_protocol_redis_client_new(
+        network_protocol_redis_client_t *network_protocol_redis_client,
+        config_network_protocol_t *config_network_protocol) {
     // To speed up the performances the code takes advantage of SIMD operations that are built to operate on
     // specific amount of data, for example AVX/AVX2 in general operate on 256 bit (32 byte) of data at time.
     // Therefore, to avoid implementing ad hoc checks everywhere and at the same time to ensure that the code will
@@ -73,7 +75,8 @@ void network_protocol_redis_client_new(network_protocol_redis_client_t *network_
     network_protocol_redis_client->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE - 32;
 }
 
-void network_protocol_redis_client_cleanup(network_protocol_redis_client_t *network_protocol_redis_client) {
+void network_protocol_redis_client_cleanup(
+        network_protocol_redis_client_t *network_protocol_redis_client) {
     slab_allocator_mem_free(network_protocol_redis_client->read_buffer.data);
 }
 
@@ -85,7 +88,9 @@ void network_protocol_redis_accept(
 
     protocol_context.resp_version = PROTOCOL_REDIS_RESP_VERSION_2;
 
-    network_protocol_redis_client_new(&network_protocol_redis_client);
+    network_protocol_redis_client_new(
+            &network_protocol_redis_client,
+            channel->protocol_config);
 
     do {
         if (!network_buffer_has_enough_space(
@@ -147,6 +152,7 @@ void network_protocol_redis_reset_context(
     protocol_context->command_info = NULL;
     protocol_context->command_context  = NULL;
     protocol_context->skip_command = false;
+    protocol_context->command_length = 0;
 
     protocol_redis_reader_context_reset(&protocol_context->reader_context);
 }
@@ -196,6 +202,29 @@ bool network_protocol_redis_process_events(
 
                 read_buffer->data_offset += op->data_read_len;
                 read_buffer->data_size -= op->data_read_len;
+                protocol_context->command_length += op->data_read_len;
+
+                if (protocol_context->command_length > channel->protocol_config->redis->max_command_length) {
+                    send_buffer_start = protocol_redis_writer_write_simple_error_printf(
+                            send_buffer_start,
+                            send_buffer_end - send_buffer_start,
+                            "ERR the command length has exceeded <%u> bytes",
+                            channel->protocol_config->redis->max_command_length);
+
+                    if (send_buffer_start == NULL) {
+                        LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
+                        goto end;
+                    }
+
+                    network_send(
+                            channel,
+                            send_buffer,
+                            send_buffer_start - send_buffer);
+
+                    network_close(channel, true);
+
+                    goto end;
+                }
 
                 // protocol_redis_reader_read will at best parse one command till the end therefore ops will never
                 // contain data from other commands and therefore it's not necessary to check for COMMAND_END in the
@@ -478,4 +507,14 @@ end:
     }
 
     return return_result;
+}
+
+bool network_protocol_redis_is_key_too_long(
+        network_channel_t *channel,
+        size_t key_length) {
+    if (unlikely(key_length > channel->protocol_config->redis->max_key_length)) {
+        return true;
+    }
+
+    return false;
 }

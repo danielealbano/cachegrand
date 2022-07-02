@@ -29,9 +29,9 @@
 #include "protocol/redis/protocol_redis_writer.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
-#include "network/channel/network_channel.h"
 #include "config.h"
 #include "fiber.h"
+#include "network/channel/network_channel.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
@@ -135,12 +135,10 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
             goto end;
         }
 
-        if (network_send(
+        return_res = network_send(
                 channel,
                 send_buffer,
-                send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
-            goto end;
-        }
+                send_buffer_start - send_buffer) == NETWORK_OP_RESULT_OK;
 
         goto end;
     }

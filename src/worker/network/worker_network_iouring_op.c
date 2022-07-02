@@ -18,6 +18,7 @@
 #include "log/log.h"
 #include "spinlock.h"
 #include "fiber.h"
+#include "config.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
@@ -30,7 +31,6 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
-#include "config.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "worker/worker.h"
@@ -73,6 +73,7 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
     // Setup the new channel
     new_channel->fd = new_channel->wrapped_channel.fd = cqe->res;
     new_channel->wrapped_channel.protocol = listener_channel->wrapped_channel.protocol;
+    new_channel->wrapped_channel.protocol_config = listener_channel->wrapped_channel.protocol_config;
     new_channel->wrapped_channel.type = NETWORK_CHANNEL_TYPE_CLIENT;
 
     // Convert the socket address in a string

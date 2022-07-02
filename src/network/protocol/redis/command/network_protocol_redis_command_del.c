@@ -28,9 +28,9 @@
 #include "protocol/redis/protocol_redis_writer.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
-#include "network/channel/network_channel.h"
 #include "config.h"
 #include "fiber.h"
+#include "network/channel/network_channel.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
@@ -80,12 +80,13 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(del) {
         return true;
     }
 
-    if (argument_length > NETWORK_PROTOCOL_REDIS_KEY_MAX_LENGTH) {
+    if (network_protocol_redis_is_key_too_long(channel, argument_length)) {
         del_command_context->has_error = true;
         snprintf(
                 del_command_context->error_message,
                 sizeof(del_command_context->error_message) - 1,
-                "ERR The key has exceeded the allowed size of 64KB");
+                "ERR The key has exceeded the allowed size of <%u>",
+                channel->protocol_config->redis->max_key_length);
         del_command_context->has_error = true;
         return true;
     }
@@ -135,7 +136,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(del) {
     del_command_context_t *del_command_context = (del_command_context_t*)protocol_context->command_context;
 
     if (del_command_context->has_error) {
-        goto end;
+        return true;
     }
 
     bool deleted = storage_db_delete_entry_index(
@@ -179,12 +180,10 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
             goto end;
         }
 
-        if (network_send(
+        return_res = network_send(
                 channel,
                 send_buffer,
-                send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
-            goto end;
-        }
+                send_buffer_start - send_buffer) == NETWORK_OP_RESULT_OK;
 
         goto end;
     }

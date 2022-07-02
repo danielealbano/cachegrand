@@ -22,15 +22,18 @@
 #include "xalloc.h"
 #include "log/log.h"
 #include "fatal.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "slab_allocator.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
-#include "network/channel/network_channel.h"
 
 #include "config.h"
 #include "config_cyaml_config.h"
 #include "config_cyaml_schema.h"
+
+#include "network/channel/network_channel.h"
 
 #define TAG "config"
 
@@ -93,6 +96,8 @@ cyaml_err_t config_internal_cyaml_load(
 
 bool config_validate_after_load(
         config_t* config) {
+    bool return_result = true;
+
     // TODO: validate the cpus list if present, if all is in the list anything else can be there
 
     // TODO: if type == file in log sink, the file struct must be present (path will be present because of schema
@@ -101,7 +106,19 @@ bool config_validate_after_load(
     // TODO: for log sinks, if all is set only negate flags can be set
 
     // TODO: if keepalive struct is present, values must be allowed
-    return true;
+
+    for(int protocol_index = 0; protocol_index < config->network->protocols_count; protocol_index++) {
+        config_network_protocol_t protocol = config->network->protocols[protocol_index];
+
+        if (protocol.type == CONFIG_PROTOCOL_TYPE_REDIS) {
+            if (protocol.redis->max_key_length > SLAB_OBJECT_SIZE_MAX) {
+                LOG_E(TAG, "The allowed maximum value of max_key_length is <%u>", SLAB_OBJECT_SIZE_MAX);
+                return_result = false;
+            }
+        }
+    }
+
+    return return_result;
 }
 
 void config_internal_cyaml_free(
@@ -338,12 +355,16 @@ config_t* config_load(
             config_cyaml_config_get_global(),
             (cyaml_schema_value_t*)config_cyaml_schema_get_top_schema());
     if (err != CYAML_OK) {
-        LOG_E(TAG, "Failed loading the configuration: %s", cyaml_strerror(err));
+        LOG_E(TAG, "Failed to load the configuration: %s", cyaml_strerror(err));
+        config = NULL;
     }
 
-    if (config_validate_after_load(config) == false) {
-        config_free(config);
-        config = NULL;
+    if (config) {
+        if (config_validate_after_load(config) == false) {
+            LOG_E(TAG, "Failed to validate the configuration");
+            config_free(config);
+            config = NULL;
+        }
     }
 
     return config;

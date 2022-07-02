@@ -29,9 +29,9 @@
 #include "protocol/redis/protocol_redis_writer.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
-#include "network/channel/network_channel.h"
 #include "config.h"
 #include "fiber.h"
+#include "network/channel/network_channel.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
@@ -90,6 +90,8 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(set) {
         return false;
     }
 
+    // TODO: add support to the SET optional arguments
+
     return true;
 }
 
@@ -105,12 +107,13 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(set) {
 
     // Check if it's the key
     if (argument_index == 0) {
-        if (argument_length > NETWORK_PROTOCOL_REDIS_KEY_MAX_LENGTH) {
+        if (network_protocol_redis_is_key_too_long(channel, argument_length)) {
             set_command_context->has_error = true;
             snprintf(
                     set_command_context->error_message,
                     sizeof(set_command_context->error_message) - 1,
-                    "ERR The key has exceeded the allowed size of 64KB");
+                    "ERR The key has exceeded the allowed size of <%u>",
+                    channel->protocol_config->redis->max_key_length);
 
             return true;
         }
@@ -259,7 +262,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(set) {
     set_command_context_t *set_command_context = (set_command_context_t*)protocol_context->command_context;
 
     if (set_command_context->has_error) {
-        return false;
+        return true;
     }
 
     return true;
@@ -290,12 +293,10 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
             goto end;
         }
 
-        if (network_send(
+        return_res = network_send(
                 channel,
                 send_buffer,
-                send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
-            goto end;
-        }
+                send_buffer_start - send_buffer) == NETWORK_OP_RESULT_OK;
 
         goto end;
     }
@@ -316,7 +317,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
     } else  {
         set_command_context->entry_index_saved = true;
 
-        send_buffer_start = protocol_redis_writer_write_blob_string(
+        send_buffer_start = protocol_redis_writer_write_simple_string(
             send_buffer_start,
             send_buffer_end - send_buffer_start,
             "OK",

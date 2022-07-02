@@ -18,6 +18,7 @@
 #include "spinlock.h"
 #include "log/log.h"
 #include "xalloc.h"
+#include "config.h"
 #include "network/protocol/network_protocol.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/io/network_io_common.h"

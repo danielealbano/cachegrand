@@ -61,7 +61,7 @@ void worker_network_listeners_initialize(
         config_network_t *config_network,
         network_channel_t **listeners,
         uint8_t *listeners_count) {
-    network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = {0};
+    network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = { 0 };
 
     listener_new_cb_user_data.core_index = core_index;
 
@@ -99,6 +99,7 @@ void worker_network_listeners_initialize(
         }
 
         for(int binding_index = 0; binding_index < config_network_protocol->bindings_count; binding_index++) {
+            uint8_t listeners_count_before = listener_new_cb_user_data.listeners_count;
             if (network_channel_listener_new(
                     config_network_protocol->bindings[binding_index].host,
                     config_network_protocol->bindings[binding_index].port,
@@ -110,6 +111,16 @@ void worker_network_listeners_initialize(
                       config_network_protocol->bindings[binding_index].host,
                       config_network_protocol->bindings[binding_index].port,
                       network_protocol);
+            }
+
+            for(
+                    uint8_t listener_index = listeners_count_before;
+                    listener_index < listener_new_cb_user_data.listeners_count;
+                    listener_index++) {
+                network_channel_t *channel_listener =
+                        ((void*)listener_new_cb_user_data.listeners) +
+                        (listener_new_cb_user_data.network_channel_size * listener_index);
+                channel_listener->protocol_config = config_network_protocol;
             }
         }
     }
@@ -137,7 +148,6 @@ void worker_network_listeners_listen(
 
 void worker_network_new_client_fiber_entrypoint(
         void *user_data) {
-    worker_context_t *context = worker_context_get();
     worker_stats_t *stats = worker_stats_get();
 
     network_channel_t *new_channel = user_data;
