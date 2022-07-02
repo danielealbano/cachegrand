@@ -60,7 +60,9 @@ struct network_protocol_redis_client {
     network_channel_buffer_t read_buffer;
 };
 
-void network_protocol_redis_client_new(network_protocol_redis_client_t *network_protocol_redis_client) {
+void network_protocol_redis_client_new(
+        network_protocol_redis_client_t *network_protocol_redis_client,
+        config_network_protocol_t *config_network_protocol) {
     // To speed up the performances the code takes advantage of SIMD operations that are built to operate on
     // specific amount of data, for example AVX/AVX2 in general operate on 256 bit (32 byte) of data at time.
     // Therefore, to avoid implementing ad hoc checks everywhere and at the same time to ensure that the code will
@@ -73,7 +75,8 @@ void network_protocol_redis_client_new(network_protocol_redis_client_t *network_
     network_protocol_redis_client->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE - 32;
 }
 
-void network_protocol_redis_client_cleanup(network_protocol_redis_client_t *network_protocol_redis_client) {
+void network_protocol_redis_client_cleanup(
+        network_protocol_redis_client_t *network_protocol_redis_client) {
     slab_allocator_mem_free(network_protocol_redis_client->read_buffer.data);
 }
 
@@ -85,7 +88,9 @@ void network_protocol_redis_accept(
 
     protocol_context.resp_version = PROTOCOL_REDIS_RESP_VERSION_2;
 
-    network_protocol_redis_client_new(&network_protocol_redis_client);
+    network_protocol_redis_client_new(
+            &network_protocol_redis_client,
+            channel->protocol_config);
 
     do {
         if (!network_buffer_has_enough_space(
