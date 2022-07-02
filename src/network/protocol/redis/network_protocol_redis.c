@@ -204,6 +204,28 @@ bool network_protocol_redis_process_events(
                 read_buffer->data_size -= op->data_read_len;
                 protocol_context->command_length += op->data_read_len;
 
+                if (protocol_context->command_length > channel->protocol_config->redis->max_command_length) {
+                    send_buffer_start = protocol_redis_writer_write_simple_error_printf(
+                            send_buffer_start,
+                            send_buffer_end - send_buffer_start,
+                            "ERR the command length has exceeded <%u> bytes",
+                            channel->protocol_config->redis->max_command_length);
+
+                    if (send_buffer_start == NULL) {
+                        LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
+                        goto end;
+                    }
+
+                    network_send(
+                            channel,
+                            send_buffer,
+                            send_buffer_start - send_buffer);
+
+                    network_close(channel, true);
+
+                    goto end;
+                }
+
                 // protocol_redis_reader_read will at best parse one command till the end therefore ops will never
                 // contain data from other commands and therefore it's not necessary to check for COMMAND_END in the
                 // ops to reset the status of the protocol_context.
