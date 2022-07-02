@@ -177,7 +177,6 @@ network:
       timeout:
         read: 2000
         write: 2000
-        inactivity: 2000
       keepalive:
         time: 0
         interval: 0
