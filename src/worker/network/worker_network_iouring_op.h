@@ -31,20 +31,6 @@ int32_t worker_network_iouring_op_network_send(
         char* buffer,
         size_t buffer_length);
 
-int32_t worker_network_iouring_op_network_receive_timeout(
-        network_channel_t *channel,
-        char* buffer,
-        size_t buffer_length,
-        int timeout_s,
-        int timeout_ms);
-
-int32_t worker_network_iouring_op_network_send_timeout(
-        network_channel_t *channel,
-        char* buffer,
-        size_t buffer_length,
-        int timeout_s,
-        int timeout_ms);
-
 bool worker_network_iouring_initialize(
         __attribute__((unused)) worker_context_t *worker_context);
 

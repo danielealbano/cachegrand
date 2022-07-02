@@ -112,6 +112,13 @@ network_op_result_t network_receive(
                 channel->address.str);
 
         return NETWORK_OP_RESULT_CLOSE_SOCKET;
+    } else if (receive_length == -ECANCELED) {
+        LOG_I(
+                TAG,
+                "[FD:%5d][ERROR CLIENT] Operation timeout from client <%s>",
+                channel->fd,
+                channel->address.str);
+        return NETWORK_OP_RESULT_ERROR;
     } else if (receive_length < 0) {
         int error_number = -receive_length;
         LOG_I(
@@ -159,6 +166,13 @@ network_op_result_t network_send(
                 channel->address.str);
 
         return NETWORK_OP_RESULT_CLOSE_SOCKET;
+    } else if (send_length == -ECANCELED) {
+        LOG_I(
+                TAG,
+                "[FD:%5d][ERROR CLIENT] Operation timeout from client <%s>",
+                channel->fd,
+                channel->address.str);
+        return NETWORK_OP_RESULT_ERROR;
     } else if (send_length < 0) {
         int error_number = -send_length;
         LOG_I(

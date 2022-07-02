@@ -184,48 +184,43 @@ int32_t worker_network_iouring_op_network_receive(
         network_channel_t *channel,
         char* buffer,
         size_t buffer_length) {
-    return worker_network_iouring_op_network_receive_timeout(
-            channel,
-            buffer,
-            buffer_length,
-            0,
-            -1);
-}
-
-int32_t worker_network_iouring_op_network_send(
-        network_channel_t *channel,
-        char* buffer,
-        size_t buffer_length) {
-    return worker_network_iouring_op_network_send_timeout(
-            channel,
-            buffer,
-            buffer_length,
-            0,
-            -1);
-}
-
-int32_t worker_network_iouring_op_network_receive_timeout(
-        network_channel_t *channel,
-        char* buffer,
-        size_t buffer_length,
-        int timeout_s,
-        int timeout_ms) {
     int32_t res;
     worker_iouring_context_t *context = worker_iouring_context_get();
+    kernel_timespec_t kernel_timespec = {
+            .tv_sec = 0,
+            .tv_nsec = channel->timeout.read_ns,
+    };
 
     fiber_scheduler_reset_error();
 
     do {
+        uint8_t extra_sqes = 0;
+
+        if (kernel_timespec.tv_nsec != -1) {
+            extra_sqes |= IOSQE_IO_LINK;
+        }
+
         if (!io_uring_support_sqe_enqueue_recv(
                 context->ring,
                 channel->fd,
                 buffer,
                 buffer_length,
                 0,
-                ((network_channel_iouring_t*)channel)->base_sqe_flags,
+                ((network_channel_iouring_t*)channel)->base_sqe_flags | extra_sqes,
                 (uintptr_t) fiber_scheduler_get_current())) {
             fiber_scheduler_set_error(ENOMEM);
             return -ENOMEM;
+        }
+
+        if (kernel_timespec.tv_nsec != -1) {
+            if (!io_uring_support_sqe_enqueue_link_timeout(
+                    context->ring,
+                    &kernel_timespec,
+                    0,
+                    0)) {
+                fiber_scheduler_set_error(ENOMEM);
+                return -ENOMEM;
+            }
         }
 
         // Switch the execution back to the scheduler
@@ -244,28 +239,47 @@ int32_t worker_network_iouring_op_network_receive_timeout(
     return res;
 }
 
-int32_t worker_network_iouring_op_network_send_timeout(
+int32_t worker_network_iouring_op_network_send(
         network_channel_t *channel,
         char* buffer,
-        size_t buffer_length,
-        int timeout_s,
-        int timeout_ms) {
+        size_t buffer_length) {
     int32_t res;
     worker_iouring_context_t *context = worker_iouring_context_get();
+    kernel_timespec_t kernel_timespec = {
+            .tv_sec = 0,
+            .tv_nsec = channel->timeout.write_ns,
+    };
 
     fiber_scheduler_reset_error();
 
     do {
+        uint8_t extra_sqes = 0;
+
+        if (kernel_timespec.tv_nsec != -1) {
+            extra_sqes |= IOSQE_IO_LINK;
+        }
+
         if (!io_uring_support_sqe_enqueue_send(
                 context->ring,
                 channel->fd,
                 buffer,
                 buffer_length,
                 0,
-                ((network_channel_iouring_t*)channel)->base_sqe_flags,
+                ((network_channel_iouring_t*)channel)->base_sqe_flags | extra_sqes,
                 (uintptr_t) fiber_scheduler_get_current())) {
             fiber_scheduler_set_error(ENOMEM);
             return -ENOMEM;
+        }
+
+        if (kernel_timespec.tv_nsec != -1) {
+            if (!io_uring_support_sqe_enqueue_link_timeout(
+                    context->ring,
+                    &kernel_timespec,
+                    0,
+                    0)) {
+                fiber_scheduler_set_error(ENOMEM);
+                return -ENOMEM;
+            }
         }
 
         // Switch the execution back to the scheduler
@@ -340,8 +354,6 @@ bool worker_network_iouring_op_register() {
     worker_op_network_accept = worker_network_iouring_op_network_accept;
     worker_op_network_receive = worker_network_iouring_op_network_receive;
     worker_op_network_send = worker_network_iouring_op_network_send;
-    worker_op_network_receive_timeout = worker_network_iouring_op_network_receive_timeout;
-    worker_op_network_send_timeout = worker_network_iouring_op_network_send_timeout;
     worker_op_network_close = worker_network_iouring_op_network_close;
 
     return true;

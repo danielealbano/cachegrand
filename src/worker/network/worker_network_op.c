@@ -52,8 +52,6 @@ worker_op_network_channel_free_fp_t* worker_op_network_channel_free;
 worker_op_network_accept_fp_t* worker_op_network_accept;
 worker_op_network_receive_fp_t* worker_op_network_receive;
 worker_op_network_send_fp_t* worker_op_network_send;
-worker_op_network_receive_timeout_fp_t* worker_op_network_receive_timeout;
-worker_op_network_send_timeout_fp_t* worker_op_network_send_timeout;
 worker_op_network_close_fp_t* worker_op_network_close;
 
 // TODO: the listener and accept operations should be refactored to split them in an user frontend operation and in an
