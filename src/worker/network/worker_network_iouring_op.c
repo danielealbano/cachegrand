@@ -184,6 +184,32 @@ int32_t worker_network_iouring_op_network_receive(
         network_channel_t *channel,
         char* buffer,
         size_t buffer_length) {
+    return worker_network_iouring_op_network_receive_timeout(
+            channel,
+            buffer,
+            buffer_length,
+            0,
+            -1);
+}
+
+int32_t worker_network_iouring_op_network_send(
+        network_channel_t *channel,
+        char* buffer,
+        size_t buffer_length) {
+    return worker_network_iouring_op_network_send_timeout(
+            channel,
+            buffer,
+            buffer_length,
+            0,
+            -1);
+}
+
+int32_t worker_network_iouring_op_network_receive_timeout(
+        network_channel_t *channel,
+        char* buffer,
+        size_t buffer_length,
+        int timeout_s,
+        int timeout_ms) {
     int32_t res;
     worker_iouring_context_t *context = worker_iouring_context_get();
 
@@ -218,10 +244,12 @@ int32_t worker_network_iouring_op_network_receive(
     return res;
 }
 
-int32_t worker_network_iouring_op_network_send(
+int32_t worker_network_iouring_op_network_send_timeout(
         network_channel_t *channel,
         char* buffer,
-        size_t buffer_length) {
+        size_t buffer_length,
+        int timeout_s,
+        int timeout_ms) {
     int32_t res;
     worker_iouring_context_t *context = worker_iouring_context_get();
 
@@ -312,6 +340,8 @@ bool worker_network_iouring_op_register() {
     worker_op_network_accept = worker_network_iouring_op_network_accept;
     worker_op_network_receive = worker_network_iouring_op_network_receive;
     worker_op_network_send = worker_network_iouring_op_network_send;
+    worker_op_network_receive_timeout = worker_network_iouring_op_network_receive_timeout;
+    worker_op_network_send_timeout = worker_network_iouring_op_network_send_timeout;
     worker_op_network_close = worker_network_iouring_op_network_close;
 
     return true;

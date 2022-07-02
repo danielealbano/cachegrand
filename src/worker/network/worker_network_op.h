@@ -34,6 +34,20 @@ typedef int32_t (worker_op_network_send_fp_t)(
         char* buffer,
         size_t buffer_length);
 
+typedef int32_t (worker_op_network_receive_timeout_fp_t)(
+        network_channel_t *channel,
+        char* buffer,
+        size_t buffer_length,
+        int timeout_s,
+        int timeout_ms);
+
+typedef int32_t (worker_op_network_send_timeout_fp_t)(
+        network_channel_t *channel,
+        char* buffer,
+        size_t buffer_length,
+        int timeout_s,
+        int timeout_ms);
+
 typedef size_t (worker_op_network_channel_size_fp_t)();
 
 void worker_network_listeners_initialize(
@@ -63,6 +77,8 @@ extern worker_op_network_channel_free_fp_t* worker_op_network_channel_free;
 extern worker_op_network_accept_fp_t* worker_op_network_accept;
 extern worker_op_network_receive_fp_t* worker_op_network_receive;
 extern worker_op_network_send_fp_t* worker_op_network_send;
+extern worker_op_network_receive_timeout_fp_t* worker_op_network_receive_timeout;
+extern worker_op_network_send_timeout_fp_t* worker_op_network_send_timeout;
 extern worker_op_network_close_fp_t* worker_op_network_close;
 extern worker_op_network_channel_size_fp_t* worker_op_network_channel_size;
 
