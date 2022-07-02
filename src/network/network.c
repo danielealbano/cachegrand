@@ -115,7 +115,7 @@ network_op_result_t network_receive(
     } else if (receive_length == -ECANCELED) {
         LOG_I(
                 TAG,
-                "[FD:%5d][ERROR CLIENT] Operation timeout from client <%s>",
+                "[FD:%5d][ERROR CLIENT] Receive timeout from client <%s>",
                 channel->fd,
                 channel->address.str);
         return NETWORK_OP_RESULT_ERROR;
@@ -169,7 +169,7 @@ network_op_result_t network_send(
     } else if (send_length == -ECANCELED) {
         LOG_I(
                 TAG,
-                "[FD:%5d][ERROR CLIENT] Operation timeout from client <%s>",
+                "[FD:%5d][ERROR CLIENT] Send timeout to client <%s>",
                 channel->fd,
                 channel->address.str);
         return NETWORK_OP_RESULT_ERROR;
