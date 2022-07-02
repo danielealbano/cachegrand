@@ -214,6 +214,7 @@ bool worker_iouring_cqe_is_error(
         cqe->res != -ETIME &&
         cqe->res != -ECONNRESET &&
         cqe->res != -EAGAIN &&
+        cqe->res != -ECANCELED &&
         worker_iouring_cqe_is_error_any(cqe);
 }
 
