@@ -60,8 +60,13 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             .host = "127.0.0.1",
             .port = 12345,
     };
+    config_network_protocol_redis_t config_network_protocol_redis = {
+            .max_key_length = 256,
+            .max_command_length = 2048,
+    };
     config_network_protocol_t config_network_protocol = {
             .type = CONFIG_PROTOCOL_TYPE_REDIS,
+            .redis = &config_network_protocol_redis,
             .bindings = &config_network_protocol_binding,
             .bindings_count = 1,
     };
@@ -107,8 +112,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
     struct sockaddr_in address = {0};
     size_t buffer_send_data_len;
-    char buffer_send[512] = {0};
-    char buffer_recv[512] = {0};
+    char buffer_send[8 * 1024] = {0};
+    char buffer_recv[8 * 1024] = {0};
 
     int clientfd = network_io_common_socket_tcp4_new(0);
     address.sin_family = AF_INET;
@@ -125,6 +130,28 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 54);
         REQUIRE(strncmp(buffer_recv, "-ERR unknown command `UNKNOWN COMMAND` with `0` args\r\n",
                         strlen("-ERR unknown command `UNKNOWN COMMAND` with `0` args\r\n")) == 0);
+    }
+
+    SECTION("Redis - command - too long") {
+        int cmd_length = (int)config.network->protocols->redis->max_command_length + 1;
+        char expected_error[256] = { 0 };
+
+        sprintf(
+                expected_error,
+                "-ERR the command length has exceeded <%u> bytes\r\n",
+                (int)config.network->protocols->redis->max_command_length);
+        snprintf(
+                buffer_send,
+                sizeof(buffer_send) - 1,
+                "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$%d\r\n%0*d\r\n",
+                cmd_length,
+                cmd_length,
+                0);
+        buffer_send_data_len = strlen(buffer_send);
+
+        REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+        REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
+        REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
     }
 
     SECTION("Redis - command - HELLO") {
@@ -217,8 +244,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             buffer_send_data_len = strlen(buffer_send);
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 8);
-            REQUIRE(strncmp(buffer_recv, "$2\r\nOK\r\n", strlen("$2\r\nOK\r\n")) == 0);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
+            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
 
             // TODO: check the hashtable
         }
@@ -228,15 +255,15 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             buffer_send_data_len = strlen(buffer_send);
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 8);
-            REQUIRE(strncmp(buffer_recv, "$2\r\nOK\r\n", strlen("$2\r\nOK\r\n")) == 0);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
+            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
 
             snprintf(buffer_send, sizeof(buffer_send) - 1, "%s", cmd_buffer_2);
             buffer_send_data_len = strlen(buffer_send);
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 8);
-            REQUIRE(strncmp(buffer_recv, "$2\r\nOK\r\n", strlen("$2\r\nOK\r\n")) == 0);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
+            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
 
             // TODO: check the hashtable
         }
@@ -251,7 +278,6 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                     buffer_recv,
                     "-ERR wrong number of arguments for 'SET' command\r\n",
                     strlen("-ERR wrong number of arguments for 'SET' command\r\n")) == 0);
-
         }
 
         SECTION("Missing parameters - value") {
@@ -267,12 +293,37 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
 
         SECTION("Too many parameters - one extra parameter") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*4\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nb_value\r\n$15\r\nextra parameter\r\n");
+            snprintf(
+                    buffer_send,
+                    sizeof(buffer_send) - 1,
+                    "*4\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nb_value\r\n$15\r\nextra parameter\r\n");
             buffer_send_data_len = strlen(buffer_send);
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 8);
-            REQUIRE(strncmp(buffer_recv, "$2\r\nOK\r\n", strlen("$2\r\nOK\r\n")) == 0);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
+            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
+        }
+
+        SECTION("Key too long") {
+            int key_length = (int)config.network->protocols->redis->max_key_length + 1;
+            char expected_error[256] = { 0 };
+
+            sprintf(
+                    expected_error,
+                    "-ERR The key has exceeded the allowed size of <%u>\r\n",
+                    (int)config.network->protocols->redis->max_key_length);
+            snprintf(
+                    buffer_send,
+                    sizeof(buffer_send) - 1,
+                    "*3\r\n$3\r\nSET\r\n$%d\r\n%0*d\r\n$7\r\na_value\r\n",
+                    key_length,
+                    key_length,
+                    0);
+            buffer_send_data_len = strlen(buffer_send);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
+            REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
         }
     }
 
@@ -282,8 +333,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             buffer_send_data_len = strlen(buffer_send);
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 8);
-            REQUIRE(strncmp(buffer_recv, "$2\r\nOK\r\n", strlen("$2\r\nOK\r\n")) == 0);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
+            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
 
             snprintf(buffer_send, sizeof(buffer_send) - 1, "*2\r\n$3\r\nDEL\r\n$5\r\na_key\r\n");
             buffer_send_data_len = strlen(buffer_send);
@@ -313,6 +364,28 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                     "-ERR wrong number of arguments for 'DEL' command\r\n",
                     strlen("-ERR wrong number of arguments for 'DEL' command\r\n")) == 0);
         }
+
+        SECTION("Key too long") {
+            int key_length = (int)config.network->protocols->redis->max_key_length + 1;
+            char expected_error[256] = { 0 };
+
+            sprintf(
+                    expected_error,
+                    "-ERR The key has exceeded the allowed size of <%u>\r\n",
+                    (int)config.network->protocols->redis->max_key_length);
+            snprintf(
+                    buffer_send,
+                    sizeof(buffer_send) - 1,
+                    "*2\r\n$3\r\nDEL\r\n$%d\r\n%0*d\r\n",
+                    key_length,
+                    key_length,
+                    0);
+            buffer_send_data_len = strlen(buffer_send);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
+            REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
+        }
     }
 
     SECTION("Redis - command - GET") {
@@ -321,8 +394,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             buffer_send_data_len = strlen(buffer_send);
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 8);
-            REQUIRE(strncmp(buffer_recv, "$2\r\nOK\r\n", strlen("$2\r\nOK\r\n")) == 0);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
+            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
 
             snprintf(buffer_send, sizeof(buffer_send) - 1, "*2\r\n$3\r\nGET\r\n$5\r\na_key\r\n");
             buffer_send_data_len = strlen(buffer_send);
@@ -341,8 +414,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             buffer_send_data_len = strlen(buffer_send);
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 8);
-            REQUIRE(strncmp(buffer_recv, "$2\r\nOK\r\n", strlen("$2\r\nOK\r\n")) == 0);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
+            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
 
             for(int index = 0; index < 10; index++) {
                 buffer_send_start += snprintf(
@@ -386,6 +459,28 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                     buffer_recv,
                     "-ERR wrong number of arguments for 'GET' command\r\n",
                     strlen("-ERR wrong number of arguments for 'GET' command\r\n")) == 0);
+        }
+
+        SECTION("Key too long") {
+            int key_length = (int)config.network->protocols->redis->max_key_length + 1;
+            char expected_error[256] = { 0 };
+
+            sprintf(
+                    expected_error,
+                    "-ERR The key has exceeded the allowed size of <%u>\r\n",
+                    (int)config.network->protocols->redis->max_key_length);
+            snprintf(
+                    buffer_send,
+                    sizeof(buffer_send) - 1,
+                    "*2\r\n$3\r\nGET\r\n$%d\r\n%0*d\r\n",
+                    key_length,
+                    key_length,
+                    0);
+            buffer_send_data_len = strlen(buffer_send);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
+            REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
         }
     }
 
