@@ -136,7 +136,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(del) {
     del_command_context_t *del_command_context = (del_command_context_t*)protocol_context->command_context;
 
     if (del_command_context->has_error) {
-        goto end;
+        return true;
     }
 
     bool deleted = storage_db_delete_entry_index(
@@ -180,12 +180,10 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
             goto end;
         }
 
-        if (network_send(
+        return_res = network_send(
                 channel,
                 send_buffer,
-                send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
-            goto end;
-        }
+                send_buffer_start - send_buffer) == NETWORK_OP_RESULT_OK;
 
         goto end;
     }

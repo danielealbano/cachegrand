@@ -90,6 +90,8 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(set) {
         return false;
     }
 
+    // TODO: add support to the SET optional arguments
+
     return true;
 }
 
@@ -260,7 +262,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(set) {
     set_command_context_t *set_command_context = (set_command_context_t*)protocol_context->command_context;
 
     if (set_command_context->has_error) {
-        return false;
+        return true;
     }
 
     return true;
@@ -291,12 +293,10 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
             goto end;
         }
 
-        if (network_send(
+        return_res = network_send(
                 channel,
                 send_buffer,
-                send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
-            goto end;
-        }
+                send_buffer_start - send_buffer) == NETWORK_OP_RESULT_OK;
 
         goto end;
     }
@@ -317,7 +317,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
     } else  {
         set_command_context->entry_index_saved = true;
 
-        send_buffer_start = protocol_redis_writer_write_blob_string(
+        send_buffer_start = protocol_redis_writer_write_simple_string(
             send_buffer_start,
             send_buffer_end - send_buffer_start,
             "OK",

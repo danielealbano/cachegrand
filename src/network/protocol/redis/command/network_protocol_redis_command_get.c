@@ -198,12 +198,10 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
             goto end;
         }
 
-        if (network_send(
+        return_res = network_send(
                 channel,
                 error_send_buffer,
-                error_send_buffer_start - error_send_buffer) != NETWORK_OP_RESULT_OK) {
-            goto end;
-        }
+                error_send_buffer_start - error_send_buffer) == NETWORK_OP_RESULT_OK;
 
         goto end;
     }

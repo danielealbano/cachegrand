@@ -5,8 +5,6 @@
 extern "C" {
 #endif
 
-#define NETWORK_PROTOCOL_REDIS_KEY_MAX_LENGTH SLAB_OBJECT_SIZE_MAX
-
 #define NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, TYPE) \
     network_protocol_redis_process_command_##COMMAND_FUNC_PTR##_##TYPE
 
@@ -216,10 +214,6 @@ struct network_protocol_redis_context {
 
 void network_protocol_redis_accept(
         network_channel_t *channel);
-
-//bool network_protocol_redis_read_buffer_rewind(
-//        network_channel_buffer_t *read_buffer,
-//        network_protocol_redis_context_t *protocol_context);
 
 bool network_protocol_redis_process_events(
         network_channel_t *channel,
