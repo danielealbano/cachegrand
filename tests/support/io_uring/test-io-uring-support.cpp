@@ -259,6 +259,78 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
         }
     }
 
+    SECTION("io_uring_support_sqe_enqueue_link_timeout") {
+        SECTION("trigger timeout") {
+            io_uring_t *ring;
+            io_uring_cqe_t *cqe = NULL;
+
+            struct __kernel_timespec ts1 = { 2, 0 };
+            struct __kernel_timespec ts2 = { 1, 0 };
+
+            ring = io_uring_support_init(10, NULL, NULL);
+
+            REQUIRE(ring != NULL);
+
+            REQUIRE(io_uring_support_sqe_enqueue_timeout(
+                    ring,
+                    0,
+                    &ts1,
+                    IOSQE_IO_LINK,
+                    1234));
+
+            REQUIRE(io_uring_support_sqe_enqueue_link_timeout(
+                    ring,
+                    &ts2,
+                    0,
+                    4321));
+
+            io_uring_support_sqe_submit(ring);
+
+            io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
+            REQUIRE(cqe->flags == 0);
+            REQUIRE(cqe->res == -ECANCELED);
+            REQUIRE(cqe->user_data == 1234);
+            io_uring_cqe_seen(ring, cqe);
+
+            REQUIRE(io_uring_peek_cqe(ring, &cqe) == 0);
+
+            io_uring_support_free(ring);
+        }
+
+        SECTION("no timeout if ops processed") {
+            io_uring_t *ring;
+            io_uring_cqe_t *cqe = NULL;
+
+            struct __kernel_timespec ts = { 1, 0 };
+
+            ring = io_uring_support_init(10, NULL, NULL);
+
+            REQUIRE(ring != NULL);
+
+            REQUIRE(io_uring_support_sqe_enqueue_nop(
+                    ring,
+                    IOSQE_IO_LINK,
+                    1234));
+
+            REQUIRE(io_uring_support_sqe_enqueue_link_timeout(
+                    ring,
+                    &ts,
+                    0,
+                    4321));
+
+            io_uring_support_sqe_submit(ring);
+
+            io_uring_wait_cqe(ring, &cqe);
+            REQUIRE(cqe != NULL);
+            REQUIRE(cqe->flags == 0);
+            REQUIRE(cqe->res == 0);
+            REQUIRE(cqe->user_data == 1234);
+            io_uring_cqe_seen(ring, cqe);
+
+            io_uring_support_free(ring);
+        }
+    }
     SECTION("io_uring_support_sqe_enqueue_accept") {
         uint16_t socket_port_free_ipv4 =
                 network_tests_support_search_free_port_ipv4(9999);
