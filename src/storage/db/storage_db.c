@@ -446,6 +446,24 @@ void storage_db_free(
         double_linked_list_free(db->shards.opened_shards);
     }
 
+    // TODO: iterate over the hashtable to free up the memory
+    for(uint64_t bucket_index = 0; bucket_index < db->hashtable->ht_current->buckets_count_real; bucket_index++) {
+        hashtable_key_value_volatile_t *key_value = &db->hashtable->ht_current->keys_values[bucket_index];
+
+        if (
+                HASHTABLE_KEY_VALUE_IS_EMPTY(key_value->flags) ||
+                HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_DELETED)) {
+            continue;
+        }
+
+        if (!HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
+            slab_allocator_mem_free(key_value->external_key.data);
+        }
+
+        storage_db_entry_index_t *data = (storage_db_entry_index_t *)key_value->data;
+        storage_db_entry_index_free(db, data);
+    }
+
     hashtable_mcmp_free(db->hashtable);
     storage_db_config_free(db->config);
     slab_allocator_mem_free(db->workers);
