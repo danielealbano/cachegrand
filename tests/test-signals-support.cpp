@@ -6,8 +6,6 @@
 
 #include "signals_support.h"
 
-//void signals_support_register_sigsegv_fatal_handler();
-
 sigjmp_buf jump_fp_signals_support;
 void test_signals_support_signal_sigabrt_handler_longjmp(int signal_number) {
     siglongjmp(jump_fp_signals_support, 1);
