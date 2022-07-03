@@ -446,7 +446,6 @@ void storage_db_free(
         double_linked_list_free(db->shards.opened_shards);
     }
 
-    // TODO: iterate over the hashtable to free up the memory
     for(uint64_t bucket_index = 0; bucket_index < db->hashtable->ht_current->buckets_count_real; bucket_index++) {
         hashtable_key_value_volatile_t *key_value = &db->hashtable->ht_current->keys_values[bucket_index];
 
