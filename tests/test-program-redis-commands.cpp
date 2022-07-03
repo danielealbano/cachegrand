@@ -65,8 +65,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             .max_command_length = 2048,
     };
     config_network_protocol_timeout_t config_network_protocol_timeout = {
-            .read_ms = -1,
-            .write_ms = -1,
+            .read_ms = 1000,
+            .write_ms = 1000,
     };
     config_network_protocol_t config_network_protocol = {
             .type = CONFIG_PROTOCOL_TYPE_REDIS,
@@ -135,6 +135,14 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 54);
         REQUIRE(strncmp(buffer_recv, "-ERR unknown command `UNKNOWN COMMAND` with `0` args\r\n",
                         strlen("-ERR unknown command `UNKNOWN COMMAND` with `0` args\r\n")) == 0);
+    }
+
+    SECTION("Redis - command - timeout") {
+        // Wait the read timeout plus 250ms
+        usleep((config.network->protocols[0].timeout->read_ms * 1000) + (250 * 1000));
+
+        // The socket should be closed so recv should return 0
+        REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 0);
     }
 
     SECTION("Redis - command - too long") {
