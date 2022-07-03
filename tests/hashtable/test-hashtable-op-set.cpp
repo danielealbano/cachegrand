@@ -18,7 +18,7 @@
 
 TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashtable_mcmp_op_set]") {
     SECTION("hashtable_mcmp_op_set") {
-        SECTION("set 1 bucket") {
+        SECTION("set 1 bucket - inline key") {
             HASHTABLE(0x7FFF, false, {
                 uintptr_t prev_value = 0;
                 hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
@@ -55,6 +55,50 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         (char*)key_value->inline_key.data,
                         test_key_1,
                         test_key_1_len) == 0);
+                REQUIRE(key_value->data == test_value_1);
+                REQUIRE(prev_value == 0);
+
+                // Check if the subsequent element has been affected by the changes
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index + 1].slot_id == 0);
+            })
+        }
+
+        SECTION("set 1 bucket - external key") {
+            HASHTABLE(0x7FFF, false, {
+                uintptr_t prev_value = 0;
+                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
+                        hashtable->ht_current->buckets_count,
+                        test_key_long_1_hash));
+                hashtable_chunk_slot_index_t chunk_slot_index = 0;
+
+                hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
+                        &hashtable->ht_current->half_hashes_chunk[chunk_index];
+                hashtable_key_value_volatile_t * key_value =
+                        &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
+
+                char *test_key_long_1_alloc = (char*)malloc(test_key_long_1_len + 1);
+                strncpy(test_key_long_1_alloc, test_key_long_1, test_key_long_1_len + 1);
+
+                REQUIRE(hashtable_mcmp_op_set(
+                        hashtable,
+                        test_key_long_1_alloc,
+                        test_key_long_1_len,
+                        test_value_1,
+                        &prev_value));
+
+                // Check if the write lock has been released
+                REQUIRE(!spinlock_is_locked(&half_hashes_chunk->write_lock));
+
+                // Check if the first slot of the chain ring contains the correct key/value
+                REQUIRE(half_hashes_chunk->metadata.changes_counter == 1);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].distance == 0);
+                REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_long_1_hash_quarter);
+                REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_FILLED);
+                REQUIRE(strncmp(
+                        (char*)key_value->external_key.data,
+                        test_key_long_1,
+                        test_key_long_1_len) == 0);
                 REQUIRE(key_value->data == test_value_1);
                 REQUIRE(prev_value == 0);
 
