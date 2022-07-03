@@ -23,10 +23,10 @@ network:
 
   protocols:
     - type: redis
+      # Timeouts for the read and write operations in milliseconds, set to -1 to disable or greater than 0 to enable
       timeout:
-        read: 2000
-        write: 2000
-        inactivity: 2000
+        read_ms: 10000
+        write_ms: 10000
       keepalive:
         time: 0
         interval: 0

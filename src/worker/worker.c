@@ -118,7 +118,7 @@ bool worker_initialize_general(
 
         // TODO: Add some (10) fds for the listeners, this should be calculated dynamically
         uint32_t max_connections_per_worker =
-                (worker_context->config->network->max_clients / worker_context->workers_count) + 1 + 10;
+                (uint32_t)(((double)worker_context->config->network->max_clients * 1.5f) / (double)worker_context->workers_count) + 1 + 10;
 
         if (!worker_iouring_initialize(worker_context, max_connections_per_worker)) {
             LOG_E(TAG, "io_uring worker initialization failed, terminating");

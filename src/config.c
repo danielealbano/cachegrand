@@ -110,6 +110,16 @@ bool config_validate_after_load(
     for(int protocol_index = 0; protocol_index < config->network->protocols_count; protocol_index++) {
         config_network_protocol_t protocol = config->network->protocols[protocol_index];
 
+        if (protocol.timeout->read_ms < -1 || protocol.timeout->read_ms == 0) {
+            LOG_E(TAG, "read_ms timeout can only be <-1> or a value greater than <0>");
+            return_result = false;
+        }
+
+        if (protocol.timeout->write_ms < -1 || protocol.timeout->write_ms == 0) {
+            LOG_E(TAG, "read_ms timeout can only be <-1> or a value greater than <0>");
+            return_result = false;
+        }
+
         if (protocol.type == CONFIG_PROTOCOL_TYPE_REDIS) {
             if (protocol.redis->max_key_length > SLAB_OBJECT_SIZE_MAX) {
                 LOG_E(TAG, "The allowed maximum value of max_key_length is <%u>", SLAB_OBJECT_SIZE_MAX);

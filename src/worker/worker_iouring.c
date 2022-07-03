@@ -214,6 +214,7 @@ bool worker_iouring_cqe_is_error(
         cqe->res != -ETIME &&
         cqe->res != -ECONNRESET &&
         cqe->res != -EAGAIN &&
+        cqe->res != -ECANCELED &&
         worker_iouring_cqe_is_error_any(cqe);
 }
 
@@ -274,6 +275,12 @@ bool worker_iouring_process_events_loop(
     io_uring_for_each_cqe(context->ring, head, cqe) {
         count++;
         fiber = (fiber_t*)cqe->user_data;
+
+        // When using link timeout a second CQE is issued that must not be processed so the user data is set to NULL
+        // therefore if fiber is set to NULL the cqe will be skipped
+        if (fiber == NULL) {
+            continue;
+        }
 
 #if DEBUG == 1
         if (worker_iouring_cqe_is_error(cqe)) {

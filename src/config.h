@@ -49,9 +49,8 @@ struct config_network_protocol_binding {
 
 typedef struct config_network_protocol_timeout config_network_protocol_timeout_t;
 struct config_network_protocol_timeout {
-    uint32_t read;
-    uint32_t write;
-    uint32_t inactivity;
+    int32_t read_ms;
+    int32_t write_ms;
 };
 
 typedef struct config_network_protocol_keepalive config_network_protocol_keepalive_t;

@@ -53,6 +53,12 @@ bool io_uring_support_sqe_enqueue_timeout(
         uint8_t sqe_flags,
         uint64_t user_data);
 
+bool io_uring_support_sqe_enqueue_link_timeout(
+        io_uring_t *ring,
+        struct __kernel_timespec *ts,
+        uint8_t sqe_flags,
+        uint64_t user_data);
+
 bool io_uring_support_sqe_enqueue_nop(
         io_uring_t *ring,
         uint8_t sqe_flags,

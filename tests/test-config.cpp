@@ -175,9 +175,8 @@ network:
   protocols:
     - type: redis
       timeout:
-        read: 2000
-        write: 2000
-        inactivity: 2000
+        read_ms: 2000
+        write_ms: 2000
       keepalive:
         time: 0
         interval: 0
@@ -407,6 +406,78 @@ TEST_CASE("config.c", "[config]") {
             REQUIRE(err == CYAML_OK);
 
             config->network->protocols[0].redis->max_key_length = 64 * 1024 + 1;
+            REQUIRE(config_validate_after_load(config) == false);
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
+
+        SECTION("broken - network.timeout.read_ms < -1") {
+            err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    NULL);
+
+            REQUIRE(config != NULL);
+            REQUIRE(err == CYAML_OK);
+
+            config->network->protocols[0].timeout->read_ms = -2;
+            REQUIRE(config_validate_after_load(config) == false);
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
+
+        SECTION("broken - network.timeout.read_ms == 0") {
+            err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    NULL);
+
+            REQUIRE(config != NULL);
+            REQUIRE(err == CYAML_OK);
+
+            config->network->protocols[0].timeout->read_ms = 0;
+            REQUIRE(config_validate_after_load(config) == false);
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
+
+        SECTION("broken - network.timeout.write_ms < -1") {
+            err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    NULL);
+
+            REQUIRE(config != NULL);
+            REQUIRE(err == CYAML_OK);
+
+            config->network->protocols[0].timeout->write_ms = -2;
+            REQUIRE(config_validate_after_load(config) == false);
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
+
+        SECTION("broken - network.timeout.write_ms == 0") {
+            err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    NULL);
+
+            REQUIRE(config != NULL);
+            REQUIRE(err == CYAML_OK);
+
+            config->network->protocols[0].timeout->write_ms = 0;
             REQUIRE(config_validate_after_load(config) == false);
 
             cyaml_free(config_cyaml_config, config_top_schema, config, 0);
