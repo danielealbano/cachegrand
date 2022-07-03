@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Copyright (C) 2018-2022 Daniele Salvatore Albano
+# All rights reserved.
+#
+# This software may be modified and distributed under the terms
+# of the BSD license. See the LICENSE file for details.
+
 set -e
 
 # The load-test.sh script takes care of starting & stopping the benchmarked server and currently

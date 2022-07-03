@@ -1,3 +1,9 @@
+# Copyright (C) 2018-2022 Daniele Salvatore Albano
+# All rights reserved.
+#
+# This software may be modified and distributed under the terms
+# of the BSD license. See the LICENSE file for details.
+
 set(CACHEGRAND_CMAKE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(CACHEGRAND_CMAKE_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 string(LENGTH "${CMAKE_SOURCE_DIR}/" CMAKE_SOURCE_DIR_LENGTH)

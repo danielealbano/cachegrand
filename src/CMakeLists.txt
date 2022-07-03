@@ -1,3 +1,9 @@
+# Copyright (C) 2018-2022 Daniele Salvatore Albano
+# All rights reserved.
+#
+# This software may be modified and distributed under the terms
+# of the BSD license. See the LICENSE file for details.
+
 macro(CACHEGRAND_BUILD_ADHOC_HASHTABLE_MCMP_SUPPORT_OP_ARCH ARCH)
     set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx512f -mno-avx256-split-unaligned-load -mavx512f -mavx2 -mavx -mbmi -mbmi2 -mfma -mtune=skylake)
     set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx2 -mno-avx512f -mno-avx256-split-unaligned-load -mavx2 -mavx -mavx -mbmi -mbmi2 -mfma -mtune=haswell)
