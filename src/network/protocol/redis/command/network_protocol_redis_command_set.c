@@ -120,7 +120,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(set) {
 
         set_command_context->key_length = argument_length;
         set_command_context->key_offset = 0;
-        set_command_context->key = slab_allocator_mem_alloc(set_command_context->key_length);;
+        set_command_context->key = slab_allocator_mem_alloc(set_command_context->key_length);
 
         // If the backend is in memory it's not necessary to write the key to the storage because it will never be used as
         // the only case in which the keys are read from the storage is when the database gets loaded from the disk at the

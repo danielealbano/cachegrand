@@ -750,7 +750,7 @@ void storage_db_entry_index_status_set_deleted(
             &entry_index->status._cas_wrapper,
             deleted ? 0x80000000 : 0);
 
-    if (likely(old_status)) {
+    if (likely(old_status != NULL)) {
         old_status->_cas_wrapper = cas_wrapper_ret;
     }
 }
@@ -863,16 +863,16 @@ bool storage_db_delete_entry_index(
         storage_db_t *db,
         char *key,
         size_t key_length) {
-    storage_db_entry_index_t *previous_entry_index = NULL;
+    storage_db_entry_index_t *current_entry_index = NULL;
 
     bool res = hashtable_mcmp_op_delete(
             db->hashtable,
             key,
             key_length,
-            (uintptr_t*)&previous_entry_index);
+            (uintptr_t*)&current_entry_index);
 
-    if (res && previous_entry_index != NULL) {
-        storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, previous_entry_index);
+    if (res && current_entry_index != NULL) {
+        storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
     }
 
     return res;

@@ -42,11 +42,11 @@ enum {
 };
 
 #define HASHTABLE_KEY_VALUE_HAS_FLAG(flags, flag) \
-    ((flags & (hashtable_key_value_flags_t)flag) == (hashtable_key_value_flags_t)flag)
+    (((flags) & (hashtable_key_value_flags_t)(flag)) == (hashtable_key_value_flags_t)(flag))
 #define HASHTABLE_KEY_VALUE_SET_FLAG(flags, flag) \
     flags |= (hashtable_key_value_flags_t)flag
 #define HASHTABLE_KEY_VALUE_IS_EMPTY(flags) \
-    (flags == 0)
+    ((flags) == 0)
 
 
 /**
