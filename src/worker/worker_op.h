@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#define WORKER_TIMER_LOOP_MS 500l
+#define WORKER_TIMER_LOOP_MS 50l
 
 typedef bool (worker_op_timer_fp_t)(
         long seconds,
