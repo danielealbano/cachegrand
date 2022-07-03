@@ -30,6 +30,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_support_hash_search_avx.h"
 #endif
 #endif
+
 #include "data_structures/hashtable/mcmp/hashtable_support_hash_search_loop.h"
 
 #include "fixtures-hashtable.h"

@@ -18,7 +18,20 @@
 #include "spinlock.h"
 
 #include "data_structures/hashtable/mcmp/hashtable.h"
-#include "data_structures/hashtable/mcmp/hashtable_support_hash_search.h"
+
+#if defined(__x86_64__)
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_AVX512F == 1
+#include "data_structures/hashtable/mcmp/hashtable_support_hash_search_avx512f.h"
+#endif
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_AVX2 == 1
+#include "data_structures/hashtable/mcmp/hashtable_support_hash_search_avx2.h"
+#endif
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_AVX == 1
+#include "data_structures/hashtable/mcmp/hashtable_support_hash_search_avx.h"
+#endif
+#endif
+
+#include "data_structures/hashtable/mcmp/hashtable_support_hash_search_loop.h"
 
 #include "../tests/support.h"
 
