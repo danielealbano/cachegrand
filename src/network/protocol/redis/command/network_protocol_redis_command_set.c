@@ -352,6 +352,8 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(set) {
 
     if (!set_command_context->entry_index_saved) {
         storage_db_entry_index_free(db, set_command_context->entry_index);
+        slab_allocator_mem_free(set_command_context->key);
+        set_command_context->key = NULL;
     }
 
     slab_allocator_mem_free(protocol_context->command_context);
