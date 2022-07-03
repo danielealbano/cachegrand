@@ -127,44 +127,56 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
     REQUIRE(connect(clientfd, (struct sockaddr *) &address, sizeof(address)) == 0);
 
-    SECTION("Redis - command - unknown / unsupported command") {
-        snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$15\r\nUNKNOWN COMMAND\r\n");
-        buffer_send_data_len = strlen(buffer_send);
+    SECTION("Redis - command - generic tests") {
+        SECTION("Unknown / unsupported command") {
+            snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$15\r\nUNKNOWN COMMAND\r\n");
+            buffer_send_data_len = strlen(buffer_send);
 
-        REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-        REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 54);
-        REQUIRE(strncmp(buffer_recv, "-ERR unknown command `UNKNOWN COMMAND` with `0` args\r\n",
-                        strlen("-ERR unknown command `UNKNOWN COMMAND` with `0` args\r\n")) == 0);
-    }
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 54);
+            REQUIRE(strncmp(buffer_recv, "-ERR unknown command `UNKNOWN COMMAND` with `0` args\r\n",
+                            strlen("-ERR unknown command `UNKNOWN COMMAND` with `0` args\r\n")) == 0);
+        }
 
-    SECTION("Redis - command - timeout") {
-        // Wait the read timeout plus 250ms
-        usleep((config.network->protocols[0].timeout->read_ms * 1000) + (250 * 1000));
+        SECTION("Malformed - more data than declared") {
+            snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$5\r\nUNKNOWN COMMAND\r\n");
+            buffer_send_data_len = strlen(buffer_send);
 
-        // The socket should be closed so recv should return 0
-        REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 0);
-    }
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 24);
+            REQUIRE(strncmp(buffer_recv, "-ERR parsing error <8>\r\n",
+                            strlen("-ERR parsing error <8>\r\n")) == 0);
+        }
 
-    SECTION("Redis - command - too long") {
-        int cmd_length = (int)config.network->protocols->redis->max_command_length + 1;
-        char expected_error[256] = { 0 };
+        SECTION("Timeout") {
+            // Wait the read timeout plus 250ms
+            usleep((config.network->protocols[0].timeout->read_ms * 1000) + (250 * 1000));
 
-        sprintf(
-                expected_error,
-                "-ERR the command length has exceeded <%u> bytes\r\n",
-                (int)config.network->protocols->redis->max_command_length);
-        snprintf(
-                buffer_send,
-                sizeof(buffer_send) - 1,
-                "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$%d\r\n%0*d\r\n",
-                cmd_length,
-                cmd_length,
-                0);
-        buffer_send_data_len = strlen(buffer_send);
+            // The socket should be closed so recv should return 0
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 0);
+        }
 
-        REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-        REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
-        REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
+        SECTION("Too long") {
+            int cmd_length = (int) config.network->protocols->redis->max_command_length + 1;
+            char expected_error[256] = {0};
+
+            sprintf(
+                    expected_error,
+                    "-ERR the command length has exceeded <%u> bytes\r\n",
+                    (int) config.network->protocols->redis->max_command_length);
+            snprintf(
+                    buffer_send,
+                    sizeof(buffer_send) - 1,
+                    "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$%d\r\n%0*d\r\n",
+                    cmd_length,
+                    cmd_length,
+                    0);
+            buffer_send_data_len = strlen(buffer_send);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
+            REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
+        }
     }
 
     SECTION("Redis - command - HELLO") {
@@ -251,13 +263,25 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
     SECTION("Redis - command - SET") {
         char *cmd_buffer_1 = "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nb_value\r\n";
         char *cmd_buffer_2 = "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nvalue_z\r\n";
+        char *cmd_buffer_3 = "*3\r\n$3\r\nSET\r\n$40\r\nthis is a long key that can't be inlined\r\n$7\r\nb_value\r\n";
 
-        SECTION("New key") {
+        SECTION("New key - short") {
             snprintf(buffer_send, sizeof(buffer_send) - 1, "%s", cmd_buffer_1);
             buffer_send_data_len = strlen(buffer_send);
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
             REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
+            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
+
+            // TODO: check the hashtable
+        }
+
+        SECTION("New key - long") {
+            snprintf(buffer_send, sizeof(buffer_send) - 1, "%s", cmd_buffer_3);
+            buffer_send_data_len = strlen(buffer_send);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0));
             REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
 
             // TODO: check the hashtable

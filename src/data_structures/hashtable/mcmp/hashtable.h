@@ -9,9 +9,9 @@ extern "C" {
 #define HASHTABLE_USE_UINT64    1
 #endif
 
-#define HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT     14
-#define HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX      32
-#define HASHTABLE_KEY_INLINE_MAX_LENGTH             22
+#define HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT    14
+#define HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX          32
+#define HASHTABLE_KEY_INLINE_MAX_LENGTH                 22
 
 typedef uint8_t hashtable_key_value_flags_t;
 typedef uint64_t hashtable_hash_t;
@@ -42,11 +42,11 @@ enum {
 };
 
 #define HASHTABLE_KEY_VALUE_HAS_FLAG(flags, flag) \
-    ((flags & (hashtable_key_value_flags_t)flag) == (hashtable_key_value_flags_t)flag)
+    (((flags) & (hashtable_key_value_flags_t)(flag)) == (hashtable_key_value_flags_t)(flag))
 #define HASHTABLE_KEY_VALUE_SET_FLAG(flags, flag) \
     flags |= (hashtable_key_value_flags_t)flag
 #define HASHTABLE_KEY_VALUE_IS_EMPTY(flags) \
-    (flags == 0)
+    ((flags) == 0)
 
 
 /**

@@ -446,6 +446,23 @@ void storage_db_free(
         double_linked_list_free(db->shards.opened_shards);
     }
 
+    for(uint64_t bucket_index = 0; bucket_index < db->hashtable->ht_current->buckets_count_real; bucket_index++) {
+        hashtable_key_value_volatile_t *key_value = &db->hashtable->ht_current->keys_values[bucket_index];
+
+        if (
+                HASHTABLE_KEY_VALUE_IS_EMPTY(key_value->flags) ||
+                HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_DELETED)) {
+            continue;
+        }
+
+        if (!HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
+            slab_allocator_mem_free(key_value->external_key.data);
+        }
+
+        storage_db_entry_index_t *data = (storage_db_entry_index_t *)key_value->data;
+        storage_db_entry_index_free(db, data);
+    }
+
     hashtable_mcmp_free(db->hashtable);
     storage_db_config_free(db->config);
     slab_allocator_mem_free(db->workers);
@@ -750,7 +767,7 @@ void storage_db_entry_index_status_set_deleted(
             &entry_index->status._cas_wrapper,
             deleted ? 0x80000000 : 0);
 
-    if (likely(old_status)) {
+    if (likely(old_status != NULL)) {
         old_status->_cas_wrapper = cas_wrapper_ret;
     }
 }
@@ -863,16 +880,16 @@ bool storage_db_delete_entry_index(
         storage_db_t *db,
         char *key,
         size_t key_length) {
-    storage_db_entry_index_t *previous_entry_index = NULL;
+    storage_db_entry_index_t *current_entry_index = NULL;
 
     bool res = hashtable_mcmp_op_delete(
             db->hashtable,
             key,
             key_length,
-            (uintptr_t*)&previous_entry_index);
+            (uintptr_t*)&current_entry_index);
 
-    if (res && previous_entry_index != NULL) {
-        storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, previous_entry_index);
+    if (res && current_entry_index != NULL) {
+        storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
     }
 
     return res;

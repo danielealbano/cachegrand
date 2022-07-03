@@ -37,8 +37,14 @@ worker_op_timer_fp_t* worker_op_timer;
 
 void worker_timer_fiber_entrypoint(
         void *user_data) {
+    worker_context_t* worker_context = worker_context_get();
+
     while(worker_op_timer(0, WORKER_TIMER_LOOP_MS * 1000000l)) {
-        // TODO: process timeouts / garbage collector / etc
+        // The condition checked below is mostly for the tests, as there are some simple tests that should setup the
+        // storage_db otherwise
+        if (worker_context->db) {
+            storage_db_worker_garbage_collect_deleting_entry_index_when_no_readers(worker_context->db);
+        }
     }
 }
 
