@@ -31,9 +31,12 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 hashtable_key_value_volatile_t * key_value =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
 
+                char *test_key_1_alloc = (char*)malloc(test_key_1_len + 1);
+                strncpy(test_key_1_alloc, test_key_1, test_key_1_len + 1);
+
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
-                        test_key_1,
+                        test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
                         &prev_value));
@@ -75,16 +78,22 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 hashtable_key_value_volatile_t * key_value =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
 
+                char *test_key_1_alloc = (char*)malloc(test_key_1_len + 1);
+                strncpy(test_key_1_alloc, test_key_1, test_key_1_len + 1);
+
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
-                        test_key_1,
+                        test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
                         &prev_value1));
 
+                test_key_1_alloc = (char*)malloc(test_key_1_len + 1);
+                strncpy(test_key_1_alloc, test_key_1, test_key_1_len + 1);
+
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
-                        test_key_1,
+                        test_key_1_alloc,
                         test_key_1_len,
                         test_value_1 + 1,
                         &prev_value2));
@@ -132,16 +141,22 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 hashtable_key_value_volatile_t * key_value2 =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index2, chunk_slot_index2)];
 
+                char *test_key_1_alloc = (char*)malloc(test_key_1_len + 1);
+                strncpy(test_key_1_alloc, test_key_1, test_key_1_len + 1);
+
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
-                        test_key_1,
+                        test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
                         NULL));
 
+                char *test_key_2_alloc = (char*)malloc(test_key_2_len + 1);
+                strncpy(test_key_2_alloc, test_key_2, test_key_2_len + 1);
+
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
-                        test_key_2,
+                        test_key_2_alloc,
                         test_key_2_len,
                         test_value_2,
                         NULL));
@@ -181,9 +196,12 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         slots_to_fill);
 
                 for(hashtable_chunk_index_t i = 0; i < slots_to_fill; i++) {
+                    char *test_key_same_bucket_alloc = (char*)malloc(test_key_same_bucket[i].key_len + 1);
+                    strncpy(test_key_same_bucket_alloc, test_key_same_bucket[i].key, test_key_same_bucket[i].key_len + 1);
+
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
-                            (char *) test_key_same_bucket[i].key,
+                            (char*)test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
                             NULL));
@@ -228,9 +246,12 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         slots_to_fill);
 
                 for(hashtable_chunk_slot_index_t i = 0; i < slots_to_fill; i++) {
+                    char *test_key_same_bucket_alloc = (char*)malloc(test_key_same_bucket[i].key_len + 1);
+                    strncpy(test_key_same_bucket_alloc, test_key_same_bucket[i].key, test_key_same_bucket[i].key_len + 1);
+
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
-                            (char *) test_key_same_bucket[i].key,
+                            test_key_same_bucket_alloc,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
                             NULL));
@@ -281,9 +302,12 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         slots_to_fill);
 
                 for(hashtable_chunk_slot_index_t i = 0; i < slots_to_fill; i++) {
+                    char *test_key_same_bucket_alloc = (char*)malloc(test_key_same_bucket[i].key_len + 1);
+                    strncpy(test_key_same_bucket_alloc, test_key_same_bucket[i].key, test_key_same_bucket[i].key_len + 1);
+
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
-                            (char *) test_key_same_bucket[i].key,
+                            test_key_same_bucket_alloc,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
                             NULL));
@@ -319,17 +343,23 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
 
                 uint32_t i = 0;
                 for(; i < slots_to_fill - 1; i++) {
+                    char *test_key_same_bucket_alloc = (char*)malloc(test_key_same_bucket[i].key_len + 1);
+                    strncpy(test_key_same_bucket_alloc, test_key_same_bucket[i].key, test_key_same_bucket[i].key_len + 1);
+
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
-                            (char *) test_key_same_bucket[i].key,
+                            test_key_same_bucket_alloc,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
                             NULL));
                 }
 
+                char *test_key_alloc = (char*)malloc(test_key_same_bucket[i].key_len + 1);
+                strncpy(test_key_alloc, test_key_same_bucket[i].key, test_key_same_bucket[i].key_len + 1);
+
                 REQUIRE(!hashtable_mcmp_op_set(
                         hashtable,
-                        (char *) test_key_same_bucket[i].key,
+                        test_key_alloc,
                         test_key_same_bucket[i].key_len,
                         test_value_1 + i,
                         NULL));
@@ -351,9 +381,12 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                     hashtable_key_value_volatile_t * key_value =
                             &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
 
+                    char *test_key_1_alloc = (char*)malloc(test_key_1_len + 1);
+                    strncpy(test_key_1_alloc, test_key_1, test_key_1_len + 1);
+
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
-                            test_key_1,
+                            test_key_1_alloc,
                             test_key_1_len,
                             test_value_1,
                             NULL));
