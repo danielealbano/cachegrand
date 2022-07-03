@@ -34,6 +34,7 @@ bool hashtable_mcmp_op_set(
         hashtable_value_data_t value,
         hashtable_value_data_t *previous_value) {
     bool created_new = true;
+    bool key_inlined = false;
     hashtable_hash_t hash;
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk = 0;
     hashtable_key_value_volatile_t* key_value = 0;
@@ -88,6 +89,7 @@ bool hashtable_mcmp_op_set(
 
         // Get the destination pointer for the key
         if (key_size <= HASHTABLE_KEY_INLINE_MAX_LENGTH) {
+            key_inlined = true;
             LOG_DI("key can be inline-ed", key_size);
 
             HASHTABLE_KEY_VALUE_SET_FLAG(flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE);
@@ -117,6 +119,11 @@ bool hashtable_mcmp_op_set(
     spinlock_unlock(&half_hashes_chunk->write_lock);
 
     LOG_DI("unlocking half_hashes_chunk 0x%016x", half_hashes_chunk);
+
+    // Validate if the passed key can be freed because unused or beacuse inlined
+    if (!created_new || key_inlined) {
+        slab_allocator_mem_free(key);
+    }
 
     return true;
 }
