@@ -37,8 +37,7 @@
  * Code taken from
  * https://stackoverflow.com/questions/17645167/implementing-sse-4-2s-crc32c-in-software/17646775#17646775
  *
- * It has been refactored and split in 3 different files, the copyright notice as well as the original license has been
- * added to the 3 .c files.
+ * It has been refactored and split in 3 different files, the original copyright notice has been added to the new files.
  */
 
 #include <stdlib.h>

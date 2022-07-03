@@ -1,3 +1,11 @@
+/**
+ * Copyright (C) 2018-2022 Daniele Salvatore Albano
+ * All rights reserved.
+ *
+ * This software may be modified and distributed under the terms
+ * of the BSD license.  See the LICENSE file for details.
+ **/
+
 #include <catch2/catch.hpp>
 #include <numa.h>
 
@@ -22,6 +30,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_support_hash_search_avx.h"
 #endif
 #endif
+
 #include "data_structures/hashtable/mcmp/hashtable_support_hash_search_loop.h"
 
 #include "fixtures-hashtable.h"

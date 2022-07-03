@@ -1,3 +1,11 @@
+/**
+ * Copyright (C) 2018-2022 Daniele Salvatore Albano
+ * All rights reserved.
+ *
+ * This software may be modified and distributed under the terms
+ * of the BSD license.  See the LICENSE file for details.
+ **/
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdint.h>
@@ -10,7 +18,20 @@
 #include "spinlock.h"
 
 #include "data_structures/hashtable/mcmp/hashtable.h"
-#include "data_structures/hashtable/mcmp/hashtable_support_hash_search.h"
+
+#if defined(__x86_64__)
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_AVX512F == 1
+#include "data_structures/hashtable/mcmp/hashtable_support_hash_search_avx512f.h"
+#endif
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_AVX2 == 1
+#include "data_structures/hashtable/mcmp/hashtable_support_hash_search_avx2.h"
+#endif
+#if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_AVX == 1
+#include "data_structures/hashtable/mcmp/hashtable_support_hash_search_avx.h"
+#endif
+#endif
+
+#include "data_structures/hashtable/mcmp/hashtable_support_hash_search_loop.h"
 
 #include "../tests/support.h"
 

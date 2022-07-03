@@ -1,3 +1,11 @@
+/**
+ * Copyright (C) 2018-2022 Daniele Salvatore Albano
+ * All rights reserved.
+ *
+ * This software may be modified and distributed under the terms
+ * of the BSD license.  See the LICENSE file for details.
+ **/
+
 #include <catch2/catch.hpp>
 
 #include <string.h>
@@ -5,8 +13,6 @@
 #include <setjmp.h>
 
 #include "signals_support.h"
-
-//void signals_support_register_sigsegv_fatal_handler();
 
 sigjmp_buf jump_fp_signals_support;
 void test_signals_support_signal_sigabrt_handler_longjmp(int signal_number) {

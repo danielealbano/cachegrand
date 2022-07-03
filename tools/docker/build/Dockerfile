@@ -1,9 +1,14 @@
+# Copyright (C) 2018-2022 Daniele Salvatore Albano
+# All rights reserved.
+#
+# This software may be modified and distributed under the terms
+# of the BSD license. See the LICENSE file for details.
+
 # Build commands
 #docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 #docker buildx create --use --name cachegrand-builder
 #docker buildx build --pull --push --platform linux/amd64,linux/arm64/v8 --tag gitlab.cachegrand.dev:5050/cachegrand/cachegrand-server/ubuntu-2004-gcc:latest .
 #docker buildx rm --name cachegrand-builder
-
 
 FROM ubuntu:focal
 MAINTAINER d.albano@cachegrand.io
