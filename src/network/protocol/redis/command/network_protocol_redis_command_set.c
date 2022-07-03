@@ -174,7 +174,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_DATA(set) {
         // (in debug mode)
         assert(set_command_context->key_offset + chunk_length <= set_command_context->key_length);
 
-        memcpy(set_command_context->key, chunk_data, chunk_length);
+        memcpy(set_command_context->key + set_command_context->key_offset, chunk_data, chunk_length);
         set_command_context->key_offset += chunk_length;
 
         // If the backend is in memory it's not necessary to write the key to the storage because it will never be used as
