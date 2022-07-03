@@ -1,5 +1,5 @@
 ///**
-// * Copyright (C) 2020-2021 Daniele Salvatore Albano
+// * Copyright (C) 2018-2022 Daniele Salvatore Albano
 // * All rights reserved.
 // *
 // * This software may be modified and distributed under the terms
