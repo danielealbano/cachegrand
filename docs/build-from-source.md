@@ -15,13 +15,13 @@ Example output
 
 ## Required packages
 
-| Package | Min. Version |   |
-| - | - | - |
-| pkg-config | | **mandatory** |
-| libnuma | >= 1.1 | **mandatory** |
-| libyaml | >= 1.1 | **mandatory** |
-| openssl | >= 2.0 | **mandatory** |
-| curl    | >= 7.0 | **mandatory** |
+| Package    | Min. Version |               |
+|------------|--------------|---------------|
+| pkg-config |              | **mandatory** |
+| libnuma    | \>= 1.1      | **mandatory** |
+| libyaml    | \>= 1.1      | **mandatory** |
+| openssl    | \>= 2.0      | **mandatory** |
+| curl       | \>= 7.0      | **mandatory** |
 
 ## Install the required packages
 
