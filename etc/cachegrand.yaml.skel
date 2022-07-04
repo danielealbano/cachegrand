@@ -25,7 +25,7 @@ network:
     - type: redis
       # Timeouts for the read and write operations in milliseconds, set to -1 to disable or greater than 0 to enable
       timeout:
-        read_ms: 10000
+        read_ms: -1
         write_ms: 10000
       keepalive:
         time: 0
