@@ -148,11 +148,21 @@ void worker_network_listeners_listen(
 
 void worker_network_new_client_fiber_entrypoint(
         void *user_data) {
+    worker_context_t *worker_context = worker_context_get();
     worker_stats_t *stats = worker_stats_get();
 
     network_channel_t *new_channel = user_data;
 
     stats->network.total.active_connections++;
+
+    if (stats->network.total.active_connections > worker_context->config->network->max_clients) {
+        LOG_W(
+                TAG,
+                "[FD:%5d][ACCEPT] Can't accept any new connection",
+                new_channel->fd);
+        goto end;
+    }
+
     stats->network.total.accepted_connections++;
     stats->network.per_second.accepted_connections++;
 
@@ -172,6 +182,8 @@ void worker_network_new_client_fiber_entrypoint(
                     new_channel);
             break;
     }
+
+end:
 
     // Close the connection
     if (new_channel->status != NETWORK_CHANNEL_STATUS_CLOSED) {
