@@ -311,7 +311,8 @@ void worker_iouring_check_capabilities() {
 
 bool worker_iouring_initialize(
         worker_context_t *worker_context,
-        uint32_t max_fd) {
+        uint32_t max_fd,
+        uint32_t entries) {
     worker_iouring_context_t *context;
     io_uring_t *ring;
     io_uring_params_t *params = xalloc_alloc_zero(sizeof(io_uring_params_t));
@@ -343,7 +344,7 @@ bool worker_iouring_initialize(
     LOG_V(TAG, "Initializing local worker ring for io_uring");
 
     if ((ring = io_uring_support_init(
-            (int)(fds_count * 1.2),
+            entries,
             params,
             NULL)) == NULL) {
         xalloc_free(params);

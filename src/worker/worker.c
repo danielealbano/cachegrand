@@ -111,16 +111,20 @@ uint32_t worker_thread_set_affinity(
 
 bool worker_initialize_general(
         worker_context_t* worker_context) {
-    // TODO: the workers should be map the their func ops in a struct and these should be used
-    //       below, can't keep doing ifs :/
+    // TODO: the backends should map the their funcs in a struct and these should be used below, can't keep doing ifs :/
     if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
         worker_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
 
-        // TODO: Add some (10) fds for the listeners, this should be calculated dynamically
+        // TODO: Add some (10) fds for the listeners, plenty but this should be calculated dynamically
         uint32_t max_connections_per_worker =
-                (uint32_t)(((double)worker_context->config->network->max_clients * 1.5f) / (double)worker_context->workers_count) + 1 + 10;
+                (uint32_t)(((double)worker_context->config->network->max_clients * 1.2f) / (double)worker_context->workers_count) + 1 + 10;
 
-        if (!worker_iouring_initialize(worker_context, max_connections_per_worker)) {
+        // The amount of entries has to be double the amount of connections because of the timeouts' management (extra
+        // sqe for LINK_TIMEOUT for reads and writes)
+        if (!worker_iouring_initialize(
+                worker_context,
+                max_connections_per_worker,
+                max_connections_per_worker * 2)) {
             LOG_E(TAG, "io_uring worker initialization failed, terminating");
             worker_iouring_cleanup(worker_context);
             return false;
