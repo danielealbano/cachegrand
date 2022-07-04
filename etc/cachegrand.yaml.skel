@@ -13,7 +13,7 @@ run_in_foreground: false
 
 pidfile_path: /var/run/cachegrand/cachegrand.pid
 
-# The slab allocator requires huge pages
+# The slab allocator requires hugepages
 use_slab_allocator: false
 
 network:

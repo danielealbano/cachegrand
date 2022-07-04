@@ -26,7 +26,7 @@
 
 // TODO: should use libnuma set_mempolicy the be able to use mmap and allocate interleaved memory across numa nodes
 
-#define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)   /* 2 MB huge pages */
+#define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)   /* 2 MB hugepages */
 
 #define TAG "xalloc"
 
