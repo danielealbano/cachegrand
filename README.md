@@ -17,8 +17,8 @@ system to process the network data
 Key features:
 - [Modular](docs/architecture/modules.md) architecture to support widely used protocols, e.g.
   [Redis](docs/architecture/modules/redis.md) (in progress), [Memcache](docs/architecture/modules/memcache.md) (todo),
-  etc., or add support for monitoring, e.g. [Prometheus](docs/architecture/modules/modules/prometheus.md) (todo),
-  [DataDog](docs/architecture/modules/modules/datadog.md) (todo), etc.;
+  etc., or add support for monitoring, e.g. [Prometheus](docs/architecture/modules/prometheus.md) (todo),
+  [DataDog](docs/architecture/modules/datadog.md) (todo), etc.;
 - [Time-series database](docs/architecture/timeseries-db.md) (in progress) for fast data writes and retrieval with
   primitives built to handle different data types (e.g. small strings, large blobs, jsons, etc.);
 - [Hashtable](docs/architecture/hashtable.md) GET Lock-free and Wait-free operations, SET and DELETE use
