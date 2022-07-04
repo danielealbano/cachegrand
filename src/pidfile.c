@@ -85,8 +85,7 @@ bool pidfile_create(
     int fd;
 
     if ((fd = pidfile_open(pidfile_path)) < 0) {
-        LOG_E(TAG, "Failed to open the pid file <%s>", pidfile_path);
-        LOG_E_OS_ERROR(TAG);
+        LOG_W(TAG, "Failed to open the pid file <%s>", pidfile_path);
         return false;
     }
 
