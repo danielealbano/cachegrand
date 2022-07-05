@@ -19,7 +19,6 @@ bool test_simple_file_io_fixture_file_from_data_create(
         int path_suffix_len,
         const char* data,
         size_t data_len) {
-
     close(mkstemps(path, path_suffix_len));
 
     FILE* fp = fopen(path, "w");

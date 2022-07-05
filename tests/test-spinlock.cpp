@@ -44,7 +44,6 @@ void* test_spinlock_lock_lock_retry_try_lock_thread_func(void* rawdata) {
 void test_spinlock_lock_thread_wait_on_flag(
         volatile bool *flag,
         bool expecting_value) {
-
     do {
         MEMORY_FENCE_LOAD();
     } while (*flag != expecting_value);

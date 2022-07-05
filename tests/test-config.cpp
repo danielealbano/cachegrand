@@ -79,7 +79,6 @@ void test_config_internal_log_sink_printer(
         char* early_prefix_thread,
         const char* message,
         size_t message_len) {
-
     size_t log_message_size = log_sink_support_printer_str_len(
             tag,
             early_prefix_thread,
@@ -114,7 +113,6 @@ bool test_config_fixture_file_from_data_create(
         int path_suffix_len,
         const char* data,
         size_t data_len) {
-
     close(mkstemps(path, path_suffix_len));
 
     FILE* fp = fopen(path, "w");
