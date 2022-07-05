@@ -191,7 +191,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         char *hello_v2_expected_response_start =
                 "*14\r\n"
                 "$6\r\nserver\r\n"
-                "$10\r\ncachegrand\r\n"
+                "$17\r\ncachegrand-server\r\n"
                 "$7\r\nversion\r\n"
                 "$";
         char *hello_v2_expected_response_end =
@@ -209,7 +209,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
         char *hello_v3_expected_response_start =
                 "%7\r\n"
-                "$6\r\nserver\r\n$10\r\ncachegrand\r\n"
+                "$6\r\nserver\r\n$17\r\ncachegrand-server\r\n"
                 "$7\r\nversion\r\n$";
         char *hello_v3_expected_response_end =
                 "\r\n"
