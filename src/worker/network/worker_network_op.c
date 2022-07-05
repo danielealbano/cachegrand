@@ -56,11 +56,13 @@ worker_op_network_close_fp_t* worker_op_network_close;
 
 // TODO: the listener and accept operations should be refactored to split them in an user frontend operation and in an
 //       internal operation like for all the other ops (recv, send, close, etc.)
-void worker_network_listeners_initialize(
+bool worker_network_listeners_initialize(
+        uint32_t worker_index,
         uint8_t core_index,
         config_network_t *config_network,
         network_channel_t **listeners,
         uint8_t *listeners_count) {
+    bool return_res = false;
     network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = { 0 };
 
     listener_new_cb_user_data.core_index = core_index;
@@ -77,6 +79,8 @@ void worker_network_listeners_initialize(
                     config_network->listen_backlog,
                     NETWORK_PROTOCOLS_UNKNOWN,
                     &listener_new_cb_user_data) == false) {
+                return_res = false;
+                goto end;
             }
         }
     }
@@ -111,6 +115,9 @@ void worker_network_listeners_initialize(
                       config_network_protocol->bindings[binding_index].host,
                       config_network_protocol->bindings[binding_index].port,
                       network_protocol);
+
+                return_res = false;
+                goto end;
             }
 
             for(
@@ -121,12 +128,25 @@ void worker_network_listeners_initialize(
                         ((void*)listener_new_cb_user_data.listeners) +
                         (listener_new_cb_user_data.network_channel_size * listener_index);
                 channel_listener->protocol_config = config_network_protocol;
+
+                // Attach the cBPF program for reuse port only once, the worker with index 0 will always be initialized
+                if (worker_index == 0) {
+                    if (!network_io_common_socket_attach_reuseport_cbpf(channel_listener->fd)) {
+                        LOG_E(TAG, "Failed to attach the reuse port cbpf program to the listener");
+                        return false;
+                    }
+                }
             }
         }
     }
 
+    return_res = true;
+
+end:
     *listeners = listener_new_cb_user_data.listeners;
     *listeners_count = listener_new_cb_user_data.listeners_count;
+
+    return return_res;
 }
 
 void worker_network_listeners_listen(
@@ -148,11 +168,21 @@ void worker_network_listeners_listen(
 
 void worker_network_new_client_fiber_entrypoint(
         void *user_data) {
+    worker_context_t *worker_context = worker_context_get();
     worker_stats_t *stats = worker_stats_get();
 
     network_channel_t *new_channel = user_data;
 
     stats->network.total.active_connections++;
+
+    if (stats->network.total.active_connections > worker_context->config->network->max_clients) {
+        LOG_W(
+                TAG,
+                "[FD:%5d][ACCEPT] Can't accept any new connection",
+                new_channel->fd);
+        goto end;
+    }
+
     stats->network.total.accepted_connections++;
     stats->network.per_second.accepted_connections++;
 
@@ -172,6 +202,8 @@ void worker_network_new_client_fiber_entrypoint(
                     new_channel);
             break;
     }
+
+end:
 
     // Close the connection
     if (new_channel->status != NETWORK_CHANNEL_STATUS_CLOSED) {

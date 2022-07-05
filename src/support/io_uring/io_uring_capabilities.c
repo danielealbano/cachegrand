@@ -143,7 +143,10 @@ bool io_uring_capabilities_is_fast_poll_supported() {
 
     // Check kernel minimum version, the io_uring probe op has been introduced in recent kernel versions and we also
     // need IORING_FEAT_FAST_POLL that is available only from the kernel version 5.7.0 onwards
-    version_parse((char*)minimum_kernel_version_IORING_FEAT_FAST_POLL, (long*)kernel_version, sizeof(kernel_version));
+    version_parse(
+            (char*)minimum_kernel_version_IORING_FEAT_FAST_POLL,
+            (long*)kernel_version,
+            sizeof(kernel_version));
     if (!version_kernel_min(kernel_version, 3)) {
         return false;
     }

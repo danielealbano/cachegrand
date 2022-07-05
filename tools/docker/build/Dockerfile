@@ -11,7 +11,7 @@
 #docker buildx rm --name cachegrand-builder
 
 FROM ubuntu:focal
-MAINTAINER d.albano@cachegrand.io
+LABEL maintainer="d.albano@cachegrand.io"
 
 # General dpkg and packages settings
 ENV DEBIAN_FRONTEND=noninteractive
@@ -30,11 +30,11 @@ RUN ln -s /usr/bin/dpkg-split /usr/sbin/dpkg-split \
     && ln -s /bin/rm /usr/sbin/rm
 
 # Update the image and install the required deps
-RUN apt update -y \
-    && apt upgrade -y \
-    && apt install -y --no-install-recommends \
+RUN apt-get update -y \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
         apt-utils \
-    && apt install -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends \
         curl ca-certificates \
         build-essential cmake git pkg-config \
         libssl1.1 libssl-dev \

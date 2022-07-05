@@ -35,6 +35,8 @@ extern "C" {
 
 #define WRAPFORINCLUDE(a)    <a>
 
+#define ARRAY_SIZE(ARRAY) (sizeof(ARRAY) / sizeof((ARRAY)[0]))
+
 #define max(a, b) \
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \

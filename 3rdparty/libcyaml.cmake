@@ -18,7 +18,7 @@ ExternalProject_Add(
         CONFIGURE_COMMAND ""
         BUILD_COMMAND
             sed -e "s/VERSION_DEVEL = 1/VERSION_DEVEL = 0/" -i ${LIBCYAML_SRC_PATH}/Makefile &&
-            make -C ${LIBCYAML_SRC_PATH} ${LIBCYAML_BUILD_PATH_REL}/libcyaml.a ${LIBCYAML_BUILD_PATH_REL}/libcyaml.so.1
+            CFLAGS="-fPIC" make -C ${LIBCYAML_SRC_PATH} ${LIBCYAML_BUILD_PATH_REL}/libcyaml.a ${LIBCYAML_BUILD_PATH_REL}/libcyaml.so.1
         INSTALL_COMMAND "")
 
 find_library(LIBCYAML_LIBRARY_DIRS NAMES yaml NAMES_PER_DIR)

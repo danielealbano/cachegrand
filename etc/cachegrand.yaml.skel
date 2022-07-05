@@ -13,7 +13,7 @@ run_in_foreground: false
 
 pidfile_path: /var/run/cachegrand/cachegrand.pid
 
-# The slab allocator requires huge pages
+# The slab allocator requires hugepages
 use_slab_allocator: false
 
 network:
@@ -25,7 +25,7 @@ network:
     - type: redis
       # Timeouts for the read and write operations in milliseconds, set to -1 to disable or greater than 0 to enable
       timeout:
-        read_ms: 10000
+        read_ms: -1
         write_ms: 10000
       keepalive:
         time: 0
@@ -54,15 +54,15 @@ database:
 #    shard_size_mb: 100
 #    max_opened_shards: 1000
 
-# The sentry.io service is used to automatically collect minidumps in case of crashes, it doesn't
-# store them after that they are processed but be aware that minidumps will contain memory regions
-# used by cachegrand and therefore may they may also contain cached data!
-# To avoid accidental/unwanted uploads, by default the dsn is not set to avoid accidental/unwanted
-# uploads, if you want to provide crash data without having to attach it to a github issue simply
-# set the dsn parameter, or the SENTRY_DSN env variable, to
+# The sentry.io service is used to automatically collect minidumps in case of crashes, it doesn't store them after that
+# they are processed but be aware that minidumps will contain memory regions used by cachegrand and therefore may they
+# may also contain cached data!
+# To avoid accidental/unwanted uploads, it's turned off and the dsn is not set, if you want to provide crash data
+# without having to attach manually generated coredumps or minidumps to a github issue simply enable sentry and set the
+# dsn parameter, or the SENTRY_DSN env variable, to
 # https://05dd54814d8149cab65ba2987d560340@o590814.ingest.sentry.io/5740234
 sentry:
-  enable: true
+  enable: false
   # dsn: "https://05dd54814d8149cab65ba2987d560340@o590814.ingest.sentry.io/5740234"
 
 # LOGS

@@ -32,6 +32,8 @@ bool network_io_common_socket_set_reuse_address(
 bool network_io_common_socket_set_reuse_port(
         network_io_common_fd_t fd,
         bool enable);
+bool network_io_common_socket_attach_reuseport_cbpf(
+        network_io_common_fd_t fd);
 bool network_io_common_socket_set_nodelay(
         network_io_common_fd_t fd,
         bool enable);
@@ -112,7 +114,7 @@ int network_io_common_socket_new_server(
         network_io_common_socket_setup_server_cb_t socket_setup_server_cb,
         void *user_data);
 
-uint32_t network_io_common_parse_addresses_foreach(
+int32_t network_io_common_parse_addresses_foreach(
         char *address,
         uint16_t port,
         uint16_t backlog,

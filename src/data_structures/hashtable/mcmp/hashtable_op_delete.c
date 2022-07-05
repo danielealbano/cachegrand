@@ -116,7 +116,7 @@ bool hashtable_mcmp_op_delete(
                 // and therefore is now comparing the key.
                 // Under very heavy load (64 cores, 128 hw threads, 2048 threads operating on the hashtable) it has never
                 // caused any though.
-                // It's not a problem though if the slab allocator using huge pages is enabled (as it should), the slot in
+                // It's not a problem though if the slab allocator using hugepages is enabled (as it should), the slot in
                 // the slab allocator will just get marked as reusable and the worst case scenario is that it will be picked
                 // up and filled or zero-ed immediately and the key comparison being carried out in get will fail, but this
                 // is an acceptable scenario because the bucket is being deleted.

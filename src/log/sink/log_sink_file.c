@@ -27,7 +27,7 @@ log_sink_t *log_sink_file_init(
 
     FILE* fp = fopen(settings->file.path, "a");
     if (fp == NULL) {
-        LOG_E(TAG, "Unable to open %s for logging", settings->file.path);
+        LOG_W(TAG, "Unable to open %s for logging", settings->file.path);
         return NULL;
     }
 

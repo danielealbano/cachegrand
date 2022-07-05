@@ -22,7 +22,6 @@
 TEST_CASE("hugepage_cache.c", "[hugepage_cache]") {
     if (hugepages_2mb_is_available(128)) {
         SECTION("hugepage_cache_init") {
-
             int numa_node_count = utils_numa_node_configured_count();
 
             hugepage_cache_t* hugepage_cache_per_numa_node = hugepage_cache_init();

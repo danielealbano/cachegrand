@@ -256,10 +256,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
                     channel,
                     send_buffer,
                     send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
-                LOG_E(
-                        TAG,
-                        "[REDIS][GET] Critical error, unable to send blob argument terminator");
-
                 goto end;
             }
         } else {
@@ -277,8 +273,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
                     channel,
                     protocol_send_buffer,
                     protocol_send_buffer_start - protocol_send_buffer) != NETWORK_OP_RESULT_OK) {
-                LOG_E(TAG, "[REDIS][GET] Critical error, unable to send argument blob start");
-
                 goto end;
             }
 
@@ -320,12 +314,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
                         channel,
                         buffer_to_send,
                         buffer_to_send_length) != NETWORK_OP_RESULT_OK) {
-                    LOG_E(
-                            TAG,
-                            "[REDIS][GET] Critical error, unable to send chunk <%u> long <%u> bytes",
-                            chunk_index,
-                            chunk_info->chunk_length);
-
                     goto end;
                 }
             }
@@ -343,8 +331,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
                     channel,
                     protocol_send_buffer,
                     protocol_send_buffer_start - protocol_send_buffer) != NETWORK_OP_RESULT_OK) {
-                LOG_E(TAG, "[REDIS][GET] Critical error, unable to send argument blob terminator");
-
                 goto end;
             }
         }
@@ -370,10 +356,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
                 channel,
                 error_send_buffer,
                 error_send_buffer_start - error_send_buffer) != NETWORK_OP_RESULT_OK) {
-            LOG_E(
-                    TAG,
-                    "[REDIS][GET] Critical error, unable to send blob argument");
-
             goto end;
         }
     }

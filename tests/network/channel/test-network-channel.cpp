@@ -404,19 +404,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
 
         SECTION("invalid ipv4 address") {
             listener_new_cb_user_data.listeners = test_listeners;
-            REQUIRE(network_channel_listener_new(
-                    "1.2.3.4",
-                    socket_port_free_ipv4,
-                    10,
-                    NETWORK_PROTOCOLS_UNKNOWN,
-                    &listener_new_cb_user_data));
-
-            REQUIRE(listener_new_cb_user_data.listeners_count == 0);
-        }
-
-        SECTION("invalid ipv4 address") {
-            listener_new_cb_user_data.listeners = test_listeners;
-            REQUIRE(network_channel_listener_new(
+            REQUIRE(!network_channel_listener_new(
                     "1.2.3.4",
                     socket_port_free_ipv4,
                     10,
@@ -428,7 +416,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
 
         SECTION("invalid ipv6 address") {
             listener_new_cb_user_data.listeners = test_listeners;
-            REQUIRE(network_channel_listener_new(
+            REQUIRE(!network_channel_listener_new(
                     "2001:db8:3333:4444:5555:6666:7777:8888",
                     socket_port_free_ipv6,
                     10,
