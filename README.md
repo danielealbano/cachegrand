@@ -13,8 +13,8 @@ modern hardware, able to provide better performance when compared to similar pro
 great flexibility in terms of management and developer experience.
 
 Performances:
-
-
+![GET Operations/s](https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/benchmarks/cachegrand-v010-amd-epyc-7502p-get-ops.png)
+![SET Operations/s](https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/benchmarks/cachegrand-v010-amd-epyc-7502p-set-ops.png)
 
 Benchmarked on an AMD EPYC 7502P, cachegrand is able to scale linearly if enough cpu power is left to the operating
 system to process the network data
@@ -123,7 +123,7 @@ for any corresponding short options.
 
 ```shell
 /path/to/cachegrand-server -c /path/to/cachegrand.yaml
-[2022-06-05T10:26:08Z][INFO       ][program] cachegrand-server version 1907aef-dirty (built on 2022-07-05T10:26:07Z)
+[2022-06-05T10:26:08Z][INFO       ][program] cachegrand-server version v0.1.0 (built on 2022-07-05T10:26:07Z)
 [2022-06-05T10:26:08Z][INFO       ][program] > Release build, compiled using GCC v10.3.0
 [2022-06-05T10:26:08Z][INFO       ][program] > Hashing algorithm in use t1ha2
 [2022-06-05T10:26:08Z][INFO       ][config] Loading the configuration from ../../etc/cachegrand.yaml
