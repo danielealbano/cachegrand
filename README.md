@@ -133,10 +133,19 @@ for any corresponding short options.
 
 #### Docker
 
+Download the example config file
+
+```shell
+curl https://raw.githubusercontent.com/danielealbano/cachegrand/main/etc/cachegrand.yaml.skel -o /path/to/cachegrand.yaml
+```
+
+Edit it with your preferred editor and then start cachegrand using the following command
+
 ```shell
 docker run \
   -v /path/to/cachegrand.yaml:/etc/cachegrand/cachegrand.yaml \
   --ulimit memlock=-1:-1 \
   --ulimit nofile=262144:262144 \
-  cachegrand:latest
+  -p 6379:6379 \
+  cachegrand/cachegrand-server:v0.1.0
 ```

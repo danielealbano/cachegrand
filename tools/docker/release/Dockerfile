@@ -4,14 +4,7 @@
 # This software may be modified and distributed under the terms
 # of the BSD license. See the LICENSE file for details.
 
-# Build commands
-#docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-#docker buildx create --use --name cachegrand-builder
-#docker buildx build --pull --push --platform linux/amd64,linux/arm64/v8 --tag gitlab.cachegrand.dev:5050/cachegrand/cachegrand-server/ubuntu-2004-gcc:latest .
-#docker buildx rm --name cachegrand-builder
-
-FROM ubuntu:22.04
-LABEL maintainer="d.albano@cachegrand.io"
+FROM ubuntu:22.04 AS builder
 
 # General dpkg and packages settings
 ENV DEBIAN_FRONTEND=noninteractive
@@ -44,3 +37,43 @@ RUN apt-get update -y \
         lcov gcovr \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+RUN cd /root \
+    && mkdir build \
+    && cd build \
+    && git clone https://github.com/danielealbano/cachegrand.git \
+    && cd cachegrand \
+    && git submodule update --init --recursive \
+    && mkdir cmake-build-release \
+    && cd cmake-build-release \
+    && cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1 \
+    && make cachegrand-server
+
+FROM ubuntu:22.04
+
+LABEL maintainer="d.albano@cachegrand.io"
+
+# General dpkg and packages settings
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Disable the man pages
+COPY dpkg_cfg_d_01_nodoc /etc/dpkg/dpkg.cfg.d/01_nodoc
+
+# Install the required deps
+RUN apt-get update -y \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+        apt-utils \
+    && apt-get install -y --no-install-recommends \
+        libssl3 libnuma1 libyaml-0-2 libcurl4 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/cachegrand
+
+COPY --from=builder /root/build/cachegrand/cmake-build-release/src/cachegrand-server /usr/bin
+
+EXPOSE 6379
+
+CMD ["/usr/bin/cachegrand-server", "-c" ,"/etc/cachegrand/cachegrand.yaml"]
