@@ -10,7 +10,7 @@
 #docker buildx build --pull --push --platform linux/amd64,linux/arm64/v8 --tag gitlab.cachegrand.dev:5050/cachegrand/cachegrand-server/ubuntu-2004-gcc:latest .
 #docker buildx rm --name cachegrand-builder
 
-FROM ubuntu:focal
+FROM ubuntu:latest
 LABEL maintainer="d.albano@cachegrand.io"
 
 # General dpkg and packages settings
@@ -37,7 +37,7 @@ RUN apt-get update -y \
     && apt-get install -y --no-install-recommends \
         curl ca-certificates \
         build-essential cmake git pkg-config \
-        libssl1.1 libssl-dev \
+        libssl3 libssl-dev \
         libnuma1 libnuma-dev \
         libyaml-0-2 libyaml-dev \
         libcurl4-openssl-dev libcurl4 \
