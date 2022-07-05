@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <linux/filter.h>
 
 #include "misc.h"
 #include "log/log.h"
@@ -51,6 +52,36 @@ bool network_io_common_socket_set_reuse_port(
         bool enable) {
     int val = enable ? 1 : 0;
     return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
+}
+
+bool network_io_common_socket_attach_reuseport_cbpf(
+        network_io_common_fd_t fd) {
+    struct sock_filter filter[] = {
+            // Pulls out the SKF_AD_CPU (raw_smp_processor_id()) field from the skf socket struct and store it in A
+            //
+            // Documentation (jump to filter machine section)
+            // https://www.freebsd.org/cgi/man.cgi?query=bpf&sektion=4
+            // https://sites.uclouvain.be/SystInfo/usr/include/linux/filter.h.html
+            //
+            // Examples
+            // https://elixir.bootlin.com/linux/latest/source/tools/testing/selftests/net/reuseport_bpf_cpu.c#L81
+            // Code = Load Word (4 bytes) from Absolute Address, Address = SKF absolute address offset + cpu offset
+            {BPF_LD | BPF_W | BPF_ABS, 0, 0, SKF_AD_OFF + SKF_AD_CPU},
+
+            // Returns the registry A
+            {BPF_RET | BPF_A, 0, 0, 0}
+    };
+    struct sock_fprog val = {
+            .len = ARRAY_SIZE(filter),
+            .filter = filter
+    };
+
+    return network_io_common_socket_set_option(
+            fd,
+            SOL_SOCKET,
+            SO_ATTACH_REUSEPORT_CBPF,
+            &val,
+            sizeof(val));
 }
 
 bool network_io_common_socket_set_nodelay(
@@ -330,7 +361,7 @@ int network_io_common_socket_new_server(
     return fd;
 }
 
-uint32_t network_io_common_parse_addresses_foreach(
+int32_t network_io_common_parse_addresses_foreach(
         char *address,
         uint16_t port,
         uint16_t backlog,
@@ -369,6 +400,8 @@ uint32_t network_io_common_parse_addresses_foreach(
                 protocol,
                 user_data)) {
             socket_address_index++;
+        } else {
+            return -1;
         }
     }
 
