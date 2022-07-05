@@ -1,4 +1,9 @@
-[![Build & Test](https://github.com/danielealbano/cachegrand/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/danielealbano/cachegrand/actions/workflows/build_and_test.yml) [![codecov](https://codecov.io/gh/danielealbano/cachegrand/branch/main/graph/badge.svg?token=H4W0N0F7MT)](https://codecov.io/gh/danielealbano/cachegrand)
+[![Build & Test](https://github.com/danielealbano/cachegrand/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/danielealbano/cachegrand/actions/workflows/build_and_test.yml)
+[![codecov](https://codecov.io/gh/danielealbano/cachegrand/branch/main/graph/badge.svg?token=H4W0N0F7MT)](https://codecov.io/gh/danielealbano/cachegrand)
+[![Last Commit](https://img.shields.io/github/commit-activity/m/danielealbano/cachegrand/main)](https://github.com/danielealbano/cachegrand/commits/main)
+[![CodeFactor Grade](https://img.shields.io/codefactor/grade/github/danielealbano/cachegrand?label=codefactor%20code%20quality)](https://www.codefactor.io/repository/github/danielealbano/cachegrand)
+[![LGTM Grade](https://img.shields.io/lgtm/grade/cpp/github/danielealbano/cachegrand?label=lgtm%20code%20quality)](https://lgtm.com/projects/g/danielealbano/cachegrand/context:cpp)
+![Lines of code](https://img.shields.io/tokei/lines/github/danielealbano/cachegrand)
 
 cachegrand
 ==========
@@ -11,7 +16,7 @@ Performances:
 
 
 
-Benchmarked on an AMD EPYC 7502p, cachegrand is able to scale linearly if enough cpu power is left to the operating
+Benchmarked on an AMD EPYC 7502P, cachegrand is able to scale linearly if enough cpu power is left to the operating
 system to process the network data
 
 Key features:
@@ -30,7 +35,7 @@ Planned Key Features:
 - More modules for additional platforms compatibility, e.g. [Memcache](https://github.com/danielealbano/cachegrand/docs/architecture/modules/memcache.md),
   etc., or to add support for monitoring, e.g. [Prometheus](https://github.com/danielealbano/cachegrand/docs/architecture/modules/prometheus.md),
   [DataDog](https://github.com/danielealbano/cachegrand/docs/architecture/modules/datadog.md), etc.;
-- Ad ad-hoc network stack based on Linux XDP (eXpress Data Path) and the FreeBSD network stack;
+- Ad ad-hoc network stack based on DPDK / Linux XDP (eXpress Data Path) and the FreeBSD network stack;
 - [Built for flash memories](https://github.com/danielealbano/cachegrand/docs/architecture/timeseries-db.md#flash-memories) to be able to efficiently saturate the
   available IOPS in modern DC NVMEs and SSDs;
 - [WebAssembly](https://github.com/danielealbano/cachegrand/docs/architecture/webassembly.md) to provide AOT-compiled
@@ -94,6 +99,10 @@ cachegrand comes with a default configuration but for production use please revi
 cachegrand doesn't need to run as root but please review the configuration section to ensure that enough lockable memory
 has been allowed, enough files can be opened and that the slab allocator has been enabled and enough huge pages have been provided
 
+Before trying to start cachegrand, take a look to the
+[performance tips](https://github.com/danielealbano/cachegrand/docs/performance-tips.md) available in the docs section
+as they might provide a valuable help!
+
 #### Help
 
 ```shell
@@ -108,6 +117,17 @@ Usage: cachegrand-server [OPTION...]
 
 Mandatory or optional arguments to long options are also mandatory or optional
 for any corresponding short options.
+```
+
+#### Start it locally
+
+```shell
+/path/to/cachegrand-server -c /path/to/cachegrand.yaml
+[2022-06-05T10:26:08Z][INFO       ][program] cachegrand-server version 1907aef-dirty (built on 2022-07-05T10:26:07Z)
+[2022-06-05T10:26:08Z][INFO       ][program] > Release build, compiled using GCC v10.3.0
+[2022-06-05T10:26:08Z][INFO       ][program] > Hashing algorithm in use t1ha2
+[2022-06-05T10:26:08Z][INFO       ][config] Loading the configuration from ../../etc/cachegrand.yaml
+[2022-06-05T10:26:08Z][INFO       ][program] Ready to accept connections
 ```
 
 #### Docker
