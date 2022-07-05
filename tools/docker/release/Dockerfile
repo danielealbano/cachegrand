@@ -4,7 +4,7 @@
 # This software may be modified and distributed under the terms
 # of the BSD license. See the LICENSE file for details.
 
-FROM ubuntu:latest AS builder
+FROM ubuntu:22.04 AS builder
 
 # General dpkg and packages settings
 ENV DEBIAN_FRONTEND=noninteractive
@@ -49,7 +49,7 @@ RUN cd /root \
     && cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1 \
     && make cachegrand-server
 
-FROM ubuntu:latest
+FROM ubuntu:22.04
 
 LABEL maintainer="d.albano@cachegrand.io"
 
