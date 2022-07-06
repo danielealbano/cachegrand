@@ -77,7 +77,7 @@ void spinlock_set_flag(
     } while(__sync_val_compare_and_swap(&spinlock->flags, old_flags, new_flags) != old_flags);
 }
 
-bool spinlock_unset_flag(
+void spinlock_unset_flag(
         spinlock_lock_volatile_t *spinlock,
         spinlock_flag_t flag) {
     spinlock_flag_t old_flags, new_flags;

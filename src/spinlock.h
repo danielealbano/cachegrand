@@ -46,7 +46,7 @@ void spinlock_set_flag(
         spinlock_lock_volatile_t *spinlock,
         spinlock_flag_t flag);
 
-bool spinlock_unset_flag(
+void spinlock_unset_flag(
         spinlock_lock_volatile_t *spinlock,
         spinlock_flag_t flag);
 
