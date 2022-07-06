@@ -7,6 +7,7 @@ extern "C" {
 
 enum config_network_protocol_type {
     CONFIG_PROTOCOL_TYPE_REDIS,
+    CONFIG_PROTOCOL_TYPE_PROMETHEUS
 };
 typedef enum config_network_protocol_type config_network_protocol_type_t;
 
