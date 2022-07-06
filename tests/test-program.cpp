@@ -281,38 +281,4 @@ TEST_CASE("program.c", "[program]") {
 
         REQUIRE(mprobe(worker_context) == -MCHECK_FREE);
     }
-
-    SECTION("program_setup_ulimit_wrapper") {
-        ulong current_value;
-        struct rlimit limit;
-
-        REQUIRE(getrlimit(RLIMIT_NOFILE, &limit) == 0);
-        current_value = limit.rlim_cur;
-        REQUIRE(program_setup_ulimit_wrapper(RLIMIT_NOFILE, current_value - 1));
-        REQUIRE(getrlimit(RLIMIT_NOFILE, &limit) == 0);
-        REQUIRE(limit.rlim_cur == current_value - 1);
-        REQUIRE(limit.rlim_max == current_value - 1);
-    }
-
-    SECTION("program_setup_ulimit") {
-        // The test changes on purpose the current limit to ensure that it's not going to match the one being set
-        // by the code, and it sets it to current - 1 to avoid hitting system limits.
-        struct rlimit limit;
-
-        REQUIRE(getrlimit(RLIMIT_NOFILE, &limit) == 0);
-        REQUIRE(program_setup_ulimit_wrapper(RLIMIT_NOFILE, limit.rlim_max - 1));
-
-        REQUIRE(getrlimit(RLIMIT_MEMLOCK, &limit) == 0);
-        REQUIRE(program_setup_ulimit_wrapper(RLIMIT_MEMLOCK, limit.rlim_max - 1));
-
-        REQUIRE(program_setup_ulimit());
-
-        REQUIRE(getrlimit(RLIMIT_NOFILE, &limit) == 0);
-        REQUIRE(limit.rlim_cur == PROGRAM_ULIMIT_NOFILE);
-        REQUIRE(limit.rlim_max == PROGRAM_ULIMIT_NOFILE);
-
-        REQUIRE(getrlimit(RLIMIT_MEMLOCK, &limit) == 0);
-        REQUIRE(limit.rlim_cur == PROGRAM_ULIMIT_MEMLOCK);
-        REQUIRE(limit.rlim_max == PROGRAM_ULIMIT_MEMLOCK);
-    }
 }
