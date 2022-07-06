@@ -5,9 +5,6 @@
 extern "C" {
 #endif
 
-#define PROGRAM_ULIMIT_NOFILE 0x80000
-#define PROGRAM_ULIMIT_MEMLOCK 0xFFFFFFFFUL
-
 typedef struct program_context program_context_t;
 struct program_context {
     bool use_slab_allocator;
@@ -47,14 +44,6 @@ void program_workers_cleanup(
 
 bool program_setup_pidfile(
         program_context_t program_context);
-
-bool program_setup_ulimit_wrapper(
-        __rlimit_resource_t resource,
-        ulong value);
-
-bool program_setup_ulimit_nofile();
-
-bool program_setup_ulimit_memlock();
 
 bool program_setup_ulimit();
 
