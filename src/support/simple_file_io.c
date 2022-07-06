@@ -32,7 +32,7 @@ bool simple_file_io_read(
         return false;
     }
 
-    size_t len = read(fd, out_data, out_data_len);
+    ssize_t len = read(fd, out_data, out_data_len);
     int read_errno = errno;
     close(fd);
 

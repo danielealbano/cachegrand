@@ -263,7 +263,7 @@ char* protocol_redis_writer_write_argument_string_printf(
         va_list args) {
     va_list args_copy;
     va_copy(args_copy, args);
-    size_t string_length = vsnprintf(NULL, 0, string, args_copy);
+    ssize_t string_length = vsnprintf(NULL, 0, string, args_copy);
     va_end(args_copy);
 
     if (string_length < 0) {
@@ -273,8 +273,9 @@ char* protocol_redis_writer_write_argument_string_printf(
         return NULL;
     }
 
-    // We need to have access to an extra byte because vsnprintf add the null terminator for the string even if we
-    // don't need it. But in this way we avoid allocating extra memory.
+    // We need to have access to an extra byte because vsnprintf adds the null terminator for the string even if we
+    // don't need it. But in this way we avoid allocating extra memory just to copy the relevant part, the null byte
+    // will get overwritten if necessary
     if (!protocol_redis_writer_enough_space_in_buffer(buffer_length, string_length + 1)) {
         return NULL;
     }

@@ -119,8 +119,7 @@ int32_t protocol_redis_reader_read(
         if (
                 new_line_ptr - 1 != args_count_end_ptr ||
                 args_count <= 0 ||
-                args_count > PROTOCOL_REDIS_READER_MAX_ARGUMENTS_PER_COMMAND ||
-                args_count > UINT32_MAX) {
+                args_count > PROTOCOL_REDIS_READER_MAX_ARGUMENTS_PER_COMMAND) {
             context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_ARRAY_INVALID_LENGTH;
             return -1;
         }

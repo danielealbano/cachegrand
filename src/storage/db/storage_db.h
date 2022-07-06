@@ -175,21 +175,21 @@ void storage_db_chunk_data_free(
 
 storage_db_entry_index_t *storage_db_entry_index_new();
 
-storage_db_entry_index_t *storage_db_entry_index_allocate_key_chunks(
+bool storage_db_entry_index_allocate_key_chunks(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index,
         size_t key_length);
 
-storage_db_entry_index_t *storage_db_entry_index_allocate_value_chunks(
+bool storage_db_entry_index_allocate_value_chunks(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index,
         size_t value_length);
 
-void *storage_db_entry_index_chunks_free(
+void storage_db_entry_index_chunks_free(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index);
 
-void *storage_db_entry_index_free(
+void storage_db_entry_index_free(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index);
 

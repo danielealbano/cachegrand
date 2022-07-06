@@ -22,6 +22,10 @@
 
 bool storage_channel_init(
         storage_channel_t *channel) {
+    // The function here is for future usage but as it does nothing currently LGTM reports is as not having side effects
+    // so it's setting the fd field of the channel to 0, which is safe to do as this function initialize the storage
+    // channel right after creation.
+    channel->fd = 0;
     return true;
 }
 

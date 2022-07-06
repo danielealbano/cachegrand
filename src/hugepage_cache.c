@@ -67,7 +67,7 @@ void hugepage_cache_free() {
     hugepage_cache_per_numa_node = NULL;
 }
 
-void* hugepage_cache_push(void* hugepage_addr) {
+void hugepage_cache_push(void* hugepage_addr) {
     hugepage_cache_t* hugepage_cache;
     double_linked_list_item_t* item;
 

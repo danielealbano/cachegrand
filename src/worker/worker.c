@@ -180,9 +180,7 @@ void worker_cleanup_network(
         uint8_t listeners_count) {
     // TODO: should use a struct with fp pointers, not ifs
     if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING) {
-        worker_network_iouring_cleanup(
-                listeners,
-                listeners_count);
+        worker_network_iouring_cleanup(listeners, listeners_count); // lgtm [cpp/useless-expression]
     }
 
     for(
@@ -206,7 +204,7 @@ void worker_cleanup_storage(
         worker_context_t* worker_context) {
     // TODO: should use a struct with fp pointers, not ifs
     if (worker_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
-        worker_storage_iouring_cleanup(worker_context);
+        worker_storage_iouring_cleanup(worker_context); // lgtm [cpp/useless-expression]
     }
 
     // TODO: at this point in time there may be data in the buffers waiting to be written and this can lead to potential
