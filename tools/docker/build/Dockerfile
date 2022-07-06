@@ -10,8 +10,8 @@
 #docker buildx build --pull --push --platform linux/amd64,linux/arm64/v8 --tag gitlab.cachegrand.dev:5050/cachegrand/cachegrand-server/ubuntu-2004-gcc:latest .
 #docker buildx rm --name cachegrand-builder
 
-FROM ubuntu:focal
-MAINTAINER d.albano@cachegrand.io
+FROM ubuntu:22.04
+LABEL maintainer="d.albano@cachegrand.io"
 
 # General dpkg and packages settings
 ENV DEBIAN_FRONTEND=noninteractive
@@ -30,14 +30,14 @@ RUN ln -s /usr/bin/dpkg-split /usr/sbin/dpkg-split \
     && ln -s /bin/rm /usr/sbin/rm
 
 # Update the image and install the required deps
-RUN apt update -y \
-    && apt upgrade -y \
-    && apt install -y --no-install-recommends \
+RUN apt-get update -y \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
         apt-utils \
-    && apt install -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends \
         curl ca-certificates \
         build-essential cmake git pkg-config \
-        libssl1.1 libssl-dev \
+        libssl3 libssl-dev \
         libnuma1 libnuma-dev \
         libyaml-0-2 libyaml-dev \
         libcurl4-openssl-dev libcurl4 \
