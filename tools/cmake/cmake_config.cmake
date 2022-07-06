@@ -8,6 +8,12 @@ set(CACHEGRAND_CMAKE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(CACHEGRAND_CMAKE_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 string(LENGTH "${CMAKE_SOURCE_DIR}/" CMAKE_SOURCE_DIR_LENGTH)
 
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    set(CACHEGRAND_CMAKE_C_COMPILER_ID "gcc")
+else()
+    set(CACHEGRAND_CMAKE_C_COMPILER_ID "${CMAKE_C_COMPILER_ID}")
+endif()
+
 # Generate the cmake_config.c
 include(cmake_config.buildstep)
 add_custom_target(__internal_refresh_cmake_config

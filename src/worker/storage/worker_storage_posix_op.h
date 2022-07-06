@@ -1,5 +1,5 @@
-#ifndef CACHEGRAND_WORKER_STORAGE_IOURING_OP_H
-#define CACHEGRAND_WORKER_STORAGE_IOURING_OP_H
+#ifndef CACHEGRAND_WORKER_STORAGE_POSIX_OP_H
+#define CACHEGRAND_WORKER_STORAGE_POSIX_OP_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,4 +46,4 @@ bool worker_storage_posix_op_register();
 }
 #endif
 
-#endif //CACHEGRAND_WORKER_STORAGE_IOURING_OP_H
+#endif //CACHEGRAND_WORKER_STORAGE_POSIX_OP_H

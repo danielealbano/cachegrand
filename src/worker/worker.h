@@ -34,6 +34,10 @@ void worker_set_running(
         worker_context_t *worker_context,
         bool running);
 
+void worker_set_aborted(
+        worker_context_t *worker_context,
+        bool aborted);
+
 void* worker_thread_func(
         void* user_data);
 

@@ -46,21 +46,22 @@ bool network_channel_client_setup(
 bool network_channel_server_setup(
         network_io_common_fd_t fd,
         uint32_t incoming_cpu) {
-    bool error = false;
+    if (!network_io_common_socket_set_incoming_cpu(fd, (int)incoming_cpu)) {
+        LOG_E(TAG, "Failed to set the incoming_cpu for the listener");
+        return false;
+    }
 
-    // TODO: Replace with an eBPF reuseport program, example:
-    /**
-            // A = raw_smp_processor_id()
-            code[0] = new sock_filter { code = BPF_LD | BPF_W | BPF_ABS, k = SKF_AD_OFF + SKF_AD_CPU };
-            // return A
-            code[1] = new sock_filter { code = BPF_RET | BPF_A };
-     */
+    if (!network_io_common_socket_set_quickack(fd, true)) {
+        LOG_E(TAG, "Failed to set the quickack for the listener");
+        return false;
+    }
 
-    error |= !network_io_common_socket_set_incoming_cpu(fd, (int)incoming_cpu);
-    error |= !network_io_common_socket_set_reuse_port(fd, true);
-    error |= !network_io_common_socket_set_quickack(fd, true);
+    if (!network_io_common_socket_set_reuse_port(fd, true)) {
+        LOG_E(TAG, "Failed to enable the reuse port for the listener");
+        return false;
+    }
 
-    return !error;
+    return true;
 }
 
 bool network_channel_listener_new_callback_socket_setup_server_cb(

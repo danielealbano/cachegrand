@@ -20,7 +20,7 @@ hugepage_cache_t* hugepage_cache_init();
 
 void hugepage_cache_free();
 
-void* hugepage_cache_push(
+void hugepage_cache_push(
         void* hugepage_addr);
 
 void* hugepage_cache_pop();

@@ -9,6 +9,8 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 add_compile_options($<$<COMPILE_LANGUAGE:C>:-fstack-protector-strong>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fstack-protector-strong>)
 

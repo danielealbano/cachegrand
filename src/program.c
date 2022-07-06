@@ -59,12 +59,12 @@
 
 #define TAG "program"
 
-volatile bool program_terminate_event_loop = false;
+bool_volatile_t program_terminate_event_loop = false;
 
 static char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
 
 signal_handler_thread_context_t* program_signal_handler_thread_initialize(
-        volatile bool *terminate_event_loop,
+        bool_volatile_t *terminate_event_loop,
         program_context_t *program_context) {
     signal_handler_thread_context_t *signal_handler_thread_context;
 
@@ -95,9 +95,11 @@ void program_workers_initialize_count(
 }
 
 worker_context_t* program_workers_initialize_context(
-        volatile bool *terminate_event_loop,
+        bool_volatile_t *terminate_event_loop,
         program_context_t *program_context)  {
     worker_context_t *workers_context;
+
+    LOG_I(TAG, "Starting <%u> workers", program_context->workers_count);
 
     program_context->workers_context = workers_context =
             xalloc_alloc_zero(sizeof(worker_context_t) * program_context->workers_count);
@@ -113,7 +115,7 @@ worker_context_t* program_workers_initialize_context(
                 program_context->config,
                 program_context->db);
 
-        LOG_V(TAG, "Creating worker <%u>", worker_index);
+        LOG_V(TAG, "Setting up worker <%u>", worker_index);
 
         if (pthread_create(
                 &worker_context->pthread,
@@ -125,16 +127,39 @@ worker_context_t* program_workers_initialize_context(
 
             break;
         }
+
+        // Wait for the worker to start to ensure sequential creation
+        worker_wait_running(worker_context);
+
+        // If one worker has aborted it makes no sense to continue the initialization
+        if (worker_context->aborted) {
+            LOG_E(TAG, "Worker <%d> aborted the initialization, can't continue", worker_index);
+            break;
+        }
+
+        // If one worker is not marked as running and is not aborted something went dramatically wrong, better to abort
+        if (!worker_context->running) {
+            LOG_E(TAG, "Worker <%d> not running after the initialization, can't continue", worker_index);
+            break;
+        }
+
+        LOG_V(TAG, "Worker <%u> successfully started", worker_index);
     }
 
     return workers_context;
 }
 
-void program_workers_wait_start(
+bool program_workers_ensure_started(
         program_context_t *program_context) {
+    MEMORY_FENCE_LOAD();
     for(uint32_t worker_index = 0; worker_index < program_context->workers_count; worker_index++) {
-        worker_wait_running(&program_context->workers_context[worker_index]);
+        worker_context_t *worker_context = &program_context->workers_context[worker_index];
+        if (!worker_context->running || worker_context->aborted) {
+            return false;
+        }
     }
+
+    return true;
 }
 
 bool* program_get_terminate_event_loop() {
@@ -142,13 +167,13 @@ bool* program_get_terminate_event_loop() {
 }
 
 void program_request_terminate(
-        volatile bool *terminate_event_loop) {
+        bool_volatile_t *terminate_event_loop) {
     *terminate_event_loop = true;
     MEMORY_FENCE_STORE();
 }
 
 bool program_should_terminate(
-        const volatile bool *terminate_event_loop) {
+        const bool_volatile_t *terminate_event_loop) {
     MEMORY_FENCE_LOAD();
     return *terminate_event_loop;
 }
@@ -511,6 +536,7 @@ int program_main(
         int argc,
         char** argv) {
     static program_context_t program_context = { 0 };
+    int return_res = 1;
 
     // TODO: refactor this function to make it actually testable
 
@@ -518,9 +544,35 @@ int program_main(
     // later stage
     program_setup_initial_log_sink_console();
 
+    // Report some general information
+    LOG_I(
+            TAG,
+            "%s version %s (built on %s)",
+            CACHEGRAND_CMAKE_CONFIG_NAME,
+            CACHEGRAND_CMAKE_CONFIG_VERSION_GIT,
+            CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME);
+    LOG_I(
+            TAG,
+            "> %s build, compiled using %s v%s",
+            CACHEGRAND_CMAKE_CONFIG_BUILD_TYPE,
+            CACHEGRAND_CMAKE_CONFIG_C_COMPILER_ID,
+            CACHEGRAND_CMAKE_CONFIG_C_COMPILER_VERSION);
+    LOG_I(
+            TAG,
+            "> Hashing algorithm in use %s",
+            CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2
+            ? "t1ha2"
+            : (CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_XXH3
+               ? "xxh3" :
+               "crc32c"));
+
     if ((program_context.config = program_parse_arguments_and_load_config(argc, argv)) == NULL) {
-        goto fail;
+        goto end;
     }
+
+    // Initialize the log sinks defined in the configuration, if any is defined. The function will take care of dropping
+    // the temporary log sink defined initially
+    program_config_setup_log_sinks(program_context.config);
 
     program_ulimit_setup();
 
@@ -532,7 +584,7 @@ int program_main(
 
     if (program_config_thread_affinity_set_selected_cpus(&program_context) == false) {
         LOG_E(TAG, "Unable to setup cpu affinity");
-        goto fail;
+        goto end;
     }
 
     // Signal handling
@@ -544,10 +596,6 @@ int program_main(
     // Calculate workers count
     program_workers_initialize_count(&program_context);
 
-    // Initialize the log sinks defined in the configuration, if any is defined. The function will take care of dropping
-    // the temporary log sink defined initially
-    program_config_setup_log_sinks(program_context.config);
-
     if (program_context.use_slab_allocator) {
         slab_allocator_predefined_allocators_init();
         program_context.slab_allocator_inited = true;
@@ -555,27 +603,37 @@ int program_main(
 
     if (program_config_setup_storage_db(&program_context) == false) {
         LOG_E(TAG, "Unable to initialize the database");
-        goto fail;
+        goto end;
     }
 
     if (program_signal_handler_thread_initialize(
             &program_terminate_event_loop,
             &program_context) == NULL) {
-        goto fail;
+        goto end;
     }
 
     if (program_workers_initialize_context(
             &program_terminate_event_loop,
             &program_context) == NULL) {
-        goto fail;
+        goto end;
     }
 
-    program_workers_wait_start(&program_context);
+    if (!program_workers_ensure_started(&program_context)) {
+        LOG_E(TAG, "One or more workers didn't start correctly, can't continue");
+        goto end;
+    }
+
+    LOG_I(TAG, "Ready to accept connections");
+
     program_wait_loop(
             program_context.workers_context,
             program_context.workers_count,
             &program_terminate_event_loop);
 
+
+    return_res = 0;
+
+end:
     // The program_request_terminate is invoked to be sure that if the termination is being triggered because a worker
     // thread is aborting, every other thread is also notified and will terminate the execution
     program_request_terminate(&program_terminate_event_loop);
@@ -583,10 +641,5 @@ int program_main(
     LOG_I(TAG, "Terminating");
 
     program_cleanup(&program_context);
-
-    return 0;
-
-fail:
-    program_cleanup(&program_context);
-    return 1;
+    return return_res;
 }

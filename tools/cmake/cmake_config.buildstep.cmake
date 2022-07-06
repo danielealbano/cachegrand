@@ -11,7 +11,7 @@ endif()
 
 # Fetch the git version ([tag|commitid](-dirty))
 execute_process(
-    COMMAND ${GIT_EXECUTABLE} describe --always --dirty
+    COMMAND ${GIT_EXECUTABLE} describe --always --dirty --tags
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     OUTPUT_VARIABLE CACHEGRAND_VERSION_GIT
     OUTPUT_STRIP_TRAILING_WHITESPACE)

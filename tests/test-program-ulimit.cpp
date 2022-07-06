@@ -22,7 +22,7 @@ TEST_CASE("program_ulimit.c", "[program][ulimit]") {
     }
 
     SECTION("program_ulimit_nofile") {
-        REQUIRE(program_ulimit_set_nofile(0x70000));
+        REQUIRE(program_ulimit_set_nofile(0x40000));
         REQUIRE_FALSE(program_ulimit_set_nofile(-1));
     }
 

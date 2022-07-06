@@ -1,4 +1,5 @@
-# SLAB Allocator - Design
+SLAB Allocator
+==============
 
 > Slab allocation is a memory management mechanism intended for the efficient memory allocation of
 objects. Compared to earlier mechanisms, it reduces fragmentation caused by allocations and
@@ -37,7 +38,7 @@ objects, kept at the beginning, and the used objects kept at the end.
 
 ### Data Structures
 
-![SLAB Allocator - Data Structures](images/slab_allocator_1.png)
+![SLAB Allocator - Data Structures](../images/slab_allocator_1.png)
 
 #### struct slab_allocator
 
@@ -173,10 +174,10 @@ explained above, the available slices are kept at the head meanwhile the in use 
 
 #### Slice
 
-![SLAB Allocator - Memory layout](images/slab_allocator_2.png)
+![SLAB Allocator - Memory layout](../images/slab_allocator_2.png)
 
 ### Benchmarks
 
-![SLAB Allocator - Benchmarks](images/slab_allocator_3.png)
+![SLAB Allocator - Benchmarks](../images/slab_allocator_3.png)
 
 [1]: https://en.wikipedia.org/wiki/Slab_allocation

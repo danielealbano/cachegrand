@@ -82,7 +82,7 @@ void worker_setup_context(
         worker_context_t *worker_context,
         uint32_t workers_count,
         uint32_t worker_index,
-        volatile bool *terminate_event_loop,
+        bool_volatile_t *terminate_event_loop,
         config_t *config,
         storage_db_t *db) {
     worker_context->workers_count = workers_count;
@@ -90,6 +90,8 @@ void worker_setup_context(
     worker_context->terminate_event_loop = terminate_event_loop;
     worker_context->config = config;
     worker_context->db = db;
+    worker_context->aborted = false;
+    worker_context->running = false;
 }
 
 bool worker_should_terminate(
@@ -111,16 +113,20 @@ uint32_t worker_thread_set_affinity(
 
 bool worker_initialize_general(
         worker_context_t* worker_context) {
-    // TODO: the workers should be map the their func ops in a struct and these should be used
-    //       below, can't keep doing ifs :/
+    // TODO: the backends should map the their funcs in a struct and these should be used below, can't keep doing ifs :/
     if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
         worker_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
 
-        // TODO: Add some (10) fds for the listeners, this should be calculated dynamically
+        // TODO: Add some (10) fds for the listeners, plenty but this should be calculated dynamically
         uint32_t max_connections_per_worker =
-                (uint32_t)(((double)worker_context->config->network->max_clients * 1.5f) / (double)worker_context->workers_count) + 1 + 10;
+                (uint32_t)(((double)worker_context->config->network->max_clients * 1.2f) / (double)worker_context->workers_count) + 1 + 10;
 
-        if (!worker_iouring_initialize(worker_context, max_connections_per_worker)) {
+        // The amount of entries has to be double the amount of connections because of the timeouts' management (extra
+        // sqe for LINK_TIMEOUT for reads and writes)
+        if (!worker_iouring_initialize(
+                worker_context,
+                max_connections_per_worker,
+                max_connections_per_worker * 2)) {
             LOG_E(TAG, "io_uring worker initialization failed, terminating");
             worker_iouring_cleanup(worker_context);
             return false;
@@ -174,9 +180,7 @@ void worker_cleanup_network(
         uint8_t listeners_count) {
     // TODO: should use a struct with fp pointers, not ifs
     if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING) {
-        worker_network_iouring_cleanup(
-                listeners,
-                listeners_count);
+        worker_network_iouring_cleanup(listeners, listeners_count); // lgtm [cpp/useless-expression]
     }
 
     for(
@@ -200,7 +204,7 @@ void worker_cleanup_storage(
         worker_context_t* worker_context) {
     // TODO: should use a struct with fp pointers, not ifs
     if (worker_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
-        worker_storage_iouring_cleanup(worker_context);
+        worker_storage_iouring_cleanup(worker_context); // lgtm [cpp/useless-expression]
     }
 
     // TODO: at this point in time there may be data in the buffers waiting to be written and this can lead to potential
@@ -247,21 +251,28 @@ void worker_network_listeners_listen_pre(
 
 void worker_wait_running(
         worker_context_t *worker_context) {
+    int loops = 0;
     do {
         sched_yield();
         usleep(10000);
         MEMORY_FENCE_LOAD();
+        loops++;
     } while(!worker_context->running && !worker_context->aborted);
 }
 
 void worker_set_running(
-    worker_context_t *worker_context,
-    bool running) {
+        worker_context_t *worker_context,
+        bool running) {
     worker_context->running = running;
     MEMORY_FENCE_STORE();
 }
 
-
+void worker_set_aborted(
+        worker_context_t *worker_context,
+        bool aborted) {
+    worker_context->aborted = aborted;
+    MEMORY_FENCE_STORE();
+}
 
 void worker_initialize_storage_db_fiber_entrypoint(
         void* user_data) {
@@ -287,15 +298,40 @@ bool worker_initialize_storage_db(
     return true;
 }
 
+void worker_cleanup(
+        worker_context_t *worker_context,
+        char* log_producer_early_prefix_thread,
+        network_channel_t *listeners,
+        uint8_t listeners_count,
+        bool aborted) {
+
+    worker_cleanup_network(
+            worker_context,
+            worker_context->fibers.listeners_fibers,
+            listeners,
+            listeners_count);
+    worker_cleanup_storage(worker_context);
+    worker_cleanup_general(worker_context);
+    fiber_scheduler_free();
+
+    xalloc_free(log_producer_early_prefix_thread);
+
+    worker_set_running(worker_context, false);
+    worker_set_aborted(worker_context, aborted);
+    MEMORY_FENCE_STORE();
+}
+
 void* worker_thread_func(
         void* user_data) {
-    network_channel_t *listeners;
-    uint8_t listeners_count;
-    bool res = true;
+    bool res;
+
+    network_channel_t *listeners = NULL;
+    uint8_t listeners_count = 0;
     worker_context_t *worker_context = user_data;
 
     worker_context->core_index = worker_thread_set_affinity(
             worker_context->worker_index);
+    worker_context->fibers.listeners_fibers = NULL;
     worker_context_set(worker_context);
 
     char* log_producer_early_prefix_thread =
@@ -310,59 +346,38 @@ void* worker_thread_func(
 
     worker_mask_signals();
 
-    LOG_I(TAG, "Initialization");
+    LOG_V(TAG, "Initialization");
 
-    // TODO: too much duplicated code for no reason, should use a centralized cleanup function instead of checking what
-    //       needs to be cleaned up here if something fails so the code can be greatly simplified as the init functions
-    //       currently take all the same set of parameters (only worker_context), a simple list of func pointers can be
-    //       used
     if (!worker_initialize_general(worker_context)) {
         LOG_E(TAG, "Initialization failed!");
-        xalloc_free(log_producer_early_prefix_thread);
-        worker_context->aborted = true;
-        MEMORY_FENCE_STORE();
-
-        return NULL;
+        goto end;
     }
 
     if (!worker_initialize_network(worker_context)) {
         LOG_E(TAG, "Unable to initialize the network, can't continue!");
-        worker_cleanup_general(worker_context);
-        xalloc_free(log_producer_early_prefix_thread);
-        worker_context->aborted = true;
-        MEMORY_FENCE_STORE();
-
-        return NULL;
+        goto end;
     }
 
     if (!worker_initialize_storage(worker_context)) {
         LOG_E(TAG, "Unable to initialize the storage, can't continue!");
-        worker_cleanup_network(worker_context, NULL, NULL, 0);
-        worker_cleanup_general(worker_context);
-        xalloc_free(log_producer_early_prefix_thread);
-        worker_context->aborted = true;
-        MEMORY_FENCE_STORE();
-
-        return NULL;
+        goto end;
     }
 
     if (worker_initialize_storage_db(worker_context) == false) {
         LOG_E(TAG, "Unable to initialize the database, can't continue!");
-        worker_cleanup_storage(worker_context);
-        worker_cleanup_network(worker_context, NULL, NULL, 0);
-        worker_cleanup_general(worker_context);
-        xalloc_free(log_producer_early_prefix_thread);
-        worker_context->aborted = true;
-        MEMORY_FENCE_STORE();
-
-        return NULL;
+        goto end;
     }
 
-    worker_network_listeners_initialize(
+    if (!worker_network_listeners_initialize(
+            worker_context->worker_index,
             worker_context->core_index,
             worker_context->config->network,
             &listeners,
-            &listeners_count);
+            &listeners_count)) {
+        LOG_E(TAG, "Unable to initialize the listeners, can't continue!");
+        goto end;
+    }
+
     worker_network_listeners_listen_pre(
             worker_context->config->network->backend,
             listeners,
@@ -377,7 +392,7 @@ void* worker_thread_func(
 
     worker_timer_setup(worker_context);
 
-    LOG_I(TAG, "Starting events loop");
+    LOG_V(TAG, "Starting events loop");
 
     worker_set_running(worker_context, true);
 
@@ -406,22 +421,15 @@ void* worker_thread_func(
         }
     } while(!worker_should_terminate(worker_context));
 
-    LOG_V(TAG, "Process events loop ended, cleaning up");
+end:
+    LOG_V(TAG, "Worker events loop ended, cleaning up");
 
-    worker_cleanup_network(
+    worker_cleanup(
             worker_context,
-            worker_context->fibers.listeners_fibers,
+            log_producer_early_prefix_thread,
             listeners,
-            listeners_count);
-    worker_cleanup_storage(worker_context);
-    worker_cleanup_general(worker_context);
-    fiber_scheduler_free();
-
-    LOG_V(TAG, "Tearing down");
-
-    xalloc_free(log_producer_early_prefix_thread);
-
-    worker_set_running(worker_context, false);
+            listeners_count,
+            true);
 
     return NULL;
 }

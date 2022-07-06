@@ -1,0 +1,30 @@
+path_classifiers:
+  test: "tests/*.*"
+extraction:
+  cpp:
+    prepare:
+      packages:
+        - "curl"
+        - "ca-certificates"
+        - "build-essential"
+        - "cmake"
+        - "git"
+        - "pkg-config"
+        - "libssl1.1"
+        - "libssl-dev"
+        - "libnuma1 libnuma-dev"
+        - "libyaml-0-2"
+        - "libyaml-dev"
+        - "libcurl4-openssl-dev"
+        - "libcurl4"
+        - "lcov"
+        - "gcovr"
+    configure:
+      command:
+        - "mkdir build"
+        - "cd build"
+        - "cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_HASH_ALGORITHM_T1HA2=1"
+    index:
+      build_command:
+        - "cd build"
+        - "make cachegrand-server"

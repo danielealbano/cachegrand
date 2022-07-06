@@ -246,7 +246,6 @@ bool worker_storage_iouring_initialize(
 
 bool worker_storage_iouring_cleanup(
         __attribute__((unused)) worker_context_t *worker_context) {
-    // TODO: will need to iterate all over the opened files and flush the data to ensure they are stored on the disk
     return true;
 }
 

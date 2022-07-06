@@ -47,7 +47,8 @@ void worker_iouring_cqe_log(
 
 bool worker_iouring_initialize(
         worker_context_t *worker_context,
-        uint32_t max_fd);
+        uint32_t max_fd,
+        uint32_t entries);
 
 void worker_iouring_cleanup(
         __attribute__((unused)) worker_context_t *worker_context);
