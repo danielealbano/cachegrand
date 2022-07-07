@@ -38,21 +38,25 @@ typedef struct worker_context worker_context_t;
 void worker_stats_publish(
         worker_stats_t* worker_stats_new,
         worker_stats_volatile_t* worker_stats_public) {
-    clock_monotonic(&worker_stats_new->last_update_timestamp);
+    clock_realtime(&worker_stats_new->last_update_timestamp);
 
-    memcpy((void*)&worker_stats_public->network, &worker_stats_new->network, sizeof(worker_stats_public->network));
+    worker_stats_public->started_on_timestamp.tv_nsec = worker_stats_new->started_on_timestamp.tv_nsec;
+    worker_stats_public->started_on_timestamp.tv_sec = worker_stats_new->started_on_timestamp.tv_sec;
     worker_stats_public->last_update_timestamp.tv_nsec = worker_stats_new->last_update_timestamp.tv_nsec;
     worker_stats_public->last_update_timestamp.tv_sec = worker_stats_new->last_update_timestamp.tv_sec;
 
-    memset(&worker_stats_new->network.per_second, 0, sizeof(worker_stats_new->network.per_second));
-    memset(&worker_stats_new->storage.per_second, 0, sizeof(worker_stats_new->storage.per_second));
+    memcpy((void*)&worker_stats_public->network, &worker_stats_new->network, sizeof(worker_stats_public->network));
+    memcpy((void*)&worker_stats_public->storage, &worker_stats_new->storage, sizeof(worker_stats_public->storage));
+
+    memset(&worker_stats_new->network.per_minute, 0, sizeof(worker_stats_new->network.per_minute));
+    memset(&worker_stats_new->storage.per_minute, 0, sizeof(worker_stats_new->storage.per_minute));
 }
 
 bool worker_stats_should_publish(
         worker_stats_volatile_t* worker_stats_public) {
     struct timespec last_update_timestamp;
 
-    clock_monotonic(&last_update_timestamp);
+    clock_realtime(&last_update_timestamp);
 
     return last_update_timestamp.tv_sec >= worker_stats_public->last_update_timestamp.tv_sec + WORKER_PUBLISH_STATS_DELAY_SEC;
 }
