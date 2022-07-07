@@ -7,3 +7,6 @@
 [submodule "3rdparty/xxHash"]
 	path = 3rdparty/xxHash
 	url = https://github.com/Cyan4973/xxHash.git
+[submodule "3rdparty/nodejs-http-parser"]
+	path = 3rdparty/nodejs-http-parser
+	url = https://github.com/nodejs/http-parser

@@ -5,22 +5,26 @@
 extern "C" {
 #endif
 
-#define WORKER_PUBLISH_STATS_DELAY_SEC  1
+#define WORKER_PUBLISH_STATS_DELAY_SEC 60
 
 typedef struct worker_stats worker_stats_t;
 struct worker_stats {
     struct {
         struct {
             uint64_t received_packets;
+            uint64_t received_data;
             uint64_t sent_packets;
+            uint64_t sent_data;
             uint64_t accepted_connections;
             uint16_t active_connections;
         } total;
         struct {
             uint64_t received_packets;
+            uint64_t received_data;
             uint64_t sent_packets;
+            uint64_t sent_data;
             uint64_t accepted_connections;
-        } per_second;
+        } per_minute;
     } network;
     struct {
         struct {
@@ -35,8 +39,9 @@ struct worker_stats {
             uint64_t write_iops;
             uint64_t read_data;
             uint64_t read_iops;
-        } per_second;
+        } per_minute;
     } storage;
+    struct timespec started_on_timestamp;
     struct timespec last_update_timestamp;
 };
 typedef _Volatile(worker_stats_t) worker_stats_volatile_t;
@@ -49,6 +54,9 @@ bool worker_stats_should_publish(
         worker_stats_volatile_t* worker_stats_public);
 
 worker_stats_t *worker_stats_get();
+
+worker_stats_t *worker_stats_aggregate(
+        worker_stats_t *aggregated_stats);
 
 #ifdef __cplusplus
 }

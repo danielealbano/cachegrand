@@ -20,6 +20,12 @@ void clock_monotonic(timespec_t *timespec) {
     }
 }
 
+void clock_realtime(timespec_t *timespec) {
+    if (clock_gettime(CLOCK_REALTIME, timespec) < 0) {
+        FATAL(TAG, "Unable to fetch the time");
+    }
+}
+
 void clock_diff(timespec_t *result, timespec_t *a, timespec_t *b) {
     result->tv_sec = a->tv_sec - b->tv_sec;
     result->tv_nsec = a->tv_nsec - b->tv_nsec;

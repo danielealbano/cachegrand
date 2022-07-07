@@ -18,6 +18,7 @@
 #include <liburing.h>
 #include <assert.h>
 #include <sys/resource.h>
+#include <string.h>
 
 #include "misc.h"
 #include "pow2.h"
@@ -59,9 +60,18 @@
 
 #define TAG "program"
 
+static program_context_t program_context_global = { 0 };
 bool_volatile_t program_terminate_event_loop = false;
 
 static char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
+
+program_context_t *program_get_context() {
+    return &program_context_global;
+}
+
+void program_reset_context() {
+    memset(&program_context_global, 0, sizeof(program_context_t));
+}
 
 signal_handler_thread_context_t* program_signal_handler_thread_initialize(
         bool_volatile_t *terminate_event_loop,
@@ -97,7 +107,10 @@ void program_workers_initialize_count(
 worker_context_t* program_workers_initialize_context(
         bool_volatile_t *terminate_event_loop,
         program_context_t *program_context)  {
+    timespec_t started_on_timestamp = { 0 };
     worker_context_t *workers_context;
+
+    clock_monotonic(&started_on_timestamp);
 
     LOG_I(TAG, "Starting <%u> workers", program_context->workers_count);
 
@@ -109,6 +122,7 @@ worker_context_t* program_workers_initialize_context(
 
         worker_setup_context(
                 worker_context,
+                &started_on_timestamp,
                 program_context->workers_count,
                 worker_index,
                 terminate_event_loop,
@@ -467,24 +481,24 @@ bool program_config_setup_storage_db(
 }
 
 void program_setup_sentry(
-        program_context_t program_context) {
-    if (program_context.config->sentry == NULL ||
-        program_context.config->sentry->enable == false) {
+        program_context_t *program_context) {
+    if (program_context->config->sentry == NULL ||
+        program_context->config->sentry->enable == false) {
         return;
     }
 
     sentry_support_init(
-            program_context.config->sentry->data_path,
-            program_context.config->sentry->dsn);
+            program_context->config->sentry->data_path,
+            program_context->config->sentry->dsn);
 }
 
 bool program_setup_pidfile(
-        program_context_t program_context) {
-    if (program_context.config->pidfile_path == NULL) {
+        program_context_t *program_context) {
+    if (program_context->config->pidfile_path == NULL) {
         return true;
     }
 
-    return pidfile_create(program_context.config->pidfile_path);
+    return pidfile_create(program_context->config->pidfile_path);
 }
 
 void program_cleanup(
@@ -535,8 +549,8 @@ void program_cleanup(
 int program_main(
         int argc,
         char** argv) {
-    static program_context_t program_context = { 0 };
     int return_res = 1;
+    program_context_t *program_context = &program_context_global;
 
     // TODO: refactor this function to make it actually testable
 
@@ -566,13 +580,13 @@ int program_main(
                ? "xxh3" :
                "crc32c"));
 
-    if ((program_context.config = program_parse_arguments_and_load_config(argc, argv)) == NULL) {
+    if ((program_context->config = program_parse_arguments_and_load_config(argc, argv)) == NULL) {
         goto end;
     }
 
     // Initialize the log sinks defined in the configuration, if any is defined. The function will take care of dropping
     // the temporary log sink defined initially
-    program_config_setup_log_sinks(program_context.config);
+    program_config_setup_log_sinks(program_context->config);
 
     program_ulimit_setup();
 
@@ -582,7 +596,7 @@ int program_main(
     // of the operation
     program_setup_pidfile(program_context);
 
-    if (program_config_thread_affinity_set_selected_cpus(&program_context) == false) {
+    if (program_config_thread_affinity_set_selected_cpus(program_context) == false) {
         LOG_E(TAG, "Unable to setup cpu affinity");
         goto end;
     }
@@ -591,34 +605,34 @@ int program_main(
     signal(SIGCHLD, SIG_IGN);
 
     // Enable, if allowed in the config and if the hugepages are available, the slab allocator
-    program_use_slab_allocator(&program_context);
+    program_use_slab_allocator(program_context);
 
     // Calculate workers count
-    program_workers_initialize_count(&program_context);
+    program_workers_initialize_count(program_context);
 
-    if (program_context.use_slab_allocator) {
+    if (program_context->use_slab_allocator) {
         slab_allocator_predefined_allocators_init();
-        program_context.slab_allocator_inited = true;
+        program_context->slab_allocator_inited = true;
     }
 
-    if (program_config_setup_storage_db(&program_context) == false) {
+    if (program_config_setup_storage_db(program_context) == false) {
         LOG_E(TAG, "Unable to initialize the database");
         goto end;
     }
 
     if (program_signal_handler_thread_initialize(
             &program_terminate_event_loop,
-            &program_context) == NULL) {
+            program_context) == NULL) {
         goto end;
     }
 
     if (program_workers_initialize_context(
             &program_terminate_event_loop,
-            &program_context) == NULL) {
+            program_context) == NULL) {
         goto end;
     }
 
-    if (!program_workers_ensure_started(&program_context)) {
+    if (!program_workers_ensure_started(program_context)) {
         LOG_E(TAG, "One or more workers didn't start correctly, can't continue");
         goto end;
     }
@@ -626,8 +640,8 @@ int program_main(
     LOG_I(TAG, "Ready to accept connections");
 
     program_wait_loop(
-            program_context.workers_context,
-            program_context.workers_count,
+            program_context->workers_context,
+            program_context->workers_count,
             &program_terminate_event_loop);
 
 
@@ -640,6 +654,6 @@ end:
 
     LOG_I(TAG, "Terminating");
 
-    program_cleanup(&program_context);
+    program_cleanup(program_context);
     return return_res;
 }

@@ -572,15 +572,19 @@ void* slab_allocator_mem_realloc(
         size_t new_size,
         bool zero_new_memory) {
     // TODO: the implementation is terrible, it's not even checking if the new size fits within the provided slot
-    //       because in case nothing is needed
+    //       because in case a new allocation is not really needed
     void* new_memptr;
 
     new_memptr = slab_allocator_mem_alloc(new_size);
 
-    if (zero_new_memory) {
-        memset(new_memptr + current_size, 0, new_size - current_size);
+    // If the new allocation doesn't fail check if it has to be zeroed
+    if (!new_memptr) {
+        if (zero_new_memory) {
+            memset(new_memptr + current_size, 0, new_size - current_size);
+        }
     }
 
+    // Always free the pointer passed, even if the realloc fails
     if (memptr != NULL) {
         memcpy(new_memptr, memptr, current_size);
         slab_allocator_mem_free(memptr);

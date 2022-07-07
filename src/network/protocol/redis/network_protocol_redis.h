@@ -215,7 +215,7 @@ struct network_protocol_redis_context {
 void network_protocol_redis_accept(
         network_channel_t *channel);
 
-bool network_protocol_redis_process_events(
+bool network_protocol_redis_process_data(
         network_channel_t *channel,
         network_channel_buffer_t *read_buffer,
         network_protocol_redis_context_t *protocol_context);

@@ -23,6 +23,7 @@ system to process the network data
 Key features:
 - [Modular](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules.md) architecture to support widely used protocols, e.g.
   [Redis](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/redis.md),
+  [Prometheus](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/prometheus.md), etc.
 - [Time-series database](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/timeseries-db.md) for fast data writes and retrieval with
   primitives built to handle different data types (e.g. small strings, large blobs, jsons, etc.);
 - [Hashtable](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/hashtable.md) GET Lock-free and Wait-free operations, SET and DELETE use
@@ -33,9 +34,9 @@ Key features:
   [benches](https://github.com/danielealbano/cachegrand/blob/main/docs/benchmarks/linear-vertical-scalability.md));
 
 Planned Key Features:
-- More modules for additional platforms compatibility, e.g. [Memcache](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/memcache.md),
-  etc., or to add support for monitoring, e.g. [Prometheus](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/prometheus.md),
-  [DataDog](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/datadog.md), etc.;
+- More modules for additional platforms compatibility, e.g. [Memcache](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/memcache.md), AWS S3,
+  etc., or to add support for monitoring, e.g. [DataDog](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/datadog.md),
+- etc.;
 - Ad ad-hoc network stack based on DPDK / Linux XDP (eXpress Data Path) and the FreeBSD network stack;
 - [Built for flash memories](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/timeseries-db.md#flash-memories) to be able to efficiently saturate the
   available IOPS in modern DC NVMEs and SSDs;

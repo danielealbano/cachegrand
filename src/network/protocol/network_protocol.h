@@ -8,6 +8,7 @@ extern "C" {
 enum network_protocols {
     NETWORK_PROTOCOLS_UNKNOWN = 0,
     NETWORK_PROTOCOLS_REDIS,
+    NETWORK_PROTOCOLS_PROMETHEUS
 };
 typedef enum network_protocols network_protocols_t;
 

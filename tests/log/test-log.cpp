@@ -41,7 +41,7 @@ void test_log_sink_printer(
         const char* message,
         size_t message_len) {
     char *message_clone = (char*)xalloc_alloc(strlen(message) + 1);
-    strncpy(message_clone, message, strlen(message));
+    strcpy(message_clone, message);
 
     test_log_sink_printer_request_t *request =
             ((test_log_sink_printer_settings_t*)settings)->request;

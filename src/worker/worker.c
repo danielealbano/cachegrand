@@ -80,6 +80,7 @@ char* worker_log_producer_set_early_prefix_thread(
 
 void worker_setup_context(
         worker_context_t *worker_context,
+        timespec_t *started_on_timestamp,
         uint32_t workers_count,
         uint32_t worker_index,
         bool_volatile_t *terminate_event_loop,
@@ -92,6 +93,9 @@ void worker_setup_context(
     worker_context->db = db;
     worker_context->aborted = false;
     worker_context->running = false;
+
+    worker_context->stats.internal.started_on_timestamp.tv_nsec = started_on_timestamp->tv_nsec;
+    worker_context->stats.internal.started_on_timestamp.tv_sec = started_on_timestamp->tv_sec;
 }
 
 bool worker_should_terminate(

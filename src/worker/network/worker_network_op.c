@@ -38,6 +38,7 @@
 #include "network/network.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/protocol/redis/network_protocol_redis.h"
+#include "network/protocol/prometheus/network_protocol_prometheus.h"
 
 #include "worker_network_op.h"
 
@@ -100,6 +101,11 @@ bool worker_network_listeners_initialize(
             default:
             case CONFIG_PROTOCOL_TYPE_REDIS:
                 network_protocol = NETWORK_PROTOCOLS_REDIS;
+                break;
+
+            case CONFIG_PROTOCOL_TYPE_PROMETHEUS:
+                network_protocol = NETWORK_PROTOCOLS_PROMETHEUS;
+                break;
         }
 
         for(int binding_index = 0; binding_index < config_network_protocol->bindings_count; binding_index++) {
@@ -184,7 +190,7 @@ void worker_network_new_client_fiber_entrypoint(
     }
 
     stats->network.total.accepted_connections++;
-    stats->network.per_second.accepted_connections++;
+    stats->network.per_minute.accepted_connections++;
 
     // Should not access the listener_channel directly
     switch (new_channel->protocol) {
@@ -199,6 +205,10 @@ void worker_network_new_client_fiber_entrypoint(
 
         case NETWORK_PROTOCOLS_REDIS:
             network_protocol_redis_accept(
+                    new_channel);
+            break;
+        case NETWORK_PROTOCOLS_PROMETHEUS:
+            network_protocol_prometheus_accept(
                     new_channel);
             break;
     }

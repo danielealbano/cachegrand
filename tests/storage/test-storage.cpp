@@ -22,6 +22,7 @@
 #include "spinlock.h"
 #include "fiber.h"
 #include "fiber_scheduler.h"
+#include "clock.h"
 #include "config.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "worker/worker_stats.h"
@@ -127,9 +128,9 @@ TEST_CASE("storage/storage.c", "[storage]") {
             REQUIRE(storage_readv(storage_channel, iovec, 1, iovec[0].iov_len, 0));
             REQUIRE(fiber.error_number == 0);
             REQUIRE(strncmp(buffer_write, buffer_read1, strlen(buffer_write)) == 0);
-            REQUIRE(worker_context.stats.internal.storage.per_second.read_data == iovec[0].iov_len);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.read_data == iovec[0].iov_len);
             REQUIRE(worker_context.stats.internal.storage.total.read_data == iovec[0].iov_len);
-            REQUIRE(worker_context.stats.internal.storage.per_second.read_iops == 1);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.read_iops == 1);
             REQUIRE(worker_context.stats.internal.storage.total.read_iops == 1);
         }
 
@@ -152,9 +153,9 @@ TEST_CASE("storage/storage.c", "[storage]") {
             REQUIRE(fiber.error_number == 0);
             REQUIRE(strncmp(buffer_write, buffer_read1, strlen(buffer_write)) == 0);
             REQUIRE(strncmp(buffer_write, buffer_read2, strlen(buffer_write)) == 0);
-            REQUIRE(worker_context.stats.internal.storage.per_second.read_data == iovec[0].iov_len + iovec[1].iov_len);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.read_data == iovec[0].iov_len + iovec[1].iov_len);
             REQUIRE(worker_context.stats.internal.storage.total.read_data == iovec[0].iov_len + iovec[1].iov_len);
-            REQUIRE(worker_context.stats.internal.storage.per_second.read_iops == 1);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.read_iops == 1);
             REQUIRE(worker_context.stats.internal.storage.total.read_iops == 1);
         }
 
@@ -169,9 +170,9 @@ TEST_CASE("storage/storage.c", "[storage]") {
 
             REQUIRE(storage_readv(storage_channel, iovec, 1, iovec[0].iov_len, 0) == false);
             REQUIRE(fiber.error_number == EBADF);
-            REQUIRE(worker_context.stats.internal.storage.per_second.read_data == 0);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.read_data == 0);
             REQUIRE(worker_context.stats.internal.storage.total.read_data == 0);
-            REQUIRE(worker_context.stats.internal.storage.per_second.read_iops == 0);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.read_iops == 0);
             REQUIRE(worker_context.stats.internal.storage.total.read_iops == 0);
 
             storage_channel = NULL;
@@ -191,9 +192,9 @@ TEST_CASE("storage/storage.c", "[storage]") {
             REQUIRE(storage_read(storage_channel, buffer_read1, strlen(buffer_write), 0));
             REQUIRE(fiber.error_number == 0);
             REQUIRE(strncmp(buffer_write, buffer_read1, strlen(buffer_write)) == 0);
-            REQUIRE(worker_context.stats.internal.storage.per_second.read_data == strlen(buffer_write));
+            REQUIRE(worker_context.stats.internal.storage.per_minute.read_data == strlen(buffer_write));
             REQUIRE(worker_context.stats.internal.storage.total.read_data == strlen(buffer_write));
-            REQUIRE(worker_context.stats.internal.storage.per_second.read_iops == 1);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.read_iops == 1);
             REQUIRE(worker_context.stats.internal.storage.total.read_iops == 1);
         }
 
@@ -205,9 +206,9 @@ TEST_CASE("storage/storage.c", "[storage]") {
 
             REQUIRE(storage_read(storage_channel, buffer_read1, strlen(buffer_write), 0) == false);
             REQUIRE(fiber.error_number == EBADF);
-            REQUIRE(worker_context.stats.internal.storage.per_second.read_data == 0);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.read_data == 0);
             REQUIRE(worker_context.stats.internal.storage.total.read_data == 0);
-            REQUIRE(worker_context.stats.internal.storage.per_second.read_iops == 0);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.read_iops == 0);
             REQUIRE(worker_context.stats.internal.storage.total.read_iops == 0);
 
             storage_channel = NULL;
@@ -230,9 +231,9 @@ TEST_CASE("storage/storage.c", "[storage]") {
             REQUIRE(pread(fd, buffer_read1, strlen(buffer_write), 0) == strlen(buffer_write));
             REQUIRE(strncmp(buffer_write, buffer_read1, strlen(buffer_write)) == 0);
             REQUIRE(close(fd) == 0);
-            REQUIRE(worker_context.stats.internal.storage.per_second.written_data == iovec[0].iov_len);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.written_data == iovec[0].iov_len);
             REQUIRE(worker_context.stats.internal.storage.total.written_data == iovec[0].iov_len);
-            REQUIRE(worker_context.stats.internal.storage.per_second.write_iops == 1);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.write_iops == 1);
             REQUIRE(worker_context.stats.internal.storage.total.write_iops == 1);
         }
 
@@ -255,9 +256,9 @@ TEST_CASE("storage/storage.c", "[storage]") {
             REQUIRE(strncmp(buffer_write, buffer_read1, strlen(buffer_write)) == 0);
             REQUIRE(strncmp(buffer_write, buffer_read2, strlen(buffer_write)) == 0);
             REQUIRE(close(fd) == 0);
-            REQUIRE(worker_context.stats.internal.storage.per_second.written_data == iovec[0].iov_len + iovec[1].iov_len);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.written_data == iovec[0].iov_len + iovec[1].iov_len);
             REQUIRE(worker_context.stats.internal.storage.total.written_data == iovec[0].iov_len + iovec[1].iov_len);
-            REQUIRE(worker_context.stats.internal.storage.per_second.write_iops == 1);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.write_iops == 1);
             REQUIRE(worker_context.stats.internal.storage.total.write_iops == 1);
         }
 
@@ -272,9 +273,9 @@ TEST_CASE("storage/storage.c", "[storage]") {
 
             REQUIRE(storage_writev(storage_channel, iovec, 1, iovec[0].iov_len, 0) == false);
             REQUIRE(fiber.error_number == EBADF);
-            REQUIRE(worker_context.stats.internal.storage.per_second.written_data == 0);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.written_data == 0);
             REQUIRE(worker_context.stats.internal.storage.total.written_data == 0);
-            REQUIRE(worker_context.stats.internal.storage.per_second.write_iops == 0);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.write_iops == 0);
             REQUIRE(worker_context.stats.internal.storage.total.write_iops == 0);
 
             storage_channel = NULL;
@@ -294,9 +295,9 @@ TEST_CASE("storage/storage.c", "[storage]") {
             REQUIRE(pread(fd, buffer_read1, strlen(buffer_write), 0) == strlen(buffer_write));
             REQUIRE(strncmp(buffer_write, buffer_read1, strlen(buffer_write)) == 0);
             REQUIRE(close(fd) == 0);
-            REQUIRE(worker_context.stats.internal.storage.per_second.written_data == strlen(buffer_write));
+            REQUIRE(worker_context.stats.internal.storage.per_minute.written_data == strlen(buffer_write));
             REQUIRE(worker_context.stats.internal.storage.total.written_data == strlen(buffer_write));
-            REQUIRE(worker_context.stats.internal.storage.per_second.write_iops == 1);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.write_iops == 1);
             REQUIRE(worker_context.stats.internal.storage.total.write_iops == 1);
         }
 
@@ -308,9 +309,9 @@ TEST_CASE("storage/storage.c", "[storage]") {
 
             REQUIRE(storage_write(storage_channel, buffer_write, strlen(buffer_write), 0) == false);
             REQUIRE(fiber.error_number == EBADF);
-            REQUIRE(worker_context.stats.internal.storage.per_second.written_data == 0);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.written_data == 0);
             REQUIRE(worker_context.stats.internal.storage.total.written_data == 0);
-            REQUIRE(worker_context.stats.internal.storage.per_second.write_iops == 0);
+            REQUIRE(worker_context.stats.internal.storage.per_minute.write_iops == 0);
             REQUIRE(worker_context.stats.internal.storage.total.write_iops == 0);
 
             storage_channel = NULL;

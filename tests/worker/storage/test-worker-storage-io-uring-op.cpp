@@ -25,6 +25,7 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "support/io_uring/io_uring_support.h"
 #include "config.h"
+#include "clock.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/channel/storage_channel_iouring.h"

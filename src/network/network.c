@@ -143,8 +143,10 @@ network_op_result_t network_receive(
             channel->address.str);
 
     worker_stats_t *stats = worker_stats_get();
-    stats->network.per_second.received_packets++;
+    stats->network.per_minute.received_packets++;
     stats->network.total.received_packets++;
+    stats->network.per_minute.received_data += receive_length;
+    stats->network.total.received_data += receive_length;
 
     return NETWORK_OP_RESULT_OK;
 }
@@ -194,8 +196,10 @@ network_op_result_t network_send(
             channel->address.str);
 
     worker_stats_t *stats = worker_stats_get();
-    stats->network.per_second.sent_packets++;
+    stats->network.per_minute.sent_packets++;
     stats->network.total.sent_packets++;
+    stats->network.per_minute.sent_data += send_length;
+    stats->network.total.sent_data += send_length;
 
     return NETWORK_OP_RESULT_OK;
 }
