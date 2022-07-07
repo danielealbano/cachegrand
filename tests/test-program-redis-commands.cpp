@@ -110,16 +110,15 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
     storage_db_t *db = storage_db_new(db_config, workers_count);
     storage_db_open(db);
 
-    program_context_t program_context = {
-            .config = &config,
-            .db = db
-    };
+    program_context_t *program_context = program_get_context();
+    program_context->config = &config;
+    program_context->db = db;
 
-    program_config_thread_affinity_set_selected_cpus(&program_context);
-    program_workers_initialize_count(&program_context);
+    program_config_thread_affinity_set_selected_cpus(program_context);
+    program_workers_initialize_count(program_context);
     worker_context = program_workers_initialize_context(
             &terminate_event_loop,
-            &program_context);
+            program_context);
 
     PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true);
 
@@ -582,4 +581,6 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
     storage_db_close(db);
     storage_db_free(db, workers_count);
+
+    program_reset_context();
 }
