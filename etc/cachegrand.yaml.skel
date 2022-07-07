@@ -41,6 +41,16 @@ network:
         - host: "::"
           port: 6379
 
+# Uncomment to enable prometheus support, more information available at
+# https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/prometheus.md
+#    - type: prometheus
+#      timeout:
+#        read_ms: -1
+#        write_ms: 10000
+#      bindings:
+#        - host: 127.0.0.1
+#          port: 9090
+
 database:
   # Currently the internal cachegrand hashtable doesn't support the automatic resizing, if there isn't enough room the
   # SET command will just fail with a generic error.
