@@ -184,7 +184,7 @@ void worker_network_new_client_fiber_entrypoint(
     }
 
     stats->network.total.accepted_connections++;
-    stats->network.per_second.accepted_connections++;
+    stats->network.per_minute.accepted_connections++;
 
     // Should not access the listener_channel directly
     switch (new_channel->protocol) {

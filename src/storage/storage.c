@@ -94,9 +94,9 @@ bool storage_readv(
             channel->path);
 
     worker_stats_t *stats = worker_stats_get();
-    stats->storage.per_second.read_data += read_len;
+    stats->storage.per_minute.read_data += read_len;
     stats->storage.total.read_data += read_len;
-    stats->storage.per_second.read_iops++;
+    stats->storage.per_minute.read_iops++;
     stats->storage.total.read_iops++;
 
     return true;
@@ -160,9 +160,9 @@ bool storage_writev(
             channel->path);
 
     worker_stats_t *stats = worker_stats_get();
-    stats->storage.per_second.written_data += write_len;
+    stats->storage.per_minute.written_data += write_len;
     stats->storage.total.written_data += write_len;
-    stats->storage.per_second.write_iops++;
+    stats->storage.per_minute.write_iops++;
     stats->storage.total.write_iops++;
 
     return true;

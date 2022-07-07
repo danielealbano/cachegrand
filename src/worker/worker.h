@@ -12,6 +12,7 @@ char* worker_log_producer_set_early_prefix_thread(
 
 void worker_setup_context(
         worker_context_t *worker_context,
+        timespec_t *started_on_timestamp,
         uint32_t workers_count,
         uint32_t worker_index,
         volatile bool *terminate_event_loop,
