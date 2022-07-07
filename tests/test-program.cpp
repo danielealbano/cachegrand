@@ -145,7 +145,7 @@ TEST_CASE("program.c", "[program]") {
 
             program_context.config->pidfile_path = fixture_temp_path;
 
-            REQUIRE(program_setup_pidfile(program_context));
+            REQUIRE(program_setup_pidfile(&program_context));
 
             REQUIRE(pidfile_get_fd() > -1);
             REQUIRE(pidfile_is_owned());
@@ -159,7 +159,7 @@ TEST_CASE("program.c", "[program]") {
 
             program_context.config->pidfile_path = fixture_temp_path;
 
-            REQUIRE(program_setup_pidfile(program_context));
+            REQUIRE(program_setup_pidfile(&program_context));
 
             // Has to be set back to null otherwise when cyaml will try to free up the memory will trigger a segfault
             program_context.config = NULL;
@@ -173,7 +173,7 @@ TEST_CASE("program.c", "[program]") {
         SECTION("null pidfile path") {
             PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345();
 
-            REQUIRE(program_setup_pidfile(program_context));
+            REQUIRE(program_setup_pidfile(&program_context));
 
             REQUIRE(pidfile_get_fd() == -1);
             REQUIRE(!pidfile_is_owned());

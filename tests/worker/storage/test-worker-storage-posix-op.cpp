@@ -24,6 +24,7 @@
 #include "fiber_scheduler.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
+#include "clock.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "worker/worker.h"

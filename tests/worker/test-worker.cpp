@@ -56,9 +56,9 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
                 &worker_stats_public);
 
         REQUIRE(memcmp((char*)&worker_stats_cmp.network, ((char*)&worker_stats_public.network), struct_size) == 0);
-        REQUIRE(worker_stats_new.network.per_second.received_packets == 0);
-        REQUIRE(worker_stats_new.network.per_second.sent_packets == 0);
-        REQUIRE(worker_stats_new.network.per_second.accepted_connections == 0);
+        REQUIRE(worker_stats_new.network.per_minute.received_packets == 0);
+        REQUIRE(worker_stats_new.network.per_minute.sent_packets == 0);
+        REQUIRE(worker_stats_new.network.per_minute.accepted_connections == 0);
 
         REQUIRE(worker_stats_public.last_update_timestamp.tv_nsec == worker_stats_new.last_update_timestamp.tv_nsec);
         REQUIRE(worker_stats_public.last_update_timestamp.tv_sec == worker_stats_new.last_update_timestamp.tv_sec);
@@ -74,7 +74,7 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
         SECTION("should not") {
             worker_stats_volatile_t stats = {0};
 
-            REQUIRE(clock_gettime(CLOCK_MONOTONIC, (struct timespec*)&stats.last_update_timestamp) == 0);
+            REQUIRE(clock_gettime(CLOCK_REALTIME, (struct timespec*)&stats.last_update_timestamp) == 0);
 
             stats.last_update_timestamp.tv_sec += 100;
 
@@ -100,10 +100,12 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
         storage_db_t storage_db = { };
         worker_context_t worker_user_data = {0};
         network_channel_address_t addresses[1] = {0};
+        timespec_t started_on_timestamp = { 0 };
         volatile bool terminate_event_loop = false;
 
         worker_setup_context(
                 &worker_user_data,
+                &started_on_timestamp,
                 1,
                 1,
                 &terminate_event_loop,
