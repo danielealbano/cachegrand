@@ -95,7 +95,7 @@ const cyaml_schema_field_t config_network_protocol_fields_schema[] = {
                 "keepalive", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
                 config_network_protocol_t, keepalive, config_network_protocol_keepalive_schema),
         CYAML_FIELD_MAPPING_PTR(
-                "redis", CYAML_FLAG_POINTER,
+                "redis", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
                 config_network_protocol_t, redis, config_network_protocol_redis_schema),
         CYAML_FIELD_SEQUENCE(
                 "bindings", CYAML_FLAG_POINTER,
