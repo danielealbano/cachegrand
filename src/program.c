@@ -18,6 +18,7 @@
 #include <liburing.h>
 #include <assert.h>
 #include <sys/resource.h>
+#include <string.h>
 
 #include "misc.h"
 #include "pow2.h"
@@ -66,6 +67,10 @@ static char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
 
 program_context_t *program_get_context() {
     return &program_context_global;
+}
+
+void program_reset_context() {
+    memset(&program_context_global, 0, sizeof(program_context_t));
 }
 
 signal_handler_thread_context_t* program_signal_handler_thread_initialize(

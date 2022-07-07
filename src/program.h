@@ -20,6 +20,8 @@ struct program_context {
 
 program_context_t *program_get_context();
 
+void program_reset_context();
+
 void program_workers_initialize_count(
         program_context_t *program_context);
 
