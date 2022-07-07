@@ -18,6 +18,8 @@ struct program_context {
     signal_handler_thread_context_t *signal_handler_thread_context;
 };
 
+program_context_t *program_get_context();
+
 void program_workers_initialize_count(
         program_context_t *program_context);
 
@@ -34,24 +36,22 @@ bool program_should_terminate(
         const volatile bool *terminate_event_loop);
 
 void program_wait_loop(
-        worker_context_t* worker_context,
+        worker_context_t *worker_context,
         uint32_t workers_count,
         const bool_volatile_t *terminate_event_loop);
 
 void program_workers_cleanup(
-        worker_context_t* worker_context,
+        worker_context_t *worker_context,
         uint32_t workers_count);
 
 bool program_setup_pidfile(
-        program_context_t program_context);
-
-bool program_setup_ulimit();
+        program_context_t *program_context);
 
 bool program_config_thread_affinity_set_selected_cpus(
-        program_context_t* program_context);
+        program_context_t *program_context);
 
 void program_cleanup(
-        program_context_t* program_context);
+        program_context_t *program_context);
 
 int program_main(
         int argc,
