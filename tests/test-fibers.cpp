@@ -215,9 +215,11 @@ TEST_CASE("fiber.c", "[fiber]") {
 
             void* test_fiber_context_get_sp_first_var = fiber_context_get_test(fiber);
 
-            // The code below calculates the position of the address saved in the RSP register when the context was read,
-            // the magic value 28 only works Linux x64 platforms as it is dependent on the ABI which changes between
-            // different OSes and architectures
+            // The code below calculates the position of the address saved in the RSP register when the context was read.
+            // The magic value 28 only works Linux x64 platforms with the code compiled with gcc in debug mode as it is
+            // dependent both on the ABI, which changes between different OSes and architectures, and on how the debug
+            // information are stored on the stack.
+            // It might work with LLVM but it's untested
             REQUIRE((char*)test_fiber_context_get_sp_first_var - 28 == fiber->context.rsp);
 
             fiber_free(fiber);
