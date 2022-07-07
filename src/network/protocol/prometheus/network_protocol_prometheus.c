@@ -63,16 +63,13 @@ struct response_metric_field {
 typedef struct client_http_header client_http_header_t;
 struct client_http_header {
     char *name;
-    size_t name_length;
     char *value;
-    size_t value_length;
 };
 
 typedef struct client_http_request_data client_http_request_data_t;
 struct client_http_request_data {
     char *url;
     size_t url_length;
-    bool headers_received;
     bool request_received;
     struct {
         char *current_header_name;
@@ -121,15 +118,6 @@ void network_protocol_prometheus_client_cleanup(
     }
 
     slab_allocator_mem_free(network_protocol_prometheus_client->read_buffer.data);
-}
-
-int network_protocol_prometheus_http_parser_on_headers_complete(
-        http_parser* http_parser) {
-    client_http_request_data_t *http_request_data =
-            ((client_http_request_data_t*)(http_parser->data));
-
-    http_request_data->headers_received = true;
-    return 0;
 }
 
 int network_protocol_prometheus_http_parser_on_message_complete(
@@ -229,10 +217,7 @@ int network_protocol_prometheus_http_parser_on_header_value(
 
     http_request_data->headers.list[http_request_data->headers.current_index].name =
             http_request_data->headers.current_header_name;
-    http_request_data->headers.list[http_request_data->headers.current_index].name_length =
-            http_request_data->headers.current_header_name_length;
     http_request_data->headers.list[http_request_data->headers.current_index].value = header_value;
-    http_request_data->headers.list[http_request_data->headers.current_index].value_length = length;
 
     http_request_data->headers.current_index++;
     http_request_data->headers.count++;
@@ -650,8 +635,6 @@ void network_protocol_prometheus_accept_setup_http_parser(
             network_protocol_prometheus_http_parser_on_header_field;
     network_protocol_prometheus_client->http_parser_settings.on_header_value =
             network_protocol_prometheus_http_parser_on_header_value;
-    network_protocol_prometheus_client->http_parser_settings.on_headers_complete =
-            network_protocol_prometheus_http_parser_on_headers_complete;
     network_protocol_prometheus_client->http_parser_settings.on_message_complete =
             network_protocol_prometheus_http_parser_on_message_complete;
 
