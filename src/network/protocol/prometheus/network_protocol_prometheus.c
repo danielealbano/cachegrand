@@ -310,7 +310,7 @@ bool network_protocol_prometheus_http_send_error(
 
     static const char http_response_error_html_template[] =
             "<!DOCTYPE html>\n<html>\n<head>\n<title>%1$s</title>\n<style>\n"
-            "html { color-scheme: light dark; }\nbody { width: 35em; margin: 0 auto;\n"
+            "html { color-scheme: light dark; }\nbody { max-width: 40em; margin: 0 auto;\n"
             "font-family: Tahoma, Verdana, Arial, sans-serif; }\n"
             "</style>\n</head>\n<body>\n<h1>%1$s</h1>\n<p>%2$s</p>\n</body>\n</html>";
 
@@ -579,7 +579,7 @@ bool network_protocol_prometheus_process_request(
         network_protocol_prometheus_client_t *network_protocol_prometheus_client) {
     client_http_request_data_t *http_request_data = &network_protocol_prometheus_client->http_request_data;
 
-    if (strncmp(http_request_data->url, "/metrics", http_request_data->url_length) == 0) {
+    if (strlen("/metrics") == http_request_data->url_length && strncmp(http_request_data->url, "/metrics", http_request_data->url_length) == 0) {
         return network_protocol_prometheus_process_metrics_request(
                 channel,
                 network_protocol_prometheus_client);
@@ -589,7 +589,7 @@ bool network_protocol_prometheus_process_request(
             channel,
             404,
             "Page not found",
-            "The page &lt;%*s&gt; doesn't exist",
+            "The page <b>%*s</b> doesn't exist",
             http_request_data->url_length,
             http_request_data->url);
 }
