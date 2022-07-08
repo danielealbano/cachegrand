@@ -37,8 +37,7 @@ bool program_ulimit_set_nofile(
         ulong value) {
     LOG_V(TAG, "> Setting max opened file ulimit to %lu", value);
     if (program_ulimit_wrapper(RLIMIT_NOFILE, value) == false) {
-        LOG_E(TAG, "Unable to set max opened file ulimit");
-        LOG_E_OS_ERROR(TAG);
+        LOG_W(TAG, "Unable to set max opened file ulimit");
         return false;
     }
 
@@ -49,8 +48,7 @@ bool program_ulimit_set_memlock(
         ulong value) {
     LOG_V(TAG, "> Setting max lockable memory ulimit to %lu", value);
     if (program_ulimit_wrapper(RLIMIT_MEMLOCK, value) == false) {
-        LOG_E(TAG, "Unable to set the lockable memory ulimit");
-        LOG_E_OS_ERROR(TAG);
+        LOG_W(TAG, "Unable to set the lockable memory ulimit");
         return false;
     }
 
