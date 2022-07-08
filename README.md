@@ -148,5 +148,5 @@ docker run \
   --ulimit memlock=-1:-1 \
   --ulimit nofile=262144:262144 \
   -p 6379:6379 \
-  cachegrand/cachegrand-server:v0.1.0
+  cachegrand/cachegrand-server:latest
 ```
