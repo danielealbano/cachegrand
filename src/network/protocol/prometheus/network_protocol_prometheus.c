@@ -589,8 +589,8 @@ bool network_protocol_prometheus_process_request(
             channel,
             404,
             "Page not found",
-            "The page <b>%*s</b> doesn't exist",
-            http_request_data->url_length,
+            "The page <b>%.*s</b> doesn't exist",
+            (int)http_request_data->url_length,
             http_request_data->url);
 }
 
