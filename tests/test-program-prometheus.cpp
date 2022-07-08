@@ -130,6 +130,34 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
     REQUIRE(connect(clientfd, (struct sockaddr *) &address, sizeof(address)) == 0);
 
     SECTION("Prometheus - /metrics endpoint") {
+        // Build up the list of the fields in the response
+        char *metrics_names[] = {
+                "cachegrand_network_total_received_packets",
+                "cachegrand_network_total_received_data",
+                "cachegrand_network_total_sent_packets",
+                "cachegrand_network_total_sent_data",
+                "cachegrand_network_total_accepted_connections",
+                "cachegrand_network_total_active_connections",
+                "cachegrand_storage_total_written_data",
+                "cachegrand_storage_total_write_iops",
+                "cachegrand_storage_total_read_data",
+                "cachegrand_storage_total_read_iops",
+                "cachegrand_storage_total_open_files",
+
+                "cachegrand_network_per_minute_received_packets",
+                "cachegrand_network_per_minute_received_data",
+                "cachegrand_network_per_minute_sent_packets",
+                "cachegrand_network_per_minute_sent_data",
+                "cachegrand_network_per_minute_accepted_connections",
+                "cachegrand_storage_per_minute_written_data",
+                "cachegrand_storage_per_minute_write_iops",
+                "cachegrand_storage_per_minute_read_data",
+                "cachegrand_storage_per_minute_read_iops",
+
+                "cachegrand_uptime",
+                NULL,
+        };
+
         char request_template[] =
                 "GET /metrics HTTP/1.1\r\n"
                 "User-Agent: cachegrand-tests\r\n"
@@ -146,27 +174,102 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
         buffer_send_data_len = strlen(buffer_send);
 
         SECTION("No env vars") {
+            char *new_line_ptr = NULL;
+            int buffer_recv_length;
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) > 0);
+            REQUIRE((buffer_recv_length = recv(clientfd, buffer_recv, sizeof(buffer_recv), 0)) > 0);
 
             // Check that the response is a 200 OK and that the content type is text plain
             REQUIRE(strncmp(buffer_recv, "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=ASCII\r\n",
                             strlen("HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=ASCII\r\n")) == 0);
 
-            // TODO: should spot check some metrics
+            // Search for the end of the HTTP header
+            new_line_ptr = buffer_recv;
+            while((new_line_ptr = (char*)memchr(
+                    new_line_ptr + 1,
+                    '\n',
+                    (buffer_recv_length - ((new_line_ptr + 1) - buffer_recv))))) {
+                if (new_line_ptr - buffer_recv > 3) {
+                    if (strncmp(new_line_ptr - 3, "\r\n\r\n", 4) == 0) {
+                        break;
+                    }
+                }
+            }
+
+            // Ensure that has found the double new line at the end of the HTTP header
+            REQUIRE(new_line_ptr != NULL);
+
+            for (char **metric_name = metrics_names; *metric_name; ++metric_name) {
+                // Ensure that there is enough content in the buffer to contain the metric name, "{} ", at least 1 digit
+                // and then \n
+                REQUIRE((buffer_recv_length - ((new_line_ptr + 1) - buffer_recv)) >= strlen(*metric_name) + 3 + 1 + 1);
+                new_line_ptr++;
+
+                // Ensure that the next metric is the expected one
+                REQUIRE(strncmp(new_line_ptr, *metric_name, strlen(*metric_name)) == 0);
+
+                // As there are no env labels, ensure that the metric name is followed by "{} "
+                REQUIRE(strncmp(new_line_ptr + strlen(*metric_name), "{} ", 3) == 0);
+
+                // THere is always a new line at the end of the line, even the last line
+                REQUIRE((new_line_ptr = (char*)memchr(new_line_ptr, '\n', buffer_recv_length)) != NULL);
+            }
         }
 
-        // TODO: implement tests to validate that env vars are properly caught and reported in the page
-//        SECTION("With env vars") {
-//            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-//            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) > 0);
-//
-//            // Check that the response is a 200 OK and that the content type is text plain
-//            REQUIRE(strncmp(buffer_recv, "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=ASCII\r\n",
-//                            strlen("HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=ASCII\r\n")) == 0);
-//
-//            // TODO: should spot check some metrics
-//        }
+        SECTION("With env vars") {
+            char *new_line_ptr = NULL;
+            int buffer_recv_length;
+
+            char *expected_labels = "{label_1=\"value 1\",another_label=\"another value\"}";
+
+            // Set 2 env vars to use them as lables in the metrics
+            setenv("CACHEGRAND_METRIC_ENV_LABEL_1", "value 1", 1);
+            setenv("CACHEGRAND_METRIC_ENV_ANOTHER_LABEL", "another value", 1);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE((buffer_recv_length = recv(clientfd, buffer_recv, sizeof(buffer_recv), 0)) > 0);
+
+            // Unset the labels before doing anything else
+            unsetenv("CACHEGRAND_METRIC_ENV_LABEL_1");
+            unsetenv("CACHEGRAND_METRIC_ENV_ANOTHER_LABEL");
+
+            // Check that the response is a 200 OK and that the content type is text plain
+            REQUIRE(strncmp(buffer_recv, "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=ASCII\r\n",
+                            strlen("HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=ASCII\r\n")) == 0);
+
+            // Search for the end of the HTTP header
+            new_line_ptr = buffer_recv;
+            while((new_line_ptr = (char*)memchr(
+                    new_line_ptr + 1,
+                    '\n',
+                    (buffer_recv_length - ((new_line_ptr + 1) - buffer_recv))))) {
+                if (new_line_ptr - buffer_recv > 3) {
+                    if (strncmp(new_line_ptr - 3, "\r\n\r\n", 4) == 0) {
+                        break;
+                    }
+                }
+            }
+
+            // Ensure that has found the double new line at the end of the HTTP header
+            REQUIRE(new_line_ptr != NULL);
+
+            for (char **metric_name = metrics_names; *metric_name; ++metric_name) {
+                // Ensure that there is enough content in the buffer to contain the metric name, the labels, a space, at
+                // least 1 digit and then \n
+                REQUIRE((buffer_recv_length - ((new_line_ptr + 1) - buffer_recv)) >=
+                    strlen(*metric_name) + strlen(expected_labels) + 1 + 1 + 1);
+                new_line_ptr++;
+
+                // Ensure that the next metric is the expected one
+                REQUIRE(strncmp(new_line_ptr, *metric_name, strlen(*metric_name)) == 0);
+
+                // As there are no env labels, ensure that the metric name is followed by expected_labels
+                REQUIRE(strncmp(new_line_ptr + strlen(*metric_name), expected_labels, strlen(expected_labels)) == 0);
+
+                // THere is always a new line at the end of the line, even the last line
+                REQUIRE((new_line_ptr = (char*)memchr(new_line_ptr, '\n', buffer_recv_length)) != NULL);
+            }
+        }
     }
 
     SECTION("Prometheus - 404") {
