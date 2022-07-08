@@ -464,7 +464,7 @@ bool network_protocol_prometheus_process_metrics_request_add_metric(
             0,
             metric_template_with_value_formatter,
             name,
-            extra_env_metrics,
+            extra_env_metrics ? extra_env_metrics : "",
             value);
 
     if (*length + metric_length + 1 > *size) {
@@ -486,7 +486,7 @@ bool network_protocol_prometheus_process_metrics_request_add_metric(
             *size - *length,
             metric_template_with_value_formatter,
             name,
-            extra_env_metrics,
+            extra_env_metrics ? extra_env_metrics : "",
             value);
 
     *length += metric_length;
