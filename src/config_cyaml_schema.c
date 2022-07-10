@@ -57,6 +57,17 @@ const cyaml_schema_field_t config_network_protocol_keepalive_schema[] = {
         CYAML_FIELD_END
 };
 
+// Schema for config -> network -> protocols -> protocol-> tls
+const cyaml_schema_field_t config_network_protocol_tls_schema[] = {
+        CYAML_FIELD_STRING_PTR(
+                "certificate_path", CYAML_FLAG_DEFAULT,
+                config_network_protocol_tls_t, certificate_path, 0, CYAML_UNLIMITED),
+        CYAML_FIELD_STRING_PTR(
+                "private_key_path", CYAML_FLAG_DEFAULT,
+                config_network_protocol_tls_t, private_key_path, 0, CYAML_UNLIMITED),
+        CYAML_FIELD_END
+};
+
 // Schema for config -> network -> protocols -> protocol-> redis
 const cyaml_schema_field_t config_network_protocol_redis_schema[] = {
         CYAML_FIELD_UINT(
@@ -97,6 +108,9 @@ const cyaml_schema_field_t config_network_protocol_fields_schema[] = {
         CYAML_FIELD_MAPPING_PTR(
                 "redis", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
                 config_network_protocol_t, redis, config_network_protocol_redis_schema),
+        CYAML_FIELD_MAPPING_PTR(
+                "tls", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_network_protocol_t, tls, config_network_protocol_tls_schema),
         CYAML_FIELD_SEQUENCE(
                 "bindings", CYAML_FLAG_POINTER,
                 config_network_protocol_t, bindings, &config_protocol_binding_list_schema, 0, CYAML_UNLIMITED),

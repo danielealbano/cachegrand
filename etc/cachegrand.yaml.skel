@@ -23,18 +23,37 @@ network:
 
   protocols:
     - type: redis
+
       # Timeouts for the read and write operations in milliseconds, set to -1 to disable or greater than 0 to enable
       timeout:
         read_ms: -1
         write_ms: 10000
+
+      # Keep-alive parameters to keep the socket connected in case of no activity
       keepalive:
         time: 0
         interval: 0
         probes: 0
+
+      # TLS settings
+      # If the configuration is missing or commented out, TLS is automatically disabled
+      # It's currently not possible to set which cipher suites can be used, the following are the ones allowed
+      # - ECDHE_RSA_WITH_AES_128_GCM_SHA256
+      # - ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+      # - DHE_RSA_WITH_AES_128_GCM_SHA256
+      # - DHE_PSK_WITH_AES_128_GCM_SHA256
+      # If kTLS is available, it will be automatically enabled.
+      # tls:
+      #   certificate_path: "/path/to/certificate.pem"
+      #   private_key_path: "/path/to/private_key.key"
+
+      # Redis specific settings
       redis:
         # The maximum key length can't be greater than 65536 bytes
         max_key_length: 8192
         max_command_length: 536870912
+
+      # Bindings
       bindings:
         - host: 0.0.0.0
           port: 6379

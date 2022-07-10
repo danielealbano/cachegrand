@@ -61,6 +61,12 @@ struct config_network_protocol_keepalive {
     uint32_t probes;
 };
 
+typedef struct config_network_protocol_tls config_network_protocol_tls_t;
+struct config_network_protocol_tls {
+    char* certificate_path;
+    char* private_key_path;
+};
+
 typedef struct config_network_protocol_redis config_network_protocol_redis_t;
 struct config_network_protocol_redis {
     uint32_t max_key_length;
@@ -72,6 +78,7 @@ struct config_network_protocol {
     config_network_protocol_type_t type;
     config_network_protocol_timeout_t* timeout;
     config_network_protocol_keepalive_t* keepalive;
+    config_network_protocol_tls_t* tls;
 
     config_network_protocol_redis_t* redis;
 
