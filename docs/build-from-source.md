@@ -22,6 +22,7 @@ Example output
 | libyaml    | \>= 1.1      | **mandatory** |
 | openssl    | \>= 2.0      | **mandatory** |
 | curl       | \>= 7.0      | **mandatory** |
+| libmbedtls |              | **mandatory** |
 
 ## Install the required packages
 
@@ -31,7 +32,8 @@ Example output
 sudo apt install \
     build-essential cmake pkg-config git  libssl3 libssl-dev \
     libnuma1 libnuma-dev  libcurl4-openssl-dev libcurl4 \
-    libyaml-0-2 libyaml-dev
+    libyaml-0-2 libyaml-dev \
+    libmbedtls-dev libmbedtls12
 ```
 
 ### Ubuntu 20.04
@@ -40,7 +42,8 @@ sudo apt install \
 sudo apt install \
     build-essential cmake pkg-config git  libssl1.1 libssl-dev \
     libnuma1 libnuma-dev  libcurl4-openssl-dev libcurl4 \
-    libyaml-0-2 libyaml-dev
+    libyaml-0-2 libyaml-dev \
+    libmbedtls-dev libmbedtls12
 ```
 
 ### Debian 11
@@ -49,7 +52,8 @@ sudo apt install \
 sudo apt install \
     build-essential cmake pkg-config git  libssl1.1 libssl-dev \
     libnuma1 libnuma-dev  libcurl4-openssl-dev libcurl4 \
-    libyaml-0-2 libyaml-dev
+    libyaml-0-2 libyaml-dev \
+    libmbedtls-dev libmbedtls12
 ```
 
 ### Fedora 36
