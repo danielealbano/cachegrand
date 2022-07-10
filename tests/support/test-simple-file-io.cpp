@@ -67,6 +67,23 @@ TEST_CASE("support/simple_file_io.c", "[support][simple_file_io]") {
     uint32_t simple_file_io_fixture_data_valid_uint32 = 12345;
 
     SECTION("simple_file_io_read") {
+        SECTION("existing path") {
+            char buf[512];
+            TEST_SIMPLE_FILE_IO_FIXTURE_FILE_FROM_DATA(
+                    simple_file_io_fixture_data_invalid_no_newline_uint32_str,
+                    strlen(simple_file_io_fixture_data_invalid_no_newline_uint32_str),
+                    uint32_file_path,
+                    {
+                        REQUIRE(simple_file_io_exists(uint32_file_path));
+                    });
+        }
+
+        SECTION("non existing path") {
+            REQUIRE(!simple_file_io_exists("/non/existing/path/leading/nowhere"));
+        }
+    }
+
+    SECTION("simple_file_io_read") {
         SECTION("valid number") {
             char buf[512];
             TEST_SIMPLE_FILE_IO_FIXTURE_FILE_FROM_DATA(
