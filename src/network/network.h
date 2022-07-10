@@ -23,10 +23,16 @@ bool network_buffer_needs_rewind(
 void network_buffer_rewind(
         network_channel_buffer_t *read_buffer);
 
-network_op_result_t network_receive(
+network_op_result_t network_receive_to_buffer(
         network_channel_t *channel,
         network_channel_buffer_t *read_buffer,
         size_t read_length);
+
+network_op_result_t network_receive(
+        network_channel_t *channel,
+        network_channel_buffer_data_t *buffer,
+        size_t buffer_length,
+        size_t *read_length);
 
 network_op_result_t network_send(
         network_channel_t *channel,

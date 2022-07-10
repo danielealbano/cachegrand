@@ -68,10 +68,11 @@ void network_buffer_rewind(
     read_buffer->data_offset = 0;
 }
 
-network_op_result_t network_receive(
+network_op_result_t network_receive_to_buffer(
         network_channel_t *channel,
         network_channel_buffer_t *read_buffer,
         size_t read_length) {
+    size_t receive_length;
     size_t buffer_offset =
             read_buffer->data_offset +
             read_buffer->data_size;
@@ -95,6 +96,29 @@ network_op_result_t network_receive(
         return NETWORK_OP_RESULT_ERROR;
     }
 
+    if (channel->status == NETWORK_CHANNEL_STATUS_CLOSED) {
+        return NETWORK_OP_RESULT_CLOSE_SOCKET;
+    }
+
+    network_op_result_t res = (int32_t)network_receive(
+            channel,
+            buffer,
+            buffer_length,
+            &receive_length);
+
+    if (res == NETWORK_OP_RESULT_OK) {
+        // Increase the amount of actual data (data_size) in the buffer
+        read_buffer->data_size += receive_length;
+    }
+
+    return res;
+}
+
+network_op_result_t network_receive(
+        network_channel_t *channel,
+        network_channel_buffer_data_t *buffer,
+        size_t buffer_length,
+        size_t *read_length) {
     if (channel->status == NETWORK_CHANNEL_STATUS_CLOSED) {
         return NETWORK_OP_RESULT_CLOSE_SOCKET;
     }
@@ -131,9 +155,6 @@ network_op_result_t network_receive(
 
         return NETWORK_OP_RESULT_ERROR;
     }
-
-    // Increase the amount of actual data (data_size) in the buffer
-    read_buffer->data_size += receive_length;
 
     LOG_D(
             TAG,
