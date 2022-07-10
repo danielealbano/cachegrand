@@ -63,6 +63,11 @@ struct network_channel {
     network_channel_socket_address_t address;
     network_channel_status_t status;
     struct {
+        bool enabled;
+        bool ktls;
+        void *context;
+    } tls;
+    struct {
         int64_t read_ns;
         int64_t write_ns;
     } timeout;
