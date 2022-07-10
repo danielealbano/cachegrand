@@ -5,6 +5,7 @@ list(APPEND DEPS_LIST_LIBRARIES "pthread")
 # Dependencies that are provided by locally installed packages
 include("libyaml")
 include("openssl")
+include("mbedtls")
 include("libnuma")
 include("libcurl")
 
