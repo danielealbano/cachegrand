@@ -39,7 +39,7 @@ bool simple_file_io_read(
         size_t out_data_len) {
     int fd = open(path, O_RDONLY);
     if (fd < 0) {
-        LOG_W(TAG, "Unable to open %s: %s", path, strerror(errno));
+        LOG_W(TAG, "Unable to open <%s>: %s", path, strerror(errno));
         return false;
     }
 
@@ -49,7 +49,7 @@ bool simple_file_io_read(
     close(fd);
 
     if (len < 0) {
-        LOG_W(TAG, "Error while reading from %s: %s", path, strerror(read_errno));
+        LOG_W(TAG, "Error while reading from <%s>: %s", path, strerror(read_errno));
         return false;
     }
 
