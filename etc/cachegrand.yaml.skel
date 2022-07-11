@@ -37,15 +37,25 @@ network:
 
       # TLS settings
       # If the configuration is missing or commented out, TLS is automatically disabled
-      # It's currently not possible to set which cipher suites can be used, the following are the ones allowed
-      # - ECDHE_RSA_WITH_AES_128_GCM_SHA256
-      # - ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-      # - DHE_RSA_WITH_AES_128_GCM_SHA256
-      # - DHE_PSK_WITH_AES_128_GCM_SHA256
       # If kTLS is available, it will be automatically enabled.
       # tls:
+      #   # Path to the certificate and private key to use
       #   certificate_path: "/path/to/certificate.pem"
       #   private_key_path: "/path/to/private_key.key"
+
+      #   # Optional parameters to set the min and max version of the TLS versions accepted:
+      #   # - any
+      #   # - tls1.0
+      #   # - tls1.1
+      #   # - tls1.2
+      #   # - tls1.3
+      #   # When any is selected for min_version, automatically tls1.0 will be used.
+      #   min_version: tls1.2
+      #   max_version: any
+      #
+      #   # Optional parameter to set the allowed cipher suites, list the available ones with using
+      #   # /path/to/cachegrand-server --list-tls-cipher-suites
+      #   cipher_suites: [ ]
 
       # Redis specific settings
       redis:
@@ -57,8 +67,16 @@ network:
       bindings:
         - host: 0.0.0.0
           port: 6379
+          # Enable or disable TLS for the binding, optional parameter, if missing defaults to false
+          # tls: false
+        - host: 0.0.0.0
+          port: 6380
+          tls: true
         - host: "::"
           port: 6379
+        - host: "::"
+          port: 6380
+          tls: true
 
 # Uncomment to enable prometheus support, more information available at
 # https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/prometheus.md

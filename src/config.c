@@ -141,6 +141,18 @@ bool config_validate_after_load(
                 return_result = false;
             }
         }
+
+        // Validate bindings
+        for(int binding_index = 0; binding_index < protocol.bindings_count; binding_index++) {
+            config_network_protocol_binding_t *binding = &protocol.bindings[binding_index];
+
+            if (binding->tls) {
+                if (protocol.tls == NULL) {
+                    LOG_E(TAG, "The binding <%s:%d> requires tls but tls is not configured", binding->host, binding->port);
+                    return_result = false;
+                }
+            }
+        }
     }
 
     return return_result;
