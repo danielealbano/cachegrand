@@ -668,7 +668,7 @@ void network_protocol_prometheus_accept(
                 network_buffer_rewind(&network_protocol_prometheus_client.read_buffer);
             }
 
-            exit_loop = network_receive_to_buffer(
+            exit_loop = network_receive(
                     channel,
                     &network_protocol_prometheus_client.read_buffer,
                     NETWORK_CHANNEL_PACKET_SIZE) != NETWORK_OP_RESULT_OK;
