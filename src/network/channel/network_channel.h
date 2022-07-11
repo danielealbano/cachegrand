@@ -66,6 +66,7 @@ struct network_channel {
         bool enabled;
         bool ktls;
         void *context;
+        void *config;
     } tls;
     struct {
         int64_t read_ns;

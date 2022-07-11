@@ -13,6 +13,15 @@
 #include <string.h>
 #include <fatal.h>
 
+#include <mbedtls/aes.h>
+#include <mbedtls/ctr_drbg.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/error.h>
+#include <mbedtls/gcm.h>
+#include <mbedtls/net_sockets.h>
+#include <mbedtls/ssl.h>
+#include <mbedtls/ssl_internal.h>
+
 #include "misc.h"
 #include "exttypes.h"
 #include "clock.h"
@@ -34,8 +43,13 @@
 #include "worker/worker_context.h"
 #include "worker/worker.h"
 #include "worker/worker_op.h"
+#include "slab_allocator.h"
+#include "support/simple_file_io.h"
 #include "fiber_scheduler.h"
 #include "network/network.h"
+#include "network/network_tls_internal.h"
+#include "network/network_tls.h"
+#include "network/channel/network_channel_tls.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/protocol/redis/network_protocol_redis.h"
 #include "network/protocol/prometheus/network_protocol_prometheus.h"
@@ -55,12 +69,88 @@ worker_op_network_receive_fp_t* worker_op_network_receive;
 worker_op_network_send_fp_t* worker_op_network_send;
 worker_op_network_close_fp_t* worker_op_network_close;
 
+worker_network_protocol_context_t *worker_network_protocol_contexts_initialize(
+        config_network_t *config_network) {
+    bool result_ret = false;
+    worker_network_protocol_context_t *worker_network_protocol_context = NULL;
+
+    worker_network_protocol_context =
+            slab_allocator_mem_alloc_zero(sizeof(worker_network_protocol_context_t) * config_network->protocols_count);
+    if (!worker_network_protocol_context) {
+        goto end;
+    }
+
+    for(int protocol_index = 0; protocol_index < config_network->protocols_count; protocol_index++) {
+        config_network_protocol_t *config_network_protocol = &config_network->protocols[protocol_index];
+
+        if (config_network_protocol->tls == NULL) {
+            continue;
+        }
+
+        size_t cipher_suites_ids_size;
+        int *cipher_suites = network_tls_build_cipher_suites_from_names(
+                config_network_protocol->tls->cipher_suites,
+                config_network_protocol->tls->cipher_suites_count,
+                &cipher_suites_ids_size);
+
+        network_tls_config_t *network_tls_config = network_tls_config_init(
+                config_network_protocol->tls->certificate_path,
+                config_network_protocol->tls->private_key_path,
+                config_network_protocol->tls->min_version,
+                config_network_protocol->tls->max_version,
+                cipher_suites,
+                cipher_suites_ids_size);
+
+        if (cipher_suites) {
+            slab_allocator_mem_free(cipher_suites);
+        }
+
+        if (!network_tls_config) {
+            goto end;
+        }
+
+        worker_network_protocol_context[protocol_index].network_tls_config = network_tls_config;
+    }
+
+    result_ret = true;
+end:
+
+    if (!result_ret && worker_network_protocol_context) {
+        for (int protocol_index = 0; protocol_index < config_network->protocols_count; protocol_index++) {
+            if (worker_network_protocol_context[protocol_index].network_tls_config == NULL) {
+                continue;
+            }
+
+            network_tls_config_free(worker_network_protocol_context[protocol_index].network_tls_config);
+        }
+
+        slab_allocator_mem_free(worker_network_protocol_context);
+        worker_network_protocol_context = NULL;
+    }
+
+    return worker_network_protocol_context;
+}
+
+void worker_network_protocol_context_free(
+        config_network_t *config_network,
+        worker_network_protocol_context_t *worker_network_protocol_context) {
+    for (int protocol_index = 0; protocol_index < config_network->protocols_count; protocol_index++) {
+        if (worker_network_protocol_context[protocol_index].network_tls_config == NULL) {
+            continue;
+        }
+        network_tls_config_free(worker_network_protocol_context[protocol_index].network_tls_config);
+    }
+
+    slab_allocator_mem_free(worker_network_protocol_context);
+}
+
 // TODO: the listener and accept operations should be refactored to split them in an user frontend operation and in an
 //       internal operation like for all the other ops (recv, send, close, etc.)
 bool worker_network_listeners_initialize(
         uint32_t worker_index,
         uint8_t core_index,
         config_network_t *config_network,
+        worker_network_protocol_context_t *worker_network_protocol_context,
         network_channel_t **listeners,
         uint8_t *listeners_count) {
     bool return_res = false;
@@ -109,17 +199,18 @@ bool worker_network_listeners_initialize(
         }
 
         for(int binding_index = 0; binding_index < config_network_protocol->bindings_count; binding_index++) {
+            config_network_protocol_binding_t *binding = &config_network_protocol->bindings[binding_index];
             uint8_t listeners_count_before = listener_new_cb_user_data.listeners_count;
             if (network_channel_listener_new(
-                    config_network_protocol->bindings[binding_index].host,
-                    config_network_protocol->bindings[binding_index].port,
+                    binding->host,
+                    binding->port,
                     config_network->listen_backlog,
                     network_protocol,
                     &listener_new_cb_user_data) == false) {
 
                 LOG_E(TAG, "Unable to setup listener for <%s:%u> with protocol <%d>",
-                      config_network_protocol->bindings[binding_index].host,
-                      config_network_protocol->bindings[binding_index].port,
+                      binding->host,
+                      binding->port,
                       network_protocol);
 
                 return_res = false;
@@ -134,6 +225,21 @@ bool worker_network_listeners_initialize(
                         ((void*)listener_new_cb_user_data.listeners) +
                         (listener_new_cb_user_data.network_channel_size * listener_index);
                 channel_listener->protocol_config = config_network_protocol;
+
+                // If TLS is enabled for the binding, import the TLS settings
+                if (binding->tls) {
+                    network_tls_config_t *network_tls_config =
+                            worker_network_protocol_context[protocol_index].network_tls_config;
+                    network_channel_tls_set_config(
+                            channel_listener,
+                            &network_tls_config->config);
+                    network_channel_tls_set_enabled(
+                            channel_listener,
+                            worker_network_protocol_context[protocol_index].network_tls_config == NULL ? false : true);
+                    network_channel_tls_set_ktls(
+                            channel_listener,
+                            false);
+                }
 
                 // Attach the cBPF program for reuse port only once, the worker with index 0 will always be initialized
                 if (worker_index == 0) {
@@ -184,7 +290,7 @@ void worker_network_new_client_fiber_entrypoint(
     if (stats->network.total.active_connections > worker_context->config->network->max_clients) {
         LOG_W(
                 TAG,
-                "[FD:%5d][ACCEPT] Can't accept any new connection",
+                "[FD:%5d][ACCEPT] Maximum active connections established, can't accept any new connection",
                 new_channel->fd);
         goto end;
     }
@@ -235,7 +341,7 @@ void worker_network_listeners_fiber_entrypoint(
     while(!worker_should_terminate(worker_context)) {
         if ((new_channel = worker_op_network_accept(
                 listener_channel)) == NULL) {
-            LOG_W(
+            LOG_V(
                     TAG,
                     "[FD:%5d][ACCEPT] Listener <%s> failed to accept a new connection",
                     listener_channel->fd,

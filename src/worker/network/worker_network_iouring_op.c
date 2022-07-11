@@ -11,6 +11,17 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <liburing.h>
+#include <linux/tls.h>
+
+
+#include <mbedtls/aes.h>
+#include <mbedtls/ctr_drbg.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/error.h>
+#include <mbedtls/gcm.h>
+#include <mbedtls/net_sockets.h>
+#include <mbedtls/ssl.h>
+#include <mbedtls/ssl_internal.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -28,6 +39,8 @@
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
+#include "network/io/network_io_common_tls.h"
+#include "network/channel/network_channel_tls.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
@@ -112,10 +125,54 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
                 new_channel->wrapped_channel.address.str,
                 listener_channel->wrapped_channel.address.str);
 
-        network_io_common_socket_close(new_channel->wrapped_channel.fd, true);
-        network_channel_iouring_free(new_channel);
+        worker_network_iouring_op_network_close(
+                (network_channel_t *)new_channel,
+                true);
 
         return NULL;
+    }
+
+    if (listener_channel->wrapped_channel.tls.enabled) {
+        network_channel_tls_set_config(
+                &new_channel->wrapped_channel,
+                listener_channel->wrapped_channel.tls.config);
+
+        if (unlikely(!network_channel_tls_init(
+                &new_channel->wrapped_channel))) {
+            LOG_W(
+                    TAG,
+                    "TLS setup failed for the connection <%s>, coming from listener <%s>",
+                    new_channel->wrapped_channel.address.str,
+                    listener_channel->wrapped_channel.address.str);
+
+            worker_network_iouring_op_network_close(
+                    (network_channel_t *)new_channel,
+                    true);
+
+            return NULL;
+        }
+
+        if (unlikely(!network_channel_tls_handshake(
+                &new_channel->wrapped_channel))) {
+            LOG_V(
+                    TAG,
+                    "TLS handshake failed for the connection <%s>, coming from listener <%s>",
+                    new_channel->wrapped_channel.address.str,
+                    listener_channel->wrapped_channel.address.str);
+
+            worker_network_iouring_op_network_close(
+                    (network_channel_t *) new_channel,
+                    true);
+
+            return NULL;
+        }
+
+        network_channel_tls_set_enabled(
+                &new_channel->wrapped_channel,
+                true);
+
+        // TODO: this code should be moved into the io_uring interface as kTLS is specific for Linux and therefore
+        //       currently usable only via io_uring
     }
 
     return (network_channel_t*)new_channel;

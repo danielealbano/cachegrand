@@ -23,49 +23,46 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "slab_allocator.h"
 #include "config.h"
+#include "fiber.h"
+#include "log/log.h"
 #include "support/simple_file_io.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/io/network_io_common_tls.h"
 #include "network/channel/network_channel.h"
 #include "network/network.h"
+#include "network/network_tls_internal.h"
 #include "network/network_tls.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
+#include "worker/network/worker_network_op.h"
 
 #include "network_channel_tls.h"
+
+#define TAG "network_channel"
 
 int network_channel_tls_send_internal_mbed(
         void *context,
         const unsigned char *buffer,
         size_t buffer_length) {
-    if (!network_send(
+    return worker_op_network_send(
             context,
-            (network_channel_buffer_data_t*)buffer,
-            buffer_length)) {
-        return -1;
-    }
-
-    return (int)buffer_length;
+            (char *)buffer,
+            buffer_length);
 }
 
 int network_channel_tls_receive_internal_mbed(
         void *context,
         unsigned char *buffer,
         size_t buffer_length) {
-    size_t read_length = 0;
-    if (network_receive(
+    return worker_op_network_receive(
             context,
-            (network_channel_buffer_data_t*)buffer,
-            buffer_length,
-            &read_length) != NETWORK_OP_RESULT_OK) {
-        return -1;
-    }
-
-    return (int)read_length;
+            (char *)buffer,
+            buffer_length);
 }
 
 bool network_channel_tls_init(
-        network_channel_t *network_channel,
-        network_tls_config_t *network_tls_config) {
+        network_channel_t *network_channel) {
     bool result_res = false;
 
     network_channel->tls.context = slab_allocator_mem_alloc(sizeof(mbedtls_ssl_context));
@@ -73,14 +70,15 @@ bool network_channel_tls_init(
 
     if (mbedtls_ssl_setup(
             network_channel->tls.context,
-            &network_tls_config->config) != 0) {
+            network_channel->tls.config) != 0) {
+        LOG_E(TAG, "Failed to setup the ssl session");
         goto end;
     }
 
     // It's not necessary to handle the timeout here, it's handled at the lower level by the network interfaces
     mbedtls_ssl_set_bio(
             network_channel->tls.context,
-            network_channel,
+            &network_channel->fd,
             network_channel_tls_send_internal_mbed,
             network_channel_tls_receive_internal_mbed,
             NULL);
@@ -97,6 +95,37 @@ end:
     }
 
     return result_res;
+}
+
+bool network_channel_tls_handshake(
+        network_channel_t *network_channel) {
+    char err_buffer[256] = { 0 };
+    bool exit = false;
+    bool return_res = false;
+
+    do {
+        int res;
+        switch ((res = mbedtls_ssl_handshake(network_channel->tls.context))) {
+            case MBEDTLS_ERR_SSL_ASYNC_IN_PROGRESS:
+            case MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS:
+            case MBEDTLS_ERR_SSL_WANT_READ:
+            case MBEDTLS_ERR_SSL_WANT_WRITE:
+                break;
+
+            case 0:
+                network_flush(network_channel);
+                return_res = true;
+                exit = true;
+                break;
+
+            default:
+                mbedtls_strerror(res, err_buffer, sizeof(err_buffer) - 1);
+                LOG_V(TAG, "Failed to perform the TLS handshake because <%s>", err_buffer);
+                exit = true;
+        }
+    } while(!exit);
+
+    return return_res;
 }
 
 bool network_channel_tls_is_ktls_supported_cipher() {
@@ -157,6 +186,7 @@ bool network_channel_tls_setup_ktls(
             network_channel,
             network_tls_config,
             0)) {
+        LOG_V(TAG, "Failed to setup kTLS data transmission");
         return false;
     }
 
@@ -164,10 +194,22 @@ bool network_channel_tls_setup_ktls(
             network_channel,
             network_tls_config,
             1)) {
+        LOG_V(TAG, "Failed to setup kTLS data receival");
         return false;
     }
 
     return true;
+}
+
+void network_channel_tls_set_config(
+        network_channel_t *network_channel,
+        void *config) {
+    network_channel->tls.config = config;
+}
+
+bool network_channel_tls_get_config(
+        network_channel_t *network_channel) {
+    return network_channel->tls.config;
 }
 
 void network_channel_tls_set_enabled(
@@ -197,8 +239,8 @@ bool network_channel_tls_shutdown(
     mbedtls_ssl_close_notify(network_channel->tls.context);
 }
 
-bool network_channel_tls_free(
+void network_channel_tls_free(
         network_channel_t *network_channel) {
     mbedtls_ssl_free(network_channel->tls.context);
-    network_channel->tls.context = false;
+    network_channel->tls.context = NULL;
 }
