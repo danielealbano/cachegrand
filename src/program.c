@@ -19,6 +19,7 @@
 #include <assert.h>
 #include <sys/resource.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "misc.h"
 #include "pow2.h"
@@ -40,6 +41,7 @@
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
+#include "network/network_tls.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
@@ -315,6 +317,72 @@ void program_update_config_from_arguments(
     }
 }
 
+void program_list_tls_available_cipher_suites() {
+    size_t cipher_suite_longest_name_length = 0;
+    fprintf(stdout, "Available TLS cipher suites:\n\n");
+    network_tls_mbedtls_cipher_suite_info_t *cipher_suites_info =
+            network_tls_mbedtls_get_all_cipher_suites_info();
+
+    // Calculate the length of the longest cipher suite name
+    for(
+            network_tls_mbedtls_cipher_suite_info_t *cipher_suite_info = cipher_suites_info;
+            cipher_suite_info->name != NULL;
+            cipher_suite_info++) {
+        size_t cipher_suite_name_length = strlen(cipher_suite_info->name);
+        if (cipher_suite_name_length > cipher_suite_longest_name_length) {
+            cipher_suite_longest_name_length = cipher_suite_name_length;
+        }
+    }
+
+    fprintf(
+            stdout,
+            "+-%.*s-+-%.11s-+-%.11s-+\n",
+            (int)cipher_suite_longest_name_length,
+            "----------------------------------------------------------------------------------------------------",
+            "----------------------------------------------------------------------------------------------------",
+            "----------------------------------------------------------------------------------------------------");
+
+    fprintf(
+            stdout,
+            "| %-*s | %11s | %11s |\n",
+            (int)cipher_suite_longest_name_length,
+            "Cipher Suite",
+            "Min Version",
+            "Max Version");
+
+    fprintf(
+            stdout,
+            "+-%.*s-+-%.11s-+-%.11s-+\n",
+            (int)cipher_suite_longest_name_length,
+            "----------------------------------------------------------------------------------------------------",
+            "----------------------------------------------------------------------------------------------------",
+            "----------------------------------------------------------------------------------------------------");
+
+    // Print out the table
+    for(
+            network_tls_mbedtls_cipher_suite_info_t *cipher_suite_info = cipher_suites_info;
+            cipher_suite_info->name != NULL;
+            cipher_suite_info++) {
+        fprintf(
+                stdout,
+                "| %-*s | %11s | %11s |\n",
+                (int)cipher_suite_longest_name_length,
+                cipher_suite_info->name,
+                network_tls_min_version_to_string(cipher_suite_info->min_version),
+                network_tls_max_version_to_string(cipher_suite_info->max_version));
+    }
+
+    fprintf(
+            stdout,
+            "+-%.*s-+-%.11s-+-%.11s-+\n",
+            (int)cipher_suite_longest_name_length,
+            "----------------------------------------------------------------------------------------------------",
+            "----------------------------------------------------------------------------------------------------",
+            "----------------------------------------------------------------------------------------------------");
+
+    fflush(stdout);
+}
+
 config_t* program_parse_arguments_and_load_config(
         int argc,
         char** argv) {
@@ -325,6 +393,11 @@ config_t* program_parse_arguments_and_load_config(
         program_arguments_free(program_arguments);
         LOG_E(TAG, "Failed to parse the arguments, unable to continue");
         return NULL;
+    }
+
+    if (program_arguments->list_tls_available_cipher_suites) {
+        program_list_tls_available_cipher_suites();
+        exit(0);
     }
 
     if ((config = config_load(program_arguments->config_file
@@ -558,6 +631,11 @@ int program_main(
     // later stage
     program_setup_initial_log_sink_console();
 
+    if ((program_context->config = program_parse_arguments_and_load_config(argc, argv)) == NULL) {
+        goto end;
+    }
+
+
     // Report some general information
     LOG_I(
             TAG,
@@ -579,10 +657,10 @@ int program_main(
             : (CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_XXH3
                ? "xxh3" :
                "crc32c"));
-
-    if ((program_context->config = program_parse_arguments_and_load_config(argc, argv)) == NULL) {
-        goto end;
-    }
+    LOG_I(
+            TAG,
+            "> TLS: %s",
+            network_tls_mbedtls_version());
 
     // Initialize the log sinks defined in the configuration, if any is defined. The function will take care of dropping
     // the temporary log sink defined initially
@@ -652,7 +730,7 @@ end:
     // thread is aborting, every other thread is also notified and will terminate the execution
     program_request_terminate(&program_terminate_event_loop);
 
-    LOG_I(TAG, "Terminating");
+    LOG_V(TAG, "Terminating");
 
     program_cleanup(program_context);
     return return_res;
