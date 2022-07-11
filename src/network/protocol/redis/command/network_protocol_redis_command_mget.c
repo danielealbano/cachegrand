@@ -44,14 +44,12 @@
 struct mget_command_context {
     char error_message[200];
     bool has_error;
-
     char *key;
     size_t key_length;
     size_t key_offset;
-
     char **keys;
-    int keys_counter;
-    storage_db_entry_index_t **entries_index;
+    int entry_counter;
+    storage_db_entry_index_t **entries;
 };
 typedef struct mget_command_context mget_command_context_t;
 
@@ -60,15 +58,16 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(mget) {
 
     mget_command_context_t *mget_command_context = (mget_command_context_t*)protocol_context->command_context;
     mget_command_context->has_error = false;
-    mget_command_context->entries_index = NULL;
-    mget_command_context->keys_counter = 0;
+    mget_command_context->keys = NULL;
+    mget_command_context->entries = NULL;
+    mget_command_context->entry_counter = 0;
 
     // TODO
-    mget_command_context->keys = slab_allocator_mem_alloc(reader_context->arguments.count * sizeof(char*));
-    mget_command_context->entries_index = slab_allocator_mem_alloc(reader_context->arguments.count * sizeof(storage_db_entry_index_t));
+    mget_command_context->keys = slab_allocator_mem_alloc((reader_context->arguments.count - 1) * sizeof(char*));
+    mget_command_context->entries = slab_allocator_mem_alloc((reader_context->arguments.count - 1) * sizeof(storage_db_entry_index_t*));
 
     return true;
-}\
+}
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_REQUIRE_STREAM(mget) {
     // All the arguments passed to mget are keys
@@ -118,12 +117,12 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_DATA(mget) {
     // (in debug mode)
     assert(mget_command_context->key_offset + chunk_length <= mget_command_context->key_length);
 
-    mget_command_context->key = mget_command_context->keys[mget_command_context->keys_counter] =
-            slab_allocator_mem_alloc(chunk_length);
+    mget_command_context->key = mget_command_context->keys[argument_index] =
+            slab_allocator_mem_alloc(mget_command_context->key_length);
 
     memcpy(mget_command_context->key, chunk_data, chunk_length);
     mget_command_context->key_offset += chunk_length;
-    mget_command_context->keys[mget_command_context->keys_counter] = mget_command_context->key;
+    mget_command_context->keys[argument_index] = mget_command_context->key;
 
     return true;
 }
@@ -152,19 +151,15 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(mget) {
         }
     }
 
-    mget_command_context->entries_index[mget_command_context->keys_counter] = entry_index;
-    mget_command_context->keys_counter++;
+    mget_command_context->entries[argument_index] = entry_index;
+    mget_command_context->entry_counter++;
 end:
     return true;
 }
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
     bool res;
-//    char *send_buffer = NULL;
     bool return_res = false;
-    storage_db_entry_index_t *entry_index = NULL;
-    storage_db_chunk_info_t *chunk_info = NULL;
-
     mget_command_context_t *mget_command_context = (mget_command_context_t*)protocol_context->command_context;
 
     if (mget_command_context->has_error) {
@@ -194,7 +189,8 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
     }
 
 
-    // QUI INIZIA LA MIA PROVA
+//    char *send_buffer = NULL;
+//    char *send_buffer, *send_buffer_start, *send_buffer_end;
     char send_buffer[512], *send_buffer_start, *send_buffer_end;
     size_t send_buffer_length;
 
@@ -205,15 +201,15 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
     send_buffer_start = protocol_redis_writer_write_array(
             send_buffer_start,
             send_buffer_end - send_buffer_start,
-            mget_command_context->keys_counter);
+            mget_command_context->entry_counter);
 
     if (send_buffer_start == NULL) {
         LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
         goto end;
     }
 
-    for(int i = 0; i < mget_command_context->keys_counter; i++) {
-        entry_index = mget_command_context->entries_index[i];
+    for(int i = 0; i < mget_command_context->entry_counter; i++) {
+        storage_db_entry_index_t *entry_index = mget_command_context->entries[i];
 
         if (likely(entry_index)) {
                 send_buffer_length = min(entry_index->value_length + 32, STORAGE_DB_CHUNK_MAX_SIZE);
@@ -228,7 +224,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
 
                 // Build the chunks for the value
                 for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value_chunks_count; chunk_index++) {
-                    chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
+                    storage_db_chunk_info_t *chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
                     res = storage_db_entry_chunk_read(
                             db,
                             chunk_info,
@@ -237,7 +233,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
                     if (!res) {
                         LOG_E(
                                 TAG,
-                                "[REDIS][GET] Critical error, unable to read chunk <%u> long <%u> bytes",
+                                "[REDIS][MGET] Critical error, unable to read chunk <%u> long <%u> bytes",
                                 chunk_index,
                                 chunk_info->chunk_length);
 
@@ -250,7 +246,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
                 // At this stage the entry index is not accessed further therefore the readers counter can be decreased. The
                 // entry_index has to be set to null to avoid that it's freed again at the end of the function
                 storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
-                mget_command_context->entries_index[i] = entry_index = NULL;
+                mget_command_context->entries[i] = entry_index = NULL;
 
                 send_buffer_start = protocol_redis_writer_write_argument_blob_end(
                         send_buffer_start,
@@ -291,7 +287,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(mget) {
     mget_command_context_t *mget_command_context = (mget_command_context_t*)protocol_context->command_context;
 
     slab_allocator_mem_free(mget_command_context->key);
-    slab_allocator_mem_free(mget_command_context->entries_index);
+    slab_allocator_mem_free(mget_command_context->entries);
     slab_allocator_mem_free(mget_command_context->keys);
 
     slab_allocator_mem_free(protocol_context->command_context);

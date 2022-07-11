@@ -181,6 +181,7 @@ enum network_protocol_redis_commands {
     NETWORK_PROTOCOL_REDIS_COMMAND_GET,
     NETWORK_PROTOCOL_REDIS_COMMAND_SET,
     NETWORK_PROTOCOL_REDIS_COMMAND_DEL,
+    NETWORK_PROTOCOL_REDIS_COMMAND_MGET,
 };
 typedef enum network_protocol_redis_commands network_protocol_redis_commands_t;
 
