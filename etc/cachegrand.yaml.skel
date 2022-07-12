@@ -85,12 +85,14 @@ network:
           # tls: false
         - host: 0.0.0.0
           port: 6380
-          tls: true
+          # To enable tls is necessary to uncomment the tls block above
+          # tls: true
         - host: "::"
           port: 6379
         - host: "::"
           port: 6380
-          tls: true
+          # To enable tls is necessary to uncomment the tls block above
+          # tls: true
 
 # Uncomment to enable prometheus support, more information available at
 # https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/prometheus.md
