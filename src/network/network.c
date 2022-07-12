@@ -49,7 +49,7 @@
 
 #include "network.h"
 
-#include "network/network_tls_internal.h"
+#include "network/network_tls_mbedtls.h"
 #include "network/network_tls.h"
 #include "network/channel/network_channel_tls.h"
 
@@ -115,7 +115,7 @@ network_op_result_t network_receive(
     }
 
     network_op_result_t res;
-    if (network_channel_tls_is_enabled(channel)) {
+    if (network_channel_tls_uses_mbedtls(channel)) {
         res = (int32_t)network_tls_receive_internal(
                 channel,
                 buffer_data,
@@ -137,14 +137,14 @@ network_op_result_t network_receive(
         worker_stats_t *stats = worker_stats_get();
         stats->network.per_minute.received_packets++;
         stats->network.total.received_packets++;
-        stats->network.per_minute.received_data += res;
-        stats->network.total.received_data += res;
+        stats->network.per_minute.received_data += received_length;
+        stats->network.total.received_data += received_length;
 
         LOG_D(
                 TAG,
-                "[FD:%5d][RECV] Received <%u> bytes from client <%s>",
+                "[FD:%5d][RECV] Received <%lu> bytes from client <%s>",
                 channel->fd,
-                res,
+                received_length,
                 channel->address.str);
     }
 
@@ -212,7 +212,7 @@ network_op_result_t network_send(
     size_t sent_length;
 
     network_op_result_t res;
-    if (network_channel_tls_is_enabled(channel)) {
+    if (network_channel_tls_uses_mbedtls(channel)) {
         res = (int32_t)network_tls_send_internal(
                 channel,
                 buffer,
@@ -292,7 +292,7 @@ network_op_result_t network_close(
         network_channel_t *channel,
         bool shutdown_may_fail) {
     network_op_result_t res;
-    if (network_channel_tls_is_enabled(channel)) {
+    if (network_channel_tls_uses_mbedtls(channel)) {
         res = network_tls_close_internal(
                 channel,
                 shutdown_may_fail);

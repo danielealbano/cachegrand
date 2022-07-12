@@ -1,5 +1,5 @@
-#ifndef CACHEGRAND_NETWORK_TLS_INTERNAL_H
-#define CACHEGRAND_NETWORK_TLS_INTERNAL_H
+#ifndef CACHEGRAND_NETWORK_TLS_MBEDTLS_H
+#define CACHEGRAND_NETWORK_TLS_MBEDTLS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,6 +28,9 @@ struct network_tls_config {
     mbedtls_pk_context server_key;
     int cipher_suites[];
 };
+
+bool network_tls_does_ulp_tls_support_mbedtls_cipher_suite(
+        mbedtls_cipher_type_t cipher_suite_id);
 
 int network_tls_min_version_config_to_mbed(
         config_network_protocol_tls_min_version_t version);
@@ -63,4 +66,4 @@ network_op_result_t network_tls_close_internal(
 }
 #endif
 
-#endif //CACHEGRAND_NETWORK_TLS_INTERNAL_H
+#endif //CACHEGRAND_NETWORK_TLS_MBEDTLS_H

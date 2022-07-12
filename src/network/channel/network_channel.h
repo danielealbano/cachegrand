@@ -65,6 +65,7 @@ struct network_channel {
     struct {
         bool enabled;
         bool ktls;
+        bool mbedtls;
         void *context;
         void *config;
     } tls;

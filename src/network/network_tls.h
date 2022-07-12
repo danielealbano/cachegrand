@@ -14,12 +14,12 @@ typedef struct network_tls_mbedtls_cipher_suite_info network_tls_mbedtls_cipher_
 struct network_tls_mbedtls_cipher_suite_info
 {
     const char *name;
-
+    bool offloading;
     config_network_protocol_tls_min_version_t min_version;
     config_network_protocol_tls_max_version_t max_version;
 };
 
-bool network_tls_is_ulp_supported_internal();
+bool network_tls_is_ulp_tls_supported_internal();
 
 int *network_tls_build_cipher_suites_from_names(
         char **cipher_suite_name,
@@ -49,10 +49,10 @@ char *network_tls_max_version_to_string(
 
 static bool tls_ulp_supported_fetched = false;
 static bool tls_ulp_supported = false;
-static inline bool network_tls_is_ulp_supported() {
+static inline bool network_tls_is_ulp_tls_supported() {
     if (tls_ulp_supported_fetched == false) {
         tls_ulp_supported_fetched = true;
-        tls_ulp_supported = network_tls_is_ulp_supported_internal();
+        tls_ulp_supported = network_tls_is_ulp_tls_supported_internal();
     }
 
     return tls_ulp_supported;

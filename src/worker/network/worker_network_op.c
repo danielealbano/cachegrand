@@ -47,7 +47,7 @@
 #include "support/simple_file_io.h"
 #include "fiber_scheduler.h"
 #include "network/network.h"
-#include "network/network_tls_internal.h"
+#include "network/network_tls_mbedtls.h"
 #include "network/network_tls.h"
 #include "network/channel/network_channel_tls.h"
 #include "protocol/redis/protocol_redis_reader.h"
@@ -284,8 +284,10 @@ void worker_network_new_client_fiber_entrypoint(
     worker_stats_t *stats = worker_stats_get();
 
     network_channel_t *new_channel = user_data;
+    bool tls_enabled = new_channel->tls.enabled;
 
     stats->network.total.active_connections++;
+    stats->network.total.active_tls_connections++;
 
     if (stats->network.total.active_connections > worker_context->config->network->max_clients) {
         LOG_W(
@@ -297,6 +299,11 @@ void worker_network_new_client_fiber_entrypoint(
 
     stats->network.total.accepted_connections++;
     stats->network.per_minute.accepted_connections++;
+
+    if (tls_enabled) {
+        stats->network.total.accepted_tls_connections++;
+        stats->network.per_minute.accepted_tls_connections++;
+    }
 
     // Should not access the listener_channel directly
     switch (new_channel->protocol) {
@@ -321,13 +328,17 @@ void worker_network_new_client_fiber_entrypoint(
 
 end:
 
-    // Close the connection
+    // TODO: when ti gets here new_channel might have been already freed, the flow should always close the connection
+    //       the connection here and not from within the module
     if (new_channel->status != NETWORK_CHANNEL_STATUS_CLOSED) {
         worker_op_network_close(new_channel, true);
     }
 
-    // Updates the worker stats
+    // Updates the amount of active connections
     stats->network.total.active_connections--;
+    if (tls_enabled) {
+        stats->network.total.active_tls_connections--;
+    }
 
     fiber_scheduler_terminate_current_fiber();
 }

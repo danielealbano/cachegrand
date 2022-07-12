@@ -336,24 +336,27 @@ void program_list_tls_available_cipher_suites() {
 
     fprintf(
             stdout,
-            "+-%.*s-+-%.11s-+-%.11s-+\n",
+            "+-%.*s-+-%.11s-+-%.11s-+-%.10s-+\n",
             (int)cipher_suite_longest_name_length,
+            "----------------------------------------------------------------------------------------------------",
             "----------------------------------------------------------------------------------------------------",
             "----------------------------------------------------------------------------------------------------",
             "----------------------------------------------------------------------------------------------------");
 
     fprintf(
             stdout,
-            "| %-*s | %11s | %11s |\n",
+            "| %-*s | %11s | %11s | %10s |\n",
             (int)cipher_suite_longest_name_length,
             "Cipher Suite",
             "Min Version",
-            "Max Version");
+            "Max Version",
+            "Offloading");
 
     fprintf(
             stdout,
-            "+-%.*s-+-%.11s-+-%.11s-+\n",
+            "+-%.*s-+-%.11s-+-%.11s-+-%.10s-+\n",
             (int)cipher_suite_longest_name_length,
+            "----------------------------------------------------------------------------------------------------",
             "----------------------------------------------------------------------------------------------------",
             "----------------------------------------------------------------------------------------------------",
             "----------------------------------------------------------------------------------------------------");
@@ -365,17 +368,19 @@ void program_list_tls_available_cipher_suites() {
             cipher_suite_info++) {
         fprintf(
                 stdout,
-                "| %-*s | %11s | %11s |\n",
+                "| %-*s | %11s | %11s | %10s |\n",
                 (int)cipher_suite_longest_name_length,
                 cipher_suite_info->name,
                 network_tls_min_version_to_string(cipher_suite_info->min_version),
-                network_tls_max_version_to_string(cipher_suite_info->max_version));
+                network_tls_max_version_to_string(cipher_suite_info->max_version),
+                cipher_suite_info->offloading ? "kTLS" : "");
     }
 
     fprintf(
             stdout,
-            "+-%.*s-+-%.11s-+-%.11s-+\n",
+            "+-%.*s-+-%.11s-+-%.11s-+-%.10s-+\n",
             (int)cipher_suite_longest_name_length,
+            "----------------------------------------------------------------------------------------------------",
             "----------------------------------------------------------------------------------------------------",
             "----------------------------------------------------------------------------------------------------",
             "----------------------------------------------------------------------------------------------------");
@@ -661,7 +666,13 @@ int program_main(
             TAG,
             "> TLS: %s (kernel offloading %s)",
             network_tls_mbedtls_version(),
-            network_tls_is_ulp_supported_internal() ? "enabled" : "disabled");
+            network_tls_is_ulp_tls_supported() ? "enabled" : "disabled");
+    if (!network_tls_is_ulp_tls_supported()) {
+        LOG_I(
+                TAG,
+                "       Try to load the tls kernel module with \"modprobe tls\" and restart %s",
+                CACHEGRAND_CMAKE_CONFIG_NAME);
+    }
 
     // Initialize the log sinks defined in the configuration, if any is defined. The function will take care of dropping
     // the temporary log sink defined initially

@@ -442,11 +442,10 @@ void* worker_thread_func(
             break;
         }
 
-        if (worker_stats_should_publish(&worker_context->stats.shared)) {
-            worker_stats_publish(
-                    &worker_context->stats.internal,
-                    &worker_context->stats.shared);
-        }
+        worker_stats_publish(
+                &worker_context->stats.internal,
+                &worker_context->stats.shared,
+                !worker_stats_should_publish_after_interval(&worker_context->stats.shared));
     } while(!worker_should_terminate(worker_context));
 
     aborted = false;

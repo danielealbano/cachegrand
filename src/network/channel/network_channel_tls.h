@@ -15,10 +15,23 @@ int network_channel_tls_receive_internal_mbed(
         unsigned char *buffer,
         size_t buffer_length);
 
+bool network_channel_tls_ktls_supports_mbedtls_cipher_suite(
+        network_channel_t *network_channel);
+
 bool network_channel_tls_init(
         network_channel_t *network_channel);
 
+void network_channel_tls_free(
+        network_channel_t *network_channel);
+
 bool network_channel_tls_handshake(
+        network_channel_t *network_channel);
+
+bool network_channel_tls_setup_ktls_tx_rx(
+        network_channel_t *network_channel,
+        int tx_or_rx);
+
+bool network_channel_tls_setup_ktls(
         network_channel_t *network_channel);
 
 void network_channel_tls_set_config(
@@ -40,6 +53,13 @@ void network_channel_tls_set_ktls(
         bool ktls);
 
 bool network_channel_tls_uses_ktls(
+        network_channel_t *network_channel);
+
+void network_channel_tls_set_mbedtls(
+        network_channel_t *network_channel,
+        bool mbedtls);
+
+bool network_channel_tls_uses_mbedtls(
         network_channel_t *network_channel);
 
 bool network_channel_tls_shutdown(

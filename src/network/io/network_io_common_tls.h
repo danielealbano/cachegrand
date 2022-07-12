@@ -18,6 +18,10 @@ union network_io_common_tls_crypto_info {
     tls12_crypto_info_chacha20_poly1305_t tls12_crypto_info_chacha20_poly1305;
 };
 
+bool network_io_common_tls_socket_set_ulp(
+        network_io_common_fd_t fd,
+        char *ulp);
+
 bool network_io_common_tls_socket_set_tls_rx(
         network_io_common_fd_t fd,
         network_io_common_tls_crypto_info_t *val,

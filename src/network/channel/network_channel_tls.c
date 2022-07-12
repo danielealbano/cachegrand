@@ -8,10 +8,14 @@
 #include <linux/tls.h>
 
 #include <mbedtls/aes.h>
+#include <mbedtls/chacha20.h>
+#include <mbedtls/chachapoly.h>
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/entropy.h>
 #include <mbedtls/error.h>
 #include <mbedtls/gcm.h>
+#include <mbedtls/ccm.h>
+#include <mbedtls/poly1305.h>
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/ssl_internal.h>
@@ -31,7 +35,7 @@
 #include "network/io/network_io_common_tls.h"
 #include "network/channel/network_channel.h"
 #include "network/network.h"
-#include "network/network_tls_internal.h"
+#include "network/network_tls_mbedtls.h"
 #include "network/network_tls.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
@@ -40,6 +44,13 @@
 #include "network_channel_tls.h"
 
 #define TAG "network_channel"
+
+void chacha20_u32_to_bytes_le(uint32_t v, uint8_t* out) {
+    out[0] = (uint8_t)(v);
+    out[1] = (uint8_t)(v >> 8);
+    out[2] = (uint8_t)(v >> 16);
+    out[3] = (uint8_t)(v >> 24);
+}
 
 int network_channel_tls_send_internal_mbed(
         void *context,
@@ -59,6 +70,17 @@ int network_channel_tls_receive_internal_mbed(
             context,
             (char *)buffer,
             buffer_length);
+}
+
+bool network_channel_tls_ktls_supports_mbedtls_cipher_suite(
+        network_channel_t *network_channel) {
+    mbedtls_ssl_context *ssl_context = network_channel->tls.context;
+
+    const mbedtls_ssl_ciphersuite_t *mbedtls_ssl_ciphersuite =
+            mbedtls_ssl_ciphersuite_from_id(ssl_context->session->ciphersuite);
+
+    return network_tls_does_ulp_tls_support_mbedtls_cipher_suite(
+            mbedtls_ssl_ciphersuite->cipher);
 }
 
 bool network_channel_tls_init(
@@ -128,73 +150,151 @@ bool network_channel_tls_handshake(
     return return_res;
 }
 
-bool network_channel_tls_is_ktls_supported_cipher() {
-    // TODO: not implemented
-    return false;
-}
-
 bool network_channel_tls_setup_ktls_tx_rx(
         network_channel_t *network_channel,
-        network_tls_config_t *network_tls_config,
         int tx_or_rx) {
-    uint8_t *salt, *iv,  *rec_seq;
-    mbedtls_gcm_context *gcm_context;
+    uint8_t *salt, *iv, *rec_seq;
+    void *cipher_context;
+    char chacha20_key[32] = { 0 };
+    char chacha20_nonce[12] = { 0 };
+    mbedtls_aes_context *aes_context;
+    mbedtls_chacha20_context *chacha20_context;
+    size_t crypto_info_length ;
 
+    network_io_common_tls_crypto_info_t crypto_info = { 0 };
     mbedtls_ssl_context *ssl_context = network_channel->tls.context;
-
-    // TODO: should actually check the encryption algorithm is AES and that it's using GCM
+    const mbedtls_ssl_ciphersuite_t *mbedtls_ssl_ciphersuite =
+            mbedtls_ssl_ciphersuite_from_id(ssl_context->session->ciphersuite);
 
     if (tx_or_rx == 0) {
-        salt = ssl_context->transform->iv_dec;
-        rec_seq = ssl_context->in_ctr;
-        gcm_context = ssl_context->transform->cipher_ctx_dec.cipher_ctx;
-    } else {
         salt = ssl_context->transform->iv_enc;
+        rec_seq = ssl_context->in_ctr;
+    } else {
+        salt = ssl_context->transform->iv_dec;
         rec_seq = ssl_context->cur_out_ctr;
-        gcm_context = ssl_context->transform->cipher_ctx_enc.cipher_ctx;
+    }
+    iv = salt + 4;
+
+    if (tx_or_rx == 0) {
+        cipher_context = ssl_context->transform->cipher_ctx_enc.cipher_ctx;
+    } else {
+        cipher_context = ssl_context->transform->cipher_ctx_dec.cipher_ctx;
     }
 
-    iv = salt + 4;
-    mbedtls_aes_context *aes_context = gcm_context->cipher_ctx.cipher_ctx;
+    if (
+            mbedtls_ssl_ciphersuite->cipher == MBEDTLS_CIPHER_AES_128_GCM ||
+            mbedtls_ssl_ciphersuite->cipher == MBEDTLS_CIPHER_AES_256_GCM) {
+        aes_context = ((mbedtls_gcm_context*)cipher_context)->cipher_ctx.cipher_ctx;
+    } else if (mbedtls_ssl_ciphersuite->cipher == MBEDTLS_CIPHER_AES_128_CCM) {
+        aes_context = ((mbedtls_ccm_context*)cipher_context)->cipher_ctx.cipher_ctx;
+    } else if (mbedtls_ssl_ciphersuite->cipher == MBEDTLS_CIPHER_CHACHA20_POLY1305) {
+        chacha20_context = &((mbedtls_chachapoly_context*)cipher_context)->chacha20_ctx;
+    }
 
-    // TODO: should be built dynamically based on the crypto algorithm available
-    network_io_common_tls_crypto_info_t crypto_info = { 0 };
-    crypto_info.tls12_crypto_info_aes_gcm_128.info.version = TLS_1_2_VERSION,
-    crypto_info.tls12_crypto_info_aes_gcm_128.info.cipher_type = TLS_CIPHER_AES_GCM_128;
-    memcpy(crypto_info.tls12_crypto_info_aes_gcm_128.iv, iv, TLS_CIPHER_AES_GCM_128_IV_SIZE);
-    memcpy(crypto_info.tls12_crypto_info_aes_gcm_128.rec_seq, rec_seq, TLS_CIPHER_AES_GCM_128_REC_SEQ_SIZE);
-    memcpy(crypto_info.tls12_crypto_info_aes_gcm_128.key, aes_context->rk, TLS_CIPHER_AES_GCM_128_KEY_SIZE);
-    memcpy(crypto_info.tls12_crypto_info_aes_gcm_128.salt, salt, TLS_CIPHER_AES_GCM_128_SALT_SIZE);
+    int tls_version =
+            ((mbedtls_ssl_ciphersuite->min_major_ver & 0xFF) << 8) +
+            (mbedtls_ssl_ciphersuite->min_major_ver & 0xFF);
+
+    switch(mbedtls_ssl_ciphersuite->cipher) {
+        case MBEDTLS_CIPHER_AES_128_GCM:
+            crypto_info.tls12_crypto_info_aes_gcm_128.info.version = tls_version,
+                    crypto_info.tls12_crypto_info_aes_gcm_128.info.cipher_type = TLS_CIPHER_AES_GCM_128;
+            memcpy(crypto_info.tls12_crypto_info_aes_gcm_128.iv, iv, TLS_CIPHER_AES_GCM_128_IV_SIZE);
+            memcpy(crypto_info.tls12_crypto_info_aes_gcm_128.rec_seq, rec_seq, TLS_CIPHER_AES_GCM_128_REC_SEQ_SIZE);
+            memcpy(crypto_info.tls12_crypto_info_aes_gcm_128.key, aes_context->rk, TLS_CIPHER_AES_GCM_128_KEY_SIZE);
+            memcpy(crypto_info.tls12_crypto_info_aes_gcm_128.salt, salt, TLS_CIPHER_AES_GCM_128_SALT_SIZE);
+            crypto_info_length = sizeof(crypto_info.tls12_crypto_info_aes_gcm_128);
+            break;
+
+        case MBEDTLS_CIPHER_AES_256_GCM:
+            crypto_info.tls12_crypto_info_aes_gcm_256.info.version = tls_version,
+                    crypto_info.tls12_crypto_info_aes_gcm_256.info.cipher_type = TLS_CIPHER_AES_GCM_256;
+            memcpy(crypto_info.tls12_crypto_info_aes_gcm_256.iv, iv, TLS_CIPHER_AES_GCM_256_IV_SIZE);
+            memcpy(crypto_info.tls12_crypto_info_aes_gcm_256.rec_seq, rec_seq, TLS_CIPHER_AES_GCM_256_REC_SEQ_SIZE);
+            memcpy(crypto_info.tls12_crypto_info_aes_gcm_256.key, aes_context->rk, TLS_CIPHER_AES_GCM_256_KEY_SIZE);
+            memcpy(crypto_info.tls12_crypto_info_aes_gcm_256.salt, salt, TLS_CIPHER_AES_GCM_256_SALT_SIZE);
+            crypto_info_length = sizeof(crypto_info.tls12_crypto_info_aes_gcm_256);
+            break;
+
+        case MBEDTLS_CIPHER_AES_128_CCM:
+            crypto_info.tls12_crypto_info_aes_ccm_128.info.version = tls_version,
+                    crypto_info.tls12_crypto_info_aes_ccm_128.info.cipher_type = TLS_CIPHER_AES_CCM_128;
+            memcpy(crypto_info.tls12_crypto_info_aes_ccm_128.iv, iv, TLS_CIPHER_AES_CCM_128_IV_SIZE);
+            memcpy(crypto_info.tls12_crypto_info_aes_ccm_128.rec_seq, rec_seq, TLS_CIPHER_AES_CCM_128_REC_SEQ_SIZE);
+            memcpy(crypto_info.tls12_crypto_info_aes_ccm_128.key, aes_context->rk, TLS_CIPHER_AES_CCM_128_KEY_SIZE);
+            memcpy(crypto_info.tls12_crypto_info_aes_ccm_128.salt, salt, TLS_CIPHER_AES_CCM_128_SALT_SIZE);
+            crypto_info_length = sizeof(crypto_info.tls12_crypto_info_aes_ccm_128);
+            break;
+
+        case MBEDTLS_CIPHER_CHACHA20_POLY1305:
+            // Fetch the iv from the state (8 uint32, 32 bytes)
+            for(int index = 0; index < 8; index++) {
+#if defined(__x86_64__)
+                chacha20_u32_to_bytes_le(
+                        chacha20_context->state[index + 4],
+                        (uint8_t *)chacha20_key + (index * sizeof(uint32_t)));
+#else
+#error architecture not supported
+#endif
+            }
+
+            // Fetch the iv from the state (3 uint32, 12 bytes)
+            for(int index = 0; index < 3; index++) {
+#if defined(__x86_64__)
+                chacha20_u32_to_bytes_le(
+                        chacha20_context->state[index + 13],
+                        (uint8_t *)chacha20_nonce + (index * sizeof(uint32_t)));
+#else
+#error architecture not supported
+#endif
+            }
+
+            crypto_info.tls12_crypto_info_chacha20_poly1305.info.version = tls_version,
+                    crypto_info.tls12_crypto_info_chacha20_poly1305.info.cipher_type = TLS_CIPHER_CHACHA20_POLY1305;
+            memcpy(crypto_info.tls12_crypto_info_chacha20_poly1305.iv, chacha20_nonce, TLS_CIPHER_CHACHA20_POLY1305_IV_SIZE);
+            memcpy(crypto_info.tls12_crypto_info_chacha20_poly1305.rec_seq, rec_seq, TLS_CIPHER_CHACHA20_POLY1305_REC_SEQ_SIZE);
+            memcpy(crypto_info.tls12_crypto_info_chacha20_poly1305.key, chacha20_key, TLS_CIPHER_CHACHA20_POLY1305_KEY_SIZE);
+            memcpy(crypto_info.tls12_crypto_info_chacha20_poly1305.salt, salt, TLS_CIPHER_CHACHA20_POLY1305_SALT_SIZE);
+            crypto_info_length = sizeof(crypto_info.tls12_crypto_info_chacha20_poly1305);
+            break;
+
+        default:
+            return false;
+    }
 
     if (tx_or_rx == 0) {
         return network_io_common_tls_socket_set_tls_tx(
                 network_channel->fd,
                 &crypto_info,
-                sizeof(crypto_info.tls12_crypto_info_aes_gcm_128));
+                crypto_info_length);
     } else {
         return network_io_common_tls_socket_set_tls_rx(
                 network_channel->fd,
                 &crypto_info,
-                sizeof(crypto_info.tls12_crypto_info_aes_gcm_128));
+                crypto_info_length);
     }
 }
 
 bool network_channel_tls_setup_ktls(
-        network_channel_t *network_channel,
-        network_tls_config_t *network_tls_config) {
-    if (!network_channel_tls_setup_ktls_tx_rx(
-            network_channel,
-            network_tls_config,
-            0)) {
-        LOG_V(TAG, "Failed to setup kTLS data transmission");
+        network_channel_t *network_channel) {
+    if (!network_io_common_tls_socket_set_ulp(
+            network_channel->fd,
+            "tls")) {
+        LOG_V(TAG, "Failed to setup kTLS, unable to set the ULP for the socket");
         return false;
     }
 
     if (!network_channel_tls_setup_ktls_tx_rx(
             network_channel,
-            network_tls_config,
+            0)) {
+        LOG_V(TAG, "Failed to setup kTLS, unable to setup the tx offloading");
+        return false;
+    }
+
+    if (!network_channel_tls_setup_ktls_tx_rx(
+            network_channel,
             1)) {
-        LOG_V(TAG, "Failed to setup kTLS data receival");
+        LOG_V(TAG, "Failed to setup kTLS, unable to setup the rx offloading");
         return false;
     }
 
@@ -234,6 +334,17 @@ bool network_channel_tls_uses_ktls(
     return network_channel->tls.ktls;
 }
 
+void network_channel_tls_set_mbedtls(
+        network_channel_t *network_channel,
+        bool mbedtls) {
+    network_channel->tls.mbedtls = mbedtls;
+}
+
+bool network_channel_tls_uses_mbedtls(
+        network_channel_t *network_channel) {
+    return network_channel->tls.mbedtls;
+}
+
 bool network_channel_tls_shutdown(
         network_channel_t *network_channel) {
     mbedtls_ssl_close_notify(network_channel->tls.context);
@@ -241,6 +352,12 @@ bool network_channel_tls_shutdown(
 
 void network_channel_tls_free(
         network_channel_t *network_channel) {
+    if (network_channel->tls.context == NULL) {
+        return;
+    }
+
     mbedtls_ssl_free(network_channel->tls.context);
+    slab_allocator_free(network_channel->tls.context);
+
     network_channel->tls.context = NULL;
 }

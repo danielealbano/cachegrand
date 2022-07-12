@@ -210,8 +210,13 @@ bool worker_iouring_cqe_is_error_any(
 
 bool worker_iouring_cqe_is_error(
         io_uring_cqe_t *cqe) {
+    // EPIPE, EIO, EBADMSG are not considered by default errors by the scheduler as these can be returned when kTLS is
+    // in use and the remote end point suddenly kills the connection without a proper shutdown.
     return
         cqe->res != -ETIME &&
+        cqe->res != -EPIPE &&
+        cqe->res != -EIO &&
+        cqe->res != -EBADMSG &&
         cqe->res != -ECONNRESET &&
         cqe->res != -EAGAIN &&
         cqe->res != -ECANCELED &&

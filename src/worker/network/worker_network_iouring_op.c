@@ -113,25 +113,6 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
         return NULL;
     }
 
-    if (!worker_iouring_fds_map_add_and_enqueue_files_update(
-            worker_iouring_context_get()->ring,
-            new_channel->fd,
-            &new_channel->has_mapped_fd,
-            &new_channel->base_sqe_flags,
-            &new_channel->wrapped_channel.fd)) {
-        LOG_E(
-                TAG,
-                "Can't accept the new connection <%s> coming from listener <%s>, unable to find a free fds slot",
-                new_channel->wrapped_channel.address.str,
-                listener_channel->wrapped_channel.address.str);
-
-        worker_network_iouring_op_network_close(
-                (network_channel_t *)new_channel,
-                true);
-
-        return NULL;
-    }
-
     if (listener_channel->wrapped_channel.tls.enabled) {
         network_channel_tls_set_config(
                 &new_channel->wrapped_channel,
@@ -171,8 +152,61 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
                 &new_channel->wrapped_channel,
                 true);
 
-        // TODO: this code should be moved into the io_uring interface as kTLS is specific for Linux and therefore
-        //       currently usable only via io_uring
+        if (!network_channel_tls_ktls_supports_mbedtls_cipher_suite(
+                &new_channel->wrapped_channel)) {
+            network_channel_tls_set_mbedtls(
+                    &new_channel->wrapped_channel,
+                    true);
+        } else {
+            LOG_D(
+                    TAG,
+                    "kTLS supports the cipher, it can be enabled for the connection <%s>, coming from listener <%s>",
+                    new_channel->wrapped_channel.address.str,
+                    listener_channel->wrapped_channel.address.str);
+            if (network_channel_tls_setup_ktls(&new_channel->wrapped_channel)) {
+                network_channel_tls_set_ktls(
+                        &new_channel->wrapped_channel,
+                        true);
+                network_channel_tls_set_mbedtls(
+                        &new_channel->wrapped_channel,
+                        false);
+
+                // If kTLS is enabled the mbedtls context can be freed up and tls can be set to disabled because from
+                // now on all the operations will be handled transparently
+                network_channel_tls_free(&new_channel->wrapped_channel);
+
+                LOG_D(
+                        TAG,
+                        "kTLS successfully enabled for connection <%s>, coming from listener <%s>",
+                        new_channel->wrapped_channel.address.str,
+                        listener_channel->wrapped_channel.address.str);
+            } else {
+                LOG_V(
+                        TAG,
+                        "Failed to enable kTLS for the connection <%s>, coming from listener <%s>",
+                        new_channel->wrapped_channel.address.str,
+                        listener_channel->wrapped_channel.address.str);
+            }
+        }
+    }
+
+    if (!worker_iouring_fds_map_add_and_enqueue_files_update(
+            worker_iouring_context_get()->ring,
+            new_channel->fd,
+            &new_channel->has_mapped_fd,
+            &new_channel->base_sqe_flags,
+            &new_channel->wrapped_channel.fd)) {
+        LOG_E(
+                TAG,
+                "Can't accept the new connection <%s> coming from listener <%s>, unable to find a free fds slot",
+                new_channel->wrapped_channel.address.str,
+                listener_channel->wrapped_channel.address.str);
+
+        worker_network_iouring_op_network_close(
+                (network_channel_t *)new_channel,
+                true);
+
+        return NULL;
     }
 
     return (network_channel_t*)new_channel;
@@ -232,7 +266,7 @@ bool worker_network_iouring_op_network_close(
     }
 
     worker_network_iouring_op_network_post_close(
-            (network_channel_iouring_t *)channel);
+            channel_iouring);
 
     return res;
 }
@@ -289,7 +323,12 @@ int32_t worker_network_iouring_op_network_receive(
         res = cqe->res;
     } while(res == -EAGAIN);
 
-    if (res < 0) {
+    // If kTLS is enabled, EPIPE, EIO or EBADMSG can be returned in case of a connection reset, we don't really want to
+    // spam the logs with these messages so res gets set to 0 to "pretend" the connection has been closed by the remote
+    // endpoint gracefully
+    if (channel->tls.ktls && (res == -EIO || res == -EBADMSG || res == -EPIPE)) {
+        res = 0;
+    } else if (res < 0) {
         fiber_scheduler_set_error(-res);
     }
 
@@ -348,7 +387,12 @@ int32_t worker_network_iouring_op_network_send(
         res = cqe->res;
     } while(res == -EAGAIN);
 
-    if (res < 0) {
+    // If kTLS is enabled, EIO or EBADMSG can be returned in case of a connection reset, we don't really want to spam
+    // the logs with these messages so res gets set to 0 to "pretend" the connection has been closed by the remote
+    // endpoint gracefully
+    if (channel->tls.ktls && (res == -EIO || res == -EBADMSG)) {
+        res = 0;
+    } else if (res < 0) {
         fiber_scheduler_set_error(-res);
     }
 

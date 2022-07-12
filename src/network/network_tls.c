@@ -9,15 +9,12 @@
 #include <arpa/inet.h>
 #include <linux/tls.h>
 
-#include <mbedtls/aes.h>
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/entropy.h>
 #include <mbedtls/error.h>
-#include <mbedtls/gcm.h>
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/ssl_internal.h>
-#include <mbedtls/md_internal.h>
 #include <mbedtls/version.h>
 
 #include "misc.h"
@@ -36,10 +33,39 @@
 #include "network/channel/network_channel.h"
 #include "network.h"
 
-#include "network_tls_internal.h"
+#include "network_tls_mbedtls.h"
 #include "network_tls.h"
 
 #define TAG "network_tls"
+
+bool network_tls_is_ulp_tls_supported_internal() {
+    char buffer[256] = { 0 };
+    if (simple_file_io_read(
+            NETWORK_TLS_PROC_SYS_NET_IPV4_TCP_AVAILABLE_ULP,
+            buffer,
+            sizeof(buffer))) {
+        if (strstr(buffer, "tls") != NULL) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool network_tls_does_ulp_tls_support_mbedtls_cipher_suite(
+        mbedtls_cipher_type_t cipher_type) {
+    // Should check the kernel version to ensure that if MBEDTLS_CIPHER_CHACHA20_POLY1305 is requested, at least a
+    // kernel version 5.11 is being used
+    switch(cipher_type) {
+        case MBEDTLS_CIPHER_AES_128_GCM:
+        case MBEDTLS_CIPHER_AES_256_GCM:
+        case MBEDTLS_CIPHER_AES_128_CCM:
+        case MBEDTLS_CIPHER_CHACHA20_POLY1305:
+            return true;
+        default:
+            return false;
+    }
+}
 
 int network_tls_min_version_config_to_mbed(
         config_network_protocol_tls_min_version_t version) {
@@ -92,25 +118,17 @@ int network_tls_max_version_config_to_mbed(
             res = MBEDTLS_SSL_MINOR_VERSION_4;
             break;
 #endif
+        case CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_ANY:
+#if defined(MBEDTLS_SSL_PROTO_TLS1_3)
+            res = MBEDTLS_SSL_MINOR_VERSION_4;
+            break;
+#else
+            res = MBEDTLS_SSL_MINOR_VERSION_3;
+#endif
     }
 
     return res;
 }
-
-bool network_tls_is_ulp_supported_internal() {
-    char buffer[256] = { 0 };
-    if (simple_file_io_read(
-            NETWORK_TLS_PROC_SYS_NET_IPV4_TCP_AVAILABLE_ULP,
-            buffer,
-            sizeof(buffer))) {
-        if (strstr(buffer, "tls") != NULL) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 
 bool network_tls_load_certificate(
         mbedtls_x509_crt *certificate,
@@ -146,7 +164,7 @@ int *network_tls_build_cipher_suites_from_names(
         return NULL;
     }
 
-    // There might be over allocation in case of invalid
+    // There might be over allocation in case of invalid cipher suites
     int *cipher_suites_ids = slab_allocator_mem_alloc_zero(sizeof(int) * (cipher_suites_names_count + 1));
 
     int cipher_suite_id_index = 0;
@@ -176,7 +194,13 @@ int *network_tls_build_cipher_suites_from_names(
         cipher_suite_id_index++;
     }
 
-    *cipher_suites_ids_size = sizeof(int) * cipher_suite_id_index;
+    // Check if all the ciphers specified are invalid
+    if (cipher_suite_id_index == 0) {
+        slab_allocator_mem_free(cipher_suites_ids);
+        return NULL;
+    }
+
+    *cipher_suites_ids_size = sizeof(int) * (cipher_suite_id_index + 1);
 
     return cipher_suites_ids;
 }
@@ -196,8 +220,13 @@ network_tls_config_t *network_tls_config_init(
         goto end;
     }
 
+    // Initialize everything here, if network_tls_config != NULL at the end, if there is a failure, it will invoke the
+    // free functions from mbedtls and therefore everything has to be init-ed already.
     mbedtls_entropy_init(&network_tls_config->entropy);
     mbedtls_ctr_drbg_init(&network_tls_config->ctr_drbg);
+    mbedtls_ssl_config_init(&network_tls_config->config);
+    mbedtls_x509_crt_init(&network_tls_config->server_cert);
+    mbedtls_pk_init(&network_tls_config->server_key);
 
     if (mbedtls_ctr_drbg_seed(
             &network_tls_config->ctr_drbg,
@@ -208,7 +237,6 @@ network_tls_config_t *network_tls_config_init(
         goto end;
     }
 
-    mbedtls_ssl_config_init(&network_tls_config->config);
     if (mbedtls_ssl_config_defaults(
             &network_tls_config->config,
             MBEDTLS_SSL_IS_SERVER,
@@ -222,14 +250,12 @@ network_tls_config_t *network_tls_config_init(
             mbedtls_ctr_drbg_random,
             &network_tls_config->ctr_drbg);
 
-    mbedtls_x509_crt_init(&network_tls_config->server_cert);
     if (!network_tls_load_certificate(
             &network_tls_config->server_cert,
             certificate_path)) {
         goto end;
     }
 
-    mbedtls_pk_init(&network_tls_config->server_key);
     if (!network_tls_load_private_key(
             &network_tls_config->server_key,
             private_key_path)) {
@@ -301,9 +327,12 @@ void network_tls_config_free(
         return;
     }
 
+    mbedtls_pk_free(&network_tls_config->server_key);
+    mbedtls_x509_crt_free(&network_tls_config->server_cert);
     mbedtls_ctr_drbg_free(&network_tls_config->ctr_drbg);
     mbedtls_entropy_free(&network_tls_config->entropy);
     mbedtls_ssl_config_free(&network_tls_config->config);
+
     slab_allocator_mem_free(network_tls_config);
 }
 
@@ -451,11 +480,11 @@ char* network_tls_mbedtls_version() {
 }
 
 network_tls_mbedtls_cipher_suite_info_t *network_tls_mbedtls_get_all_cipher_suites_info() {
-    int count;
+    int count, index;
     network_tls_mbedtls_cipher_suite_info_t *cipher_suites;
     const int *mbedtls_cipher_suites_ids = mbedtls_ssl_list_ciphersuites();
 
-    // Count the cipher suites supported by mbedtls to allocate the necessary memory
+    // Count the cipher suites supported by mbedtls that can be used to allocate the necessary memory
     count = 0;
     for(
             const int *mbedtls_cipher_suite_id = mbedtls_cipher_suites_ids;
@@ -476,11 +505,11 @@ network_tls_mbedtls_cipher_suite_info_t *network_tls_mbedtls_get_all_cipher_suit
 
     // Fills up the data to be returned
     cipher_suites = slab_allocator_mem_alloc_zero(sizeof(network_tls_mbedtls_cipher_suite_info_t) * (count + 1));
-    count = 0;
+    index = 0;
     for(
             const int *mbedtls_cipher_suite_id = mbedtls_cipher_suites_ids;
             *mbedtls_cipher_suite_id;
-            mbedtls_cipher_suite_id++ && count++) {
+            mbedtls_cipher_suite_id++ && index++) {
         const mbedtls_ssl_ciphersuite_t *mbedtls_ssl_ciphersuite =
                 mbedtls_ssl_ciphersuite_from_id(*mbedtls_cipher_suite_id);
 
@@ -492,28 +521,32 @@ network_tls_mbedtls_cipher_suite_info_t *network_tls_mbedtls_get_all_cipher_suit
         }
 
         // Copy the name
-        cipher_suites[count].name = mbedtls_ssl_ciphersuite->name;
+        cipher_suites[index].name = mbedtls_ssl_ciphersuite->name;
+
+        // Check if can use kernel offloading
+        cipher_suites[index].offloading =
+                network_tls_does_ulp_tls_support_mbedtls_cipher_suite(mbedtls_ssl_ciphersuite->cipher);
 
         // Set the min version for the cipher
         if (mbedtls_ssl_ciphersuite->min_minor_ver <= 1) {
-            cipher_suites[count].min_version = CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_0;
+            cipher_suites[index].min_version = CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_0;
         } else if (mbedtls_ssl_ciphersuite->min_minor_ver == 2) {
-            cipher_suites[count].min_version = CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_1;
+            cipher_suites[index].min_version = CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_1;
         } else if (mbedtls_ssl_ciphersuite->min_minor_ver == 3) {
-            cipher_suites[count].min_version = CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_2;
+            cipher_suites[index].min_version = CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_2;
         } else if (mbedtls_ssl_ciphersuite->min_minor_ver == 4) {
-            cipher_suites[count].min_version = CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_3;
+            cipher_suites[index].min_version = CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_3;
         }
 
         // Set the max version for the cipher
         if (mbedtls_ssl_ciphersuite->max_minor_ver == 1) {
-            cipher_suites[count].max_version = CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_0;
+            cipher_suites[index].max_version = CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_0;
         } else if (mbedtls_ssl_ciphersuite->max_minor_ver == 2) {
-            cipher_suites[count].max_version = CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_1;
+            cipher_suites[index].max_version = CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_1;
         } else if (mbedtls_ssl_ciphersuite->max_minor_ver == 3) {
-            cipher_suites[count].max_version = CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_2;
+            cipher_suites[index].max_version = CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_2;
         } else if (mbedtls_ssl_ciphersuite->max_minor_ver == 4) {
-            cipher_suites[count].max_version = CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_3;
+            cipher_suites[index].max_version = CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_3;
         }
     }
 
