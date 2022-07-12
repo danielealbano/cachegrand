@@ -20,11 +20,14 @@
 #include <pthread.h>
 #include <stdatomic.h>
 #include <sched.h>
-#include <openssl/bn.h>
 #include <numa.h>
+
+#include <mbedtls/bignum.h>
 
 #if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_CLFLUSHOPT == 1
 #include <immintrin.h>
+#include <unistd.h>
+
 #else
 #if CACHEGRAND_CMAKE_CONFIG_HOST_HAS_SSE42 == 1
 #include <emmintrin.h>
@@ -40,6 +43,7 @@
 #include "utils_cpu.h"
 #include "xalloc.h"
 #include "random.h"
+#include "support/simple_file_io.h"
 
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
@@ -370,117 +374,133 @@ static void* test_support_build_keys_random_random_length_thread_func(
     return 0;
 }
 
-static void* test_support_build_keys_repeatible_set_min_max_length_thread_func(
-        void *arg) {
-    uint64_t keys_generated = 0;
-    keyset_generator_thread_info_t* ti = (keyset_generator_thread_info_t*)arg;
-
-    // Pre-initialize the seed to always generate the same sequence of random numbers
-    random_init(ti->random_seed_base + ti->thread_num);
-
-    test_support_set_thread_affinity(ti->thread_num);
-    LOG_DI("[Thread <%u>] waiting for start_flag", ti->thread_num);
-
-    do {
-        MEMORY_FENCE_LOAD();
-    } while (*ti->start_flag == 0);
-
-    LOG_DI("[Thread <%u>] start_flag == 1", ti->thread_num);
-
-    BN_CTX* bn_ctx = BN_CTX_new();
-    BIGNUM* charset_size_big = BN_new();
-    BIGNUM* beginning_key_index_big = BN_new();
-    BIGNUM* beginning_key_length_big = BN_new();
-    BIGNUM* ending_key_index_big = BN_new();
-    BIGNUM* ending_key_length_big = BN_new();
-
-    BN_set_word(charset_size_big, strlen(ti->charset_list));
-    BN_set_word(beginning_key_index_big, 0);
-    BN_set_word(beginning_key_length_big, TEST_SUPPORT_RANDOM_KEYS_MIN_LENGTH);
-    BN_set_word(ending_key_length_big, TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH);
-    BN_exp(ending_key_index_big, charset_size_big, ending_key_length_big, bn_ctx);
-    BN_sub_word(ending_key_index_big, 1);
-
-    for (uint64_t i = ti->start; i < ti->end; i++) {
-        keys_generated++;
-        char* keys_current = ti->keyset + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
-
-        bool is_key_from_beginning_of_set = (i & 0x01u) == 0;
-
-        BIGNUM* key_length_big = is_key_from_beginning_of_set ? beginning_key_length_big : ending_key_length_big;
-        BIGNUM* key_index_big = is_key_from_beginning_of_set ? beginning_key_index_big : ending_key_index_big;
-
-        uint32_t key_length = BN_get_word(key_length_big);
-
-        for (uint32_t key_char_index = 0; key_char_index < key_length; key_char_index++) {
-            uint32_t charset_index = 0;
-            uint32_t pos_from_end = (key_length - key_char_index) - 1;
-
-            BIGNUM* pos_from_end_big = BN_new();
-            BIGNUM* divisor_big = BN_new();
-            BIGNUM* value_to_mod_big = BN_new();
-            BIGNUM* charset_index_big = BN_new();
-
-            BN_set_word(pos_from_end_big, pos_from_end);
-
-            if (pos_from_end == 0) {
-                BN_set_word(divisor_big, 1);
-            } else {
-                BN_exp(divisor_big, charset_size_big, pos_from_end_big, bn_ctx);
-            }
-
-            BN_div(value_to_mod_big, NULL, key_index_big, divisor_big, bn_ctx);
-            BN_mod(charset_index_big, value_to_mod_big, charset_size_big, bn_ctx);
-            charset_index = BN_get_word(charset_index_big);
-
-            *keys_current = ti->charset_list[charset_index];
-            keys_current++;
-
-            BN_free(divisor_big);
-            BN_free(pos_from_end_big);
-            BN_free(value_to_mod_big);
-            BN_free(charset_index_big);
-        }
-
-        *keys_current = 0;
-
-        if (is_key_from_beginning_of_set) {
-            BIGNUM* current_keyset_max_index_big = BN_new();
-            BN_exp(current_keyset_max_index_big, charset_size_big, key_length_big, bn_ctx);
-
-            BN_add_word(beginning_key_index_big, 1);
-            if (BN_cmp(beginning_key_index_big, current_keyset_max_index_big) >= 0) {
-                BN_set_word(beginning_key_index_big, 0);
-                BN_add_word(beginning_key_length_big, 1);
-            }
-
-            BN_free(current_keyset_max_index_big);
-        } else {
-            if (BN_is_one(ending_key_index_big) == 1) {
-                BN_sub_word(ending_key_length_big, 1);
-                BN_exp(ending_key_index_big, charset_size_big, ending_key_length_big, bn_ctx);
-            } else {
-                BN_sub_word(ending_key_index_big, 1);
-            }
-        }
-
-        if (BN_cmp(beginning_key_length_big, ending_key_length_big) == 0) {
-            assert(false);
-        }
-    }
-
-    BN_free(charset_size_big);
-    BN_free(beginning_key_index_big);
-    BN_free(beginning_key_length_big);
-    BN_free(ending_key_index_big);
-    BN_free(ending_key_length_big);
-
-    BN_CTX_free(bn_ctx);
-
-    LOG_DI("[Thread <%u>] key generation completed, generated <%lu> keys", ti->thread_num, keys_generated);
-
-    return 0;
-}
+//
+// The implementation needs to be re-written for mbedssl, can't do a straight conversion
+//
+//static void* test_support_build_keys_repeatible_set_min_max_length_thread_func(
+//        void *arg) {
+//    uint64_t keys_generated = 0;
+//    keyset_generator_thread_info_t* ti = (keyset_generator_thread_info_t*)arg;
+//
+//    // Pre-initialize the seed to always generate the same sequence of random numbers
+//    random_init(ti->random_seed_base + ti->thread_num);
+//
+//    test_support_set_thread_affinity(ti->thread_num);
+//    LOG_DI("[Thread <%u>] waiting for start_flag", ti->thread_num);
+//
+//    do {
+//        MEMORY_FENCE_LOAD();
+//    } while (*ti->start_flag == 0);
+//
+//    LOG_DI("[Thread <%u>] start_flag == 1", ti->thread_num);
+//
+//    mbedtls_mpi charset_size_big, beginning_key_index_big, beginning_key_length_big, ending_key_index_big,
+//        ending_key_length_big;
+//    mbedtls_mpi_init(&charset_size_big);
+//    mbedtls_mpi_init(&beginning_key_index_big);
+//    mbedtls_mpi_init(&beginning_key_length_big);
+//    mbedtls_mpi_init(&ending_key_index_big);
+//    mbedtls_mpi_init(&ending_key_length_big);
+//
+//    mbedtls_mpi_lset(&charset_size_big, (long)strlen(ti->charset_list));
+//    mbedtls_mpi_lset(&beginning_key_index_big, 0);
+//    mbedtls_mpi_lset(&beginning_key_length_big, TEST_SUPPORT_RANDOM_KEYS_MIN_LENGTH);
+//    mbedtls_mpi_lset(&ending_key_length_big, TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH);
+//
+//    mbedtls_mpi_copy(&ending_key_index_big, &charset_size_big);
+//    for(int index = 1; index < TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH; index++) {
+//        mbedtls_mpi_mul_mpi(&ending_key_index_big, &ending_key_index_big, &charset_size_big);
+//    }
+//    mbedtls_mpi_sub_int(&ending_key_index_big, &ending_key_index_big, 1);
+//
+//    for (uint64_t i = ti->start; i < ti->end; i++) {
+//        keys_generated++;
+//        char* keys_current = ti->keyset + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
+//
+//        bool is_key_from_beginning_of_set = (i & 0x01u) == 0;
+//
+//        mbedtls_mpi *key_length_big = is_key_from_beginning_of_set ? &beginning_key_length_big : &ending_key_length_big;
+//        mbedtls_mpi *key_index_big = is_key_from_beginning_of_set ? &beginning_key_index_big : &ending_key_index_big;
+//
+//        // TERRIBLE to see but the implementation was using OpenSSL and mbedtls doesn't have an helper to convert a
+//        // bignum directly to integer. This implementation in general should be DRAMMATICALLY simplified!
+//        char key_length_char_buffer[128] = { 0 };
+//        mbedtls_mpi_read_string(key_length_big, 10, key_length_char_buffer);
+//        uint32_t key_length = atol(key_length_char_buffer);
+//
+//        for (uint32_t key_char_index = 0; key_char_index < key_length; key_char_index++) {
+//            uint32_t charset_index = 0;
+//            uint32_t pos_from_end = (key_length - key_char_index) - 1;
+//
+//
+//            mbedtls_mpi pos_from_end_big, divisor_big, value_to_mod_big, charset_index_big;
+//            mbedtls_mpi_init(&pos_from_end_big);
+//            mbedtls_mpi_init(&divisor_big);
+//            mbedtls_mpi_init(&value_to_mod_big);
+//            mbedtls_mpi_init(&charset_index_big);
+//
+//            mbedtls_mpi_lset(&pos_from_end_big, pos_from_end);
+//
+//            if (pos_from_end == 0) {
+//                mbedtls_mpi_lset(&divisor_big, 1);
+//            } else {
+//                BN_exp(divisor_big, charset_size_big, pos_from_end_big);
+//            }
+//
+//            mbedtls_mpi_div_mpi(&value_to_mod_big, NULL, key_index_big, &divisor_big);
+//            mbedtls_mpi_mod_mpi(&charset_index_big, &value_to_mod_big, &charset_size_big);
+//
+//            char charset_index_char_buffer[128] = { 0 };
+//            mbedtls_mpi_read_string(&charset_index_big, 10, charset_index_char_buffer);
+//            charset_index = atol(charset_index_char_buffer);
+//
+//            *keys_current = ti->charset_list[charset_index];
+//            keys_current++;
+//
+//            mbedtls_mpi_free(&divisor_big);
+//            mbedtls_mpi_free(&pos_from_end_big);
+//            mbedtls_mpi_free(&value_to_mod_big);
+//            mbedtls_mpi_free(&charset_index_big);
+//        }
+//
+//        *keys_current = 0;
+//
+//        if (is_key_from_beginning_of_set) {
+//            mbedtls_mpi current_keyset_max_index_big;
+//            mbedtls_mpi_init(&current_keyset_max_index_big);
+//            BN_exp(current_keyset_max_index_big, charset_size_big, key_length_big);
+//
+//            mbedtls_mpi_add_int(&beginning_key_index_big, &beginning_key_index_big, 1);
+//            if (mbedtls_mpi_cmp_mpi(&beginning_key_index_big, &current_keyset_max_index_big) >= 0) {
+//                mbedtls_mpi_lset(&beginning_key_index_big, 0);
+//                mbedtls_mpi_add_int(&beginning_key_length_big, &beginning_key_length_big, 1);
+//            }
+//
+//            mbedtls_mpi_free(&current_keyset_max_index_big);
+//        } else {
+//            if (mbedtls_mpi_cmp_int(&ending_key_index_big, 1) == 0) {
+//                mbedtls_mpi_sub_int(&ending_key_length_big, &ending_key_length_big, 1);
+//                BN_exp(ending_key_index_big, charset_size_big, ending_key_length_big);
+//            } else {
+//                mbedtls_mpi_sub_int(&ending_key_index_big, &ending_key_index_big, 1);
+//            }
+//        }
+//
+//        if (mbedtls_mpi_cmp_mpi(&beginning_key_length_big, &ending_key_length_big) == 0) {
+//            assert(false);
+//        }
+//    }
+//
+//    mbedtls_mpi_free(&charset_size_big);
+//    mbedtls_mpi_free(&beginning_key_index_big);
+//    mbedtls_mpi_free(&beginning_key_length_big);
+//    mbedtls_mpi_free(&ending_key_index_big);
+//    mbedtls_mpi_free(&ending_key_length_big);
+//
+//    LOG_DI("[Thread <%u>] key generation completed, generated <%lu> keys", ti->thread_num, keys_generated);
+//
+//    return 0;
+//}
 
 void test_support_free_keys(
         char* keys,
@@ -525,13 +545,13 @@ char* test_support_init_keys(
             memcpy(charset_list, charset_list_repeated, charset_size);
             break;
 
-        case TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_REPETIBLE_STR_ALTERNATEMINMAX_LENGTH:
-            keyset_generator_fp = test_support_build_keys_repeatible_set_min_max_length_thread_func;
-            charset_size = TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_UNIQUE_SIZE;
-            charset_list = (char*)malloc(charset_size);
-            memset(charset_list, 0, charset_size);
-            memcpy(charset_list, charset_list_unique, charset_size);
-            break;
+//        case TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_REPETIBLE_STR_ALTERNATEMINMAX_LENGTH:
+//            keyset_generator_fp = test_support_build_keys_repeatible_set_min_max_length_thread_func;
+//            charset_size = TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_UNIQUE_SIZE;
+//            charset_list = (char*)malloc(charset_size);
+//            memset(charset_list, 0, charset_size);
+//            memcpy(charset_list, charset_list_unique, charset_size);
+//            break;
     }
 
     keyset = (char*) xalloc_mmap_alloc(keyset_size * TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL);
@@ -657,4 +677,39 @@ void test_support_flush_data_cache(
     }
 
     MEMORY_FENCE_LOAD_STORE();
+}
+
+bool test_support_fixture_file_from_data_create(
+        char* path,
+        int path_suffix_len,
+        const char* data,
+        size_t data_len) {
+    close(mkstemps(path, path_suffix_len));
+
+    FILE* fp = fopen(path, "w");
+    if (fp == NULL) {
+        return false;
+    }
+
+    size_t res;
+    if ((res = fwrite(data, 1, data_len, fp)) != data_len) {
+        fclose(fp);
+        unlink(path);
+        return false;
+    }
+
+    if (fflush(fp) != 0) {
+        fclose(fp);
+        unlink(path);
+        return false;
+    }
+
+    fclose(fp);
+
+    return true;
+}
+
+void test_support_fixture_file_from_data_cleanup(
+        const char* path) {
+    unlink(path);
 }

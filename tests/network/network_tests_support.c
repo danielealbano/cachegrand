@@ -30,7 +30,7 @@ uint16_t network_tests_support_search_free_port_ipv4(
     assert(start_port < UINT16_MAX - 1000);
 
     bool found = false;
-    for(port = start_port; port < start_port + 1000 && !found; port++) {
+    for(port = start_port; port < start_port + 1000; port++) {
         address.sin_port = htons(port);
 
         int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -39,7 +39,9 @@ uint16_t network_tests_support_search_free_port_ipv4(
             LOG_DI("Unable to bind ipv4 socket because: %s!", strerror(errno));
         } else {
             found = true;
+            break;
         }
+
         close(fd);
     }
 
