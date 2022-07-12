@@ -55,7 +55,21 @@ network:
       #
       #   # Optional parameter to set the allowed cipher suites, list the available ones with using
       #   # /path/to/cachegrand-server --list-tls-cipher-suites
-      #   cipher_suites: [ ]
+      #   # The default list enables the ciphers supported by kTLS to allow the kernel offloading, other cipher suites
+      #   # are not supporte by kTLS.
+      #   cipher_suites:
+      #     - TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384
+      #     - TLS-DHE-RSA-WITH-AES-256-GCM-SHA384
+      #     - TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256
+      #     - TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
+      #     - TLS-DHE-RSA-WITH-AES-128-CCM
+      #     - TLS-DHE-RSA-WITH-AES-128-CCM-8
+      #     - TLS-RSA-WITH-AES-256-GCM-SHA384
+      #     - TLS-RSA-WITH-AES-128-GCM-SHA256
+      #     - TLS-RSA-WITH-AES-128-CCM
+      #     - TLS-RSA-WITH-AES-128-CCM-8
+      #     - TLS-ECDHE-RSA-WITH-CHACHA20-POLY1305-SHA256
+      #     - TLS-DHE-RSA-WITH-CHACHA20-POLY1305-SHA256
 
       # Redis specific settings
       redis:
