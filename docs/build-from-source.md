@@ -22,7 +22,7 @@ Example output
 | libyaml    | \>= 1.1      | **mandatory** |
 | openssl    | \>= 2.0      | **mandatory** |
 | curl       | \>= 7.0      | **mandatory** |
-| libmbedtls |              | **mandatory** |
+| libmbedtls | \>= 2.28     | **mandatory** |
 
 ## Install the required packages
 
@@ -30,18 +30,20 @@ Example output
 
 ```shell
 sudo apt install \
-    build-essential cmake pkg-config git  libssl3 libssl-dev \
-    libnuma1 libnuma-dev  libcurl4-openssl-dev libcurl4 \
+    build-essential cmake pkg-config git \
+    libnuma1 libnuma-dev \
+    libcurl4-openssl-dev libcurl4 \
     libyaml-0-2 libyaml-dev \
-    libmbedtls-dev libmbedtls12
+    libmbedtls-dev libmbedtls14
 ```
 
 ### Ubuntu 20.04
 
 ```shell
 sudo apt install \
-    build-essential cmake pkg-config git  libssl1.1 libssl-dev \
-    libnuma1 libnuma-dev  libcurl4-openssl-dev libcurl4 \
+    build-essential cmake pkg-config git \
+    libnuma1 libnuma-dev \
+    libcurl4-openssl-dev libcurl4 \
     libyaml-0-2 libyaml-dev \
     libmbedtls-dev libmbedtls12
 ```
@@ -50,8 +52,9 @@ sudo apt install \
 
 ```shell
 sudo apt install \
-    build-essential cmake pkg-config git  libssl1.1 libssl-dev \
-    libnuma1 libnuma-dev  libcurl4-openssl-dev libcurl4 \
+    build-essential cmake pkg-config git \
+    libnuma1 libnuma-dev \
+    libcurl4-openssl-dev libcurl4 \
     libyaml-0-2 libyaml-dev \
     libmbedtls-dev libmbedtls12
 ```
@@ -64,7 +67,8 @@ sudo dnf install \
     openssl-libs openssl-devel \
     numactl-libs numactl-devel \
     libcurl libcurl-devel \
-    libyaml libyaml-devel
+    libyaml libyaml-devel \
+    mbedtls mbedtls-devel
 ```
 
 ## How to build it
