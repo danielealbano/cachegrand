@@ -67,7 +67,7 @@ void config_internal_cyaml_log(
     }
 
     // Counts how many new lines / carriage return are at the end of the log message
-    while(fmt[fmt_len - 1] == 0x0a || fmt[fmt_len - 1] == 0x0c) {
+    while(fmt[fmt_len - 1] == '\r' || fmt[fmt_len - 1] == '\n') {
         fmt_len -= 1;
         fmt_has_newline = true;
     }
