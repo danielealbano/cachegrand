@@ -45,20 +45,22 @@ TEST_CASE("network/io/network_io_common_tls.c", "[network][network_io][network_i
     listener_address.sin_addr.s_addr = loopback_ipv4.s_addr;
 
     REQUIRE(listener_fd > 0);
+    REQUIRE(network_io_common_socket_set_linger(listener_fd, false, 0));
+    REQUIRE(network_io_common_socket_set_reuse_port(listener_fd, true));
     REQUIRE(network_io_common_socket_bind(
             listener_fd,
             (struct sockaddr*)&listener_address, sizeof(listener_address)));
-    REQUIRE(network_io_common_socket_set_linger(listener_fd, false, 0));
-    REQUIRE(network_io_common_socket_set_reuse_port(listener_fd, true));
     REQUIRE(network_io_common_socket_listen(listener_fd, 10));
 
     client_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    REQUIRE(network_io_common_socket_set_linger(client_fd, true, 0));
     client_address.sin_family = AF_INET;
     client_address.sin_port = htons(socket_port_free_ipv4);
     client_address.sin_addr.s_addr = loopback_ipv4.s_addr;
     REQUIRE(connect(client_fd, (sockaddr*)&client_address, sizeof(client_address)) != -1);
 
     server_fd = accept(listener_fd, NULL, NULL);
+    REQUIRE(network_io_common_socket_set_linger(server_fd, true, 0));
 
     SECTION("network_io_common_tls_socket_set_ulp") {
         if (network_tls_is_ulp_tls_supported()) {
