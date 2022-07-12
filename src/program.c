@@ -659,8 +659,9 @@ int program_main(
                "crc32c"));
     LOG_I(
             TAG,
-            "> TLS: %s",
-            network_tls_mbedtls_version());
+            "> TLS: %s (kernel offloading %s)",
+            network_tls_mbedtls_version(),
+            network_tls_is_ulp_supported_internal() ? "enabled" : "disabled");
 
     // Initialize the log sinks defined in the configuration, if any is defined. The function will take care of dropping
     // the temporary log sink defined initially
