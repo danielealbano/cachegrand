@@ -304,8 +304,6 @@ void network_tls_config_free(
     mbedtls_ctr_drbg_free(&network_tls_config->ctr_drbg);
     mbedtls_entropy_free(&network_tls_config->entropy);
     mbedtls_ssl_config_free(&network_tls_config->config);
-
-    slab_allocator_mem_free(network_tls_config->cipher_suites);
     slab_allocator_mem_free(network_tls_config);
 }
 
