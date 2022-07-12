@@ -282,7 +282,9 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
         REQUIRE(network_tls_does_ulp_tls_support_mbedtls_cipher_suite(MBEDTLS_CIPHER_AES_128_GCM));
         REQUIRE(network_tls_does_ulp_tls_support_mbedtls_cipher_suite(MBEDTLS_CIPHER_AES_256_GCM));
         REQUIRE(network_tls_does_ulp_tls_support_mbedtls_cipher_suite(MBEDTLS_CIPHER_AES_128_CCM));
+#if defined(TLS_CIPHER_CHACHA20_POLY1305)
         REQUIRE(network_tls_does_ulp_tls_support_mbedtls_cipher_suite(MBEDTLS_CIPHER_CHACHA20_POLY1305));
+#endif
     }
 
     SECTION("network_tls_min_version_config_to_mbed") {

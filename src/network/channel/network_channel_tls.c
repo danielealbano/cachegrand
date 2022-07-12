@@ -187,8 +187,10 @@ bool network_channel_tls_setup_ktls_tx_rx(
         aes_context = ((mbedtls_gcm_context*)cipher_context)->cipher_ctx.cipher_ctx;
     } else if (mbedtls_ssl_ciphersuite->cipher == MBEDTLS_CIPHER_AES_128_CCM) {
         aes_context = ((mbedtls_ccm_context*)cipher_context)->cipher_ctx.cipher_ctx;
+#if defined(TLS_CIPHER_CHACHA20_POLY1305)
     } else if (mbedtls_ssl_ciphersuite->cipher == MBEDTLS_CIPHER_CHACHA20_POLY1305) {
         chacha20_context = &((mbedtls_chachapoly_context*)cipher_context)->chacha20_ctx;
+#endif
     }
 
     int tls_version =
@@ -226,6 +228,7 @@ bool network_channel_tls_setup_ktls_tx_rx(
             crypto_info_length = sizeof(crypto_info.tls12_crypto_info_aes_ccm_128);
             break;
 
+#if defined(TLS_CIPHER_CHACHA20_POLY1305)
         case MBEDTLS_CIPHER_CHACHA20_POLY1305:
             // Fetch the iv from the state (8 uint32, 32 bytes)
             for(int index = 0; index < 8; index++) {
@@ -257,6 +260,7 @@ bool network_channel_tls_setup_ktls_tx_rx(
             memcpy(crypto_info.tls12_crypto_info_chacha20_poly1305.salt, salt, TLS_CIPHER_CHACHA20_POLY1305_SALT_SIZE);
             crypto_info_length = sizeof(crypto_info.tls12_crypto_info_chacha20_poly1305);
             break;
+#endif
 
         default:
             return false;

@@ -60,7 +60,9 @@ bool network_tls_does_ulp_tls_support_mbedtls_cipher_suite(
         case MBEDTLS_CIPHER_AES_128_GCM:
         case MBEDTLS_CIPHER_AES_256_GCM:
         case MBEDTLS_CIPHER_AES_128_CCM:
+#if defined(TLS_CIPHER_CHACHA20_POLY1305)
         case MBEDTLS_CIPHER_CHACHA20_POLY1305:
+#endif
             return true;
         default:
             return false;
