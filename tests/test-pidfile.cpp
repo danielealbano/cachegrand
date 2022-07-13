@@ -156,23 +156,29 @@ TEST_CASE("pidfile.c", "[pidfile]") {
     }
 
     SECTION("pidfile_create") {
-        struct flock lock = { 0 };
+        SECTION("valid path") {
+            struct flock lock = { 0 };
 
-        REQUIRE(pidfile_create(fixture_temp_path));
-        REQUIRE(pidfile_fd > -1);
-        REQUIRE(pidfile_owned == true);
+            REQUIRE(pidfile_create(fixture_temp_path));
+            REQUIRE(pidfile_fd > -1);
+            REQUIRE(pidfile_owned == true);
 
-        REQUIRE(test_pidfile_get_fnctl_lock(fixture_temp_path, &lock));
-        REQUIRE(lock.l_start == 0);
-        REQUIRE(lock.l_len == 0);
-        REQUIRE(lock.l_pid == getpid());
-        REQUIRE(lock.l_type == F_WRLCK);
+            REQUIRE(test_pidfile_get_fnctl_lock(fixture_temp_path, &lock));
+            REQUIRE(lock.l_start == 0);
+            REQUIRE(lock.l_len == 0);
+            REQUIRE(lock.l_pid == getpid());
+            REQUIRE(lock.l_type == F_WRLCK);
 
-        int flags = fcntl(pidfile_fd, F_GETFD);
-        REQUIRE(flags != -1);
-        REQUIRE((flags & FD_CLOEXEC) == FD_CLOEXEC);
+            int flags = fcntl(pidfile_fd, F_GETFD);
+            REQUIRE(flags != -1);
+            REQUIRE((flags & FD_CLOEXEC) == FD_CLOEXEC);
 
-        REQUIRE(simple_file_io_read_uint32_return(fixture_temp_path) == (long)getpid());
+            REQUIRE(simple_file_io_read_uint32_return(fixture_temp_path) == (long)getpid());
+        }
+
+        SECTION("invalid path") {
+            REQUIRE_FALSE(pidfile_create("/tmp/this/is/a/non/existant/path"));
+        }
     }
 
     SECTION("pidfile_is_owned") {

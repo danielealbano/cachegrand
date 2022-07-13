@@ -41,29 +41,52 @@ typedef struct worker_context worker_context_t;
 #include "worker_context.h"
 
 void worker_stats_publish(
-        worker_stats_t* worker_stats_new,
-        worker_stats_volatile_t* worker_stats_public) {
-    clock_realtime(&worker_stats_new->last_update_timestamp);
+        worker_stats_t* worker_stats_internal,
+        worker_stats_volatile_t* worker_stats_public,
+        bool only_total) {
+    clock_realtime((timespec_t *)&worker_stats_public->total_last_update_timestamp);
 
-    worker_stats_public->started_on_timestamp.tv_nsec = worker_stats_new->started_on_timestamp.tv_nsec;
-    worker_stats_public->started_on_timestamp.tv_sec = worker_stats_new->started_on_timestamp.tv_sec;
-    worker_stats_public->last_update_timestamp.tv_nsec = worker_stats_new->last_update_timestamp.tv_nsec;
-    worker_stats_public->last_update_timestamp.tv_sec = worker_stats_new->last_update_timestamp.tv_sec;
+    worker_stats_public->started_on_timestamp.tv_nsec = worker_stats_internal->started_on_timestamp.tv_nsec;
+    worker_stats_public->started_on_timestamp.tv_sec = worker_stats_internal->started_on_timestamp.tv_sec;
 
-    memcpy((void*)&worker_stats_public->network, &worker_stats_new->network, sizeof(worker_stats_public->network));
-    memcpy((void*)&worker_stats_public->storage, &worker_stats_new->storage, sizeof(worker_stats_public->storage));
+    if (only_total) {
+        memcpy(
+                (void*)&worker_stats_public->network.total,
+                &worker_stats_internal->network.total,
+                sizeof(worker_stats_public->network.total));
+        memcpy(
+                (void*)&worker_stats_public->storage.total,
+                &worker_stats_internal->storage.total,
+                sizeof(worker_stats_public->storage.total));
+    } else {
+        worker_stats_public->per_minute_last_update_timestamp.tv_nsec =
+                worker_stats_public->total_last_update_timestamp.tv_nsec;
+        worker_stats_public->per_minute_last_update_timestamp.tv_sec =
+                worker_stats_public->total_last_update_timestamp.tv_sec;
 
-    memset(&worker_stats_new->network.per_minute, 0, sizeof(worker_stats_new->network.per_minute));
-    memset(&worker_stats_new->storage.per_minute, 0, sizeof(worker_stats_new->storage.per_minute));
+        memcpy(
+                (void*)&worker_stats_public->network,
+                &worker_stats_internal->network,
+                sizeof(worker_stats_public->network));
+        memcpy(
+                (void*)&worker_stats_public->storage,
+                &worker_stats_internal->storage,
+                sizeof(worker_stats_public->storage));
+
+        memset(&worker_stats_internal->network.per_minute, 0, sizeof(worker_stats_internal->network.per_minute));
+        memset(&worker_stats_internal->storage.per_minute, 0, sizeof(worker_stats_internal->storage.per_minute));
+    }
 }
 
-bool worker_stats_should_publish(
+bool worker_stats_should_publish_after_interval(
         worker_stats_volatile_t* worker_stats_public) {
     struct timespec last_update_timestamp;
 
     clock_realtime(&last_update_timestamp);
 
-    return last_update_timestamp.tv_sec >= worker_stats_public->last_update_timestamp.tv_sec + WORKER_PUBLISH_STATS_DELAY_SEC;
+    bool res = last_update_timestamp.tv_sec >=
+        worker_stats_public->per_minute_last_update_timestamp.tv_sec + WORKER_PUBLISH_STATS_INTERVAL_SEC;
+    return res;
 }
 
 worker_stats_t *worker_stats_get() {
@@ -92,6 +115,10 @@ worker_stats_t *worker_stats_aggregate(
                 worker_stats_shared->network.total.accepted_connections;
         aggregated_stats->network.total.active_connections +=
                 worker_stats_shared->network.total.active_connections;
+        aggregated_stats->network.total.accepted_tls_connections +=
+                worker_stats_shared->network.total.accepted_tls_connections;
+        aggregated_stats->network.total.active_tls_connections +=
+                worker_stats_shared->network.total.active_tls_connections;
         aggregated_stats->network.per_minute.received_packets +=
                 worker_stats_shared->network.per_minute.received_packets;
         aggregated_stats->network.per_minute.received_data +=
@@ -102,6 +129,9 @@ worker_stats_t *worker_stats_aggregate(
                 worker_stats_shared->network.per_minute.sent_packets;
         aggregated_stats->network.per_minute.accepted_connections +=
                 worker_stats_shared->network.per_minute.accepted_connections;
+        aggregated_stats->network.per_minute.accepted_tls_connections +=
+                worker_stats_shared->network.per_minute.accepted_tls_connections;
+
         aggregated_stats->storage.total.written_data +=
                 worker_stats_shared->storage.total.written_data;
         aggregated_stats->storage.total.write_iops +=
@@ -121,9 +151,16 @@ worker_stats_t *worker_stats_aggregate(
         aggregated_stats->storage.per_minute.read_iops +=
                 worker_stats_shared->storage.per_minute.read_iops;
 
-        if (worker_stats_shared->last_update_timestamp.tv_sec > aggregated_stats->last_update_timestamp.tv_sec) {
-            aggregated_stats->last_update_timestamp.tv_sec =
-                    worker_stats_shared->last_update_timestamp.tv_sec;
+        if (worker_stats_shared->total_last_update_timestamp.tv_sec >
+            aggregated_stats->total_last_update_timestamp.tv_sec) {
+            aggregated_stats->total_last_update_timestamp.tv_sec =
+                    worker_stats_shared->total_last_update_timestamp.tv_sec;
+        }
+
+        if (worker_stats_shared->per_minute_last_update_timestamp.tv_sec >
+            aggregated_stats->per_minute_last_update_timestamp.tv_sec) {
+            aggregated_stats->per_minute_last_update_timestamp.tv_sec =
+                    worker_stats_shared->per_minute_last_update_timestamp.tv_sec;
         }
     }
 

@@ -29,6 +29,7 @@ typedef struct program_arguments program_arguments_t;
 struct program_arguments {
     program_arguments_log_level_t log_level;
     char *config_file;
+    bool list_tls_available_cipher_suites;
 };
 
 char* program_arguments_docs_header_prepare();

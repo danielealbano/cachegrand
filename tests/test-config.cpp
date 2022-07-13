@@ -23,6 +23,8 @@
 #include "config_cyaml_config.h"
 #include "config_cyaml_schema.h"
 
+#include "support.h"
+
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 typedef struct test_config_cyaml_logger_context test_config_cyaml_logger_context_t;
@@ -108,76 +110,18 @@ log_sink_t *test_config_internal_log_sink_init(
             NULL);
 }
 
-bool test_config_fixture_file_from_data_create(
-        char* path,
-        int path_suffix_len,
-        const char* data,
-        size_t data_len) {
-    close(mkstemps(path, path_suffix_len));
-
-    FILE* fp = fopen(path, "w");
-    if (fp == NULL) {
-        return false;
-    }
-
-    size_t res;
-    if ((res = fwrite(data, 1, data_len, fp)) != data_len) {
-        fclose(fp);
-        unlink(path);
-        return false;
-    }
-
-    if (fflush(fp) != 0) {
-        fclose(fp);
-        unlink(path);
-        return false;
-    }
-
-    fclose(fp);
-
-    return true;
-}
-
-void test_config_fixture_file_from_data_cleanup(
-        const char* path) {
-    unlink(path);
-}
-
-#define TEST_CONFIG_FIXTURE_FILE_FROM_DATA(DATA, DATA_LEN, CONFIG_PATH, ...) { \
-    { \
-        char CONFIG_PATH[] = "/tmp/cachegrand-tests-XXXXXX.tmp"; \
-        int CONFIG_PATH_suffix_len = 4; /** .tmp **/ \
-        REQUIRE(test_config_fixture_file_from_data_create(CONFIG_PATH, CONFIG_PATH_suffix_len, DATA, DATA_LEN)); \
-        __VA_ARGS__; \
-        test_config_fixture_file_from_data_cleanup(CONFIG_PATH); \
-    } \
-}
-
 std::string test_config_correct_all_fields_yaml_data =
         R"EOF(
-# Set cpu pinning, accepted values:
-# - cpu number, starting from 0 (ie. 0, 1, 2)
-# - cpu range, starting from 0 (ie. 2-12)
-# - all, will use all the available cpus
 cpus:
   - all
-
-# Suggested 2 thread per cpu, depending on the hardware up to 4 threads will still scale well
-# The number of workers that will be started will be n. cpus * threads_per_count
 workers_per_cpus: 2
-
 run_in_foreground: false
-
 pidfile_path: /var/run/cachegrand.pid
-
-# The slab allocator requires huge pages
 use_slab_allocator: false
-
 network:
   backend: io_uring
   max_clients: 10000
   listen_backlog: 100
-
   protocols:
     - type: redis
       timeout:
@@ -195,41 +139,14 @@ network:
           port: 6379
         - host: "::"
           port: 6379
-
 database:
   max_keys: 10000
   backend: memory
-
-# The sentry.io service is used to automatically collect minidumps in case of crashes, it doesn't
-# store them after that they are processed but be aware that minidumps will contain memory regions
-# used by cachegrand and therefore may they may also contain cached data!
-# To avoid accidental/unwanted uploads, by default the dsn is not set to avoid accidental/unwanted
-# uploads, if you want to provide crash data without having to attach it to a github issue simply
-# set the dsn parameter, or the SENTRY_DSN env variable, to
-# https://05dd54814d8149cab65ba2987d560340@o590814.ingest.sentry.io/5740234
 sentry:
   enable: true
-  # dsn: "https://05dd54814d8149cab65ba2987d560340@o590814.ingest.sentry.io/5740234"
-
-# LOGS
-# ---
-# type:     console or file
-# level:    array of flags: debug, verbose, info, warning, recoverable, error
-#           it's possible to negate a flag prefixing it with no- (ie. no-debug), it is also
-#           possible to select all the flags using the keyword all
-#
-# For type file
-# file:
-#   path:   path to the log file
-
 logs:
   - type: console
-    # Print to the console errors, warnings and informational messages
-    level: [ all, no-verbose, no-debug]
-
-    # or print everything
-    # level: [ all ]
-
+    level: [ all, no-verbose, no-debug ]
   - type: file
     level: [ all, no-verbose, no-debug ]
     file:
@@ -245,6 +162,52 @@ network:
 std::string test_config_broken_unknown_field_yaml_data =
         R"EOF(
 unknown_field: unknown_value
+)EOF";
+
+std::string test_config_broken_config_validate_after_load_fails =
+        R"EOF(
+cpus:
+  - all
+workers_per_cpus: 2
+run_in_foreground: false
+pidfile_path: /var/run/cachegrand.pid
+use_slab_allocator: false
+network:
+  backend: io_uring
+  max_clients: 10000
+  listen_backlog: 100
+  protocols:
+    - type: redis
+      timeout:
+        read_ms: 2000
+        write_ms: 2000
+      keepalive:
+        time: 0
+        interval: 0
+        probes: 0
+      tls:
+        certificate_path: "/path/to/non-existant/certificate"
+        private_key_path: "/path/to/non-existant/private_key"
+      redis:
+        max_key_length: 8192
+        max_command_length: 1048576
+      bindings:
+        - host: 0.0.0.0
+          port: 6379
+        - host: "::"
+          port: 6379
+database:
+  max_keys: 10000
+  backend: memory
+sentry:
+  enable: true
+logs:
+  - type: console
+    level: [ all, no-verbose, no-debug ]
+  - type: file
+    level: [ all, no-verbose, no-debug ]
+    file:
+      path: /var/log/cachegrand.log
 )EOF";
 
 uint16_t max_cpu_count_high = 8;
@@ -379,120 +342,127 @@ TEST_CASE("config.c", "[config]") {
 
             cyaml_free(config_cyaml_config, config_top_schema, config, 0);
         }
+
+        SECTION("broken - config_validate_after_load fails") {
+            const char* str_cmp =
+                    "Load: Missing required mapping field: max_clients\nLoad: Backtrace:\n  in mapping field 'backend' (line: 3, column: 12)\n  in mapping field 'network' (line: 3, column: 3)\n";
+            err = cyaml_load_data(
+                    (const uint8_t *)(test_config_broken_config_validate_after_load_fails.c_str()),
+                    test_config_broken_config_validate_after_load_fails.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    NULL);
+
+            REQUIRE(config != NULL);
+            REQUIRE(config_validate_after_load(config) == false);
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
     }
 
     SECTION("config_validate_after_load") {
+        err = cyaml_load_data(
+                (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
+                test_config_correct_all_fields_yaml_data.length(),
+                config_cyaml_config,
+                config_top_schema,
+                (cyaml_data_t **)&config,
+                NULL);
+
+        REQUIRE(config != NULL);
+        REQUIRE(err == CYAML_OK);
+
         SECTION("valid") {
-            err = cyaml_load_data(
-                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
-                    test_config_correct_all_fields_yaml_data.length(),
-                    config_cyaml_config,
-                    config_top_schema,
-                    (cyaml_data_t **)&config,
-                    NULL);
-
-            REQUIRE(config != NULL);
-            REQUIRE(err == CYAML_OK);
-
             REQUIRE(config_validate_after_load(config) == true);
-
-            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
         }
 
         SECTION("broken - network redis max_key_length > slab object size max") {
-            err = cyaml_load_data(
-                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
-                    test_config_correct_all_fields_yaml_data.length(),
-                    config_cyaml_config,
-                    config_top_schema,
-                    (cyaml_data_t **)&config,
-                    NULL);
-
-            REQUIRE(config != NULL);
-            REQUIRE(err == CYAML_OK);
-
             config->network->protocols[0].redis->max_key_length = 64 * 1024 + 1;
             REQUIRE(config_validate_after_load(config) == false);
-
-            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
         }
 
         SECTION("broken - network.timeout.read_ms < -1") {
-            err = cyaml_load_data(
-                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
-                    test_config_correct_all_fields_yaml_data.length(),
-                    config_cyaml_config,
-                    config_top_schema,
-                    (cyaml_data_t **)&config,
-                    NULL);
-
-            REQUIRE(config != NULL);
-            REQUIRE(err == CYAML_OK);
-
             config->network->protocols[0].timeout->read_ms = -2;
             REQUIRE(config_validate_after_load(config) == false);
-
-            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
         }
 
         SECTION("broken - network.timeout.read_ms == 0") {
-            err = cyaml_load_data(
-                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
-                    test_config_correct_all_fields_yaml_data.length(),
-                    config_cyaml_config,
-                    config_top_schema,
-                    (cyaml_data_t **)&config,
-                    NULL);
-
-            REQUIRE(config != NULL);
-            REQUIRE(err == CYAML_OK);
-
             config->network->protocols[0].timeout->read_ms = 0;
             REQUIRE(config_validate_after_load(config) == false);
-
-            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
         }
 
         SECTION("broken - network.timeout.write_ms < -1") {
-            err = cyaml_load_data(
-                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
-                    test_config_correct_all_fields_yaml_data.length(),
-                    config_cyaml_config,
-                    config_top_schema,
-                    (cyaml_data_t **)&config,
-                    NULL);
-
-            REQUIRE(config != NULL);
-            REQUIRE(err == CYAML_OK);
-
             config->network->protocols[0].timeout->write_ms = -2;
             REQUIRE(config_validate_after_load(config) == false);
-
-            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
         }
 
         SECTION("broken - network.timeout.write_ms == 0") {
-            err = cyaml_load_data(
-                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
-                    test_config_correct_all_fields_yaml_data.length(),
-                    config_cyaml_config,
-                    config_top_schema,
-                    (cyaml_data_t **)&config,
-                    NULL);
-
-            REQUIRE(config != NULL);
-            REQUIRE(err == CYAML_OK);
-
             config->network->protocols[0].timeout->write_ms = 0;
             REQUIRE(config_validate_after_load(config) == false);
-
-            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
         }
+
+        SECTION("broken - non existing certificate path") {
+            config_network_protocol_tls_t tls = {
+                    .certificate_path = "/path/to/non/existing/certificate",
+                    .private_key_path = "/tmp",
+            };
+            config->network->protocols[0].tls = &tls;
+
+            REQUIRE(config_validate_after_load(config) == false);
+
+            config->network->protocols[0].tls = NULL;
+        }
+
+        SECTION("broken - non existing certificate path") {
+            config_network_protocol_tls_t tls = {
+                    .certificate_path = "/tmp",
+                    .private_key_path = "/path/to/non/existing/private_key",
+            };
+            config->network->protocols[0].tls = &tls;
+
+            REQUIRE(config_validate_after_load(config) == false);
+
+            config->network->protocols[0].tls = NULL;
+        }
+
+        SECTION("valid - existing certificate path and private_key") {
+            config_network_protocol_tls_t tls = {
+                    .certificate_path = "/tmp",
+                    .private_key_path = "/tmp",
+            };
+            config->network->protocols[0].tls = &tls;
+
+            REQUIRE(config_validate_after_load(config) == true);
+
+            config->network->protocols[0].tls = NULL;
+        }
+
+        SECTION("broken - tls endpoint without no tls settings") {
+            config->network->protocols[0].bindings[0].tls = true;
+
+            REQUIRE(config_validate_after_load(config) == false);
+        }
+
+        SECTION("valid - tls endpoint with tls settings") {
+            config_network_protocol_tls_t tls = {
+                    .certificate_path = "/tmp",
+                    .private_key_path = "/tmp",
+            };
+            config->network->protocols[0].tls = &tls;
+            config->network->protocols[0].bindings[0].tls = true;
+
+            REQUIRE(config_validate_after_load(config) == true);
+
+            config->network->protocols[0].tls = NULL;
+        }
+
+        cyaml_free(config_cyaml_config, config_top_schema, config, 0);
     }
 
     SECTION("config_internal_cyaml_load") {
         SECTION("correct - all fields") {
-            TEST_CONFIG_FIXTURE_FILE_FROM_DATA(
+            TEST_SUPPORT_FIXTURE_FILE_FROM_DATA(
                     test_config_correct_all_fields_yaml_data.c_str(),
                     test_config_correct_all_fields_yaml_data.length(),
                     config_path,
@@ -520,7 +490,7 @@ TEST_CASE("config.c", "[config]") {
             const char* str_cmp =
                     "Load: Missing required mapping field: max_clients\nLoad: Backtrace:\n  in mapping field 'backend' (line: 3, column: 12)\n  in mapping field 'network' (line: 3, column: 3)\n";
 
-            TEST_CONFIG_FIXTURE_FILE_FROM_DATA(
+            TEST_SUPPORT_FIXTURE_FILE_FROM_DATA(
                     test_config_broken_missing_field_yaml_data.c_str(),
                     test_config_broken_missing_field_yaml_data.length(),
                     config_path,
@@ -544,7 +514,7 @@ TEST_CASE("config.c", "[config]") {
             const char* str_cmp =
                     "Load: Unexpected key: unknown_field\nLoad: Backtrace:\n  in mapping (line: 2, column: 1)\n";
 
-            TEST_CONFIG_FIXTURE_FILE_FROM_DATA(
+            TEST_SUPPORT_FIXTURE_FILE_FROM_DATA(
                     test_config_broken_unknown_field_yaml_data.c_str(),
                     test_config_broken_unknown_field_yaml_data.length(),
                     config_path,
@@ -567,7 +537,7 @@ TEST_CASE("config.c", "[config]") {
 
     SECTION("config_load") {
         SECTION("correct - all fields") {
-            TEST_CONFIG_FIXTURE_FILE_FROM_DATA(
+            TEST_SUPPORT_FIXTURE_FILE_FROM_DATA(
                     test_config_correct_all_fields_yaml_data.c_str(),
                     test_config_correct_all_fields_yaml_data.length(),
                     config_path,
@@ -588,7 +558,7 @@ TEST_CASE("config.c", "[config]") {
         }
 
         SECTION("broken - missing field") {
-            TEST_CONFIG_FIXTURE_FILE_FROM_DATA(
+            TEST_SUPPORT_FIXTURE_FILE_FROM_DATA(
                     test_config_broken_missing_field_yaml_data.c_str(),
                     test_config_broken_missing_field_yaml_data.length(),
                     config_path,
@@ -603,7 +573,7 @@ TEST_CASE("config.c", "[config]") {
     }
 
     SECTION("config_free") {
-        TEST_CONFIG_FIXTURE_FILE_FROM_DATA(
+        TEST_SUPPORT_FIXTURE_FILE_FROM_DATA(
                 test_config_correct_all_fields_yaml_data.c_str(),
                 test_config_correct_all_fields_yaml_data.length(),
                 config_path,
@@ -1111,6 +1081,18 @@ TEST_CASE("config.c", "[config]") {
         SECTION("CYAML_LOG_INFO") {
             char* str_cmp = "[INFO       ][config] test log message: test argument\n";
             test_config_internal_cyaml_log_wrapper(CYAML_LOG_INFO, NULL, "test log message: %s", "test argument");
+            REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
+        }
+
+        SECTION("CYAML_LOG_INFO - new line at end") {
+            char* str_cmp = "[INFO       ][config] test log message: test argument\n";
+            test_config_internal_cyaml_log_wrapper(CYAML_LOG_INFO, NULL, "test log message: %s\n", "test argument");
+            REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
+        }
+
+        SECTION("CYAML_LOG_INFO - multiple new lines at end") {
+            char* str_cmp = "[INFO       ][config] test log message: test argument\n";
+            test_config_internal_cyaml_log_wrapper(CYAML_LOG_INFO, NULL, "test log message: %s\r\n\r\n", "test argument");
             REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
         }
 

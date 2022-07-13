@@ -56,7 +56,7 @@ bool network_io_common_socket_set_reuse_port(
 
 bool network_io_common_socket_attach_reuseport_cbpf(
         network_io_common_fd_t fd) {
-    struct sock_filter filter[] = {
+    static struct sock_filter filter[] = {
             // Pulls out the SKF_AD_CPU (raw_smp_processor_id()) field from the skf socket struct and store it in A
             //
             // Documentation (jump to filter machine section)
@@ -71,7 +71,7 @@ bool network_io_common_socket_attach_reuseport_cbpf(
             // Returns the registry A
             {BPF_RET | BPF_A, 0, 0, 0}
     };
-    struct sock_fprog val = {
+    static struct sock_fprog val = {
             .len = ARRAY_SIZE(filter),
             .filter = filter
     };

@@ -42,10 +42,29 @@ enum config_network_backend {
 };
 typedef enum config_network_backend config_network_backend_t;
 
+enum config_network_protocol_tls_min_version {
+    CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_ANY,
+    CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_0,
+    CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_1,
+    CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_2,
+    CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_3,
+};
+typedef enum config_network_protocol_tls_min_version config_network_protocol_tls_min_version_t;
+
+enum config_network_protocol_tls_max_version {
+    CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_ANY,
+    CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_0,
+    CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_1,
+    CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_2,
+    CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_3,
+};
+typedef enum config_network_protocol_tls_max_version config_network_protocol_tls_max_version_t;
+
 typedef struct config_network_protocol_binding config_network_protocol_binding_t;
 struct config_network_protocol_binding {
     char* host;
     uint16_t port;
+    bool tls;
 };
 
 typedef struct config_network_protocol_timeout config_network_protocol_timeout_t;
@@ -61,6 +80,16 @@ struct config_network_protocol_keepalive {
     uint32_t probes;
 };
 
+typedef struct config_network_protocol_tls config_network_protocol_tls_t;
+struct config_network_protocol_tls {
+    char* certificate_path;
+    char* private_key_path;
+    char** cipher_suites;
+    unsigned cipher_suites_count;
+    config_network_protocol_tls_min_version_t min_version;
+    config_network_protocol_tls_max_version_t max_version;
+};
+
 typedef struct config_network_protocol_redis config_network_protocol_redis_t;
 struct config_network_protocol_redis {
     uint32_t max_key_length;
@@ -72,6 +101,7 @@ struct config_network_protocol {
     config_network_protocol_type_t type;
     config_network_protocol_timeout_t* timeout;
     config_network_protocol_keepalive_t* keepalive;
+    config_network_protocol_tls_t* tls;
 
     config_network_protocol_redis_t* redis;
 

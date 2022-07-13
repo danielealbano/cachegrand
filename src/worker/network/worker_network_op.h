@@ -5,6 +5,11 @@
 extern "C" {
 #endif
 
+typedef struct worker_network_protocol_context worker_network_protocol_context_t;
+struct worker_network_protocol_context {
+    void *network_tls_config;
+};
+
 typedef network_channel_t* (worker_op_network_channel_new_fp_t)();
 
 typedef network_channel_t* (worker_op_network_channel_multi_new_fp_t)(
@@ -36,10 +41,18 @@ typedef int32_t (worker_op_network_send_fp_t)(
 
 typedef size_t (worker_op_network_channel_size_fp_t)();
 
+worker_network_protocol_context_t *worker_network_protocol_contexts_initialize(
+        config_network_t *config_network);
+
+void worker_network_protocol_context_free(
+        config_network_t *config_network,
+        worker_network_protocol_context_t *worker_network_protocol_context);
+
 bool worker_network_listeners_initialize(
         uint32_t worker_index,
         uint8_t core_index,
         config_network_t *config_network,
+        worker_network_protocol_context_t *worker_network_protocol_context,
         network_channel_t **listeners,
         uint8_t *listeners_count);
 

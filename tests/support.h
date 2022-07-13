@@ -27,7 +27,39 @@ extern "C" {
 
 #define TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_MAX_LENGTH                 1
 #define TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_RANDOM_LENGTH              2
-#define TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_REPETIBLE_STR_ALTERNATEMINMAX_LENGTH  3
+// #define TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_REPETIBLE_STR_ALTERNATEMINMAX_LENGTH  3
+
+#define TEST_SUPPORT_FIXTURE_FILE_FROM_DATA(DATA, DATA_LEN, FIXTURE_PATH, ...) { \
+    { \
+        char FIXTURE_PATH[] = "/tmp/cachegrand-tests-XXXXXX.tmp"; \
+        int FIXTURE_PATH ## _suffix_len = 4; /** .tmp **/ \
+        test_support_fixture_file_from_data_create(FIXTURE_PATH, FIXTURE_PATH ## _suffix_len, DATA, DATA_LEN); \
+        __VA_ARGS__; \
+        test_support_fixture_file_from_data_cleanup(FIXTURE_PATH); \
+    } \
+}
+
+// We don't really want to import the hashtable stuff in all the tests
+typedef struct hashtable hashtable_t;
+
+#if HASHTABLE_USE_UINT64 == 1
+typedef uint64_t hashtable_bucket_index_t;
+typedef uint64_t hashtable_chunk_index_t;
+#else
+typedef uint32_t hashtable_bucket_index_t;
+typedef uint32_t hashtable_chunk_index_t;
+#endif
+typedef uint8_t hashtable_key_value_flags_t;
+typedef uint64_t hashtable_hash_t;
+typedef uint32_t hashtable_hash_half_t;
+typedef uint16_t hashtable_hash_quarter_t;
+
+typedef uint8_t hashtable_chunk_slot_index_t;
+typedef hashtable_bucket_index_t hashtable_bucket_count_t;
+typedef hashtable_chunk_index_t hashtable_chunk_count_t;
+typedef uint32_t hashtable_key_size_t;
+typedef char hashtable_key_data_t;
+typedef uintptr_t hashtable_value_data_t;
 
 typedef struct test_key_same_bucket test_key_same_bucket_t;
 struct test_key_same_bucket {
@@ -96,6 +128,15 @@ bool test_support_hashtable_prefill(
 void test_support_flush_data_cache(
         void *start,
         size_t len);
+
+bool test_support_fixture_file_from_data_create(
+        char* path,
+        int path_suffix_len,
+        const char* data,
+        size_t data_len);
+
+void test_support_fixture_file_from_data_cleanup(
+        const char* path);
 
 #ifdef __cplusplus
 }

@@ -22,22 +22,34 @@
 
 #define TAG "support/simple_file_io"
 
+bool simple_file_io_exists(
+        const char* path) {
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) {
+        return false;
+    }
+
+    close(fd);
+    return true;
+}
+
 bool simple_file_io_read(
         const char* path,
         char* out_data,
         size_t out_data_len) {
     int fd = open(path, O_RDONLY);
     if (fd < 0) {
-        LOG_W(TAG, "Unable to open %s: %s", path, strerror(errno));
+        LOG_W(TAG, "Unable to open <%s>: %s", path, strerror(errno));
         return false;
     }
 
-    ssize_t len = read(fd, out_data, out_data_len);
+    // Subtract to ensure that there is enough space to add a string terminator
+    ssize_t len = read(fd, out_data, out_data_len - 1);
     int read_errno = errno;
     close(fd);
 
     if (len < 0) {
-        LOG_W(TAG, "Error while reading from %s: %s", path, strerror(read_errno));
+        LOG_W(TAG, "Error while reading from <%s>: %s", path, strerror(read_errno));
         return false;
     }
 
