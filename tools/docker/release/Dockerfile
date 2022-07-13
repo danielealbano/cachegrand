@@ -66,7 +66,7 @@ RUN apt-get update -y \
     && apt-get install -y --no-install-recommends \
         apt-utils \
     && apt-get install -y --no-install-recommends \
-        libssl3 libnuma1 libyaml-0-2 libcurl4 \
+        libnuma1 libyaml-0-2 libcurl4 libmbedtls14 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
