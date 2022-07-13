@@ -29,6 +29,9 @@ const cyaml_schema_field_t config_network_protocol_binding_schema[] = {
         CYAML_FIELD_UINT(
                 "port", CYAML_FLAG_DEFAULT,
                 config_network_protocol_binding_t, port),
+        CYAML_FIELD_BOOL(
+                "tls", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
+                config_network_protocol_binding_t, tls),
         CYAML_FIELD_END
 };
 
@@ -57,6 +60,49 @@ const cyaml_schema_field_t config_network_protocol_keepalive_schema[] = {
         CYAML_FIELD_END
 };
 
+// Allowed strings for config -> network -> protocols -> protocol-> tls -> min_version (config_network_protocol_tls_min_version_t)
+const cyaml_strval_t config_network_protocol_tls_min_version_schema_strings[] = {
+        { "tls1.0", CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_0 },
+        { "tls1.1", CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_1 },
+        { "tls1.2", CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_2 },
+        { "tls1.3", CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_3 },
+        { "any", CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_ANY },
+};
+typedef enum config_network_protocol_tls_min_version config_network_protocol_tls_min_version_t;
+
+// Allowed strings for config -> network -> protocols -> protocol-> tls -> max_version (config_network_protocol_tls_max_version_t)
+const cyaml_strval_t config_network_protocol_tls_max_version_schema_strings[] = {
+        { "tls1.0", CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_0 },
+        { "tls1.1", CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_1 },
+        { "tls1.2", CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_2 },
+        { "tls1.3", CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_3 },
+        { "any", CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_ANY },
+};
+typedef enum config_network_protocol_tls_max_version config_network_protocol_tls_max_version_t;
+
+// Schema for config -> network -> protocols -> protocol-> tls
+const cyaml_schema_field_t config_network_protocol_tls_schema[] = {
+        CYAML_FIELD_STRING_PTR(
+                "certificate_path", CYAML_FLAG_DEFAULT,
+                config_network_protocol_tls_t, certificate_path, 0, CYAML_UNLIMITED),
+        CYAML_FIELD_STRING_PTR(
+                "private_key_path", CYAML_FLAG_DEFAULT,
+                config_network_protocol_tls_t, private_key_path, 0, CYAML_UNLIMITED),
+        CYAML_FIELD_SEQUENCE(
+                "cipher_suites", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_network_protocol_tls_t, cipher_suites,
+                &config_generic_string_schema, 0, CYAML_UNLIMITED),
+        CYAML_FIELD_ENUM(
+                "min_version", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
+                config_network_protocol_tls_t, min_version, config_network_protocol_tls_min_version_schema_strings,
+                CYAML_ARRAY_LEN(config_network_protocol_tls_min_version_schema_strings)),
+        CYAML_FIELD_ENUM(
+                "max_version", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
+                config_network_protocol_tls_t, max_version, config_network_protocol_tls_max_version_schema_strings,
+                CYAML_ARRAY_LEN(config_network_protocol_tls_max_version_schema_strings)),
+        CYAML_FIELD_END
+};
+
 // Schema for config -> network -> protocols -> protocol-> redis
 const cyaml_schema_field_t config_network_protocol_redis_schema[] = {
         CYAML_FIELD_UINT(
@@ -73,7 +119,6 @@ const cyaml_strval_t config_network_protocol_type_schema_strings[] = {
         { "redis", CONFIG_PROTOCOL_TYPE_REDIS },
         { "prometheus", CONFIG_PROTOCOL_TYPE_PROMETHEUS },
 };
-
 typedef enum config_network_protocol_type config_network_protocol_type_t;
 
 // Schema for config -> network -> protocols -> protocol-> bindings
@@ -97,6 +142,9 @@ const cyaml_schema_field_t config_network_protocol_fields_schema[] = {
         CYAML_FIELD_MAPPING_PTR(
                 "redis", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
                 config_network_protocol_t, redis, config_network_protocol_redis_schema),
+        CYAML_FIELD_MAPPING_PTR(
+                "tls", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_network_protocol_t, tls, config_network_protocol_tls_schema),
         CYAML_FIELD_SEQUENCE(
                 "bindings", CYAML_FLAG_POINTER,
                 config_network_protocol_t, bindings, &config_protocol_binding_list_schema, 0, CYAML_UNLIMITED),

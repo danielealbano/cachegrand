@@ -23,23 +23,76 @@ network:
 
   protocols:
     - type: redis
+
       # Timeouts for the read and write operations in milliseconds, set to -1 to disable or greater than 0 to enable
       timeout:
         read_ms: -1
         write_ms: 10000
+
+      # Keep-alive parameters to keep the socket connected in case of no activity
       keepalive:
         time: 0
         interval: 0
         probes: 0
+
+      # TLS settings
+      # If the configuration is missing or commented out, TLS is automatically disabled
+      # If kTLS is available, it will be automatically enabled.
+      # tls:
+      #   # Path to the certificate and private key to use
+      #   certificate_path: "/path/to/certificate.pem"
+      #   private_key_path: "/path/to/private_key.key"
+
+      #   # Optional parameters to set the min and max version of the TLS versions accepted:
+      #   # - any
+      #   # - tls1.0
+      #   # - tls1.1
+      #   # - tls1.2
+      #   # - tls1.3
+      #   # When any is selected for min_version, automatically tls1.0 will be used.
+      #   min_version: tls1.2
+      #   max_version: any
+      #
+      #   # Optional parameter to set the allowed cipher suites, list the available ones with using
+      #   # /path/to/cachegrand-server --list-tls-cipher-suites
+      #   # The default list enables the ciphers supported by kTLS to allow the kernel offloading, other cipher suites
+      #   # are not supporte by kTLS.
+      #   cipher_suites:
+      #     - TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384
+      #     - TLS-DHE-RSA-WITH-AES-256-GCM-SHA384
+      #     - TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256
+      #     - TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
+      #     - TLS-DHE-RSA-WITH-AES-128-CCM
+      #     - TLS-DHE-RSA-WITH-AES-128-CCM-8
+      #     - TLS-RSA-WITH-AES-256-GCM-SHA384
+      #     - TLS-RSA-WITH-AES-128-GCM-SHA256
+      #     - TLS-RSA-WITH-AES-128-CCM
+      #     - TLS-RSA-WITH-AES-128-CCM-8
+      #     - TLS-ECDHE-RSA-WITH-CHACHA20-POLY1305-SHA256
+      #     - TLS-DHE-RSA-WITH-CHACHA20-POLY1305-SHA256
+
+      # Redis specific settings
       redis:
         # The maximum key length can't be greater than 65536 bytes
         max_key_length: 8192
         max_command_length: 536870912
+
+      # Bindings
       bindings:
         - host: 0.0.0.0
           port: 6379
+          # Enable or disable TLS for the binding, optional parameter, if missing defaults to false
+          # tls: false
+        - host: 0.0.0.0
+          port: 6380
+          # To enable tls is necessary to uncomment the tls block above
+          # tls: true
         - host: "::"
           port: 6379
+        - host: "::"
+          port: 6380
+          # To enable tls is necessary to uncomment the tls block above
+          # tls: true
 
 # Uncomment to enable prometheus support, more information available at
 # https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/prometheus.md

@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+bool simple_file_io_exists(
+        const char* path);
 bool simple_file_io_read(
         const char *path,
         char *out_data,

@@ -15,6 +15,8 @@
 
 #include "program_arguments.h"
 
+#define OPTION_LIST_TLS_CIPHER_SUITES_KEY   0x1000
+
 int program_arguments_parser_testing = 0;
 
 static struct argp_option program_arguments_parser_options[] = {
@@ -22,6 +24,8 @@ static struct argp_option program_arguments_parser_options[] = {
             "Config file (default config file " CACHEGRAND_CONFIG_PATH_DEFAULT " )"},
         {"log-level",   'l', "LOG LEVEL", 0,
                 "log level (error, warning, info, verbose, debug)" },
+        {"list-tls-cipher-suites",   OPTION_LIST_TLS_CIPHER_SUITES_KEY, NULL, 0,
+                "list the available tls cipher suites" },
         { NULL }
 };
 
@@ -60,6 +64,10 @@ error_t program_arguments_argp_parser(
     program_arguments_t* program_arguments = state->input;
 
     switch (key) {
+        case OPTION_LIST_TLS_CIPHER_SUITES_KEY:
+            program_arguments->list_tls_available_cipher_suites = true;
+            break;
+
         case 'c':
             program_arguments->config_file = arg;
             break;

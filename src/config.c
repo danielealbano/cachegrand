@@ -24,6 +24,7 @@
 #include "fatal.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "slab_allocator.h"
+#include "support/simple_file_io.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/protocol/network_protocol.h"
 #include "network/io/network_io_common.h"
@@ -66,7 +67,7 @@ void config_internal_cyaml_log(
     }
 
     // Counts how many new lines / carriage return are at the end of the log message
-    while(fmt[fmt_len - 1] == 0x0a || fmt[fmt_len - 1] == 0x0c) {
+    while(fmt[fmt_len - 1] == '\r' || fmt[fmt_len - 1] == '\n') {
         fmt_len -= 1;
         fmt_has_newline = true;
     }
@@ -105,11 +106,11 @@ bool config_validate_after_load(
 
     // TODO: for log sinks, if all is set only negate flags can be set
 
-    // TODO: if keepalive struct is present, values must be allowed
-
     for(int protocol_index = 0; protocol_index < config->network->protocols_count; protocol_index++) {
+        // TODO: if keepalive struct is present, values must be allowed
         config_network_protocol_t protocol = config->network->protocols[protocol_index];
 
+        // Validate timeouts
         if (protocol.timeout->read_ms < -1 || protocol.timeout->read_ms == 0) {
             LOG_E(TAG, "read_ms timeout can only be <-1> or a value greater than <0>");
             return_result = false;
@@ -120,10 +121,36 @@ bool config_validate_after_load(
             return_result = false;
         }
 
+        // Validate TLS
+        if (protocol.tls != NULL) {
+            if (!simple_file_io_exists(protocol.tls->certificate_path)) {
+                LOG_E(TAG, "The certificate <%s> doesn't exist", protocol.tls->certificate_path);
+                return_result = false;
+            }
+
+            if (!simple_file_io_exists(protocol.tls->private_key_path)) {
+                LOG_E(TAG, "The private key <%s> doesn't exist", protocol.tls->private_key_path);
+                return_result = false;
+            }
+        }
+
+        // Validate ad-hoc protocol settings (redis)
         if (protocol.type == CONFIG_PROTOCOL_TYPE_REDIS) {
             if (protocol.redis->max_key_length > SLAB_OBJECT_SIZE_MAX) {
                 LOG_E(TAG, "The allowed maximum value of max_key_length is <%u>", SLAB_OBJECT_SIZE_MAX);
                 return_result = false;
+            }
+        }
+
+        // Validate bindings
+        for(int binding_index = 0; binding_index < protocol.bindings_count; binding_index++) {
+            config_network_protocol_binding_t *binding = &protocol.bindings[binding_index];
+
+            if (binding->tls) {
+                if (protocol.tls == NULL) {
+                    LOG_E(TAG, "The binding <%s:%d> requires tls but tls is not configured", binding->host, binding->port);
+                    return_result = false;
+                }
             }
         }
     }

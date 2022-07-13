@@ -18,6 +18,12 @@ TEST_CASE("utils_cpu.c", "[utils_cpu]") {
     }
 
     SECTION("utils_cpu_count_all") {
-        REQUIRE(utils_cpu_count_all() == sysconf(_SC_NPROCESSORS_CONF));
+        SECTION("fresh data") {
+            REQUIRE(utils_cpu_count_all() == sysconf(_SC_NPROCESSORS_CONF));
+        }
+
+        SECTION("cached data") {
+            REQUIRE(utils_cpu_count_all() == sysconf(_SC_NPROCESSORS_CONF));
+        }
     }
 }

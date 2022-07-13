@@ -29,11 +29,11 @@ RUN apt-get update -y \
         apt-utils \
     && apt-get install -y --no-install-recommends \
         curl ca-certificates \
-        build-essential cmake git pkg-config \
-        libssl3 libssl-dev \
+        build-essential cmake pkg-config git \
         libnuma1 libnuma-dev \
-        libyaml-0-2 libyaml-dev \
         libcurl4-openssl-dev libcurl4 \
+        libyaml-0-2 libyaml-dev \
+        libmbedtls-dev libmbedtls14 \
         lcov gcovr \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
