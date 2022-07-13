@@ -58,7 +58,7 @@ void slab_allocator_predefined_allocators_init() {
         uint32_t predefined_slab_allocators_index = slab_index_by_object_size(object_size);
 
         predefined_slab_allocators[predefined_slab_allocators_index] =
-                slab_allocator_init(SLAB_OBJECT_SIZE_MIN << i);
+                slab_allocator_init(object_size);
     }
 }
 
@@ -281,6 +281,35 @@ void slab_allocator_slice_remove_slots_from_per_core_metadata_slots(
 slab_slice_t* slab_allocator_slice_from_memptr(
         void* memptr) {
     slab_slice_t* slab_slice = memptr - ((uintptr_t)memptr % HUGEPAGE_SIZE_2MB);
+
+#if DEBUG == 1
+    // This code try to match the memptr to a slab_allocator, the offset of the object from the beginning of the data
+    // address has to be divisible by the size of object_size associated with the slab_allocator.
+    // This check doesn't guarantee 100% certanty but it's simple enough to catch cases where a memory pointer passed
+    // hasn't been allocated with the slab allocator because if it would, the address should match at least 1 of the
+    // slab allocators
+    size_t usable_hugepage_size = slab_allocator_slice_calculate_usable_hugepage_size();
+
+    bool found = false;
+    for(int index = 0; index < SLAB_PREDEFINED_OBJECT_SIZES_COUNT; index++) {
+        slab_allocator_t *slab_allocator = predefined_slab_allocators[index];
+
+        uint32_t data_offset = slab_allocator_slice_calculate_data_offset(
+                usable_hugepage_size,
+                slab_allocator->object_size);
+        uintptr_t data_addr = (uintptr_t)slab_slice + data_offset;
+
+        size_t object_offset = (uintptr_t)memptr - data_addr;
+
+        if (object_offset % slab_allocator->object_size == 0) {
+            found = true;
+            break;
+        }
+    }
+
+    assert(found);
+#endif
+
     return slab_slice;
 }
 
@@ -596,8 +625,7 @@ void* slab_allocator_mem_realloc(
 void slab_allocator_mem_free(
         void* memptr) {
     if (slab_allocator_enabled) {
-        slab_allocator_mem_free_hugepages(
-                memptr);
+        slab_allocator_mem_free_hugepages(memptr);
     } else {
         slab_allocator_mem_free_xalloc(memptr);
     }
