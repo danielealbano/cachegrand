@@ -895,6 +895,119 @@ bool storage_db_set_entry_index(
     return res;
 }
 
+bool storage_db_set_small_value(
+        storage_db_t *db,
+        char *key,
+        size_t key_length,
+        void *value,
+        size_t value_length) {
+    storage_db_entry_index_t *entry_index = NULL;
+    bool return_res = false;
+
+    assert(key_length <= STORAGE_DB_CHUNK_MAX_SIZE);
+    assert(value_length <= STORAGE_DB_CHUNK_MAX_SIZE);
+
+    entry_index = storage_db_entry_index_ring_buffer_new(db);
+    if (!entry_index) {
+        LOG_E(
+                TAG,
+                "Unable to fetch a database entry index");
+
+        goto end;
+    }
+
+    // If the backend is in memory it's not necessary to write the key to the storage because it will never be used as
+    // the only case in which the keys are read from the storage is when the database gets loaded from the disk at the
+    // startup
+    if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
+        bool res = storage_db_entry_index_allocate_key_chunks(
+                db,
+                entry_index,
+                key_length);
+
+        if (!res) {
+            LOG_E(
+                    TAG,
+                    "Unable to allocate database chunks for a key long <%lu> bytes",
+                    key_length);
+
+            goto end;
+        }
+
+        // Write the key
+        bool res_write = storage_db_entry_chunk_write(
+                db,
+                storage_db_entry_key_chunk_get(entry_index, 0),
+                0,
+                key,
+                key_length);
+
+        if (!res_write) {
+            LOG_E(
+                    TAG,
+                    "Unable to write the database chunks for a key long <%lu> bytes",
+                    key_length);
+
+            goto end;
+        }
+    }
+
+    // The value stored is the key itself as it is
+    bool res = storage_db_entry_index_allocate_value_chunks(
+            db,
+            entry_index,
+            value_length);
+
+    if (!res) {
+        LOG_E(
+                TAG,
+                "Unable to allocate database chunks for a value long <%lu> bytes",
+                value_length);
+        goto end;
+    }
+
+    // Write the value
+    bool res_write = storage_db_entry_chunk_write(
+            db,
+            storage_db_entry_value_chunk_get(entry_index, 0),
+            0,
+            value,
+            value_length);
+
+    if (!res_write) {
+        LOG_E(
+                TAG,
+                "Unable to write the database chunks for a value long <%lu> bytes",
+                value_length);
+
+        goto end;
+    }
+
+    // Set the entry index
+    bool result = storage_db_set_entry_index(
+            db,
+            key,
+            value_length,
+            entry_index);
+
+    if (!result) {
+        LOG_E(
+                TAG,
+                "Unable to update the database entry index");
+
+        goto end;
+    }
+
+    return_res = true;
+
+end:
+    if (!return_res && entry_index) {
+        storage_db_entry_index_free(db, entry_index);
+    }
+
+    return return_res;
+}
+
 bool storage_db_delete_entry_index(
         storage_db_t *db,
         char *key,

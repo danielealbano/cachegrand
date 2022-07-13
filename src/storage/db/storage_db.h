@@ -257,6 +257,13 @@ bool storage_db_delete_entry_index(
         char *key,
         size_t key_length);
 
+bool storage_db_set_small_value(
+        storage_db_t *db,
+        char *key,
+        size_t key_length,
+        void *value,
+        size_t value_length);
+
 #ifdef __cplusplus
 }
 #endif
