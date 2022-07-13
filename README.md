@@ -1,7 +1,6 @@
 [![Build & Test](https://github.com/danielealbano/cachegrand/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/danielealbano/cachegrand/actions/workflows/build_and_test.yml)
 [![codecov](https://codecov.io/gh/danielealbano/cachegrand/branch/main/graph/badge.svg?token=H4W0N0F7MT)](https://codecov.io/gh/danielealbano/cachegrand)
 [![Last Commit](https://img.shields.io/github/commit-activity/m/danielealbano/cachegrand/main)](https://github.com/danielealbano/cachegrand/commits/main)
-[![CodeFactor Grade](https://img.shields.io/codefactor/grade/github/danielealbano/cachegrand?label=codefactor%20code%20quality)](https://www.codefactor.io/repository/github/danielealbano/cachegrand)
 [![LGTM Grade](https://img.shields.io/lgtm/grade/cpp/github/danielealbano/cachegrand?label=lgtm%20code%20quality)](https://lgtm.com/projects/g/danielealbano/cachegrand/context:cpp)
 ![Lines of code](https://img.shields.io/tokei/lines/github/danielealbano/cachegrand)
 
