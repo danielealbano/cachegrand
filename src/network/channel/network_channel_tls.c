@@ -135,7 +135,10 @@ bool network_channel_tls_handshake(
                 break;
 
             case 0:
-                network_flush(network_channel);
+                // TODO: network_flush currently does nothing but shorlty data buffering for the sends will be
+                //       implemented and to avoid performance penalties or ssl handshake problems it will be necessary
+                //       to flush the buffer here therefore a network_flush has been added even if it does nothing
+                network_flush(network_channel); // lgtm [cpp/useless-expression]
                 return_res = true;
                 exit = true;
                 break;
@@ -351,7 +354,7 @@ bool network_channel_tls_uses_mbedtls(
 
 bool network_channel_tls_shutdown(
         network_channel_t *network_channel) {
-    mbedtls_ssl_close_notify(network_channel->tls.context);
+    return mbedtls_ssl_close_notify(network_channel->tls.context) == 0;
 }
 
 void network_channel_tls_free(
