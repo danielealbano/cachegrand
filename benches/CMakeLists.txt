@@ -33,6 +33,8 @@ IF(WIN32)
             )
 ENDIF(WIN32)
 
+set(LIBCYAML_DYNAMIC_PATH_LIBRARY "${CMAKE_BINARY_DIR}/_deps/src/cyaml/build/release/libcyaml.so.1")
+
 # Build benches
 file(GLOB SRC_CACHEGRAND_BENCHES "bench-*.cpp")
 
@@ -56,8 +58,8 @@ set_target_properties(
 
 target_link_libraries(
         cachegrand-benches
-        PRIVATE
-        cachegrand-internal benchmark::benchmark)
+        PUBLIC
+        cachegrand-internal benchmark::benchmark ${LIBCYAML_DYNAMIC_PATH_LIBRARY})
 
 target_include_directories(
         cachegrand-benches
