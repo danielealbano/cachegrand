@@ -18,16 +18,18 @@ extern "C" {
 #define SLAB_OBJECT_SIZE_16384  0x00004000
 #define SLAB_OBJECT_SIZE_32768  0x00008000
 #define SLAB_OBJECT_SIZE_65536  0x00010000
-#define SLAB_OBJECT_SIZE_MIN    SLAB_OBJECT_SIZE_16
-#define SLAB_OBJECT_SIZE_MAX    SLAB_OBJECT_SIZE_65536
 
 #define SLAB_PREDEFINED_OBJECT_SIZES    SLAB_OBJECT_SIZE_16, SLAB_OBJECT_SIZE_32, SLAB_OBJECT_SIZE_64, \
                                         SLAB_OBJECT_SIZE_128, SLAB_OBJECT_SIZE_256, SLAB_OBJECT_SIZE_512, \
                                         SLAB_OBJECT_SIZE_1024, SLAB_OBJECT_SIZE_2048, SLAB_OBJECT_SIZE_4096, \
                                         SLAB_OBJECT_SIZE_8192, SLAB_OBJECT_SIZE_16384, SLAB_OBJECT_SIZE_32768, \
                                         SLAB_OBJECT_SIZE_65536
-static const uint32_t slab_predefined_object_sizes[] = { SLAB_PREDEFINED_OBJECT_SIZES };
 #define SLAB_PREDEFINED_OBJECT_SIZES_COUNT (sizeof(slab_predefined_object_sizes) / sizeof(uint32_t))
+
+#define SLAB_OBJECT_SIZE_MIN    (((int[]){ SLAB_PREDEFINED_OBJECT_SIZES })[0])
+#define SLAB_OBJECT_SIZE_MAX    (((int[]){ SLAB_PREDEFINED_OBJECT_SIZES })[SLAB_PREDEFINED_OBJECT_SIZES_COUNT - 1])
+
+static const uint32_t slab_predefined_object_sizes[] = { SLAB_PREDEFINED_OBJECT_SIZES };
 
 typedef struct slab_allocator_core_metadata slab_allocator_core_metadata_t;
 struct slab_allocator_core_metadata {

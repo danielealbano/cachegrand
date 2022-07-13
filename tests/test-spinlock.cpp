@@ -135,7 +135,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             REQUIRE(spinlock_try_lock(&lock));
 #if DEBUG == 1
             long thread_id = syscall(__NR_gettid);
-            REQUIRE(lock.lock == (uint8_t)thread_id);
+            REQUIRE(lock.lock == (uint32_t)thread_id);
 #else
             REQUIRE(lock.lock == SPINLOCK_LOCKED);
 #endif
@@ -178,7 +178,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
 #if DEBUG == 1
             long thread_id = syscall(__NR_gettid);
-            REQUIRE(lock.lock == (uint8_t)thread_id);
+            REQUIRE(lock.lock == (uint32_t)thread_id);
 #else
             REQUIRE(lock.lock == SPINLOCK_LOCKED);
 #endif
@@ -194,7 +194,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
 #if DEBUG == 1
             long thread_id = syscall(__NR_gettid);
-            REQUIRE(lock.lock == (uint8_t)thread_id);
+            REQUIRE(lock.lock == (uint32_t)thread_id);
 #else
             REQUIRE(lock.lock == SPINLOCK_LOCKED);
 #endif
@@ -218,7 +218,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
 #if DEBUG == 1
             long thread_id = syscall(__NR_gettid);
-            REQUIRE(lock.lock == (uint8_t)thread_id);
+            REQUIRE(lock.lock == (uint32_t)thread_id);
 #else
             REQUIRE(lock.lock == SPINLOCK_LOCKED);
 #endif
@@ -299,131 +299,6 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             free(threads_info);
 
             REQUIRE(increments_per_thread_sum == increments_per_thread * threads_count);
-        }
-
-        SECTION("test potential stuck lock detection branch") {
-            void* ret;
-            bool start_flag;
-            bool can_unlock_flag;
-            spinlock_lock_volatile_t lock = { 0 };
-            pthread_attr_t attr;
-
-            uint32_t threads_count = 2;
-
-            REQUIRE(pthread_attr_init(&attr) == 0);
-
-            struct test_spinlock_lock_possible_stuck_lock_detection_thread_func_data* threads_info =
-                    (struct test_spinlock_lock_possible_stuck_lock_detection_thread_func_data*)calloc(
-                            threads_count,
-                            sizeof(test_spinlock_lock_possible_stuck_lock_detection_thread_func_data));
-
-            REQUIRE(threads_info != NULL);
-
-            start_flag = false;
-            can_unlock_flag = false;
-            spinlock_init(&lock);
-            for(uint32_t thread_num = 0; thread_num < threads_count; thread_num++) {
-                threads_info[thread_num].thread_num = thread_num;
-                threads_info[thread_num].start_flag = &start_flag;
-                threads_info[thread_num].can_unlock_flag = &can_unlock_flag;
-                threads_info[thread_num].lock = &lock;
-
-                REQUIRE(pthread_create(
-                        &threads_info[thread_num].thread_id,
-                        &attr,
-                        &test_spinlock_lock_possible_stuck_lock_detection_thread_func,
-                        &threads_info[thread_num]) == 0);
-            }
-
-            start_flag = true;
-            MEMORY_FENCE_STORE();
-
-            // TODO: should implement a timeout
-            do {
-                MEMORY_FENCE_LOAD();
-            } while (!spinlock_has_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK));
-
-            REQUIRE(spinlock_has_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK));
-
-            // Wait for all the threads to finish
-            can_unlock_flag = true;
-            MEMORY_FENCE_STORE();
-            for(uint32_t thread_num = 0; thread_num < threads_count; thread_num++) {
-                REQUIRE(pthread_join(threads_info[thread_num].thread_id, &ret) == 0);
-            }
-
-            REQUIRE(lock.lock == SPINLOCK_UNLOCKED);
-
-            free(threads_info);
-        }
-    }
-
-    SECTION("spinlock_set_flag") {
-        SECTION("one flag") {
-            spinlock_lock_volatile_t lock = { 0 };
-
-            spinlock_set_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK);
-
-            REQUIRE(lock.flags == SPINLOCK_FLAG_POTENTIALLY_STUCK);
-        }
-
-        SECTION("two flag") {
-            spinlock_lock_volatile_t lock = { 0 };
-
-            spinlock_set_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK);
-
-            // This flag currently doesn't exist, it's just to test the code
-            spinlock_set_flag(&lock, 0x04);
-
-            REQUIRE(lock.flags == (SPINLOCK_FLAG_POTENTIALLY_STUCK | 0x04));
-        }
-    }
-
-    SECTION("spinlock_unset_flag") {
-        SECTION("one flag") {
-            spinlock_lock_volatile_t lock = { 0 };
-            lock.flags = SPINLOCK_FLAG_POTENTIALLY_STUCK;
-
-            spinlock_unset_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK);
-
-            REQUIRE(lock.flags == 0);
-        }
-
-        SECTION("two flag") {
-            spinlock_lock_volatile_t lock = { 0 };
-            lock.flags = SPINLOCK_FLAG_POTENTIALLY_STUCK | 0x04;
-
-            spinlock_unset_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK);
-
-            REQUIRE(lock.flags == 0x04);
-        }
-    }
-
-    SECTION("spinlock_has_flag") {
-        SECTION("one flag") {
-            spinlock_lock_volatile_t lock = { 0 };
-            lock.flags = SPINLOCK_FLAG_POTENTIALLY_STUCK;
-            REQUIRE(spinlock_has_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK));
-        }
-
-        SECTION("two flag") {
-            spinlock_lock_volatile_t lock = { 0 };
-            lock.flags = SPINLOCK_FLAG_POTENTIALLY_STUCK | 0x04;
-            REQUIRE(spinlock_has_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK));
-            REQUIRE(spinlock_has_flag(&lock, 0x04));
-        }
-
-        SECTION("non existent flag without other flags set") {
-            spinlock_lock_volatile_t lock = { 0 };
-            REQUIRE(spinlock_has_flag(&lock, 0x08) == false);
-        }
-
-        SECTION("non existent flag with other flags set") {
-            spinlock_lock_volatile_t lock = { 0 };
-            lock.flags = SPINLOCK_FLAG_POTENTIALLY_STUCK | 0x04;
-            REQUIRE(spinlock_has_flag(&lock, SPINLOCK_FLAG_POTENTIALLY_STUCK));
-            REQUIRE(spinlock_has_flag(&lock, 0x04));
-            REQUIRE(spinlock_has_flag(&lock, 0x08) == false);
         }
     }
 }

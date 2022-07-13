@@ -289,8 +289,6 @@ void test_support_set_thread_affinity(
         logical_core_index = logical_core_index - logical_core_count + 1;
     }
 
-    LOG_DI("Thread <%u> on core <%u>", thread_index, logical_core_index);
-
     CPU_ZERO(&cpuset);
     CPU_SET(logical_core_index, &cpuset);
 
@@ -345,13 +343,11 @@ static void* test_support_build_keys_random_random_length_thread_func(
     random_init(ti->random_seed_base + ti->thread_num);
 
     test_support_set_thread_affinity(ti->thread_num);
-    LOG_DI("[Thread <%u>] waiting for start_flag", ti->thread_num);
 
     do {
         MEMORY_FENCE_LOAD();
     } while (*ti->start_flag == 0);
 
-    LOG_DI("[Thread <%u>] start_flag == 1", ti->thread_num);
 
     for (uint64_t i = ti->start; i < ti->end; i++) {
         keys_generated++;
@@ -368,8 +364,6 @@ static void* test_support_build_keys_random_random_length_thread_func(
 
         *keys_current = 0;
     }
-
-    LOG_DI("[Thread <%u>] key generation completed, generated <%lu> keys", ti->thread_num, keys_generated);
 
     return 0;
 }
@@ -557,8 +551,6 @@ char* test_support_init_keys(
     keyset = (char*) xalloc_mmap_alloc(keyset_size * TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL);
     uint32_t threads_count = utils_cpu_count();
 
-    LOG_DI("generating keyset using <%u> threads", threads_count);
-
     res = pthread_attr_init(&attr);
     if (res != 0) {
         perror("pthread_attr_init");
@@ -569,8 +561,6 @@ char* test_support_init_keys(
     if (threads_info == NULL) {
         perror("calloc");
     }
-
-    LOG_DI("generating keys using <%u> threads", threads_count);
 
     start_flag = 0;
     uint64_t window_len = (keyset_size / threads_count) + 1;
@@ -603,8 +593,6 @@ char* test_support_init_keys(
         }
     }
 
-    LOG_DI("starting threads");
-
     start_flag = 1;
     MEMORY_FENCE_STORE();
 
@@ -615,10 +603,8 @@ char* test_support_init_keys(
         }
     }
 
-    LOG_DI("generation completed");
     free(threads_info);
-
-    LOG_DI("keyset generated");
+    free(charset_list);
 
     return keyset;
 }
