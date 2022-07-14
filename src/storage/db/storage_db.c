@@ -987,7 +987,7 @@ bool storage_db_set_small_value(
     bool result = storage_db_set_entry_index(
             db,
             key,
-            value_length,
+            key_length,
             entry_index);
 
     if (!result) {
