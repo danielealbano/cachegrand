@@ -202,7 +202,7 @@ public:
         if (state.thread_index() == 0) {
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
             // Free up the memory allocated for the first keyset slots generated
-            test_support_free_keyset_slots(this->_keyset_slots);
+            test_support_free_keyset_slots(static_keyset_slots);
 
             fprintf(stdout, "> Setup (%d) - second keyset slots generation\n", state.thread_index());
             fflush(stdout);
@@ -376,10 +376,11 @@ BENCHMARK_DEFINE_F(StorageDbOpGetFixture, storage_db_op_get)(benchmark::State& s
 
 BENCHMARK_REGISTER_F(StorageDbOpGetFixture, storage_db_op_get)
     ->ArgsProduct({
-                          { 340000000 },
-                          { 75 },
+                          { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
+                            0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu, 0x7FFFFFFFu },
+                          { 50, 75 },
     })
-    ->ThreadRange(4, utils_cpu_count())
+    ->ThreadRange(1, utils_cpu_count())
     ->Iterations(1)
-    ->Repetitions(3)
+    ->Repetitions(25)
     ->DisplayAggregatesOnly(true);
