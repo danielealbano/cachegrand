@@ -46,6 +46,8 @@ bool hashtable_mcmp_op_set(
     LOG_DI("key (%d) = %s", key_size, key);
     LOG_DI("hash = 0x%016x", hash);
 
+    assert(*key != 0);
+
     // TODO: the resize logic has to be reviewed, the underlying hash search function has to be aware that it hasn't
     //       to create a new item if it's missing
     bool ret = hashtable_mcmp_support_op_search_key_or_create_new(
