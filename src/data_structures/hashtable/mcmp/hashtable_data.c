@@ -31,11 +31,14 @@ hashtable_data_t* hashtable_mcmp_data_init(hashtable_bucket_count_t buckets_coun
     hashtable_data->buckets_count =
             buckets_count;
     hashtable_data->buckets_count_real =
-            hashtable_data->buckets_count +
+            hashtable_data->buckets_count -
             (buckets_count % HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) +
+            HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT +
             (HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT);
     hashtable_data->chunks_count =
             hashtable_data->buckets_count_real / HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
+
+    assert(hashtable_data->chunks_count * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT == hashtable_data->buckets_count_real);
 
     hashtable_data->half_hashes_chunk_size =
             sizeof(hashtable_half_hashes_chunk_volatile_t) * hashtable_data->chunks_count;
