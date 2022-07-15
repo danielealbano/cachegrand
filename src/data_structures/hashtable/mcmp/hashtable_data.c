@@ -79,7 +79,31 @@ bool hashtable_mcmp_data_numa_interleave_memory(
     return true;
 }
 
-void hashtable_mcmp_data_free(hashtable_data_t* hashtable_data) {
+void hashtable_mcmp_data_keys_free(
+        hashtable_data_t* hashtable_data) {
+    for (
+            hashtable_bucket_index_t bucket_index = 0;
+            bucket_index < hashtable_data->buckets_count_real;
+            bucket_index++) {
+        hashtable_key_value_volatile_t *key_value = &hashtable_data->keys_values[bucket_index];
+
+        if (
+                HASHTABLE_KEY_VALUE_IS_EMPTY(key_value->flags) ||
+                (!HASHTABLE_KEY_VALUE_IS_EMPTY(key_value->flags) &&
+                    HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_DELETED)) ||
+                (!HASHTABLE_KEY_VALUE_IS_EMPTY(key_value->flags) &&
+                    HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE))) {
+            continue;
+        }
+
+        slab_allocator_mem_free(key_value->external_key.data);
+    }
+}
+
+void hashtable_mcmp_data_free(
+        hashtable_data_t* hashtable_data) {
+    hashtable_mcmp_data_keys_free(hashtable_data);
+
     xalloc_mmap_free((void*)hashtable_data->half_hashes_chunk, hashtable_data->half_hashes_chunk_size);
     xalloc_mmap_free((void*)hashtable_data->keys_values, hashtable_data->keys_values_size);
     xalloc_free((void*)hashtable_data);
