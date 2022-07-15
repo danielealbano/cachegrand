@@ -74,6 +74,7 @@ static void hashtable_op_get_not_found_key(benchmark::State& state) {
     }
 }
 
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
 static void hashtable_op_get_single_key_inline(benchmark::State& state) {
     static hashtable_t* hashtable;
     static hashtable_bucket_index_t bucket_index;
@@ -126,6 +127,7 @@ static void hashtable_op_get_single_key_inline(benchmark::State& state) {
         hashtable_mcmp_free(hashtable);
     }
 }
+#endif
 
 static void hashtable_op_get_single_key_external(benchmark::State& state) {
     static hashtable_t* hashtable;
@@ -181,5 +183,9 @@ static void hashtable_op_get_single_key_external(benchmark::State& state) {
 }
 
 BENCHMARK(hashtable_op_get_not_found_key)->HASHTABLE_OP_GET_BENCHS_ARGS;
+
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
 BENCHMARK(hashtable_op_get_single_key_inline)->HASHTABLE_OP_GET_BENCHS_ARGS;
+#endif
+
 BENCHMARK(hashtable_op_get_single_key_external)->HASHTABLE_OP_GET_BENCHS_ARGS;
