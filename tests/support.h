@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
-#define TEST_SUPPORT_RANDOM_KEYS_MIN_LENGTH             11
-#define TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH             19
+#define TEST_SUPPORT_RANDOM_KEYS_MIN_LENGTH             7
+#define TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH             8
 #define TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL   (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH + 1)
 #define TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_REPEATED_LIST \
     'q','w','e','r','t','y','u','i','o','p','a','s','d','f','g','h','j','k', 'l','z','x','c','v','b','n','m', \
@@ -16,18 +16,8 @@ extern "C" {
     '1','2','3','4','5','6','7','8','9','0', '1','2','3','4','5','6','7','8','9','0', \
     '.',',','/','|','\'',';',']','[','<','>','?',':','"','{','}','!','@','$','%','^','&','*','(',')','_','-','=','+','#'
 
-#define TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_UNIQUE_LIST \
-    'q','w','e','r','t','y','u','i','o','p','a','s','d','f','g','h','j','k', 'l','z','x','c','v','b','n','m', \
-    'Q','W','E','R','T','Y','U','I','O','P','A','S','D','F','G','H','J','K', 'L','Z','X','C','V','B','N','M', \
-    '1','2','3','4','5','6','7','8','9','0', \
-    '.',',','/','|','\'',';',']','[','<','>','?',':','"','{','}','!','@','$','%','^','&','*','(',')','_','-','=','+','#'
-
-#define TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_REPEATED_SIZE  sizeof((char[]){TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_REPEATED_LIST})
-#define TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_UNIQUE_SIZE  sizeof((char[]){TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_UNIQUE_LIST})
-
 #define TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_MAX_LENGTH                 1
 #define TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_RANDOM_LENGTH              2
-// #define TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_REPETIBLE_STR_ALTERNATEMINMAX_LENGTH  3
 
 #define TEST_SUPPORT_FIXTURE_FILE_FROM_DATA(DATA, DATA_LEN, FIXTURE_PATH, ...) { \
     { \
@@ -38,6 +28,12 @@ extern "C" {
         test_support_fixture_file_from_data_cleanup(FIXTURE_PATH); \
     } \
 }
+
+typedef struct test_support_keyset_slot test_support_keyset_slot_t;
+struct test_support_keyset_slot {
+    uint32_t key_length;
+    char *key;
+};
 
 // We don't really want to import the hashtable stuff in all the tests
 typedef struct hashtable hashtable_t;
@@ -79,8 +75,8 @@ struct keyset_generator_thread_info {
     pthread_t thread_id;
     uint16_t thread_num;
     uint16_t threads_count;
-    uint64_t keyset_size;
-    char* keyset;
+    uint64_t keyset_slots_count;
+    test_support_keyset_slot_t *keyset_slots;
     uint64_t start;
     uint64_t end;
 };
@@ -100,11 +96,10 @@ void test_support_same_hash_mod_fixtures_free(
 void test_support_set_thread_affinity(
         int thread_index);
 
-void test_support_free_keys(
-        char* keys,
-        uint64_t count);
+void test_support_free_keyset_slots(
+        test_support_keyset_slot_t* keyset_slots);
 
-char* test_support_init_keys(
+test_support_keyset_slot_t* test_support_init_keyset_slots(
         uint64_t keys_count,
         uint8_t keys_generator_method,
         uint64_t random_seed_base);
