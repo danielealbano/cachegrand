@@ -12,16 +12,21 @@
 #include <string.h>
 #include <errno.h>
 #include <numa.h>
+#include <assert.h>
 
 #include "exttypes.h"
 #include "spinlock.h"
 #include "xalloc.h"
 #include "pow2.h"
+#include "spinlock.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "slab_allocator.h"
 
 #include "hashtable.h"
 #include "hashtable_data.h"
 
-hashtable_data_t* hashtable_mcmp_data_init(hashtable_bucket_count_t buckets_count) {
+hashtable_data_t* hashtable_mcmp_data_init(
+        hashtable_bucket_count_t buckets_count) {
     if (pow2_is(buckets_count) == false) {
         return NULL;
     }

@@ -15,6 +15,9 @@ bool hashtable_mcmp_data_numa_interleave_memory(
 void hashtable_mcmp_data_free(
         hashtable_data_t* hashtable_data);
 
+void hashtable_mcmp_data_keys_free(
+        hashtable_data_t* hashtable_data);
+
 #ifdef __cplusplus
 }
 #endif

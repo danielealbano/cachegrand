@@ -41,13 +41,13 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
         hashtable_chunk_slot_index_t *found_chunk_slot_index,
         hashtable_key_value_volatile_t **found_key_value) {
     hashtable_hash_half_t hash_half;
-    hashtable_slot_id_wrapper_t slot_id_wrapper = {0};
+    hashtable_slot_id_wrapper_t slot_id_wrapper = { 0 };
     hashtable_bucket_index_t bucket_index;
     hashtable_chunk_index_t chunk_index, chunk_index_start_initial;
     hashtable_chunk_slot_index_t chunk_slot_index;
-    hashtable_half_hashes_chunk_volatile_t * half_hashes_chunk;
-    hashtable_key_value_volatile_t* key_value;
-    volatile hashtable_key_data_t* found_key;
+    hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk;
+    hashtable_key_value_volatile_t *key_value;
+    volatile hashtable_key_data_t *found_key;
     hashtable_key_size_t found_key_compare_size;
     uint32_t skip_indexes_mask;
     bool found = false;
@@ -164,9 +164,8 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
             // been set after they key pointer has been read
             MEMORY_FENCE_LOAD();
 
-            // Check the flags after it fetches the key, if DELETED is set the flag that specifies the
-            // inline of the key is not reliable anymore and therefore we may read from some memory not owned
-            // by the software.
+            // Check the flags after it fetches the key, if DELETED is set the flag that indicates that the key is
+            // inlined is not reliable anymore, therefore we may read from some memory not owned by the software.
             if (unlikely(HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
                     HASHTABLE_KEY_VALUE_FLAG_DELETED))) {
                 LOG_DI(">> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED - continuing");
@@ -263,7 +262,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
             (searching_or_creating < (create_new_if_missing ? 2 : 1)) && found == false;
             searching_or_creating++) {
 
-        // Setup the search range
+        // Set up the search range
         if (searching_or_creating == 0) {
             // chunk_index_start has been calculated at the beginning of the function
             chunk_index_end = chunk_index_start + overflowed_chunks_counter + 1;
@@ -325,7 +324,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
 
             while (true) {
                 // It's not necessary to have a memory fence here, these data are not going to change because of the
-                // write lock and a full barrier is issued by the lock operation
+                // write-lock and a full barrier is issued by the lock operation
                 chunk_slot_index = HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_FUNC(
                         searching_or_creating == 0 ? slot_id_wrapper.slot_id : 0,
                         (hashtable_hash_half_volatile_t *) half_hashes_chunk->half_hashes,
@@ -422,7 +421,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                     LOG_DI(">> can't find a free slot in current chunk, setting is_full to 1");
 
                     // Not needed to perform a memory store barrier here, the is_full metadata is used only by the
-                    // the thread holding the lock
+                    // thread holding the lock
                     half_hashes_chunk->metadata.is_full = 1;
                 }
             }

@@ -34,14 +34,6 @@ int main(int argc, char** argv) {
     // the main thread of the process
     thread_current_set_affinity(0);
 
-    fprintf(stdout, "Be aware, benchmarking is configured to:\n");
-    fprintf(stdout, "- spin up to 16 threads per core (with a limit to 2048 threads), pinning the threads to the cores\n");
-    fprintf(stdout, "- consume up to *120GB* of memory when testing the 2bln key hashtable size\n");
-    fprintf(stdout, "- the pre-generated keys are flushed from the cpu data cache at the beginning of each test,\n");
-    fprintf(stdout, "  although the test keyset by default contains 1610612736 (1.610bln) with a size of 46.5GB\n");
-    fprintf(stdout, "  so there is no chance to fit it in the cpu cache.\n");
-    fprintf(stdout, "\n");
-
     fprintf(stdout, "The benchmarks are running using the following hash algorithm:\n  %s\n",
             HASHTABLE_SUPPORT_HASH_NAME);
     fflush(stdout);
