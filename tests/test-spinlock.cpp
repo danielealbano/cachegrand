@@ -159,7 +159,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 
 #if DEBUG == 1
             long thread_id = syscall(__NR_gettid);
-            lock.lock = (uint16_t)thread_id;
+            lock.lock = (uint32_t)thread_id;
 #else
             lock.lock = SPINLOCK_LOCKED;
 #endif

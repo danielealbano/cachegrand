@@ -56,8 +56,9 @@ TEST_CASE("hashtable/hashtable_data.c", "[hashtable][hashtable_data]") {
     SECTION("hashtable_data->buckets_count_real") {
         HASHTABLE_DATA(0x80u, {
             uint64_t buckets_count_real_calc =
-                    hashtable_data->buckets_count +
+                    hashtable_data->buckets_count -
                     (hashtable_data->buckets_count % HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) +
+                    HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT +
                     (HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT);
             REQUIRE(hashtable_data->buckets_count_real == buckets_count_real_calc);
         })

@@ -110,7 +110,9 @@ bool hashtable_mcmp_op_delete(
 
             MEMORY_FENCE_STORE();
 
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
             if (!HASHTABLE_KEY_VALUE_HAS_FLAG(key_value_flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
+#endif
                 // The get operation might be comparing the key while it gets freed because it doesn't use the lock, the
                 // scenario in which it might happen is that the code in the get operation has already checked the flags
                 // and therefore is now comparing the key.
@@ -123,7 +125,9 @@ bool hashtable_mcmp_op_delete(
                 slab_allocator_mem_free(key_value->external_key.data);
                 key_value->external_key.data = NULL;
                 key_value->external_key.size = 0;
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
             }
+#endif
 
             deleted = true;
         }
