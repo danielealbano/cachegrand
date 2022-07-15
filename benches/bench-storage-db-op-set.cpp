@@ -6,9 +6,8 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
+#include <cstdint>
+#include <cstring>
 #include <numa.h>
 
 #include <benchmark/benchmark.h>
@@ -18,6 +17,7 @@
 #include "spinlock.h"
 #include "log/log.h"
 #include "clock.h"
+#include "memory_fences.h"
 #include "config.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
@@ -26,248 +26,221 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
+#include "utils_cpu.h"
 #include "fiber.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 
 #include "../tests/support.h"
-#include "../tests/hashtable/fixtures-hashtable.h"
 
 #include "bench-support.h"
 
-#define KEYSET_MAX_SIZE             (double)0x7FFFFFFFu * (double)0.75
-#define KEYSET_GENERATOR_METHOD     TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_RANDOM_LENGTH
+// Set the generator to use
+#define KEYSET_GENERATOR_METHOD     TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_MAX_LENGTH
 
-#define SET_BENCH_ARGS_HT_SIZE_AND_KEYS() \
-    Args({0x0000FFFFu, 75})-> \
-    Args({0x000FFFFFu, 75})-> \
-    Args({0x001FFFFFu, 75})-> \
-    Args({0x007FFFFFu, 75})-> \
-    Args({0x00FFFFFFu, 75})-> \
-    Args({0x01FFFFFFu, 50})-> \
-    Args({0x01FFFFFFu, 75})-> \
-    Args({0x07FFFFFFu, 50})-> \
-    Args({0x07FFFFFFu, 75})-> \
-    Args({0x0FFFFFFFu, 50})-> \
-    Args({0x0FFFFFFFu, 75})-> \
-    Args({0x1FFFFFFFu, 50})-> \
-    Args({0x1FFFFFFFu, 75})-> \
-    Args({0x3FFFFFFFu, 50})-> \
-    Args({0x3FFFFFFFu, 75})-> \
-    Args({0x7FFFFFFFu, 50})-> \
-    Args({0x7FFFFFFFu, 75})
+// These two are kept static and external because
+// - Google Benchmark invokes the setup multiple times, once per thread, but it doesn't have an entry point invoked
+//   only once to setup non-shared elements for the test
+// - the order of the threads started by Google Benchmark is undefined and therefore the code relies on the first thread
+//   to setup the keyset and the db and then on having these two static pointers set to NULL to understand when they
+//   have been configured by the thread 0. The other threads will wait for these allocations to be made.
+volatile static storage_db *static_db = nullptr;
+volatile static test_support_keyset_slot_t *static_keyset_slots = nullptr;
 
-#define SET_BENCH_THREADS \
-    Threads(1)-> \
-    Threads(2)-> \
-    Threads(4)-> \
-    Threads(8)-> \
-    Threads(16)-> \
-    Threads(32)-> \
-    Threads(64)-> \
-    Threads(128)-> \
-    Threads(256)-> \
-    Threads(512)-> \
-    Threads(1024)-> \
-    Threads(2048)
+class StorageDbOpSetInsertFixture : public benchmark::Fixture {
+private:
+    storage_db *_db = nullptr;
+    uint32_t _workers_count = 0;
+    char _value_buffer[100] = { 0 };
+    size_t _value_buffer_length = sizeof(_value_buffer);
+    test_support_keyset_slot_t *_keyset_slots = nullptr;
+    uint64_t _requested_keyset_size = 0;
 
-#define SET_BENCH_ITERATIONS \
-    Iterations(1)->\
-    Repetitions(25)->\
-    DisplayAggregatesOnly(true)
-
-#define CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS() \
-    UseRealTime()-> \
-    SET_BENCH_ARGS_HT_SIZE_AND_KEYS()-> \
-    SET_BENCH_ITERATIONS-> \
-    SET_BENCH_THREADS
-
-static char* keyset = NULL;
-static uint64_t keyset_size = 0;
-
-static void storage_db_op_set_keyset_init_notatest(benchmark::State& state) {
-    keyset_size = KEYSET_MAX_SIZE + 1;
-
-    keyset = test_support_init_keys(
-            keyset_size,
-            KEYSET_GENERATOR_METHOD,
-            544498304);
-
-    state.SkipWithError("Not a test, skipping");
-}
-
-static void storage_db_op_set_keyset_cleanup_notatest(benchmark::State& state) {
-    test_support_free_keys(keyset, keyset_size);
-
-    keyset = NULL;
-    keyset_size = 0;
-
-    state.SkipWithError("Not a test, skipping");
-}
-
-static void storage_db_op_set_new(benchmark::State& state) {
-    static uint64_t requested_keyset_size;
-    worker_context_t *worker_context;
-    bool result;
-    char error_message[150] = {0};
-    static storage_db *db;
-    storage_db_config_t *db_config;
-    int threads_count = state.threads();
-
-    if (bench_support_check_if_too_many_threads_per_core(state.threads(), BENCHES_MAX_THREADS_PER_CORE)) {
-        sprintf(error_message, "Too many threads per core, max allowed <%d>", BENCHES_MAX_THREADS_PER_CORE);
-        state.SkipWithError(error_message);
-        return;
+public:
+    storage_db *GetDb() {
+        return this->_db;
     }
 
-    test_support_set_thread_affinity(state.thread_index());
+    [[nodiscard]] uint32_t GetWorkersCount() const {
+        return this->_workers_count;
+    }
 
-    if (state.thread_index() == 0) {
-        db = NULL;
+    char *GetValueBuffer() {
+        return this->_value_buffer;
+    }
 
-        // Setup the storage db
-        storage_db_config_t *db_config = storage_db_config_new();
-        db_config->max_keys = state.range(0);
-        db_config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY;
-        db = storage_db_new(db_config, threads_count);
-        if (!db) {
-            storage_db_config_free(db_config);
+    [[nodiscard]] size_t GetValueBufferLength() const {
+        return this->_value_buffer_length;
+    }
+
+    test_support_keyset_slot_t *GetKeysetSlots() {
+        return this->_keyset_slots;
+    }
+
+    [[nodiscard]] uint64_t GetRequestedKeysetSize() const {
+        return this->_requested_keyset_size;
+    }
+
+    void SetUp(const ::benchmark::State& state) override {
+        char error_message[150] = {0};
+
+        test_support_set_thread_affinity(state.thread_index());
+
+        // Calculate the requested keyset size
+        double requested_load_factor = (double) state.range(1) / 100.0f;
+        this->_requested_keyset_size = (uint64_t) (((double) state.range(0)) * requested_load_factor);
+
+        if (state.thread_index() == 0) {
+            if (bench_support_check_if_too_many_threads_per_core(
+                    state.threads(),
+                    BENCHES_MAX_THREADS_PER_CORE)) {
+                sprintf(error_message, "Too many threads per core, max allowed <%d>", BENCHES_MAX_THREADS_PER_CORE);
+                ((::benchmark::State &) state).SkipWithError(error_message);
+
+                return;
+            }
+
+            char charset[] = {TEST_SUPPORT_RANDOM_KEYS_CHARACTER_SET_REPEATED_LIST};
+            // Generate the value (just some data from the charset)
+            for (int i = 0; i < this->_value_buffer_length; i++) {
+                this->_value_buffer[i] = charset[i % sizeof(charset)];
+            }
+
+            // Initialize the key set
+            static_keyset_slots = test_support_init_keyset_slots(
+                    this->_requested_keyset_size,
+                    KEYSET_GENERATOR_METHOD,
+                    544498304);
+
+            // Setup the storage db
+            storage_db_config_t *db_config = storage_db_config_new();
+            db_config->max_keys = state.range(0);
+            db_config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY;
+            static_db = storage_db_new(db_config, state.threads());
+            if (!static_db) {
+                storage_db_config_free(db_config);
+
+                sprintf(
+                        error_message,
+                        "Failed to allocate the storage db, unable to continue");
+                ((::benchmark::State &) state).SkipWithError(error_message);
+                return;
+            }
+
+            MEMORY_FENCE_STORE();
+        }
+
+        if (state.thread_index() != 0) {
+            while (!static_db) {
+                MEMORY_FENCE_LOAD();
+                sched_yield();
+            }
+
+            while (!static_keyset_slots) {
+                MEMORY_FENCE_LOAD();
+                sched_yield();
+            }
+        }
+
+        this->_db = (storage_db*)static_db;
+
+        this->_workers_count = state.threads();
+        this->_keyset_slots = (test_support_keyset_slot_t *)static_keyset_slots;
+    }
+
+    void TearDown(const ::benchmark::State& state) override {
+        if (state.thread_index() != 0) {
             return;
         }
 
-        if ((worker_context = worker_context_get())) {
-            storage_db_free(worker_context->db, worker_context->workers_count);
-        }
-    }
+        if (this->_db != nullptr) {
+            bench_support_collect_hashtable_stats_and_update_state(
+                    (benchmark::State&)state, this->_db->hashtable);
 
-    // Setup the worker context, as it's required by the storage db
-    if ((worker_context = worker_context_get()) == NULL) {
+            // Free the stoarge
+            storage_db_free(this->_db, this->_workers_count);
+        }
+
+        if (this->_keyset_slots != nullptr) {
+            // Free the keys
+            test_support_free_keyset_slots(this->_keyset_slots);
+        }
+
+        this->_db = nullptr;
+        this->_workers_count = 0;
+        this->_keyset_slots = nullptr;
+        this->_requested_keyset_size = 0;
+
+        static_db = nullptr;
+        static_keyset_slots = nullptr;
+    }
+};
+
+BENCHMARK_DEFINE_F(StorageDbOpSetInsertFixture, storage_db_op_set_insert)(benchmark::State& state) {
+    bool result;
+    uint64_t requested_keyset_size;
+    test_support_keyset_slot_t *keyset_slots;
+    worker_context_t *worker_context;
+    char *value_buffer;
+    size_t value_buffer_length;
+    char error_message[150] = { 0 };
+
+    test_support_set_thread_affinity(state.thread_index());
+
+    // Set up the worker context, as it's required by the storage db, this has to be done here as the worker_context
+    // is stored in a thread variable an the threads are managed internally by the benchmarking library and therefore
+    // they can be recycled or re-created.
+    if ((worker_context = worker_context_get()) == nullptr) {
+        // This assigned memory will be lost but this is a benchmark and we don't care
         worker_context = (worker_context_t *)slab_allocator_mem_alloc(sizeof(worker_context_t));
         worker_context_set(worker_context);
     }
 
-    worker_context->workers_count = threads_count;
+    // Setup the worker as needed
     worker_context->worker_index = state.thread_index();
-    worker_context->worker_index = state.thread_index();
-    worker_context->db = db;
+    worker_context->workers_count = this->GetWorkersCount();
+    worker_context->db = this->GetDb();
 
-    if (state.thread_index() == 0) {
-        double requested_load_factor = (double)state.range(1) / 100.0f;
-        requested_keyset_size = (double)state.range(0) * requested_load_factor;
-        if (requested_keyset_size > keyset_size) {
-            sprintf(
-                    error_message,
-                    "The requested keyset size of <%lu> is greater than the one available of <%lu>, can't continue",
-                    requested_keyset_size,
-                    keyset_size);
-            state.SkipWithError(error_message);
-            return;
-        }
-
-        // Flush the cpu DCACHE related to the portion of the keyset used by the bench before starting the test
-        test_support_flush_data_cache(
-                keyset,
-                TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * requested_keyset_size);
-    }
+    // Fetch the information from the fixtures needed for the test
+    keyset_slots = this->GetKeysetSlots();
+    value_buffer = this->GetValueBuffer();
+    value_buffer_length = this->GetValueBufferLength();
+    requested_keyset_size = this->GetRequestedKeysetSize();
 
     for (auto _ : state) {
-        for(long int i = state.thread_index(); i < requested_keyset_size; i += state.threads()) {
-            uint64_t keyset_offset = TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i;
-            char* key = keyset + keyset_offset;
-            size_t key_length = strlen(key);
-
+        for(
+                uint64_t key_index = state.thread_index();
+                key_index < requested_keyset_size;
+                key_index += state.threads()) {
             result = storage_db_set_small_value(
-                    db,
-                    key,
-                    key_length,
-                    key,
-                    key_length);
+                    worker_context->db,
+                    keyset_slots[key_index].key,
+                    keyset_slots[key_index].key_length,
+                    value_buffer,
+                    value_buffer_length);
 
             if (!result) {
                 sprintf(
                         error_message,
-                        "Unable to set the key <%s> with index <%ld> for the thread <%d>",
-                        key,
-                        i,
+                        "Unable to set the key <%s (%d)> with index <%ld> for the thread <%d>",
+                        keyset_slots[key_index].key,
+                        keyset_slots[key_index].key_length,
+                        key_index,
                         state.thread_index());
                 state.SkipWithError(error_message);
                 break;
             }
         }
-    }
-
-    // VALIDATION
-    for(long int i = state.thread_index(); i < requested_keyset_size; i += state.threads()) {
-        char buffer[TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL + 1] = { 0 };
-        uint64_t keyset_offset = TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i;
-        char *key = keyset + keyset_offset;
-        size_t key_length = strlen(key);
-
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, key_length);
-
-        if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
-            if (entry_index->key_length != key_length) {
-                sprintf(
-                        error_message,
-                        "Mismatching key length for key <%s> at index <%ld> for the thread <%d>",
-                        key,
-                        i,
-                        state.thread_index());
-                state.SkipWithError(error_message);
-                break;
-            }
-        }
-
-        // Try to acquire a reader lock, don't check if the value has been deleted as no deletions are carried out
-        storage_db_entry_index_status_increase_readers_counter(
-                entry_index,
-                NULL);
-
-        bool res = storage_db_entry_chunk_read(
-                db,
-                storage_db_entry_value_chunk_get(entry_index, 0),
-                buffer);
-        storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
-
-        if (!res) {
-            sprintf(
-                    error_message,
-                    "Unable to set the key <%s> with index <%ld> for the thread <%d>",
-                    key,
-                    i,
-                    state.thread_index());
-            state.SkipWithError(error_message);
-            break;
-        }
-
-        if (strncmp(buffer, key, key_length) != 0) {
-            sprintf(
-                    error_message,
-                    "Mismatching value for key at index <%ld> for the thread <%d>, expected <%s> found <%.*s>",
-                    i,
-                    state.thread_index(),
-                    key,
-                    (int)key_length,
-                    buffer);
-            state.SkipWithError(error_message);
-            break;
-        }
-    }
-
-    if (state.thread_index() == 0) {
-        bench_support_collect_hashtable_stats_and_update_state(state, db->hashtable);
     }
 }
 
-BENCHMARK(storage_db_op_set_keyset_init_notatest)
+BENCHMARK_REGISTER_F(StorageDbOpSetInsertFixture, storage_db_op_set_insert)
+    ->ArgsProduct({
+                          { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
+                            0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu, 0x7FFFFFFFu },
+                          { 50, 75 },
+    })
+    ->ThreadRange(1, utils_cpu_count())
     ->Iterations(1)
-    ->Threads(1)
-    ->Repetitions(1);
-
-BENCHMARK(storage_db_op_set_new)
-    ->CONFIGURE_BENCH_MT_HT_SIZE_AND_KEYS();
-
-BENCHMARK(storage_db_op_set_keyset_cleanup_notatest)
-    ->Iterations(1)
-    ->Threads(1)
-    ->Repetitions(1);
+    ->Repetitions(25)
+    ->DisplayAggregatesOnly(true);
