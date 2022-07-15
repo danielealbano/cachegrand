@@ -498,7 +498,11 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                     REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_FILLED);
 #endif
                     REQUIRE(strncmp(
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
                             (char*)key_value->inline_key.data,
+#else
+                            key_value->external_key.data,
+#endif
                             test_key_1,
                             test_key_1_len) == 0);
                     REQUIRE(key_value->data == test_value_1);
