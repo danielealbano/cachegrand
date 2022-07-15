@@ -23,7 +23,7 @@
 
 #include "hashtable_op_iter.h"
 
-void *hashtable_op_iter_next(
+void *hashtable_mcmp_op_iter(
         hashtable_t *hashtable,
         uint64_t *bucket_index) {
     hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk;
