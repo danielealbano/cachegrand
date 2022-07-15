@@ -53,14 +53,16 @@ void *hashtable_mcmp_op_iter(
             }
 
             key_value = &hashtable->ht_current->keys_values[*bucket_index];
+            volatile void* data = (void*)key_value->data;
 
+            MEMORY_FENCE_LOAD();
             if (
                     HASHTABLE_KEY_VALUE_IS_EMPTY(key_value->flags) ||
                     HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_DELETED)) {
                 continue;
             }
 
-            return (void*)key_value->data;
+            return (void*)data;
         }
 
         chunk_slot_index = 0;
