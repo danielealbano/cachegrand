@@ -89,6 +89,7 @@ bool hashtable_mcmp_op_set(
 
         LOG_DI("copying the key onto the key_value structure");
 
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
         // Get the destination pointer for the key
         if (key_size <= HASHTABLE_KEY_INLINE_MAX_LENGTH) {
             key_inlined = true;
@@ -102,10 +103,12 @@ bool hashtable_mcmp_op_set(
             key_value->inline_key.size = key_size;
         } else {
             LOG_DI("key can't be inline-ed, max length for inlining %d", HASHTABLE_KEY_INLINE_MAX_LENGTH);
-
+#endif
             key_value->external_key.data = key;
             key_value->external_key.size = key_size;
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
         }
+#endif
 
         // Set the FILLED flag
         HASHTABLE_KEY_VALUE_SET_FLAG(flags, HASHTABLE_KEY_VALUE_FLAG_FILLED);

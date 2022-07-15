@@ -138,6 +138,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
 
             LOG_DI(">> checking key");
 
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE==1
             // The key may potentially change if the item is first deleted and then recreated, if it's inline it
             // doesn't really matter because the key will mismatch and the execution will continue but if the key is
             // stored externally and the allocated memory is freed it may crash.
@@ -149,6 +150,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
                 found_key_compare_size = key_value->inline_key.size;
             } else {
                 LOG_DI(">> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
+#endif
 
                 found_key = key_value->external_key.data;
                 found_key_compare_size = key_value->external_key.size;
@@ -158,7 +160,9 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
                            key_size, key_value->external_key.size);
                     continue;
                 }
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE==1
             }
+#endif
 
             // Ensure that the fresh-est flags value is going to be read to avoid that the deleted flag has
             // been set after they key pointer has been read
@@ -349,6 +353,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                 LOG_DI(">>> key_value->flags = 0x%08x", key_value->flags);
 
                 if (searching_or_creating == 0) {
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE==1
                     if (HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
                             HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
                         LOG_DI(">>> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
@@ -357,6 +362,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                         found_key_compare_size = key_value->inline_key.size;
                     } else {
                         LOG_DI(">>> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
+#endif
 
                         found_key = key_value->external_key.data;
                         found_key_compare_size = key_value->external_key.size;
@@ -366,8 +372,9 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                                      key_size, key_value->external_key.size);
                             continue;
                         }
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE==1
                     }
-
+#endif
                     LOG_DI(">>> key fetched, comparing");
 
                     if (unlikely(utils_string_casecmp_eq_32(

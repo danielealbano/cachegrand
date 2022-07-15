@@ -9,6 +9,12 @@ extern "C" {
 #define HASHTABLE_USE_UINT64    1
 #endif
 
+// By default, don't inline keys, although it might improve memory consumption it will hit hard to the memory allocator
+// which require currently some minimal locking wasting a lot of cycles just to save up to 32 bytes
+#ifndef HASHTABLE_FLAG_ALLOW_KEY_INLINE
+#define HASHTABLE_FLAG_ALLOW_KEY_INLINE 0
+#endif
+
 #define HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT    14
 #define HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX          32
 #define HASHTABLE_KEY_INLINE_MAX_LENGTH                 22

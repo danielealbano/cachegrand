@@ -26,6 +26,7 @@
 
 TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashtable_mcmp_op_set]") {
     SECTION("hashtable_mcmp_op_set") {
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
         SECTION("set 1 bucket - inline key") {
             HASHTABLE(0x7FFF, false, {
                 uintptr_t prev_value = 0;
@@ -70,6 +71,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index + 1].slot_id == 0);
             })
         }
+#endif
 
         SECTION("set 1 bucket - external key") {
             HASHTABLE(0x7FFF, false, {
@@ -155,12 +157,22 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].distance == 0);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
                 REQUIRE(key_value->flags ==
                         (HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE));
+#else
+                REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_FILLED);
+#endif
+
                 REQUIRE(strncmp(
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
                         (char*)key_value->inline_key.data,
+#else
+                        key_value->external_key.data,
+#endif
                         test_key_1,
                         test_key_1_len) == 0);
+
                 REQUIRE(key_value->data == test_value_1 + 1);
                 REQUIRE(prev_value1 == 0);
                 REQUIRE(prev_value2 == test_value_1);
@@ -217,10 +229,18 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(half_hashes_chunk1->half_hashes[chunk_slot_index1].filled == true);
                 REQUIRE(half_hashes_chunk1->half_hashes[chunk_slot_index1].distance == 0);
                 REQUIRE(half_hashes_chunk1->half_hashes[chunk_slot_index1].quarter_hash == test_key_1_hash_quarter);
-                REQUIRE(key_value1->flags ==
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
+                REQUIRE(key_value->flags ==
                         (HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE));
+#else
+                REQUIRE(key_value1->flags == HASHTABLE_KEY_VALUE_FLAG_FILLED);
+#endif
                 REQUIRE(strncmp(
-                        (char*)key_value1->inline_key.data,
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
+                (char*)key_value1->inline_key.data,
+#else
+                key_value1->external_key.data,
+#endif
                         test_key_1,
                         test_key_1_len) == 0);
                 REQUIRE(key_value1->data == test_value_1);
@@ -229,10 +249,18 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(half_hashes_chunk2->half_hashes[chunk_slot_index2].filled == true);
                 REQUIRE(half_hashes_chunk2->half_hashes[chunk_slot_index2].distance == 0);
                 REQUIRE(half_hashes_chunk2->half_hashes[chunk_slot_index2].quarter_hash == test_key_2_hash_quarter);
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
                 REQUIRE(key_value2->flags ==
                         (HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE));
+#else
+                REQUIRE(key_value2->flags == HASHTABLE_KEY_VALUE_FLAG_FILLED);
+#endif
                 REQUIRE(strncmp(
-                        (char*)key_value2->inline_key.data,
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
+                (char*)key_value2->inline_key.data,
+#else
+                key_value2->external_key.data,
+#endif
                         test_key_2,
                         test_key_2_len) == 0);
                 REQUIRE(key_value2->data == test_value_2);
@@ -248,12 +276,15 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         slots_to_fill);
 
                 for(hashtable_chunk_index_t i = 0; i < slots_to_fill; i++) {
-                    char *test_key_same_bucket_alloc = (char*)malloc(test_key_same_bucket[i].key_len + 1);
-                    strncpy(test_key_same_bucket_alloc, test_key_same_bucket[i].key, test_key_same_bucket[i].key_len + 1);
+                    char *test_key_same_bucket_current_copy = (char*)malloc(test_key_same_bucket[i].key_len + 1);
+                    strncpy(
+                            test_key_same_bucket_current_copy,
+                            test_key_same_bucket[i].key,
+                            test_key_same_bucket[i].key_len + 1);
 
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
-                            (char*)test_key_same_bucket[i].key,
+                            test_key_same_bucket_current_copy,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
                             NULL));
@@ -298,12 +329,15 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         slots_to_fill);
 
                 for(hashtable_chunk_slot_index_t i = 0; i < slots_to_fill; i++) {
-                    char *test_key_same_bucket_alloc = (char*)malloc(test_key_same_bucket[i].key_len + 1);
-                    strncpy(test_key_same_bucket_alloc, test_key_same_bucket[i].key, test_key_same_bucket[i].key_len + 1);
+                    char *test_key_same_bucket_current_copy = (char*)malloc(test_key_same_bucket[i].key_len + 1);
+                    strncpy(
+                            test_key_same_bucket_current_copy,
+                            test_key_same_bucket[i].key,
+                            test_key_same_bucket[i].key_len + 1);
 
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
-                            test_key_same_bucket_alloc,
+                            test_key_same_bucket_current_copy,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
                             NULL));
@@ -354,12 +388,15 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         slots_to_fill);
 
                 for(hashtable_chunk_slot_index_t i = 0; i < slots_to_fill; i++) {
-                    char *test_key_same_bucket_alloc = (char*)malloc(test_key_same_bucket[i].key_len + 1);
-                    strncpy(test_key_same_bucket_alloc, test_key_same_bucket[i].key, test_key_same_bucket[i].key_len + 1);
+                    char *test_key_same_bucket_current_copy = (char*)malloc(test_key_same_bucket[i].key_len + 1);
+                    strncpy(
+                            test_key_same_bucket_current_copy,
+                            test_key_same_bucket[i].key,
+                            test_key_same_bucket[i].key_len + 1);
 
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
-                            test_key_same_bucket_alloc,
+                            test_key_same_bucket_current_copy,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
                             NULL));
@@ -395,12 +432,15 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
 
                 uint32_t i = 0;
                 for(; i < slots_to_fill - 1; i++) {
-                    char *test_key_same_bucket_alloc = (char*)malloc(test_key_same_bucket[i].key_len + 1);
-                    strncpy(test_key_same_bucket_alloc, test_key_same_bucket[i].key, test_key_same_bucket[i].key_len + 1);
+                    char *test_key_same_bucket_current_copy = (char*)malloc(test_key_same_bucket[i].key_len + 1);
+                    strncpy(
+                            test_key_same_bucket_current_copy,
+                            test_key_same_bucket[i].key,
+                            test_key_same_bucket[i].key_len + 1);
 
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
-                            test_key_same_bucket_alloc,
+                            test_key_same_bucket_current_copy,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
                             NULL));
@@ -451,8 +491,12 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                     REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
                     REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].distance == 0);
                     REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
                     REQUIRE(key_value->flags ==
                             (HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE));
+#else
+                    REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_FILLED);
+#endif
                     REQUIRE(strncmp(
                             (char*)key_value->inline_key.data,
                             test_key_1,
