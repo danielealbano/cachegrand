@@ -481,9 +481,9 @@ void storage_db_free(
     // Iterates over the hashtable to free up the entry index
     hashtable_bucket_index_t bucket_index = 0;
     for(
-            void *data = hashtable_op_iter_next(db->hashtable, &bucket_index);
+            void *data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index);
             data;
-            ++bucket_index && (data = hashtable_op_iter_next(db->hashtable, &bucket_index))) {
+            ++bucket_index && (data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index))) {
         storage_db_entry_index_free(db, data);
     }
 
