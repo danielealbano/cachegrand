@@ -29,6 +29,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_op_get.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_delete.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_iter.h"
 #include "slab_allocator.h"
 #include "fiber.h"
 #include "fiber_scheduler.h"
@@ -424,52 +425,65 @@ bool storage_db_close(
     return true;
 }
 
+void storage_db_deleted_entry_ring_buffer_per_worker_free(
+        storage_db_t *db,
+        uint32_t worker_index) {
+    storage_db_entry_index_t *entry_index = NULL;
+    small_circular_queue_t *scq = db->workers[worker_index].deleted_entry_index_ring_buffer;
+
+    if (!scq) {
+        return;
+    }
+
+    while((entry_index = small_circular_queue_dequeue(scq)) != NULL) {
+        storage_db_entry_index_free(db, entry_index);
+    }
+
+    small_circular_queue_free(scq);
+}
+
+void storage_db_deleting_entry_index_list_per_worker_free(
+        storage_db_t *db,
+        uint32_t worker_index) {
+    double_linked_list_t *dblist;
+    double_linked_list_item_t *item;
+
+    dblist = db->workers[worker_index].deleting_entry_index_list;
+    if (!dblist) {
+        return;
+    }
+
+    while((item = double_linked_list_pop_item(dblist)) != NULL) {
+        storage_db_entry_index_t *entry_index = item->data;
+
+        double_linked_list_item_free(item);
+        storage_db_entry_index_free(db, entry_index);
+    }
+
+    double_linked_list_free(db->workers[worker_index].deleting_entry_index_list);
+}
+
 void storage_db_free(
         storage_db_t *db,
         uint32_t workers_count) {
+    // Free up the per_worker allocated memory
     for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
-        if (db->workers[worker_index].deleted_entry_index_ring_buffer) {
-            storage_db_entry_index_t *entry_index = NULL;
-            while((entry_index = small_circular_queue_dequeue(
-                    db->workers[worker_index].deleted_entry_index_ring_buffer)) != NULL) {
-                storage_db_entry_index_free(db, entry_index);
-            }
-
-            small_circular_queue_free(db->workers[worker_index].deleted_entry_index_ring_buffer);
-        }
-
-        if (db->workers[worker_index].deleting_entry_index_list) {
-            double_linked_list_item_t *item = NULL;
-            while((item = double_linked_list_pop_item(
-                    db->workers[worker_index].deleting_entry_index_list)) != NULL) {
-                storage_db_entry_index_t *entry_index = item->data;
-
-                double_linked_list_item_free(item);
-                storage_db_entry_index_free(db, entry_index);
-            }
-
-            double_linked_list_free(db->workers[worker_index].deleting_entry_index_list);
-        }
+        storage_db_deleted_entry_ring_buffer_per_worker_free(db, worker_index);
+        storage_db_deleting_entry_index_list_per_worker_free(db, worker_index);
     }
 
+    // Free up the opened_shards lists (the actual cleanup of the shards is done in storage_db_close, here only the
+    // memory gets freed up)
     if (db->shards.opened_shards) {
         double_linked_list_free(db->shards.opened_shards);
     }
 
-    for(uint64_t bucket_index = 0; bucket_index < db->hashtable->ht_current->buckets_count_real; bucket_index++) {
-        hashtable_key_value_volatile_t *key_value = &db->hashtable->ht_current->keys_values[bucket_index];
-
-        if (
-                HASHTABLE_KEY_VALUE_IS_EMPTY(key_value->flags) ||
-                HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_DELETED)) {
-            continue;
-        }
-
-        if (!HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
-            slab_allocator_mem_free(key_value->external_key.data);
-        }
-
-        storage_db_entry_index_t *data = (storage_db_entry_index_t *)key_value->data;
+    // Iterates over the hashtable to free up the entry index
+    hashtable_bucket_index_t bucket_index = 0;
+    for(
+            void *data = hashtable_op_iter_next(db->hashtable, &bucket_index);
+            data;
+            ++bucket_index && (data = hashtable_op_iter_next(db->hashtable, &bucket_index))) {
         storage_db_entry_index_free(db, data);
     }
 
