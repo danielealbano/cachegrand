@@ -91,8 +91,7 @@ void bench_support_collect_hashtable_stats_and_update_state(benchmark::State& st
             &longest_half_hashes_chunk);
 
     state.counters["total_buckets"] = hashtable->ht_current->buckets_count;
-    state.counters["keys_to_insert"] = keys_count;
-    state.counters["keys_inserted_per_second"] = keys_count;
+    state.counters["inserted_keys"] = keys_count;
     state.counters["requested_load_factor"] = requested_load_factor;
     state.counters["total_chunks"] = hashtable->ht_current->chunks_count;
     state.counters["used_chunks"] = used_chunks;
