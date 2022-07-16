@@ -51,7 +51,6 @@ public:
         // Enable the hugepage cache and the slab allocator
         hugepage_cache_init();
         slab_allocator_enable(true);
-        slab_allocator_predefined_allocators_init();
 
         // Setup the log sink
         BenchmarkProgram::setup_initial_log_sink_console();
