@@ -602,7 +602,6 @@ void program_cleanup(
     }
 
     if (program_context->slab_allocator_inited) {
-        slab_allocator_predefined_allocators_free();
         hugepage_cache_free();
     }
 
@@ -701,7 +700,6 @@ int program_main(
     program_workers_initialize_count(program_context);
 
     if (program_context->use_slab_allocator) {
-        slab_allocator_predefined_allocators_init();
         program_context->slab_allocator_inited = true;
     }
 
