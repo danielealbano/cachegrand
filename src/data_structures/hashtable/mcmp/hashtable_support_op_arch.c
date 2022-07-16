@@ -411,7 +411,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                 uint8_volatile_t overflowed_chunks_counter_new = (uint8_t)(found_chunk_index - chunk_index_start_initial);
                 uint8_volatile_t overflowed_chunks_counter_current =
                         hashtable_data->half_hashes_chunk[chunk_index_start_initial].metadata.overflowed_chunks_counter;
-                uint8_volatile_t overflowed_chunks_counter_update = max(
+                uint8_volatile_t overflowed_chunks_counter_update = MAX(
                         overflowed_chunks_counter_new, overflowed_chunks_counter_current);
 
                 hashtable_data->half_hashes_chunk[chunk_index_start_initial].metadata.overflowed_chunks_counter =
