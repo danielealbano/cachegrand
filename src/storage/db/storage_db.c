@@ -560,7 +560,7 @@ bool storage_db_entry_index_allocate_key_chunks(
         if (!storage_db_chunk_data_pre_allocate(
                 db,
                 chunk_info,
-                min(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
+                MIN(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
             slab_allocator_mem_free(entry_index->key_chunks_info);
             return false;
         }
@@ -588,7 +588,7 @@ bool storage_db_entry_index_allocate_value_chunks(
         if (!storage_db_chunk_data_pre_allocate(
                 db,
                 chunk_info,
-                min(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
+                MIN(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
             // TODO: If the operation fails all the allocated values should be freed as this might lead to memory leaks
             slab_allocator_mem_free(entry_index->value_chunks_info);
             return false;
