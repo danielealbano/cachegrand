@@ -31,10 +31,8 @@ extern "C" {
 
 static const uint32_t slab_predefined_object_sizes[] = { SLAB_PREDEFINED_OBJECT_SIZES };
 
-typedef struct slab_allocator_core_metadata slab_allocator_core_metadata_t;
-struct slab_allocator_core_metadata {
-    spinlock_lock_volatile_t spinlock;
-
+typedef struct slab_allocator_thread_metadata slab_allocator_thread_metadata_t;
+struct slab_allocator_thread_metadata {
     // The slots are sorted per availability
     double_linked_list_t* slots;
     double_linked_list_t* slices;
@@ -47,9 +45,8 @@ struct slab_allocator_core_metadata {
 
 typedef struct slab_allocator slab_allocator_t;
 struct slab_allocator {
-    uint16_t core_count;
     uint32_t object_size;
-    slab_allocator_core_metadata_t* core_metadata;
+    slab_allocator_thread_metadata_t thread_metadata;
 };
 
 // It's necessary to use an union for slab_slot_t and slab_slice_t as the double_linked_list_item_t is being embedded
@@ -81,7 +78,6 @@ typedef union {
         void* page_addr;
         uintptr_t data_addr;
         bool available;
-        uint16_t core_index;
         struct {
             uint32_t objects_total_count;
             uint32_t objects_inuse_count;
@@ -90,14 +86,22 @@ typedef union {
     } __attribute__((aligned(64))) data;
 } slab_slice_t;
 
-void slab_allocator_predefined_allocators_init();
+slab_allocator_t **slab_allocator_thread_cache_init();
 
-void slab_allocator_predefined_allocators_free();
+void slab_allocator_thread_cache_free(
+        void *data);
+
+slab_allocator_t** slab_allocator_thread_cache_get();
+
+void slab_allocator_thread_cache_set(
+        slab_allocator_t** thread_cache);
+
+bool slab_allocator_thread_cache_has();
 
 void slab_allocator_enable(
         bool enable);
 
-slab_allocator_t* slab_allocator_predefined_get_by_size(
+slab_allocator_t* slab_allocator_thread_cache_get_slab_allocator_by_size(
         size_t object_size);
 
 slab_allocator_t* slab_allocator_init(
@@ -122,30 +126,22 @@ uint32_t slab_allocator_slice_calculate_slots_count(
 
 slab_slice_t* slab_allocator_slice_init(
         slab_allocator_t* slab_allocator,
-        void* memptr,
-        uint16_t core_index);
+        void* memptr);
 
-void slab_allocator_slice_add_slots_to_per_core_metadata_slots(
+void slab_allocator_slice_add_slots_to_per_thread_metadata_slots(
         slab_allocator_t* slab_allocator,
-        slab_slice_t* slab_slice,
-        uint16_t core_index);
+        slab_slice_t* slab_slice);
 
-void slab_allocator_slice_remove_slots_from_per_core_metadata_slots(
+void slab_allocator_slice_remove_slots_from_per_thread_metadata_slots(
         slab_allocator_t* slab_allocator,
-        slab_slice_t* slab_slice,
-        uint16_t core_index);
+        slab_slice_t* slab_slice);
 
 slab_slice_t* slab_allocator_slice_from_memptr(
         void* memptr);
 
 void slab_allocator_slice_make_available(
         slab_allocator_t* slab_allocator,
-        slab_slice_t* slab_slice,
-        uint16_t core_index);
-
-bool slab_allocator_slice_try_acquire(
-        slab_allocator_t* slab_allocator,
-        uint16_t core_index);
+        slab_slice_t* slab_slice);
 
 slab_slot_t* slab_allocator_slot_from_memptr(
         slab_allocator_t* slab_allocator,
@@ -154,13 +150,11 @@ slab_slot_t* slab_allocator_slot_from_memptr(
 
 void slab_allocator_grow(
         slab_allocator_t* slab_allocator,
-        uint16_t core_index,
         void* memptr);
 
 __attribute__((malloc))
 void* slab_allocator_mem_alloc_hugepages(
-        size_t size,
-        uint16_t core_index);
+        size_t size);
 
 void slab_allocator_mem_free_hugepages(
         void* memptr);
