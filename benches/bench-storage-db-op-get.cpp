@@ -32,8 +32,9 @@
 #include "worker/worker_context.h"
 
 #include "../tests/support.h"
+#include "benchmark-support.hpp"
 
-#include "bench-support.h"
+#include "benchmark-program.hpp"
 
 // Set the generator to use
 #define KEYSET_GENERATOR_METHOD     TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_MAX_LENGTH
@@ -95,7 +96,7 @@ public:
         this->_requested_keyset_size = (uint64_t) (((double) state.range(0)) * requested_load_factor);
 
         if (state.thread_index() == 0) {
-            if (bench_support_check_if_too_many_threads_per_core(
+            if (BenchmarkSupport::CheckIfTooManyThreadsPerCore(
                     state.threads(),
                     BENCHES_MAX_THREADS_PER_CORE)) {
                 sprintf(error_message, "Too many threads per core, max allowed <%d>", BENCHES_MAX_THREADS_PER_CORE);
@@ -249,7 +250,7 @@ public:
             fprintf(stdout, "< Teardown (%d) - collecting hashtable statistics\n", state.thread_index());
             fflush(stdout);
 
-            bench_support_collect_hashtable_stats_and_update_state(
+            BenchmarkSupport::CollectHashtableStatsAndUpdateState(
                     (benchmark::State&)state, this->_db->hashtable);
 
             fprintf(stdout, "< Teardown (%d) - cleaning up storage_db\n", state.thread_index());
@@ -377,7 +378,7 @@ BENCHMARK_DEFINE_F(StorageDbOpGetFixture, storage_db_op_get)(benchmark::State& s
 BENCHMARK_REGISTER_F(StorageDbOpGetFixture, storage_db_op_get)
     ->ArgsProduct({
                           { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
-                            0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu, 0x7FFFFFFFu },
+                            0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu },
                           { 50, 75 },
     })
     ->ThreadRange(1, utils_cpu_count())

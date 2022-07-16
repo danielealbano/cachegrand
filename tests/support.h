@@ -107,22 +107,11 @@ test_support_keyset_slot_t* test_support_init_keyset_slots(
 hashtable_t* test_support_init_hashtable(
         uint64_t initial_size);
 
-bool bench_support_check_if_too_many_threads_per_core(
-        int threads,
-        int max_per_core);
-
-void bench_support_set_thread_affinity(
-        int thread_index);
-
 bool test_support_hashtable_prefill(
         hashtable_t* hashtable,
         char* keyset,
         uint64_t value,
         uint64_t insert_count);
-
-void test_support_flush_data_cache(
-        void *start,
-        size_t len);
 
 bool test_support_fixture_file_from_data_create(
         char* path,

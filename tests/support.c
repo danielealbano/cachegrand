@@ -72,13 +72,13 @@ void test_support_hashtable_print_heatmap(
             chunk_index < ht_data->chunks_count;
             chunk_index++) {
         uint64_t overflowed_chunks_counter = ht_data->half_hashes_chunk[chunk_index].metadata.overflowed_chunks_counter;
-        overflowed_chunks_counter_highest = max(overflowed_chunks_counter_highest, overflowed_chunks_counter);
+        overflowed_chunks_counter_highest = MAX(overflowed_chunks_counter_highest, overflowed_chunks_counter);
     }
 
     fprintf(stdout, " %5s |", "");
     for(
             hashtable_chunk_index_t chunk_index = 0;
-            chunk_index < min(columns, ht_data->chunks_count);
+            chunk_index < MIN(columns, ht_data->chunks_count);
             chunk_index++) {
         fprintf(
                 stdout,
@@ -91,7 +91,7 @@ void test_support_hashtable_print_heatmap(
     fprintf(stdout, "       +");
     for(
             hashtable_chunk_index_t chunk_index = 0;
-            chunk_index < min(columns, ht_data->chunks_count);
+            chunk_index < MIN(columns, ht_data->chunks_count);
             chunk_index++) {
         fprintf(stdout, "%.*s+", 5 + overflowed_chunks_counter_digits_max, "--------------------------------");
     }

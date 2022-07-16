@@ -20,6 +20,9 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "slab_allocator.h"
 
+#include "benchmark-program.hpp"
+#include "benchmark-support.hpp"
+
 // About (64kb * 4096 * 48 / 2048) = 6144 hugepages are required to run the test with the slab allocator and about 12GB
 // are required to run the test with malloc.
 

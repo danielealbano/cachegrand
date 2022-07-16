@@ -33,7 +33,8 @@
 
 #include "../tests/support.h"
 
-#include "bench-support.h"
+#include "benchmark-program.hpp"
+#include "benchmark-support.hpp"
 
 // Set the generator to use
 #define KEYSET_GENERATOR_METHOD     TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_MAX_LENGTH
@@ -91,7 +92,7 @@ public:
         this->_requested_keyset_size = (uint64_t) (((double) state.range(0)) * requested_load_factor);
 
         if (state.thread_index() == 0) {
-            if (bench_support_check_if_too_many_threads_per_core(
+            if (BenchmarkSupport::CheckIfTooManyThreadsPerCore(
                     state.threads(),
                     BENCHES_MAX_THREADS_PER_CORE)) {
                 sprintf(error_message, "Too many threads per core, max allowed <%d>", BENCHES_MAX_THREADS_PER_CORE);
@@ -154,7 +155,7 @@ public:
         }
 
         if (this->_db != nullptr) {
-            bench_support_collect_hashtable_stats_and_update_state(
+            BenchmarkSupport::CollectHashtableStatsAndUpdateState(
                     (benchmark::State&)state, this->_db->hashtable);
 
             // Free the stoarge
@@ -237,7 +238,7 @@ BENCHMARK_DEFINE_F(StorageDbOpSetInsertFixture, storage_db_op_set_insert)(benchm
 BENCHMARK_REGISTER_F(StorageDbOpSetInsertFixture, storage_db_op_set_insert)
     ->ArgsProduct({
                           { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
-                            0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu, 0x7FFFFFFFu },
+                            0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu },
                           { 50, 75 },
     })
     ->ThreadRange(1, utils_cpu_count())
