@@ -15,6 +15,9 @@
 #include <unistd.h>
 #include <cassert>
 
+#include "benchmark-program.hpp"
+#include "benchmark-support.hpp"
+
 #include "fiber.h"
 
 #define FIBER_NAME "fiber-test"

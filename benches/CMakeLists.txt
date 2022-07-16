@@ -38,30 +38,41 @@ set(LIBCYAML_DYNAMIC_PATH_LIBRARY "${CMAKE_BINARY_DIR}/_deps/src/cyaml/build/rel
 # Build benches
 file(GLOB SRC_CACHEGRAND_BENCHES "bench-*.cpp")
 
-add_executable(
-        cachegrand-benches
-        main.cpp ../tests/support.c ${SRC_CACHEGRAND_BENCHES})
+add_custom_target(bench-all)
 
-add_dependencies(
-        cachegrand-benches
-        cachegrand-internal)
+foreach(SRC_CACHEGRAND_BENCH ${SRC_CACHEGRAND_BENCHES})
+    get_filename_component(CACHEGRAND_BENCH_EXEC_NAME ${SRC_CACHEGRAND_BENCH} NAME_WE)
 
-target_compile_options(
-        cachegrand-benches
-        PRIVATE
-        -mclflushopt -march=native)
+    add_executable(
+            ${CACHEGRAND_BENCH_EXEC_NAME}
+            ${SRC_CACHEGRAND_BENCH} ../tests/support.c)
 
-set_target_properties(
-        cachegrand-benches
-        PROPERTIES
-        LINKER_LANGUAGE CXX)
+    add_dependencies(
+            ${CACHEGRAND_BENCH_EXEC_NAME}
+            cachegrand-internal)
 
-target_link_libraries(
-        cachegrand-benches
-        PUBLIC
-        cachegrand-internal benchmark::benchmark ${LIBCYAML_DYNAMIC_PATH_LIBRARY})
+    target_compile_options(
+            ${CACHEGRAND_BENCH_EXEC_NAME}
+            PRIVATE
+            -mclflushopt -march=native)
 
-target_include_directories(
-        cachegrand-benches
-        PRIVATE
-        ../tests ${CMAKE_BINARY_DIR}/benchmark-install/include)
+    set_target_properties(
+            ${CACHEGRAND_BENCH_EXEC_NAME}
+            PROPERTIES
+            LINKER_LANGUAGE CXX)
+
+    target_link_libraries(
+            ${CACHEGRAND_BENCH_EXEC_NAME}
+            PUBLIC
+            cachegrand-internal benchmark::benchmark ${LIBCYAML_DYNAMIC_PATH_LIBRARY})
+
+    target_include_directories(
+            ${CACHEGRAND_BENCH_EXEC_NAME}
+            PRIVATE
+            ../tests ${CMAKE_BINARY_DIR}/benchmark-install/include)
+
+    add_dependencies(
+            bench-all
+            ${CACHEGRAND_BENCH_EXEC_NAME})
+endforeach()
+

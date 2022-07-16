@@ -6,9 +6,9 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdint.h>
+#include <cstdlib>
+#include <cstdint>
+#include <cstdint>
 #include <immintrin.h>
 #include <numa.h>
 
@@ -35,7 +35,8 @@
 
 #include "../tests/support.h"
 
-#include "bench-support.h"
+#include "benchmark-program.hpp"
+#include "benchmark-support.hpp"
 
 uint32_t* init_hashes() {
     uint32_t* __attribute__((aligned(16))) hashes =
