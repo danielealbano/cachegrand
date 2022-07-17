@@ -253,21 +253,8 @@ TEST_CASE("xalloc.c", "[xalloc]") {
         }
 
         SECTION("invalid size") {
-            if (hugepages_2mb_is_available(1)) {
-                uintptr_t data = 0;
-                bool fatal_catched = false;
-
-                if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
-                    test_xalloc_setup_sigabrt_signal_handler();
-                    data = (uintptr_t) xalloc_hugepage_alloc(0);
-                } else {
-                    fatal_catched = true;
-                }
-
-                REQUIRE(fatal_catched);
-            } else {
-                WARN("Can't test hugepages support in xalloc, hugepages not enabled or not enough hugepages for testing");
-            }
+            uintptr_t data = 0;
+            REQUIRE(xalloc_hugepage_alloc(0) == NULL);
         }
     }
 }
