@@ -30,6 +30,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_delete.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_iter.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "slab_allocator.h"
 #include "fiber.h"
 #include "fiber_scheduler.h"

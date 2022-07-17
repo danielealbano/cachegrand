@@ -52,6 +52,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
 #include "thread.h"
 #include "hugepage_cache.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "slab_allocator.h"
 #include "support/sentry/sentry_support.h"
 #include "signal_handler_thread.h"
