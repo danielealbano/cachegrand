@@ -15,6 +15,7 @@
 #include "exttypes.h"
 #include "spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "xalloc.h"
 #include "clock.h"
 #include "random.h"
@@ -170,7 +171,42 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
             REQUIRE(slab_allocator->slots->count == 0);
             REQUIRE(slab_allocator->slices->count == 0);
 
-            slab_allocator_free(slab_allocator);
+            REQUIRE(slab_allocator_free(slab_allocator));
+        }
+
+        SECTION("slab_allocator_free") {
+            SECTION("without objects allocated") {
+                slab_allocator_t* slab_allocator = slab_allocator_init(128);
+
+                REQUIRE(slab_allocator->object_size == 128);
+                REQUIRE(slab_allocator->metrics.objects_inuse_count == 0);
+                REQUIRE(slab_allocator->metrics.slices_inuse_count == 0);
+                REQUIRE(slab_allocator->slots->count == 0);
+                REQUIRE(slab_allocator->slices->count == 0);
+
+                REQUIRE(slab_allocator_free(slab_allocator));
+            }
+
+            SECTION("with objects allocated - locally") {
+                slab_allocator_t* slab_allocator = slab_allocator_init(128);
+
+                slab_allocator->metrics.objects_inuse_count = 1;
+                REQUIRE(!slab_allocator_free(slab_allocator));
+
+                slab_allocator->metrics.objects_inuse_count = 0;
+                REQUIRE(slab_allocator_free(slab_allocator));
+            }
+
+            SECTION("with objects allocated - in free list") {
+                int value = 0;
+                slab_allocator_t* slab_allocator = slab_allocator_init(128);
+
+                REQUIRE(queue_mpmc_push(slab_allocator->free_slab_slots_queue_from_other_threads, &value));
+                REQUIRE(!slab_allocator_free(slab_allocator));
+
+                REQUIRE(queue_mpmc_pop(slab_allocator->free_slab_slots_queue_from_other_threads) != NULL);
+                REQUIRE(slab_allocator_free(slab_allocator));
+            }
         }
 
         SECTION("slab_index_by_object_size") {
@@ -357,16 +393,13 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
 
         SECTION("slab_allocator_mem_alloc_hugepages") {
             slab_allocator_enable(true);
-
-            slab_allocator_thread_cache_set(slab_allocator_thread_cache_init());
+            slab_allocator_t *slab_allocator = slab_allocator_init(slab_predefined_object_sizes[0]);
 
             SECTION("allocate 1 object") {
-                slab_allocator_t *slab_allocator = slab_allocator_thread_cache_get_slab_allocator_by_size(
-                        slab_predefined_object_sizes[0]);
-
-                void *memptr = slab_allocator_mem_alloc_hugepages(slab_predefined_object_sizes[0]);
+                void *memptr = slab_allocator_mem_alloc_hugepages(slab_allocator, slab_predefined_object_sizes[0]);
 
                 REQUIRE(slab_allocator->metrics.slices_inuse_count == 1);
+                REQUIRE(queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads) == 0);
                 REQUIRE(slab_allocator->slots->tail->data == memptr);
                 REQUIRE(((slab_slot_t *) slab_allocator->slots->tail)->data.available == false);
                 REQUIRE(((slab_slot_t *) slab_allocator->slots->head)->data.available == true);
@@ -378,9 +411,6 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
             }
 
             SECTION("fill one page") {
-                slab_allocator_t *slab_allocator = slab_allocator_thread_cache_get_slab_allocator_by_size(
-                        slab_predefined_object_sizes[0]);
-
                 size_t usable_hugepage_size = slab_allocator_slice_calculate_usable_hugepage_size();
                 uint32_t data_offset = slab_allocator_slice_calculate_data_offset(
                         usable_hugepage_size,
@@ -391,11 +421,11 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
                         slab_allocator->object_size);
 
                 for (int i = 0; i < slots_count; i++) {
-                    void *memptr = slab_allocator_mem_alloc_hugepages(
-                            slab_predefined_object_sizes[0]);
+                    void *memptr = slab_allocator_mem_alloc_hugepages(slab_allocator, slab_predefined_object_sizes[0]);
                 }
 
                 REQUIRE(slab_allocator->metrics.slices_inuse_count == 1);
+                REQUIRE(queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads) == 0);
                 REQUIRE(((slab_slice_t *) slab_allocator->slices->head)->data.metrics.objects_inuse_count == slots_count);
                 REQUIRE(((slab_slot_t *) slab_allocator->slots->head)->data.available == false);
                 REQUIRE(((slab_slot_t *) slab_allocator->slots->head->next)->data.available == false);
@@ -404,9 +434,6 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
             }
 
             SECTION("trigger second page creation") {
-                slab_allocator_t *slab_allocator = slab_allocator_thread_cache_get_slab_allocator_by_size(
-                        slab_predefined_object_sizes[0]);
-
                 size_t usable_hugepage_size = slab_allocator_slice_calculate_usable_hugepage_size();
                 uint32_t data_offset = slab_allocator_slice_calculate_data_offset(
                         usable_hugepage_size,
@@ -417,11 +444,11 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
                         slab_allocator->object_size);
 
                 for (int i = 0; i < slots_count + 1; i++) {
-                    void *memptr = slab_allocator_mem_alloc_hugepages(
-                            slab_predefined_object_sizes[0]);
+                    void *memptr = slab_allocator_mem_alloc_hugepages(slab_allocator, slab_predefined_object_sizes[0]);
                 }
 
                 REQUIRE(slab_allocator->metrics.slices_inuse_count == 2);
+                REQUIRE(queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads) == 0);
                 REQUIRE(slab_allocator->slices->head != slab_allocator->slices->tail);
                 REQUIRE(slab_allocator->slices->head->next == slab_allocator->slices->tail);
                 REQUIRE(slab_allocator->slices->head == slab_allocator->slices->tail->prev);
@@ -433,23 +460,23 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
                 REQUIRE(((slab_slot_t *) slab_allocator->slots->tail->prev)->data.available == false);
             }
 
-            slab_allocator_thread_cache_free(slab_allocator_thread_cache_get());
-            slab_allocator_thread_cache_set(nullptr);
+            slab_allocator_free(slab_allocator);
             slab_allocator_enable(false);
         }
 
         SECTION("slab_allocator_mem_free_hugepages") {
+            slab_allocator_t *slab_allocator = slab_allocator_init(slab_predefined_object_sizes[0]);
+            slab_allocator_t *slab_allocators[] = { slab_allocator };
+
             slab_allocator_enable(true);
-            slab_allocator_thread_cache_set(slab_allocator_thread_cache_init());
+            slab_allocator_thread_cache_set(slab_allocators);
 
             SECTION("allocate and free 1 object") {
-                slab_allocator_t *slab_allocator = slab_allocator_thread_cache_get_slab_allocator_by_size(
-                        slab_predefined_object_sizes[0]);
-
-                void *memptr = slab_allocator_mem_alloc_hugepages(slab_predefined_object_sizes[0]);
+                void *memptr = slab_allocator_mem_alloc_hugepages(slab_allocator, slab_predefined_object_sizes[0]);
 
                 REQUIRE(slab_allocator->metrics.objects_inuse_count == 1);
                 REQUIRE(slab_allocator->metrics.slices_inuse_count == 1);
+                REQUIRE(queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads) == 0);
                 REQUIRE(slab_allocator->slots->head->data != memptr);
                 REQUIRE(slab_allocator->slots->tail->data == memptr);
 
@@ -457,39 +484,30 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
 
                 REQUIRE(slab_allocator->metrics.objects_inuse_count == 0);
                 REQUIRE(slab_allocator->metrics.slices_inuse_count == 0);
+                REQUIRE(queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads) == 0);
                 REQUIRE(slab_allocator->slots->head == nullptr);
                 REQUIRE(slab_allocator->slots->tail == nullptr);
             }
 
-            SECTION("allocate and free 1 object on different cores") {
-                slab_allocator_t *slab_allocator = slab_allocator_thread_cache_get_slab_allocator_by_size(
-                        slab_predefined_object_sizes[0]);
+            SECTION("allocate and free 1 object via different threads") {
+                void *memptr = slab_allocator_mem_alloc_hugepages(slab_allocator, slab_predefined_object_sizes[0]);
 
-                void *memptr = slab_allocator_mem_alloc_hugepages(slab_predefined_object_sizes[0]);
-
-                REQUIRE(slab_allocator->metrics.slices_inuse_count == 1);
                 REQUIRE(slab_allocator->metrics.objects_inuse_count == 1);
-                REQUIRE(slab_allocator->slots->head != nullptr);
-                REQUIRE(slab_allocator->slots->tail != nullptr);
+                REQUIRE(slab_allocator->metrics.slices_inuse_count == 1);
+                REQUIRE(queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads) == 0);
                 REQUIRE(slab_allocator->slots->head->data != memptr);
                 REQUIRE(slab_allocator->slots->tail->data == memptr);
 
-                thread_current_set_affinity(1);
-
                 slab_allocator_mem_free_hugepages(memptr);
-
-                thread_current_set_affinity(0);
 
                 REQUIRE(slab_allocator->metrics.objects_inuse_count == 0);
                 REQUIRE(slab_allocator->metrics.slices_inuse_count == 0);
+                REQUIRE(queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads) == 0);
                 REQUIRE(slab_allocator->slots->head == nullptr);
                 REQUIRE(slab_allocator->slots->tail == nullptr);
             }
 
             SECTION("fill and free one hugepage") {
-                slab_allocator_t *slab_allocator = slab_allocator_thread_cache_get_slab_allocator_by_size(
-                        slab_predefined_object_sizes[0]);
-
                 size_t usable_hugepage_size = slab_allocator_slice_calculate_usable_hugepage_size();
                 uint32_t data_offset = slab_allocator_slice_calculate_data_offset(
                         usable_hugepage_size,
@@ -501,11 +519,12 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
 
                 void** memptrs = (void**)malloc(sizeof(void*) * slots_count);
                 for(int i = 0; i < slots_count; i++) {
-                    memptrs[i] = slab_allocator_mem_alloc_hugepages(slab_predefined_object_sizes[0]);
+                    memptrs[i] = slab_allocator_mem_alloc_hugepages(slab_allocator, slab_predefined_object_sizes[0]);
                 }
 
                 REQUIRE(slab_allocator->metrics.slices_inuse_count == 1);
                 REQUIRE(slab_allocator->metrics.objects_inuse_count == slots_count);
+                REQUIRE(queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads) == 0);
                 REQUIRE(slab_allocator->slots->head != nullptr);
                 REQUIRE(slab_allocator->slots->tail != nullptr);
 
@@ -515,14 +534,12 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
 
                 REQUIRE(slab_allocator->metrics.objects_inuse_count == 0);
                 REQUIRE(slab_allocator->metrics.slices_inuse_count == 0);
+                REQUIRE(queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads) == 0);
                 REQUIRE(slab_allocator->slots->head == nullptr);
                 REQUIRE(slab_allocator->slots->tail == nullptr);
             }
 
             SECTION("fill and free one hugepage and one element") {
-                slab_allocator_t *slab_allocator = slab_allocator_thread_cache_get_slab_allocator_by_size(
-                        slab_predefined_object_sizes[0]);
-
                 size_t usable_hugepage_size = slab_allocator_slice_calculate_usable_hugepage_size();
                 uint32_t data_offset = slab_allocator_slice_calculate_data_offset(
                         usable_hugepage_size,
@@ -536,11 +553,12 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
 
                 void** memptrs = (void**)malloc(sizeof(void*) * slots_count);
                 for(int i = 0; i < slots_count; i++) {
-                    memptrs[i] = slab_allocator_mem_alloc_hugepages(slab_predefined_object_sizes[0]);
+                    memptrs[i] = slab_allocator_mem_alloc_hugepages(slab_allocator, slab_predefined_object_sizes[0]);
                 }
 
                 REQUIRE(slab_allocator->metrics.slices_inuse_count == 2);
                 REQUIRE(slab_allocator->metrics.objects_inuse_count == slots_count);
+                REQUIRE(queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads) == 0);
                 REQUIRE(slab_allocator->slots->head != nullptr);
                 REQUIRE(slab_allocator->slots->tail != nullptr);
 
@@ -551,11 +569,66 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
 
                 REQUIRE(slab_allocator->metrics.objects_inuse_count == 0);
                 REQUIRE(slab_allocator->metrics.slices_inuse_count == 0);
+                REQUIRE(queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads) == 0);
                 REQUIRE(slab_allocator->slots->head == nullptr);
                 REQUIRE(slab_allocator->slots->tail == nullptr);
             }
 
-            slab_allocator_thread_cache_free(slab_allocator_thread_cache_get());
+            SECTION("free via different slab_allocator") {
+                slab_allocator_t *slab_allocator2 = slab_allocator_init(slab_predefined_object_sizes[0]);
+
+                void *memptr1 = slab_allocator_mem_alloc_hugepages(slab_allocator2, slab_predefined_object_sizes[0]);
+                REQUIRE(slab_allocator2->metrics.objects_inuse_count == 1);
+                REQUIRE(slab_allocator2->metrics.slices_inuse_count == 1);
+
+                slab_allocator_mem_free_hugepages(memptr1);
+
+                REQUIRE(slab_allocator2->metrics.objects_inuse_count == 1);
+                REQUIRE(slab_allocator->metrics.objects_inuse_count == 0);
+                REQUIRE(slab_allocator2->metrics.slices_inuse_count == 1);
+                REQUIRE(slab_allocator->metrics.slices_inuse_count == 0);
+
+                REQUIRE(queue_mpmc_get_length(slab_allocator2->free_slab_slots_queue_from_other_threads) == 1);
+
+                // slab slots from the queue are used if all the items in the hugepages have been used so it's necessary
+                // to fill the hugepage allocated
+                size_t usable_hugepage_size = slab_allocator_slice_calculate_usable_hugepage_size();
+                uint32_t data_offset = slab_allocator_slice_calculate_data_offset(
+                        usable_hugepage_size,
+                        slab_allocator->object_size);
+                uint32_t slots_count = slab_allocator_slice_calculate_slots_count(
+                        usable_hugepage_size,
+                        data_offset,
+                        slab_allocator->object_size);
+
+                void** memptrs = (void**)malloc(sizeof(void*) * (slots_count - 1));
+                for(int i = 0; i < slots_count - 1; i++) {
+                    memptrs[i] = slab_allocator_mem_alloc_hugepages(slab_allocator2, slab_predefined_object_sizes[0]);
+                }
+
+                // All the previous allocation must have come out from the local list of slots
+                REQUIRE(queue_mpmc_get_length(slab_allocator2->free_slab_slots_queue_from_other_threads) == 1);
+
+                // This last allocation must come from the free list
+                void *memptr2 = slab_allocator_mem_alloc_hugepages(slab_allocator2, slab_predefined_object_sizes[0]);
+
+                REQUIRE(queue_mpmc_get_length(slab_allocator2->free_slab_slots_queue_from_other_threads) == 0);
+                REQUIRE(slab_allocator2->metrics.objects_inuse_count == slots_count);
+                REQUIRE(slab_allocator2->metrics.slices_inuse_count == 1);
+                REQUIRE(memptr1 == memptr2);
+
+                // Free up everything
+                for(int i = 0; i < slots_count - 1; i++) {
+                    slab_allocator_mem_free_hugepages(memptrs[i]);
+                }
+                slab_allocator_mem_free_hugepages(memptr2);
+
+                REQUIRE(queue_mpmc_get_length(slab_allocator2->free_slab_slots_queue_from_other_threads) == slots_count);
+
+                REQUIRE(slab_allocator_free(slab_allocator2));
+            }
+
+            slab_allocator_free(slab_allocator);
             slab_allocator_thread_cache_set(nullptr);
             slab_allocator_enable(false);
         }
