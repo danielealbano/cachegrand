@@ -89,6 +89,9 @@ void* hugepage_cache_pop() {
 
     if (unlikely(hugepage_addr == NULL)) {
         hugepage_addr = xalloc_hugepage_alloc(HUGEPAGE_SIZE_2MB);
+        if (hugepage_addr == NULL) {
+            return NULL;
+        }
         hugepage_cache->stats.total++;
     }
 

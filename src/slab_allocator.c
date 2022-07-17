@@ -23,12 +23,14 @@
 
 #if __has_include(<valgrind/valgrind.h>)
 #include <valgrind/valgrind.h>
+
 #define HAS_VALGRIND
 #endif
 
 #include "misc.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "log/log.h"
 #include "memory_fences.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
@@ -455,6 +457,11 @@ void* slab_allocator_mem_alloc_hugepages(
         VALGRIND_CREATE_MEMPOOL(hugepage_addr, 0, false);
 #endif
 #endif
+
+        if (!hugepage_addr) {
+            LOG_E(TAG, "Unable to allocate %lu bytes of memory, no hugepages available", size);
+            return NULL;
+        }
 
         slab_allocator_grow(
                 slab_allocator,
