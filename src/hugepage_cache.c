@@ -73,7 +73,7 @@ void hugepage_cache_push(void* hugepage_addr) {
 
     hugepage_cache->stats.in_use--;
 
-    assert(hugepage_cache->stats.in_use >= 0);
+    assert(hugepage_cache->stats.in_use != UINT32_MAX);
 }
 
 void* hugepage_cache_pop() {
