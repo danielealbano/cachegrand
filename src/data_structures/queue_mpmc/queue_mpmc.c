@@ -115,10 +115,18 @@ uint32_t queue_mpmc_get_length(
 queue_mpmc_node_t *queue_mpmc_peek(
         queue_mpmc_t *queue_mpmc) {
     MEMORY_FENCE_LOAD();
-    return (queue_mpmc_node_t*)queue_mpmc->head.data.node;
+
+    queue_mpmc_node_t *node = (queue_mpmc_node_t*)queue_mpmc->head.data.node;
+    if (node) {
+        // This can be potentially destructive and cause a crash, the caller should use it within a critical section
+        // (e.g. via a spinlock) or in a context where there is certainty or no multiple consumers
+        return node->data;
+    } else {
+        return NULL;
+    }
 }
 
 bool queue_mpmc_is_empty(
         queue_mpmc_t *queue_mpmc) {
-    return queue_mpmc_peek(queue_mpmc) == NULL;
+    return queue_mpmc_get_length(queue_mpmc) == 0;
 }
