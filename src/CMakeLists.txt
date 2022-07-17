@@ -149,7 +149,7 @@ target_link_directories(
 target_link_libraries(
         cachegrand-internal
         PUBLIC
-        ${DEPS_LIST_LIBRARIES})
+        ${DEPS_LIST_LIBRARIES} -latomic)
 target_link_libraries(
         cachegrand-internal
         PRIVATE
