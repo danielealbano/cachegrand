@@ -9,9 +9,6 @@
 #include <numa.h>
 
 #include <benchmark/benchmark.h>
-#include <log/log.h>
-#include <log/sink/log_sink.h>
-#include <log/sink/log_sink_console.h>
 
 #include "exttypes.h"
 #include "spinlock.h"
@@ -23,6 +20,9 @@
 #include "thread.h"
 #include "hugepage_cache.h"
 #include "slab_allocator.h"
+#include "log/log.h"
+#include "log/sink/log_sink.h"
+#include "log/sink/log_sink_console.h"
 
 class BenchmarkProgram {
 private:
@@ -32,10 +32,6 @@ private:
         log_level_t level = LOG_LEVEL_ALL;
         log_sink_settings_t settings = { 0 };
         settings.console.use_stdout_for_errors = false;
-
-#if NDEBUG == 1
-        level -= LOG_LEVEL_DEBUG;
-#endif
 
         log_sink_register(log_sink_console_init(level, &settings));
     }
