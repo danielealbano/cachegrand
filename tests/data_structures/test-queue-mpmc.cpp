@@ -412,10 +412,10 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
 
     SECTION("fuzzy push/pop / single thread") {
         SECTION("single thread") {
-            test_queue_mpmc_fuzzy_single_thread(5, 2 * 1024, 16 * 1024);
+            test_queue_mpmc_fuzzy_single_thread(1, 2 * 1024, 16 * 1024);
         }
         SECTION("multi thread") {
-            test_queue_mpmc_fuzzy_multi_thread(5, 10 * 1024, 100 * 1024);
+            test_queue_mpmc_fuzzy_multi_thread(1, 10 * 1024, 100 * 1024);
         }
     }
 }
