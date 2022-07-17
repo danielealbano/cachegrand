@@ -1,93 +1,126 @@
 SLAB Allocator
 ==============
 
-> Slab allocation is a memory management mechanism intended for the efficient memory allocation of
-objects. Compared to earlier mechanisms, it reduces fragmentation caused by allocations and
-deallocations. The technique is used to retain allocated memory that contains a data object of a
-certain type for reuse upon subsequent allocations of objects of the same type. It is analogous
-to an object pool, but only applies to memory, not other resources."
+> Slab allocation is a memory management mechanism intended for the efficient memory allocation of objects. Compared to
+> earlier mechanisms, it reduces fragmentation caused by allocations and deallocations. The technique is used to retain
+> allocated memory that contains a data object of a certain type for reuse upon subsequent allocations of objects of the
+> same type. It is analogous to an object pool, but only applies to memory, not other resources."
 > -- <cite>[Wikipedia - Slab Allocation][1]</cite>
 
-A lot of different algorithms and implementations for SLAB allocators are available nowadays but
-most of them focus on simply reducing memory fragmentation, sacrificing speed or introducing layers
-of complexity that replace an issue with another.
+A lot of different algorithms and implementations for SLAB allocators are available nowadays but most of them focus on
+simply reducing memory fragmentation, sacrificing speed or introducing layers of complexity that replace an issue with
+another.
 
-The goal, for cachegrand, was to have a *fast* and *flexible* SLAB allocator not only to reduce
-the memory fragmentation issues but to provide internal metrics and improve the performance of
-the critical parts doing memory allocation. 
+The goal, for cachegrand, is to have a *fast* and *flexible* SLAB allocator to provide better performances and the
+ability to collect metrics.
 
 ### Principles
 
 The implementation relies on 3 foundational blocks:
-- a slab slot represents an object, it follows the data-oriented pattern whereas the metadata
-  are kept separated from the actual data providing flexibility to achieve better performance but
-  also to keep the data cacheline-aligned and, if needed, page-aligned.
-- a slab slice represents a block of memory, the metadata themselves are held at the beginning
-  followed by the metadata of the slab slots.
-- a slab allocator that keeps track of the allocated slices, the available and occupied slots, the
-  size of the objects, the metrics, it also allows to keep track of the allocated slices and slots
-  per numa node and core for which they were allocated.
+- a slab slot represents an object, it follows the data-oriented pattern whereas the metadata are kept separated from
+  the actual data providing flexibility to achieve better performance but also to keep the data cacheline-aligned and,
+  if needed, page-aligned.
+- a slab slice represents a block of memory, the metadata themselves are held at the beginning followed by the metadata
+  of the slab slots.
+- a slab allocator that keeps track of the allocated slices, the available and occupied slots, the size of the objects,
+  the metrics, it also allows to keep track of the allocated slices.
 
 The terminology in place is slightly different from what can be commonly found on internet:
-- a slab slice is a slab
+- a slab slice is a slab, for this implementation it matches a hugepage
 - a slab slot is an object managed by the object cache
 
-To be able to provide a `O(1)` for the alloc/free operations the SLAB allocator relies on the
-hugepages of 2MB, that are the slab slices, and a double linked list used to track the available
-objects, kept at the beginning, and the used objects kept at the end.
+To be able to provide a `O(1)` for the alloc/free operations the SLAB allocator relies on the hugepages of 2MB, that are
+the slab slices, and a double linked list used to track the available objects, kept at the beginning, and the used
+objects kept at the end.
+
+The SLAB allocator is lock-less in the hot-path and uses atomic operations in the slow-path, it's also numa-aware as
+all the hugepages are fetched from the numa-domain executing the core.
 
 ### Data Structures
 
-![SLAB Allocator - Data Structures](../images/slab_allocator_1.png)
+```mermaid
+classDiagram
+  class slab_allocator_t {
+    double_linked_list_t *slots;
+    double_linked_list_t *slices;
+    queue_mpmc_t *free_slab_slots_queue_from_other_threads;
+    bool_volatile_t slab_allocator_freed;
+    uint32_t object_size;
+    uint16_t metrics.slices_inuse_count;
+    uint32_volatile_t metrics.objects_inuse_count;
+  }
+  
+  class slab_slice_t {
+    double_linked_list_item_t double_linked_list_item
+    void *data.padding[2]
+    slab_allocator_t *data.slab_allocator
+    void *data.page_addr
+    uintptr_t data.data_addr
+    bool data.available
+    uint32_t data.metrics.objects_total_count
+    uint32_t data.metrics.objects_inuse_count
+    slab_slot_t data.slots[]
+  }
+  
+  class slab_slot_t {
+    double_linked_list_item_t double_linked_list_item
+    void data.padding[2]
+    void* data.memptr
+    bool data.available
+  }
+  
+  slab_allocator_t "1" <--> "many" slab_slice_t
+  slab_allocator_t "1" --> "many" slab_slot_t
+  slab_slice_t "1" --> "many" slab_slot_t
+```
 
-#### struct slab_allocator
+#### struct slab_allocator (slab_allocator_t)
 
 ```c
-typedef struct slab_allocator_core_metadata slab_allocator_core_metadata_t;
-struct slab_allocator_core_metadata {
-    double_linked_list_t* slots;
-    struct { ... } metrics;
-};
-
-typedef struct slab_allocator_numa_node_metadata slab_allocator_numa_node_metadata_t;
-struct slab_allocator_numa_node_metadata {
-    double_linked_list_t* slices;
-    struct { ... } metrics;
-};
-
 typedef struct slab_allocator slab_allocator_t;
 struct slab_allocator {
-    spinlock_lock_volatile_t spinlock;
-    uint16_t core_count;
-    uint16_t numa_node_count;
-    uint16_t object_size;
-    slab_allocator_core_metadata_t* core_metadata;
-    slab_allocator_numa_node_metadata_t* numa_node_metadata;
-    struct { ... } metrics;
+    double_linked_list_t *slots;
+    double_linked_list_t *slices;
+    queue_mpmc_t *free_slab_slots_queue_from_other_threads;
+    bool_volatile_t slab_allocator_freed;
+    uint32_t object_size;
+    struct {
+        uint16_t slices_inuse_count;
+        uint32_volatile_t objects_inuse_count;
+    } metrics;
 };
 ```
 
-The slab allocator is capable of allocating memory only for a specific object size.
+The slab allocator is a container for the slab slices and can be used only by a specific thread for a specific object
+size.
 
-The slab allocator maintains 2 metadata structures, one per core, called core_metadata, and another per numa node, called
-numa_node_metadata, the former struct is allocated per core meanwhile the latter per numa node therefore it's necessary
-to lock the slab_allocator using the spinlock field on the numa_node_metadata field.
+Because the slab allocator is per thread, the hugepages will be allocated in the numa domain of the thread, therefore
+it's better, although not required, to bound the thread to a core of the cpu to get better performances.
 
-The core_metadata struct contains a double linked list of slots, sorted per availability where the available slots are
+The structure contains a double linked list of slots, sorted per availability where the available slots are
 kept at the head and the in use slots are kept at the tail.
-In this way, when it's necessary to fetch a slot it's possible to fetch it directly from the head if available or procure
-a new slice to satisfy the request.
+In this way, when it's necessary to fetch a slot it's possible to fetch it directly from the head if available.
+If no slots are available, the slab allocator requests to the component that handles the cache of hugepages to provide
+a new one, once received the slab allocator initializes a slab slice out of the hugepage and update the list of
+available slots.
+A hugepage can easily contain tens of thousands of 16 bytes objects, so the price is very well amortized for the small
+objects, more explanation on the calculations are provided in the [slab_slice_t](#struct-slab_slice-slab_slice_t)
+section.
 
-The numa_node_metadata struct contains also a double linked list but of slices, sorted per availability as well. When
-all the slots are freed in a slice and there is more than one slice already free for a core then it's marked as available
-and any other allocation requested by a thread running on any other core using that numa node can fetch and use it
-instead of allocating a new one.
+A queue called `free_slab_slots_queue_from_other_threads` exists in case memory allocated by one thread gets freed by
+another, the thread that doesn't own the memory passes it to the thread that ones it via a mpmc queue that uses atomic
+operations to maintain a correct state.
+In case the slab allocator has to fetch a slot but no more pre-allocated slots are available, then the queue is checked
+to see if a thread any other thread has returned any object and, in case, it uses it. The object fetched from the queue
+require fewer operations to be used.
 
-Thanks to this approach the slices are in use by single cores, providing cache-locality, and they can be reused, if
-free, only by cores on the same numa node, avoiding hitting numa bandwidth limitations.
+The struct also contains a double linked list of slices, sorted per availability as well. When all the slots are freed
+in a slice and this is returned to the hugepages cache to be reused.
 
+This approach provides cache-locality and O(1) access in the best and average case - e.g. if there are pre-allocated
+slots available.
 
-#### struct slab_allocator
+#### struct slab_slice (slab_slice_t)
 
 ```c
 typedef union {
@@ -107,10 +140,10 @@ typedef union {
 } slab_slice_t;
 ```
 
-A slice is, basically, an hugepage, the data of the structure above is contained at the very beginning of it.
+A slab slice is a hugepage, the data of the structure is contained at the very beginning of it.
 
-An union is used to reduce memory waste, double_linked_list_item_t has a `data` field that would be wasted in this case
-because the pointer to the `double_linked_list_item` can be casted back to `slab_slice_t`.
+A union is used to reduce memory waste, double_linked_list_item_t has a `data` field that would be wasted in this case
+because the pointer to the `double_linked_list_item` can be cast back to `slab_slice_t`.
 
 The field `page_addr` points to the beginning of the slice and although it's a duplication, because
 `double_linked_list_item` it's the beginning of the slice itself, there is currently enough space for it and to improve
@@ -141,43 +174,48 @@ expectation.
 
 For `128` bytes objects a slice using the formula above `(2MB - 4Kb - 64) / (128 + 32)` can contain `13081` objects.
 
-The `double_linked_list_item` is an item of the `slab_allocator->numa_node_metadata[i]->slices` double linked list. As
-explained above, the available slices are kept at the head meanwhile the in use ones at the tail.
+The `double_linked_list_item` is an item of the `slab_allocator->slices` double linked list. As explained above, the
+available slices are kept at the head meanwhile the in use ones at the tail.
 
-#### struct slab_allocator
+Here an example of the memory layout of a slice
+
+![SLAB Allocator - Memory layout](../images/slab_allocator_2.png)
+
+#### struct slab_slot (slab_slot_t)
 
 ```c
 typedef union {
     double_linked_list_item_t double_linked_list_item;
     struct {
-        void* padding[2];
-        void* memptr;
+        void *padding[2];
+        void *memptr;
+#if DEBUG==1
+        bool available:1;
+        int32_t allocs:31;
+        int32_t frees:31;
+#else
         bool available;
+#endif
     } data;
 } slab_slot_t;
 ```
 
-This is the actual slot, a very simple structure that like `slice_slab_t` is actually an union with the struct representing
+This is the actual slot, a very simple structure that like `slice_slab_t` is actually a union with the struct representing
 the item of the double linked list at the beginning.
 
-The field `memptr` contains the pointer to the memory, in the slice, assigned to this slot calculated as follow
+The field `memptr` contains the pointer to the memory, in the slice, assigned to this slot calculated as follows
 ```c
 slab_slot->data.memptr = (void*)(slab_slice->data.data_addr + (index * slab_allocator->object_size));
 ```
 
 The field `available` is marked true on creation and gets marked false when allocated or back to true when freed.
 
-The `double_linked_list_item` is an item of the `slab_allocator->core_metadata[i]->slots` double linked list. As
+The `double_linked_list_item` is an item of the `slab_allocator->thread_metadata[i]->slots` double linked list. As
 explained above, the available slices are kept at the head meanwhile the in use ones at the tail.
-
-### Memory Layout
-
-#### Slice
-
-![SLAB Allocator - Memory layout](../images/slab_allocator_2.png)
 
 ### Benchmarks
 
 ![SLAB Allocator - Benchmarks](../images/slab_allocator_3.png)
 
+(old benchmarks)
 [1]: https://en.wikipedia.org/wiki/Slab_allocation
