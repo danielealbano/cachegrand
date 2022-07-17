@@ -31,22 +31,18 @@ extern "C" {
 
 static const uint32_t slab_predefined_object_sizes[] = { SLAB_PREDEFINED_OBJECT_SIZES };
 
-typedef struct slab_allocator_thread_metadata slab_allocator_thread_metadata_t;
-struct slab_allocator_thread_metadata {
-    // The slots are sorted per availability
+typedef struct slab_allocator slab_allocator_t;
+struct slab_allocator {
+    // The slots and the slices are sorted per availability
     double_linked_list_t* slots;
     double_linked_list_t* slices;
+
+    uint32_t object_size;
 
     struct {
         uint16_t slices_inuse_count;
         uint32_t objects_inuse_count;
     } metrics;
-};
-
-typedef struct slab_allocator slab_allocator_t;
-struct slab_allocator {
-    uint32_t object_size;
-    slab_allocator_thread_metadata_t thread_metadata;
 };
 
 // It's necessary to use an union for slab_slot_t and slab_slice_t as the double_linked_list_item_t is being embedded
