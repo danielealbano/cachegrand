@@ -9,9 +9,6 @@
 #include <numa.h>
 
 #include <benchmark/benchmark.h>
-#include <log/log.h>
-#include <log/sink/log_sink.h>
-#include <log/sink/log_sink_console.h>
 
 #include "exttypes.h"
 #include "spinlock.h"
@@ -20,9 +17,13 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_support_hash.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "thread.h"
 #include "hugepage_cache.h"
 #include "slab_allocator.h"
+#include "log/log.h"
+#include "log/sink/log_sink.h"
+#include "log/sink/log_sink_console.h"
 
 class BenchmarkProgram {
 private:
@@ -32,10 +33,6 @@ private:
         log_level_t level = LOG_LEVEL_ALL;
         log_sink_settings_t settings = { 0 };
         settings.console.use_stdout_for_errors = false;
-
-#if NDEBUG == 1
-        level -= LOG_LEVEL_DEBUG;
-#endif
 
         log_sink_register(log_sink_console_init(level, &settings));
     }
@@ -51,7 +48,6 @@ public:
         // Enable the hugepage cache and the slab allocator
         hugepage_cache_init();
         slab_allocator_enable(true);
-        slab_allocator_predefined_allocators_init();
 
         // Setup the log sink
         BenchmarkProgram::setup_initial_log_sink_console();

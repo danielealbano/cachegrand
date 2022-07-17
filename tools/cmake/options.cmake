@@ -4,8 +4,9 @@
 # This software may be modified and distributed under the terms
 # of the BSD license. See the LICENSE file for details.
 
-option(BUILD_TESTS "Build Tests" OFF)
-option(BUILD_INTERNAL_BENCHES "Build Internal Benches" OFF)
+option(BUILD_TESTS "Build Tests" 0)
+option(BUILD_INTERNAL_BENCHES "Build Internal Benches" 0)
+option(SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES "Enable the slab allocator allocs/frees debugging" 0)
 
 option(USE_HASH_ALGORITHM_XXH3 "Use xxh3 (xxHash) as hash algorithm for the hashtable" 0)
 option(USE_HASH_ALGORITHM_T1HA2 "Use t1ha2 as hash algorithm for the hashtable" 0)

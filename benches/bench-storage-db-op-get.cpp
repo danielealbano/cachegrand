@@ -8,7 +8,6 @@
 
 #include <cstdint>
 #include <cstring>
-#include <numa.h>
 
 #include <benchmark/benchmark.h>
 
@@ -21,6 +20,7 @@
 #include "config.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "slab_allocator.h"
 #include "storage/io/storage_io_common.h"
@@ -38,6 +38,10 @@
 
 // Set the generator to use
 #define KEYSET_GENERATOR_METHOD     TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_MAX_LENGTH
+
+// It is possible to control the amount of threads used for the test tuning the two defines below
+#define TEST_THREADS_RANGE_BEGIN (1)
+#define TEST_THREADS_RANGE_END (utils_cpu_count())
 
 // These two are kept static and external because
 // - Google Benchmark invokes the setup multiple times, once per thread, but it doesn't have an entry point invoked
@@ -67,14 +71,6 @@ public:
         return this->_workers_count;
     }
 
-    char *GetValueBuffer() {
-        return this->_value_buffer;
-    }
-
-    [[nodiscard]] size_t GetValueBufferLength() const {
-        return this->_value_buffer_length;
-    }
-
     test_support_keyset_slot_t *GetKeysetSlots() {
         return this->_keyset_slots;
     }
@@ -88,14 +84,14 @@ public:
 
         test_support_set_thread_affinity(state.thread_index());
 
-        fprintf(stdout, "> Setup (%d) - started\n", state.thread_index());
-        fflush(stdout);
-
         // Calculate the requested keyset size
         double requested_load_factor = (double) state.range(1) / 100.0f;
         this->_requested_keyset_size = (uint64_t) (((double) state.range(0)) * requested_load_factor);
 
         if (state.thread_index() == 0) {
+            fprintf(stdout, "> Setup - started\n");
+            fflush(stdout);
+
             if (BenchmarkSupport::CheckIfTooManyThreadsPerCore(
                     state.threads(),
                     BENCHES_MAX_THREADS_PER_CORE)) {
@@ -111,7 +107,7 @@ public:
                 this->_value_buffer[i] = charset[i % sizeof(charset)];
             }
 
-            fprintf(stdout, "> Setup (%d) - setting up storage_db\n", state.thread_index());
+            fprintf(stdout, "> Setup - setting up storage_db\n");
             fflush(stdout);
 
             // Setup the storage db
@@ -130,7 +126,7 @@ public:
                 return;
             }
 
-            fprintf(stdout, "> Setup (%d) - initial keyset slots generation\n", state.thread_index());
+            fprintf(stdout, "> Setup - initial keyset slots generation\n");
             fflush(stdout);
 
             // Initialize the key set
@@ -154,9 +150,6 @@ public:
             }
         }
 
-        fprintf(stdout, "> Setup (%d) - setting up worker thread\n", state.thread_index());
-        fflush(stdout);
-
         // Set up the worker context, as it's required by the storage db, this has to be done here as the worker_context
         // is stored in a thread variable an the threads are managed internally by the benchmarking library and therefore
         // they can be recycled or re-created.
@@ -172,8 +165,10 @@ public:
         worker_context->workers_count = this->GetWorkersCount();
         worker_context->db = (storage_db *) static_db;
 
-        fprintf(stdout, "> Setup (%d) - populating storage_db\n", state.thread_index());
-        fflush(stdout);
+        if (state.thread_index() == 0) {
+            fprintf(stdout, "> Setup - populating storage_db\n");
+            fflush(stdout);
+        }
 
         for(
                 uint64_t key_index = state.thread_index();
@@ -205,7 +200,7 @@ public:
             // Free up the memory allocated for the first keyset slots generated
             test_support_free_keyset_slots(static_keyset_slots);
 
-            fprintf(stdout, "> Setup (%d) - second keyset slots generation\n", state.thread_index());
+            fprintf(stdout, "> Setup - second keyset slots generation\n");
             fflush(stdout);
 
             // Re-initialize the keyset, the random generator in use will re-generate exactly the same set as we are
@@ -232,28 +227,29 @@ public:
         this->_workers_count = state.threads();
         this->_keyset_slots = (test_support_keyset_slot_t *)static_keyset_slots;
 
-        fprintf(stdout, "> Setup (%d) - completed\n", state.thread_index());
-        fflush(stdout);
+        if (state.thread_index() == 0) {
+            fprintf(stdout, "> Setup - completed\n");
+            fflush(stdout);
+        }
     }
 
     void TearDown(const ::benchmark::State& state) override {
-        fprintf(stdout, "< Teardown (%d) - started\n", state.thread_index());
-        fflush(stdout);
 
         if (state.thread_index() != 0) {
-            fprintf(stdout, "< Teardown (%d) - completed\n", state.thread_index());
-            fflush(stdout);
             return;
         }
 
+        fprintf(stdout, "< Teardown - started\n");
+        fflush(stdout);
+
         if (this->_db != nullptr) {
-            fprintf(stdout, "< Teardown (%d) - collecting hashtable statistics\n", state.thread_index());
+            fprintf(stdout, "< Teardown - collecting hashtable statistics\n");
             fflush(stdout);
 
             BenchmarkSupport::CollectHashtableStatsAndUpdateState(
                     (benchmark::State&)state, this->_db->hashtable);
 
-            fprintf(stdout, "< Teardown (%d) - cleaning up storage_db\n", state.thread_index());
+            fprintf(stdout, "< Teardown - cleaning up storage_db\n");
             fflush(stdout);
 
             // Free the storage
@@ -261,7 +257,7 @@ public:
         }
 
         if (this->_keyset_slots != nullptr) {
-            fprintf(stdout, "< Teardown (%d) - free-ing up the keyset slots\n", state.thread_index());
+            fprintf(stdout, "< Teardown - free-ing up the keyset slots\n");
             fflush(stdout);
 
             // Free the keys
@@ -277,12 +273,12 @@ public:
         static_keyset_slots = nullptr;
         static_storage_db_populated = false;
 
-        fprintf(stdout, "< Teardown (%d) - completed\n", state.thread_index());
+        fprintf(stdout, "< Teardown - completed\n");
         fflush(stdout);
     }
 };
 
-BENCHMARK_DEFINE_F(StorageDbOpGetFixture, storage_db_op_get)(benchmark::State& state) {
+BENCHMARK_DEFINE_F(StorageDbOpGetFixture, storage_db_op_get_different_keys)(benchmark::State& state) {
     uint64_t requested_keyset_size;
     test_support_keyset_slot_t *keyset_slots;
     worker_context_t *worker_context;
@@ -370,18 +366,121 @@ BENCHMARK_DEFINE_F(StorageDbOpGetFixture, storage_db_op_get)(benchmark::State& s
                 break;
             }
 
-            storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
+            storage_db_entry_index_status_decrease_readers_counter(entry_index, nullptr);
         }
     }
 }
 
-BENCHMARK_REGISTER_F(StorageDbOpGetFixture, storage_db_op_get)
-    ->ArgsProduct({
-                          { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
-                            0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu },
-                          { 50, 75 },
-    })
-    ->ThreadRange(1, utils_cpu_count())
-    ->Iterations(1)
-    ->Repetitions(25)
-    ->DisplayAggregatesOnly(true);
+
+BENCHMARK_DEFINE_F(StorageDbOpGetFixture, storage_db_op_get_same_keys)(benchmark::State& state) {
+    uint64_t requested_keyset_size;
+    test_support_keyset_slot_t *keyset_slots;
+    worker_context_t *worker_context;
+    char error_message[150] = { 0 };
+
+    test_support_set_thread_affinity(state.thread_index());
+
+    // Set up the worker context, as it's required by the storage db, this has to be done here as the worker_context
+    // is stored in a thread variable an the threads are managed internally by the benchmarking library and therefore
+    // they can be recycled or re-created.
+    if ((worker_context = worker_context_get()) == nullptr) {
+        // This assigned memory will be lost but this is a benchmark and we don't care
+        worker_context = (worker_context_t *)slab_allocator_mem_alloc(sizeof(worker_context_t));
+        worker_context_set(worker_context);
+    }
+
+    // Setup the worker as needed
+    worker_context->worker_index = state.thread_index();
+    worker_context->workers_count = this->GetWorkersCount();
+    worker_context->db = this->GetDb();
+
+    // Fetch the information from the fixtures needed for the test
+    keyset_slots = this->GetKeysetSlots();
+    requested_keyset_size = this->GetRequestedKeysetSize();
+
+    for (auto _ : state) {
+        for(
+                uint64_t key_index = 0;
+                key_index < requested_keyset_size;
+                key_index++) {
+            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
+                    worker_context->db,
+                    keyset_slots[key_index].key,
+                    keyset_slots[key_index].key_length);
+
+            if (unlikely(!entry_index)) {
+                sprintf(
+                        error_message,
+                        "Can't find the key <%s (%d)> with index <%ld> for the thread <%d>",
+                        keyset_slots[key_index].key,
+                        keyset_slots[key_index].key_length,
+                        key_index,
+                        state.thread_index());
+                state.SkipWithError(error_message);
+                break;
+            }
+
+            if (likely(entry_index)) {
+                storage_db_entry_index_status_t old_status;
+
+                // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
+                storage_db_entry_index_status_increase_readers_counter(
+                        entry_index,
+                        &old_status);
+
+                if (unlikely(old_status.deleted)) {
+                    sprintf(
+                            error_message,
+                            "The key <%s (%d)> with index <%ld> for the thread <%d> has been deleted but it's not possible!",
+                            keyset_slots[key_index].key,
+                            keyset_slots[key_index].key_length,
+                            key_index,
+                            state.thread_index());
+                    state.SkipWithError(error_message);
+                    break;
+                }
+            }
+
+            // Only <= 64kb values so no need to iterate over the chunks
+            storage_db_chunk_info_t *chunk_info = storage_db_entry_value_chunk_get(entry_index, 0);
+
+            char *buffer;
+
+            if (likely(storage_db_entry_chunk_can_read_from_memory(worker_context->db, chunk_info))) {
+                benchmark::DoNotOptimize((buffer = storage_db_entry_chunk_read_fast_from_memory(worker_context->db, chunk_info)));
+            } else {
+                sprintf(
+                        error_message,
+                        "Can't perform fast read from memory for key <%s (%d)> with index <%ld> for the thread <%d>",
+                        keyset_slots[key_index].key,
+                        keyset_slots[key_index].key_length,
+                        key_index,
+                        state.thread_index());
+                state.SkipWithError(error_message);
+                break;
+            }
+
+            storage_db_entry_index_status_decrease_readers_counter(entry_index, nullptr);
+        }
+    }
+}
+
+static void BenchArguments(benchmark::internal::Benchmark* b) {
+    b
+            ->ArgsProduct({
+                           { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
+                             0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu },
+                           { 50, 75 },
+                   })
+            ->ThreadRange(TEST_THREADS_RANGE_BEGIN, TEST_THREADS_RANGE_END)
+            ->Iterations(1)
+            ->Repetitions(25)
+            ->DisplayAggregatesOnly(false);
+}
+
+BENCHMARK_REGISTER_F(StorageDbOpGetFixture, storage_db_op_get_different_keys)
+        ->Apply(BenchArguments);
+
+
+BENCHMARK_REGISTER_F(StorageDbOpGetFixture, storage_db_op_get_same_keys)
+        ->Apply(BenchArguments);

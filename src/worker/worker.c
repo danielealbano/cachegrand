@@ -63,6 +63,7 @@
 #include "worker/worker_iouring_op.h"
 #include "worker/network/worker_network_iouring_op.h"
 #include "worker/storage/worker_storage_iouring_op.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "slab_allocator.h"
 #include "worker.h"
 

@@ -198,7 +198,8 @@ void* xalloc_hugepage_alloc(
             0);
 
     if (memptr == (void *)-1) {
-        FATAL(TAG, "Unable to allocate the requested memory %lu", size);
+        LOG_E(TAG, "Unable to allocate the hugepage of size %lu", size);
+        return NULL;
     }
 #else
 #error Platform not supported

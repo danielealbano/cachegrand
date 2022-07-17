@@ -38,6 +38,10 @@
 #include "benchmark-program.hpp"
 #include "benchmark-support.hpp"
 
+// It is possible to control the amount of threads used for the test tuning the two defines below
+#define TEST_THREADS_RANGE_BEGIN (1)
+#define TEST_THREADS_RANGE_END (utils_cpu_count())
+
 uint32_t* init_hashes() {
     uint32_t* __attribute__((aligned(16))) hashes =
             (uint32_t*)aligned_alloc(16, sizeof(uint32_t) * 16);
@@ -63,9 +67,7 @@ uint32_t* init_hashes() {
             free(hashes); \
         } \
     } \
-    BENCHMARK(bench_template_hashtable_mcmp_support_hash_search_##METHOD##_##SUFFIX) \
-        ->Iterations(10000000) \
-        ->Threads(1)->Threads(2)->Threads(4)->Threads(8)->Threads(16)->Threads(32)->Threads(64)->Threads(128);
+    BENCHMARK(bench_template_hashtable_mcmp_support_hash_search_##METHOD##_##SUFFIX)->Apply(BenchArguments);
 
 #define BENCH_TEMPLATE_HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_FULL(METHOD) \
     BENCH_TEMPLATE_HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_FUNC_WRAPPER(METHOD, full, { \
@@ -80,6 +82,13 @@ uint32_t* init_hashes() {
 
 #define BENCH_TEMPLATE_HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_ALL(METHOD) \
     BENCH_TEMPLATE_HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_FULL(METHOD);
+
+static void BenchArguments(benchmark::internal::Benchmark* b) {
+    b
+            ->ThreadRange(TEST_THREADS_RANGE_BEGIN, TEST_THREADS_RANGE_END)
+            ->Iterations(10000000)
+            ->DisplayAggregatesOnly(false);
+}
 
 BENCH_TEMPLATE_HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_ALL(loop);
 BENCH_TEMPLATE_HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_ALL(avx);

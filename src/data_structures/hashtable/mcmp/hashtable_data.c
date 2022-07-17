@@ -20,6 +20,7 @@
 #include "pow2.h"
 #include "spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "slab_allocator.h"
 
 #include "hashtable.h"
@@ -97,10 +98,13 @@ void hashtable_mcmp_data_keys_free(
 
         if (
                 HASHTABLE_KEY_VALUE_IS_EMPTY(key_value->flags) ||
-                (!HASHTABLE_KEY_VALUE_IS_EMPTY(key_value->flags) &&
-                    HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_DELETED)) ||
-                (!HASHTABLE_KEY_VALUE_IS_EMPTY(key_value->flags) &&
-                    HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE))) {
+                !HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_FILLED)) {
+            continue;
+        }
+
+        if (
+                HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_DELETED) ||
+                HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
             continue;
         }
 

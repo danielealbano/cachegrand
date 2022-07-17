@@ -36,10 +36,10 @@ jobs:
       - name: Setup cmake
         uses: lukka/get-cmake@latest
 
-      - name: Ensure 200 2MB Hugepages free (required for comprehensive testing)
+      - name: Ensure 350 2MB Hugepages free (required for comprehensive testing)
         shell: bash
         timeout-minutes: 5
-        run: while [ $(cat /proc/meminfo | grep HugePages_Free | awk '{ printf $2 }') -lt 200 ]; do echo "Requesting 256 2MB hugepages"; echo 250 | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages; cat /proc/meminfo | grep HugePages_; done
+        run: while [ $(cat /proc/meminfo | grep HugePages_Free | awk '{ printf $2 }') -lt 350 ]; do echo "Requesting 350 2MB hugepages"; echo 350 | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages; cat /proc/meminfo | grep HugePages_; done; free -m;
 
       - name: Checkout
         uses: actions/checkout@v2
