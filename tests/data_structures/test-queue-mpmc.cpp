@@ -269,8 +269,7 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
         queue_mpmc_t *queue_mpmc = queue_mpmc_init();
 
         SECTION("one value") {
-            queue_mpmc_push(queue_mpmc, &value1);
-
+            REQUIRE(queue_mpmc_push(queue_mpmc, &value1));
             REQUIRE(queue_mpmc->head.data.length == 1);
             REQUIRE(queue_mpmc->head.data.version == 1);
             REQUIRE(queue_mpmc->head.data.node != NULL);
@@ -278,8 +277,8 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
         }
 
         SECTION("two values") {
-            queue_mpmc_push(queue_mpmc, &value1);
-            queue_mpmc_push(queue_mpmc, &value2);
+            REQUIRE(queue_mpmc_push(queue_mpmc, &value1));
+            REQUIRE(queue_mpmc_push(queue_mpmc, &value2));
 
             REQUIRE(queue_mpmc->head.data.length == 2);
             REQUIRE(queue_mpmc->head.data.version == 2);

@@ -41,12 +41,15 @@ void queue_mpmc_free(queue_mpmc_t *queue_mpmc) {
     xalloc_free(queue_mpmc);
 }
 
-void queue_mpmc_push(
+bool queue_mpmc_push(
         queue_mpmc_t *queue_mpmc,
         void *data) {
     assert(data != NULL);
 
     queue_mpmc_node_t *node = xalloc_alloc(sizeof(queue_mpmc_node_t));
+    if (!node) {
+        return false;
+    }
     node->data = data;
 
     queue_mpmc_versioned_head_t head_expected = {
@@ -69,6 +72,8 @@ void queue_mpmc_push(
             true,
             __ATOMIC_RELEASE,
             __ATOMIC_RELAXED));
+
+    return true;
 }
 
 void *queue_mpmc_pop(

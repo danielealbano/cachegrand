@@ -37,7 +37,7 @@ queue_mpmc_t *queue_mpmc_init();
 
 void queue_mpmc_free(queue_mpmc_t *queue_mpmc);
 
-void queue_mpmc_push(
+bool queue_mpmc_push(
         queue_mpmc_t *queue_mpmc,
         void *data);
 
