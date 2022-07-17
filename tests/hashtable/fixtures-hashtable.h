@@ -136,12 +136,14 @@ hashtable_hash_quarter_t test_key_long_1_hash_quarter = test_key_long_1_hash_hal
     HASHTABLE_HALF_HASHES_CHUNK(chunk_index).half_hashes[chunk_slot_index].filled = true; \
     HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).data = value;
 
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
 #define HASHTABLE_SET_KEY_INLINE_BY_INDEX(chunk_index, chunk_slot_index, hash, key, key_size, value) \
     HASHTABLE_SET_INDEX_SHARED(chunk_index, chunk_slot_index, hash, value); \
     HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).flags = \
         HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE; \
     strncpy((char*)&HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).inline_key.data, key, HASHTABLE_KEY_INLINE_MAX_LENGTH); \
     HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).inline_key.size = key_size;
+#endif
 
 #define HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(chunk_index, chunk_slot_index, hash, key, key_size, value) \
     HASHTABLE_SET_INDEX_SHARED(chunk_index, chunk_slot_index, hash, value); \

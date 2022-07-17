@@ -96,7 +96,7 @@ void log_message_debug(
 
     va_list args_copy;
     va_copy(args_copy, args);
-    message_with_args_len = vsnprintf(NULL, 0, message, args_copy);
+    message_with_args_len = vsnprintf(NULL, 0, message, args_copy) + 1;
     va_end(args_copy);
 
     // Decide if a static buffer can be used or a new one has to be allocated
@@ -106,6 +106,10 @@ void log_message_debug(
             message_with_args_len,
             &message_with_args_static_buffer_selected);
 
+    vsnprintf(message_with_args, message_with_args_len, message, args);
+
+    va_end(args);
+
     log_sink_console_printer(
             &log_sink_console_settings,
             tag,
@@ -113,9 +117,7 @@ void log_message_debug(
             LOG_LEVEL_DEBUG_INTERNALS,
             log_early_prefix_thread,
             message_with_args,
-            message_with_args_len);
-
-    va_end(args);
+            message_with_args_len - 1);
 
     if (!message_with_args_static_buffer_selected) {
         xalloc_free(message_with_args);

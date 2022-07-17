@@ -213,7 +213,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
             char *send_buffer_start, *send_buffer_end;
             size_t send_buffer_length;
 
-            send_buffer_length = min(entry_index->value_length + 32, STORAGE_DB_CHUNK_MAX_SIZE);
+            send_buffer_length = MIN(entry_index->value_length + 32, STORAGE_DB_CHUNK_MAX_SIZE);
             send_buffer_start = send_buffer = slab_allocator_mem_alloc(send_buffer_length);
             send_buffer_end = send_buffer_start + send_buffer_length;
 

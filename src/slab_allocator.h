@@ -18,16 +18,18 @@ extern "C" {
 #define SLAB_OBJECT_SIZE_16384  0x00004000
 #define SLAB_OBJECT_SIZE_32768  0x00008000
 #define SLAB_OBJECT_SIZE_65536  0x00010000
-#define SLAB_OBJECT_SIZE_MIN    SLAB_OBJECT_SIZE_16
-#define SLAB_OBJECT_SIZE_MAX    SLAB_OBJECT_SIZE_65536
 
 #define SLAB_PREDEFINED_OBJECT_SIZES    SLAB_OBJECT_SIZE_16, SLAB_OBJECT_SIZE_32, SLAB_OBJECT_SIZE_64, \
                                         SLAB_OBJECT_SIZE_128, SLAB_OBJECT_SIZE_256, SLAB_OBJECT_SIZE_512, \
                                         SLAB_OBJECT_SIZE_1024, SLAB_OBJECT_SIZE_2048, SLAB_OBJECT_SIZE_4096, \
                                         SLAB_OBJECT_SIZE_8192, SLAB_OBJECT_SIZE_16384, SLAB_OBJECT_SIZE_32768, \
                                         SLAB_OBJECT_SIZE_65536
-static const uint32_t slab_predefined_object_sizes[] = { SLAB_PREDEFINED_OBJECT_SIZES };
 #define SLAB_PREDEFINED_OBJECT_SIZES_COUNT (sizeof(slab_predefined_object_sizes) / sizeof(uint32_t))
+
+#define SLAB_OBJECT_SIZE_MIN    (((int[]){ SLAB_PREDEFINED_OBJECT_SIZES })[0])
+#define SLAB_OBJECT_SIZE_MAX    (((int[]){ SLAB_PREDEFINED_OBJECT_SIZES })[SLAB_PREDEFINED_OBJECT_SIZES_COUNT - 1])
+
+static const uint32_t slab_predefined_object_sizes[] = { SLAB_PREDEFINED_OBJECT_SIZES };
 
 typedef struct slab_allocator_core_metadata slab_allocator_core_metadata_t;
 struct slab_allocator_core_metadata {
@@ -35,38 +37,19 @@ struct slab_allocator_core_metadata {
 
     // The slots are sorted per availability
     double_linked_list_t* slots;
-
-    struct {
-        uint16_t slices_total_count;
-        uint16_t slices_inuse_count;
-        uint16_t slices_free_count;
-        uint32_t objects_inuse_count;
-    } metrics;
-};
-
-typedef struct slab_allocator_numa_node_metadata slab_allocator_numa_node_metadata_t;
-struct slab_allocator_numa_node_metadata {
-    // The slices are sorted per availability
     double_linked_list_t* slices;
 
     struct {
-        uint32_t total_slices_count;
-        uint32_t free_slices_count;
+        uint16_t slices_inuse_count;
+        uint32_t objects_inuse_count;
     } metrics;
 };
 
 typedef struct slab_allocator slab_allocator_t;
 struct slab_allocator {
-    spinlock_lock_volatile_t spinlock;
     uint16_t core_count;
-    uint16_t numa_node_count;
     uint32_t object_size;
     slab_allocator_core_metadata_t* core_metadata;
-    slab_allocator_numa_node_metadata_t* numa_node_metadata;
-    struct {
-        uint32_t total_slices_count;
-        uint32_t free_slices_count;
-    } metrics;
 };
 
 // It's necessary to use an union for slab_slot_t and slab_slice_t as the double_linked_list_item_t is being embedded
@@ -80,7 +63,13 @@ typedef union {
     struct {
         void* padding[2];
         void* memptr;
+#if DEBUG==1
+        bool available:1;
+        int32_t allocs:31;
+        int32_t frees:31;
+#else
         bool available;
+#endif
     } data;
 } slab_slot_t;
 
@@ -92,7 +81,6 @@ typedef union {
         void* page_addr;
         uintptr_t data_addr;
         bool available;
-        uint8_t numa_node_index;
         uint16_t core_index;
         struct {
             uint32_t objects_total_count;
@@ -135,7 +123,6 @@ uint32_t slab_allocator_slice_calculate_slots_count(
 slab_slice_t* slab_allocator_slice_init(
         slab_allocator_t* slab_allocator,
         void* memptr,
-        uint8_t numa_node_index,
         uint16_t core_index);
 
 void slab_allocator_slice_add_slots_to_per_core_metadata_slots(
@@ -154,13 +141,10 @@ slab_slice_t* slab_allocator_slice_from_memptr(
 void slab_allocator_slice_make_available(
         slab_allocator_t* slab_allocator,
         slab_slice_t* slab_slice,
-        uint8_t numa_node_index,
-        uint16_t core_index,
-        bool* can_free_slice);
+        uint16_t core_index);
 
 bool slab_allocator_slice_try_acquire(
         slab_allocator_t* slab_allocator,
-        uint8_t numa_node_index,
         uint16_t core_index);
 
 slab_slot_t* slab_allocator_slot_from_memptr(
@@ -170,14 +154,12 @@ slab_slot_t* slab_allocator_slot_from_memptr(
 
 void slab_allocator_grow(
         slab_allocator_t* slab_allocator,
-        uint8_t numa_node_index,
         uint16_t core_index,
         void* memptr);
 
 __attribute__((malloc))
 void* slab_allocator_mem_alloc_hugepages(
         size_t size,
-        uint8_t numa_node_index,
         uint16_t core_index);
 
 void slab_allocator_mem_free_hugepages(

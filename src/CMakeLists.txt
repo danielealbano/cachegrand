@@ -19,6 +19,11 @@ macro(CACHEGRAND_BUILD_ADHOC_HASHTABLE_MCMP_SUPPORT_OP_ARCH ARCH)
             OBJECT
             "${CMAKE_CURRENT_SOURCE_DIR}/data_structures/hashtable/mcmp/hashtable_support_op_arch.c")
 
+    set_target_properties(
+            ${hashtable_mcmp_support_op_arch_target_name}
+            PROPERTIES
+            LINKER_LANGUAGE C)
+
     target_compile_definitions(
             ${hashtable_mcmp_support_op_arch_target_name}
             PRIVATE
@@ -119,6 +124,11 @@ add_library(
 set_target_properties(
         cachegrand-internal
         PROPERTIES
+        LINKER_LANGUAGE C)
+
+set_target_properties(
+        cachegrand-internal
+        PROPERTIES
         ENABLE_EXPORTS ON
 )
 
@@ -166,6 +176,11 @@ endif()
 add_executable(
         cachegrand-server
         "main.c")
+
+set_target_properties(
+        cachegrand-server
+        PROPERTIES
+        LINKER_LANGUAGE C)
 
 add_dependencies(
         cachegrand-server

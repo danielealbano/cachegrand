@@ -29,6 +29,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_op_get.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_delete.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_iter.h"
 #include "slab_allocator.h"
 #include "fiber.h"
 #include "fiber_scheduler.h"
@@ -424,52 +425,65 @@ bool storage_db_close(
     return true;
 }
 
+void storage_db_deleted_entry_ring_buffer_per_worker_free(
+        storage_db_t *db,
+        uint32_t worker_index) {
+    storage_db_entry_index_t *entry_index = NULL;
+    small_circular_queue_t *scq = db->workers[worker_index].deleted_entry_index_ring_buffer;
+
+    if (!scq) {
+        return;
+    }
+
+    while((entry_index = small_circular_queue_dequeue(scq)) != NULL) {
+        storage_db_entry_index_free(db, entry_index);
+    }
+
+    small_circular_queue_free(scq);
+}
+
+void storage_db_deleting_entry_index_list_per_worker_free(
+        storage_db_t *db,
+        uint32_t worker_index) {
+    double_linked_list_t *dblist;
+    double_linked_list_item_t *item;
+
+    dblist = db->workers[worker_index].deleting_entry_index_list;
+    if (!dblist) {
+        return;
+    }
+
+    while((item = double_linked_list_pop_item(dblist)) != NULL) {
+        storage_db_entry_index_t *entry_index = item->data;
+
+        double_linked_list_item_free(item);
+        storage_db_entry_index_free(db, entry_index);
+    }
+
+    double_linked_list_free(db->workers[worker_index].deleting_entry_index_list);
+}
+
 void storage_db_free(
         storage_db_t *db,
         uint32_t workers_count) {
+    // Free up the per_worker allocated memory
     for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
-        if (db->workers[worker_index].deleted_entry_index_ring_buffer) {
-            storage_db_entry_index_t *entry_index = NULL;
-            while((entry_index = small_circular_queue_dequeue(
-                    db->workers[worker_index].deleted_entry_index_ring_buffer)) != NULL) {
-                storage_db_entry_index_free(db, entry_index);
-            }
-
-            small_circular_queue_free(db->workers[worker_index].deleted_entry_index_ring_buffer);
-        }
-
-        if (db->workers[worker_index].deleting_entry_index_list) {
-            double_linked_list_item_t *item = NULL;
-            while((item = double_linked_list_pop_item(
-                    db->workers[worker_index].deleting_entry_index_list)) != NULL) {
-                storage_db_entry_index_t *entry_index = item->data;
-
-                double_linked_list_item_free(item);
-                storage_db_entry_index_free(db, entry_index);
-            }
-
-            double_linked_list_free(db->workers[worker_index].deleting_entry_index_list);
-        }
+        storage_db_deleted_entry_ring_buffer_per_worker_free(db, worker_index);
+        storage_db_deleting_entry_index_list_per_worker_free(db, worker_index);
     }
 
+    // Free up the opened_shards lists (the actual cleanup of the shards is done in storage_db_close, here only the
+    // memory gets freed up)
     if (db->shards.opened_shards) {
         double_linked_list_free(db->shards.opened_shards);
     }
 
-    for(uint64_t bucket_index = 0; bucket_index < db->hashtable->ht_current->buckets_count_real; bucket_index++) {
-        hashtable_key_value_volatile_t *key_value = &db->hashtable->ht_current->keys_values[bucket_index];
-
-        if (
-                HASHTABLE_KEY_VALUE_IS_EMPTY(key_value->flags) ||
-                HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_DELETED)) {
-            continue;
-        }
-
-        if (!HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
-            slab_allocator_mem_free(key_value->external_key.data);
-        }
-
-        storage_db_entry_index_t *data = (storage_db_entry_index_t *)key_value->data;
+    // Iterates over the hashtable to free up the entry index
+    hashtable_bucket_index_t bucket_index = 0;
+    for(
+            void *data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index);
+            data;
+            ++bucket_index && (data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index))) {
         storage_db_entry_index_free(db, data);
     }
 
@@ -546,7 +560,7 @@ bool storage_db_entry_index_allocate_key_chunks(
         if (!storage_db_chunk_data_pre_allocate(
                 db,
                 chunk_info,
-                min(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
+                MIN(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
             slab_allocator_mem_free(entry_index->key_chunks_info);
             return false;
         }
@@ -574,7 +588,7 @@ bool storage_db_entry_index_allocate_value_chunks(
         if (!storage_db_chunk_data_pre_allocate(
                 db,
                 chunk_info,
-                min(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
+                MIN(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
             // TODO: If the operation fails all the allocated values should be freed as this might lead to memory leaks
             slab_allocator_mem_free(entry_index->value_chunks_info);
             return false;
@@ -893,6 +907,119 @@ bool storage_db_set_entry_index(
     }
 
     return res;
+}
+
+bool storage_db_set_small_value(
+        storage_db_t *db,
+        char *key,
+        size_t key_length,
+        void *value,
+        size_t value_length) {
+    storage_db_entry_index_t *entry_index = NULL;
+    bool return_res = false;
+
+    assert(key_length <= STORAGE_DB_CHUNK_MAX_SIZE);
+    assert(value_length <= STORAGE_DB_CHUNK_MAX_SIZE);
+
+    entry_index = storage_db_entry_index_ring_buffer_new(db);
+    if (!entry_index) {
+        LOG_E(
+                TAG,
+                "Unable to fetch a database entry index");
+
+        goto end;
+    }
+
+    // If the backend is in memory it's not necessary to write the key to the storage because it will never be used as
+    // the only case in which the keys are read from the storage is when the database gets loaded from the disk at the
+    // startup
+    if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
+        bool res = storage_db_entry_index_allocate_key_chunks(
+                db,
+                entry_index,
+                key_length);
+
+        if (!res) {
+            LOG_E(
+                    TAG,
+                    "Unable to allocate database chunks for a key long <%lu> bytes",
+                    key_length);
+
+            goto end;
+        }
+
+        // Write the key
+        bool res_write = storage_db_entry_chunk_write(
+                db,
+                storage_db_entry_key_chunk_get(entry_index, 0),
+                0,
+                key,
+                key_length);
+
+        if (!res_write) {
+            LOG_E(
+                    TAG,
+                    "Unable to write the database chunks for a key long <%lu> bytes",
+                    key_length);
+
+            goto end;
+        }
+    }
+
+    // The value stored is the key itself as it is
+    bool res = storage_db_entry_index_allocate_value_chunks(
+            db,
+            entry_index,
+            value_length);
+
+    if (!res) {
+        LOG_E(
+                TAG,
+                "Unable to allocate database chunks for a value long <%lu> bytes",
+                value_length);
+        goto end;
+    }
+
+    // Write the value
+    bool res_write = storage_db_entry_chunk_write(
+            db,
+            storage_db_entry_value_chunk_get(entry_index, 0),
+            0,
+            value,
+            value_length);
+
+    if (!res_write) {
+        LOG_E(
+                TAG,
+                "Unable to write the database chunks for a value long <%lu> bytes",
+                value_length);
+
+        goto end;
+    }
+
+    // Set the entry index
+    bool result = storage_db_set_entry_index(
+            db,
+            key,
+            key_length,
+            entry_index);
+
+    if (!result) {
+        LOG_E(
+                TAG,
+                "Unable to update the database entry index");
+
+        goto end;
+    }
+
+    return_res = true;
+
+end:
+    if (!return_res && entry_index) {
+        storage_db_entry_index_free(db, entry_index);
+    }
+
+    return return_res;
 }
 
 bool storage_db_delete_entry_index(

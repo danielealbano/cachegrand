@@ -18,9 +18,7 @@ typedef _Volatile(uint8_t) spinlock_flag_volatile_t;
 typedef struct spinlock_lock spinlock_lock_t;
 typedef _Volatile(spinlock_lock_t) spinlock_lock_volatile_t;
 struct spinlock_lock {
-    uint8_volatile_t lock;
-    spinlock_flag_volatile_t flags;
-    uint16_t predicted_spins;
+    uint32_volatile_t lock;
 } __attribute__((aligned(4)));
 
 void spinlock_init(

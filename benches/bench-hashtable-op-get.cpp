@@ -6,9 +6,8 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#include <stdio.h>
-#include <string.h>
-#include <numa.h>
+#include <cstdio>
+#include <cstring>
 
 #include <benchmark/benchmark.h>
 
@@ -21,35 +20,8 @@
 #include "../tests/support.h"
 #include "../tests/hashtable/fixtures-hashtable.h"
 
-#include "bench-support.h"
-
-#define HASHTABLE_OP_GET_BENCHS_ARGS \
-    \
-        Arg(0x0000FFFFu)-> \
-        Arg(0x000FFFFFu)-> \
-        Arg(0x001FFFFFu)-> \
-        Arg(0x007FFFFFu)-> \
-        Arg(0x01FFFFFFu)-> \
-        Arg(0x07FFFFFFu)-> \
-        Arg(0x0FFFFFFFu)-> \
-        Arg(0x1FFFFFFFu)-> \
-        Arg(0x3FFFFFFFu)-> \
-        Arg(0x7FFFFFFFu)-> \
-    \
-        Threads(1)-> \
-        Threads(2)-> \
-        Threads(4)-> \
-        Threads(8)-> \
-        Threads(16)-> \
-        Threads(32)-> \
-        Threads(64)-> \
-        Threads(128)-> \
-        Threads(256)-> \
-        Threads(512)-> \
-        Threads(1024)-> \
-        Threads(2048)-> \
-    \
-    Iterations(10000000);
+#include "benchmark-program.hpp"
+#include "benchmark-support.hpp"
 
 static void hashtable_op_get_not_found_key(benchmark::State& state) {
     static hashtable_t* hashtable;
@@ -74,6 +46,7 @@ static void hashtable_op_get_not_found_key(benchmark::State& state) {
     }
 }
 
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
 static void hashtable_op_get_single_key_inline(benchmark::State& state) {
     static hashtable_t* hashtable;
     static hashtable_bucket_index_t bucket_index;
@@ -126,6 +99,7 @@ static void hashtable_op_get_single_key_inline(benchmark::State& state) {
         hashtable_mcmp_free(hashtable);
     }
 }
+#endif
 
 static void hashtable_op_get_single_key_external(benchmark::State& state) {
     static hashtable_t* hashtable;
@@ -180,6 +154,32 @@ static void hashtable_op_get_single_key_external(benchmark::State& state) {
     }
 }
 
-BENCHMARK(hashtable_op_get_not_found_key)->HASHTABLE_OP_GET_BENCHS_ARGS;
-BENCHMARK(hashtable_op_get_single_key_inline)->HASHTABLE_OP_GET_BENCHS_ARGS;
-BENCHMARK(hashtable_op_get_single_key_external)->HASHTABLE_OP_GET_BENCHS_ARGS;
+BENCHMARK(hashtable_op_get_not_found_key)
+        ->ArgsProduct({
+                              { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
+                                0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu },
+                              { 50, 75 },
+                      })
+        ->ThreadRange(1, utils_cpu_count())
+        ->Iterations(10000000);
+
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
+BENCHMARK(hashtable_op_get_single_key_inline)
+        ->ArgsProduct({
+                              { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
+                                0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu },
+                              { 50, 75 },
+                      })
+        ->ThreadRange(1, utils_cpu_count())
+        ->Iterations(10000000);
+
+#endif
+
+BENCHMARK(hashtable_op_get_single_key_external)
+        ->ArgsProduct({
+                              { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
+                                0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu },
+                              { 50, 75 },
+                      })
+        ->ThreadRange(1, utils_cpu_count())
+        ->Iterations(10000000);
