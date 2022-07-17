@@ -10,47 +10,59 @@
 #include <algorithm>
 #include <iterator>
 
-#include <string.h>
+#include <cstring>
 #include <benchmark/benchmark.h>
 
 #include "misc.h"
 #include "exttypes.h"
+#include "log/log.h"
+#include "fatal.h"
 #include "spinlock.h"
 #include "thread.h"
+#include "hugepages.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "slab_allocator.h"
+#include "xalloc.h"
 
 #include "benchmark-program.hpp"
 #include "benchmark-support.hpp"
 
-// About (64kb * 4096 * 48 / 2048) = 6144 hugepages are required to run the test with the slab allocator and about 12GB
-// are required to run the test with malloc.
+// This test requires about 67gb (33856) of hugepages to test up to 64 threads, to reduce the amount of memory required
+// reduce the defined value below and also the TEST_ALLOCATIONS_COUNT_PER_THREAD, currently set to 16 * 1024
+// allocations.
+// If a machine with a lot of threads is used it's strongly suggested to reduce the TEST_ALLOCATIONS_COUNT_PER_THREAD to
+// 4096 or 8192 as that will be the amount of allocations carried out per thread.
+#define TEST_WARMPUP_HUGEPAGES_CACHE_COUNT 33856
+#define TEST_ALLOCATIONS_COUNT_PER_THREAD (16 * 1024)
 
-#define SET_BENCH_ARGS() \
-    DisplayAggregatesOnly(true)-> \
-    Args({SLAB_OBJECT_SIZE_16, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_32, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_64, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_128, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_256, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_512, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_1024, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_2048, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_4096, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_8192, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_16384, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_32768, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_65536, 0x1000})
+// It is possible to control the amount of threads used for the test tuning the two defines below
+#define TEST_THREADS_RANGE_BEGIN (1)
+#define TEST_THREADS_RANGE_END (utils_cpu_count())
 
-#define SET_BENCH_THREADS() \
-    Threads(1)-> \
-    Threads(2)-> \
-    Threads(4)-> \
-    Threads(8)-> \
-    Threads(12)-> \
-    Threads(24)-> \
-    Threads(36)-> \
-    Threads(48)
+static void memory_allocation_slab_allocator_hugepages_warmup_cache(benchmark::State& state) {
+    size_t os_page_size = xalloc_get_page_size();
+    for(int hugepage_index = 0; hugepage_index < TEST_WARMPUP_HUGEPAGES_CACHE_COUNT; hugepage_index++) {
+        char *addr;
+        char *start_addr = (char*)hugepage_cache_pop();
+
+        if (start_addr == nullptr) {
+            FATAL(
+                    "bench-slab-allocator",
+                    "Not enough hugepages, needed %d but available %d",
+                    TEST_WARMPUP_HUGEPAGES_CACHE_COUNT,
+                    hugepage_index);
+        }
+
+        for(addr = start_addr; (uintptr_t)(addr - start_addr) < HUGEPAGE_SIZE_2MB; addr += os_page_size) {
+            *addr = 0;
+        }
+
+        hugepage_cache_push(start_addr);
+    }
+
+    state.SkipWithError("Not a test");
+}
 
 static void memory_allocation_slab_allocator_only_alloc(benchmark::State& state) {
     size_t object_size = state.range(0);
@@ -282,10 +294,35 @@ static void memory_allocation_os_malloc_fragment_memory(benchmark::State& state)
     }
 }
 
-BENCHMARK(memory_allocation_slab_allocator_only_alloc)->SET_BENCH_ARGS()->SET_BENCH_THREADS()->Iterations(1)->Repetitions(10);
-BENCHMARK(memory_allocation_slab_allocator_alloc_and_free)->SET_BENCH_ARGS()->SET_BENCH_THREADS()->Iterations(1)->Repetitions(10);
-BENCHMARK(memory_allocation_slab_allocator_fragment_memory)->SET_BENCH_ARGS()->SET_BENCH_THREADS()->Iterations(1)->Repetitions(10);
+static void BenchArguments(benchmark::internal::Benchmark* b) {
+    b
+            ->ArgsProduct({
+                { SLAB_OBJECT_SIZE_16, SLAB_OBJECT_SIZE_32, SLAB_OBJECT_SIZE_64, SLAB_OBJECT_SIZE_128, SLAB_OBJECT_SIZE_256,
+                  SLAB_OBJECT_SIZE_512, SLAB_OBJECT_SIZE_1024, SLAB_OBJECT_SIZE_2048, SLAB_OBJECT_SIZE_4096,
+                  SLAB_OBJECT_SIZE_8192, SLAB_OBJECT_SIZE_16384, SLAB_OBJECT_SIZE_32768, SLAB_OBJECT_SIZE_65536 },
+                { TEST_ALLOCATIONS_COUNT_PER_THREAD }
+            })
+            ->ThreadRange(TEST_THREADS_RANGE_BEGIN, TEST_THREADS_RANGE_END)
+            ->Iterations(1)
+            ->Repetitions(25)
+            ->DisplayAggregatesOnly(false);
+}
 
-BENCHMARK(memory_allocation_os_malloc_only_alloc)->SET_BENCH_ARGS()->SET_BENCH_THREADS()->Iterations(1)->Repetitions(10);
-BENCHMARK(memory_allocation_os_malloc_alloc_and_free)->SET_BENCH_ARGS()->SET_BENCH_THREADS()->Iterations(1)->Repetitions(10);
-BENCHMARK(memory_allocation_os_malloc_fragment_memory)->SET_BENCH_ARGS()->SET_BENCH_THREADS()->Iterations(1)->Repetitions(10);
+// Warmup the hugepages cache, has to be done only once, forces iterations and repetitions to 1 to do not waste time
+BENCHMARK(memory_allocation_slab_allocator_hugepages_warmup_cache)
+        ->Iterations(1)
+        ->Repetitions(1);
+
+BENCHMARK(memory_allocation_slab_allocator_only_alloc)
+        ->Apply(BenchArguments);
+BENCHMARK(memory_allocation_slab_allocator_alloc_and_free)
+        ->Apply(BenchArguments);
+BENCHMARK(memory_allocation_slab_allocator_fragment_memory)
+        ->Apply(BenchArguments);
+
+BENCHMARK(memory_allocation_os_malloc_only_alloc)
+        ->Apply(BenchArguments);
+BENCHMARK(memory_allocation_os_malloc_alloc_and_free)
+        ->Apply(BenchArguments);
+BENCHMARK(memory_allocation_os_malloc_fragment_memory)
+        ->Apply(BenchArguments);
