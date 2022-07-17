@@ -322,10 +322,6 @@ void* slab_allocator_mem_alloc_hugepages(
     slab_slot_t* slab_slot = NULL;
     slab_slice_t* slab_slice = NULL;
 
-    if (!slab_allocator_thread_cache_has()) {
-        slab_allocator_thread_cache_set(slab_allocator_thread_cache_init());
-    }
-
     // Always tries first to get a slow from the local cache, it's faster
     slots_list = slab_allocator->slots;
     slots_head_item = slots_list->head;
@@ -504,7 +500,11 @@ void* slab_allocator_mem_alloc(
         size_t size) {
     void* memptr;
 
-    if (slab_allocator_enabled) {
+    if (likely(slab_allocator_enabled)) {
+        if (unlikely(!slab_allocator_thread_cache_has())) {
+            slab_allocator_thread_cache_set(slab_allocator_thread_cache_init());
+        }
+
         slab_allocator_t *slab_allocator = slab_allocator_thread_cache_get()[slab_index_by_object_size(size)];
         memptr = slab_allocator_mem_alloc_hugepages(slab_allocator, size);
     } else {
@@ -544,6 +544,10 @@ void* slab_allocator_mem_realloc(
 void slab_allocator_mem_free(
         void* memptr) {
     if (likely(slab_allocator_enabled)) {
+        if (unlikely(!slab_allocator_thread_cache_has())) {
+            slab_allocator_thread_cache_set(slab_allocator_thread_cache_init());
+        }
+
         slab_allocator_mem_free_hugepages(memptr);
     } else {
         slab_allocator_mem_free_xalloc(memptr);
