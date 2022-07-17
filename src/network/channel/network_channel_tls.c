@@ -112,7 +112,7 @@ end:
 
     if (!result_res && network_channel->tls.context) {
         mbedtls_ssl_free(network_channel->tls.context);
-        slab_allocator_free(network_channel->tls.context);
+        slab_allocator_mem_free(network_channel->tls.context);
 
         network_channel->tls.context = NULL;
     }
@@ -365,7 +365,7 @@ void network_channel_tls_free(
     }
 
     mbedtls_ssl_free(network_channel->tls.context);
-    slab_allocator_free(network_channel->tls.context);
+    slab_allocator_mem_free(network_channel->tls.context);
 
     network_channel->tls.context = NULL;
 }
