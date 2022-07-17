@@ -191,6 +191,14 @@ void test_queue_mpmc_fuzzy_multi_thread(
         }
     } while(!stopped);
 
+    void *data;
+    while((data = queue_mpmc_pop(queue_mpmc)) != nullptr) {
+        free(data);
+    }
+
+    REQUIRE(queue_mpmc->head.data.node == nullptr);
+    REQUIRE(queue_mpmc->head.data.length == 0);
+
     queue_mpmc_free(queue_mpmc);
     free(ti_list);
 }
@@ -245,6 +253,7 @@ void test_queue_mpmc_fuzzy_single_thread(
     }
 
     REQUIRE(queue_mpmc->head.data.node == nullptr);
+    REQUIRE(queue_mpmc->head.data.length == 0);
 
     queue_mpmc_free(queue_mpmc);
 }

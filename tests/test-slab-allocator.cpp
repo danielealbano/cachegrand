@@ -40,6 +40,7 @@ struct test_slab_allocator_fuzzy_test_thread_info {
     bool can_place_signature_at_end;
     uint32_volatile_t *ops_counter_total;
     uint32_volatile_t *ops_counter_mem_alloc;
+    queue_mpmc_t *queue;
 };
 
 typedef struct test_slab_allocator_fuzzy_test_data test_slab_allocator_fuzzy_test_data_t;
@@ -77,10 +78,9 @@ void *test_slab_allocator_fuzzy_multi_thread_single_size_thread_func(
     uint32_t max_used_slots = ti->max_used_slots;
     uint32_t object_size = ti->object_size;
     bool can_place_signature_at_end = ti->can_place_signature_at_end;
+    queue_mpmc_t *queue_mpmc = ti->queue;
 
     thread_current_set_affinity(ti->cpu_index);
-
-    double_linked_list_t *list = double_linked_list_init();
 
     do {
         MEMORY_FENCE_LOAD();
@@ -88,16 +88,18 @@ void *test_slab_allocator_fuzzy_multi_thread_single_size_thread_func(
 
     while (!*ti->stop) {
         MEMORY_FENCE_LOAD();
+        test_slab_allocator_fuzzy_test_data_t *data;
         uint32_t ops_counter_total = __atomic_fetch_add(ti->ops_counter_total, 1, __ATOMIC_RELAXED);
+        uint32_t queue_mpmc_length = queue_mpmc_get_length(queue_mpmc);
 
-        if (list->count < min_used_slots ||
-            (random_generate() % 1000 > 500 && list->count < max_used_slots)) {
+        if (queue_mpmc_length < min_used_slots ||
+            (random_generate() % 1000 > 500 && queue_mpmc_length < max_used_slots)) {
             // allocate memory
             uint32_t ops_counter_mem_alloc = __atomic_fetch_add(ti->ops_counter_mem_alloc, 1, __ATOMIC_RELAXED);
 
             void* memptr = slab_allocator_mem_alloc_zero(object_size);
 
-            test_slab_allocator_fuzzy_test_data_t *data = (test_slab_allocator_fuzzy_test_data_t*)memptr;
+            data = (test_slab_allocator_fuzzy_test_data_t*)memptr;
             data->ops_counter_total = ops_counter_total;
             data->ops_counter_mem_alloc = ops_counter_mem_alloc;
             data->hash_data_x = test_slab_allocator_calc_hash_x(ops_counter_total);
@@ -111,13 +113,9 @@ void *test_slab_allocator_fuzzy_multi_thread_single_size_thread_func(
                         sizeof(test_slab_allocator_fuzzy_test_data_t));
             }
 
-            double_linked_list_item_t *item = double_linked_list_item_init();
-            item->data = memptr;
-            double_linked_list_push_item(list, item);
+            queue_mpmc_push(queue_mpmc, data);
         } else {
-            double_linked_list_item_t *item = double_linked_list_shift_item(list);
-
-            test_slab_allocator_fuzzy_test_data_t *data = (test_slab_allocator_fuzzy_test_data_t*)item->data;
+            data = (test_slab_allocator_fuzzy_test_data_t *)queue_mpmc_pop(queue_mpmc);
 
             uint64_t hash_data_x = test_slab_allocator_calc_hash_x(data->ops_counter_total);
             uint64_t hash_data_y = test_slab_allocator_calc_hash_y(data->ops_counter_mem_alloc);
@@ -132,11 +130,6 @@ void *test_slab_allocator_fuzzy_multi_thread_single_size_thread_func(
                 FATAL("test-slab-allocator", "Incorrect hash y");
             }
 
-            if (data->memptr != item->data) {
-                // Can't use require as this code runs inside a thread, not allowed by Catch2
-                FATAL("test-slab-allocator", "Incorrect memory pointer");
-            }
-
             if (can_place_signature_at_end) {
                 int res = memcmp(
                         (void*)((uintptr_t)data->memptr + object_size - sizeof(test_slab_allocator_fuzzy_test_data_t)),
@@ -148,8 +141,7 @@ void *test_slab_allocator_fuzzy_multi_thread_single_size_thread_func(
                 }
             }
 
-            slab_allocator_mem_free(item->data);
-            double_linked_list_item_free(item);
+            slab_allocator_mem_free(data);
         }
     }
 
@@ -180,7 +172,8 @@ void test_slab_allocator_fuzzy_multi_thread_single_size(
     bool can_place_signature_at_end = object_size > (sizeof(test_slab_allocator_fuzzy_test_data_t) * 2);
 
     test_slab_allocator_fuzzy_test_thread_info_t *ti_list =
-            (test_slab_allocator_fuzzy_test_thread_info_t*)malloc(sizeof(test_slab_allocator_fuzzy_test_thread_info_t) * n_cpus);
+            (test_slab_allocator_fuzzy_test_thread_info_t*)malloc(
+                    sizeof(test_slab_allocator_fuzzy_test_thread_info_t) * n_cpus);
 
     for(int i = 0; i < n_cpus; i++) {
         test_slab_allocator_fuzzy_test_thread_info_t *ti = &ti_list[i];
@@ -195,6 +188,7 @@ void test_slab_allocator_fuzzy_multi_thread_single_size(
         ti->can_place_signature_at_end = can_place_signature_at_end;
         ti->ops_counter_total = &ops_counter_total;
         ti->ops_counter_mem_alloc = &ops_counter_mem_alloc;
+        ti->queue = queue_mpmc;
 
         if (pthread_create(
                 &ti->thread,
@@ -235,6 +229,14 @@ void test_slab_allocator_fuzzy_multi_thread_single_size(
         }
     } while(!stopped);
 
+    void *data;
+    while((data = queue_mpmc_pop(queue_mpmc)) != nullptr) {
+        slab_allocator_mem_free(data);
+    }
+
+    REQUIRE(queue_mpmc->head.data.node == nullptr);
+    REQUIRE(queue_mpmc->head.data.length == 0);
+
     queue_mpmc_free(queue_mpmc);
     free(ti_list);
 }
@@ -245,6 +247,7 @@ void test_slab_allocator_fuzzy_single_thread_single_size(
         uint32_t min_used_slots,
         uint32_t use_max_hugepages) {
     timespec_t start_time, current_time, diff_time;
+    queue_mpmc_t *queue_mpmc = queue_mpmc_init();
     uint32_t ops_counter_total = 0,
             ops_counter_mem_alloc = 0;
 
@@ -265,23 +268,23 @@ void test_slab_allocator_fuzzy_single_thread_single_size(
     // beginning of the allocated memory to the end as well for validation
     bool can_place_signature_at_end = object_size > (sizeof(test_slab_allocator_fuzzy_test_data_t) * 2);
 
-    double_linked_list_t *list = double_linked_list_init();
-
     clock_monotonic(&start_time);
 
     do {
+        test_slab_allocator_fuzzy_test_data_t *data;
         clock_monotonic(&current_time);
 
         ops_counter_total++;
+        uint32_t queue_mpmc_length = queue_mpmc_get_length(queue_mpmc);
 
-        if (list->count < min_used_slots ||
-            (random_generate() % 1000 > 500 && list->count < max_used_slots)) {
+        if (queue_mpmc_length < min_used_slots ||
+            (random_generate() % 1000 > 500 && queue_mpmc_length < max_used_slots)) {
             // allocate memory
             ops_counter_mem_alloc++;
 
             void* memptr = slab_allocator_mem_alloc_zero(object_size);
 
-            test_slab_allocator_fuzzy_test_data_t *data = (test_slab_allocator_fuzzy_test_data_t*)memptr;
+            data = (test_slab_allocator_fuzzy_test_data_t*)memptr;
             data->ops_counter_total = ops_counter_total;
             data->ops_counter_mem_alloc = ops_counter_mem_alloc;
             data->hash_data_x = test_slab_allocator_calc_hash_x(ops_counter_total);
@@ -295,20 +298,16 @@ void test_slab_allocator_fuzzy_single_thread_single_size(
                         sizeof(test_slab_allocator_fuzzy_test_data_t));
             }
 
-            double_linked_list_item_t *item = double_linked_list_item_init();
-            item->data = memptr;
-            double_linked_list_push_item(list, item);
+            queue_mpmc_push(queue_mpmc, data);
         } else {
-            double_linked_list_item_t *item = double_linked_list_shift_item(list);
-
-            test_slab_allocator_fuzzy_test_data_t *data = (test_slab_allocator_fuzzy_test_data_t*)item->data;
+            data = (test_slab_allocator_fuzzy_test_data_t *)queue_mpmc_pop(queue_mpmc);
 
             uint64_t hash_data_x = test_slab_allocator_calc_hash_x(data->ops_counter_total);
             uint64_t hash_data_y = test_slab_allocator_calc_hash_y(data->ops_counter_mem_alloc);
 
+            REQUIRE(data != nullptr);
             REQUIRE(data->hash_data_x == hash_data_x);
             REQUIRE(data->hash_data_y == hash_data_y);
-            REQUIRE(data->memptr == item->data);
 
             if (can_place_signature_at_end) {
                 int res = memcmp(
@@ -318,23 +317,21 @@ void test_slab_allocator_fuzzy_single_thread_single_size(
                 REQUIRE(res == 0);
             }
 
-            slab_allocator_mem_free(item->data);
-            double_linked_list_item_free(item);
+            slab_allocator_mem_free(data);
         }
 
         clock_diff(&diff_time, &current_time, &start_time);
     } while(diff_time.tv_sec < duration);
 
-    while(list->count > 0) {
-        double_linked_list_item_t *item = double_linked_list_shift_item(list);
-        slab_allocator_mem_free(item->data);
-        double_linked_list_item_free(item);
+    void *data;
+    while((data = queue_mpmc_pop(queue_mpmc)) != nullptr) {
+        slab_allocator_mem_free(data);
     }
 
-    REQUIRE(list->head == nullptr);
-    REQUIRE(list->tail == nullptr);
+    REQUIRE(queue_mpmc->head.data.node == nullptr);
+    REQUIRE(queue_mpmc->head.data.length == 0);
 
-    double_linked_list_free(list);
+    queue_mpmc_free(queue_mpmc);
 }
 
 TEST_CASE("slab_allocator.c", "[slab_allocator]") {
