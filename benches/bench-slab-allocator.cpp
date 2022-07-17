@@ -293,6 +293,16 @@ static void memory_allocation_os_malloc_fragment_memory(benchmark::State& state)
         }
     }
 }
+//
+//BENCHMARK(memory_allocation_slab_allocator_only_alloc)
+//    ->SET_BENCH_ARGS()
+//    ->SET_BENCH_THREADS();
+//BENCHMARK(memory_allocation_slab_allocator_alloc_and_free)
+//    ->SET_BENCH_ARGS()
+//    ->SET_BENCH_THREADS();
+//BENCHMARK(memory_allocation_slab_allocator_fragment_memory)
+//    ->SET_BENCH_ARGS()
+//    ->SET_BENCH_THREADS();
 
 static void BenchArguments(benchmark::internal::Benchmark* b) {
     b
