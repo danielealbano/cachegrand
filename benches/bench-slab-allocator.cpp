@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <iterator>
 
-#include <string.h>
+#include <cstring>
 #include <benchmark/benchmark.h>
 
 #include "misc.h"
@@ -18,6 +18,7 @@
 #include "spinlock.h"
 #include "thread.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "slab_allocator.h"
 
 #include "benchmark-program.hpp"
@@ -27,30 +28,18 @@
 // are required to run the test with malloc.
 
 #define SET_BENCH_ARGS() \
-    DisplayAggregatesOnly(true)-> \
-    Args({SLAB_OBJECT_SIZE_16, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_32, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_64, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_128, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_256, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_512, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_1024, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_2048, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_4096, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_8192, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_16384, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_32768, 0x1000})-> \
-    Args({SLAB_OBJECT_SIZE_65536, 0x1000})
+      Iterations(1) \
+    ->Repetitions(25) \
+    ->DisplayAggregatesOnly(true) \
+    ->ArgsProduct({ \
+        { SLAB_OBJECT_SIZE_16, SLAB_OBJECT_SIZE_32, SLAB_OBJECT_SIZE_64, SLAB_OBJECT_SIZE_128, SLAB_OBJECT_SIZE_256, \
+          SLAB_OBJECT_SIZE_512, SLAB_OBJECT_SIZE_1024, SLAB_OBJECT_SIZE_2048, SLAB_OBJECT_SIZE_4096, \
+          SLAB_OBJECT_SIZE_8192, SLAB_OBJECT_SIZE_16384, SLAB_OBJECT_SIZE_32768, SLAB_OBJECT_SIZE_65536 }, \
+        { 0x1000 } \
+    })
 
 #define SET_BENCH_THREADS() \
-    Threads(1)-> \
-    Threads(2)-> \
-    Threads(4)-> \
-    Threads(8)-> \
-    Threads(12)-> \
-    Threads(24)-> \
-    Threads(36)-> \
-    Threads(48)
+    ThreadRange(1, utils_cpu_count())
 
 static void memory_allocation_slab_allocator_only_alloc(benchmark::State& state) {
     size_t object_size = state.range(0);
@@ -281,11 +270,23 @@ static void memory_allocation_os_malloc_fragment_memory(benchmark::State& state)
         }
     }
 }
+//
+//BENCHMARK(memory_allocation_slab_allocator_only_alloc)
+//    ->SET_BENCH_ARGS()
+//    ->SET_BENCH_THREADS();
+//BENCHMARK(memory_allocation_slab_allocator_alloc_and_free)
+//    ->SET_BENCH_ARGS()
+//    ->SET_BENCH_THREADS();
+//BENCHMARK(memory_allocation_slab_allocator_fragment_memory)
+//    ->SET_BENCH_ARGS()
+//    ->SET_BENCH_THREADS();
 
-BENCHMARK(memory_allocation_slab_allocator_only_alloc)->SET_BENCH_ARGS()->SET_BENCH_THREADS()->Iterations(1)->Repetitions(10);
-BENCHMARK(memory_allocation_slab_allocator_alloc_and_free)->SET_BENCH_ARGS()->SET_BENCH_THREADS()->Iterations(1)->Repetitions(10);
-BENCHMARK(memory_allocation_slab_allocator_fragment_memory)->SET_BENCH_ARGS()->SET_BENCH_THREADS()->Iterations(1)->Repetitions(10);
-
-BENCHMARK(memory_allocation_os_malloc_only_alloc)->SET_BENCH_ARGS()->SET_BENCH_THREADS()->Iterations(1)->Repetitions(10);
-BENCHMARK(memory_allocation_os_malloc_alloc_and_free)->SET_BENCH_ARGS()->SET_BENCH_THREADS()->Iterations(1)->Repetitions(10);
-BENCHMARK(memory_allocation_os_malloc_fragment_memory)->SET_BENCH_ARGS()->SET_BENCH_THREADS()->Iterations(1)->Repetitions(10);
+BENCHMARK(memory_allocation_os_malloc_only_alloc)
+    ->SET_BENCH_ARGS()
+    ->SET_BENCH_THREADS();
+BENCHMARK(memory_allocation_os_malloc_alloc_and_free)
+    ->SET_BENCH_ARGS()
+    ->SET_BENCH_THREADS();
+BENCHMARK(memory_allocation_os_malloc_fragment_memory)
+    ->SET_BENCH_ARGS()
+    ->SET_BENCH_THREADS();
