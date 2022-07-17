@@ -6,12 +6,20 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
+// In this special debug mode the slab allocators are not freed up in slab_allocator_free but instead in the dtor
+// invoked at the end of the execution to be able to access the metrics and other information.
+// This might hide bugs and/or mess-up valgrind therefore it's controlled by a specific define that has to be set to 1
+// inside slab_allocator.c for safety reasons
+#if SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES == 1
+#define _GNU_SOURCE
+#endif
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <assert.h>
 #include <string.h>
-#include <pthread.h>
 #include <stdatomic.h>
+#include <pthread.h>
 
 #if __has_include(<valgrind/valgrind.h>)
 #include <valgrind/valgrind.h>
@@ -31,6 +39,13 @@
 
 #include "slab_allocator.h"
 
+#if SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES == 1
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+#endif
+
 #define TAG "slab_allocator"
 
 /**
@@ -43,11 +58,78 @@ size_t slab_os_page_size;
 bool slab_allocator_enabled = false;
 static pthread_key_t slab_allocator_thread_cache_key;
 
-FUNCTION_CTOR(slab_allocator_fetch_slab_os_page_size, {
+#if SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES == 1
+// When in debug mode, allow the allocated slab allocators are tracked in a queue for later checks at shutdown
+queue_mpmc_t *debug_slab_allocator_list;
+#endif
+
+FUNCTION_CTOR(slab_allocator_general_init, {
     slab_os_page_size = xalloc_get_page_size();
 
     pthread_key_create(&slab_allocator_thread_cache_key, slab_allocator_thread_cache_free);
+
+#if SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES == 1
+    debug_slab_allocator_list = queue_mpmc_init();
+#endif
 })
+
+#if SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES == 1
+void slab_allocator_debug_allocs_frees_end() {
+    slab_allocator_t *slab_allocator;
+    fprintf(stdout, "> debug_slab_allocator_list length <%d>\n", queue_mpmc_get_length(debug_slab_allocator_list));
+    fflush(stdout);
+
+    fprintf(stdout, "+-%.10s-+-%.20s-+-%.14s-+-%.10s-+-%.11s-+-%.10s-+-%.12s-+-%.14s-+\n",
+            "-------------------------------", "-------------------------------", "-------------------------------",
+            "-------------------------------", "-------------------------------", "-------------------------------",
+            "-------------------------------", "-------------------------------");
+
+    fprintf(stdout, "| %-10s | %-20s | %-14s | %-10s | %-11s | %-10s | %-12s | %-14s |\n",
+            "Thread Id", "Thread Name", "Slab Allocator",
+            "Obj Size", "Leaks Count", "Obj Count",
+            "Slices Count", "Free queue Len");
+
+    fprintf(stdout, "+-%.10s-+-%.20s-+-%.14s-+-%.10s-+-%.11s-+-%.10s-+-%.12s-+-%.14s-+\n",
+            "-------------------------------", "-------------------------------", "-------------------------------",
+            "-------------------------------", "-------------------------------", "-------------------------------",
+            "-------------------------------", "-------------------------------");
+
+    pid_t previous_thread_id = 0;
+    while((slab_allocator = (slab_allocator_t*)queue_mpmc_pop(debug_slab_allocator_list)) != NULL) {
+        char thread_id_str[20] = { 0 };
+        snprintf(thread_id_str, sizeof(thread_id_str) - 1, "%d", slab_allocator->thread_id);
+
+        uint32_t leaked_object_count =
+                slab_allocator->metrics.objects_inuse_count -
+                        queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads);
+
+        if (leaked_object_count == 0) {
+            continue;
+        }
+
+        fprintf(stdout, "| %-10s | %-20s | %p | %10u | %11u | %10u | %12u | %14u |\n",
+                previous_thread_id == slab_allocator->thread_id ? "" : thread_id_str,
+                previous_thread_id == slab_allocator->thread_id ? "" : slab_allocator->thread_name,
+                slab_allocator,
+                slab_allocator->object_size,
+                leaked_object_count,
+                slab_allocator->metrics.objects_inuse_count,
+                slab_allocator->metrics.slices_inuse_count,
+                queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads));
+        fflush(stdout);
+
+        queue_mpmc_free(slab_allocator->free_slab_slots_queue_from_other_threads);
+        xalloc_free(slab_allocator);
+
+        previous_thread_id = slab_allocator->thread_id;
+    }
+
+    fprintf(stdout, "+-%.10s-+-%.20s-+-%.14s-+-%.10s-+-%.14s-+-%.10s-+-%.12s-+-%.14s-+\n",
+            "-------------------------------", "-------------------------------", "-------------------------------",
+            "-------------------------------", "-------------------------------", "-------------------------------",
+            "-------------------------------", "-------------------------------");
+}
+#endif
 
 slab_allocator_t **slab_allocator_thread_cache_init() {
     slab_allocator_t **thread_slab_allocators = (slab_allocator_t**)xalloc_alloc_zero(
@@ -92,6 +174,10 @@ bool slab_allocator_thread_cache_has() {
 
 void slab_allocator_enable(
         bool enable) {
+    if (unlikely(!slab_allocator_thread_cache_has())) {
+        slab_allocator_thread_cache_set(slab_allocator_thread_cache_init());
+    }
+
     slab_allocator_enabled = enable;
 }
 
@@ -134,6 +220,13 @@ slab_allocator_t* slab_allocator_init(
     slab_allocator->metrics.objects_inuse_count = 0;
     slab_allocator->free_slab_slots_queue_from_other_threads = queue_mpmc_init();
 
+#if SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES == 1
+    slab_allocator->thread_id = syscall(SYS_gettid);
+    pthread_getname_np(pthread_self(), slab_allocator->thread_name, sizeof(slab_allocator->thread_name) - 1);
+
+    queue_mpmc_push(debug_slab_allocator_list, slab_allocator);
+#endif
+
     return slab_allocator;
 }
 
@@ -174,8 +267,13 @@ bool slab_allocator_free(
 
     double_linked_list_free(slab_allocator->slices);
     double_linked_list_free(slab_allocator->slots);
+
+#if SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES == 1
+    // Do nothing really, it's to ensure that the memory will get always freed if the condition checked is not 1
+#else
     queue_mpmc_free(slab_allocator->free_slab_slots_queue_from_other_threads);
     xalloc_free(slab_allocator);
+#endif
 
     return true;
 }

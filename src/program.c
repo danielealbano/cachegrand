@@ -640,7 +640,6 @@ int program_main(
         goto end;
     }
 
-
     // Report some general information
     LOG_I(
             TAG,
@@ -744,5 +743,10 @@ end:
     LOG_V(TAG, "Terminating");
 
     program_cleanup(program_context);
+
+#if SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES == 1
+    slab_allocator_debug_allocs_frees_end();
+#endif
+
     return return_res;
 }

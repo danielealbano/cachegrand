@@ -5,6 +5,14 @@
 extern "C" {
 #endif
 
+#ifndef SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES
+#define SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES 0
+#endif
+
+#if SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES == 1
+#warning "slab allocator built with allocs/frees debugging, will cause issues with valgrind and might hide bugs, use with caution!"
+#endif
+
 #define SLAB_OBJECT_SIZE_16     0x00000010
 #define SLAB_OBJECT_SIZE_32     0x00000020
 #define SLAB_OBJECT_SIZE_64     0x00000040
@@ -52,6 +60,11 @@ struct slab_allocator {
         uint16_t slices_inuse_count;
         uint32_volatile_t objects_inuse_count;
     } metrics;
+
+#if SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES == 1
+    pid_t thread_id;
+    char thread_name[101];
+#endif
 };
 
 // It's necessary to use a union for slab_slot_t and slab_slice_t as the double_linked_list_item_t is being embedded
@@ -90,6 +103,10 @@ typedef union {
         slab_slot_t slots[];
     } __attribute__((aligned(64))) data;
 } slab_slice_t;
+
+#if SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES == 1
+void slab_allocator_debug_allocs_frees_end();
+#endif
 
 slab_allocator_t **slab_allocator_thread_cache_init();
 
