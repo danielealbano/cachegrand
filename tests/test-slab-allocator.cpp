@@ -834,7 +834,7 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
 
         SECTION("slab_allocator alloc and free - fuzzy - single thread") {
             uint32_t min_used_slots = 2500;
-            uint32_t use_max_hugepages = 125;
+            uint32_t use_max_hugepages = 100;
             uint32_t max_duration = 1;
 
             slab_allocator_enable(true);
@@ -876,14 +876,6 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
                 test_slab_allocator_fuzzy_single_thread_single_size(
                         max_duration,
                         512,
-                        min_used_slots,
-                        use_max_hugepages);
-            }
-
-            SECTION("single thread / one size - size 1024") {
-                test_slab_allocator_fuzzy_single_thread_single_size(
-                        max_duration,
-                        1024,
                         min_used_slots,
                         use_max_hugepages);
             }
@@ -951,7 +943,7 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
 
         SECTION("slab_allocator alloc and free - fuzzy - multi thread") {
             uint32_t min_used_slots = 2500;
-            uint32_t use_max_hugepages = 125;
+            uint32_t use_max_hugepages = 100;
             uint32_t max_duration = 1;
 
             slab_allocator_enable(true);
@@ -998,14 +990,6 @@ TEST_CASE("slab_allocator.c", "[slab_allocator]") {
             }
 
             SECTION("multi thread / one size - size 1024") {
-                test_slab_allocator_fuzzy_multi_thread_single_size(
-                        max_duration,
-                        1024,
-                        min_used_slots,
-                        use_max_hugepages);
-            }
-
-            SECTION("multi thread / one size - size 1k") {
                 test_slab_allocator_fuzzy_multi_thread_single_size(
                         max_duration,
                         1024,
