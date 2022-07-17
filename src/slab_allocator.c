@@ -439,15 +439,14 @@ void slab_allocator_mem_free_hugepages_different_thread(
     }
 
     // To determine which thread can clean up the data the code simply checks if objects_inuse_count - length of the
-    // free_slab_slots_queue queue - 1 is equals to 0, if it is this thread can perform the final clean up.
+    // free_slab_slots_queue queue is equals to 0, if it is this thread can perform the final clean up.
     // The objects_inuse_count is not atomic but memory fences are in use
     MEMORY_FENCE_LOAD();
     if (unlikely(slab_allocator->slab_allocator_freed)) {
         // If the last object pushed was the last that needed to be freed, slab_allocator_free can be invoked.
         bool can_free_slab_allocator =
-                slab_allocator->metrics.objects_inuse_count -
-                queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads) -
-                1 == 0;
+                (slab_allocator->metrics.objects_inuse_count -
+                queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads)) == 0;
         if (unlikely(can_free_slab_allocator)) {
             slab_allocator_free(slab_allocator);
         }
