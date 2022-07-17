@@ -5,7 +5,6 @@
 extern "C" {
 #endif
 
-
 typedef struct queue_mpmc_node queue_mpmc_node_t;
 typedef _Volatile(queue_mpmc_node_t) queue_mpmc_node_volatile_t;
 struct queue_mpmc_node {
@@ -35,6 +34,8 @@ struct queue_mpmc {
 
 
 queue_mpmc_t *queue_mpmc_init();
+
+void queue_mpmc_free(queue_mpmc_t *queue_mpmc);
 
 void queue_mpmc_push(
         queue_mpmc_t *queue_mpmc,

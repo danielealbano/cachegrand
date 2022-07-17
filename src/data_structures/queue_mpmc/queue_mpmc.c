@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdatomic.h>
+#include <assert.h>
 
 #include "exttypes.h"
 #include "memory_fences.h"
@@ -21,9 +22,30 @@ queue_mpmc_t *queue_mpmc_init() {
     return xalloc_alloc_zero(sizeof(queue_mpmc_t));
 }
 
+void queue_mpmc_free_nodes(queue_mpmc_t *queue_mpmc) {
+    // This function is invoked only when the queue is freed up, no operation will be carried out on it, therefore the
+    // queue can be freed up using non-atomic operations, only a load fence is needed to ensure that the local cpu
+    // cache is up-to-date with the changes carried out by the atomic ops if any.
+    MEMORY_FENCE_LOAD();
+
+    queue_mpmc_node_t *node = (queue_mpmc_node_t*)queue_mpmc->head.data.node;
+    while(node != NULL) {
+        queue_mpmc_node_t *node_next = node->next;
+        xalloc_free(node);
+        node = node_next;
+    }
+}
+
+void queue_mpmc_free(queue_mpmc_t *queue_mpmc) {
+    queue_mpmc_free_nodes(queue_mpmc);
+    xalloc_free(queue_mpmc);
+}
+
 void queue_mpmc_push(
         queue_mpmc_t *queue_mpmc,
         void *data) {
+    assert(data != NULL);
+
     queue_mpmc_node_t *node = xalloc_alloc(sizeof(queue_mpmc_node_t));
     node->data = data;
 
@@ -51,6 +73,8 @@ void queue_mpmc_push(
 
 void *queue_mpmc_pop(
         queue_mpmc_t *queue_mpmc) {
+    void *data = NULL;
+
     queue_mpmc_versioned_head_t head_expected = {
             ._packed = queue_mpmc->head._packed
     };
@@ -72,9 +96,12 @@ void *queue_mpmc_pop(
         }
     }
 
-    void *data = head_expected.data.node->data;
+    assert(head_new.data.length >= 0);
 
-    xalloc_free((queue_mpmc_node_t*)head_expected.data.node);
+    if (head_expected.data.node != NULL) {
+        data = head_expected.data.node->data;
+        xalloc_free((queue_mpmc_node_t *) head_expected.data.node);
+    }
 
     return data;
 }
