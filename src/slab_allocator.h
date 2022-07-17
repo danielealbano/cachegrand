@@ -34,28 +34,37 @@ static const uint32_t slab_predefined_object_sizes[] = { SLAB_PREDEFINED_OBJECT_
 typedef struct slab_allocator slab_allocator_t;
 struct slab_allocator {
     // The slots and the slices are sorted per availability
-    double_linked_list_t* slots;
-    double_linked_list_t* slices;
+    double_linked_list_t *slots;
+    double_linked_list_t *slices;
+    queue_mpmc_t *free_slab_slots_queue_from_other_threads;
+
+    // When the thread owning a slab allocator is terminated, other threads might still own some memory it initialized
+    // and therefore some support is needed there.
+    // When a thread sends back memory to a thread it has to check if it has been terminated and if yes, process the
+    // free_slab_slots_queue, free up the slab slots, check if the slice owning the slab_slot is then empty, and in case
+    // return the hugepage.
+    // All these operations have to be carried out under the external_thread_lock spinlock to avoid contention.
+    bool_volatile_t slab_allocator_freed;
 
     uint32_t object_size;
 
     struct {
         uint16_t slices_inuse_count;
-        uint32_t objects_inuse_count;
+        uint32_volatile_t objects_inuse_count;
     } metrics;
 };
 
-// It's necessary to use an union for slab_slot_t and slab_slice_t as the double_linked_list_item_t is being embedded
+// It's necessary to use a union for slab_slot_t and slab_slice_t as the double_linked_list_item_t is being embedded
 // to avoid allocating an empty pointer to data wasting 8 bytes.
-// Currently double_linked_list_item_t contains 3 pointers, prev, next and data, so a void* padding[2] is necessary to
+// Currently, double_linked_list_item_t contains 3 pointers, prev, next and data, so a void* padding[2] is necessary to
 // do not overwrite prev and next, if the struct behind double_linked_list_item_t changes it's necessary to update the
 // data structures below.
 
 typedef union {
     double_linked_list_item_t double_linked_list_item;
     struct {
-        void* padding[2];
-        void* memptr;
+        void *padding[2];
+        void *memptr;
 #if DEBUG==1
         bool available:1;
         int32_t allocs:31;
@@ -69,9 +78,9 @@ typedef union {
 typedef union {
     double_linked_list_item_t double_linked_list_item;
     struct {
-        void* padding[2];
-        slab_allocator_t* slab_allocator;
-        void* page_addr;
+        void *padding[2];
+        slab_allocator_t *slab_allocator;
+        void *page_addr;
         uintptr_t data_addr;
         bool available;
         struct {
@@ -90,7 +99,7 @@ void slab_allocator_thread_cache_free(
 slab_allocator_t** slab_allocator_thread_cache_get();
 
 void slab_allocator_thread_cache_set(
-        slab_allocator_t** thread_cache);
+        slab_allocator_t** slab_allocators);
 
 bool slab_allocator_thread_cache_has();
 
@@ -103,8 +112,8 @@ slab_allocator_t* slab_allocator_thread_cache_get_slab_allocator_by_size(
 slab_allocator_t* slab_allocator_init(
         size_t object_size);
 
-void slab_allocator_free(
-        slab_allocator_t* slab);
+bool slab_allocator_free(
+        slab_allocator_t *slab);
 
 uint8_t slab_index_by_object_size(
         size_t object_size);
@@ -121,46 +130,56 @@ uint32_t slab_allocator_slice_calculate_slots_count(
         size_t object_size);
 
 slab_slice_t* slab_allocator_slice_init(
-        slab_allocator_t* slab_allocator,
-        void* memptr);
+        slab_allocator_t *slab_allocator,
+        void *memptr);
 
 void slab_allocator_slice_add_slots_to_per_thread_metadata_slots(
-        slab_allocator_t* slab_allocator,
-        slab_slice_t* slab_slice);
+        slab_allocator_t *slab_allocator,
+        slab_slice_t *slab_slice);
 
 void slab_allocator_slice_remove_slots_from_per_thread_metadata_slots(
-        slab_allocator_t* slab_allocator,
-        slab_slice_t* slab_slice);
+        slab_allocator_t *slab_allocator,
+        slab_slice_t *slab_slice);
 
 slab_slice_t* slab_allocator_slice_from_memptr(
-        void* memptr);
+        void *memptr);
 
 void slab_allocator_slice_make_available(
-        slab_allocator_t* slab_allocator,
-        slab_slice_t* slab_slice);
+        slab_allocator_t *slab_allocator,
+        slab_slice_t *slab_slice);
 
 slab_slot_t* slab_allocator_slot_from_memptr(
-        slab_allocator_t* slab_allocator,
-        slab_slice_t* slab_slice,
-        void* memptr);
+        slab_allocator_t *slab_allocator,
+        slab_slice_t *slab_slice,
+        void *memptr);
 
 void slab_allocator_grow(
-        slab_allocator_t* slab_allocator,
-        void* memptr);
+        slab_allocator_t *slab_allocator,
+        void *memptr);
 
 __attribute__((malloc))
 void* slab_allocator_mem_alloc_hugepages(
+        slab_allocator_t* slab_allocator,
         size_t size);
 
+void slab_allocator_mem_free_hugepages_current_thread(
+        slab_allocator_t* slab_allocator,
+        slab_slice_t* slab_slice,
+        slab_slot_t* slab_slot);
+
+void slab_allocator_mem_free_hugepages_different_thread(
+        slab_allocator_t* slab_allocator,
+        slab_slot_t* slab_slot);
+
 void slab_allocator_mem_free_hugepages(
-        void* memptr);
+        void *memptr);
 
 __attribute__((malloc))
 void* slab_allocator_mem_alloc_xalloc(
         size_t size);
 
 void slab_allocator_mem_free_xalloc(
-        void* memptr);
+        void *memptr);
 
 __attribute__((malloc))
 void* slab_allocator_mem_alloc(
@@ -170,13 +189,13 @@ void* slab_allocator_mem_alloc_zero(
         size_t size);
 
 void* slab_allocator_mem_realloc(
-        void* memptr,
+        void *memptr,
         size_t current_size,
         size_t new_size,
         bool zero_new_memory);
 
 void slab_allocator_mem_free(
-        void* memptr);
+        void *memptr);
 
 #ifdef __cplusplus
 }

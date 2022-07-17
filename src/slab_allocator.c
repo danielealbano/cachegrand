@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <string.h>
 #include <pthread.h>
+#include <stdatomic.h>
 
 #if __has_include(<valgrind/valgrind.h>)
 #include <valgrind/valgrind.h>
@@ -20,11 +21,11 @@
 #include "misc.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "memory_fences.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "xalloc.h"
 #include "fatal.h"
-#include "utils_cpu.h"
-#include "thread.h"
 #include "hugepages.h"
 #include "hugepage_cache.h"
 
@@ -33,9 +34,9 @@
 #define TAG "slab_allocator"
 
 /**
- * The slab allocator HEAVILY relies on the hugepages, the hugepage address is 2MB aligned therefore it's possible to
- * calculate the initial address of the page and place the index of slab slice at the beginning and use the rest of the
- * page to store the data.
+ * The slab allocator requires hugepages, the hugepage address is 2MB aligned therefore it's possible to calculate the
+ * initial address of the page from a pointer within and from there calculate the address to the metadata stored at the
+ * beginning
  */
 
 size_t slab_os_page_size;
@@ -79,8 +80,8 @@ slab_allocator_t** slab_allocator_thread_cache_get() {
 }
 
 void slab_allocator_thread_cache_set(
-        slab_allocator_t** thread_cache) {
-    if (pthread_setspecific(slab_allocator_thread_cache_key, thread_cache) != 0) {
+        slab_allocator_t** slab_allocators) {
+    if (pthread_setspecific(slab_allocator_thread_cache_key, slab_allocators) != 0) {
         FATAL(TAG, "Unable to set the slab allocator thread cache");
     }
 }
@@ -131,34 +132,52 @@ slab_allocator_t* slab_allocator_init(
     slab_allocator->slices = double_linked_list_init();
     slab_allocator->metrics.slices_inuse_count = 0;
     slab_allocator->metrics.objects_inuse_count = 0;
+    slab_allocator->free_slab_slots_queue_from_other_threads = queue_mpmc_init();
 
     return slab_allocator;
 }
 
-void slab_allocator_free(
+bool slab_allocator_free(
         slab_allocator_t* slab_allocator) {
-    double_linked_list_item_t* item = slab_allocator->slices->head;
+    double_linked_list_item_t* item;
+    slab_slot_t *slab_slot;
 
-    // The thread may have allocated some memory that hasn't been freed or that is held by a different thread and
-    // therefore it's necessary to keep the list of slices intact if there are slices containing in use slots
+    slab_allocator->slab_allocator_freed = true;
+    MEMORY_FENCE_STORE();
+
+    // If there are objects in use they are most likely owned in use in some other threads and therefore the memory
+    // can't be freed. The ownership of the operation fall upon the thread that will return the last object.
+    // Not optimal, as it would be better to use a dying thread to free up memory instead of an in-use thread.
+    // For currently cachegrand doesn't matter really because the threads are long-lived and only terminate when it
+    // shuts-down.
+    uint32_t objects_inuse_count =
+            slab_allocator->metrics.objects_inuse_count -
+            queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads);
+    if (objects_inuse_count > 0) {
+        return false;
+    }
+
+    // Clean up the free list
+    while((slab_slot = queue_mpmc_pop(slab_allocator->free_slab_slots_queue_from_other_threads)) != NULL) {
+        slab_slice_t* slab_slice = slab_allocator_slice_from_memptr(slab_slot->data.memptr);
+        slab_allocator_mem_free_hugepages_current_thread(slab_allocator, slab_slice, slab_slot);
+    }
 
     // Can't iterate using the normal double_linked_list_iter_next as the double_linked_list_item is embedded in the
     // hugepage and the hugepage is going to get freed
+    item = slab_allocator->slices->head;
     while(item != NULL) {
         slab_slice_t* slab_slice = item->data;
         item = item->next;
-
-        // If objects are in use, don't return the hugepage as it would corrupt the data in use
-        if (slab_slice->data.metrics.objects_inuse_count > 0) {
-            continue;
-        }
-
         hugepage_cache_push(slab_slice->data.page_addr);
     }
 
     double_linked_list_free(slab_allocator->slices);
     double_linked_list_free(slab_allocator->slots);
+    queue_mpmc_free(slab_allocator->free_slab_slots_queue_from_other_threads);
     xalloc_free(slab_allocator);
+
+    return true;
 }
 
 size_t slab_allocator_slice_calculate_usable_hugepage_size() {
@@ -278,7 +297,7 @@ slab_slot_t* slab_allocator_slot_from_memptr(
 void slab_allocator_grow(
         slab_allocator_t* slab_allocator,
         void* memptr) {
-    // Initialize the new slice and set it to non available because it's going to be immediately used
+    // Initialize the new slice and set it to non-available because it's going to be immediately used
     slab_slice_t* slab_slice = slab_allocator_slice_init(
             slab_allocator,
             memptr);
@@ -296,7 +315,10 @@ void slab_allocator_grow(
 }
 
 void* slab_allocator_mem_alloc_hugepages(
+        slab_allocator_t* slab_allocator,
         size_t size) {
+    double_linked_list_t* slots_list;
+    double_linked_list_item_t* slots_head_item;
     slab_slot_t* slab_slot = NULL;
     slab_slice_t* slab_slice = NULL;
 
@@ -304,18 +326,40 @@ void* slab_allocator_mem_alloc_hugepages(
         slab_allocator_thread_cache_set(slab_allocator_thread_cache_init());
     }
 
-    uint8_t predefined_slab_allocator_index = slab_index_by_object_size(size);
-    slab_allocator_t* slab_allocator = slab_allocator_thread_cache_get()[predefined_slab_allocator_index];
-
-    double_linked_list_t* slots_list = slab_allocator->slots;
-    double_linked_list_item_t* slots_head_item = slots_list->head;
+    // Always tries first to get a slow from the local cache, it's faster
+    slots_list = slab_allocator->slots;
+    slots_head_item = slots_list->head;
     slab_slot = (slab_slot_t*)slots_head_item;
 
-    if (slots_head_item == NULL || slab_slot->data.available == false) {
-        void* hugepage_addr = hugepage_cache_pop();
+    // If it can't get the slot from the local cache tries to fetch if from the free list which is a bit slower as it
+    // involves atomic operations, on the other end it requires less operation to be prepared as e.g. it is already on
+    // the correct side of the slots double linked list
+    if (
+            (slab_slot == NULL || slab_slot->data.available == false) &&
+            (slab_slot = queue_mpmc_pop(slab_allocator->free_slab_slots_queue_from_other_threads)) != NULL) {
+        assert(slab_slot->data.memptr != NULL);
+        slab_slot->data.available = false;
+
+#if DEBUG == 1
+        slab_slot->data.allocs++;
 
 #if defined(HAS_VALGRIND)
+        slab_slice = slab_allocator_slice_from_memptr(slab_slot->data.memptr);
+        VALGRIND_MEMPOOL_ALLOC(slab_slice->data.page_addr, slab_slot->data.memptr, size);
+#endif
+#endif
+
+        // To keep the code and avoid convoluted ifs, the code returns here
+        return slab_slot->data.memptr;
+    }
+
+    if (slab_slot == NULL || slab_slot->data.available == false) {
+        void* hugepage_addr = hugepage_cache_pop();
+
+#if DEBUG == 1
+#if defined(HAS_VALGRIND)
         VALGRIND_CREATE_MEMPOOL(hugepage_addr, 0, false);
+#endif
 #endif
 
         slab_allocator_grow(
@@ -324,27 +368,27 @@ void* slab_allocator_mem_alloc_hugepages(
 
         slots_head_item = slots_list->head;
         slab_slot = (slab_slot_t*)slots_head_item;
-        assert(slab_slot->data.memptr != NULL);
-    } else {
-        assert(slab_slot->data.memptr != NULL);
     }
 
+    assert(slab_slot->data.memptr != NULL);
     assert(slab_slot->data.allocs == slab_slot->data.frees);
 
-    slab_slot->data.available = false;
-#if DEBUG == 1
-    slab_slot->data.allocs++;
-#endif
     double_linked_list_move_item_to_tail(slots_list, slots_head_item);
 
     slab_slice = slab_allocator_slice_from_memptr(slab_slot->data.memptr);
     slab_slice->data.metrics.objects_inuse_count++;
-
     slab_allocator->metrics.objects_inuse_count++;
+
+    slab_slot->data.available = false;
+#if DEBUG == 1
+    slab_slot->data.allocs++;
 
 #if defined(HAS_VALGRIND)
     VALGRIND_MEMPOOL_ALLOC(slab_slice->data.page_addr, slab_slot->data.memptr, size);
 #endif
+#endif
+
+    MEMORY_FENCE_STORE();
 
     return slab_slot->data.memptr;
 }
@@ -357,8 +401,7 @@ void* slab_allocator_mem_alloc_zero(
     return memptr;
 }
 
-void slab_allocator_mem_free_hugepages_local(
-        void* memptr,
+void slab_allocator_mem_free_hugepages_current_thread(
         slab_allocator_t* slab_allocator,
         slab_slice_t* slab_slice,
         slab_slot_t* slab_slot) {
@@ -367,10 +410,6 @@ void slab_allocator_mem_free_hugepages_local(
     slab_slice->data.metrics.objects_inuse_count--;
     slab_allocator->metrics.objects_inuse_count--;
     slab_slot->data.available = true;
-
-#if DEBUG == 1
-    slab_slot->data.frees++;
-#endif
 
     // Move the slot back to the head because it's available
     double_linked_list_move_item_to_head(
@@ -384,16 +423,38 @@ void slab_allocator_mem_free_hugepages_local(
         can_free_slab_slice = true;
     }
 
-#if defined(HAS_VALGRIND)
-    VALGRIND_MEMPOOL_FREE(slab_slice->data.page_addr, memptr);
-#endif
-
     if (can_free_slab_slice) {
+#if DEBUG == 1
 #if defined(HAS_VALGRIND)
         VALGRIND_DESTROY_MEMPOOL(slab_slice->data.page_addr);
 #endif
-
+#endif
         hugepage_cache_push(slab_slice->data.page_addr);
+    }
+
+    MEMORY_FENCE_STORE();
+}
+
+void slab_allocator_mem_free_hugepages_different_thread(
+        slab_allocator_t* slab_allocator,
+        slab_slot_t* slab_slot) {
+    if (unlikely(!queue_mpmc_push(slab_allocator->free_slab_slots_queue_from_other_threads, slab_slot))) {
+        FATAL(TAG, "Can't pass the slab slot to free to the owning thread, unable to continue");
+    }
+
+    // To determine which thread can clean up the data the code simply checks if objects_inuse_count - length of the
+    // free_slab_slots_queue queue - 1 is equals to 0, if it is this thread can perform the final clean up.
+    // The objects_inuse_count is not atomic but memory fences are in use
+    MEMORY_FENCE_LOAD();
+    if (unlikely(slab_allocator->slab_allocator_freed)) {
+        // If the last object pushed was the last that needed to be freed, slab_allocator_free can be invoked.
+        bool can_free_slab_allocator =
+                slab_allocator->metrics.objects_inuse_count -
+                queue_mpmc_get_length(slab_allocator->free_slab_slots_queue_from_other_threads) -
+                1 == 0;
+        if (unlikely(can_free_slab_allocator)) {
+            slab_allocator_free(slab_allocator);
+        }
     }
 }
 
@@ -409,15 +470,23 @@ void slab_allocator_mem_free_hugepages(
     // Test to catch double free
     assert(slab_slot->data.available == false);
 
-    // Check if the memory is owned by a different thread, if it's the case the memory can't be freed by this thread
-    // but has to be passed to the thread owning it. This is more of a corner case as the most of the allocations are
-    // freed by the same thread but it needs to be handled.
-    if (unlikely(slab_allocator != slab_allocator_thread_cache_get_slab_allocator_by_size(
-            slab_allocator->object_size))) {
-        // TODO
-        assert(false);
+#if DEBUG == 1
+    slab_slot->data.frees++;
+
+#if defined(HAS_VALGRIND)
+    VALGRIND_MEMPOOL_FREE(slab_slice->data.page_addr, slab_slot->data.memptr);
+#endif
+#endif
+
+    // Check if the memory is owned by a different thread, the memory can't be freed directly but has to be passed to
+    // the thread owning it. In cachegrand most of the allocations are freed by the owning thread.
+    bool is_different_thread = slab_allocator != slab_allocator_thread_cache_get_slab_allocator_by_size(
+            slab_allocator->object_size);
+    if (unlikely(is_different_thread)) {
+        // This is slow path as it involves always atomic ops and potentially also a spinlock
+        slab_allocator_mem_free_hugepages_different_thread(slab_allocator, slab_slot);
     } else {
-        slab_allocator_mem_free_hugepages_local(memptr, slab_allocator, slab_slice, slab_slot);
+        slab_allocator_mem_free_hugepages_current_thread(slab_allocator, slab_slice, slab_slot);
     }
 }
 
@@ -436,7 +505,8 @@ void* slab_allocator_mem_alloc(
     void* memptr;
 
     if (slab_allocator_enabled) {
-        memptr = slab_allocator_mem_alloc_hugepages(size);
+        slab_allocator_t *slab_allocator = slab_allocator_thread_cache_get()[slab_index_by_object_size(size)];
+        memptr = slab_allocator_mem_alloc_hugepages(slab_allocator, size);
     } else {
         memptr = slab_allocator_mem_alloc_xalloc(size);
     }
