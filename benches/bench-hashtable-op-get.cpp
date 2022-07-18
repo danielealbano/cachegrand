@@ -23,6 +23,10 @@
 #include "benchmark-program.hpp"
 #include "benchmark-support.hpp"
 
+// It is possible to control the amount of threads used for the test tuning the two defines below
+#define TEST_THREADS_RANGE_BEGIN (1)
+#define TEST_THREADS_RANGE_END (utils_cpu_count())
+
 static void hashtable_op_get_not_found_key(benchmark::State& state) {
     static hashtable_t* hashtable;
     hashtable_value_data_t value;
@@ -154,32 +158,25 @@ static void hashtable_op_get_single_key_external(benchmark::State& state) {
     }
 }
 
+static void BenchArguments(benchmark::internal::Benchmark* b) {
+    b
+            ->ArgsProduct({
+                                  { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
+                                          0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu },
+                                  { 50, 75 },
+                          })
+            ->ThreadRange(TEST_THREADS_RANGE_BEGIN, TEST_THREADS_RANGE_END)
+            ->Iterations(10000000)
+            ->DisplayAggregatesOnly(false);
+}
+
 BENCHMARK(hashtable_op_get_not_found_key)
-        ->ArgsProduct({
-                              { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
-                                0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu },
-                              { 50, 75 },
-                      })
-        ->ThreadRange(1, utils_cpu_count())
-        ->Iterations(10000000);
+        ->Apply(BenchArguments);
 
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
 BENCHMARK(hashtable_op_get_single_key_inline)
-        ->ArgsProduct({
-                              { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
-                                0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu },
-                              { 50, 75 },
-                      })
-        ->ThreadRange(1, utils_cpu_count())
-        ->Iterations(10000000);
-
+        ->Apply(BenchArguments);
 #endif
 
 BENCHMARK(hashtable_op_get_single_key_external)
-        ->ArgsProduct({
-                              { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
-                                0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu },
-                              { 50, 75 },
-                      })
-        ->ThreadRange(1, utils_cpu_count())
-        ->Iterations(10000000);
+        ->Apply(BenchArguments);

@@ -141,6 +141,13 @@ target_compile_options(
         PUBLIC
         -include cmake_config.h)
 
+if (SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES)
+    target_compile_options(
+            cachegrand-internal
+            PUBLIC
+            -DSLAB_ALLOCATOR_DEBUG_ALLOCS_FREES=1)
+endif()
+
 target_link_directories(
         cachegrand-internal
         PUBLIC
@@ -149,7 +156,7 @@ target_link_directories(
 target_link_libraries(
         cachegrand-internal
         PUBLIC
-        ${DEPS_LIST_LIBRARIES})
+        ${DEPS_LIST_LIBRARIES} -latomic)
 target_link_libraries(
         cachegrand-internal
         PRIVATE

@@ -25,6 +25,7 @@
 #include "xalloc.h"
 #include "spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "slab_allocator.h"
 #include "config.h"
 #include "fiber.h"
@@ -111,7 +112,7 @@ end:
 
     if (!result_res && network_channel->tls.context) {
         mbedtls_ssl_free(network_channel->tls.context);
-        slab_allocator_free(network_channel->tls.context);
+        slab_allocator_mem_free(network_channel->tls.context);
 
         network_channel->tls.context = NULL;
     }
@@ -364,7 +365,7 @@ void network_channel_tls_free(
     }
 
     mbedtls_ssl_free(network_channel->tls.context);
-    slab_allocator_free(network_channel->tls.context);
+    slab_allocator_mem_free(network_channel->tls.context);
 
     network_channel->tls.context = NULL;
 }

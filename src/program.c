@@ -50,6 +50,7 @@
 #include "worker/worker_context.h"
 #include "worker/worker.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "thread.h"
 #include "hugepage_cache.h"
 #include "slab_allocator.h"
@@ -602,7 +603,6 @@ void program_cleanup(
     }
 
     if (program_context->slab_allocator_inited) {
-        slab_allocator_predefined_allocators_free();
         hugepage_cache_free();
     }
 
@@ -639,7 +639,6 @@ int program_main(
     if ((program_context->config = program_parse_arguments_and_load_config(argc, argv)) == NULL) {
         goto end;
     }
-
 
     // Report some general information
     LOG_I(
@@ -701,7 +700,6 @@ int program_main(
     program_workers_initialize_count(program_context);
 
     if (program_context->use_slab_allocator) {
-        slab_allocator_predefined_allocators_init();
         program_context->slab_allocator_inited = true;
     }
 
@@ -745,5 +743,10 @@ end:
     LOG_V(TAG, "Terminating");
 
     program_cleanup(program_context);
+
+#if SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES == 1
+    slab_allocator_debug_allocs_frees_end();
+#endif
+
     return return_res;
 }

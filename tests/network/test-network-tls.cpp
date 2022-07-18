@@ -28,6 +28,7 @@
 #include "xalloc.h"
 #include "spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "config.h"
 #include "support/simple_file_io.h"
 #include "slab_allocator.h"

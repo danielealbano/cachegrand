@@ -28,6 +28,10 @@
 // Set the generator to use
 #define KEYSET_GENERATOR_METHOD     TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_MAX_LENGTH
 
+// It is possible to control the amount of threads used for the test tuning the two defines below
+#define TEST_THREADS_RANGE_BEGIN (1)
+#define TEST_THREADS_RANGE_END (utils_cpu_count())
+
 // These two are kept static and external because
 // - Google Benchmark invokes the setup multiple times, once per thread, but it doesn't have an entry point invoked
 //   only once to setup non-shared elements for the test
@@ -374,24 +378,22 @@ BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_op_set_update)(benchma
     }
 }
 
+static void BenchArguments(benchmark::internal::Benchmark* b) {
+    b
+            ->ArgsProduct({
+                                  { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
+                                          0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu },
+                                  { 50, 75 },
+                          })
+            ->ThreadRange(TEST_THREADS_RANGE_BEGIN, TEST_THREADS_RANGE_END)
+            ->Iterations(1)
+            ->Repetitions(25)
+            ->DisplayAggregatesOnly(false);
+}
+
+
 BENCHMARK_REGISTER_F(HashtableOpSetInsertFixture, hashtable_op_set_insert)
-        ->ArgsProduct({
-                              { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
-                                0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu },
-                              { 50, 75 },
-                      })
-        ->ThreadRange(1, utils_cpu_count())
-        ->Iterations(1)
-        ->Repetitions(3)
-        ->DisplayAggregatesOnly(true);
+        ->Apply(BenchArguments);
 
 BENCHMARK_REGISTER_F(HashtableOpSetUpdateFixture, hashtable_op_set_update)
-        ->ArgsProduct({
-                              { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
-                                0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu },
-                              { 50, 75 },
-                      })
-        ->ThreadRange(1, utils_cpu_count())
-        ->Iterations(1)
-        ->Repetitions(25)
-        ->DisplayAggregatesOnly(true);
+        ->Apply(BenchArguments);
