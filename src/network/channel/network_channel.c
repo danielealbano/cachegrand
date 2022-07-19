@@ -84,7 +84,8 @@ bool network_channel_init(
     channel->timeout.read_ns = -1;
     channel->timeout.write_ns = -1;
 
-    channel->buffers.send.data = slab_allocator_mem_alloc(NETWORK_CHANNEL_SEND_BUFFER_SIZE);
+    channel->buffers.send.length = NETWORK_CHANNEL_SEND_BUFFER_SIZE;
+    channel->buffers.send.data = slab_allocator_mem_alloc(channel->buffers.send.length);
 
     return true;
 }
