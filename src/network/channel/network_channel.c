@@ -142,6 +142,7 @@ bool network_channel_listener_new_callback(
     listener->fd = fd;
     listener->address.size = socket_address_size;
     listener->protocol = protocol;
+    listener->type = NETWORK_CHANNEL_TYPE_LISTENER;
 
     memcpy(
             &listener->address.socket.base,

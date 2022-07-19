@@ -5,22 +5,15 @@
 extern "C" {
 #endif
 
-// TODO: with jumbo frames the macro NETWORK_CHANNEL_PACKET_SIZE would be wrong, this has to be changed to use
-//       a const or a set of functions to calculate the right packet size detecting if the jumbo frames are enabled.
-//       Because which interface is being used is determined via the routing table in the kernel there is no easy nor
-//       direct way to fetch the right MTU so this has to come from the config and potentially if a small MTU is in use
-//       and an interface is using jumbo frames a warning may be printed at the bootstrap.
-//       Must also be possible to silence the warning to avoid log-spamming.
-#define NETWORK_CHANNEL_PACKET_SIZE  4096
+#define NETWORK_CHANNEL_PACKET_SIZE  8192
 
 // The NETWORK_CHANNEL_RECV_BUFFER_SIZE has to be twice the NETWORK_CHANNEL_PACKET_SIZE to ensure that it's always
 // possible to read a full packet in addition to any partially received data while processing the buffer and that there
 // is enough room to avoid copying continuously the data at the beginning (a streaming parser is being used so there
 // maybe data that need still to be parsed)
 #define NETWORK_CHANNEL_RECV_BUFFER_SIZE    (NETWORK_CHANNEL_PACKET_SIZE * 2)
-#define NETWORK_CHANNEL_SEND_BUFFER_SIZE    NETWORK_CHANNEL_PACKET_SIZE * 2
+#define NETWORK_CHANNEL_SEND_BUFFER_SIZE    (NETWORK_CHANNEL_PACKET_SIZE)
 
-typedef void network_channel_state_t;
 typedef char network_channel_buffer_data_t;
 
 enum network_channel_type {
