@@ -476,7 +476,7 @@ bool network_protocol_redis_process_data(
                 if ((return_result = network_send(
                         channel,
                         send_buffer,
-                        send_buffer_start - send_buffer)) == NETWORK_OP_RESULT_OK) {
+                        send_buffer_start - send_buffer) == NETWORK_OP_RESULT_OK)) {
                     return_result = network_flush(channel) == NETWORK_OP_RESULT_OK;
                 }
 
@@ -508,7 +508,7 @@ end:
         }
     }
 
-    if (unlikely(return_result)) {
+    if (unlikely(!return_result)) {
         // If the data processing failed it might be necessary to free up the resources
         if (protocol_context->command_info != NULL) {
             // Potentially command free might be double invoked, the callback must be idempotent to ensure that no

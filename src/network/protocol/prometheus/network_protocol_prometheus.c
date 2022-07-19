@@ -235,7 +235,7 @@ bool network_protocol_prometheus_http_send_response(
         const char *content_type,
         char *content,
         size_t content_length) {
-    size_t http_Response_len;
+    size_t http_response_len;
     bool result_ret = false;
     char *http_response = NULL, now[80];
     timespec_t now_timestamp = { 0 };
@@ -254,7 +254,7 @@ bool network_protocol_prometheus_http_send_response(
     strftime(now, sizeof(now), "%a, %d %b %Y %H:%M:%S %Z", &tm);
 
     // Calculate the amount of memory needed for the http response
-    http_Response_len = snprintf(
+    http_response_len = snprintf(
             NULL,
             0,
             http_response_template,
@@ -267,14 +267,14 @@ bool network_protocol_prometheus_http_send_response(
             CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME,
             content_length);
 
-    http_response = slab_allocator_mem_alloc(http_Response_len + content_length);
+    http_response = slab_allocator_mem_alloc(http_response_len + 1);
     if (!http_response) {
         goto end;
     }
 
     snprintf(
             http_response,
-            http_Response_len + 1,
+            http_response_len + 1,
             http_response_template,
             error_code,
             http_status_str(error_code),
@@ -285,10 +285,12 @@ bool network_protocol_prometheus_http_send_response(
             CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME,
             content_length);
 
-    // To avoid multiple network_send the buffers are squashed together
-    strncpy(http_response + http_Response_len, content, content_length);
-
-    result_ret = network_send(channel, http_response, http_Response_len + content_length);
+    if ((result_ret = network_send(
+            channel,
+            http_response,
+            http_response_len) == NETWORK_OP_RESULT_OK)) {
+        result_ret = network_send(channel, content, content_length) == NETWORK_OP_RESULT_OK;
+    }
 
 end:
     if (http_response) {
@@ -622,9 +624,11 @@ bool network_protocol_prometheus_process_data(
 
     if (network_protocol_prometheus_client->http_request_data.request_received) {
         network_protocol_prometheus_process_request(channel, network_protocol_prometheus_client);
-
-        // Always terminate the connection once the request is processed as this implementation is simple enough and
-        // doesn't really support pipelining or similar features
+        if (likely(network_should_flush(channel))) {
+            network_flush(channel);
+        }
+        // Always terminate the connection once the request is processed as this implementation is simple and doesn't
+        // really support pipelining or similar features
         return false;
     }
 

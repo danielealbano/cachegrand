@@ -72,6 +72,10 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(quit) {
         return false;
     }
 
+    if (network_flush(channel) != NETWORK_OP_RESULT_OK) {
+        return false;
+    }
+
     // TODO: BUG! The operation is not really failing but currently there is no way to inform the caller that the client
     //       has requested to terminate the connection.
     return false;

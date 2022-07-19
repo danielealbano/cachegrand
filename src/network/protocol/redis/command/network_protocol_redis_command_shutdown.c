@@ -72,6 +72,10 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(shutdown) {
         return false;
     }
 
+    if (network_flush(channel) != NETWORK_OP_RESULT_OK) {
+        return false;
+    }
+
     worker_request_terminate(worker_context_get());
 
     // TODO: BUG! The operation is not really failing but currently there is no way to inform the caller that the client
