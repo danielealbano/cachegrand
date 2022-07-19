@@ -77,9 +77,8 @@ public:
         uint64_t overflowed_chunks_count;
         uint64_t used_max_overflowed_chunks_counter;
 
-        uint8_t requested_load_factor_perc = state.range(1);
-        double requested_load_factor = (double)requested_load_factor_perc / 100;
-        uint64_t keys_count = (double)hashtable->ht_current->buckets_count * requested_load_factor;
+        double requested_load_factor = (double) state.range(1) / 100.0f;
+        uint64_t keys_count = (uint64_t) (((double) state.range(0)) * requested_load_factor);
 
         hashtable_half_hashes_chunk_volatile_t* longest_half_hashes_chunk;
         CollectHashtableStats(
@@ -103,5 +102,4 @@ public:
 
 //    test_support_hashtable_print_heatmap(hashtable, 32);
     }
-
 };
