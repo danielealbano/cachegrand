@@ -160,50 +160,55 @@ end:
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
     bool return_res = false;
-    char send_buffer[256], *send_buffer_start, *send_buffer_end;
-    size_t send_buffer_length;
+    network_channel_buffer_data_t *send_buffer, *send_buffer_start;
 
     del_command_context_t *del_command_context = (del_command_context_t*)protocol_context->command_context;
 
-    send_buffer_length = sizeof(send_buffer);
-    send_buffer_start = send_buffer;
-    send_buffer_end = send_buffer_start + send_buffer_length;
-
-    if (del_command_context->has_error) {
-        send_buffer_start = protocol_redis_writer_write_simple_error(
-                send_buffer_start,
-                send_buffer_end - send_buffer_start,
-                del_command_context->error_message,
-                (int)strlen(del_command_context->error_message));
-
+    // Don't report errors if keys have been deleted, the client need to know that a number of keys have been deleted
+    if (del_command_context->deleted_keys == 0 && del_command_context->has_error) {
+        size_t slice_length = sizeof(del_command_context->error_message) + 16;
+        send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
         if (send_buffer_start == NULL) {
-            LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
+            LOG_E(TAG, "Unable to acquire send buffer slice!");
             goto end;
         }
 
-        return_res = network_send(
+        send_buffer_start = protocol_redis_writer_write_simple_error(
+                send_buffer_start,
+                slice_length,
+                del_command_context->error_message,
+                (int)strlen(del_command_context->error_message));
+        network_send_buffer_release_slice(
                 channel,
-                send_buffer,
-                send_buffer_start - send_buffer) == NETWORK_OP_RESULT_OK;
+                send_buffer_start ? send_buffer_start - send_buffer : 0);
 
+        return_res = send_buffer_start != NULL;
+
+        if (send_buffer_start == NULL) {
+            LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
+        }
+
+        goto end;
+    }
+
+    size_t slice_length = 32;
+    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
+    if (send_buffer_start == NULL) {
+        LOG_E(TAG, "Unable to acquire send buffer slice!");
         goto end;
     }
 
     send_buffer_start = protocol_redis_writer_write_number(
             send_buffer_start,
-            send_buffer_end - send_buffer_start,
+            slice_length,
             del_command_context->deleted_keys);
+
+    network_send_buffer_release_slice(
+            channel,
+            send_buffer_start ? send_buffer_start - send_buffer : 0);
 
     if (send_buffer_start == NULL) {
         LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-        slab_allocator_mem_free(send_buffer);
-        goto end;
-    }
-
-    if (network_send(
-            channel,
-            send_buffer,
-            send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
         goto end;
     }
 

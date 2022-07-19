@@ -19,8 +19,6 @@
 #include "spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
-#include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
@@ -45,29 +43,27 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(ping) {
 }
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(ping) {
-    char send_buffer[64], *send_buffer_start, *send_buffer_end;
-    size_t send_buffer_length;
+    network_channel_buffer_data_t *send_buffer, *send_buffer_start;
+    size_t slice_length = 32;
 
-    send_buffer_length = sizeof(send_buffer);
-    send_buffer_start = send_buffer;
-    send_buffer_end = send_buffer_start + send_buffer_length;
-
-    send_buffer_start = protocol_redis_writer_write_blob_string(
-            send_buffer_start,
-            send_buffer_end - send_buffer_start,
-            "PONG",
-            4);
-
+    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
     if (send_buffer_start == NULL) {
-        LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-        slab_allocator_mem_free(send_buffer);
+        LOG_E(TAG, "Unable to acquire send buffer slice!");
         return false;
     }
 
-    if (network_send(
+    send_buffer_start = protocol_redis_writer_write_blob_string(
+            send_buffer_start,
+            slice_length,
+            "PONG",
+            4);
+
+    network_send_buffer_release_slice(
             channel,
-            send_buffer,
-            send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
+            send_buffer_start ? send_buffer_start - send_buffer : 0);
+
+    if (send_buffer_start == NULL) {
+        LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
         return false;
     }
 

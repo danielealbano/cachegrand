@@ -83,6 +83,8 @@ void network_protocol_redis_client_cleanup(
 
 void network_protocol_redis_accept(
         network_channel_t *channel) {
+    network_channel_buffer_data_t *send_buffer, *send_buffer_start;
+    size_t slice_length = 64;
     bool exit_loop = false;
     network_protocol_redis_context_t protocol_context = { 0 };
     network_protocol_redis_client_t network_protocol_redis_client = { 0 };
@@ -97,26 +99,25 @@ void network_protocol_redis_accept(
         if (!network_buffer_has_enough_space(
                 &network_protocol_redis_client.read_buffer,
                 NETWORK_CHANNEL_PACKET_SIZE)) {
-            char send_buffer[64], *send_buffer_start, *send_buffer_end;
-            size_t send_buffer_length;
-
-            send_buffer_length = sizeof(send_buffer);
-            send_buffer_start = send_buffer;
-            send_buffer_end = send_buffer_start + send_buffer_length;
-
-            send_buffer_start = protocol_redis_writer_write_simple_error_printf(
-                    send_buffer_start,
-                    send_buffer_end - send_buffer_start,
-                    "ERR command too long");
-
+            send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
             if (send_buffer_start == NULL) {
-                LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
-            } else {
-                network_send(
+                LOG_E(TAG, "Unable to acquire send buffer slice!");
+            }
+
+            if (send_buffer_start != NULL) {
+                send_buffer_start = protocol_redis_writer_write_simple_error_printf(
+                        send_buffer_start,
+                        slice_length,
+                        "ERR command too long");
+                network_send_buffer_release_slice(
                         channel,
-                        send_buffer,
-                        send_buffer_start - send_buffer);
-                network_flush(channel);
+                        send_buffer_start ? send_buffer_start - send_buffer : 0);
+
+                if (send_buffer_start == NULL) {
+                    LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
+                } else {
+                    network_flush(channel);
+                }
             }
 
             exit_loop = true;
@@ -163,16 +164,12 @@ bool network_protocol_redis_process_data(
         network_channel_t *channel,
         network_channel_buffer_t *read_buffer,
         network_protocol_redis_context_t *protocol_context) {
-    char send_buffer[256], *send_buffer_start, *send_buffer_end;
-    size_t send_buffer_length;
     int32_t ops_found;
+    network_channel_buffer_data_t *send_buffer, *send_buffer_start;
+    size_t slice_length = 256;
     bool return_result = false;
     protocol_redis_reader_op_t ops[8] = { 0 };
     uint8_t ops_size = (sizeof(ops) / sizeof(protocol_redis_reader_op_t));
-
-    send_buffer_length = sizeof(send_buffer);
-    send_buffer_start = send_buffer;
-    send_buffer_end = send_buffer_start + send_buffer_length;
 
     worker_context_t *worker_context = worker_context_get();
     storage_db_t *db = worker_context->db;
@@ -197,8 +194,12 @@ bool network_protocol_redis_process_data(
                 break;
             }
 
+            if (ops_found == 0) {
+                break;
+            }
+
             // ops_found has to be bigger than uint8_t because protocol_redis_reader_read must return -1 in case of
-            // errors but otherwise it will always return values that are contained in an uint8_t
+            // errors, but otherwise it will always return values that are contained in an uint8_t
             for (uint8_t op_index = 0; op_index < (uint8_t)ops_found; op_index++) {
                 protocol_redis_reader_op_t *op = &ops[op_index];
 
@@ -207,23 +208,27 @@ bool network_protocol_redis_process_data(
                 protocol_context->command_length += op->data_read_len;
 
                 if (protocol_context->command_length > channel->protocol_config->redis->max_command_length) {
-                    send_buffer_start = protocol_redis_writer_write_simple_error_printf(
-                            send_buffer_start,
-                            send_buffer_end - send_buffer_start,
-                            "ERR the command length has exceeded <%u> bytes",
-                            channel->protocol_config->redis->max_command_length);
-
+                    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
                     if (send_buffer_start == NULL) {
-                        LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
-                        goto end;
+                        LOG_E(TAG, "Unable to acquire send buffer slice!");
                     }
 
-                    network_send(
-                            channel,
-                            send_buffer,
-                            send_buffer_start - send_buffer);
-                    network_flush(channel);
+                    if (send_buffer_start != NULL) {
+                        send_buffer_start = protocol_redis_writer_write_simple_error_printf(
+                                send_buffer_start,
+                                slice_length,
+                                "ERR the command length has exceeded <%u> bytes",
+                                channel->protocol_config->redis->max_command_length);
+                        network_send_buffer_release_slice(
+                                channel,
+                                send_buffer_start ? send_buffer_start - send_buffer : 0);
 
+                        if (send_buffer_start == NULL) {
+                            LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
+                        }
+
+                        network_flush(channel);
+                    }
                     network_close(channel, true);
 
                     goto end;
@@ -294,26 +299,24 @@ bool network_protocol_redis_process_data(
                         // command can be converted into a null to insert it into the error message
                         *(command_data + command_length) = 0;
 
+                        send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
+                        if (send_buffer_start == NULL) {
+                            LOG_E(TAG, "Unable to acquire send buffer slice!");
+                            goto end;
+                        }
+
                         send_buffer_start = protocol_redis_writer_write_simple_error_printf(
                                 send_buffer_start,
-                                send_buffer_end - send_buffer_start,
+                                slice_length,
                                 "ERR unknown command `%s` with `%d` args",
                                 command_data,
                                 reader_context->arguments.count - 1);
+                        network_send_buffer_release_slice(
+                                channel,
+                                send_buffer_start ? send_buffer_start - send_buffer : 0);
 
                         if (send_buffer_start == NULL) {
                             LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
-                            goto end;
-                        }
-
-                        if (network_send(
-                                channel,
-                                send_buffer,
-                                send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
-                            goto end;
-                        }
-
-                        if (network_flush(channel) != NETWORK_OP_RESULT_OK) {
                             goto end;
                         }
                     } else {
@@ -458,22 +461,28 @@ bool network_protocol_redis_process_data(
                reader_context->state != PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED);
 
         if (reader_context->error != PROTOCOL_REDIS_READER_ERROR_OK) {
-            send_buffer_start = protocol_redis_writer_write_simple_error_printf(
-                    send_buffer_start,
-                    send_buffer_end - send_buffer_start,
-                    "ERR parsing error <%d>",
-                    reader_context->error);
-
+            send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
             if (send_buffer_start == NULL) {
-                LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
-                goto end;
+                LOG_E(TAG, "Unable to acquire send buffer slice!");
             }
 
-            network_send(
-                    channel,
-                    send_buffer,
-                    send_buffer_start - send_buffer);
-            network_flush(channel);
+            if (send_buffer_start != NULL) {
+                send_buffer_start = protocol_redis_writer_write_simple_error_printf(
+                        send_buffer_start,
+                        slice_length,
+                        "ERR parsing error <%d>",
+                        reader_context->error);
+                network_send_buffer_release_slice(
+                        channel,
+                        send_buffer_start ? send_buffer_start - send_buffer : 0);
+
+                if (send_buffer_start == NULL) {
+                    LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
+                    goto end;
+                }
+
+                network_flush(channel);
+            }
 
             network_close(channel, true);
 
@@ -489,24 +498,27 @@ bool network_protocol_redis_process_data(
 
             if (protocol_context->command_info->required_positional_arguments_count >
                 reader_context->arguments.count - 1) {
-                send_buffer_start = protocol_redis_writer_write_simple_error_printf(
-                        send_buffer_start,
-                        send_buffer_end - send_buffer_start,
-                        "ERR wrong number of arguments for '%s' command",
-                        protocol_context->command_info->string);
-
-                network_protocol_redis_reset_context(protocol_context);
-
+                send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
                 if (send_buffer_start == NULL) {
-                    LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
+                    LOG_E(TAG, "Unable to acquire send buffer slice!");
                     goto end;
                 }
 
-                if ((return_result = network_send(
+                send_buffer_start = protocol_redis_writer_write_simple_error_printf(
+                        send_buffer_start,
+                        slice_length,
+                        "ERR wrong number of arguments for '%s' command",
+                        protocol_context->command_info->string);
+                network_send_buffer_release_slice(
                         channel,
-                        send_buffer,
-                        send_buffer_start - send_buffer) == NETWORK_OP_RESULT_OK)) {
-                    return_result = network_flush(channel) == NETWORK_OP_RESULT_OK;
+                        send_buffer_start ? send_buffer_start - send_buffer : 0);
+
+                network_protocol_redis_reset_context(protocol_context);
+
+                return_result = send_buffer_start != NULL;
+
+                if (send_buffer_start == NULL) {
+                    LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
                 }
 
                 goto end;
@@ -532,6 +544,8 @@ bool network_protocol_redis_process_data(
 end:
 
     if (likely(return_result)) {
+        // TODO: small optimization, it should check if the command has been fully processed which will be the case
+        //       without pipelining, but with pipelining we might squash more data within the send buffer
         if (likely(network_should_flush(channel))) {
             return_result = network_flush(channel) == NETWORK_OP_RESULT_OK;
         }
