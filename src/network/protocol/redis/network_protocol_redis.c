@@ -116,6 +116,7 @@ void network_protocol_redis_accept(
                         channel,
                         send_buffer,
                         send_buffer_start - send_buffer);
+                network_flush(channel);
             }
 
             exit_loop = true;
@@ -221,6 +222,7 @@ bool network_protocol_redis_process_data(
                             channel,
                             send_buffer,
                             send_buffer_start - send_buffer);
+                    network_flush(channel);
 
                     network_close(channel, true);
 
@@ -283,10 +285,14 @@ bool network_protocol_redis_process_data(
                             goto end;
                         }
 
-                        if (!network_send(
+                        if (network_send(
                                 channel,
                                 send_buffer,
-                                send_buffer_start - send_buffer)) {
+                                send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
+                            goto end;
+                        }
+
+                        if (network_flush(channel) != NETWORK_OP_RESULT_OK) {
                             goto end;
                         }
                     } else {
@@ -438,6 +444,7 @@ bool network_protocol_redis_process_data(
                     channel,
                     send_buffer,
                     send_buffer_start - send_buffer);
+            network_flush(channel);
 
             network_close(channel, true);
 
@@ -466,10 +473,13 @@ bool network_protocol_redis_process_data(
                     goto end;
                 }
 
-                return_result = network_send(
+                if ((return_result = network_send(
                         channel,
                         send_buffer,
-                        send_buffer_start - send_buffer);
+                        send_buffer_start - send_buffer)) == NETWORK_OP_RESULT_OK) {
+                    return_result = network_flush(channel) == NETWORK_OP_RESULT_OK;
+                }
+
                 goto end;
             }
 
@@ -489,8 +499,16 @@ bool network_protocol_redis_process_data(
     } while(read_buffer->data_size > 0);
 
     return_result = true;
+
 end:
-    if (!return_result) {
+
+    if (likely(return_result)) {
+        if (likely(network_should_flush(channel))) {
+            return_result = network_flush(channel) == NETWORK_OP_RESULT_OK;
+        }
+    }
+
+    if (unlikely(return_result)) {
         // If the data processing failed it might be necessary to free up the resources
         if (protocol_context->command_info != NULL) {
             // Potentially command free might be double invoked, the callback must be idempotent to ensure that no
