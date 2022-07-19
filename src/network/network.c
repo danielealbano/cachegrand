@@ -6,7 +6,6 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
@@ -14,14 +13,9 @@
 #include <errno.h>
 #include <assert.h>
 
-#include <mbedtls/aes.h>
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/entropy.h>
-#include <mbedtls/error.h>
-#include <mbedtls/gcm.h>
 #include <mbedtls/net_sockets.h>
-#include <mbedtls/ssl.h>
-#include <mbedtls/ssl_internal.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -217,6 +211,43 @@ network_op_result_t network_flush(
     channel->buffers.send.data_offset = 0;
 
     return res;
+}
+
+network_channel_buffer_data_t *network_send_buffer_acquire_slice(
+        network_channel_t *channel,
+        size_t slice_length) {
+    // Ensure that the slice requested can fit into the buffer and that there isn't already a slice acquired
+    assert(slice_length <= channel->buffers.send.length);
+    assert(channel->buffers.send_slice_acquired_length == 0);
+
+    // Check if there is enough space on the buffer, if not flush it
+    if (unlikely(channel->buffers.send.data_size + slice_length > channel->buffers.send.length)) {
+        if (unlikely(network_flush(channel) != NETWORK_OP_RESULT_OK)) {
+            return NULL;
+        }
+    }
+
+#if DEBUG == 1
+    channel->buffers.send_slice_acquired_length = slice_length;
+#endif
+
+    return channel->buffers.send.data + channel->buffers.send.data_offset;
+}
+
+void network_send_buffer_release_slice(
+        network_channel_t *channel,
+        size_t slice_used_length) {
+    // Ensure that when the slice is released, the amount of data used is always the same or smaller than the length
+    // acquired. Also ensure that there was a slice acquired.
+    assert(channel->buffers.send_slice_acquired_length > 0);
+    assert(slice_used_length <= channel->buffers.send_slice_acquired_length);
+
+    channel->buffers.send.data_size += slice_used_length;
+    channel->buffers.send.data_offset += slice_used_length;
+
+#if DEBUG == 1
+    channel->buffers.send_slice_acquired_length = 0;
+#endif
 }
 
 network_op_result_t network_send_direct(

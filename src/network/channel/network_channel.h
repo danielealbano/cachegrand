@@ -68,6 +68,9 @@ struct network_channel {
     network_channel_status_t status;
     struct {
         network_channel_buffer_t send;
+#if DEBUG == 1
+        size_t send_slice_acquired_length;
+#endif
     } buffers;
     struct {
         bool enabled;
