@@ -42,13 +42,18 @@
 
 #define TAG "network_protocol_redis_command_mget"
 
-struct mget_command_context {
-    char error_message[200];
-    bool has_error;
+struct mget_command_key_data {
     char *key;
     size_t key_length;
     size_t key_offset;
-    char **keys;
+};
+typedef struct mget_command_key_data mget_command_key_data_t;
+
+struct mget_command_context {
+    char error_message[200];
+    bool has_error;
+    mget_command_key_data_t *key_data;
+    mget_command_key_data_t **keys;
     uint keys_count;
 };
 typedef struct mget_command_context mget_command_context_t;
@@ -59,7 +64,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(mget) {
     mget_command_context_t *mget_command_context = (mget_command_context_t*)protocol_context->command_context;
     mget_command_context->has_error = false;
     mget_command_context->keys_count = reader_context->arguments.count - 1;
-    mget_command_context->keys = slab_allocator_mem_alloc(mget_command_context->keys_count * sizeof(char*));
+    mget_command_context->keys = slab_allocator_mem_alloc(mget_command_context->keys_count * sizeof(mget_command_key_data_t*));
 
     return true;
 }
@@ -93,10 +98,13 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(mget) {
         return true;
     }
 
-    mget_command_context->key_offset = 0;
-    mget_command_context->key_length = argument_length;
-    mget_command_context->key = slab_allocator_mem_alloc(mget_command_context->key_length);
-    mget_command_context->keys[argument_index] = slab_allocator_mem_alloc(mget_command_context->key_length);
+
+    mget_command_context->key_data = slab_allocator_mem_alloc(sizeof(mget_command_key_data_t*));
+    mget_command_context->key_data->key_offset = 0;
+    mget_command_context->key_data->key_length = argument_length;
+    mget_command_context->key_data->key = slab_allocator_mem_alloc(mget_command_context->key_data->key_length);
+
+    mget_command_context->keys[argument_index] = slab_allocator_mem_alloc(sizeof(mget_command_key_data_t*));
 
     return true;
 }
@@ -111,10 +119,10 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_DATA(mget) {
     // The scenario tested in this assert can't happen, but if it does happen it's a bug in the protocol parser and
     // there is no way to be sure that there is no corruption or data loss, so it's better to dramatically abort
     // (in debug mode)
-    assert(mget_command_context->key_offset + chunk_length <= mget_command_context->key_length);
+    assert(mget_command_context->key_data->key_offset + chunk_length <= mget_command_context->key_data->key_length);
 
-    memcpy(mget_command_context->key, chunk_data, chunk_length);
-    mget_command_context->key_offset += chunk_length;
+    memcpy(mget_command_context->key_data->key, chunk_data, chunk_length);
+    mget_command_context->key_data->key_offset += chunk_length;
 
     return true;
 }
@@ -126,8 +134,8 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(mget) {
         goto end;
     }
 
-    mget_command_context->keys[argument_index] = mget_command_context->key;
-    mget_command_context->key = NULL;
+    mget_command_context->keys[argument_index] = mget_command_context->key_data;
+    mget_command_context->key_data = NULL;
 end:
     return true;
 }
@@ -185,13 +193,10 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
     for(int key_index = 0; key_index < mget_command_context->keys_count; key_index++) {
         storage_db_entry_index_status_t old_status;
 
-//        LOG_I(TAG, "%s %lu ",mget_command_context->keys[key_index],
-//              strlen(mget_command_context->keys[key_index]));
-
         entry_index = storage_db_get_entry_index(
-                db,
-                mget_command_context->keys[key_index],
-                strlen(mget_command_context->keys[key_index]));
+            db,
+            mget_command_context->keys[key_index]->key,
+            mget_command_context->keys[key_index]->key_length);
 
         if (likely(entry_index)) {
                 // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
@@ -296,8 +301,8 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(mget) {
 
     mget_command_context_t *mget_command_context = (mget_command_context_t*)protocol_context->command_context;
 
-    if (mget_command_context->key == NULL) {
-        slab_allocator_mem_free(mget_command_context->key);
+    if (mget_command_context->key_data == NULL) {
+        slab_allocator_mem_free(mget_command_context->key_data);
     }
 
     for(int key_index = 0; key_index < mget_command_context->keys_count; key_index++) {
