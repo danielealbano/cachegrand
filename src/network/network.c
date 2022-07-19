@@ -196,7 +196,7 @@ network_op_result_t network_receive_internal(
 
 bool network_should_flush(
         network_channel_t *channel) {
-    return channel->buffers.send.data_size > 0;
+    return channel->status == NETWORK_CHANNEL_STATUS_CONNECTED && channel->buffers.send.data_size > 0;
 }
 
 network_op_result_t network_flush(
