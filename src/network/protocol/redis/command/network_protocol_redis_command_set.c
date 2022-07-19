@@ -352,9 +352,13 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(set) {
     set_command_context_t *set_command_context = (set_command_context_t*)protocol_context->command_context;
 
     if (!set_command_context->entry_index_saved) {
-        storage_db_entry_index_free(db, set_command_context->entry_index);
-        slab_allocator_mem_free(set_command_context->key);
-        set_command_context->key = NULL;
+        if (set_command_context->entry_index != NULL) {
+            storage_db_entry_index_free(db, set_command_context->entry_index);
+        }
+        if (set_command_context->key != NULL) {
+            slab_allocator_mem_free(set_command_context->key);
+            set_command_context->key = NULL;
+        }
     }
 
     slab_allocator_mem_free(protocol_context->command_context);
