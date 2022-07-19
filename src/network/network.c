@@ -262,19 +262,32 @@ network_op_result_t network_send(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
         size_t buffer_length) {
-    // Check if there is enough room in within send buffer, if not flush it
-    if (likely(channel->buffers.send.data_size + buffer_length > channel->buffers.send.length)) {
-        network_op_result_t res = network_flush(channel);
+    do {
+        size_t buffer_length_can_be_sent = MIN(buffer_length, channel->buffers.send.length);
 
-        if (unlikely(res != NETWORK_OP_RESULT_OK)) {
-            return res;
+        // Check if there is enough room in within send buffer, if not flush it
+        if (likely(channel->buffers.send.data_size + buffer_length_can_be_sent > channel->buffers.send.length)) {
+            network_op_result_t res = network_flush(channel);
+
+            if (unlikely(res != NETWORK_OP_RESULT_OK)) {
+                return res;
+            }
         }
-    }
 
-    // Copy the data to the send buffer and update data size and offset
-    memcpy(channel->buffers.send.data + channel->buffers.send.data_offset, buffer, buffer_length);
-    channel->buffers.send.data_size += buffer_length;
-    channel->buffers.send.data_offset += buffer_length;
+        // Copy the data to the send buffer and update data size and offset
+        memcpy(
+                channel->buffers.send.data + channel->buffers.send.data_offset,
+                buffer,
+                buffer_length_can_be_sent);
+        channel->buffers.send.data_size += buffer_length_can_be_sent;
+        channel->buffers.send.data_offset += buffer_length_can_be_sent;
+
+        buffer += buffer_length_can_be_sent;
+        buffer_length -= buffer_length_can_be_sent;
+
+        // Normally network_send should be used for small sends, large payloads should be sent using network_send_iov
+        // when it will be introduced, to avoid useless data copies.
+    } while (unlikely(buffer_length > 0));
 
     return NETWORK_OP_RESULT_OK;
 }
