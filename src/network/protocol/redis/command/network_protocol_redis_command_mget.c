@@ -20,6 +20,7 @@
 #include "spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "slab_allocator.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_get.h"
@@ -48,8 +49,7 @@ struct mget_command_context {
     size_t key_length;
     size_t key_offset;
     char **keys;
-    int entry_counter;
-    storage_db_entry_index_t **entries;
+    uint keys_count;
 };
 typedef struct mget_command_context mget_command_context_t;
 
@@ -58,13 +58,8 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(mget) {
 
     mget_command_context_t *mget_command_context = (mget_command_context_t*)protocol_context->command_context;
     mget_command_context->has_error = false;
-    mget_command_context->keys = NULL;
-    mget_command_context->entries = NULL;
-    mget_command_context->entry_counter = 0;
-
-    // TODO
-    mget_command_context->keys = slab_allocator_mem_alloc((reader_context->arguments.count - 1) * sizeof(char*));
-    mget_command_context->entries = slab_allocator_mem_alloc((reader_context->arguments.count - 1) * sizeof(storage_db_entry_index_t*));
+    mget_command_context->keys_count = reader_context->arguments.count - 1;
+    mget_command_context->keys = slab_allocator_mem_alloc(mget_command_context->keys_count * sizeof(char*));
 
     return true;
 }
@@ -98,9 +93,10 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(mget) {
         return true;
     }
 
-    mget_command_context->key = NULL;
-    mget_command_context->key_length = argument_length;
     mget_command_context->key_offset = 0;
+    mget_command_context->key_length = argument_length;
+    mget_command_context->key = slab_allocator_mem_alloc(mget_command_context->key_length);
+    mget_command_context->keys[argument_index] = slab_allocator_mem_alloc(mget_command_context->key_length);
 
     return true;
 }
@@ -117,42 +113,21 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_DATA(mget) {
     // (in debug mode)
     assert(mget_command_context->key_offset + chunk_length <= mget_command_context->key_length);
 
-    mget_command_context->key = mget_command_context->keys[argument_index] =
-            slab_allocator_mem_alloc(mget_command_context->key_length);
-
     memcpy(mget_command_context->key, chunk_data, chunk_length);
     mget_command_context->key_offset += chunk_length;
-    mget_command_context->keys[argument_index] = mget_command_context->key;
 
     return true;
 }
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(mget) {
-    storage_db_entry_index_status_t old_status;
     mget_command_context_t *mget_command_context = (mget_command_context_t*)protocol_context->command_context;
 
     if (mget_command_context->has_error) {
         goto end;
     }
 
-    storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
-            db,
-            mget_command_context->key,
-            mget_command_context->key_length);
-
-    if (likely(entry_index)) {
-        // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
-        storage_db_entry_index_status_increase_readers_counter(
-                entry_index,
-                &old_status);
-
-        if (unlikely(old_status.deleted)) {
-            entry_index = NULL;
-        }
-    }
-
-    mget_command_context->entries[argument_index] = entry_index;
-    mget_command_context->entry_counter++;
+    mget_command_context->keys[argument_index] = mget_command_context->key;
+    mget_command_context->key = NULL;
 end:
     return true;
 }
@@ -160,6 +135,8 @@ end:
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
     bool res;
     bool return_res = false;
+    storage_db_entry_index_t *entry_index = NULL;
+
     mget_command_context_t *mget_command_context = (mget_command_context_t*)protocol_context->command_context;
 
     if (mget_command_context->has_error) {
@@ -188,10 +165,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
         goto end;
     }
 
-
-//    char *send_buffer = NULL;
-//    char *send_buffer, *send_buffer_start, *send_buffer_end;
-    char send_buffer[512], *send_buffer_start, *send_buffer_end;
+    char send_buffer[64], *send_buffer_start, *send_buffer_end;
     size_t send_buffer_length;
 
     send_buffer_length = sizeof(send_buffer);
@@ -201,20 +175,34 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
     send_buffer_start = protocol_redis_writer_write_array(
             send_buffer_start,
             send_buffer_end - send_buffer_start,
-            mget_command_context->entry_counter);
+            mget_command_context->keys_count);
 
     if (send_buffer_start == NULL) {
         LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
         goto end;
     }
 
-    for(int i = 0; i < mget_command_context->entry_counter; i++) {
-        storage_db_entry_index_t *entry_index = mget_command_context->entries[i];
+    for(int key_index = 0; key_index < mget_command_context->keys_count; key_index++) {
+        storage_db_entry_index_status_t old_status;
+
+//        LOG_I(TAG, "%s %lu ",mget_command_context->keys[key_index],
+//              strlen(mget_command_context->keys[key_index]));
+
+        entry_index = storage_db_get_entry_index(
+                db,
+                mget_command_context->keys[key_index],
+                strlen(mget_command_context->keys[key_index]));
 
         if (likely(entry_index)) {
-                send_buffer_length = min(entry_index->value_length + 32, STORAGE_DB_CHUNK_MAX_SIZE);
-//                send_buffer_start = send_buffer = slab_allocator_mem_alloc(send_buffer_length);
-                send_buffer_end = send_buffer_start + send_buffer_length;
+                // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
+                storage_db_entry_index_status_increase_readers_counter(
+                        entry_index,
+                        &old_status);
+
+                // TODO: ??
+                if (unlikely(old_status.deleted)) {
+                    entry_index = NULL;
+                }
 
                 send_buffer_start = protocol_redis_writer_write_argument_blob_start(
                         send_buffer_start,
@@ -222,13 +210,24 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
                         false,
                         (int)entry_index->value_length);
 
+                if (network_send(
+                        channel,
+                        send_buffer,
+                        send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
+                    goto end;
+                }
+
+                send_buffer_start = send_buffer;
+
                 // Build the chunks for the value
                 for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value_chunks_count; chunk_index++) {
                     storage_db_chunk_info_t *chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
+                    char *chunk_send_buffer = slab_allocator_mem_alloc(chunk_info->chunk_length);
+
                     res = storage_db_entry_chunk_read(
                             db,
                             chunk_info,
-                            send_buffer_start);
+                            chunk_send_buffer);
 
                     if (!res) {
                         LOG_E(
@@ -240,13 +239,20 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
                         goto end;
                     }
 
-                    send_buffer_start += chunk_info->chunk_length;
+                    if (network_send(
+                            channel,
+                            chunk_send_buffer,
+                            chunk_info->chunk_length) != NETWORK_OP_RESULT_OK) {
+                        goto end;
+                    }
+
+                    slab_allocator_mem_free(chunk_send_buffer);
                 }
 
                 // At this stage the entry index is not accessed further therefore the readers counter can be decreased. The
                 // entry_index has to be set to null to avoid that it's freed again at the end of the function
                 storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
-                mget_command_context->entries[i] = entry_index = NULL;
+                entry_index = NULL;
 
                 send_buffer_start = protocol_redis_writer_write_argument_blob_end(
                         send_buffer_start,
@@ -276,6 +282,10 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
     return_res = true;
 
 end:
+    if (entry_index != NULL) {
+        storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
+    }
+
     return return_res;
 }
 
@@ -286,9 +296,13 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(mget) {
 
     mget_command_context_t *mget_command_context = (mget_command_context_t*)protocol_context->command_context;
 
-    slab_allocator_mem_free(mget_command_context->key);
-    slab_allocator_mem_free(mget_command_context->entries);
-    slab_allocator_mem_free(mget_command_context->keys);
+    if (mget_command_context->key == NULL) {
+        slab_allocator_mem_free(mget_command_context->key);
+    }
+
+    for(int key_index = 0; key_index < mget_command_context->keys_count; key_index++) {
+        slab_allocator_mem_free(mget_command_context->keys[key_index]);
+    }
 
     slab_allocator_mem_free(protocol_context->command_context);
     protocol_context->command_context = NULL;
