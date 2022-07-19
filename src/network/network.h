@@ -45,8 +45,16 @@ network_op_result_t network_send_internal(
         size_t buffer_length,
         size_t *sent_length);
 
+bool network_should_flush(
+        network_channel_t *channel);
+
 network_op_result_t network_flush(
         network_channel_t *channel);
+
+network_op_result_t network_send_direct(
+        network_channel_t *channel,
+        network_channel_buffer_data_t *buffer,
+        size_t buffer_length);
 
 network_op_result_t network_close(
         network_channel_t *channel,

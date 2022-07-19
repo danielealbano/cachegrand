@@ -199,19 +199,38 @@ network_op_result_t network_receive_internal(
     return NETWORK_OP_RESULT_OK;
 }
 
-network_op_result_t network_flush(
+bool network_should_flush(
         network_channel_t *channel) {
-    // TODO: this function currently does nothing, a new worker network op will be implemented
-    return NETWORK_OP_RESULT_OK;
+    return channel->buffers.send.data_size > 0
 }
 
-network_op_result_t network_send(
+network_op_result_t network_flush(
+        network_channel_t *channel) {
+    network_op_result_t res;
+
+    if (unlikely(channel->buffers.send.data_size == 0)) {
+        return NETWORK_OP_RESULT_OK;
+    }
+
+    res = network_send_direct(
+            channel,
+            channel->buffers.send.data,
+            channel->buffers.send.data_size);
+
+    // Resets data size and offset
+    channel->buffers.send.data_size = 0;
+    channel->buffers.send.data_offset = 0;
+
+    return res;
+}
+
+network_op_result_t network_send_direct(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
         size_t buffer_length) {
     size_t sent_length;
-
     network_op_result_t res;
+
     if (network_channel_tls_uses_mbedtls(channel)) {
         res = (int32_t)network_tls_send_internal(
                 channel,
@@ -240,6 +259,27 @@ network_op_result_t network_send(
                 sent_length,
                 channel->address.str);
     }
+
+    return res;
+}
+
+network_op_result_t network_send(
+        network_channel_t *channel,
+        network_channel_buffer_data_t *buffer,
+        size_t buffer_length) {
+    // Check if there is enough room in within send buffer, if not flush it
+    if (likely(channel->buffers.send.data_size + buffer_length > channel->buffers.send.length)) {
+        network_op_result_t res = network_flush(channel);
+
+        if (unlikely(res != NETWORK_OP_RESULT_OK)) {
+            return res;
+        }
+    }
+
+    // Copy the data to the send buffer and update data size and offset
+    memcpy(channel->buffers.send.data + channel->buffers.send.data_offset, buffer, buffer_length);
+    channel->buffers.send.data_size += buffer_length;
+    channel->buffers.send.data_offset += buffer_length;
 
     return NETWORK_OP_RESULT_OK;
 }
