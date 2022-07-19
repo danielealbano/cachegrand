@@ -56,30 +56,31 @@
 #define TAG "network"
 
 bool network_buffer_has_enough_space(
-        network_channel_buffer_t *read_buffer,
+        network_channel_buffer_t *network_channel_buffer,
         size_t read_length) {
-    size_t read_buffer_needed_size_min = read_buffer->data_size + read_length;
+    size_t network_channel_buffer_needed_size_min = network_channel_buffer->data_size + read_length;
 
-    return read_buffer->length >= read_buffer_needed_size_min;
+    return network_channel_buffer->length >= network_channel_buffer_needed_size_min;
 }
 
 bool network_buffer_needs_rewind(
-        network_channel_buffer_t *read_buffer,
+        network_channel_buffer_t *network_channel_buffer,
         size_t read_length) {
-    size_t read_buffer_needed_size_min = read_buffer->data_size + read_length;
-    size_t read_buffer_needed_size = read_buffer->data_offset + read_buffer_needed_size_min;
+    size_t network_channel_buffer_needed_size_min = network_channel_buffer->data_size + read_length;
+    size_t network_channel_buffer_needed_size =
+            network_channel_buffer->data_offset + network_channel_buffer_needed_size_min;
 
-    return read_buffer_needed_size > read_buffer->length;
+    return network_channel_buffer_needed_size > network_channel_buffer->length;
 }
 
 void network_buffer_rewind(
-        network_channel_buffer_t *read_buffer) {
+        network_channel_buffer_t *network_channel_buffer) {
     memcpy(
-            read_buffer->data,
-            read_buffer->data +
-            read_buffer->data_offset,
-            read_buffer->data_size);
-    read_buffer->data_offset = 0;
+            network_channel_buffer->data,
+            network_channel_buffer->data +
+            network_channel_buffer->data_offset,
+            network_channel_buffer->data_size);
+    network_channel_buffer->data_offset = 0;
 }
 
 network_op_result_t network_receive(
@@ -88,15 +89,9 @@ network_op_result_t network_receive(
         size_t receive_length) {
     size_t received_length;
 
-    size_t buffer_data_offset =
-            buffer->data_offset +
-            buffer->data_size;
-    network_channel_buffer_data_t *buffer_data =
-            buffer->data +
-            buffer_data_offset;
-    size_t buffer_data_length =
-            buffer->length -
-            buffer_data_offset;
+    size_t buffer_data_offset = buffer->data_offset + buffer->data_size;
+    network_channel_buffer_data_t *buffer_data = buffer->data + buffer_data_offset;
+    size_t buffer_data_length = buffer->length - buffer_data_offset;
 
     if (unlikely(buffer_data_length < receive_length)) {
         LOG_D(
@@ -295,7 +290,7 @@ network_op_result_t network_send_direct_internal(
             buffer,
             buffer_length);
 
-    if (res == 0) {
+    if (unlikely(res == 0)) {
         LOG_D(
                 TAG,
                 "[FD:%5d][SEND] The client <%s> closed the connection",
@@ -303,14 +298,14 @@ network_op_result_t network_send_direct_internal(
                 channel->address.str);
 
         return NETWORK_OP_RESULT_CLOSE_SOCKET;
-    } else if (res == -ECANCELED) {
+    } else if (unlikely(res == -ECANCELED)) {
         LOG_I(
                 TAG,
                 "[FD:%5d][ERROR CLIENT] Send timeout to client <%s>",
                 channel->fd,
                 channel->address.str);
         return NETWORK_OP_RESULT_ERROR;
-    } else if (res < 0) {
+    } else if (unlikely(res < 0)) {
         int error_number = -res;
         LOG_I(
                 TAG,
@@ -332,6 +327,7 @@ network_op_result_t network_close(
         network_channel_t *channel,
         bool shutdown_may_fail) {
     network_op_result_t res;
+
     if (network_channel_tls_uses_mbedtls(channel)) {
         res = network_tls_close_internal(
                 channel,
