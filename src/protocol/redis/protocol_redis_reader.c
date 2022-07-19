@@ -63,7 +63,6 @@ int32_t protocol_redis_reader_read(
         protocol_redis_reader_op_t* ops,
         uint8_t ops_size) {
     size_t read_offset = 0;
-    char* buffer_end_ptr = buffer + length;
     uint8_t op_index = 0;
 
     // TODO: the function can be optimized to process the entire buffer till ops is filled but this requires (1) the
@@ -416,41 +415,25 @@ int32_t protocol_redis_reader_read(
     }
 
     if (length > 0 && context->state == PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA) {
-        // Check if the current buffer may contain the entire / remaining response, take into account that every data
-        // blob has to be followed by a \r\n
         size_t data_length;
         bool end_found = false;
         size_t argument_waiting_data_length =
                 context->arguments.current.length -
                 context->arguments.current.received_length;
-        size_t waiting_data_length = argument_waiting_data_length + 2;
 
         // Determine the amount of data found
-        if (length < waiting_data_length) {
+        if (length < argument_waiting_data_length) {
             data_length = length;
-
-            // Check if the length of the data received is greater than argument_waiting_data_length, if yes it means
-            // that the received data include part of the end signature (just the \r), if it's the case data_length has
-            // to be decreased to ensure that the \r is not considered data and it's kept in the buffer if it is rewound
-            if (data_length > argument_waiting_data_length) {
-                data_length--;
-            }
         } else {
-            // Check if the end of the data has the proper signature (\r\n)
-            char* signature_ptr = buffer + waiting_data_length - 2;
-            if (*signature_ptr != '\r' || *(signature_ptr + 1) != '\n') {
-                context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_MISSING_END_SIGNATURE;
-                return -1;
-            }
-
-            data_length = waiting_data_length;
+            data_length = argument_waiting_data_length;
             end_found = true;
         }
 
         // Update the various offsets (and pointers)
+        context->arguments.current.received_length += data_length;
         read_offset += data_length;
         buffer += data_length;
-        context->arguments.current.received_length += data_length;
+        length -= data_length;
 
         // Update the OPs list
         ops[op_index].type = PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA;
@@ -458,20 +441,46 @@ int32_t protocol_redis_reader_read(
         ops[op_index].data.argument.index = context->arguments.current.index;
         ops[op_index].data.argument.length = context->arguments.current.length;
         ops[op_index].data.argument.offset = read_offset - data_length;
-
-        // If the end is found the length of the end signature (\r\n) has to be removed from the data_length of the
-        // argument
-        ops[op_index].data.argument.data_length = data_length - (end_found ? 2 : 0);
+        ops[op_index].data.argument.data_length = data_length;
         op_index++;
 
-        // If the end has been found, update the status of the current argument
         if (end_found) {
+            // Update the status
+            context->state = PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA_END;
+        }
+
+        // Check if there are enough data to contain the argument data end signature
+        if (length >= 2) {
+            // Check if the end of the data has the proper signature (\r\n)
+            if (*buffer != '\r' || *(buffer + 1) != '\n') {
+                context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_MISSING_END_SIGNATURE;
+                return -1;
+            }
+        }
+    }
+
+    if (length > 0 && context->state == PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA_END) {
+        size_t waiting_data_length = 2;
+
+        // Check if there are enough data to contain the argument data end signature
+        if (length >= waiting_data_length) {
+            // Check if the end of the data has the proper signature (\r\n)
+            if (*buffer != '\r' || *(buffer + 1) != '\n') {
+                context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_MISSING_END_SIGNATURE;
+                return -1;
+            }
+
+            // Update the various offsets (and pointers)
+            read_offset += waiting_data_length;
+            buffer += waiting_data_length;
+            context->arguments.current.received_length += waiting_data_length;
+
             // Update the OPs list
             ops[op_index].type = PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END;
-            ops[op_index].data_read_len = 0;
+            ops[op_index].data_read_len = waiting_data_length;
             ops[op_index].data.argument.index = context->arguments.current.index;
             ops[op_index].data.argument.length = context->arguments.current.length;
-            ops[op_index].data.argument.offset = read_offset - data_length;
+            ops[op_index].data.argument.offset = read_offset - waiting_data_length;
             op_index++;
 
             // Check if this is the last argument of the array

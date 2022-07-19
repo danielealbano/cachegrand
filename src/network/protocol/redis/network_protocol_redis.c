@@ -240,10 +240,31 @@ bool network_protocol_redis_process_data(
                     continue;
                 }
 
-                // If the end of the first argument has been found then check if it's a known command
-                if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END && op->data.argument.index == 0) {
+                if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA && op->data.argument.index == 0) {
+                    bool last_op = op_index == (uint8_t) ops_found - 1;
+                    bool op_followed_by_argument_end =
+                            !last_op && (ops[op_index + 1].type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END);
+
+                    if (last_op || !op_followed_by_argument_end) {
+                        // Set the reader_context state back to PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA and reset
+                        // the current argument received_length
+                        protocol_context->reader_context.state = PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA;
+                        protocol_context->reader_context.arguments.current.received_length = 0;
+
+                        // Roll back the buffer
+                        read_buffer->data_offset -= op->data_read_len;
+                        read_buffer->data_size += op->data_read_len;
+
+                        // No need to continue the parsing, more data are needed
+                        return_result = true;
+                        goto end;
+                    }
+
+                    protocol_context->current_command_data_offset = op->data.argument.offset;
+                } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END && op->data.argument.index == 0) {
+                    // If the end of the first argument has been found then check if it's a known command
                     size_t command_length = op->data.argument.length;
-                    char *command_data = read_buffer_data_start + op->data.argument.offset;
+                    char *command_data = read_buffer_data_start + protocol_context->current_command_data_offset;
 
                     // Set the current command to UNKNOWN
                     protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_UNKNOWN;
@@ -345,11 +366,19 @@ bool network_protocol_redis_process_data(
                                 !last_op && (ops[op_index + 1].type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END);
 
                         if (!require_stream && (last_op || !op_followed_by_argument_end)) {
+                            // Set the reader_context state back to PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA and reset
+                            // the current argument received_length
+                            protocol_context->reader_context.state =
+                                    PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA;
+                            protocol_context->reader_context.arguments.current.received_length = 0;
+
+                            // Roll back the buffer
                             read_buffer->data_offset -= op->data_read_len;
                             read_buffer->data_size += op->data_read_len;
 
-                            // No need to continue the parsing
-                            break;
+                            // No need to continue the parsing, more data are needed
+                            return_result = true;
+                            goto end;
                         }
                     }
 
@@ -496,7 +525,7 @@ bool network_protocol_redis_process_data(
 
             network_protocol_redis_reset_context(protocol_context);
         }
-    } while(read_buffer->data_size > 0);
+    } while(read_buffer->data_size > 0 && ops_found > 0);
 
     return_result = true;
 
