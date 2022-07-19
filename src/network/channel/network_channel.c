@@ -38,6 +38,9 @@ bool network_channel_client_setup(
 
     error |= !network_io_common_socket_set_incoming_cpu(fd, (int)incoming_cpu);
     error |= !network_io_common_socket_set_quickack(fd, true);
+    // Because of how cachegrand works (fibers), no reason to keep the nagle algorithm enabled, also in the vast
+    // majority of the cases in cachegrand, the data can be sent immediately
+    error |= !network_io_common_socket_set_nodelay(fd, true);
     error |= !network_io_common_socket_set_linger(fd, true, 2);
     error |= !network_io_common_socket_set_keepalive(fd, true);
     error |= !network_io_common_socket_set_receive_timeout(fd, 5, 0);

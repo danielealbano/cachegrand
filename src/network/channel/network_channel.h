@@ -5,14 +5,17 @@
 extern "C" {
 #endif
 
-#define NETWORK_CHANNEL_PACKET_SIZE  8192
+#define NETWORK_CHANNEL_PACKET_SIZE  (8 * 1024)
 
 // The NETWORK_CHANNEL_RECV_BUFFER_SIZE has to be twice the NETWORK_CHANNEL_PACKET_SIZE to ensure that it's always
 // possible to read a full packet in addition to any partially received data while processing the buffer and that there
 // is enough room to avoid copying continuously the data at the beginning (a streaming parser is being used so there
 // maybe data that need still to be parsed)
 #define NETWORK_CHANNEL_RECV_BUFFER_SIZE    (NETWORK_CHANNEL_PACKET_SIZE * 2)
-#define NETWORK_CHANNEL_SEND_BUFFER_SIZE    (NETWORK_CHANNEL_PACKET_SIZE)
+
+// Do not lower, to improve the performances the code expects to be able to send up to this amount of data, and do
+// not increase as the slab allocator supports only up to 64kb.
+#define NETWORK_CHANNEL_SEND_BUFFER_SIZE    (64 * 1024)
 
 typedef char network_channel_buffer_data_t;
 
