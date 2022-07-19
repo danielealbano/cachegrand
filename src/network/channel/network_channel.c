@@ -23,6 +23,9 @@
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/io/network_io_common.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
+#include "slab_allocator.h"
 
 #include "network/channel/network_channel.h"
 
@@ -78,7 +81,14 @@ bool network_channel_init(
     channel->timeout.read_ns = -1;
     channel->timeout.write_ns = -1;
 
+    channel->buffers.send.data = slab_allocator_mem_alloc(NETWORK_CHANNEL_SEND_BUFFER_SIZE);
+
     return true;
+}
+
+void network_channel_cleanup(
+        network_channel_t *channel) {
+    slab_allocator_mem_free(channel->buffers.send.data);
 }
 
 bool network_channel_listener_new_callback(

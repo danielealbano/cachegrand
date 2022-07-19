@@ -48,5 +48,6 @@ network_channel_iouring_t* network_channel_iouring_multi_new(
 
 void network_channel_iouring_free(
         network_channel_iouring_t* network_channel) {
+    network_channel_cleanup(&network_channel->wrapped_channel);
     slab_allocator_mem_free(network_channel);
 }

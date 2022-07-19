@@ -54,6 +54,14 @@ struct network_channel_socket_address {
     socklen_t size;
 };
 
+typedef struct network_channel_buffer network_channel_buffer_t;
+struct network_channel_buffer {
+    network_channel_buffer_data_t *data;
+    size_t data_offset;
+    size_t data_size;
+    size_t length;
+};
+
 typedef struct network_channel network_channel_t;
 struct network_channel {
     network_io_common_fd_t fd;
@@ -62,6 +70,9 @@ struct network_channel {
     config_network_protocol_t *protocol_config;
     network_channel_socket_address_t address;
     network_channel_status_t status;
+    struct {
+        network_channel_buffer_t send;
+    } buffers;
     struct {
         bool enabled;
         bool ktls;
@@ -83,14 +94,6 @@ struct network_create_lister_new_user_data {
     size_t network_channel_size;
 };
 
-typedef struct network_channel_buffer network_channel_buffer_t;
-struct network_channel_buffer {
-    network_channel_buffer_data_t *data;
-    size_t data_offset;
-    size_t data_size;
-    size_t length;
-};
-
 bool network_channel_client_setup(
         network_io_common_fd_t fd,
         uint32_t incoming_cpu);
@@ -100,6 +103,9 @@ bool network_channel_server_setup(
         uint32_t incoming_cpu);
 
 bool network_channel_init(
+        network_channel_t *channel);
+
+void network_channel_cleanup(
         network_channel_t *channel);
 
 bool network_channel_listener_new_callback(
