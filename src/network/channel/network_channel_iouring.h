@@ -13,9 +13,11 @@ struct network_channel_iouring {
     network_io_common_fd_t fd;
 } __attribute__((__aligned__(32)));
 
-network_channel_iouring_t* network_channel_iouring_new();
+network_channel_iouring_t* network_channel_iouring_new(
+        network_channel_type_t type);
 
 network_channel_iouring_t* network_channel_iouring_multi_new(
+        network_channel_type_t type,
         uint32_t count);
 
 void network_channel_iouring_free(

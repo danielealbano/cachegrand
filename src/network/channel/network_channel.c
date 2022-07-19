@@ -79,20 +79,27 @@ bool network_channel_listener_new_callback_socket_setup_server_cb(
 }
 
 bool network_channel_init(
+        network_channel_type_t type,
         network_channel_t *channel) {
+    channel->type = type;
     channel->address.size = sizeof(channel->address.socket);
     channel->timeout.read_ns = -1;
     channel->timeout.write_ns = -1;
 
-    channel->buffers.send.length = NETWORK_CHANNEL_SEND_BUFFER_SIZE;
-    channel->buffers.send.data = slab_allocator_mem_alloc(channel->buffers.send.length);
+    if (channel->type == NETWORK_CHANNEL_TYPE_CLIENT) {
+        channel->buffers.send.length = NETWORK_CHANNEL_SEND_BUFFER_SIZE;
+        channel->buffers.send.data = slab_allocator_mem_alloc(channel->buffers.send.length);
+    }
 
     return true;
 }
 
 void network_channel_cleanup(
         network_channel_t *channel) {
-    slab_allocator_mem_free(channel->buffers.send.data);
+    if (channel->type == NETWORK_CHANNEL_TYPE_CLIENT) {
+        slab_allocator_mem_free(channel->buffers.send.data);
+        channel->buffers.send.data = NULL;
+    }
 }
 
 bool network_channel_listener_new_callback(

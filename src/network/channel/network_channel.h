@@ -99,6 +99,7 @@ bool network_channel_server_setup(
         uint32_t incoming_cpu);
 
 bool network_channel_init(
+        network_channel_type_t type,
         network_channel_t *channel);
 
 void network_channel_cleanup(

@@ -178,8 +178,9 @@ bool worker_network_listeners_initialize(
     }
 
     // Allocate the needed listeners and reset listeners_count
-    listener_new_cb_user_data.listeners =
-            worker_op_network_channel_multi_new(listener_new_cb_user_data.listeners_count);
+    listener_new_cb_user_data.listeners = worker_op_network_channel_multi_new(
+            NETWORK_CHANNEL_TYPE_LISTENER,
+            listener_new_cb_user_data.listeners_count);
     listener_new_cb_user_data.network_channel_size = worker_op_network_channel_size();
     listener_new_cb_user_data.listeners_count = 0;
 

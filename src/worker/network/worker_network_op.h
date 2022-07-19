@@ -10,9 +10,11 @@ struct worker_network_protocol_context {
     void *network_tls_config;
 };
 
-typedef network_channel_t* (worker_op_network_channel_new_fp_t)();
+typedef network_channel_t* (worker_op_network_channel_new_fp_t)(
+        network_channel_type_t type);
 
 typedef network_channel_t* (worker_op_network_channel_multi_new_fp_t)(
+        network_channel_type_t type,
         uint32_t count);
 
 typedef network_channel_t* (worker_op_network_channel_multi_get_fp_t)(

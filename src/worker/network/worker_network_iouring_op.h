@@ -42,12 +42,14 @@ bool worker_network_iouring_cleanup(
         __attribute__((unused)) __attribute__((unused)) network_channel_t *listeners,
         __attribute__((unused)) __attribute__((unused)) uint8_t listeners_count);
 
-network_channel_t* worker_network_iouring_network_channel_new();
+network_channel_t* worker_network_iouring_network_channel_new(
+        network_channel_type_t type);
 
 void worker_network_iouring_network_channel_free(
         network_channel_t* channel);
 
 network_channel_t* worker_network_iouring_network_channel_multi_new(
+        network_channel_type_t type,
         uint32_t count);
 
 network_channel_t* worker_network_iouring_network_channel_multi_get(

@@ -88,7 +88,6 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
     new_channel->fd = new_channel->wrapped_channel.fd = cqe->res;
     new_channel->wrapped_channel.protocol = listener_channel->wrapped_channel.protocol;
     new_channel->wrapped_channel.protocol_config = listener_channel->wrapped_channel.protocol_config;
-    new_channel->wrapped_channel.type = NETWORK_CHANNEL_TYPE_CLIENT;
 
     // Convert the socket address in a string
     network_io_common_socket_address_str(
@@ -218,7 +217,7 @@ network_channel_t* worker_network_iouring_op_network_accept(
     // The memory allocated here will get lost (valgrind will report it) when cachegrand shutdown because the fiber
     // never gets the chance to terminate. This is a wanted behaviour.
     worker_iouring_context_t *context = worker_iouring_context_get();
-    network_channel_iouring_t* new_channel_temp = network_channel_iouring_new();
+    network_channel_iouring_t* new_channel_temp = network_channel_iouring_new(NETWORK_CHANNEL_TYPE_CLIENT);
 
     fiber_scheduler_reset_error();
 
@@ -423,8 +422,9 @@ bool worker_network_iouring_cleanup(
     return true;
 }
 
-network_channel_t* worker_network_iouring_network_channel_new() {
-    return (network_channel_t*)network_channel_iouring_new();
+network_channel_t* worker_network_iouring_network_channel_new(
+        network_channel_type_t type) {
+    return (network_channel_t*)network_channel_iouring_new(type);
 }
 
 void worker_network_iouring_network_channel_free(
@@ -433,8 +433,9 @@ void worker_network_iouring_network_channel_free(
 }
 
 network_channel_t* worker_network_iouring_network_channel_multi_new(
+        network_channel_type_t type,
         uint32_t count) {
-    return (network_channel_t*)network_channel_iouring_multi_new(count);
+    return (network_channel_t*)network_channel_iouring_multi_new(type, count);
 }
 
 network_channel_t* worker_network_iouring_network_channel_multi_get(
