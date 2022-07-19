@@ -232,13 +232,13 @@ network_op_result_t network_send_direct(
     network_op_result_t res;
 
     if (network_channel_tls_uses_mbedtls(channel)) {
-        res = (int32_t)network_tls_send_internal(
+        res = (int32_t) network_tls_send_direct_internal(
                 channel,
                 buffer,
                 buffer_length,
                 &sent_length);
     } else {
-        res = (int32_t)network_send_internal(
+        res = (int32_t) network_send_direct_internal(
                 channel,
                 buffer,
                 buffer_length,
@@ -284,7 +284,7 @@ network_op_result_t network_send(
     return NETWORK_OP_RESULT_OK;
 }
 
-network_op_result_t network_send_internal(
+network_op_result_t network_send_direct_internal(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
         size_t buffer_length,

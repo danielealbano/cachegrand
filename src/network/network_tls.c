@@ -423,7 +423,7 @@ network_op_result_t network_tls_receive_internal(
     return NETWORK_OP_RESULT_OK;
 }
 
-network_op_result_t network_tls_send_internal(
+network_op_result_t network_tls_send_direct_internal(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
         size_t buffer_length,
