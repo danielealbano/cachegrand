@@ -25,6 +25,7 @@ enum protocol_redis_reader_states {
     PROTOCOL_REDIS_READER_STATE_INLINE_WAITING_ARGUMENT,
     PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_LENGTH,
     PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA,
+    PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA_END,
     PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED,
 };
 typedef enum protocol_redis_reader_states protocol_redis_reader_states_t;
@@ -84,16 +85,8 @@ struct protocol_redis_reader_context {
 };
 typedef struct protocol_redis_reader_context protocol_redis_reader_context_t;
 
-protocol_redis_reader_context_t* protocol_redis_reader_context_init();
-
 void protocol_redis_reader_context_free(
         protocol_redis_reader_context_t* context);
-
-void protocol_redis_reader_context_arguments_free(
-        protocol_redis_reader_context_t* context);
-
-//int protocol_redis_reader_context_arguments_clone_current(
-//        protocol_redis_reader_context_t* context);
 
 void protocol_redis_reader_context_reset(
         protocol_redis_reader_context_t* context);

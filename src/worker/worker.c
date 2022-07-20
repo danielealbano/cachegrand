@@ -443,10 +443,15 @@ void* worker_thread_func(
             break;
         }
 
-        worker_stats_publish(
-                &worker_context->stats.internal,
-                &worker_context->stats.shared,
-                !worker_stats_should_publish_after_interval(&worker_context->stats.shared));
+        if (worker_stats_should_publish_after_interval(&worker_context->stats.shared, 1)) {
+            bool only_total = !worker_stats_should_publish_after_interval(
+                    &worker_context->stats.shared,
+                    WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC);
+            worker_stats_publish(
+                    &worker_context->stats.internal,
+                    &worker_context->stats.shared,
+                    only_total);
+        }
     } while(!worker_should_terminate(worker_context));
 
     aborted = false;

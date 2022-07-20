@@ -59,7 +59,7 @@
 
 void worker_network_iouring_op_network_post_close(
         network_channel_iouring_t *channel) {
-    if (channel->has_mapped_fd) {
+    if (likely(channel->has_mapped_fd)) {
         worker_iouring_fds_map_remove(channel->wrapped_channel.fd);
         channel->wrapped_channel.fd = channel->fd;
         channel->has_mapped_fd = false;
@@ -73,7 +73,7 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
         network_channel_iouring_t *listener_channel,
         network_channel_iouring_t *new_channel,
         io_uring_cqe_t *cqe) {
-    if (worker_iouring_cqe_is_error_any(cqe)) {
+    if (unlikely(worker_iouring_cqe_is_error_any(cqe))) {
         fiber_scheduler_set_error(-cqe->res);
         LOG_E(
                 TAG,
@@ -84,11 +84,13 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
         return NULL;
     }
 
+    worker_context_t *worker_context = worker_context_get();
+    worker_stats_t *stats = worker_stats_get();
+
     // Setup the new channel
     new_channel->fd = new_channel->wrapped_channel.fd = cqe->res;
     new_channel->wrapped_channel.protocol = listener_channel->wrapped_channel.protocol;
     new_channel->wrapped_channel.protocol_config = listener_channel->wrapped_channel.protocol_config;
-    new_channel->wrapped_channel.type = NETWORK_CHANNEL_TYPE_CLIENT;
 
     // Convert the socket address in a string
     network_io_common_socket_address_str(
@@ -96,10 +98,22 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
             new_channel->wrapped_channel.address.str,
             sizeof(new_channel->wrapped_channel.address.str));
 
+    if (unlikely(stats->network.total.active_connections >= worker_context->config->network->max_clients)) {
+        LOG_V(
+                TAG,
+                "[FD:%5d][ACCEPT] Maximum active connections established, can't accept any new connection",
+                new_channel->fd);
+        worker_network_iouring_op_network_close(
+                (network_channel_t *)new_channel,
+                true);
+
+        return NULL;
+    }
+
     // Perform the initial setup on the new channel
-    if (network_channel_client_setup(
+    if (unlikely(network_channel_client_setup(
             new_channel->wrapped_channel.fd,
-            context->core_index) == false) {
+            context->core_index) == false)) {
         fiber_scheduler_set_error(errno);
         LOG_E(
                 TAG,
@@ -191,12 +205,12 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
         }
     }
 
-    if (!worker_iouring_fds_map_add_and_enqueue_files_update(
+    if (unlikely(!worker_iouring_fds_map_add_and_enqueue_files_update(
             worker_iouring_context_get()->ring,
             new_channel->fd,
             &new_channel->has_mapped_fd,
             &new_channel->base_sqe_flags,
-            &new_channel->wrapped_channel.fd)) {
+            &new_channel->wrapped_channel.fd))) {
         LOG_E(
                 TAG,
                 "Can't accept the new connection <%s> coming from listener <%s>, unable to find a free fds slot",
@@ -218,7 +232,7 @@ network_channel_t* worker_network_iouring_op_network_accept(
     // The memory allocated here will get lost (valgrind will report it) when cachegrand shutdown because the fiber
     // never gets the chance to terminate. This is a wanted behaviour.
     worker_iouring_context_t *context = worker_iouring_context_get();
-    network_channel_iouring_t* new_channel_temp = network_channel_iouring_new();
+    network_channel_iouring_t* new_channel_temp = network_channel_iouring_new(NETWORK_CHANNEL_TYPE_CLIENT);
 
     fiber_scheduler_reset_error();
 
@@ -231,7 +245,7 @@ network_channel_t* worker_network_iouring_op_network_accept(
             ((network_channel_iouring_t*)listener_channel)->base_sqe_flags,
             (uintptr_t) fiber_scheduler_get_current());
 
-    if (res == false) {
+    if (unlikely(res == false)) {
         network_channel_iouring_free(new_channel_temp);
         fiber_scheduler_set_error(ENOMEM);
         return NULL;
@@ -262,7 +276,7 @@ bool worker_network_iouring_op_network_close(
             channel_iouring->fd,
             shutdown_may_fail);
 
-    if (!res) {
+    if (unlikely(!res)) {
         fiber_scheduler_set_error(errno);
     }
 
@@ -292,24 +306,24 @@ int32_t worker_network_iouring_op_network_receive(
             extra_sqes |= IOSQE_IO_LINK;
         }
 
-        if (!io_uring_support_sqe_enqueue_recv(
+        if (unlikely(!io_uring_support_sqe_enqueue_recv(
                 context->ring,
                 channel->fd,
                 buffer,
                 buffer_length,
                 0,
                 ((network_channel_iouring_t*)channel)->base_sqe_flags | extra_sqes,
-                (uintptr_t) fiber_scheduler_get_current())) {
+                (uintptr_t) fiber_scheduler_get_current()))) {
             fiber_scheduler_set_error(ENOMEM);
             return -ENOMEM;
         }
 
         if (kernel_timespec.tv_nsec != -1) {
-            if (!io_uring_support_sqe_enqueue_link_timeout(
+            if (unlikely(!io_uring_support_sqe_enqueue_link_timeout(
                     context->ring,
                     &kernel_timespec,
                     0,
-                    0)) {
+                    0))) {
                 fiber_scheduler_set_error(ENOMEM);
                 return -ENOMEM;
             }
@@ -322,14 +336,14 @@ int32_t worker_network_iouring_op_network_receive(
         io_uring_cqe_t *cqe = (io_uring_cqe_t*)((fiber_scheduler_get_current())->ret.ptr_value);
 
         res = cqe->res;
-    } while(res == -EAGAIN);
+    } while(unlikely(res == -EAGAIN));
 
     // If kTLS is enabled, EPIPE, EIO or EBADMSG can be returned in case of a connection reset, we don't really want to
     // spam the logs with these messages so res gets set to 0 to "pretend" the connection has been closed by the remote
     // endpoint gracefully
     if (channel->tls.ktls && (res == -EIO || res == -EBADMSG || res == -EPIPE)) {
         res = 0;
-    } else if (res < 0) {
+    } else if (unlikely(res < 0)) {
         fiber_scheduler_set_error(-res);
     }
 
@@ -356,24 +370,24 @@ int32_t worker_network_iouring_op_network_send(
             extra_sqes |= IOSQE_IO_LINK;
         }
 
-        if (!io_uring_support_sqe_enqueue_send(
+        if (unlikely(!io_uring_support_sqe_enqueue_send(
                 context->ring,
                 channel->fd,
                 buffer,
                 buffer_length,
                 0,
                 ((network_channel_iouring_t*)channel)->base_sqe_flags | extra_sqes,
-                (uintptr_t) fiber_scheduler_get_current())) {
+                (uintptr_t) fiber_scheduler_get_current()))) {
             fiber_scheduler_set_error(ENOMEM);
             return -ENOMEM;
         }
 
         if (kernel_timespec.tv_nsec != -1) {
-            if (!io_uring_support_sqe_enqueue_link_timeout(
+            if (unlikely(!io_uring_support_sqe_enqueue_link_timeout(
                     context->ring,
                     &kernel_timespec,
                     0,
-                    0)) {
+                    0))) {
                 fiber_scheduler_set_error(ENOMEM);
                 return -ENOMEM;
             }
@@ -386,14 +400,14 @@ int32_t worker_network_iouring_op_network_send(
         io_uring_cqe_t *cqe = (io_uring_cqe_t*)((fiber_scheduler_get_current())->ret.ptr_value);
 
         res = cqe->res;
-    } while(res == -EAGAIN);
+    } while(unlikely(res == -EAGAIN));
 
     // If kTLS is enabled, EIO or EBADMSG can be returned in case of a connection reset, we don't really want to spam
     // the logs with these messages so res gets set to 0 to "pretend" the connection has been closed by the remote
     // endpoint gracefully
     if (channel->tls.ktls && (res == -EIO || res == -EBADMSG)) {
         res = 0;
-    } else if (res < 0) {
+    } else if (unlikely(res < 0)) {
         fiber_scheduler_set_error(-res);
     }
 
@@ -423,8 +437,9 @@ bool worker_network_iouring_cleanup(
     return true;
 }
 
-network_channel_t* worker_network_iouring_network_channel_new() {
-    return (network_channel_t*)network_channel_iouring_new();
+network_channel_t* worker_network_iouring_network_channel_new(
+        network_channel_type_t type) {
+    return (network_channel_t*)network_channel_iouring_new(type);
 }
 
 void worker_network_iouring_network_channel_free(
@@ -433,8 +448,9 @@ void worker_network_iouring_network_channel_free(
 }
 
 network_channel_t* worker_network_iouring_network_channel_multi_new(
+        network_channel_type_t type,
         uint32_t count) {
-    return (network_channel_t*)network_channel_iouring_multi_new(count);
+    return (network_channel_t*)network_channel_iouring_multi_new(type, count);
 }
 
 network_channel_t* worker_network_iouring_network_channel_multi_get(

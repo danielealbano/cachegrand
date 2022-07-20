@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#define WORKER_PUBLISH_STATS_INTERVAL_SEC 60
+#define WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC 60
 
 typedef struct worker_stats worker_stats_t;
 struct worker_stats {
@@ -56,7 +56,8 @@ void worker_stats_publish(
         bool only_total);
 
 bool worker_stats_should_publish_after_interval(
-        worker_stats_volatile_t* worker_stats_public);
+        worker_stats_volatile_t* worker_stats_public,
+        int interval);
 
 worker_stats_t *worker_stats_get();
 

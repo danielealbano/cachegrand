@@ -5,22 +5,18 @@
 extern "C" {
 #endif
 
-// TODO: with jumbo frames the macro NETWORK_CHANNEL_PACKET_SIZE would be wrong, this has to be changed to use
-//       a const or a set of functions to calculate the right packet size detecting if the jumbo frames are enabled.
-//       Because which interface is being used is determined via the routing table in the kernel there is no easy nor
-//       direct way to fetch the right MTU so this has to come from the config and potentially if a small MTU is in use
-//       and an interface is using jumbo frames a warning may be printed at the bootstrap.
-//       Must also be possible to silence the warning to avoid log-spamming.
-#define NETWORK_CHANNEL_PACKET_SIZE  4096
+#define NETWORK_CHANNEL_PACKET_SIZE  (8 * 1024)
 
 // The NETWORK_CHANNEL_RECV_BUFFER_SIZE has to be twice the NETWORK_CHANNEL_PACKET_SIZE to ensure that it's always
 // possible to read a full packet in addition to any partially received data while processing the buffer and that there
 // is enough room to avoid copying continuously the data at the beginning (a streaming parser is being used so there
 // maybe data that need still to be parsed)
 #define NETWORK_CHANNEL_RECV_BUFFER_SIZE    (NETWORK_CHANNEL_PACKET_SIZE * 2)
-#define NETWORK_CHANNEL_SEND_BUFFER_SIZE    NETWORK_CHANNEL_PACKET_SIZE * 2
 
-typedef void network_channel_state_t;
+// Do not lower, to improve the performances the code expects to be able to send up to this amount of data, and do
+// not increase as the slab allocator supports only up to 64kb.
+#define NETWORK_CHANNEL_SEND_BUFFER_SIZE    (64 * 1024)
+
 typedef char network_channel_buffer_data_t;
 
 enum network_channel_type {
@@ -54,6 +50,14 @@ struct network_channel_socket_address {
     socklen_t size;
 };
 
+typedef struct network_channel_buffer network_channel_buffer_t;
+struct network_channel_buffer {
+    network_channel_buffer_data_t *data;
+    size_t data_offset;
+    size_t data_size;
+    size_t length;
+};
+
 typedef struct network_channel network_channel_t;
 struct network_channel {
     network_io_common_fd_t fd;
@@ -62,6 +66,12 @@ struct network_channel {
     config_network_protocol_t *protocol_config;
     network_channel_socket_address_t address;
     network_channel_status_t status;
+    struct {
+        network_channel_buffer_t send;
+#if DEBUG == 1
+        size_t send_slice_acquired_length;
+#endif
+    } buffers;
     struct {
         bool enabled;
         bool ktls;
@@ -83,14 +93,6 @@ struct network_create_lister_new_user_data {
     size_t network_channel_size;
 };
 
-typedef struct network_channel_buffer network_channel_buffer_t;
-struct network_channel_buffer {
-    network_channel_buffer_data_t *data;
-    size_t data_offset;
-    size_t data_size;
-    size_t length;
-};
-
 bool network_channel_client_setup(
         network_io_common_fd_t fd,
         uint32_t incoming_cpu);
@@ -100,6 +102,10 @@ bool network_channel_server_setup(
         uint32_t incoming_cpu);
 
 bool network_channel_init(
+        network_channel_type_t type,
+        network_channel_t *channel);
+
+void network_channel_cleanup(
         network_channel_t *channel);
 
 bool network_channel_listener_new_callback(

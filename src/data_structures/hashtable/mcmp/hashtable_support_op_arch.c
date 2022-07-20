@@ -12,14 +12,12 @@
 #include <string.h>
 #include <stdatomic.h>
 #include <assert.h>
-#include <numa.h>
 
 #include "exttypes.h"
 #include "memory_fences.h"
 #include "misc.h"
 #include "log/log.h"
 #include "spinlock.h"
-#include "utils_string.h"
 
 #include "hashtable.h"
 #include "hashtable_support_index.h"
@@ -178,11 +176,10 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
 
             LOG_DI(">> key fetched, comparing");
 
-            if (unlikely(utils_string_casecmp_eq_32(
+            if (key_size != found_key_compare_size || strncmp(
                     key,
-                    key_size,
                     (const char*)found_key,
-                    found_key_compare_size) == false)) {
+                    found_key_compare_size) != 0) {
                 LOG_DI(">> key different (%s != %s), unable to continue", key, found_key);
                 continue;
             }
@@ -377,11 +374,11 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
 #endif
                     LOG_DI(">>> key fetched, comparing");
 
-                    if (unlikely(utils_string_casecmp_eq_32(
+
+                    if (key_size != found_key_compare_size || strncmp(
                             key,
-                            key_size,
                             (const char*)found_key,
-                            found_key_compare_size) == false)) {
+                            found_key_compare_size) != 0) {
                         LOG_DI(">>> key different (%s != %s), unable to continue", key, found_key);
                         continue;
                     }

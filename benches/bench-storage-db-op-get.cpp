@@ -198,7 +198,7 @@ public:
         if (state.thread_index() == 0) {
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
             // Free up the memory allocated for the first keyset slots generated
-            test_support_free_keyset_slots(static_keyset_slots);
+            test_support_free_keyset_slots((test_support_keyset_slot_t *)static_keyset_slots);
 
             fprintf(stdout, "> Setup - second keyset slots generation\n");
             fflush(stdout);
