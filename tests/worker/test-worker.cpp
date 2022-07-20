@@ -145,7 +145,9 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
         SECTION("should") {
             worker_stats_volatile_t stats = {0};
 
-            REQUIRE(worker_stats_should_publish_after_interval(&stats));
+            REQUIRE(worker_stats_should_publish_after_interval(
+                    &stats,
+                    WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC));
         }
 
         SECTION("should not") {
@@ -153,9 +155,11 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
 
             REQUIRE(clock_gettime(CLOCK_REALTIME, (struct timespec*)&stats.per_minute_last_update_timestamp) == 0);
 
-            stats.per_minute_last_update_timestamp.tv_sec += WORKER_PUBLISH_STATS_INTERVAL_SEC + 1;
+            stats.per_minute_last_update_timestamp.tv_sec += WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC + 1;
 
-            REQUIRE(!worker_stats_should_publish_after_interval(&stats));
+            REQUIRE(!worker_stats_should_publish_after_interval(
+                    &stats,
+                    WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC));
         }
     }
 
