@@ -59,6 +59,11 @@ void network_send_buffer_release_slice(
         network_channel_t *channel,
         size_t slice_used_length);
 
+network_op_result_t network_send_direct_wrapper(
+        network_channel_t *channel,
+        network_channel_buffer_data_t *buffer,
+        size_t buffer_length);
+
 network_op_result_t network_send_direct(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,

@@ -25,7 +25,7 @@ TEST_CASE("network/channel/network_channel_iouring.c", "[network][network_channe
             REQUIRE(network_channel_iouring != NULL);
             REQUIRE(network_channel_iouring->wrapped_channel.address.size ==
                     sizeof(network_channel_iouring->wrapped_channel.address.socket));
-            REQUIRE(network_channel_iouring->wrapped_channel.buffers.send.length != NETWORK_CHANNEL_SEND_BUFFER_SIZE);
+            REQUIRE(network_channel_iouring->wrapped_channel.buffers.send.length == NETWORK_CHANNEL_SEND_BUFFER_SIZE);
             REQUIRE(network_channel_iouring->wrapped_channel.buffers.send.data != NULL);
 
             network_channel_iouring_free(network_channel_iouring);
@@ -54,7 +54,7 @@ TEST_CASE("network/channel/network_channel_iouring.c", "[network][network_channe
             for (int i = 0; i < 3; i++) {
                 REQUIRE(network_channel_iouring[i].wrapped_channel.address.size ==
                         sizeof(network_channel_iouring[i].wrapped_channel.address.socket));
-                REQUIRE(network_channel_iouring->wrapped_channel.buffers.send.length != NETWORK_CHANNEL_SEND_BUFFER_SIZE);
+                REQUIRE(network_channel_iouring->wrapped_channel.buffers.send.length == NETWORK_CHANNEL_SEND_BUFFER_SIZE);
                 REQUIRE(network_channel_iouring->wrapped_channel.buffers.send.data != NULL);
             }
 

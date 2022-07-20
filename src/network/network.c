@@ -201,7 +201,7 @@ network_op_result_t network_flush_send_buffer(
         return NETWORK_OP_RESULT_OK;
     }
 
-    res = network_send_direct(
+    res = network_send_direct_wrapper(
             channel,
             channel->buffers.send.data,
             channel->buffers.send.data_size);
@@ -251,6 +251,17 @@ void network_send_buffer_release_slice(
 }
 
 network_op_result_t network_send_direct(
+        network_channel_t *channel,
+        network_channel_buffer_data_t *buffer,
+        size_t buffer_length) {
+    if (network_should_flush_send_buffer(channel)) {
+        network_flush_send_buffer(channel);
+    }
+
+    return network_send_direct_wrapper(channel, buffer, buffer_length);
+}
+
+network_op_result_t network_send_direct_wrapper(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
         size_t buffer_length) {
