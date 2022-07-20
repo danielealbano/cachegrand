@@ -285,11 +285,11 @@ bool network_protocol_prometheus_http_send_response(
             CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME,
             content_length);
 
-    if ((result_ret = network_send(
+    if ((result_ret = network_send_buffered(
             channel,
             http_response,
             http_response_len) == NETWORK_OP_RESULT_OK)) {
-        result_ret = network_send(channel, content, content_length) == NETWORK_OP_RESULT_OK;
+        result_ret = network_send_buffered(channel, content, content_length) == NETWORK_OP_RESULT_OK;
     }
 
 end:
@@ -624,8 +624,8 @@ bool network_protocol_prometheus_process_data(
 
     if (network_protocol_prometheus_client->http_request_data.request_received) {
         network_protocol_prometheus_process_request(channel, network_protocol_prometheus_client);
-        if (likely(network_should_flush(channel))) {
-            network_flush(channel);
+        if (likely(network_should_flush_send_buffer(channel))) {
+            network_flush_send_buffer(channel);
         }
         // Always terminate the connection once the request is processed as this implementation is simple and doesn't
         // really support pipelining or similar features

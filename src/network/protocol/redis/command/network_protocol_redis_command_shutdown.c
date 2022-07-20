@@ -68,7 +68,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(shutdown) {
     }
 
     // As the connection will be closed, it's necessary to flush the buffer
-    if (network_flush(channel) != NETWORK_OP_RESULT_OK) {
+    if (network_flush_send_buffer(channel) != NETWORK_OP_RESULT_OK) {
         goto end;
     }
 

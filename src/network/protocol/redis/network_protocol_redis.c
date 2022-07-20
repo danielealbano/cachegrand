@@ -116,7 +116,7 @@ void network_protocol_redis_accept(
                 if (send_buffer_start == NULL) {
                     LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
                 } else {
-                    network_flush(channel);
+                    network_flush_send_buffer(channel);
                 }
             }
 
@@ -227,7 +227,7 @@ bool network_protocol_redis_process_data(
                             LOG_D(TAG, "[RECV][REDIS] Unable to write the response into the buffer");
                         }
 
-                        network_flush(channel);
+                        network_flush_send_buffer(channel);
                     }
                     network_close(channel, true);
 
@@ -383,6 +383,7 @@ bool network_protocol_redis_process_data(
                             return_result = true;
                             goto end;
                         }
+
                         protocol_context->current_argument_token_data_offset = op->data.argument.offset;
                     }
 
@@ -483,7 +484,7 @@ bool network_protocol_redis_process_data(
                     goto end;
                 }
 
-                network_flush(channel);
+                network_flush_send_buffer(channel);
             }
 
             network_close(channel, true);
@@ -548,8 +549,8 @@ end:
     if (likely(return_result)) {
         // TODO: small optimization, it should check if the command has been fully processed which will be the case
         //       without pipelining, but with pipelining we might squash more data within the send buffer
-        if (likely(network_should_flush(channel))) {
-            return_result = network_flush(channel) == NETWORK_OP_RESULT_OK;
+        if (likely(network_should_flush_send_buffer(channel))) {
+            return_result = network_flush_send_buffer(channel) == NETWORK_OP_RESULT_OK;
         }
     }
 

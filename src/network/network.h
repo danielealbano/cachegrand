@@ -34,7 +34,7 @@ network_op_result_t network_receive_internal(
         size_t buffer_length,
         size_t *read_length);
 
-network_op_result_t network_send(
+network_op_result_t network_send_buffered(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
         size_t buffer_length);
@@ -45,10 +45,10 @@ network_op_result_t network_send_direct_internal(
         size_t buffer_length,
         size_t *sent_length);
 
-bool network_should_flush(
+bool network_should_flush_send_buffer(
         network_channel_t *channel);
 
-network_op_result_t network_flush(
+network_op_result_t network_flush_send_buffer(
         network_channel_t *channel);
 
 network_channel_buffer_data_t *network_send_buffer_acquire_slice(

@@ -188,12 +188,12 @@ network_op_result_t network_receive_internal(
     return NETWORK_OP_RESULT_OK;
 }
 
-bool network_should_flush(
+bool network_should_flush_send_buffer(
         network_channel_t *channel) {
     return channel->status == NETWORK_CHANNEL_STATUS_CONNECTED && channel->buffers.send.data_size > 0;
 }
 
-network_op_result_t network_flush(
+network_op_result_t network_flush_send_buffer(
         network_channel_t *channel) {
     network_op_result_t res;
 
@@ -222,7 +222,7 @@ network_channel_buffer_data_t *network_send_buffer_acquire_slice(
 
     // Check if there is enough space on the buffer, if not flush it
     if (unlikely(channel->buffers.send.data_size + slice_length > channel->buffers.send.length)) {
-        if (unlikely(network_flush(channel) != NETWORK_OP_RESULT_OK)) {
+        if (unlikely(network_flush_send_buffer(channel) != NETWORK_OP_RESULT_OK)) {
             return NULL;
         }
     }
@@ -289,16 +289,18 @@ network_op_result_t network_send_direct(
     return res;
 }
 
-network_op_result_t network_send(
+network_op_result_t network_send_buffered(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
         size_t buffer_length) {
+    assert(channel->buffers.send_slice_acquired_length == 0);
+
     do {
         size_t buffer_length_can_be_sent = MIN(buffer_length, channel->buffers.send.length);
 
         // Check if there is enough room in within send buffer, if not flush it
         if (likely(channel->buffers.send.data_size + buffer_length_can_be_sent > channel->buffers.send.length)) {
-            network_op_result_t res = network_flush(channel);
+            network_op_result_t res = network_flush_send_buffer(channel);
 
             if (unlikely(res != NETWORK_OP_RESULT_OK)) {
                 return res;
