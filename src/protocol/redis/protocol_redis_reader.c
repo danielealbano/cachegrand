@@ -13,47 +13,13 @@
 #include <assert.h>
 
 #include "misc.h"
-#include "exttypes.h"
-#include "spinlock.h"
-#include "data_structures/double_linked_list/double_linked_list.h"
-#include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
 #include "protocol_redis.h"
 
 #include "protocol_redis_reader.h"
 
-protocol_redis_reader_context_t* protocol_redis_reader_context_init() {
-    protocol_redis_reader_context_t* context =
-            (protocol_redis_reader_context_t*)slab_allocator_mem_alloc_zero(
-                    sizeof(protocol_redis_reader_context_t));
-
-    return context;
-}
-
-//void protocol_redis_reader_context_arguments_free(
-//        protocol_redis_reader_context_t* context) {
-//    // Free the allocated memory for the args array
-//    if (context->arguments.count > 0) {
-//        for(int index = 0; index < context->arguments.count; index++) {
-//            if (context->arguments.list[index].copied_from_buffer) {
-//                slab_allocator_mem_free(context->arguments.list[index].value);
-//            }
-//        }
-//
-//        slab_allocator_mem_free(context->arguments.list);
-//    }
-//}
-
 void protocol_redis_reader_context_reset(
         protocol_redis_reader_context_t* context) {
-//    protocol_redis_reader_context_arguments_free(context);
     memset(context, 0, sizeof(protocol_redis_reader_context_t));
-}
-
-void protocol_redis_reader_context_free(
-        protocol_redis_reader_context_t* context) {
-//    protocol_redis_reader_context_arguments_free(context);
-    slab_allocator_mem_free(context);
 }
 
 int32_t protocol_redis_reader_read(
@@ -142,7 +108,7 @@ int32_t protocol_redis_reader_read(
 
         // Update the ops list
         ops[op_index].type = PROTOCOL_REDIS_READER_OP_TYPE_COMMAND_BEGIN;
-        ops[op_index].data_read_len = move_offset;
+        ops[op_index].data_read_len = (off_t)move_offset;
         ops[op_index].data.command.arguments_count = context->arguments.count;
         op_index++;
     }
@@ -385,7 +351,7 @@ int32_t protocol_redis_reader_read(
 
         // Update the OPs list
         ops[op_index].type = PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_BEGIN;
-        ops[op_index].data_read_len = move_offset;
+        ops[op_index].data_read_len = (off_t)move_offset;
         ops[op_index].data.argument.index = context->arguments.current.index;
         ops[op_index].data.argument.length = data_length;
         op_index++;
@@ -437,7 +403,7 @@ int32_t protocol_redis_reader_read(
 
         // Update the OPs list
         ops[op_index].type = PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA;
-        ops[op_index].data_read_len = data_length;
+        ops[op_index].data_read_len = (off_t)data_length;
         ops[op_index].data.argument.index = context->arguments.current.index;
         ops[op_index].data.argument.length = context->arguments.current.length;
         ops[op_index].data.argument.offset = read_offset - data_length;
@@ -477,7 +443,7 @@ int32_t protocol_redis_reader_read(
 
             // Update the OPs list
             ops[op_index].type = PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END;
-            ops[op_index].data_read_len = waiting_data_length;
+            ops[op_index].data_read_len = (off_t)waiting_data_length;
             ops[op_index].data.argument.index = context->arguments.current.index;
             ops[op_index].data.argument.length = context->arguments.current.length;
             ops[op_index].data.argument.offset = read_offset - waiting_data_length;

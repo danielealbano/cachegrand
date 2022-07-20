@@ -265,11 +265,11 @@ bool network_protocol_redis_process_data(
                         goto end;
                     }
 
-                    protocol_context->current_command_data_offset = op->data.argument.offset;
+                    protocol_context->current_argument_token_data_offset = op->data.argument.offset;
                 } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END && op->data.argument.index == 0) {
                     // If the end of the first argument has been found then check if it's a known command
                     size_t command_length = op->data.argument.length;
-                    char *command_data = read_buffer_data_start + protocol_context->current_command_data_offset;
+                    char *command_data = read_buffer_data_start + protocol_context->current_argument_token_data_offset;
 
                     // Set the current command to UNKNOWN
                     protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_UNKNOWN;
@@ -383,6 +383,7 @@ bool network_protocol_redis_process_data(
                             return_result = true;
                             goto end;
                         }
+                        protocol_context->current_argument_token_data_offset = op->data.argument.offset;
                     }
 
                     if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_BEGIN && require_stream) {
@@ -430,7 +431,8 @@ bool network_protocol_redis_process_data(
                     } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END && !require_stream) {
                         if (protocol_context->command_info->argument_full_funcptr) {
                             size_t chunk_length = op->data.argument.length;
-                            char *chunk_data = read_buffer_data_start + op->data.argument.offset;
+                            char *chunk_data =
+                                    read_buffer_data_start + protocol_context->current_argument_token_data_offset;
 
                             if (!protocol_context->command_info->argument_full_funcptr(
                                     channel,
