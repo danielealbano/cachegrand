@@ -23,7 +23,7 @@ IFUNC_WRAPPER_RESOLVE(UTILS_STRING_NAME_IFUNC(cmp_eq_32)) {
 }
 
 bool IFUNC_WRAPPER(UTILS_STRING_NAME_IFUNC(cmp_eq_32),
-                   (const char a[32], size_t a_len, const char b[32], size_t b_len));
+                   (const char *a, size_t a_len, const char *b, size_t b_len));
 
 
 IFUNC_WRAPPER_RESOLVE(UTILS_STRING_NAME_IFUNC(casecmp_eq_32)) {
@@ -38,4 +38,4 @@ IFUNC_WRAPPER_RESOLVE(UTILS_STRING_NAME_IFUNC(casecmp_eq_32)) {
 }
 
 bool IFUNC_WRAPPER(UTILS_STRING_NAME_IFUNC(casecmp_eq_32),
-                   (const char a[32], size_t a_len, const char b[32], size_t b_len));
+                   (const char *a, size_t a_len, const char *b, size_t b_len));

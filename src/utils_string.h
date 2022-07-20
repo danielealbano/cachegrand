@@ -18,13 +18,15 @@ extern "C" {
 #define UTILS_STRING_NAME_IMPL(NAME, METHOD) utils_string_##NAME##_##METHOD
 #define UTILS_STRING_SIGNATURE_IMPL(NAME, METHOD, ARGS) UTILS_STRING_NAME_IMPL(NAME, METHOD) ARGS
 
-bool UTILS_STRING_SIGNATURE_IFUNC(cmp_eq_32, (const char a[32], size_t a_len, const char b[32], size_t b_len));
-bool UTILS_STRING_SIGNATURE_IMPL(cmp_eq_32, sw, (const char a[32], size_t a_len, const char b[32], size_t b_len));
-bool UTILS_STRING_SIGNATURE_IMPL(cmp_eq_32, avx2, (const char a[32], size_t a_len, const char b[32], size_t b_len));
+bool UTILS_STRING_SIGNATURE_IFUNC(cmp_eq_32, (const char *a, size_t a_len, const char *b, size_t b_len));
+bool UTILS_STRING_SIGNATURE_IMPL(cmp_eq_32, sw, (const char *a, size_t a_len, const char *b, size_t b_len));
+bool UTILS_STRING_SIGNATURE_IMPL(cmp_eq_32, avx2, (const char *a, size_t a_len, const char *b, size_t b_len));
+bool UTILS_STRING_SIGNATURE_IMPL(cmp_eq_32, avx2_internal, (const char *a, size_t a_len, const char *b, size_t b_len));
 
-bool UTILS_STRING_SIGNATURE_IFUNC(casecmp_eq_32, (const char a[32], size_t a_len, const char b[32], size_t b_len));
-bool UTILS_STRING_SIGNATURE_IMPL(casecmp_eq_32, sw, (const char a[32], size_t a_len, const char b[32], size_t b_len));
-bool UTILS_STRING_SIGNATURE_IMPL(casecmp_eq_32, avx2, (const char a[32], size_t a_len, const char b[32], size_t b_len));
+bool UTILS_STRING_SIGNATURE_IFUNC(casecmp_eq_32, (const char *a, size_t a_len, const char *b, size_t b_len));
+bool UTILS_STRING_SIGNATURE_IMPL(casecmp_eq_32, sw, (const char *a, size_t a_len, const char *b, size_t b_len));
+bool UTILS_STRING_SIGNATURE_IMPL(casecmp_eq_32, avx2, (const char *a, size_t a_len, const char *b, size_t b_len));
+bool UTILS_STRING_SIGNATURE_IMPL(casecmp_eq_32, avx2_internal, (const char *a, size_t a_len, const char *b, size_t b_len));
 
 #ifdef __cplusplus
 }
