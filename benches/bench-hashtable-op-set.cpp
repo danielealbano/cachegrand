@@ -281,10 +281,7 @@ public:
         if (state.thread_index() == 0) {
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
             // Free up the memory allocated for the first keyset slots generated
-            test_support_free_keyset_slots(static_keyset_slots);
-
-            fprintf(stdout, "> Setup (%d) - second keyset slots generation\n", state.thread_index());
-            fflush(stdout);
+            test_support_free_keyset_slots((test_support_keyset_slot_t *)static_keyset_slots);
 
             // Re-initialize the keyset, the random generator in use will re-generate exactly the same set as we are
             // using the same random seed (although the generator will not generate them in the same order because

@@ -80,13 +80,14 @@ void worker_stats_publish(
 }
 
 bool worker_stats_should_publish_after_interval(
-        worker_stats_volatile_t* worker_stats_public) {
+        worker_stats_volatile_t* worker_stats_public,
+        int interval) {
     struct timespec last_update_timestamp;
 
     clock_realtime(&last_update_timestamp);
 
     bool res = last_update_timestamp.tv_sec >=
-        worker_stats_public->per_minute_last_update_timestamp.tv_sec + WORKER_PUBLISH_STATS_INTERVAL_SEC;
+        worker_stats_public->per_minute_last_update_timestamp.tv_sec + interval;
     return res;
 }
 

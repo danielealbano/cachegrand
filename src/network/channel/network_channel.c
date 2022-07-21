@@ -23,6 +23,9 @@
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/io/network_io_common.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
+#include "slab_allocator.h"
 
 #include "network/channel/network_channel.h"
 
@@ -35,6 +38,9 @@ bool network_channel_client_setup(
 
     error |= !network_io_common_socket_set_incoming_cpu(fd, (int)incoming_cpu);
     error |= !network_io_common_socket_set_quickack(fd, true);
+    // Because of how cachegrand works (fibers), no reason to keep the nagle algorithm enabled, also in the vast
+    // majority of the cases in cachegrand, the data can be sent immediately
+    error |= !network_io_common_socket_set_nodelay(fd, true);
     error |= !network_io_common_socket_set_linger(fd, true, 2);
     error |= !network_io_common_socket_set_keepalive(fd, true);
     error |= !network_io_common_socket_set_receive_timeout(fd, 5, 0);
@@ -73,12 +79,27 @@ bool network_channel_listener_new_callback_socket_setup_server_cb(
 }
 
 bool network_channel_init(
+        network_channel_type_t type,
         network_channel_t *channel) {
+    channel->type = type;
     channel->address.size = sizeof(channel->address.socket);
     channel->timeout.read_ns = -1;
     channel->timeout.write_ns = -1;
 
+    if (channel->type == NETWORK_CHANNEL_TYPE_CLIENT) {
+        channel->buffers.send.length = NETWORK_CHANNEL_SEND_BUFFER_SIZE;
+        channel->buffers.send.data = slab_allocator_mem_alloc(channel->buffers.send.length);
+    }
+
     return true;
+}
+
+void network_channel_cleanup(
+        network_channel_t *channel) {
+    if (channel->type == NETWORK_CHANNEL_TYPE_CLIENT) {
+        slab_allocator_mem_free(channel->buffers.send.data);
+        channel->buffers.send.data = NULL;
+    }
 }
 
 bool network_channel_listener_new_callback(
@@ -132,6 +153,7 @@ bool network_channel_listener_new_callback(
     listener->fd = fd;
     listener->address.size = socket_address_size;
     listener->protocol = protocol;
+    listener->type = NETWORK_CHANNEL_TYPE_LISTENER;
 
     memcpy(
             &listener->address.socket.base,

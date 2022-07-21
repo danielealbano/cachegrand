@@ -25,22 +25,24 @@
 
 #include "network_channel_iouring.h"
 
-network_channel_iouring_t* network_channel_iouring_new() {
+network_channel_iouring_t* network_channel_iouring_new(
+        network_channel_type_t type) {
     network_channel_iouring_t *channel =
             (network_channel_iouring_t*)slab_allocator_mem_alloc_zero(sizeof(network_channel_iouring_t));
 
-    network_channel_init(&channel->wrapped_channel);
+    network_channel_init(type, &channel->wrapped_channel);
 
     return channel;
 }
 
 network_channel_iouring_t* network_channel_iouring_multi_new(
+        network_channel_type_t type,
         uint32_t count) {
     network_channel_iouring_t *channels =
             (network_channel_iouring_t*)slab_allocator_mem_alloc_zero(sizeof(network_channel_iouring_t) * count);
 
     for(int index = 0; index < count; index++) {
-        network_channel_init(&channels[index].wrapped_channel);
+        network_channel_init(type, &channels[index].wrapped_channel);
     }
 
     return channels;
@@ -48,5 +50,6 @@ network_channel_iouring_t* network_channel_iouring_multi_new(
 
 void network_channel_iouring_free(
         network_channel_iouring_t* network_channel) {
+    network_channel_cleanup(&network_channel->wrapped_channel);
     slab_allocator_mem_free(network_channel);
 }

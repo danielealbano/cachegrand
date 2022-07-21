@@ -178,8 +178,9 @@ bool worker_network_listeners_initialize(
     }
 
     // Allocate the needed listeners and reset listeners_count
-    listener_new_cb_user_data.listeners =
-            worker_op_network_channel_multi_new(listener_new_cb_user_data.listeners_count);
+    listener_new_cb_user_data.listeners = worker_op_network_channel_multi_new(
+            NETWORK_CHANNEL_TYPE_LISTENER,
+            listener_new_cb_user_data.listeners_count);
     listener_new_cb_user_data.network_channel_size = worker_op_network_channel_size();
     listener_new_cb_user_data.listeners_count = 0;
 
@@ -281,21 +282,14 @@ void worker_network_listeners_listen(
 
 void worker_network_new_client_fiber_entrypoint(
         void *user_data) {
-    worker_context_t *worker_context = worker_context_get();
     worker_stats_t *stats = worker_stats_get();
 
     network_channel_t *new_channel = user_data;
     bool tls_enabled = new_channel->tls.enabled;
 
     stats->network.total.active_connections++;
-    stats->network.total.active_tls_connections++;
-
-    if (stats->network.total.active_connections > worker_context->config->network->max_clients) {
-        LOG_W(
-                TAG,
-                "[FD:%5d][ACCEPT] Maximum active connections established, can't accept any new connection",
-                new_channel->fd);
-        goto end;
+    if (tls_enabled) {
+        stats->network.total.active_tls_connections++;
     }
 
     stats->network.total.accepted_connections++;

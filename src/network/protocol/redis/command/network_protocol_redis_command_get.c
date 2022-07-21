@@ -172,8 +172,8 @@ end:
 }
 
 NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
+    network_channel_buffer_data_t *send_buffer, *send_buffer_start;
     bool res;
-    char *send_buffer = NULL;
     bool return_res = false;
     storage_db_entry_index_t *entry_index = NULL;
     storage_db_chunk_info_t *chunk_info = NULL;
@@ -182,27 +182,27 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
     entry_index = get_command_context->entry_index;
 
     if (get_command_context->has_error) {
-        char error_send_buffer[256], *error_send_buffer_start, *error_send_buffer_end;
-        size_t error_send_buffer_length;
-        error_send_buffer_length = sizeof(error_send_buffer);
-        error_send_buffer_start = error_send_buffer;
-        error_send_buffer_end = error_send_buffer_start + error_send_buffer_length;
-
-        error_send_buffer_start = protocol_redis_writer_write_simple_error(
-                error_send_buffer_start,
-                error_send_buffer_end - error_send_buffer_start,
-                get_command_context->error_message,
-                (int)strlen(get_command_context->error_message));
-
-        if (error_send_buffer_start == NULL) {
-            LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
+        size_t slice_length = sizeof(get_command_context->error_message) + 16;
+        send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
+        if (send_buffer_start == NULL) {
+            LOG_E(TAG, "Unable to acquire send buffer slice!");
             goto end;
         }
 
-        return_res = network_send(
+        send_buffer_start = protocol_redis_writer_write_simple_error(
+                send_buffer_start,
+                slice_length,
+                get_command_context->error_message,
+                (int)strlen(get_command_context->error_message));
+        network_send_buffer_release_slice(
                 channel,
-                error_send_buffer,
-                error_send_buffer_start - error_send_buffer) == NETWORK_OP_RESULT_OK;
+                send_buffer_start ? send_buffer_start - send_buffer : 0);
+
+        return_res = send_buffer_start != NULL;
+
+        if (send_buffer_start == NULL) {
+            LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
+        }
 
         goto end;
     }
@@ -210,21 +210,31 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
     if (likely(entry_index)) {
         // Check if the value is small enough to be contained in 1 single chunk and if it would fit in a memory single
         // memory allocation leaving enough space for the protocol begin and end signatures themselves
+        // The 32 bytes extra are required for the protocol bits that need to be stored in the send buffer
         if (entry_index->value_chunks_count == 1 && entry_index->value_length < SLAB_OBJECT_SIZE_MAX - 32) {
-            char *send_buffer_start, *send_buffer_end;
-            size_t send_buffer_length;
+            network_channel_buffer_data_t *send_buffer_end;
+            size_t slice_length = MIN(entry_index->value_length + 32, STORAGE_DB_CHUNK_MAX_SIZE);
+            send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
+            if (send_buffer_start == NULL) {
+                LOG_E(TAG, "Unable to acquire send buffer slice!");
+                goto end;
+            }
 
-            send_buffer_length = MIN(entry_index->value_length + 32, STORAGE_DB_CHUNK_MAX_SIZE);
-            send_buffer_start = send_buffer = slab_allocator_mem_alloc(send_buffer_length);
-            send_buffer_end = send_buffer_start + send_buffer_length;
+            send_buffer_end = send_buffer_start + slice_length;
 
             // Prepend the blog start in the buffer which is never sent at the very beginning because there will always be
             // a chunk big enough to hold always at least the necessary protocol data and 1 database chunk.
             send_buffer_start = protocol_redis_writer_write_argument_blob_start(
                     send_buffer_start,
-                    send_buffer_length,
+                    slice_length,
                     false,
                     (int)entry_index->value_length);
+
+            if (send_buffer_start == NULL) {
+                network_send_buffer_release_slice(channel, 0);
+                LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
+                goto end;
+            }
 
             chunk_info = storage_db_entry_value_chunk_get(entry_index, 0);
 
@@ -234,6 +244,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
                     send_buffer_start);
 
             if (!res) {
+                network_send_buffer_release_slice(channel, 0);
                 LOG_E(
                         TAG,
                         "[REDIS][GET] Critical error, unable to read chunk <%u> long <%u> bytes",
@@ -253,27 +264,32 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
                     send_buffer_start,
                     send_buffer_end - send_buffer_start);
 
-            if (network_send(
-                    channel,
-                    send_buffer,
-                    send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
+            if (send_buffer_start == NULL) {
+                network_send_buffer_release_slice(channel, 0);
+                LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
                 goto end;
             }
-        } else {
-            char protocol_send_buffer[64] = { 0 };
-            size_t protocol_send_buffer_length = sizeof(protocol_send_buffer);
-            char *protocol_send_buffer_start;
 
-            protocol_send_buffer_start = protocol_redis_writer_write_argument_blob_start(
-                    protocol_send_buffer,
-                    protocol_send_buffer_length,
+            network_send_buffer_release_slice(channel, send_buffer_start - send_buffer);
+        } else {
+            size_t slice_length = 32;
+            send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
+            if (send_buffer_start == NULL) {
+                LOG_E(TAG, "Unable to acquire send buffer slice!");
+                goto end;
+            }
+
+            send_buffer_start = protocol_redis_writer_write_argument_blob_start(
+                    send_buffer_start,
+                    slice_length,
                     false,
                     (int)entry_index->value_length);
-
-            if (network_send(
+            network_send_buffer_release_slice(
                     channel,
-                    protocol_send_buffer,
-                    protocol_send_buffer_start - protocol_send_buffer) != NETWORK_OP_RESULT_OK) {
+                    send_buffer_start ? send_buffer_start - send_buffer : 0);
+
+            if (send_buffer_start == NULL) {
+                LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
                 goto end;
             }
 
@@ -311,7 +327,9 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
                     buffer_to_send_length = chunk_info->chunk_length;
                 }
 
-                if (network_send(
+                // TODO: check if it's the last chunk and, if yes, if it would fit in the send buffer with the protocol
+                //       bits that have to be sent later without doing an implicit flush
+                if (network_send_direct(
                         channel,
                         buffer_to_send,
                         buffer_to_send_length) != NETWORK_OP_RESULT_OK) {
@@ -324,41 +342,45 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
             storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
             get_command_context->entry_index = entry_index = NULL;
 
-            protocol_send_buffer_start = protocol_redis_writer_write_argument_blob_end(
-                    protocol_send_buffer,
-                    protocol_send_buffer_length);
+            send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
+            if (send_buffer_start == NULL) {
+                LOG_E(TAG, "Unable to acquire send buffer slice!");
+                goto end;
+            }
 
-            if (network_send(
+            send_buffer_start = protocol_redis_writer_write_argument_blob_end(
+                    send_buffer_start,
+                    slice_length);
+            network_send_buffer_release_slice(
                     channel,
-                    protocol_send_buffer,
-                    protocol_send_buffer_start - protocol_send_buffer) != NETWORK_OP_RESULT_OK) {
+                    send_buffer_start ? send_buffer_start - send_buffer : 0);
+
+            if (send_buffer_start == NULL) {
+                LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
                 goto end;
             }
         }
     } else {
-        char error_send_buffer[64] = { 0 }, *error_send_buffer_start, *error_send_buffer_end;
-        size_t error_send_buffer_length;
-
-        error_send_buffer_length = sizeof(error_send_buffer);
-        error_send_buffer_start = error_send_buffer;
-        error_send_buffer_end = error_send_buffer_start + error_send_buffer_length;
-
-        if (protocol_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2) {
-            error_send_buffer_start = protocol_redis_writer_write_blob_string_null(
-                    error_send_buffer_start,
-                    error_send_buffer_end - error_send_buffer_start);
-        } else {
-            error_send_buffer_start = protocol_redis_writer_write_null(
-                    error_send_buffer_start,
-                    error_send_buffer_end - error_send_buffer_start);
-        }
-
-        if (network_send(
-                channel,
-                error_send_buffer,
-                error_send_buffer_start - error_send_buffer) != NETWORK_OP_RESULT_OK) {
+        size_t slice_length = 16;
+        send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
+        if (send_buffer_start == NULL) {
+            LOG_E(TAG, "Unable to acquire send buffer slice!");
             goto end;
         }
+
+        if (protocol_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2) {
+            send_buffer_start = protocol_redis_writer_write_blob_string_null(
+                    send_buffer_start,
+                    slice_length);
+        } else {
+            send_buffer_start = protocol_redis_writer_write_null(
+                    send_buffer_start,
+                    slice_length);
+        }
+
+        network_send_buffer_release_slice(
+                channel,
+                send_buffer_start ? send_buffer_start - send_buffer : 0);
     }
 
     // return_res is set to false at the beginning and switched to true only at this stage, this helps to avoid code
@@ -366,9 +388,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
     return_res = true;
 
 end:
-    if (send_buffer) {
-        slab_allocator_mem_free(send_buffer);
-    }
 
     return return_res;
 }

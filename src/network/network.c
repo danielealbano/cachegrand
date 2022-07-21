@@ -6,7 +6,6 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
@@ -14,14 +13,9 @@
 #include <errno.h>
 #include <assert.h>
 
-#include <mbedtls/aes.h>
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/entropy.h>
-#include <mbedtls/error.h>
-#include <mbedtls/gcm.h>
 #include <mbedtls/net_sockets.h>
-#include <mbedtls/ssl.h>
-#include <mbedtls/ssl_internal.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -56,30 +50,31 @@
 #define TAG "network"
 
 bool network_buffer_has_enough_space(
-        network_channel_buffer_t *read_buffer,
+        network_channel_buffer_t *network_channel_buffer,
         size_t read_length) {
-    size_t read_buffer_needed_size_min = read_buffer->data_size + read_length;
+    size_t network_channel_buffer_needed_size_min = network_channel_buffer->data_size + read_length;
 
-    return read_buffer->length >= read_buffer_needed_size_min;
+    return network_channel_buffer->length >= network_channel_buffer_needed_size_min;
 }
 
 bool network_buffer_needs_rewind(
-        network_channel_buffer_t *read_buffer,
+        network_channel_buffer_t *network_channel_buffer,
         size_t read_length) {
-    size_t read_buffer_needed_size_min = read_buffer->data_size + read_length;
-    size_t read_buffer_needed_size = read_buffer->data_offset + read_buffer_needed_size_min;
+    size_t network_channel_buffer_needed_size_min = network_channel_buffer->data_size + read_length;
+    size_t network_channel_buffer_needed_size =
+            network_channel_buffer->data_offset + network_channel_buffer_needed_size_min;
 
-    return read_buffer_needed_size > read_buffer->length;
+    return network_channel_buffer_needed_size > network_channel_buffer->length;
 }
 
 void network_buffer_rewind(
-        network_channel_buffer_t *read_buffer) {
+        network_channel_buffer_t *network_channel_buffer) {
     memcpy(
-            read_buffer->data,
-            read_buffer->data +
-            read_buffer->data_offset,
-            read_buffer->data_size);
-    read_buffer->data_offset = 0;
+            network_channel_buffer->data,
+            network_channel_buffer->data +
+            network_channel_buffer->data_offset,
+            network_channel_buffer->data_size);
+    network_channel_buffer->data_offset = 0;
 }
 
 network_op_result_t network_receive(
@@ -88,15 +83,9 @@ network_op_result_t network_receive(
         size_t receive_length) {
     size_t received_length;
 
-    size_t buffer_data_offset =
-            buffer->data_offset +
-            buffer->data_size;
-    network_channel_buffer_data_t *buffer_data =
-            buffer->data +
-            buffer_data_offset;
-    size_t buffer_data_length =
-            buffer->length -
-            buffer_data_offset;
+    size_t buffer_data_offset = buffer->data_offset + buffer->data_size;
+    network_channel_buffer_data_t *buffer_data = buffer->data + buffer_data_offset;
+    size_t buffer_data_length = buffer->length - buffer_data_offset;
 
     if (unlikely(buffer_data_length < receive_length)) {
         LOG_D(
@@ -199,27 +188,94 @@ network_op_result_t network_receive_internal(
     return NETWORK_OP_RESULT_OK;
 }
 
-network_op_result_t network_flush(
+bool network_should_flush_send_buffer(
         network_channel_t *channel) {
-    // TODO: this function currently does nothing, a new worker network op will be implemented
-    return NETWORK_OP_RESULT_OK;
+    return channel->status == NETWORK_CHANNEL_STATUS_CONNECTED && channel->buffers.send.data_size > 0;
 }
 
-network_op_result_t network_send(
+network_op_result_t network_flush_send_buffer(
+        network_channel_t *channel) {
+    network_op_result_t res;
+
+    if (unlikely(channel->buffers.send.data_size == 0)) {
+        return NETWORK_OP_RESULT_OK;
+    }
+
+    res = network_send_direct_wrapper(
+            channel,
+            channel->buffers.send.data,
+            channel->buffers.send.data_size);
+
+    // Resets data size and offset
+    channel->buffers.send.data_size = 0;
+    channel->buffers.send.data_offset = 0;
+
+    return res;
+}
+
+network_channel_buffer_data_t *network_send_buffer_acquire_slice(
+        network_channel_t *channel,
+        size_t slice_length) {
+    // Ensure that the slice requested can fit into the buffer and that there isn't already a slice acquired
+    assert(slice_length <= channel->buffers.send.length);
+    assert(channel->buffers.send_slice_acquired_length == 0);
+
+    // Check if there is enough space on the buffer, if not flush it
+    if (unlikely(channel->buffers.send.data_size + slice_length > channel->buffers.send.length)) {
+        if (unlikely(network_flush_send_buffer(channel) != NETWORK_OP_RESULT_OK)) {
+            return NULL;
+        }
+    }
+
+#if DEBUG == 1
+    channel->buffers.send_slice_acquired_length = slice_length;
+#endif
+
+    return channel->buffers.send.data + channel->buffers.send.data_offset;
+}
+
+void network_send_buffer_release_slice(
+        network_channel_t *channel,
+        size_t slice_used_length) {
+    // Ensure that when the slice is released, the amount of data used is always the same or smaller than the length
+    // acquired. Also ensure that there was a slice acquired.
+    assert(channel->buffers.send_slice_acquired_length > 0);
+    assert(slice_used_length <= channel->buffers.send_slice_acquired_length);
+
+    channel->buffers.send.data_size += slice_used_length;
+    channel->buffers.send.data_offset += slice_used_length;
+
+#if DEBUG == 1
+    channel->buffers.send_slice_acquired_length = 0;
+#endif
+}
+
+network_op_result_t network_send_direct(
+        network_channel_t *channel,
+        network_channel_buffer_data_t *buffer,
+        size_t buffer_length) {
+    if (network_should_flush_send_buffer(channel)) {
+        network_flush_send_buffer(channel);
+    }
+
+    return network_send_direct_wrapper(channel, buffer, buffer_length);
+}
+
+network_op_result_t network_send_direct_wrapper(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
         size_t buffer_length) {
     size_t sent_length;
-
     network_op_result_t res;
+
     if (network_channel_tls_uses_mbedtls(channel)) {
-        res = (int32_t)network_tls_send_internal(
+        res = (int32_t) network_tls_send_direct_internal(
                 channel,
                 buffer,
                 buffer_length,
                 &sent_length);
     } else {
-        res = (int32_t)network_send_internal(
+        res = (int32_t) network_send_direct_internal(
                 channel,
                 buffer,
                 buffer_length,
@@ -241,10 +297,46 @@ network_op_result_t network_send(
                 channel->address.str);
     }
 
+    return res;
+}
+
+network_op_result_t network_send_buffered(
+        network_channel_t *channel,
+        network_channel_buffer_data_t *buffer,
+        size_t buffer_length) {
+    assert(channel->buffers.send_slice_acquired_length == 0);
+
+    do {
+        size_t buffer_length_can_be_sent = MIN(buffer_length, channel->buffers.send.length);
+
+        // Check if there is enough room in within send buffer, if not flush it
+        if (likely(channel->buffers.send.data_size + buffer_length_can_be_sent > channel->buffers.send.length)) {
+            network_op_result_t res = network_flush_send_buffer(channel);
+
+            if (unlikely(res != NETWORK_OP_RESULT_OK)) {
+                return res;
+            }
+        }
+
+        // Copy the data to the send buffer and update data size and offset
+        memcpy(
+                channel->buffers.send.data + channel->buffers.send.data_offset,
+                buffer,
+                buffer_length_can_be_sent);
+        channel->buffers.send.data_size += buffer_length_can_be_sent;
+        channel->buffers.send.data_offset += buffer_length_can_be_sent;
+
+        buffer += buffer_length_can_be_sent;
+        buffer_length -= buffer_length_can_be_sent;
+
+        // Normally network_send should be used for small sends, large payloads should be sent using network_send_iov
+        // when it will be introduced, to avoid useless data copies.
+    } while (unlikely(buffer_length > 0));
+
     return NETWORK_OP_RESULT_OK;
 }
 
-network_op_result_t network_send_internal(
+network_op_result_t network_send_direct_internal(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
         size_t buffer_length,
@@ -255,7 +347,7 @@ network_op_result_t network_send_internal(
             buffer,
             buffer_length);
 
-    if (res == 0) {
+    if (unlikely(res == 0)) {
         LOG_D(
                 TAG,
                 "[FD:%5d][SEND] The client <%s> closed the connection",
@@ -263,14 +355,14 @@ network_op_result_t network_send_internal(
                 channel->address.str);
 
         return NETWORK_OP_RESULT_CLOSE_SOCKET;
-    } else if (res == -ECANCELED) {
+    } else if (unlikely(res == -ECANCELED)) {
         LOG_I(
                 TAG,
                 "[FD:%5d][ERROR CLIENT] Send timeout to client <%s>",
                 channel->fd,
                 channel->address.str);
         return NETWORK_OP_RESULT_ERROR;
-    } else if (res < 0) {
+    } else if (unlikely(res < 0)) {
         int error_number = -res;
         LOG_I(
                 TAG,
@@ -292,6 +384,7 @@ network_op_result_t network_close(
         network_channel_t *channel,
         bool shutdown_may_fail) {
     network_op_result_t res;
+
     if (network_channel_tls_uses_mbedtls(channel)) {
         res = network_tls_close_internal(
                 channel,

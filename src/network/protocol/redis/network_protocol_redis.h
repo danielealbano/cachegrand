@@ -210,6 +210,7 @@ struct network_protocol_redis_context {
     network_protocol_redis_commands_t command;
     network_protocol_redis_command_info_t *command_info;
     network_protocol_redis_command_context_t *command_context;
+    size_t current_argument_token_data_offset;
     bool skip_command;
 };
 
