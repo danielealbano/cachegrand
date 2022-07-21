@@ -45,7 +45,6 @@
 struct mget_command_key_data {
     char *key;
     size_t key_length;
-    size_t key_offset;
 };
 typedef struct mget_command_key_data mget_command_key_data_t;
 
@@ -53,6 +52,7 @@ struct mget_command_context {
     char error_message[200];
     bool has_error;
     mget_command_key_data_t *key_data;
+    size_t key_offset;
     mget_command_key_data_t **keys;
     uint keys_count;
 };
@@ -64,7 +64,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(mget) {
     mget_command_context_t *mget_command_context = (mget_command_context_t*)protocol_context->command_context;
     mget_command_context->has_error = false;
     mget_command_context->keys_count = reader_context->arguments.count - 1;
-    mget_command_context->keys = slab_allocator_mem_alloc(mget_command_context->keys_count * sizeof(mget_command_key_data_t*));
+    mget_command_context->keys = slab_allocator_mem_alloc_zero(mget_command_context->keys_count * sizeof(mget_command_key_data_t*));
 
     return true;
 }
@@ -99,8 +99,9 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(mget) {
     }
 
 
+    mget_command_context->key_offset = 0;
+
     mget_command_context->key_data = slab_allocator_mem_alloc(sizeof(mget_command_key_data_t*));
-    mget_command_context->key_data->key_offset = 0;
     mget_command_context->key_data->key_length = argument_length;
     mget_command_context->key_data->key = slab_allocator_mem_alloc(mget_command_context->key_data->key_length);
 
@@ -119,10 +120,12 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_DATA(mget) {
     // The scenario tested in this assert can't happen, but if it does happen it's a bug in the protocol parser and
     // there is no way to be sure that there is no corruption or data loss, so it's better to dramatically abort
     // (in debug mode)
-    assert(mget_command_context->key_data->key_offset + chunk_length <= mget_command_context->key_data->key_length);
+    assert(mget_command_context->key_offset + chunk_length <= mget_command_context->key_data->key_length);
+    memcpy( mget_command_context->key_data->key + mget_command_context->key_offset,
+           chunk_data,
+           chunk_length);
 
-    memcpy(mget_command_context->key_data->key, chunk_data, chunk_length);
-    mget_command_context->key_data->key_offset += chunk_length;
+    mget_command_context->key_offset += chunk_length;
 
     return true;
 }
@@ -136,6 +139,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(mget) {
 
     mget_command_context->keys[argument_index] = mget_command_context->key_data;
     mget_command_context->key_data = NULL;
+    mget_command_context->key_offset = 0;
 end:
     return true;
 }
@@ -198,17 +202,18 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
             mget_command_context->keys[key_index]->key,
             mget_command_context->keys[key_index]->key_length);
 
+        // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
         if (likely(entry_index)) {
-                // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
-                storage_db_entry_index_status_increase_readers_counter(
-                        entry_index,
-                        &old_status);
+            storage_db_entry_index_status_increase_readers_counter(
+                    entry_index,
+                    &old_status);
 
-                // TODO: ??
-                if (unlikely(old_status.deleted)) {
-                    entry_index = NULL;
-                }
+            if (unlikely(old_status.deleted)) {
+                entry_index = NULL;
+            }
+        }
 
+        if (likely(entry_index)) {
                 send_buffer_start = protocol_redis_writer_write_argument_blob_start(
                         send_buffer_start,
                         send_buffer_length,
@@ -248,6 +253,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
                             channel,
                             chunk_send_buffer,
                             chunk_info->chunk_length) != NETWORK_OP_RESULT_OK) {
+                        slab_allocator_mem_free(chunk_send_buffer);
                         goto end;
                     }
 
@@ -306,7 +312,9 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(mget) {
     }
 
     for(int key_index = 0; key_index < mget_command_context->keys_count; key_index++) {
-        slab_allocator_mem_free(mget_command_context->keys[key_index]);
+        if (mget_command_context->keys[key_index] != NULL) {
+            slab_allocator_mem_free(mget_command_context->keys[key_index]);
+        }
     }
 
     slab_allocator_mem_free(protocol_context->command_context);
