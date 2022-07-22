@@ -124,8 +124,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
     struct sockaddr_in address = {0};
     size_t buffer_send_data_len;
-    char buffer_send[8 * 1024] = {0};
-    char buffer_recv[8 * 1024] = {0};
+    char buffer_send[16 * 1024] = {0};
+    char buffer_recv[16 * 1024] = {0};
 
     int clientfd = network_io_common_socket_tcp4_new(0);
     address.sin_family = AF_INET;
