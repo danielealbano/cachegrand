@@ -53,6 +53,7 @@ network_protocol_redis_command_info_t command_infos_map[] = {
         NETWORK_PROTOCOL_REDIS_COMMAND(SET, "SET", set, 2),
         NETWORK_PROTOCOL_REDIS_COMMAND(GET, "GET", get, 1),
         NETWORK_PROTOCOL_REDIS_COMMAND(DEL, "DEL", del, 1),
+        NETWORK_PROTOCOL_REDIS_COMMAND(MGET, "MGET", mget, 1),
 };
 uint32_t command_infos_map_count = sizeof(command_infos_map) / sizeof(network_protocol_redis_command_info_t);
 
