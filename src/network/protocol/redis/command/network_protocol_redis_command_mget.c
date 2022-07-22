@@ -169,7 +169,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
             goto end;
         }
 
-        return_res = network_send(
+        return_res = network_send_buffered(
                 channel,
                 error_send_buffer,
                 error_send_buffer_start - error_send_buffer) == NETWORK_OP_RESULT_OK;
@@ -220,7 +220,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
                         false,
                         (int)entry_index->value_length);
 
-                if (network_send(
+                if (network_send_buffered(
                         channel,
                         send_buffer,
                         send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
@@ -249,7 +249,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
                         goto end;
                     }
 
-                    if (network_send(
+                    if (network_send_buffered(
                             channel,
                             chunk_send_buffer,
                             chunk_info->chunk_length) != NETWORK_OP_RESULT_OK) {
@@ -281,7 +281,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
         }
     }
 
-    if (network_send(
+    if (network_send_buffered(
             channel,
             send_buffer,
             send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {

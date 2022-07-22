@@ -70,7 +70,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
     };
     config_network_protocol_redis_t config_network_protocol_redis = {
             .max_key_length = 256,
-            .max_command_length = 2048,
+            .max_command_length = 8 * 1024,
     };
     config_network_protocol_timeout_t config_network_protocol_timeout = {
             .read_ms = 1000,
@@ -525,6 +525,194 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
             REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
             REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
+        }
+    }
+
+    SECTION("Redis - command - MGET") {
+        SECTION("Existing key") {
+            snprintf(buffer_send, sizeof(buffer_send) - 1, "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nb_value\r\n");
+            buffer_send_data_len = strlen(buffer_send);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
+            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
+
+            snprintf(buffer_send, sizeof(buffer_send) - 1, "*2\r\n$4\r\nMGET\r\n$5\r\na_key\r\n");
+            buffer_send_data_len = strlen(buffer_send);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 17);
+            REQUIRE(strncmp(buffer_recv, "*1\r\n$7\r\nb_value\r\n", strlen("*1\r\n$7\r\nb_value\r\n")) == 0);
+        }
+
+        SECTION("Existing key - pipelining") {
+            char buffer_recv_expected[512] = { 0 };
+            char *buffer_send_start = buffer_send;
+            char *buffer_recv_expected_start = buffer_recv_expected;
+
+            snprintf(buffer_send, sizeof(buffer_send) - 1, "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nb_value\r\n");
+            buffer_send_data_len = strlen(buffer_send);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
+            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
+
+            for(int index = 0; index < 10; index++) {
+                buffer_send_start += snprintf(
+                        buffer_send_start,
+                        sizeof(buffer_send) - (buffer_send_start - buffer_send) - 1,
+                        "*2\r\n$4\r\nMGET\r\n$5\r\na_key\r\n");
+
+                buffer_recv_expected_start += snprintf(
+                        buffer_recv_expected_start,
+                        sizeof(buffer_recv_expected) - (buffer_recv_expected_start - buffer_recv_expected) - 1,
+                        "$7\r\nb_value\r\n");
+            }
+            buffer_send_data_len = strlen(buffer_send);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+
+            size_t recv_len = 0;
+            do {
+                recv_len += recv(clientfd, buffer_recv, sizeof(buffer_recv), 0);
+            } while(recv_len < 130);
+
+            REQUIRE(strncmp(buffer_recv, buffer_recv_expected_start, strlen(buffer_recv_expected_start)) == 0);
+        }
+
+        SECTION("Non-existing key") {
+            snprintf(buffer_send, sizeof(buffer_send) - 1, "*2\r\n$4\r\nMGET\r\n$5\r\na_key\r\n");
+            buffer_send_data_len = strlen(buffer_send);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 9);
+            REQUIRE(strncmp(buffer_recv, "*1\r\n$-1\r\n", strlen("*1\r\n$-1\r\n")) == 0);
+        }
+
+        SECTION("Missing parameters - key") {
+            snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$4\r\nMGET\r\n");
+            buffer_send_data_len = strlen(buffer_send);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 51);
+            REQUIRE(strncmp(
+                    buffer_recv,
+                    "-ERR wrong number of arguments for 'MGET' command\r\n",
+                    strlen("-ERR wrong number of arguments for 'MGET' command\r\n")) == 0);
+        }
+
+        SECTION("Key too long") {
+            int key_length = (int)config.network->protocols->redis->max_key_length + 1;
+            char expected_error[256] = { 0 };
+
+            sprintf(
+                    expected_error,
+                    "-ERR The key has exceeded the allowed size of <%u>\r\n",
+                    (int)config.network->protocols->redis->max_key_length);
+            snprintf(
+                    buffer_send,
+                    sizeof(buffer_send) - 1,
+                    "*2\r\n$4\r\nMGET\r\n$%d\r\n%0*d\r\n",
+                    key_length,
+                    key_length,
+                    0);
+            buffer_send_data_len = strlen(buffer_send);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
+            REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
+        }
+
+        SECTION("Fetch 2 keys") {
+            int key_count = 2;
+            char buffer_recv_cmp[8 * 1024] = { 0 };
+            size_t buffer_recv_cmp_length;
+            off_t buffer_recv_cmp_offset = 0;
+            off_t buffer_send_offset = 0;
+
+            for(int key_index = 0; key_index < key_count; key_index++) {
+                snprintf(buffer_send, sizeof(buffer_send) - 1, "*3\r\n$3\r\nSET\r\n$11\r\na_key_%05d\r\n$13\r\nb_value_%05d\r\n", key_index, key_index);
+                buffer_send_data_len = strlen(buffer_send);
+
+                REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+                REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
+                REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
+            }
+
+            buffer_send_offset += snprintf(
+                    buffer_send + buffer_send_offset,
+                    sizeof(buffer_send) - buffer_send_offset - 1,
+                    "*3\r\n$4\r\nMGET\r\n");
+            buffer_recv_cmp_offset += snprintf(
+                    buffer_recv_cmp + buffer_recv_cmp_offset,
+                    sizeof(buffer_recv_cmp) - buffer_recv_cmp_offset - 1,
+                    "*2\r\n");
+
+            for(int key_index = 0; key_index < key_count; key_index++) {
+                buffer_send_offset += snprintf(
+                        buffer_send + buffer_send_offset,
+                        sizeof(buffer_send) - buffer_send_offset - 1,
+                        "$11\r\na_key_%05d\r\n",
+                        key_index);
+                buffer_recv_cmp_offset += snprintf(
+                        buffer_recv_cmp + buffer_recv_cmp_offset,
+                        sizeof(buffer_recv_cmp) - buffer_recv_cmp_offset - 1,
+                        "$13\r\nb_value_%05d\r\n",
+                        key_index);
+            }
+
+            buffer_send_data_len = strlen(buffer_send);
+            buffer_recv_cmp_length = strlen(buffer_recv_cmp);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == buffer_recv_cmp_length);
+            REQUIRE(strncmp(buffer_recv, buffer_recv_cmp, buffer_recv_cmp_length) == 0);
+        }
+
+        SECTION("Fetch 128 keys") {
+            int key_count = 128;
+            char buffer_recv_cmp[8 * 1024] = { 0 };
+            size_t buffer_recv_cmp_length;
+            off_t buffer_recv_cmp_offset = 0;
+            off_t buffer_send_offset = 0;
+
+            for(int key_index = 0; key_index < key_count; key_index++) {
+                snprintf(buffer_send, sizeof(buffer_send) - 1, "*3\r\n$3\r\nSET\r\n$11\r\na_key_%05d\r\n$13\r\nb_value_%05d\r\n", key_index, key_index);
+                buffer_send_data_len = strlen(buffer_send);
+
+                REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+                REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
+                REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
+            }
+
+            buffer_send_offset += snprintf(
+                    buffer_send + buffer_send_offset,
+                    sizeof(buffer_send) - buffer_send_offset - 1,
+                    "*129\r\n$4\r\nMGET\r\n");
+            buffer_recv_cmp_offset += snprintf(
+                    buffer_recv_cmp + buffer_recv_cmp_offset,
+                    sizeof(buffer_recv_cmp) - buffer_recv_cmp_offset - 1,
+                    "*128\r\n");
+
+            for(int key_index = 0; key_index < key_count; key_index++) {
+                buffer_send_offset += snprintf(
+                        buffer_send + buffer_send_offset,
+                        sizeof(buffer_send) - buffer_send_offset - 1,
+                        "$11\r\na_key_%05d\r\n",
+                        key_index);
+                buffer_recv_cmp_offset += snprintf(
+                        buffer_recv_cmp + buffer_recv_cmp_offset,
+                        sizeof(buffer_recv_cmp) - buffer_recv_cmp_offset - 1,
+                        "$13\r\nb_value_%05d\r\n",
+                        key_index);
+            }
+
+            buffer_send_data_len = strlen(buffer_send);
+            buffer_recv_cmp_length = strlen(buffer_recv_cmp);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == buffer_recv_cmp_length);
+            REQUIRE(strncmp(buffer_recv, buffer_recv_cmp, buffer_recv_cmp_length) == 0);
         }
     }
 
