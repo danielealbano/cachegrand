@@ -90,7 +90,7 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
     // Setup the new channel
     new_channel->fd = new_channel->wrapped_channel.fd = cqe->res;
     new_channel->wrapped_channel.protocol = listener_channel->wrapped_channel.protocol;
-    new_channel->wrapped_channel.protocol_config = listener_channel->wrapped_channel.protocol_config;
+    new_channel->wrapped_channel.module_config = listener_channel->wrapped_channel.module_config;
 
     // Convert the socket address in a string
     network_io_common_socket_address_str(

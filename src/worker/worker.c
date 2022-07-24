@@ -323,7 +323,7 @@ void worker_cleanup(
         bool aborted) {
 
     worker_network_protocol_context_free(
-            worker_context->config->network,
+            worker_context->config,
             worker_network_protocol_contexts);
     worker_cleanup_network(
             worker_context,
@@ -391,7 +391,7 @@ void* worker_thread_func(
     }
 
     if ((worker_network_protocol_contexts = worker_network_protocol_contexts_initialize(
-            worker_context->config->network)) == NULL) {
+            worker_context->config)) == NULL) {
         LOG_E(TAG, "Unable to initialize the listeners, can't continue!");
         goto end;
     }
@@ -399,7 +399,7 @@ void* worker_thread_func(
     if (!worker_network_listeners_initialize(
             worker_context->worker_index,
             worker_context->core_index,
-            worker_context->config->network,
+            worker_context->config,
             worker_network_protocol_contexts,
             &listeners,
             &listeners_count)) {

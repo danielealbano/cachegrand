@@ -107,48 +107,48 @@ bool config_validate_after_load(
 
     // TODO: for log sinks, if all is set only negate flags can be set
 
-    for(int protocol_index = 0; protocol_index < config->network->protocols_count; protocol_index++) {
+    for(int module_index = 0; module_index < config->modules_count; module_index++) {
         // TODO: if keepalive struct is present, values must be allowed
-        config_network_protocol_t protocol = config->network->protocols[protocol_index];
+        config_module_t module = config->modules[module_index];
 
         // Validate timeouts
-        if (protocol.timeout->read_ms < -1 || protocol.timeout->read_ms == 0) {
+        if (module.network->timeout->read_ms < -1 || module.network->timeout->read_ms == 0) {
             LOG_E(TAG, "read_ms timeout can only be <-1> or a value greater than <0>");
             return_result = false;
         }
 
-        if (protocol.timeout->write_ms < -1 || protocol.timeout->write_ms == 0) {
+        if (module.network->timeout->write_ms < -1 || module.network->timeout->write_ms == 0) {
             LOG_E(TAG, "read_ms timeout can only be <-1> or a value greater than <0>");
             return_result = false;
         }
 
         // Validate TLS
-        if (protocol.tls != NULL) {
-            if (!simple_file_io_exists(protocol.tls->certificate_path)) {
-                LOG_E(TAG, "The certificate <%s> doesn't exist", protocol.tls->certificate_path);
+        if (module.network->tls != NULL) {
+            if (!simple_file_io_exists(module.network->tls->certificate_path)) {
+                LOG_E(TAG, "The certificate <%s> doesn't exist", module.network->tls->certificate_path);
                 return_result = false;
             }
 
-            if (!simple_file_io_exists(protocol.tls->private_key_path)) {
-                LOG_E(TAG, "The private key <%s> doesn't exist", protocol.tls->private_key_path);
+            if (!simple_file_io_exists(module.network->tls->private_key_path)) {
+                LOG_E(TAG, "The private key <%s> doesn't exist", module.network->tls->private_key_path);
                 return_result = false;
             }
         }
 
         // Validate ad-hoc protocol settings (redis)
-        if (protocol.type == CONFIG_PROTOCOL_TYPE_REDIS) {
-            if (protocol.redis->max_key_length > SLAB_OBJECT_SIZE_MAX) {
+        if (module.type == CONFIG_MODULE_TYPE_REDIS) {
+            if (module.redis->max_key_length > SLAB_OBJECT_SIZE_MAX) {
                 LOG_E(TAG, "The allowed maximum value of max_key_length is <%u>", SLAB_OBJECT_SIZE_MAX);
                 return_result = false;
             }
         }
 
         // Validate bindings
-        for(int binding_index = 0; binding_index < protocol.bindings_count; binding_index++) {
-            config_network_protocol_binding_t *binding = &protocol.bindings[binding_index];
+        for(int binding_index = 0; binding_index < module.network->bindings_count; binding_index++) {
+            config_module_network_binding_t *binding = &module.network->bindings[binding_index];
 
             if (binding->tls) {
-                if (protocol.tls == NULL) {
+                if (module.network->tls == NULL) {
                     LOG_E(TAG, "The binding <%s:%d> requires tls but tls is not configured", binding->host, binding->port);
                     return_result = false;
                 }

@@ -33,10 +33,10 @@ bool network_tls_does_ulp_tls_support_mbedtls_cipher_suite(
         mbedtls_cipher_type_t cipher_suite_id);
 
 int network_tls_min_version_config_to_mbed(
-        config_network_protocol_tls_min_version_t version);
+        config_module_network_tls_min_version_t version);
 
 int network_tls_max_version_config_to_mbed(
-        config_network_protocol_tls_max_version_t version);
+        config_module_network_tls_max_version_t version);
 
 bool network_tls_load_certificate(
         mbedtls_x509_crt *certificate,

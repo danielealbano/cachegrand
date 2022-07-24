@@ -92,7 +92,7 @@ struct module_prometheus_client {
 
 void module_prometheus_client_new(
         module_prometheus_client_t *module_prometheus_client,
-        config_network_protocol_t *config_network_protocol) {
+        config_module_t *config_module) {
     module_prometheus_client->read_buffer.data =
             (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
     module_prometheus_client->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE;
@@ -657,7 +657,7 @@ void module_prometheus_accept(
 
     module_prometheus_client_new(
             &module_prometheus_client,
-            channel->protocol_config);
+            channel->module_config);
 
     module_prometheus_accept_setup_http_parser(
             &module_prometheus_client);

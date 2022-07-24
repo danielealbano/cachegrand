@@ -64,31 +64,32 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
     volatile bool terminate_event_loop = false;
     char* cpus[] = { "0" };
 
-    config_network_protocol_binding_t config_network_protocol_binding = {
+    config_module_network_binding_t config_module_network_binding = {
             .host = "127.0.0.1",
             .port = 12345,
     };
-    config_network_protocol_redis_t config_network_protocol_redis = {
+    config_module_redis_t config_module_redis = {
             .max_key_length = 256,
             .max_command_length = 8 * 1024,
     };
-    config_network_protocol_timeout_t config_network_protocol_timeout = {
+    config_module_network_timeout_t config_module_network_timeout = {
             .read_ms = 1000,
             .write_ms = 1000,
     };
-    config_network_protocol_t config_network_protocol = {
-            .type = CONFIG_PROTOCOL_TYPE_REDIS,
-            .timeout = &config_network_protocol_timeout,
-            .redis = &config_network_protocol_redis,
-            .bindings = &config_network_protocol_binding,
+    config_module_network_t config_module_network = {
+            .timeout = &config_module_network_timeout,
+            .bindings = &config_module_network_binding,
             .bindings_count = 1,
+    };
+    config_module_t config_module = {
+            .type = CONFIG_MODULE_TYPE_REDIS,
+            .network = &config_module_network,
+            .redis = &config_module_redis,
     };
     config_network_t config_network = {
             .backend = CONFIG_NETWORK_BACKEND_IO_URING,
             .max_clients = 10,
             .listen_backlog = 10,
-            .protocols = &config_network_protocol,
-            .protocols_count = 1,
     };
     config_database_t config_database = {
             .max_keys = 1000,
@@ -99,6 +100,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             .cpus_count = 1,
             .workers_per_cpus = 1,
             .network = &config_network,
+            .modules = &config_module,
+            .modules_count = 1,
             .database = &config_database,
     };
     uint32_t workers_count = config.cpus_count * config.workers_per_cpus;
@@ -129,8 +132,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
     int clientfd = network_io_common_socket_tcp4_new(0);
     address.sin_family = AF_INET;
-    address.sin_port = htons(config_network_protocol_binding.port);
-    address.sin_addr.s_addr = inet_addr(config_network_protocol_binding.host);
+    address.sin_port = htons(config_module_network_binding.port);
+    address.sin_addr.s_addr = inet_addr(config_module_network_binding.host);
 
     REQUIRE(connect(clientfd, (struct sockaddr *) &address, sizeof(address)) == 0);
 
@@ -157,20 +160,20 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
         SECTION("Timeout") {
             // Wait the read timeout plus 250ms
-            usleep((config.network->protocols[0].timeout->read_ms * 1000) + (250 * 1000));
+            usleep((config.modules[0].network->timeout->read_ms * 1000) + (250 * 1000));
 
             // The socket should be closed so recv should return 0
             REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 0);
         }
 
         SECTION("Too long") {
-            int cmd_length = (int) config.network->protocols->redis->max_command_length + 1;
+            int cmd_length = (int) config.modules[0].redis->max_command_length + 1;
             char expected_error[256] = {0};
 
             sprintf(
                     expected_error,
                     "-ERR the command length has exceeded <%u> bytes\r\n",
-                    (int) config.network->protocols->redis->max_command_length);
+                    (int) config.modules[0].redis->max_command_length);
             snprintf(
                     buffer_send,
                     sizeof(buffer_send) - 1,
@@ -349,13 +352,13 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
 
         SECTION("Key too long") {
-            int key_length = (int)config.network->protocols->redis->max_key_length + 1;
+            int key_length = (int)config.modules[0].redis->max_key_length + 1;
             char expected_error[256] = { 0 };
 
             sprintf(
                     expected_error,
                     "-ERR The key has exceeded the allowed size of <%u>\r\n",
-                    (int)config.network->protocols->redis->max_key_length);
+                    (int)config.modules[0].redis->max_key_length);
             snprintf(
                     buffer_send,
                     sizeof(buffer_send) - 1,
@@ -410,13 +413,13 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
 
         SECTION("Key too long") {
-            int key_length = (int)config.network->protocols->redis->max_key_length + 1;
+            int key_length = (int)config.modules[0].redis->max_key_length + 1;
             char expected_error[256] = { 0 };
 
             sprintf(
                     expected_error,
                     "-ERR The key has exceeded the allowed size of <%u>\r\n",
-                    (int)config.network->protocols->redis->max_key_length);
+                    (int)config.modules[0].redis->max_key_length);
             snprintf(
                     buffer_send,
                     sizeof(buffer_send) - 1,
@@ -506,13 +509,13 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
 
         SECTION("Key too long") {
-            int key_length = (int)config.network->protocols->redis->max_key_length + 1;
+            int key_length = (int)config.modules[0].redis->max_key_length + 1;
             char expected_error[256] = { 0 };
 
             sprintf(
                     expected_error,
                     "-ERR The key has exceeded the allowed size of <%u>\r\n",
-                    (int)config.network->protocols->redis->max_key_length);
+                    (int)config.modules[0].redis->max_key_length);
             snprintf(
                     buffer_send,
                     sizeof(buffer_send) - 1,
@@ -602,13 +605,13 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
 
         SECTION("Key too long") {
-            int key_length = (int)config.network->protocols->redis->max_key_length + 1;
+            int key_length = (int)config.modules[0].redis->max_key_length + 1;
             char expected_error[256] = { 0 };
 
             sprintf(
                     expected_error,
                     "-ERR The key has exceeded the allowed size of <%u>\r\n",
-                    (int)config.network->protocols->redis->max_key_length);
+                    (int)config.modules[0].redis->max_key_length);
             snprintf(
                     buffer_send,
                     sizeof(buffer_send) - 1,

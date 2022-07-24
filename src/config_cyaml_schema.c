@@ -18,144 +18,156 @@ const cyaml_schema_value_t config_generic_string_schema = {
 };
 
 /**
- * CONFIG -> NETWORK -> PROTOCOLS schemas
+ * CONFIG -> MODULES schemas
  */
 
-// Schema for config -> network -> protocols -> protocol-> bindings -> binding
-const cyaml_schema_field_t config_network_protocol_binding_schema[] = {
+// Schema for config -> modules -> module -> network -> bindings -> binding
+const cyaml_schema_field_t config_module_binding_schema[] = {
         CYAML_FIELD_STRING_PTR(
                 "host", CYAML_FLAG_POINTER,
-                config_network_protocol_binding_t, host, 0, CYAML_UNLIMITED),
+                config_module_network_binding_t, host, 0, CYAML_UNLIMITED),
         CYAML_FIELD_UINT(
                 "port", CYAML_FLAG_DEFAULT,
-                config_network_protocol_binding_t, port),
+                config_module_network_binding_t, port),
         CYAML_FIELD_BOOL(
                 "tls", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
-                config_network_protocol_binding_t, tls),
+                config_module_network_binding_t, tls),
         CYAML_FIELD_END
 };
 
-// Schema for config -> network -> protocols -> protocol-> timeout
-const cyaml_schema_field_t config_network_protocol_timeout_schema[] = {
+// Schema for config -> modules -> module -> network -> timeout
+const cyaml_schema_field_t config_module_network_timeout_schema[] = {
         CYAML_FIELD_INT(
                 "read_ms", CYAML_FLAG_DEFAULT,
-                config_network_protocol_timeout_t, read_ms),
+                config_module_network_timeout_t, read_ms),
         CYAML_FIELD_INT(
                 "write_ms", CYAML_FLAG_DEFAULT,
-                config_network_protocol_timeout_t, write_ms),
+                config_module_network_timeout_t, write_ms),
         CYAML_FIELD_END
 };
 
-// Schema for config -> network -> protocols -> protocol-> keepalive
-const cyaml_schema_field_t config_network_protocol_keepalive_schema[] = {
+// Schema for config -> modules -> module -> network -> keepalive
+const cyaml_schema_field_t config_module_network_keepalive_schema[] = {
         CYAML_FIELD_UINT(
                 "time", CYAML_FLAG_DEFAULT,
-                config_network_protocol_keepalive_t, time),
+                config_module_network_keepalive_t, time),
         CYAML_FIELD_UINT(
                 "interval", CYAML_FLAG_DEFAULT,
-                config_network_protocol_keepalive_t, interval),
+                config_module_network_keepalive_t, interval),
         CYAML_FIELD_UINT(
                 "probes", CYAML_FLAG_DEFAULT,
-                config_network_protocol_keepalive_t, probes),
+                config_module_network_keepalive_t, probes),
         CYAML_FIELD_END
 };
 
-// Allowed strings for config -> network -> protocols -> protocol-> tls -> min_version (config_network_protocol_tls_min_version_t)
-const cyaml_strval_t config_network_protocol_tls_min_version_schema_strings[] = {
-        { "tls1.0", CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_0 },
-        { "tls1.1", CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_1 },
-        { "tls1.2", CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_2 },
-        { "tls1.3", CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_3 },
-        { "any", CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_ANY },
+// Allowed strings for config -> modules -> module -> network -> tls -> min_version (config_module_network_tls_min_version_t)
+const cyaml_strval_t config_module_network_tls_min_version_schema_strings[] = {
+        { "tls1.0", CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_0 },
+        { "tls1.1", CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_1 },
+        { "tls1.2", CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_2 },
+        { "tls1.3", CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_3 },
+        { "any", CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY },
 };
-typedef enum config_network_protocol_tls_min_version config_network_protocol_tls_min_version_t;
+typedef enum config_module_network_tls_min_version config_module_network_tls_min_version_t;
 
-// Allowed strings for config -> network -> protocols -> protocol-> tls -> max_version (config_network_protocol_tls_max_version_t)
-const cyaml_strval_t config_network_protocol_tls_max_version_schema_strings[] = {
-        { "tls1.0", CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_0 },
-        { "tls1.1", CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_1 },
-        { "tls1.2", CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_2 },
-        { "tls1.3", CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_3 },
-        { "any", CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_ANY },
+// Allowed strings for config -> modules -> module -> network -> tls -> max_version (config_module_network_tls_max_version_t)
+const cyaml_strval_t config_module_network_tls_max_version_schema_strings[] = {
+        { "tls1.0", CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_0 },
+        { "tls1.1", CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_1 },
+        { "tls1.2", CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2 },
+        { "tls1.3", CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_3 },
+        { "any", CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY },
 };
-typedef enum config_network_protocol_tls_max_version config_network_protocol_tls_max_version_t;
+typedef enum config_module_network_tls_max_version config_module_network_tls_max_version_t;
 
-// Schema for config -> network -> protocols -> protocol-> tls
-const cyaml_schema_field_t config_network_protocol_tls_schema[] = {
+// Schema for config -> modules -> module -> network -> tls
+const cyaml_schema_field_t config_module_network_tls_schema[] = {
         CYAML_FIELD_STRING_PTR(
                 "certificate_path", CYAML_FLAG_DEFAULT,
-                config_network_protocol_tls_t, certificate_path, 0, CYAML_UNLIMITED),
+                config_module_network_tls_t, certificate_path, 0, CYAML_UNLIMITED),
         CYAML_FIELD_STRING_PTR(
                 "private_key_path", CYAML_FLAG_DEFAULT,
-                config_network_protocol_tls_t, private_key_path, 0, CYAML_UNLIMITED),
+                config_module_network_tls_t, private_key_path, 0, CYAML_UNLIMITED),
         CYAML_FIELD_SEQUENCE(
                 "cipher_suites", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
-                config_network_protocol_tls_t, cipher_suites,
+                config_module_network_tls_t, cipher_suites,
                 &config_generic_string_schema, 0, CYAML_UNLIMITED),
         CYAML_FIELD_ENUM(
                 "min_version", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
-                config_network_protocol_tls_t, min_version, config_network_protocol_tls_min_version_schema_strings,
-                CYAML_ARRAY_LEN(config_network_protocol_tls_min_version_schema_strings)),
+                config_module_network_tls_t, min_version, config_module_network_tls_min_version_schema_strings,
+                CYAML_ARRAY_LEN(config_module_network_tls_min_version_schema_strings)),
         CYAML_FIELD_ENUM(
                 "max_version", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
-                config_network_protocol_tls_t, max_version, config_network_protocol_tls_max_version_schema_strings,
-                CYAML_ARRAY_LEN(config_network_protocol_tls_max_version_schema_strings)),
+                config_module_network_tls_t, max_version, config_module_network_tls_max_version_schema_strings,
+                CYAML_ARRAY_LEN(config_module_network_tls_max_version_schema_strings)),
         CYAML_FIELD_END
 };
 
-// Schema for config -> network -> protocols -> protocol-> redis
-const cyaml_schema_field_t config_network_protocol_redis_schema[] = {
+// Schema for config -> modules -> module -> redis
+const cyaml_schema_field_t config_module_redis_schema[] = {
         CYAML_FIELD_UINT(
                 "max_key_length", CYAML_FLAG_DEFAULT,
-                config_network_protocol_redis_t, max_key_length),
+                config_module_redis_t, max_key_length),
         CYAML_FIELD_UINT(
                 "max_command_length", CYAML_FLAG_DEFAULT,
-                config_network_protocol_redis_t, max_command_length),
+                config_module_redis_t, max_command_length),
         CYAML_FIELD_END
 };
 
-// Allowed strings for for config -> network -> protocols -> protocol-> type (config_network_protocol_type_t)
-const cyaml_strval_t config_network_protocol_type_schema_strings[] = {
-        { "redis", CONFIG_PROTOCOL_TYPE_REDIS },
-        { "prometheus", CONFIG_PROTOCOL_TYPE_PROMETHEUS },
-};
-typedef enum config_network_protocol_type config_network_protocol_type_t;
-
-// Schema for config -> network -> protocols -> protocol-> bindings
-const cyaml_schema_value_t config_protocol_binding_list_schema = {
+// Schema for config -> modules -> module -> bindings
+const cyaml_schema_value_t config_module_network_protocol_binding_list_schema = {
         CYAML_VALUE_MAPPING(CYAML_FLAG_DEFAULT,
-                            config_network_protocol_binding_t, config_network_protocol_binding_schema),
+                            config_module_network_binding_t, config_module_binding_schema),
 };
 
-// Schema for config -> network -> protocols -> protocol
-const cyaml_schema_field_t config_network_protocol_fields_schema[] = {
-        CYAML_FIELD_ENUM(
-                "type", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT,
-                config_network_protocol_t, type, config_network_protocol_type_schema_strings,
-                CYAML_ARRAY_LEN(config_network_protocol_type_schema_strings)),
+// Schema for config -> modules -> module -> network
+const cyaml_schema_field_t config_module_network_fields_schema[] = {
         CYAML_FIELD_MAPPING_PTR(
                 "timeout", CYAML_FLAG_POINTER,
-                config_network_protocol_t, timeout, config_network_protocol_timeout_schema),
+                config_module_network_t, timeout, config_module_network_timeout_schema),
         CYAML_FIELD_MAPPING_PTR(
                 "keepalive", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
-                config_network_protocol_t, keepalive, config_network_protocol_keepalive_schema),
-        CYAML_FIELD_MAPPING_PTR(
-                "redis", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
-                config_network_protocol_t, redis, config_network_protocol_redis_schema),
+                config_module_network_t, keepalive, config_module_network_keepalive_schema),
         CYAML_FIELD_MAPPING_PTR(
                 "tls", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
-                config_network_protocol_t, tls, config_network_protocol_tls_schema),
+                config_module_network_t, tls, config_module_network_tls_schema),
         CYAML_FIELD_SEQUENCE(
                 "bindings", CYAML_FLAG_POINTER,
-                config_network_protocol_t, bindings, &config_protocol_binding_list_schema, 0, CYAML_UNLIMITED),
+                config_module_network_t, bindings, &config_module_network_protocol_binding_list_schema, 0, CYAML_UNLIMITED),
         CYAML_FIELD_END
 };
 
-// Schema for config -> network -> protocols
-const cyaml_schema_value_t config_network_protocol_list_schema = {
-        CYAML_VALUE_MAPPING(CYAML_FLAG_DEFAULT,
-                            config_network_protocol_t, config_network_protocol_fields_schema),
+// Allowed strings for for config -> modules -> module -> type (config_module_type_t)
+const cyaml_strval_t config_module_type_schema_strings[] = {
+        { "redis",      CONFIG_MODULE_TYPE_REDIS },
+        { "prometheus", CONFIG_MODULE_TYPE_PROMETHEUS },
 };
+typedef enum config_module_type config_module_type_t;
+
+// Schema for config -> modules -> module -> protocol
+const cyaml_schema_field_t config_module_fields_schema[] = {
+        CYAML_FIELD_ENUM(
+                "type", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT,
+                config_module_t, type, config_module_type_schema_strings,
+                CYAML_ARRAY_LEN(config_module_type_schema_strings)),
+        CYAML_FIELD_MAPPING_PTR(
+                "network", CYAML_FLAG_POINTER,
+                config_module_t, network, config_module_network_fields_schema),
+        CYAML_FIELD_MAPPING_PTR(
+                "redis", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_module_t, redis, config_module_redis_schema),
+        CYAML_FIELD_END
+};
+
+// Schema for config -> modules
+const cyaml_schema_value_t config_module_list_schema = {
+        CYAML_VALUE_MAPPING(CYAML_FLAG_DEFAULT,
+                            config_module_t, config_module_fields_schema),
+};
+
+/**
+ * CONFIG -> NETWORK schemas
+ */
 
 // Allowed strings for for config -> network -> backend
 const cyaml_strval_t config_network_backend_schema_strings[] = {
@@ -174,10 +186,6 @@ const cyaml_schema_field_t config_network_schema[] = {
         CYAML_FIELD_UINT(
                 "listen_backlog", CYAML_FLAG_POINTER,
                 config_network_t, listen_backlog),
-        CYAML_FIELD_SEQUENCE(
-                "protocols", CYAML_FLAG_POINTER,
-                config_network_t, protocols,
-                &config_network_protocol_list_schema, 1, CYAML_UNLIMITED),
         CYAML_FIELD_END
 };
 
@@ -319,6 +327,10 @@ const cyaml_schema_field_t config_fields_schema[] = {
         CYAML_FIELD_MAPPING_PTR(
                 "network", CYAML_FLAG_POINTER,
                 config_t, network, config_network_schema),
+        CYAML_FIELD_SEQUENCE(
+                "modules", CYAML_FLAG_POINTER,
+                config_t, modules,
+                &config_module_list_schema, 1, CYAML_UNLIMITED),
         CYAML_FIELD_MAPPING_PTR(
                 "database", CYAML_FLAG_POINTER,
                 config_t, database, config_database_schema),

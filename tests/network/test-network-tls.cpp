@@ -290,34 +290,34 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
 
     SECTION("network_tls_min_version_config_to_mbed") {
         REQUIRE(network_tls_min_version_config_to_mbed(
-                CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_ANY) == MBEDTLS_SSL_MINOR_VERSION_1);
+                CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY) == MBEDTLS_SSL_MINOR_VERSION_1);
         REQUIRE(network_tls_min_version_config_to_mbed(
-                CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_0) == MBEDTLS_SSL_MINOR_VERSION_1);
+                CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_0) == MBEDTLS_SSL_MINOR_VERSION_1);
         REQUIRE(network_tls_min_version_config_to_mbed(
-                CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_1) == MBEDTLS_SSL_MINOR_VERSION_2);
+                CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_1) == MBEDTLS_SSL_MINOR_VERSION_2);
         REQUIRE(network_tls_min_version_config_to_mbed(
-                CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_2) == MBEDTLS_SSL_MINOR_VERSION_3);
+                CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_2) == MBEDTLS_SSL_MINOR_VERSION_3);
 #if defined(MBEDTLS_SSL_PROTO_TLS1_3)
         REQUIRE(network_tls_min_version_config_to_mbed(
-                CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_3) == MBEDTLS_SSL_MINOR_VERSION_4);
+                CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_3) == MBEDTLS_SSL_MINOR_VERSION_4);
 #endif
     }
 
     SECTION("network_tls_max_version_config_to_mbed") {
         REQUIRE(network_tls_max_version_config_to_mbed(
-                CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_0) == MBEDTLS_SSL_MINOR_VERSION_1);
+                CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_0) == MBEDTLS_SSL_MINOR_VERSION_1);
         REQUIRE(network_tls_max_version_config_to_mbed(
-                CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_1) == MBEDTLS_SSL_MINOR_VERSION_2);
+                CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_1) == MBEDTLS_SSL_MINOR_VERSION_2);
         REQUIRE(network_tls_max_version_config_to_mbed(
-                CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_2) == MBEDTLS_SSL_MINOR_VERSION_3);
+                CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2) == MBEDTLS_SSL_MINOR_VERSION_3);
 #if defined(MBEDTLS_SSL_PROTO_TLS1_3)
         REQUIRE(network_tls_max_version_config_to_mbed(
-                CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_3) == MBEDTLS_SSL_MINOR_VERSION_4);
+                CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_3) == MBEDTLS_SSL_MINOR_VERSION_4);
         REQUIRE(network_tls_max_version_config_to_mbed(
-                CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_ANY) == MBEDTLS_SSL_MINOR_VERSION_4);
+                CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY) == MBEDTLS_SSL_MINOR_VERSION_4);
 #else
         REQUIRE(network_tls_max_version_config_to_mbed(
-                CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_ANY) == MBEDTLS_SSL_MINOR_VERSION_3);
+                CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY) == MBEDTLS_SSL_MINOR_VERSION_3);
 #endif
     }
 
@@ -402,8 +402,8 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                         network_tls_config = network_tls_config_init(
                                                 certificate_path,
                                                 private_key_path,
-                                                CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_ANY,
-                                                CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_ANY,
+                                                CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
+                                                CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY,
                                                 NULL,
                                                 0);
                                 });
@@ -426,8 +426,8 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                         network_tls_config = network_tls_config_init(
                                                 certificate_path,
                                                 private_key_path,
-                                                CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_2,
-                                                CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_2,
+                                                CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_2,
+                                                CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2,
                                                 NULL,
                                                 0);
                                 });
@@ -450,8 +450,8 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                         network_tls_config = network_tls_config_init(
                                                 certificate_path,
                                                 private_key_path,
-                                                CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_ANY,
-                                                CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_2,
+                                                CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
+                                                CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2,
                                                 NULL,
                                                 0);
                                 });
@@ -490,8 +490,8 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                         network_tls_config = network_tls_config_init(
                                                 certificate_path,
                                                 private_key_path,
-                                                CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_ANY,
-                                                CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_2,
+                                                CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
+                                                CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2,
                                                 cipher_suites_ids,
                                                 cipher_suites_ids_size);
                                 });
@@ -516,8 +516,8 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                         network_tls_config = network_tls_config_init(
                                                 certificate_path,
                                                 private_key_path,
-                                                CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_ANY,
-                                                CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_ANY,
+                                                CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
+                                                CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY,
                                                 NULL,
                                                 0);
                                 });
@@ -540,8 +540,8 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                         network_tls_config = network_tls_config_init(
                                                 certificate_path,
                                                 private_key_path,
-                                                CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_ANY,
-                                                CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_ANY,
+                                                CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
+                                                CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY,
                                                 NULL,
                                                 0);
                                 });
@@ -578,8 +578,8 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                     network_tls_config = network_tls_config_init(
                                             certificate_path,
                                             private_key_path,
-                                            CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_ANY,
-                                            CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_ANY,
+                                            CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
+                                            CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY,
                                             NULL,
                                             0);
                                 });
@@ -653,32 +653,32 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
 
         SECTION("any") {
             REQUIRE(strcmp(
-                    network_tls_min_version_to_string(CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_ANY),
-                    versions[CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_ANY]) == 0);
+                    network_tls_min_version_to_string(CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY),
+                    versions[CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY]) == 0);
         }
 
         SECTION("TLS 1.0") {
             REQUIRE(strcmp(
-                    network_tls_min_version_to_string(CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_0),
-                    versions[CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_0]) == 0);
+                    network_tls_min_version_to_string(CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_0),
+                    versions[CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_0]) == 0);
         }
 
         SECTION("TLS 1.1") {
             REQUIRE(strcmp(
-                    network_tls_min_version_to_string(CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_1),
-                    versions[CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_1]) == 0);
+                    network_tls_min_version_to_string(CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_1),
+                    versions[CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_1]) == 0);
         }
 
         SECTION("TLS 1.2") {
             REQUIRE(strcmp(
-                    network_tls_min_version_to_string(CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_2),
-                    versions[CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_2]) == 0);
+                    network_tls_min_version_to_string(CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_2),
+                    versions[CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_2]) == 0);
         }
 
         SECTION("TLS 1.3") {
             REQUIRE(strcmp(
-                    network_tls_min_version_to_string(CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_3),
-                    versions[CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_3]) == 0);
+                    network_tls_min_version_to_string(CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_3),
+                    versions[CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_3]) == 0);
         }
     }
 
@@ -687,32 +687,32 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
 
         SECTION("any") {
             REQUIRE(strcmp(
-                    network_tls_max_version_to_string(CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_ANY),
-                    versions[CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_ANY]) == 0);
+                    network_tls_max_version_to_string(CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY),
+                    versions[CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY]) == 0);
         }
 
         SECTION("TLS 1.0") {
             REQUIRE(strcmp(
-                    network_tls_max_version_to_string(CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_0),
-                    versions[CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_0]) == 0);
+                    network_tls_max_version_to_string(CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_0),
+                    versions[CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_0]) == 0);
         }
 
         SECTION("TLS 1.1") {
             REQUIRE(strcmp(
-                    network_tls_max_version_to_string(CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_1),
-                    versions[CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_1]) == 0);
+                    network_tls_max_version_to_string(CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_1),
+                    versions[CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_1]) == 0);
         }
 
         SECTION("TLS 1.2") {
             REQUIRE(strcmp(
-                    network_tls_max_version_to_string(CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_2),
-                    versions[CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_2]) == 0);
+                    network_tls_max_version_to_string(CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2),
+                    versions[CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2]) == 0);
         }
 
         SECTION("TLS 1.3") {
             REQUIRE(strcmp(
-                    network_tls_max_version_to_string(CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_3),
-                    versions[CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_3]) == 0);
+                    network_tls_max_version_to_string(CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_3),
+                    versions[CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_3]) == 0);
         }
     }
 }

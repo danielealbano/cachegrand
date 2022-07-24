@@ -122,8 +122,12 @@ network:
   backend: io_uring
   max_clients: 10000
   listen_backlog: 100
-  protocols:
-    - type: redis
+modules:
+  - type: redis
+    redis:
+      max_key_length: 8192
+      max_command_length: 1048576
+    network:
       timeout:
         read_ms: 2000
         write_ms: 2000
@@ -131,9 +135,6 @@ network:
         time: 0
         interval: 0
         probes: 0
-      redis:
-        max_key_length: 8192
-        max_command_length: 1048576
       bindings:
         - host: 0.0.0.0
           port: 6379
@@ -176,8 +177,12 @@ network:
   backend: io_uring
   max_clients: 10000
   listen_backlog: 100
-  protocols:
-    - type: redis
+modules:
+  - type: redis
+    redis:
+      max_key_length: 8192
+      max_command_length: 1048576
+    network:
       timeout:
         read_ms: 2000
         write_ms: 2000
@@ -188,9 +193,6 @@ network:
       tls:
         certificate_path: "/path/to/non-existant/certificate"
         private_key_path: "/path/to/non-existant/private_key"
-      redis:
-        max_key_length: 8192
-        max_command_length: 1048576
       bindings:
         - host: 0.0.0.0
           port: 6379
@@ -292,7 +294,7 @@ TEST_CASE("config.c", "[config]") {
 
             REQUIRE(config != NULL);
             REQUIRE(config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING);
-            REQUIRE(config->network->protocols_count == 1);
+            REQUIRE(config->modules_count == 1);
             REQUIRE(config->cpus_count == 1);
             REQUIRE(config->use_slab_allocator != NULL);
             REQUIRE(*config->use_slab_allocator == false);
@@ -378,83 +380,83 @@ TEST_CASE("config.c", "[config]") {
         }
 
         SECTION("broken - network redis max_key_length > slab object size max") {
-            config->network->protocols[0].redis->max_key_length = 64 * 1024 + 1;
+            config->modules[0].redis->max_key_length = 64 * 1024 + 1;
             REQUIRE(config_validate_after_load(config) == false);
         }
 
         SECTION("broken - network.timeout.read_ms < -1") {
-            config->network->protocols[0].timeout->read_ms = -2;
+            config->modules[0].network->timeout->read_ms = -2;
             REQUIRE(config_validate_after_load(config) == false);
         }
 
         SECTION("broken - network.timeout.read_ms == 0") {
-            config->network->protocols[0].timeout->read_ms = 0;
+            config->modules[0].network->timeout->read_ms = 0;
             REQUIRE(config_validate_after_load(config) == false);
         }
 
         SECTION("broken - network.timeout.write_ms < -1") {
-            config->network->protocols[0].timeout->write_ms = -2;
+            config->modules[0].network->timeout->write_ms = -2;
             REQUIRE(config_validate_after_load(config) == false);
         }
 
         SECTION("broken - network.timeout.write_ms == 0") {
-            config->network->protocols[0].timeout->write_ms = 0;
+            config->modules[0].network->timeout->write_ms = 0;
             REQUIRE(config_validate_after_load(config) == false);
         }
 
         SECTION("broken - non existing certificate path") {
-            config_network_protocol_tls_t tls = {
+            config_module_network_tls_t tls = {
                     .certificate_path = "/path/to/non/existing/certificate",
                     .private_key_path = "/tmp",
             };
-            config->network->protocols[0].tls = &tls;
+            config->modules[0].network->tls = &tls;
 
             REQUIRE(config_validate_after_load(config) == false);
 
-            config->network->protocols[0].tls = NULL;
+            config->modules[0].network->tls = NULL;
         }
 
         SECTION("broken - non existing certificate path") {
-            config_network_protocol_tls_t tls = {
+            config_module_network_tls_t tls = {
                     .certificate_path = "/tmp",
                     .private_key_path = "/path/to/non/existing/private_key",
             };
-            config->network->protocols[0].tls = &tls;
+            config->modules[0].network->tls = &tls;
 
             REQUIRE(config_validate_after_load(config) == false);
 
-            config->network->protocols[0].tls = NULL;
+            config->modules[0].network->tls = NULL;
         }
 
         SECTION("valid - existing certificate path and private_key") {
-            config_network_protocol_tls_t tls = {
+            config_module_network_tls_t tls = {
                     .certificate_path = "/tmp",
                     .private_key_path = "/tmp",
             };
-            config->network->protocols[0].tls = &tls;
+            config->modules[0].network->tls = &tls;
 
             REQUIRE(config_validate_after_load(config) == true);
 
-            config->network->protocols[0].tls = NULL;
+            config->modules[0].network->tls = NULL;
         }
 
         SECTION("broken - tls endpoint without no tls settings") {
-            config->network->protocols[0].bindings[0].tls = true;
+            config->modules[0].network->bindings[0].tls = true;
 
             REQUIRE(config_validate_after_load(config) == false);
         }
 
         SECTION("valid - tls endpoint with tls settings") {
-            config_network_protocol_tls_t tls = {
+            config_module_network_tls_t tls = {
                     .certificate_path = "/tmp",
                     .private_key_path = "/tmp",
             };
-            config->network->protocols[0].tls = &tls;
-            config->network->protocols[0].bindings[0].tls = true;
+            config->modules[0].network->tls = &tls;
+            config->modules[0].network->bindings[0].tls = true;
 
             REQUIRE(config_validate_after_load(config) == true);
 
-            config->network->protocols[0].tls = NULL;
+            config->modules[0].network->tls = NULL;
         }
 
         cyaml_free(config_cyaml_config, config_top_schema, config, 0);
@@ -476,7 +478,7 @@ TEST_CASE("config.c", "[config]") {
 
             REQUIRE(config != NULL);
             REQUIRE(config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING);
-            REQUIRE(config->network->protocols_count == 1);
+            REQUIRE(config->modules_count == 1);
             REQUIRE(config->cpus_count == 1);
             REQUIRE(config->logs_count == 2);
             REQUIRE(cyaml_logger_context.data == NULL);
@@ -547,7 +549,7 @@ TEST_CASE("config.c", "[config]") {
 
             REQUIRE(config != NULL);
             REQUIRE(config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING);
-            REQUIRE(config->network->protocols_count == 1);
+            REQUIRE(config->modules_count == 1);
             REQUIRE(config->cpus_count == 1);
             REQUIRE(config->logs_count == 2);
             REQUIRE(cyaml_logger_context.data == NULL);

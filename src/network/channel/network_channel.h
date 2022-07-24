@@ -63,7 +63,7 @@ struct network_channel {
     network_io_common_fd_t fd;
     network_channel_type_t type;
     module_types_t protocol;
-    config_network_protocol_t *protocol_config;
+    config_module_t *module_config;
     network_channel_socket_address_t address;
     network_channel_status_t status;
     struct {

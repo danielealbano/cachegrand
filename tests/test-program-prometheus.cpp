@@ -64,26 +64,27 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
     volatile bool terminate_event_loop = false;
     char* cpus[] = { "0" };
 
-    config_network_protocol_binding_t config_network_protocol_binding = {
+    config_module_network_binding_t config_module_network_binding = {
             .host = "127.0.0.1",
             .port = 12345,
     };
-    config_network_protocol_timeout_t config_network_protocol_timeout = {
+    config_module_network_timeout_t config_module_network_timeout = {
             .read_ms = 1000,
             .write_ms = 1000,
     };
-    config_network_protocol_t config_network_protocol = {
-            .type = CONFIG_PROTOCOL_TYPE_PROMETHEUS,
-            .timeout = &config_network_protocol_timeout,
-            .bindings = &config_network_protocol_binding,
+    config_module_network_t config_module_network = {
+            .timeout = &config_module_network_timeout,
+            .bindings = &config_module_network_binding,
             .bindings_count = 1,
+    };
+    config_module_t config_module = {
+            .type = CONFIG_MODULE_TYPE_PROMETHEUS,
+            .network = &config_module_network,
     };
     config_network_t config_network = {
             .backend = CONFIG_NETWORK_BACKEND_IO_URING,
             .max_clients = 10,
             .listen_backlog = 10,
-            .protocols = &config_network_protocol,
-            .protocols_count = 1,
     };
     config_database_t config_database = {
             .max_keys = 1000,
@@ -94,6 +95,8 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
             .cpus_count = 1,
             .workers_per_cpus = 1,
             .network = &config_network,
+            .modules = &config_module,
+            .modules_count = 1,
             .database = &config_database,
     };
     uint32_t workers_count = config.cpus_count * config.workers_per_cpus;
@@ -124,8 +127,8 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
 
     int clientfd = network_io_common_socket_tcp4_new(0);
     address.sin_family = AF_INET;
-    address.sin_port = htons(config_network_protocol_binding.port);
-    address.sin_addr.s_addr = inet_addr(config_network_protocol_binding.host);
+    address.sin_port = htons(config_module_network_binding.port);
+    address.sin_addr.s_addr = inet_addr(config_module_network_binding.host);
 
     REQUIRE(connect(clientfd, (struct sockaddr *) &address, sizeof(address)) == 0);
 
@@ -172,8 +175,8 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
                 buffer_send,
                 sizeof(buffer_send) - 1,
                 request_template,
-                config_network_protocol_binding.host,
-                config_network_protocol_binding.port);
+                config_module_network_binding.host,
+                config_module_network_binding.port);
         buffer_send_data_len = strlen(buffer_send);
 
         SECTION("No env vars") {
@@ -287,8 +290,8 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
                 buffer_send,
                 sizeof(buffer_send) - 1,
                 request_template,
-                config_network_protocol_binding.host,
-                config_network_protocol_binding.port);
+                config_module_network_binding.host,
+                config_module_network_binding.port);
         buffer_send_data_len = strlen(buffer_send);
 
         REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);

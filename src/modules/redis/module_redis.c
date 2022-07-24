@@ -64,7 +64,7 @@ struct module_redis_client {
 
 void module_redis_client_new(
         module_redis_client_t *module_redis_client,
-        config_network_protocol_t *config_network_protocol) {
+        config_module_t *config_module) {
     // To speed up the performances the code takes advantage of SIMD operations that are built to operate on
     // specific amount of data, for example AVX/AVX2 in general operate on 256 bit (32 byte) of data at time.
     // Therefore, to avoid implementing ad hoc checks everywhere and at the same time to ensure that the code will
@@ -94,7 +94,7 @@ void module_redis_accept(
 
     module_redis_client_new(
             &module_redis_client,
-            channel->protocol_config);
+            channel->module_config);
 
     do {
         if (!network_buffer_has_enough_space(
@@ -208,7 +208,7 @@ bool module_redis_process_data(
                 read_buffer->data_size -= op->data_read_len;
                 protocol_context->command_length += op->data_read_len;
 
-                if (protocol_context->command_length > channel->protocol_config->redis->max_command_length) {
+                if (protocol_context->command_length > channel->module_config->redis->max_command_length) {
                     send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
                     if (send_buffer_start == NULL) {
                         LOG_E(TAG, "Unable to acquire send buffer slice!");
@@ -219,7 +219,7 @@ bool module_redis_process_data(
                                 send_buffer_start,
                                 slice_length,
                                 "ERR the command length has exceeded <%u> bytes",
-                                channel->protocol_config->redis->max_command_length);
+                                channel->module_config->redis->max_command_length);
                         network_send_buffer_release_slice(
                                 channel,
                                 send_buffer_start ? send_buffer_start - send_buffer : 0);
@@ -578,7 +578,7 @@ end:
 bool module_redis_is_key_too_long(
         network_channel_t *channel,
         size_t key_length) {
-    if (unlikely(key_length > channel->protocol_config->redis->max_key_length)) {
+    if (unlikely(key_length > channel->module_config->redis->max_key_length)) {
         return true;
     }
 

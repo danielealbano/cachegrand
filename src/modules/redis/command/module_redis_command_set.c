@@ -114,7 +114,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(set) {
                     set_command_context->error_message,
                     sizeof(set_command_context->error_message) - 1,
                     "ERR The key has exceeded the allowed size of <%u>",
-                    channel->protocol_config->redis->max_key_length);
+                    channel->module_config->redis->max_key_length);
 
             return true;
         }

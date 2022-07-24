@@ -64,21 +64,22 @@ void* test_program_wait_loop_terminate(
 
 #define PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345() \
      char* cpus[] = { "0" }; \
-    config_network_protocol_binding_t config_network_protocol_binding = { \
+    config_module_network_binding_t config_module_network_binding = { \
             .host = "127.0.0.1", \
             .port = 12345, \
     }; \
-    config_network_protocol_t config_network_protocol = { \
-            .type = CONFIG_PROTOCOL_TYPE_REDIS, \
-            .bindings = &config_network_protocol_binding, \
+    config_module_network_t config_module_network = { \
+            .bindings = &config_module_network_binding, \
             .bindings_count = 1, \
+    }; \
+    config_module_t config_module = { \
+            .type = CONFIG_MODULE_TYPE_REDIS, \
+            .network = &config_module_network, \
     }; \
     config_network_t config_network = { \
             .backend = CONFIG_NETWORK_BACKEND_IO_URING,         \
             .max_clients = 10, \
             .listen_backlog = 10, \
-            .protocols = &config_network_protocol, \
-            .protocols_count = 1, \
     }; \
     config_database_t config_database = { \
             .max_keys = 1000, \
@@ -89,6 +90,8 @@ void* test_program_wait_loop_terminate(
             .cpus_count = 1, \
             .workers_per_cpus = 1, \
             .network = &config_network, \
+            .modules = &config_module, \
+            .modules_count = 1, \
             .database = &config_database, \
     }; \
     program_context_t program_context = { \
