@@ -27,7 +27,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
-#include "network/protocol/network_protocol.h"
+#include "modules/module.h"
 #include "network/io/network_io_common.h"
 #include "config.h"
 #include "fiber.h"

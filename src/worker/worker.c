@@ -45,7 +45,7 @@
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "support/simple_file_io.h"
-#include "network/protocol/network_protocol.h"
+#include "modules/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"

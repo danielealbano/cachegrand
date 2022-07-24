@@ -24,7 +24,7 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "slab_allocator.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
-#include "network/protocol/network_protocol.h"
+#include "modules/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "storage/io/storage_io_common.h"

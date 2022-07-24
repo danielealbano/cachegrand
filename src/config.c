@@ -27,7 +27,7 @@
 #include "slab_allocator.h"
 #include "support/simple_file_io.h"
 #include "protocol/redis/protocol_redis_reader.h"
-#include "network/protocol/network_protocol.h"
+#include "modules/module.h"
 #include "network/io/network_io_common.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 

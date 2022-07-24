@@ -29,7 +29,7 @@
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "protocol/redis/protocol_redis_writer.h"
-#include "network/protocol/network_protocol.h"
+#include "modules/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "storage/io/storage_io_common.h"

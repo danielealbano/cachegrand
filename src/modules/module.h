@@ -1,5 +1,5 @@
-#ifndef CACHEGRAND_NETWORK_PROTOCOL_H
-#define CACHEGRAND_NETWORK_PROTOCOL_H
+#ifndef CACHEGRAND_MODULE_H
+#define CACHEGRAND_MODULE_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,4 +16,4 @@ typedef enum network_protocols network_protocols_t;
 }
 #endif
 
-#endif //CACHEGRAND_NETWORK_PROTOCOL_H
+#endif //CACHEGRAND_MODULE_H

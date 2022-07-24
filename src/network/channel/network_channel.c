@@ -19,7 +19,7 @@
 #include "log/log.h"
 #include "xalloc.h"
 #include "config.h"
-#include "network/protocol/network_protocol.h"
+#include "modules/module.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "network/io/network_io_common.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"

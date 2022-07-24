@@ -22,7 +22,7 @@
 #include <fcntl.h>
 
 #include "support/io_uring/io_uring_support.h"
-#include "network/protocol/network_protocol.h"
+#include "modules/module.h"
 #include "network/io/network_io_common.h"
 
 #include "../../network/network_tests_support.h"
