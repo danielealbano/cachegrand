@@ -1,0 +1,3193 @@
+[
+    {
+        "command_string": "APPEND",
+        "command_callback_name": "append",
+        "since": "2.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "INSERT"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "2.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "value",
+                "type": "string",
+                "since": "2.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "COPY",
+        "command_callback_name": "copy",
+        "since": "6.2.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [
+                    "ACCESS"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            },
+            {
+                "key_access_flags": [
+                    "WRITE_ONLY"
+                ],
+                "value_access_flags": [
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 2,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "source",
+                "type": "key",
+                "since": "6.2.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "destination",
+                "type": "key",
+                "since": "6.2.0",
+                "key_spec_index": 1,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "db_destination-db",
+                "type": "integer",
+                "since": "6.2.0",
+                "key_spec_index": null,
+                "token": "DB",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "replace_replace",
+                "type": "bool",
+                "since": "6.2.0",
+                "key_spec_index": null,
+                "token": "REPLACE",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "DECR",
+        "command_callback_name": "decr",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "ACCESS",
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "DECRBY",
+        "command_callback_name": "decrby",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "ACCESS",
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "decrement",
+                "type": "integer",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "DEL",
+        "command_callback_name": "del",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "DELETE"
+                ],
+                "value_access_flags": [
+                    "DELETE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": -1,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": true,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "EXISTS",
+        "command_callback_name": "exists",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": -1,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": true,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "EXPIRE",
+        "command_callback_name": "expire",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "seconds",
+                "type": "integer",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "condition",
+                "type": "oneof",
+                "since": "7.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [
+                    {
+                        "name": "nx_nx",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "NX",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "xx_xx",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "XX",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "gt_gt",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "GT",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "lt_lt",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "LT",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": true,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "EXPIREAT",
+        "command_callback_name": "expireat",
+        "since": "1.2.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.2.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "unix-time-seconds",
+                "type": "unixtime",
+                "since": "1.2.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "condition",
+                "type": "oneof",
+                "since": "7.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [
+                    {
+                        "name": "nx_nx",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "NX",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "xx_xx",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "XX",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "gt_gt",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "GT",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "lt_lt",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "LT",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": true,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "EXPIRETIME",
+        "command_callback_name": "expiretime",
+        "since": "7.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [
+                    "ACCESS"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "7.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "GET",
+        "command_callback_name": "get",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [
+                    "ACCESS"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "GETDEL",
+        "command_callback_name": "getdel",
+        "since": "6.2.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "ACCESS",
+                    "DELETE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "6.2.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "GETEX",
+        "command_callback_name": "getex",
+        "since": "6.2.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "ACCESS",
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "6.2.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "expiration",
+                "type": "oneof",
+                "since": "6.2.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [
+                    {
+                        "name": "ex_seconds",
+                        "type": "integer",
+                        "since": "6.2.0",
+                        "key_spec_index": null,
+                        "token": "EX",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "px_milliseconds",
+                        "type": "integer",
+                        "since": "6.2.0",
+                        "key_spec_index": null,
+                        "token": "PX",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "exat_unix-time-seconds",
+                        "type": "unixtime",
+                        "since": "6.2.0",
+                        "key_spec_index": null,
+                        "token": "EXAT",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "pxat_unix-time-milliseconds",
+                        "type": "unixtime",
+                        "since": "6.2.0",
+                        "key_spec_index": null,
+                        "token": "PXAT",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "persist_persist",
+                        "type": "bool",
+                        "since": "6.2.0",
+                        "key_spec_index": null,
+                        "token": "PERSIST",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": true,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "GETRANGE",
+        "command_callback_name": "getrange",
+        "since": "2.4.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [
+                    "ACCESS"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "2.4.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "start",
+                "type": "integer",
+                "since": "2.4.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "end",
+                "type": "integer",
+                "since": "2.4.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "GETSET",
+        "command_callback_name": "getset",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "ACCESS",
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "value",
+                "type": "string",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "HELLO",
+        "command_callback_name": "hello",
+        "since": "6.0.0",
+        "key_specs": [],
+        "arguments": [
+            {
+                "name": "arguments",
+                "type": "block",
+                "since": "6.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [
+                    {
+                        "name": "protover",
+                        "type": "integer",
+                        "since": "6.0.0",
+                        "key_spec_index": null,
+                        "token": null,
+                        "sub_arguments": [],
+                        "is_positional": true,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "auth_username_password",
+                        "type": "block",
+                        "since": "6.0.0",
+                        "key_spec_index": null,
+                        "token": "AUTH",
+                        "sub_arguments": [
+                            {
+                                "name": "username",
+                                "type": "string",
+                                "since": "6.0.0",
+                                "key_spec_index": null,
+                                "token": null,
+                                "sub_arguments": [],
+                                "is_positional": true,
+                                "is_optional": false,
+                                "is_sub_argument": true,
+                                "has_sub_arguments": false,
+                                "has_multiple_occurrences": false,
+                                "has_multiple_token": false
+                            },
+                            {
+                                "name": "password",
+                                "type": "string",
+                                "since": "6.0.0",
+                                "key_spec_index": null,
+                                "token": null,
+                                "sub_arguments": [],
+                                "is_positional": true,
+                                "is_optional": false,
+                                "is_sub_argument": true,
+                                "has_sub_arguments": false,
+                                "has_multiple_occurrences": false,
+                                "has_multiple_token": false
+                            }
+                        ],
+                        "is_positional": false,
+                        "is_optional": true,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": true,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "setname_clientname",
+                        "type": "string",
+                        "since": "6.0.0",
+                        "key_spec_index": null,
+                        "token": "SETNAME",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": true,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": true,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "INCR",
+        "command_callback_name": "incr",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "ACCESS",
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "INCRBY",
+        "command_callback_name": "incrby",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "ACCESS",
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "increment",
+                "type": "integer",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "INCRBYFLOAT",
+        "command_callback_name": "incrbyfloat",
+        "since": "2.6.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "ACCESS",
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "2.6.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "increment",
+                "type": "double",
+                "since": "2.6.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "KEYS",
+        "command_callback_name": "keys",
+        "since": "1.0.0",
+        "key_specs": [],
+        "arguments": [
+            {
+                "name": "pattern",
+                "type": "pattern",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "LCS",
+        "command_callback_name": "lcs",
+        "since": "7.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [
+                    "ACCESS"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 1,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key1",
+                "type": "key",
+                "since": "7.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "key2",
+                "type": "key",
+                "since": "7.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "len_len",
+                "type": "bool",
+                "since": "7.0.0",
+                "key_spec_index": null,
+                "token": "LEN",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "idx_idx",
+                "type": "bool",
+                "since": "7.0.0",
+                "key_spec_index": null,
+                "token": "IDX",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "minmatchlen_len",
+                "type": "integer",
+                "since": "7.0.0",
+                "key_spec_index": null,
+                "token": "MINMATCHLEN",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "withmatchlen_withmatchlen",
+                "type": "bool",
+                "since": "7.0.0",
+                "key_spec_index": null,
+                "token": "WITHMATCHLEN",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "MGET",
+        "command_callback_name": "mget",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [
+                    "ACCESS"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": -1,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": true,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "MOVE",
+        "command_callback_name": "move",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "ACCESS",
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "db",
+                "type": "integer",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "MSET",
+        "command_callback_name": "mset",
+        "since": "1.0.1",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "WRITE_ONLY"
+                ],
+                "value_access_flags": [
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": -1,
+                "find_keys_range_step": 2,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key_value",
+                "type": "block",
+                "since": "1.0.1",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [
+                    {
+                        "name": "key",
+                        "type": "key",
+                        "since": "1.0.1",
+                        "key_spec_index": 0,
+                        "token": null,
+                        "sub_arguments": [],
+                        "is_positional": true,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "value",
+                        "type": "string",
+                        "since": "1.0.1",
+                        "key_spec_index": null,
+                        "token": null,
+                        "sub_arguments": [],
+                        "is_positional": true,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": true,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "MSETNX",
+        "command_callback_name": "msetnx",
+        "since": "1.0.1",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "WRITE_ONLY"
+                ],
+                "value_access_flags": [
+                    "INSERT"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": -1,
+                "find_keys_range_step": 2,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key_value",
+                "type": "block",
+                "since": "1.0.1",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [
+                    {
+                        "name": "key",
+                        "type": "key",
+                        "since": "1.0.1",
+                        "key_spec_index": 0,
+                        "token": null,
+                        "sub_arguments": [],
+                        "is_positional": true,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "value",
+                        "type": "string",
+                        "since": "1.0.1",
+                        "key_spec_index": null,
+                        "token": null,
+                        "sub_arguments": [],
+                        "is_positional": true,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": true,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "PERSIST",
+        "command_callback_name": "persist",
+        "since": "2.2.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "2.2.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "PEXPIRE",
+        "command_callback_name": "pexpire",
+        "since": "2.6.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "2.6.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "milliseconds",
+                "type": "integer",
+                "since": "2.6.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "condition",
+                "type": "oneof",
+                "since": "7.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [
+                    {
+                        "name": "nx_nx",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "NX",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "xx_xx",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "XX",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "gt_gt",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "GT",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "lt_lt",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "LT",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": true,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "PEXPIREAT",
+        "command_callback_name": "pexpireat",
+        "since": "2.6.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "2.6.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "unix-time-milliseconds",
+                "type": "unixtime",
+                "since": "2.6.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "condition",
+                "type": "oneof",
+                "since": "7.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [
+                    {
+                        "name": "nx_nx",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "NX",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "xx_xx",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "XX",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "gt_gt",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "GT",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "lt_lt",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "LT",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": true,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "PEXPIRETIME",
+        "command_callback_name": "pexpiretime",
+        "since": "7.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [
+                    "ACCESS"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "7.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "PING",
+        "command_callback_name": "ping",
+        "since": "1.0.0",
+        "key_specs": [],
+        "arguments": [
+            {
+                "name": "message",
+                "type": "string",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "PSETEX",
+        "command_callback_name": "psetex",
+        "since": "2.6.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "WRITE_ONLY"
+                ],
+                "value_access_flags": [
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "2.6.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "milliseconds",
+                "type": "integer",
+                "since": "2.6.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "value",
+                "type": "string",
+                "since": "2.6.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "PTTL",
+        "command_callback_name": "pttl",
+        "since": "2.6.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [
+                    "ACCESS"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "2.6.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "QUIT",
+        "command_callback_name": "quit",
+        "since": "1.0.0",
+        "key_specs": [],
+        "arguments": []
+    },
+    {
+        "command_string": "RANDOMKEY",
+        "command_callback_name": "randomkey",
+        "since": "1.0.0",
+        "key_specs": [],
+        "arguments": []
+    },
+    {
+        "command_string": "RENAME",
+        "command_callback_name": "rename",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "ACCESS",
+                    "DELETE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            },
+            {
+                "key_access_flags": [
+                    "WRITE_ONLY"
+                ],
+                "value_access_flags": [
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 2,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "newkey",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 1,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "RENAMENX",
+        "command_callback_name": "renamenx",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "ACCESS",
+                    "DELETE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            },
+            {
+                "key_access_flags": [
+                    "WRITE_ONLY"
+                ],
+                "value_access_flags": [
+                    "INSERT"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 2,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "newkey",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 1,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "SCAN",
+        "command_callback_name": "scan",
+        "since": "2.8.0",
+        "key_specs": [],
+        "arguments": [
+            {
+                "name": "cursor",
+                "type": "integer",
+                "since": "2.8.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "match_pattern",
+                "type": "pattern",
+                "since": "2.8.0",
+                "key_spec_index": null,
+                "token": "MATCH",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "count_count",
+                "type": "integer",
+                "since": "2.8.0",
+                "key_spec_index": null,
+                "token": "COUNT",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "type_type",
+                "type": "string",
+                "since": "6.0.0",
+                "key_spec_index": null,
+                "token": "TYPE",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "SET",
+        "command_callback_name": "set",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE",
+                    "VARIABLE_FLAGS"
+                ],
+                "value_access_flags": [
+                    "ACCESS",
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "value",
+                "type": "string",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "condition",
+                "type": "oneof",
+                "since": "2.6.12",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [
+                    {
+                        "name": "nx_nx",
+                        "type": "bool",
+                        "since": "2.6.12",
+                        "key_spec_index": null,
+                        "token": "NX",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "xx_xx",
+                        "type": "bool",
+                        "since": "2.6.12",
+                        "key_spec_index": null,
+                        "token": "XX",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": true,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "get_get",
+                "type": "bool",
+                "since": "6.2.0",
+                "key_spec_index": null,
+                "token": "GET",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "expiration",
+                "type": "oneof",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [
+                    {
+                        "name": "ex_seconds",
+                        "type": "integer",
+                        "since": "2.6.12",
+                        "key_spec_index": null,
+                        "token": "EX",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "px_milliseconds",
+                        "type": "integer",
+                        "since": "2.6.12",
+                        "key_spec_index": null,
+                        "token": "PX",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "exat_unix-time-seconds",
+                        "type": "unixtime",
+                        "since": "6.2.0",
+                        "key_spec_index": null,
+                        "token": "EXAT",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "pxat_unix-time-milliseconds",
+                        "type": "unixtime",
+                        "since": "6.2.0",
+                        "key_spec_index": null,
+                        "token": "PXAT",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "keepttl_keepttl",
+                        "type": "bool",
+                        "since": "6.0.0",
+                        "key_spec_index": null,
+                        "token": "KEEPTTL",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": true,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "SETEX",
+        "command_callback_name": "setex",
+        "since": "2.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "WRITE_ONLY"
+                ],
+                "value_access_flags": [
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "2.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "seconds",
+                "type": "integer",
+                "since": "2.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "value",
+                "type": "string",
+                "since": "2.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "SETNX",
+        "command_callback_name": "setnx",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "WRITE_ONLY"
+                ],
+                "value_access_flags": [
+                    "INSERT"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "value",
+                "type": "string",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "SETRANGE",
+        "command_callback_name": "setrange",
+        "since": "2.2.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_WRITE"
+                ],
+                "value_access_flags": [
+                    "UPDATE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "2.2.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "offset",
+                "type": "integer",
+                "since": "2.2.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "value",
+                "type": "string",
+                "since": "2.2.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "SHUTDOWN",
+        "command_callback_name": "shutdown",
+        "since": "1.0.0",
+        "key_specs": [],
+        "arguments": [
+            {
+                "name": "nosave_save",
+                "type": "oneof",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [
+                    {
+                        "name": "nosave_nosave",
+                        "type": "bool",
+                        "since": "1.0.0",
+                        "key_spec_index": null,
+                        "token": "NOSAVE",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "save_save",
+                        "type": "bool",
+                        "since": "1.0.0",
+                        "key_spec_index": null,
+                        "token": "SAVE",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": true,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "now_now",
+                "type": "bool",
+                "since": "7.0.0",
+                "key_spec_index": null,
+                "token": "NOW",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "force_force",
+                "type": "bool",
+                "since": "7.0.0",
+                "key_spec_index": null,
+                "token": "FORCE",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "abort_abort",
+                "type": "bool",
+                "since": "7.0.0",
+                "key_spec_index": null,
+                "token": "ABORT",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "SORT",
+        "command_callback_name": "sort",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [
+                    "ACCESS"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            },
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [
+                    "ACCESS"
+                ],
+                "is_unknown": true,
+                "begin_search_index_pos": 0,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 0,
+                "find_keys_range_limit": 0
+            },
+            {
+                "key_access_flags": [
+                    "WRITE_ONLY"
+                ],
+                "value_access_flags": [
+                    "UPDATE"
+                ],
+                "is_unknown": true,
+                "begin_search_index_pos": 0,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 0,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "by_pattern",
+                "type": "pattern",
+                "since": "1.0.0",
+                "key_spec_index": 1,
+                "token": "BY",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "limit_offset_count",
+                "type": "block",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": "LIMIT",
+                "sub_arguments": [
+                    {
+                        "name": "offset",
+                        "type": "integer",
+                        "since": "1.0.0",
+                        "key_spec_index": null,
+                        "token": null,
+                        "sub_arguments": [],
+                        "is_positional": true,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "count",
+                        "type": "integer",
+                        "since": "1.0.0",
+                        "key_spec_index": null,
+                        "token": null,
+                        "sub_arguments": [],
+                        "is_positional": true,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "get_pattern",
+                "type": "pattern",
+                "since": "1.0.0",
+                "key_spec_index": 1,
+                "token": "GET",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": true,
+                "has_multiple_token": true
+            },
+            {
+                "name": "order",
+                "type": "oneof",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [
+                    {
+                        "name": "asc_asc",
+                        "type": "bool",
+                        "since": "1.0.0",
+                        "key_spec_index": null,
+                        "token": "ASC",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "desc_desc",
+                        "type": "bool",
+                        "since": "1.0.0",
+                        "key_spec_index": null,
+                        "token": "DESC",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": true,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "alpha_sorting",
+                "type": "bool",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": "ALPHA",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "store_destination",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 2,
+                "token": "STORE",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "SORT_RO",
+        "command_callback_name": "sort_ro",
+        "since": "7.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [
+                    "ACCESS"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            },
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [
+                    "ACCESS"
+                ],
+                "is_unknown": true,
+                "begin_search_index_pos": 0,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 0,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "7.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "by_pattern",
+                "type": "pattern",
+                "since": "7.0.0",
+                "key_spec_index": 1,
+                "token": "BY",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "limit_offset_count",
+                "type": "block",
+                "since": "7.0.0",
+                "key_spec_index": null,
+                "token": "LIMIT",
+                "sub_arguments": [
+                    {
+                        "name": "offset",
+                        "type": "integer",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": null,
+                        "sub_arguments": [],
+                        "is_positional": true,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "count",
+                        "type": "integer",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": null,
+                        "sub_arguments": [],
+                        "is_positional": true,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "get_pattern",
+                "type": "pattern",
+                "since": "7.0.0",
+                "key_spec_index": 1,
+                "token": "GET",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": true,
+                "has_multiple_token": true
+            },
+            {
+                "name": "order",
+                "type": "oneof",
+                "since": "7.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [
+                    {
+                        "name": "asc_asc",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "ASC",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "desc_desc",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "DESC",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": true,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "alpha_sorting",
+                "type": "bool",
+                "since": "7.0.0",
+                "key_spec_index": null,
+                "token": "ALPHA",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "STRLEN",
+        "command_callback_name": "strlen",
+        "since": "2.2.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "2.2.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "SUBSTR",
+        "command_callback_name": "substr",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [
+                    "ACCESS"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "start",
+                "type": "integer",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "end",
+                "type": "integer",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "TOUCH",
+        "command_callback_name": "touch",
+        "since": "3.2.1",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": -1,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "3.2.1",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": true,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "TTL",
+        "command_callback_name": "ttl",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [
+                    "ACCESS"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "TYPE",
+        "command_callback_name": "type",
+        "since": "1.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "1.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "UNLINK",
+        "command_callback_name": "unlink",
+        "since": "4.0.0",
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "DELETE"
+                ],
+                "value_access_flags": [
+                    "DELETE"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": -1,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "4.0.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": true,
+                "has_multiple_token": false
+            }
+        ]
+    }
+]
