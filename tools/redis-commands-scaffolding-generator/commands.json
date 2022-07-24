@@ -914,49 +914,6 @@
                         "has_multiple_token": false
                     },
                     {
-                        "name": "auth_username_password",
-                        "type": "block",
-                        "since": "6.0.0",
-                        "key_spec_index": null,
-                        "token": "AUTH",
-                        "sub_arguments": [
-                            {
-                                "name": "username",
-                                "type": "string",
-                                "since": "6.0.0",
-                                "key_spec_index": null,
-                                "token": null,
-                                "sub_arguments": [],
-                                "is_positional": true,
-                                "is_optional": false,
-                                "is_sub_argument": true,
-                                "has_sub_arguments": false,
-                                "has_multiple_occurrences": false,
-                                "has_multiple_token": false
-                            },
-                            {
-                                "name": "password",
-                                "type": "string",
-                                "since": "6.0.0",
-                                "key_spec_index": null,
-                                "token": null,
-                                "sub_arguments": [],
-                                "is_positional": true,
-                                "is_optional": false,
-                                "is_sub_argument": true,
-                                "has_sub_arguments": false,
-                                "has_multiple_occurrences": false,
-                                "has_multiple_token": false
-                            }
-                        ],
-                        "is_positional": false,
-                        "is_optional": true,
-                        "is_sub_argument": true,
-                        "has_sub_arguments": true,
-                        "has_multiple_occurrences": false,
-                        "has_multiple_token": false
-                    },
-                    {
                         "name": "setname_clientname",
                         "type": "string",
                         "since": "6.0.0",
