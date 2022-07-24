@@ -31,18 +31,18 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
-#include "network/protocol/redis/module_redis.h"
+#include "modules/redis/module_redis.h"
 #include "network/network.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 
-#define TAG "module_redis_command_quit"
+#define TAG "module_redis_command_ping"
 
-MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(quit) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(ping) {
     return true;
 }
 
-MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(quit) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(ping) {
     network_channel_buffer_data_t *send_buffer, *send_buffer_start;
     size_t slice_length = 32;
 
@@ -55,8 +55,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(quit) {
     send_buffer_start = protocol_redis_writer_write_blob_string(
             send_buffer_start,
             slice_length,
-            "OK",
-            2);
+            "PONG",
+            4);
+
     network_send_buffer_release_slice(
             channel,
             send_buffer_start ? send_buffer_start - send_buffer : 0);
@@ -66,16 +67,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(quit) {
         return false;
     }
 
-    // As the connection will be closed, it's necessary to flush the send buffer
-    if (network_flush_send_buffer(channel) != NETWORK_OP_RESULT_OK) {
-        return false;
-    }
-
-    // TODO: BUG! The operation is not really failing but currently there is no way to inform the caller that the client
-    //       has requested to terminate the connection.
-    return false;
+    return true;
 }
 
-MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(quit) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(ping) {
     return true;
 }
