@@ -40,30 +40,30 @@
 #include "worker/worker.h"
 #include "network/network.h"
 
-#include "network_protocol_redis.h"
-#include "network_protocol_redis_commands.h"
+#include "module_redis.h"
+#include "module_redis_commands.h"
 
-#define TAG "network_protocol_redis"
+#define TAG "module_redis"
 
-network_protocol_redis_command_info_t command_infos_map[] = {
-        NETWORK_PROTOCOL_REDIS_COMMAND_NO_STREAM(HELLO, "HELLO", hello, 0),
-        NETWORK_PROTOCOL_REDIS_COMMAND_NO_ARGS(PING, "PING", ping, 0),
-        NETWORK_PROTOCOL_REDIS_COMMAND_NO_ARGS(SHUTDOWN, "SHUTDOWN", shutdown, 0),
-        NETWORK_PROTOCOL_REDIS_COMMAND_NO_ARGS(QUIT, "QUIT", quit, 0),
-        NETWORK_PROTOCOL_REDIS_COMMAND(SET, "SET", set, 2),
-        NETWORK_PROTOCOL_REDIS_COMMAND(GET, "GET", get, 1),
-        NETWORK_PROTOCOL_REDIS_COMMAND(DEL, "DEL", del, 1),
-        NETWORK_PROTOCOL_REDIS_COMMAND(MGET, "MGET", mget, 1),
+module_redis_command_info_t command_infos_map[] = {
+        MODULE_REDIS_COMMAND_NO_STREAM(HELLO, "HELLO", hello, 0),
+        MODULE_REDIS_COMMAND_NO_ARGS(PING, "PING", ping, 0),
+        MODULE_REDIS_COMMAND_NO_ARGS(SHUTDOWN, "SHUTDOWN", shutdown, 0),
+        MODULE_REDIS_COMMAND_NO_ARGS(QUIT, "QUIT", quit, 0),
+        MODULE_REDIS_COMMAND(SET, "SET", set, 2),
+        MODULE_REDIS_COMMAND(GET, "GET", get, 1),
+        MODULE_REDIS_COMMAND(DEL, "DEL", del, 1),
+        MODULE_REDIS_COMMAND(MGET, "MGET", mget, 1),
 };
-uint32_t command_infos_map_count = sizeof(command_infos_map) / sizeof(network_protocol_redis_command_info_t);
+uint32_t command_infos_map_count = sizeof(command_infos_map) / sizeof(module_redis_command_info_t);
 
-typedef struct network_protocol_redis_client network_protocol_redis_client_t;
-struct network_protocol_redis_client {
+typedef struct module_redis_client module_redis_client_t;
+struct module_redis_client {
     network_channel_buffer_t read_buffer;
 };
 
-void network_protocol_redis_client_new(
-        network_protocol_redis_client_t *network_protocol_redis_client,
+void module_redis_client_new(
+        module_redis_client_t *module_redis_client,
         config_network_protocol_t *config_network_protocol) {
     // To speed up the performances the code takes advantage of SIMD operations that are built to operate on
     // specific amount of data, for example AVX/AVX2 in general operate on 256 bit (32 byte) of data at time.
@@ -73,32 +73,32 @@ void network_protocol_redis_client_new(
     // TODO: 32 should be defined as magic const somewhere as it's going hard to track where "32" is in use if it has to
     //       be changed
     // TODO: create a test to ensure that the length of the read buffer is taking into account the 32 bytes of padding
-    network_protocol_redis_client->read_buffer.data = (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
-    network_protocol_redis_client->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE - 32;
+    module_redis_client->read_buffer.data = (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
+    module_redis_client->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE - 32;
 }
 
-void network_protocol_redis_client_cleanup(
-        network_protocol_redis_client_t *network_protocol_redis_client) {
-    slab_allocator_mem_free(network_protocol_redis_client->read_buffer.data);
+void module_redis_client_cleanup(
+        module_redis_client_t *module_redis_client) {
+    slab_allocator_mem_free(module_redis_client->read_buffer.data);
 }
 
-void network_protocol_redis_accept(
+void module_redis_accept(
         network_channel_t *channel) {
     network_channel_buffer_data_t *send_buffer, *send_buffer_start;
     size_t slice_length = 64;
     bool exit_loop = false;
-    network_protocol_redis_context_t protocol_context = { 0 };
-    network_protocol_redis_client_t network_protocol_redis_client = { 0 };
+    module_redis_context_t protocol_context = { 0 };
+    module_redis_client_t module_redis_client = { 0 };
 
     protocol_context.resp_version = PROTOCOL_REDIS_RESP_VERSION_2;
 
-    network_protocol_redis_client_new(
-            &network_protocol_redis_client,
+    module_redis_client_new(
+            &module_redis_client,
             channel->protocol_config);
 
     do {
         if (!network_buffer_has_enough_space(
-                &network_protocol_redis_client.read_buffer,
+                &module_redis_client.read_buffer,
                 NETWORK_CHANNEL_PACKET_SIZE)) {
             send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
             if (send_buffer_start == NULL) {
@@ -126,33 +126,33 @@ void network_protocol_redis_accept(
 
         if (!exit_loop) {
             if (network_buffer_needs_rewind(
-                    &network_protocol_redis_client.read_buffer,
+                    &module_redis_client.read_buffer,
                     NETWORK_CHANNEL_PACKET_SIZE)) {
-                network_buffer_rewind(&network_protocol_redis_client.read_buffer);
+                network_buffer_rewind(&module_redis_client.read_buffer);
             }
 
             exit_loop = network_receive(
                     channel,
-                    &network_protocol_redis_client.read_buffer,
+                    &module_redis_client.read_buffer,
                     NETWORK_CHANNEL_PACKET_SIZE) != NETWORK_OP_RESULT_OK;
         }
 
         if (!exit_loop) {
-            exit_loop = !network_protocol_redis_process_data(
+            exit_loop = !module_redis_process_data(
                     channel,
-                    &network_protocol_redis_client.read_buffer,
+                    &module_redis_client.read_buffer,
                     &protocol_context);
         }
     } while(!exit_loop);
 
-    network_protocol_redis_client_cleanup(&network_protocol_redis_client);
+    module_redis_client_cleanup(&module_redis_client);
 }
 
-void network_protocol_redis_reset_context(
-        network_protocol_redis_context_t *protocol_context) {
+void module_redis_reset_context(
+        module_redis_context_t *protocol_context) {
     // Reset the reader_context to handle the next command in the buffer, the resp_version isn't touched as it's
     // to be known all along the connection lifecycle
-    protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_NOP;
+    protocol_context->command = MODULE_REDIS_COMMAND_NOP;
     protocol_context->command_info = NULL;
     protocol_context->command_context  = NULL;
     protocol_context->skip_command = false;
@@ -161,10 +161,10 @@ void network_protocol_redis_reset_context(
     protocol_redis_reader_context_reset(&protocol_context->reader_context);
 }
 
-bool network_protocol_redis_process_data(
+bool module_redis_process_data(
         network_channel_t *channel,
         network_channel_buffer_t *read_buffer,
-        network_protocol_redis_context_t *protocol_context) {
+        module_redis_context_t *protocol_context) {
     int32_t ops_found;
     network_channel_buffer_data_t *send_buffer, *send_buffer_start;
     size_t slice_length = 256;
@@ -273,11 +273,11 @@ bool network_protocol_redis_process_data(
                     char *command_data = read_buffer_data_start + protocol_context->current_argument_token_data_offset;
 
                     // Set the current command to UNKNOWN
-                    protocol_context->command = NETWORK_PROTOCOL_REDIS_COMMAND_UNKNOWN;
+                    protocol_context->command = MODULE_REDIS_COMMAND_UNKNOWN;
 
                     // Search the command_data in the commands table
                     for (uint32_t command_index = 0; command_index < command_infos_map_count; command_index++) {
-                        network_protocol_redis_command_info_t *command_info = &command_infos_map[command_index];
+                        module_redis_command_info_t *command_info = &command_infos_map[command_index];
                         if (command_length == command_info->length &&
                             strncasecmp(command_data, command_info->string, command_length) == 0) {
                             LOG_D(
@@ -292,7 +292,7 @@ bool network_protocol_redis_process_data(
                     }
 
                     // Check if the command has been found
-                    if (protocol_context->command == NETWORK_PROTOCOL_REDIS_COMMAND_UNKNOWN) {
+                    if (protocol_context->command == MODULE_REDIS_COMMAND_UNKNOWN) {
                         // Command unknown, mark it to be skipped
                         protocol_context->skip_command = true;
 
@@ -492,9 +492,9 @@ bool network_protocol_redis_process_data(
 
             goto end;
         } else if (reader_context->state == PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED) {
-            if (protocol_context->command == NETWORK_PROTOCOL_REDIS_COMMAND_UNKNOWN) {
+            if (protocol_context->command == MODULE_REDIS_COMMAND_UNKNOWN) {
                 // The context can be reset only once the ops have all been parsed and the command has been fully read
-                network_protocol_redis_reset_context(protocol_context);
+                module_redis_reset_context(protocol_context);
                 break;
             }
 
@@ -517,7 +517,7 @@ bool network_protocol_redis_process_data(
                         channel,
                         send_buffer_start ? send_buffer_start - send_buffer : 0);
 
-                network_protocol_redis_reset_context(protocol_context);
+                module_redis_reset_context(protocol_context);
 
                 return_result = send_buffer_start != NULL;
 
@@ -534,12 +534,12 @@ bool network_protocol_redis_process_data(
                     db,
                     protocol_context,
                     reader_context)) {
-                network_protocol_redis_reset_context(protocol_context);
+                module_redis_reset_context(protocol_context);
                 LOG_D(TAG, "[RECV][REDIS] command callback <command free> failed");
                 goto end;
             }
 
-            network_protocol_redis_reset_context(protocol_context);
+            module_redis_reset_context(protocol_context);
         }
     } while(read_buffer->data_size > 0 && ops_found > 0);
 
@@ -569,13 +569,13 @@ end:
             }
         }
 
-        network_protocol_redis_reset_context(protocol_context);
+        module_redis_reset_context(protocol_context);
     }
 
     return return_result;
 }
 
-bool network_protocol_redis_is_key_too_long(
+bool module_redis_is_key_too_long(
         network_channel_t *channel,
         size_t key_length) {
     if (unlikely(key_length > channel->protocol_config->redis->max_key_length)) {

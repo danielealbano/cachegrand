@@ -36,12 +36,12 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
-#include "network/protocol/redis/network_protocol_redis.h"
+#include "network/protocol/redis/module_redis.h"
 #include "network/network.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 
-#define TAG "network_protocol_redis_command_hello"
+#define TAG "module_redis_command_hello"
 
 struct hello_response_item {
     char* key;
@@ -63,14 +63,14 @@ struct hello_command_context {
 };
 typedef struct hello_command_context hello_command_context_t;
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(hello) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(hello) {
     protocol_context->command_context = slab_allocator_mem_alloc(sizeof(hello_command_context_t));
     ((hello_command_context_t*)protocol_context->command_context)->has_error = false;
 
     return true;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(hello) {
+MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(hello) {
     hello_command_context_t *hello_command_context = (hello_command_context_t*)protocol_context->command_context;
 
     if (argument_index == 0) {
@@ -113,7 +113,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(hello) {
     return true;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
     bool return_res = false;
     network_channel_buffer_data_t *send_buffer, *send_buffer_start, *send_buffer_end;
 
@@ -271,7 +271,7 @@ end:
     return return_res;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(hello) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(hello) {
     if (!protocol_context->command_context) {
         return true;
     }

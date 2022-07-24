@@ -36,12 +36,12 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
-#include "network/protocol/redis/network_protocol_redis.h"
+#include "network/protocol/redis/module_redis.h"
 #include "network/network.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 
-#define TAG "network_protocol_redis_command_set"
+#define TAG "module_redis_command_set"
 
 struct set_command_context {
     char error_message[200];
@@ -56,7 +56,7 @@ struct set_command_context {
 };
 typedef struct set_command_context set_command_context_t;
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(set) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(set) {
     // Initialize the database entry
     storage_db_entry_index_t *entry_index = storage_db_entry_index_ring_buffer_new(db);
     if (!entry_index) {
@@ -74,7 +74,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(set) {
     return true;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_REQUIRE_STREAM(set) {
+MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_REQUIRE_STREAM(set) {
     // Only the two first arguments (key and value) require a stream, all the other ones doesn't and are expected to be
     // short and fit in the network buffer easily
     if (argument_index <= 1) {
@@ -84,7 +84,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_REQUIRE_STREAM(set) {
     return false;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(set) {
+MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(set) {
     if (argument_index <= 1) {
         // Should never happen, only argument_index >= 2 are non streamed
         assert(0);
@@ -96,7 +96,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(set) {
     return true;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(set) {
+MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(set) {
     set_command_context_t *set_command_context = (set_command_context_t*)protocol_context->command_context;
 
     if (set_command_context->has_error) {
@@ -108,7 +108,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(set) {
 
     // Check if it's the key
     if (argument_index == 0) {
-        if (network_protocol_redis_is_key_too_long(channel, argument_length)) {
+        if (module_redis_is_key_too_long(channel, argument_length)) {
             set_command_context->has_error = true;
             snprintf(
                     set_command_context->error_message,
@@ -161,7 +161,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(set) {
     return true;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_DATA(set) {
+MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_DATA(set) {
     set_command_context_t *set_command_context = (set_command_context_t*)protocol_context->command_context;
     storage_db_entry_index_t *entry_index = set_command_context->entry_index;
 
@@ -259,7 +259,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_DATA(set) {
     return true;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(set) {
+MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(set) {
     set_command_context_t *set_command_context = (set_command_context_t*)protocol_context->command_context;
 
     if (set_command_context->has_error) {
@@ -269,7 +269,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(set) {
     return true;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
     network_channel_buffer_data_t *send_buffer, *send_buffer_start;
     bool res;
     bool return_res = false;
@@ -349,7 +349,7 @@ end:
     return return_res;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(set) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(set) {
     if (!protocol_context->command_context) {
         return true;
     }

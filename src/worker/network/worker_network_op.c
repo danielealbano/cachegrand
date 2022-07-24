@@ -52,7 +52,7 @@
 #include "network/network_tls.h"
 #include "network/channel/network_channel_tls.h"
 #include "protocol/redis/protocol_redis_reader.h"
-#include "network/protocol/redis/network_protocol_redis.h"
+#include "network/protocol/redis/module_redis.h"
 #include "network/protocol/prometheus/network_protocol_prometheus.h"
 
 #include "worker_network_op.h"
@@ -312,7 +312,7 @@ void worker_network_new_client_fiber_entrypoint(
             break;
 
         case NETWORK_PROTOCOLS_REDIS:
-            network_protocol_redis_accept(
+            module_redis_accept(
                     new_channel);
             break;
         case NETWORK_PROTOCOLS_PROMETHEUS:

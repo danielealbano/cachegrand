@@ -35,12 +35,12 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
-#include "network/protocol/redis/network_protocol_redis.h"
+#include "network/protocol/redis/module_redis.h"
 #include "network/network.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 
-#define TAG "network_protocol_redis_command_get"
+#define TAG "module_redis_command_get"
 
 struct get_command_context {
     char error_message[200];
@@ -53,7 +53,7 @@ struct get_command_context {
 };
 typedef struct get_command_context get_command_context_t;
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(get) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(get) {
     protocol_context->command_context = slab_allocator_mem_alloc(sizeof(get_command_context_t));
 
     get_command_context_t *get_command_context = (get_command_context_t*)protocol_context->command_context;
@@ -63,18 +63,18 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(get) {
     return true;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_REQUIRE_STREAM(get) {
+MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_REQUIRE_STREAM(get) {
     // All the arguments passed to del are keys
     return true;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(get) {
+MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(get) {
     // Require stream always returns true, the code should never get here
     assert(0);
     return false;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(get) {
+MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(get) {
     get_command_context_t *get_command_context = (get_command_context_t*)protocol_context->command_context;
 
     if (get_command_context->has_error) {
@@ -90,7 +90,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(get) {
         return true;
     }
 
-    if (network_protocol_redis_is_key_too_long(channel, argument_length)) {
+    if (module_redis_is_key_too_long(channel, argument_length)) {
         get_command_context->has_error = true;
         snprintf(
                 get_command_context->error_message,
@@ -108,7 +108,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(get) {
     return true;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_DATA(get) {
+MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_DATA(get) {
     get_command_context_t *get_command_context = (get_command_context_t*)protocol_context->command_context;
 
     if (get_command_context->has_error) {
@@ -141,7 +141,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_DATA(get) {
     return true;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(get) {
+MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(get) {
     storage_db_entry_index_status_t old_status;
     get_command_context_t *get_command_context = (get_command_context_t*)protocol_context->command_context;
 
@@ -171,7 +171,7 @@ end:
     return true;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
     network_channel_buffer_data_t *send_buffer, *send_buffer_start;
     bool res;
     bool return_res = false;
@@ -392,7 +392,7 @@ end:
     return return_res;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(get) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(get) {
     if (!protocol_context->command_context) {
         return true;
     }

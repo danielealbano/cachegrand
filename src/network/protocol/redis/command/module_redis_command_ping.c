@@ -31,18 +31,18 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
-#include "network/protocol/redis/network_protocol_redis.h"
+#include "network/protocol/redis/module_redis.h"
 #include "network/network.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 
-#define TAG "network_protocol_redis_command_ping"
+#define TAG "module_redis_command_ping"
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(ping) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(ping) {
     return true;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(ping) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(ping) {
     network_channel_buffer_data_t *send_buffer, *send_buffer_start;
     size_t slice_length = 32;
 
@@ -70,6 +70,6 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(ping) {
     return true;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(ping) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(ping) {
     return true;
 }

@@ -31,25 +31,26 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
-#include "network/protocol/redis/network_protocol_redis.h"
+#include "network/protocol/redis/module_redis.h"
 #include "network/network.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
+#include "worker/worker.h"
 
-#define TAG "network_protocol_redis_command_quit"
+#define TAG "module_redis_command_shutdown"
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(quit) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(shutdown) {
     return true;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(quit) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(shutdown) {
     network_channel_buffer_data_t *send_buffer, *send_buffer_start;
     size_t slice_length = 32;
 
     send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
     if (send_buffer_start == NULL) {
         LOG_E(TAG, "Unable to acquire send buffer slice!");
-        return false;
+        goto end;
     }
 
     send_buffer_start = protocol_redis_writer_write_blob_string(
@@ -63,19 +64,23 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(quit) {
 
     if (send_buffer_start == NULL) {
         LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-        return false;
+        goto end;
     }
 
-    // As the connection will be closed, it's necessary to flush the send buffer
+    // As the connection will be closed, it's necessary to flush the buffer
     if (network_flush_send_buffer(channel) != NETWORK_OP_RESULT_OK) {
-        return false;
+        goto end;
     }
+
+end:
+
+    worker_request_terminate(worker_context_get());
 
     // TODO: BUG! The operation is not really failing but currently there is no way to inform the caller that the client
     //       has requested to terminate the connection.
     return false;
 }
 
-NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(quit) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(shutdown) {
     return true;
 }
