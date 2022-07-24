@@ -42,14 +42,14 @@
 #include "signal_handler_thread.h"
 #include "program.h"
 
-#include "network_protocol_prometheus.h"
+#include "module_prometheus.h"
 
-#define TAG "network_protocol_prometheus"
+#define TAG "module_prometheus"
 
-#define NETWORK_PROTOCOL_PROMETHEUS_HTTP_HEADERS_SIZE_INCREASE 5
-#define NETWORK_PROTOCOL_PROMETHEUS_HTTP_MAX_URL_LENGTH 256
-#define NETWORK_PROTOCOL_PROMETHEUS_HTTP_MAX_HEADER_NAME_LENGTH 256
-#define NETWORK_PROTOCOL_PROMETHEUS_HTTP_MAX_HEADER_VALUE_LENGTH (8 * 1024)
+#define MODULE_PROMETHEUS_HTTP_HEADERS_SIZE_INCREASE 5
+#define MODULE_PROMETHEUS_HTTP_MAX_URL_LENGTH 256
+#define MODULE_PROMETHEUS_HTTP_MAX_HEADER_NAME_LENGTH 256
+#define MODULE_PROMETHEUS_HTTP_MAX_HEADER_VALUE_LENGTH (8 * 1024)
 
 const char *metrics_env_prefix = "CACHEGRAND_METRIC_ENV_";
 extern char **environ;
@@ -82,25 +82,25 @@ struct client_http_request_data {
     } headers;
 };
 
-typedef struct network_protocol_prometheus_client network_protocol_prometheus_client_t;
-struct network_protocol_prometheus_client {
+typedef struct module_prometheus_client module_prometheus_client_t;
+struct module_prometheus_client {
     network_channel_buffer_t read_buffer;
     http_parser_settings http_parser_settings;
     http_parser http_parser;
     client_http_request_data_t http_request_data;
 };
 
-void network_protocol_prometheus_client_new(
-        network_protocol_prometheus_client_t *network_protocol_prometheus_client,
+void module_prometheus_client_new(
+        module_prometheus_client_t *module_prometheus_client,
         config_network_protocol_t *config_network_protocol) {
-    network_protocol_prometheus_client->read_buffer.data =
+    module_prometheus_client->read_buffer.data =
             (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
-    network_protocol_prometheus_client->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE;
+    module_prometheus_client->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE;
 }
 
-void network_protocol_prometheus_client_cleanup(
-        network_protocol_prometheus_client_t *network_protocol_prometheus_client) {
-    client_http_request_data_t *http_request_data = &network_protocol_prometheus_client->http_request_data;
+void module_prometheus_client_cleanup(
+        module_prometheus_client_t *module_prometheus_client) {
+    client_http_request_data_t *http_request_data = &module_prometheus_client->http_request_data;
 
     if (http_request_data->url) {
         slab_allocator_mem_free(http_request_data->url);
@@ -118,10 +118,10 @@ void network_protocol_prometheus_client_cleanup(
         slab_allocator_mem_free(http_request_data->headers.list);
     }
 
-    slab_allocator_mem_free(network_protocol_prometheus_client->read_buffer.data);
+    slab_allocator_mem_free(module_prometheus_client->read_buffer.data);
 }
 
-int network_protocol_prometheus_http_parser_on_message_complete(
+int module_prometheus_http_parser_on_message_complete(
         http_parser* http_parser) {
     client_http_request_data_t *http_request_data =
             ((client_http_request_data_t*)(http_parser->data));
@@ -130,13 +130,13 @@ int network_protocol_prometheus_http_parser_on_message_complete(
     return 0;
 }
 
-int network_protocol_prometheus_http_parser_on_url(
+int module_prometheus_http_parser_on_url(
         http_parser* http_parser,
         const char* at, size_t length) {
     client_http_request_data_t *http_request_data =
             ((client_http_request_data_t*)(http_parser->data));
 
-    if (length > NETWORK_PROTOCOL_PROMETHEUS_HTTP_MAX_URL_LENGTH) {
+    if (length > MODULE_PROMETHEUS_HTTP_MAX_URL_LENGTH) {
         return -1;
     }
 
@@ -155,13 +155,13 @@ int network_protocol_prometheus_http_parser_on_url(
     return 0;
 }
 
-int network_protocol_prometheus_http_parser_on_header_field(
+int module_prometheus_http_parser_on_header_field(
         http_parser* http_parser,
         const char* at, size_t length) {
     client_http_request_data_t *http_request_data =
             ((client_http_request_data_t*)(http_parser->data));
 
-    if (length > NETWORK_PROTOCOL_PROMETHEUS_HTTP_MAX_HEADER_NAME_LENGTH) {
+    if (length > MODULE_PROMETHEUS_HTTP_MAX_HEADER_NAME_LENGTH) {
         return -1;
     }
 
@@ -180,13 +180,13 @@ int network_protocol_prometheus_http_parser_on_header_field(
     return 0;
 }
 
-int network_protocol_prometheus_http_parser_on_header_value(
+int module_prometheus_http_parser_on_header_value(
         http_parser* http_parser,
         const char* at, size_t length) {
     client_http_request_data_t *http_request_data =
             ((client_http_request_data_t*)(http_parser->data));
 
-    if (length > NETWORK_PROTOCOL_PROMETHEUS_HTTP_MAX_HEADER_VALUE_LENGTH) {
+    if (length > MODULE_PROMETHEUS_HTTP_MAX_HEADER_VALUE_LENGTH) {
         return -1;
     }
 
@@ -197,14 +197,14 @@ int network_protocol_prometheus_http_parser_on_header_value(
                 sizeof(client_http_header_t) * http_request_data->headers.size;
         size_t headers_list_new_size =
                 headers_list_current_size +
-                (sizeof(client_http_header_t) * NETWORK_PROTOCOL_PROMETHEUS_HTTP_HEADERS_SIZE_INCREASE);
+                (sizeof(client_http_header_t) * MODULE_PROMETHEUS_HTTP_HEADERS_SIZE_INCREASE);
         http_request_data->headers.list =
                 slab_allocator_mem_realloc(
                         http_request_data->headers.list,
                         headers_list_current_size,
                         headers_list_new_size,
                         true);
-        http_request_data->headers.size += NETWORK_PROTOCOL_PROMETHEUS_HTTP_HEADERS_SIZE_INCREASE;
+        http_request_data->headers.size += MODULE_PROMETHEUS_HTTP_HEADERS_SIZE_INCREASE;
     }
 
     char *header_value = slab_allocator_mem_alloc_zero(length + 1);
@@ -229,7 +229,7 @@ int network_protocol_prometheus_http_parser_on_header_value(
     return 0;
 }
 
-bool network_protocol_prometheus_http_send_response(
+bool module_prometheus_http_send_response(
         network_channel_t *channel,
         int error_code,
         const char *content_type,
@@ -300,7 +300,7 @@ end:
     return result_ret;
 }
 
-bool network_protocol_prometheus_http_send_error(
+bool module_prometheus_http_send_error(
         network_channel_t *channel,
         int http_code,
         const char* error_title,
@@ -354,7 +354,7 @@ bool network_protocol_prometheus_http_send_error(
             error_title,
             error_message_with_args);
 
-    result_ret = network_protocol_prometheus_http_send_response(
+    result_ret = module_prometheus_http_send_response(
             channel,
             http_code,
             "text/html; charset=ASCII",
@@ -373,7 +373,7 @@ end:
     return result_ret;
 }
 
-char *network_protocol_prometheus_fetch_extra_metrics_from_env() {
+char *module_prometheus_fetch_extra_metrics_from_env() {
     char *extra_env_content = NULL;
     size_t extra_env_content_length = 0;
     size_t extra_env_content_size = 0;
@@ -434,7 +434,7 @@ char *network_protocol_prometheus_fetch_extra_metrics_from_env() {
     return extra_env_content;
 }
 
-bool network_protocol_prometheus_process_metrics_request_add_metric(
+bool module_prometheus_process_metrics_request_add_metric(
         char **buffer,
         size_t *length,
         size_t *size,
@@ -497,9 +497,9 @@ bool network_protocol_prometheus_process_metrics_request_add_metric(
     return true;
 }
 
-bool network_protocol_prometheus_process_metrics_request(
+bool module_prometheus_process_metrics_request(
         network_channel_t *channel,
-        network_protocol_prometheus_client_t *network_protocol_prometheus_client) {
+        module_prometheus_client_t *module_prometheus_client) {
     worker_stats_t aggregated_stats = { 0 };
     timespec_t now = { 0 }, uptime = { 0 };
     char *content = NULL;
@@ -510,7 +510,7 @@ bool network_protocol_prometheus_process_metrics_request(
     worker_stats_aggregate(&aggregated_stats);
 
     // Fetch the extra metrics from the env variables
-    char *extra_env_content = network_protocol_prometheus_fetch_extra_metrics_from_env();
+    char *extra_env_content = module_prometheus_fetch_extra_metrics_from_env();
 
     // Calculate uptime
     clock_monotonic(&now);
@@ -549,7 +549,7 @@ bool network_protocol_prometheus_process_metrics_request(
 
     for(response_metric_field_t *stat_field = stats_fields; stat_field->name; stat_field++) {
         // Build the metrics
-        if (!network_protocol_prometheus_process_metrics_request_add_metric(
+        if (!module_prometheus_process_metrics_request_add_metric(
                 &content,
                 &content_length,
                 &content_size,
@@ -561,7 +561,7 @@ bool network_protocol_prometheus_process_metrics_request(
         }
     }
 
-    result_ret = network_protocol_prometheus_http_send_response(
+    result_ret = module_prometheus_http_send_response(
         channel,
         200,
         "text/plain; charset=ASCII",
@@ -580,18 +580,18 @@ end:
     return result_ret;
 }
 
-bool network_protocol_prometheus_process_request(
+bool module_prometheus_process_request(
         network_channel_t *channel,
-        network_protocol_prometheus_client_t *network_protocol_prometheus_client) {
-    client_http_request_data_t *http_request_data = &network_protocol_prometheus_client->http_request_data;
+        module_prometheus_client_t *module_prometheus_client) {
+    client_http_request_data_t *http_request_data = &module_prometheus_client->http_request_data;
 
     if (strlen("/metrics") == http_request_data->url_length && strncmp(http_request_data->url, "/metrics", http_request_data->url_length) == 0) {
-        return network_protocol_prometheus_process_metrics_request(
+        return module_prometheus_process_metrics_request(
                 channel,
-                network_protocol_prometheus_client);
+                module_prometheus_client);
     }
 
-    return network_protocol_prometheus_http_send_error(
+    return module_prometheus_http_send_error(
             channel,
             404,
             "Page not found",
@@ -600,30 +600,30 @@ bool network_protocol_prometheus_process_request(
             http_request_data->url);
 }
 
-bool network_protocol_prometheus_process_data(
+bool module_prometheus_process_data(
         network_channel_t *channel,
-        network_protocol_prometheus_client_t *network_protocol_prometheus_client) {
+        module_prometheus_client_t *module_prometheus_client) {
     network_channel_buffer_data_t *read_buffer_data_start =
-            network_protocol_prometheus_client->read_buffer.data +
-            network_protocol_prometheus_client->read_buffer.data_offset;
+            module_prometheus_client->read_buffer.data +
+            module_prometheus_client->read_buffer.data_offset;
     size_t data_parsed = http_parser_execute(
-            &network_protocol_prometheus_client->http_parser,
-            &network_protocol_prometheus_client->http_parser_settings,
+            &module_prometheus_client->http_parser,
+            &module_prometheus_client->http_parser_settings,
             read_buffer_data_start,
-            network_protocol_prometheus_client->read_buffer.data_size);
+            module_prometheus_client->read_buffer.data_size);
 
     // Update the buffer cursor
-    network_protocol_prometheus_client->read_buffer.data_offset += data_parsed;
-    network_protocol_prometheus_client->read_buffer.data_size -= data_parsed;
+    module_prometheus_client->read_buffer.data_offset += data_parsed;
+    module_prometheus_client->read_buffer.data_size -= data_parsed;
 
-    if (network_protocol_prometheus_client->http_parser.http_errno != 0) {
+    if (module_prometheus_client->http_parser.http_errno != 0) {
         LOG_I(TAG, "Error <%s> parsing http request",
-              http_errno_description(network_protocol_prometheus_client->http_parser.http_errno));
+              http_errno_description(module_prometheus_client->http_parser.http_errno));
         return false;
     }
 
-    if (network_protocol_prometheus_client->http_request_data.request_received) {
-        network_protocol_prometheus_process_request(channel, network_protocol_prometheus_client);
+    if (module_prometheus_client->http_request_data.request_received) {
+        module_prometheus_process_request(channel, module_prometheus_client);
         if (likely(network_should_flush_send_buffer(channel))) {
             network_flush_send_buffer(channel);
         }
@@ -635,59 +635,59 @@ bool network_protocol_prometheus_process_data(
     return true;
 }
 
-void network_protocol_prometheus_accept_setup_http_parser(
-        network_protocol_prometheus_client_t *network_protocol_prometheus_client) {
-    network_protocol_prometheus_client->http_parser_settings.on_url =
-            network_protocol_prometheus_http_parser_on_url;
-    network_protocol_prometheus_client->http_parser_settings.on_header_field =
-            network_protocol_prometheus_http_parser_on_header_field;
-    network_protocol_prometheus_client->http_parser_settings.on_header_value =
-            network_protocol_prometheus_http_parser_on_header_value;
-    network_protocol_prometheus_client->http_parser_settings.on_message_complete =
-            network_protocol_prometheus_http_parser_on_message_complete;
+void module_prometheus_accept_setup_http_parser(
+        module_prometheus_client_t *module_prometheus_client) {
+    module_prometheus_client->http_parser_settings.on_url =
+            module_prometheus_http_parser_on_url;
+    module_prometheus_client->http_parser_settings.on_header_field =
+            module_prometheus_http_parser_on_header_field;
+    module_prometheus_client->http_parser_settings.on_header_value =
+            module_prometheus_http_parser_on_header_value;
+    module_prometheus_client->http_parser_settings.on_message_complete =
+            module_prometheus_http_parser_on_message_complete;
 
-    http_parser_init(&network_protocol_prometheus_client->http_parser, HTTP_REQUEST);
-    network_protocol_prometheus_client->http_parser.data = &network_protocol_prometheus_client->http_request_data;
+    http_parser_init(&module_prometheus_client->http_parser, HTTP_REQUEST);
+    module_prometheus_client->http_parser.data = &module_prometheus_client->http_request_data;
 }
 
-void network_protocol_prometheus_accept(
+void module_prometheus_accept(
         network_channel_t *channel) {
     bool exit_loop = false;
-    network_protocol_prometheus_client_t network_protocol_prometheus_client = { 0 };
+    module_prometheus_client_t module_prometheus_client = { 0 };
 
-    network_protocol_prometheus_client_new(
-            &network_protocol_prometheus_client,
+    module_prometheus_client_new(
+            &module_prometheus_client,
             channel->protocol_config);
 
-    network_protocol_prometheus_accept_setup_http_parser(
-            &network_protocol_prometheus_client);
+    module_prometheus_accept_setup_http_parser(
+            &module_prometheus_client);
 
     do {
         if (!network_buffer_has_enough_space(
-                &network_protocol_prometheus_client.read_buffer,
+                &module_prometheus_client.read_buffer,
                 NETWORK_CHANNEL_PACKET_SIZE)) {
             exit_loop = true;
         }
 
         if (!exit_loop) {
             if (network_buffer_needs_rewind(
-                    &network_protocol_prometheus_client.read_buffer,
+                    &module_prometheus_client.read_buffer,
                     NETWORK_CHANNEL_PACKET_SIZE)) {
-                network_buffer_rewind(&network_protocol_prometheus_client.read_buffer);
+                network_buffer_rewind(&module_prometheus_client.read_buffer);
             }
 
             exit_loop = network_receive(
                     channel,
-                    &network_protocol_prometheus_client.read_buffer,
+                    &module_prometheus_client.read_buffer,
                     NETWORK_CHANNEL_PACKET_SIZE) != NETWORK_OP_RESULT_OK;
         }
 
         if (!exit_loop) {
-            exit_loop = !network_protocol_prometheus_process_data(
+            exit_loop = !module_prometheus_process_data(
                     channel,
-                    &network_protocol_prometheus_client);
+                    &module_prometheus_client);
         }
     } while(!exit_loop);
 
-    network_protocol_prometheus_client_cleanup(&network_protocol_prometheus_client);
+    module_prometheus_client_cleanup(&module_prometheus_client);
 }
