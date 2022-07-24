@@ -20,13 +20,17 @@ Example output
 | pkg-config |              | **mandatory** |
 | libnuma    | \>= 1.1      | **mandatory** |
 | libyaml    | \>= 1.1      | **mandatory** |
+| libmbedtls | \>= 2.28     | **mandatory** |
+| libatomic1 |              | **mandatory** |
 | openssl    | \>= 2.0      | **mandatory** |
 | curl       | \>= 7.0      | **mandatory** |
-| libmbedtls | \>= 2.28     | **mandatory** |
 
 ## Install the required packages
 
 ### Ubuntu 22.04
+
+`libatomic1` is not included directly as it's as dependency of `libatomic` which is a dependency itself of 
+`build-essential`.
 
 ```shell
 sudo apt install \
@@ -39,6 +43,9 @@ sudo apt install \
 
 ### Ubuntu 20.04
 
+`libatomic1` is not included directly as it's as dependency of `libatomic` which is a dependency itself of
+`build-essential`.
+
 ```shell
 sudo apt install \
     build-essential cmake pkg-config git \
@@ -49,6 +56,9 @@ sudo apt install \
 ```
 
 ### Debian 11
+
+`libatomic1` is not included directly as it's as dependency of `libatomic` which is a dependency itself of
+`build-essential`.
 
 ```shell
 sudo apt install \
@@ -68,7 +78,8 @@ sudo dnf install \
     numactl-libs numactl-devel \
     libcurl libcurl-devel \
     libyaml libyaml-devel \
-    mbedtls mbedtls-devel
+    mbedtls mbedtls-devel \
+    libatomic libatomic-devel
 ```
 
 ## How to build it
