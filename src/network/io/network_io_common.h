@@ -17,7 +17,7 @@ typedef bool (*network_io_common_parse_addresses_foreach_callback_t)(
         socklen_t socket_address_size,
         uint16_t port,
         uint16_t backlog,
-        network_protocols_t protocol,
+        module_types_t protocol,
         void* user_data);
 
 bool network_io_common_socket_set_option(
@@ -119,7 +119,7 @@ int32_t network_io_common_parse_addresses_foreach(
         uint16_t port,
         uint16_t backlog,
         network_io_common_parse_addresses_foreach_callback_t callback,
-        network_protocols_t protocol,
+        module_types_t protocol,
         void* user_data);
 
 char* network_io_common_socket_address_str(

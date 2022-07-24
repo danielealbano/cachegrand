@@ -169,7 +169,7 @@ bool worker_network_listeners_initialize(
                     config_network_protocol->bindings[binding_index].host,
                     config_network_protocol->bindings[binding_index].port,
                     config_network->listen_backlog,
-                    NETWORK_PROTOCOLS_UNKNOWN,
+                    MODULE_TYPE_UNKNOWN,
                     &listener_new_cb_user_data) == false) {
                 return_res = false;
                 goto end;
@@ -186,17 +186,17 @@ bool worker_network_listeners_initialize(
 
     // Allocate the listeners (with the correct protocol config)
     for(int protocol_index = 0; protocol_index < config_network->protocols_count; protocol_index++) {
-        network_protocols_t network_protocol;
+        module_types_t network_protocol;
 
         config_network_protocol_t *config_network_protocol = &config_network->protocols[protocol_index];
         switch(config_network_protocol->type) {
             default:
             case CONFIG_PROTOCOL_TYPE_REDIS:
-                network_protocol = NETWORK_PROTOCOLS_REDIS;
+                network_protocol = MODULE_TYPE_REDIS;
                 break;
 
             case CONFIG_PROTOCOL_TYPE_PROMETHEUS:
-                network_protocol = NETWORK_PROTOCOLS_PROMETHEUS;
+                network_protocol = MODULE_TYPE_PROMETHEUS;
                 break;
         }
 
@@ -311,11 +311,11 @@ void worker_network_new_client_fiber_entrypoint(
                     new_channel->protocol);
             break;
 
-        case NETWORK_PROTOCOLS_REDIS:
+        case MODULE_TYPE_REDIS:
             module_redis_accept(
                     new_channel);
             break;
-        case NETWORK_PROTOCOLS_PROMETHEUS:
+        case MODULE_TYPE_PROMETHEUS:
             module_prometheus_accept(
                     new_channel);
             break;

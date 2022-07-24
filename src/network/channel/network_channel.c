@@ -108,7 +108,7 @@ bool network_channel_listener_new_callback(
         socklen_t socket_address_size,
         uint16_t port,
         uint16_t backlog,
-        network_protocols_t protocol,
+        module_types_t protocol,
         void* user_data) {
     int fd;
     network_channel_t* listener;
@@ -176,7 +176,7 @@ bool network_channel_listener_new(
         char* address,
         uint16_t port,
         uint16_t backlog,
-        network_protocols_t protocol,
+        module_types_t protocol,
         network_channel_listener_new_callback_user_data_t *user_data) {
     int res;
 

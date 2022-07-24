@@ -5,12 +5,12 @@
 extern "C" {
 #endif
 
-enum network_protocols {
-    NETWORK_PROTOCOLS_UNKNOWN = 0,
-    NETWORK_PROTOCOLS_REDIS,
-    NETWORK_PROTOCOLS_PROMETHEUS
+enum module_types {
+    MODULE_TYPE_UNKNOWN = 0,
+    MODULE_TYPE_REDIS,
+    MODULE_TYPE_PROMETHEUS
 };
-typedef enum network_protocols network_protocols_t;
+typedef enum module_types module_types_t;
 
 #ifdef __cplusplus
 }
