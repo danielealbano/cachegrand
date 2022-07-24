@@ -20,14 +20,14 @@ the same hardware to generate the load.
 
 cachegrand is able to scale linearly if enough cpu power is left to the operating system to process the network data.
 
-![GET Operations/s](docs/benchmarks/cachegrand-amd-epyc-7502p-get-ops.png)
-![SET Operations/s](docs/benchmarks/cachegrand-amd-epyc-7502p-set-ops.png)
+![GET Operations/s](https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/benchmarks/cachegrand-amd-epyc-7502p-get-ops.png)
+![SET Operations/s](https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/benchmarks/cachegrand-amd-epyc-7502p-set-ops.png)
 
 Latencies are also very good, especially when handling 6400 clients taking into account that the operating system
 doesn't have any free cpu core to handle the network traffic.
 
-![Latency with 2 threads and 200 clients](docs/benchmarks/cachegrand-amd-epyc-7502p-latencies-2t.png)
-![Latency with 64 threads and 6400 clients](docs/benchmarks/cachegrand-amd-epyc-7502p-latencies-64t.png)
+![Latency with 2 threads and 200 clients](https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/benchmarks/cachegrand-amd-epyc-7502p-latencies-2t.png)
+![Latency with 64 threads and 6400 clients](https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/benchmarks/cachegrand-amd-epyc-7502p-latencies-64t.png)
 
 Key features:
 - [Modular](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules.md) architecture to support widely used protocols, e.g.
