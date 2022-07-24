@@ -162,7 +162,7 @@ extern "C" {
         .argument_stream_data_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME_AUTOGEN(COMMAND_FUNC_PTR, argument_stream_data), \
         .argument_stream_end_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME_AUTOGEN(COMMAND_FUNC_PTR, argument_stream_end), \
         .argument_full_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME_AUTOGEN(COMMAND_FUNC_PTR, argument_full), \
-        .command_end_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME_AUTOGEN(COMMAND_FUNC_PTR, command_end), \
+        .command_end_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, command_end), \
         .command_free_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME_AUTOGEN(COMMAND_FUNC_PTR, command_free), \
         .required_positional_arguments_count = (POS_ARGS_COUNT) \
     }
@@ -244,15 +244,7 @@ typedef module_redis_command_funcptr_retval_t (module_redis_command_free_funcptr
 
 enum module_redis_commands {
     MODULE_REDIS_COMMAND_NOP = 0,
-    MODULE_REDIS_COMMAND_UNKNOWN,
-    MODULE_REDIS_COMMAND_SHUTDOWN,
-    MODULE_REDIS_COMMAND_HELLO,
-    MODULE_REDIS_COMMAND_QUIT,
-    MODULE_REDIS_COMMAND_PING,
-    MODULE_REDIS_COMMAND_GET,
-    MODULE_REDIS_COMMAND_SET,
-    MODULE_REDIS_COMMAND_DEL,
-    MODULE_REDIS_COMMAND_MGET,
+    MODULE_REDIS_COMMAND_UNKNOWN
 };
 typedef enum module_redis_commands module_redis_commands_t;
 
