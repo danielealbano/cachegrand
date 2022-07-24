@@ -230,7 +230,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
                 send_buffer_start = send_buffer;
 
                 // Build the chunks for the value
-                for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value_chunks_count; chunk_index++) {
+                for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value.count; chunk_index++) {
                     storage_db_chunk_info_t *chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
                     char *chunk_send_buffer = slab_allocator_mem_alloc(chunk_info->chunk_length);
 

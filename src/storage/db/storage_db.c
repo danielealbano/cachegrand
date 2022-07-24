@@ -551,18 +551,18 @@ bool storage_db_entry_index_allocate_key_chunks(
     uint32_t chunk_count = ceil((double)key_length / (double)STORAGE_DB_CHUNK_MAX_SIZE);
 
     entry_index->key_length = key_length;
-    entry_index->key_chunks_info = slab_allocator_mem_alloc(sizeof(storage_db_chunk_info_t) * chunk_count);
-    entry_index->key_chunks_count = chunk_count;
+    entry_index->key.sequence = slab_allocator_mem_alloc(sizeof(storage_db_chunk_info_t) * chunk_count);
+    entry_index->key.count = chunk_count;
 
     size_t remaining_length = key_length;
-    for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->key_chunks_count; chunk_index++) {
+    for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->key.count; chunk_index++) {
         storage_db_chunk_info_t *chunk_info = storage_db_entry_key_chunk_get(entry_index, chunk_index);
 
         if (!storage_db_chunk_data_pre_allocate(
                 db,
                 chunk_info,
                 MIN(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
-            slab_allocator_mem_free(entry_index->key_chunks_info);
+            slab_allocator_mem_free(entry_index->key.sequence);
             return false;
         }
 
@@ -579,11 +579,11 @@ bool storage_db_entry_index_allocate_value_chunks(
     uint32_t chunk_count = ceil((double)value_length / (double)STORAGE_DB_CHUNK_MAX_SIZE);
 
     entry_index->value_length = value_length;
-    entry_index->value_chunks_info = slab_allocator_mem_alloc(sizeof(storage_db_chunk_info_t) * chunk_count);
-    entry_index->value_chunks_count = chunk_count;
+    entry_index->value.sequence = slab_allocator_mem_alloc(sizeof(storage_db_chunk_info_t) * chunk_count);
+    entry_index->value.count = chunk_count;
 
     size_t remaining_length = value_length;
-    for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value_chunks_count; chunk_index++) {
+    for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value.count; chunk_index++) {
         storage_db_chunk_info_t *chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
 
         if (!storage_db_chunk_data_pre_allocate(
@@ -591,7 +591,7 @@ bool storage_db_entry_index_allocate_value_chunks(
                 chunk_info,
                 MIN(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
             // TODO: If the operation fails all the allocated values should be freed as this might lead to memory leaks
-            slab_allocator_mem_free(entry_index->value_chunks_info);
+            slab_allocator_mem_free(entry_index->value.sequence);
             return false;
         }
 
@@ -604,36 +604,36 @@ bool storage_db_entry_index_allocate_value_chunks(
 void storage_db_entry_index_chunks_free(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index) {
-    if (entry_index->key_chunks_info) {
+    if (entry_index->key.sequence) {
         // If the backend is only memory, the key is managed by the hashtable and the chunks are not stored
         // in memory, so it's necessary to free only the chunks of the values
         if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
             for(
                     storage_db_chunk_index_t chunk_index = 0;
-                    chunk_index < entry_index->key_chunks_count;
+                    chunk_index < entry_index->key.count;
                     chunk_index++) {
                 storage_db_chunk_info_t *chunk_info = storage_db_entry_key_chunk_get(entry_index, chunk_index);
                 storage_db_chunk_data_free(db, chunk_info);
             }
 
-            slab_allocator_mem_free(entry_index->key_chunks_info);
-            entry_index->key_chunks_count = 0;
-            entry_index->key_chunks_info = NULL;
+            slab_allocator_mem_free(entry_index->key.sequence);
+            entry_index->key.count = 0;
+            entry_index->key.sequence = NULL;
         }
     }
 
-    if (entry_index->value_chunks_info) {
+    if (entry_index->value.sequence) {
         for (
                 storage_db_chunk_index_t chunk_index = 0;
-                chunk_index < entry_index->value_chunks_count;
+                chunk_index < entry_index->value.count;
                 chunk_index++) {
             storage_db_chunk_info_t *chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
             storage_db_chunk_data_free(db, chunk_info);
         }
 
-        slab_allocator_mem_free(entry_index->value_chunks_info);
-        entry_index->value_chunks_count = 0;
-        entry_index->value_chunks_info = NULL;
+        slab_allocator_mem_free(entry_index->value.sequence);
+        entry_index->value.count = 0;
+        entry_index->value.sequence = NULL;
     }
 }
 
@@ -734,14 +734,14 @@ storage_db_chunk_info_t *storage_db_entry_key_chunk_get(
         storage_db_entry_index_t* entry_index,
         storage_db_chunk_index_t chunk_index) {
 
-    return entry_index->key_chunks_info + chunk_index;
+    return entry_index->key.sequence + chunk_index;
 }
 
 storage_db_chunk_info_t *storage_db_entry_value_chunk_get(
         storage_db_entry_index_t* entry_index,
         storage_db_chunk_index_t chunk_index) {
 
-    return entry_index->value_chunks_info + chunk_index;
+    return entry_index->value.sequence + chunk_index;
 }
 
 void storage_db_entry_index_status_increase_readers_counter(

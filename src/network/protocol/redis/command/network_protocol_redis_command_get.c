@@ -211,7 +211,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
         // Check if the value is small enough to be contained in 1 single chunk and if it would fit in a memory single
         // memory allocation leaving enough space for the protocol begin and end signatures themselves
         // The 32 bytes extra are required for the protocol bits that need to be stored in the send buffer
-        if (entry_index->value_chunks_count == 1 && entry_index->value_length < SLAB_OBJECT_SIZE_MAX - 32) {
+        if (entry_index->value.count == 1 && entry_index->value_length < SLAB_OBJECT_SIZE_MAX - 32) {
             network_channel_buffer_data_t *send_buffer_end;
             size_t slice_length = MIN(entry_index->value_length + 32, STORAGE_DB_CHUNK_MAX_SIZE);
             send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
@@ -294,7 +294,7 @@ NETWORK_PROTOCOL_REDIS_COMMAND_FUNCPTR_COMMAND_END(get) {
             }
 
             // Build the chunks for the value
-            for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value_chunks_count; chunk_index++) {
+            for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value.count; chunk_index++) {
                 char *buffer_to_send;
                 size_t buffer_to_send_length;
 

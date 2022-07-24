@@ -98,15 +98,19 @@ union storage_db_entry_index_status {
     };
 };
 
+typedef struct storage_db_entry_chunk_sequence storage_db_entry_chunk_sequence_t;
+struct storage_db_entry_chunk_sequence {
+    storage_db_chunk_index_t count;
+    storage_db_chunk_info_t *sequence;
+};
+
 typedef struct storage_db_entry_index storage_db_entry_index_t;
 struct storage_db_entry_index {
     storage_db_entry_index_status_t status;
     uint16_t key_length;
     uint32_t value_length;
-    storage_db_chunk_index_t key_chunks_count;
-    storage_db_chunk_index_t value_chunks_count;
-    storage_db_chunk_info_t *key_chunks_info;
-    storage_db_chunk_info_t *value_chunks_info;
+    storage_db_entry_chunk_sequence_t key;
+    storage_db_entry_chunk_sequence_t value;
 } __attribute__((aligned(32)));
 
 char *storage_db_shard_build_path(
