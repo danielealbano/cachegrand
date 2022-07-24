@@ -32,29 +32,8 @@ class Program:
         Path(self._arguments.commands_scaffolding_path).mkdir(
             parents=True,
             exist_ok=True)
-        Path(path.join(self._arguments.commands_scaffolding_path, "commands")).mkdir(
-            parents=True,
-            exist_ok=True)
 
-    @staticmethod
-    def _generate_commands_scaffolding_header_file_command_begin_comment(command_info: dict) -> str:
-        return "\n".join([
-            "//",
-            "// COMMAND DEFINITION BEGIN FOR '{command_string}'",
-            "//",
-            "",
-        ]).format(**command_info)
-
-    @staticmethod
-    def _generate_commands_scaffolding_header_file_command_end_comment(command_info: dict) -> str:
-        return "\n".join([
-            "",
-            "//",
-            "// COMMAND DEFINITION END FOR '{command_string}'",
-            "//",
-        ]).format(**command_info)
-
-    def _generate_commands_scaffolding_header_file_command_data_fields(self, command_info: dict, argument: dict,
+    def _generate_commands_scaffolding_header_file_command_context_fields(self, command_info: dict, argument: dict,
                                                                        start_indentation: int) -> str:
         lines = []
         field_type = None
@@ -73,9 +52,9 @@ class Program:
         elif argument["type"] == "pattern":
             field_type = "module_redis_pattern_t"
         elif argument["type"] in ["block", "oneof"]:
-            command_data_struct_name = self._generate_command_data_struct_name(command_info)
-            field_type = "{command_data_struct_name}_{struct_type}_argument_{name}_t".format(
-                command_data_struct_name=command_data_struct_name,
+            command_context_struct_name = self._generate_command_context_struct_name(command_info)
+            field_type = "{command_context_struct_name}_{struct_type}_argument_{name}_t".format(
+                command_context_struct_name=command_context_struct_name,
                 struct_type="block" if argument["type"] == "block" else "oneof",
                 name=argument["name"])
 
@@ -101,24 +80,17 @@ class Program:
         return header
 
     @staticmethod
-    def _generate_command_data_struct_name(command_info: dict) -> str:
-        return "module_redis_command_{command_callback_name}_data".format(**command_info)
+    def _generate_command_context_struct_name(command_info: dict) -> str:
+        return "module_redis_command_{command_callback_name}_context".format(**command_info)
 
-    @staticmethod
-    def _generate_command_data_typedef_name(command_info: dict) -> str:
-        return "module_redis_command_{command_callback_name}_data_t".format(**command_info)
+    def _generate_command_context_typedef_name(self, command_info: dict) -> str:
+        return "{}_t".format(self._generate_command_context_struct_name(command_info))
 
-    def _generate_commands_scaffolding_header_file_command_data_struct(self, command_info: dict) -> str:
-        header = (
-            "\n".join([
-                "//",
-                "// command data struct",
-                "//",
-            ]) + "\n"
-        )
+    def _generate_commands_scaffolding_header_file_command_context_struct(self, command_info: dict) -> str:
+        header = ""
 
-        command_data_struct_name = self._generate_command_data_struct_name(command_info)
-        command_data_typedef_name = self._generate_command_data_typedef_name(command_info)
+        command_context_struct_name = self._generate_command_context_struct_name(command_info)
+        command_context_typedef_name = self._generate_command_context_typedef_name(command_info)
 
         has_block_arguments = False
         if len(command_info["arguments"]) > 0:
@@ -128,19 +100,19 @@ class Program:
                 has_block_arguments = True
 
                 struct_type = "block" if argument["type"] == "block" else "oneof"
-                command_data_subargument_struct_name = \
-                    "{command_data_struct_name}_{struct_type}_argument_{name}".format(
-                        command_data_struct_name=command_data_struct_name,
+                command_context_subargument_struct_name = \
+                    "{command_context_struct_name}_{struct_type}_argument_{name}".format(
+                        command_context_struct_name=command_context_struct_name,
                         struct_type=struct_type,
                         name=argument["name"])
-                command_data_subargument_typedef_name = "{}_t".format(command_data_subargument_struct_name)
+                command_context_subargument_typedef_name = "{}_t".format(command_context_subargument_struct_name)
 
                 header += "typedef struct {} {};\n".format(
-                    command_data_subargument_struct_name, command_data_subargument_typedef_name)
-                header += "struct {} {{\n".format(command_data_subargument_struct_name)
+                    command_context_subargument_struct_name, command_context_subargument_typedef_name)
+                header += "struct {} {{\n".format(command_context_subargument_struct_name)
 
                 for block_argument_index, block_argument in enumerate(argument["sub_arguments"]):
-                    header += self._generate_commands_scaffolding_header_file_command_data_fields(
+                    header += self._generate_commands_scaffolding_header_file_command_context_fields(
                         command_info=command_info, argument=block_argument, start_indentation=4)
 
                 header += "};\n"
@@ -149,8 +121,8 @@ class Program:
             header += "\n"
 
         # Header of the struct
-        header += "typedef struct {} {};\n".format(command_data_struct_name, command_data_typedef_name)
-        header += "struct {} {{\n".format(command_data_struct_name)
+        header += "typedef struct {} {};\n".format(command_context_struct_name, command_context_typedef_name)
+        header += "struct {} {{\n".format(command_context_struct_name)
 
         # Standard error messages related arguments
         header += "    char *error_message;\n"
@@ -159,74 +131,65 @@ class Program:
         # If there are no arguments, everything needed is just the error_message and the has_error properties
         if len(command_info["arguments"]) > 0:
             for argument_index, argument in enumerate(command_info["arguments"]):
-                header += self._generate_commands_scaffolding_header_file_command_data_fields(
+                header += self._generate_commands_scaffolding_header_file_command_context_fields(
                     command_info=command_info, argument=argument, start_indentation=4)
 
         # Close the struct
-        header += "}};\n".format(command_data_struct_name)
+        header += "}};\n".format(command_context_struct_name)
 
         return header
 
     @staticmethod
     def _generate_commands_scaffolding_header_file_command_key_specs_struct_table(command_info: dict) -> str:
-        header = (
-            "\n".join([
-                "//",
-                "// key_specs definitions",
-                "//",
-            ]) + "\n"
-        )
+        header = ""
 
-        if len(command_info["key_specs"]) > 0:
-            header += "module_redis_command_key_spec_t " \
-                      "module_redis_command_{command_callback_name}_key_specs[] = {{\n".format(**command_info)
+        header += "module_redis_command_key_spec_t " \
+                  "module_redis_command_{command_callback_name}_key_specs[] = {{\n".format(**command_info)
 
-            for key_spec_index, key_spec in enumerate(command_info["key_specs"]):
-                if len(key_spec["key_access_flags"]) > 0:
-                    key_access_flags = " | ".join([
-                        "MODULE_REDIS_COMMAND_KEY_ACCESS_FLAGS_{}".format(flag)
-                        for flag in key_spec["key_access_flags"]
-                    ])
-                else:
-                    key_access_flags = 0
+        for key_spec_index, key_spec in enumerate(command_info["key_specs"]):
+            if len(key_spec["key_access_flags"]) > 0:
+                key_access_flags = " | ".join([
+                    "MODULE_REDIS_COMMAND_KEY_ACCESS_FLAGS_{}".format(flag)
+                    for flag in key_spec["key_access_flags"]
+                ])
+            else:
+                key_access_flags = 0
 
-                if len(key_spec["value_access_flags"]) > 0:
-                    value_access_flags = " | ".join([
-                        "MODULE_REDIS_COMMAND_VALUE_ACCESS_FLAGS_{}".format(flag)
-                        for flag in key_spec["value_access_flags"]
-                    ])
-                else:
-                    value_access_flags = 0
+            if len(key_spec["value_access_flags"]) > 0:
+                value_access_flags = " | ".join([
+                    "MODULE_REDIS_COMMAND_VALUE_ACCESS_FLAGS_{}".format(flag)
+                    for flag in key_spec["value_access_flags"]
+                ])
+            else:
+                value_access_flags = 0
 
-                header += (
-                    "    {\n        " +
-                    ",\n        ".join([
-                        ".key_access_flags = {key_access_flags}",
-                        ".value_access_flags = {value_access_flags}",
-                        ".is_unknown = {is_unknown}",
-                        ".begin_search_index_pos = {begin_search_index_pos}",
-                        ".find_keys_range_lastkey = {find_keys_range_lastkey}",
-                        ".find_keys_range_step = {find_keys_range_step}",
-                        ".find_keys_range_limit = {begin_search_index_pos}",
-                    ]).format(
-                        key_access_flags=key_access_flags,
-                        value_access_flags=value_access_flags,
-                        is_unknown="true" if key_spec["is_unknown"] else "false",
-                        begin_search_index_pos=key_spec["begin_search_index_pos"],
-                        find_keys_range_lastkey=key_spec["find_keys_range_lastkey"],
-                        find_keys_range_step=key_spec["find_keys_range_step"],
-                        find_keys_range_limit=key_spec["find_keys_range_limit"],
-                    ) +
-                    "\n    }"
-                )
+            header += (
+                "    {\n        " +
+                ",\n        ".join([
+                    ".key_access_flags = {key_access_flags}",
+                    ".value_access_flags = {value_access_flags}",
+                    ".is_unknown = {is_unknown}",
+                    ".begin_search_index_pos = {begin_search_index_pos}",
+                    ".find_keys_range_lastkey = {find_keys_range_lastkey}",
+                    ".find_keys_range_step = {find_keys_range_step}",
+                    ".find_keys_range_limit = {begin_search_index_pos}",
+                ]).format(
+                    key_access_flags=key_access_flags,
+                    value_access_flags=value_access_flags,
+                    is_unknown="true" if key_spec["is_unknown"] else "false",
+                    begin_search_index_pos=key_spec["begin_search_index_pos"],
+                    find_keys_range_lastkey=key_spec["find_keys_range_lastkey"],
+                    find_keys_range_step=key_spec["find_keys_range_step"],
+                    find_keys_range_limit=key_spec["find_keys_range_limit"],
+                ) +
+                "\n    }"
+            )
 
-                if key_spec_index + 1 < len(command_info["key_specs"]):
-                    header += ","
-                header += "\n"
+            if key_spec_index + 1 < len(command_info["key_specs"]):
+                header += ","
+            header += "\n"
 
-            header += "};\n"
-        else:
-            header += "// no key_specs for the command\n//\n"
+        header += "};\n"
 
         return header
 
@@ -271,60 +234,34 @@ class Program:
 
     def _generate_commands_scaffolding_header_file_command_sub_arguments_structs_tables(
             self, command_info: dict) -> str:
-        header = (
-            "\n".join([
-                "//",
-                "// command_arguments_sub_arguments definitions",
-                "//",
-            ]) + "\n"
-        )
+        header = ""
 
-        has_sub_arguments = False
-        if len(command_info["arguments"]) > 0:
-            for argument_index, argument in enumerate(command_info["arguments"]):
-                if len(argument["sub_arguments"]) == 0:
-                    continue
+        for argument_index, argument in enumerate(command_info["arguments"]):
+            if len(argument["sub_arguments"]) == 0:
+                continue
 
-                has_sub_arguments = True
-
-                header += (
-                    "module_redis_command_argument_t "
-                    "module_redis_command_{command_callback_name}_argument_{argument_index}_sub_arguments[] = {{\n" +
-                    self._generate_commands_scaffolding_header_file_argument_structs_content(
-                        argument["sub_arguments"]) + "\n" +
-                    "}};\n"
-                ).format(**command_info, argument_index=argument_index)
-        if not has_sub_arguments:
-            header += "// no arguments with sub arguments for the command\n//\n"
+            header += (
+                "module_redis_command_argument_t "
+                "module_redis_command_{command_callback_name}_argument_{argument_index}_sub_arguments[] = {{\n" +
+                self._generate_commands_scaffolding_header_file_argument_structs_content(
+                    argument["sub_arguments"]) + "\n" +
+                "}};\n"
+            ).format(**command_info, argument_index=argument_index)
 
         return header
 
     def _generate_commands_scaffolding_header_file_command_arguments_structs_table(self, command_info: dict) -> str:
-        header = (
-            "\n".join([
-                "//",
-                "// command_arguments definitions",
-                "//",
-            ]) + "\n"
-        )
-
-        if len(command_info["arguments"]) > 0:
-            header += (
-                    "module_redis_command_argument_t module_redis_command_{command_callback_name}_arguments[] = {{\n" +
-                    self._generate_commands_scaffolding_header_file_argument_structs_content(
-                        command_info["arguments"]) + "\n" +
-                    "}};\n"
-            ).format(**command_info)
-        else:
-            header += "// no arguments with sub arguments for the command\n//\n"
-
-        return header
+        return (
+                "module_redis_command_argument_t module_redis_command_{command_callback_name}_arguments[] = {{\n" +
+                self._generate_commands_scaffolding_header_file_argument_structs_content(
+                    command_info["arguments"]) + "\n" +
+                "}};\n"
+        ).format(**command_info)
 
     @staticmethod
     def _generate_commands_scaffolding_commands_header_command_callback(command_info: dict) -> str:
         return (
             "\n".join([
-                "// commands callbacks definitions for '{command_string}'",
                 "MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN_AUTOGEN({command_callback_name});",
                 "MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_REQUIRE_STREAM_AUTOGEN({command_callback_name});",
                 "MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN_AUTOGEN({command_callback_name});",
@@ -349,11 +286,15 @@ class Program:
                "{command_callback_name_uppercase}, " \
                "\"{command_string}\", " \
                "{command_callback_name}, " \
-               "{required_arguments_count}" \
+               "{required_arguments_count}, " \
+               "{arguments_count}, " \
+               "{key_specs_count}" \
                "),".format(
-                **command_info,
-                command_callback_name_uppercase=command_info["command_callback_name"].upper(),
-                required_arguments_count=required_arguments_count)
+                    **command_info,
+                    command_callback_name_uppercase=command_info["command_callback_name"].upper(),
+                    required_arguments_count=required_arguments_count,
+                    arguments_count=len(command_info["arguments"]),
+                    key_specs_count=len(command_info["key_specs"]))
 
     @staticmethod
     def _write_header_header(fp, header_name):
@@ -387,7 +328,7 @@ class Program:
                 self._arguments.commands_scaffolding_path,
                 "module_redis_autogenerated_commands_enum.h"), "w") as fp:
             self._write_header_header(
-                fp, "CACHEGRAND_MODULE_REDIS_COMMANDS_ENUM_AUTOGENERATED_H")
+                fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_ENUM_H")
 
             fp.writelines([
                 "enum module_redis_commands {\n"
@@ -407,14 +348,14 @@ class Program:
             ])
 
             self._write_header_footer(
-                fp, "CACHEGRAND_MODULE_REDIS_COMMANDS_ENUM_AUTOGENERATED_H")
+                fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_ENUM_H")
 
     def _generate_commands_module_redis_autogenerated_commands_callbacks_h(self, commands_info: list):
         with open(path.join(
                 self._arguments.commands_scaffolding_path,
                 "module_redis_autogenerated_commands_callbacks.h"), "w") as fp:
             self._write_header_header(
-                fp, "CACHEGRAND_MODULE_REDIS_COMMANDS_CALLBACKS_AUTOGENERATED_H")
+                fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_CALLBACKS_H")
 
             for command_info in commands_info:
                 fp.writelines([
@@ -422,47 +363,31 @@ class Program:
                 ])
 
             self._write_header_footer(
-                fp, "CACHEGRAND_MODULE_REDIS_COMMANDS_CALLBACKS_AUTOGENERATED_H")
+                fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_CALLBACKS_H")
 
-    def _generate_commands_module_redis_commands_table_autogenerated_c(self, commands_info: list):
+    def _generate_commands_module_redis_autogenerated_commands_table_h_header(self, commands_info: list):
         with open(path.join(
-                self._arguments.commands_scaffolding_path, "module_redis_commands_table_autogenerated.h"), "w") as fp:
+                self._arguments.commands_scaffolding_path, "module_redis_autogenerated_commands_table.h"), "w") as fp:
 
-            self._write_header_header(fp, "CACHEGRAND_MODULE_REDIS_COMMANDS_TABLE_AUTOGENERATED_H")
+            self._write_header_header(fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_TABLE_H")
+
+            for command_info in commands_info:
+                fp.writelines([
+                    self._generate_commands_scaffolding_header_file_command_key_specs_struct_table(command_info),
+                    self._generate_commands_scaffolding_header_file_command_sub_arguments_structs_tables(
+                        command_info),
+                    self._generate_commands_scaffolding_header_file_command_arguments_structs_table(command_info),
+                    "\n",
+                ])
 
             fp.writelines(["module_redis_command_info_t command_infos_map[] = {\n"])
-
             for command_info in commands_info:
                 fp.writelines([
                     self._generate_commands_scaffolding_header_file_command_commands_struct_header(command_info), "\n"
                 ])
-
             fp.writelines(["};\n"])
 
-            self._write_header_footer(fp, "CACHEGRAND_MODULE_REDIS_COMMANDS_TABLE_AUTOGENERATED_H")
-
-    def _generate_commands_module_redis_autogenerated_command_header_h(self, command_info: dict):
-        with open(path.join(
-                self._arguments.commands_scaffolding_path,
-                "commands",
-                "module_redis_command_{}_autogenerated.h".format(command_info["command_callback_name"])), "w") as fp:
-
-            self._write_header_header(
-                fp, "CACHEGRAND_MODULE_REDIS_COMMAND_{command_callback_name}_AUTOGENERATED_H".format(
-                    command_callback_name=command_info["command_callback_name"].upper()))
-
-            fp.writelines([
-                self._generate_commands_scaffolding_header_file_command_begin_comment(command_info), "\n",
-                self._generate_commands_scaffolding_header_file_command_data_struct(command_info), "\n",
-                self._generate_commands_scaffolding_header_file_command_key_specs_struct_table(command_info), "\n",
-                self._generate_commands_scaffolding_header_file_command_sub_arguments_structs_tables(
-                    command_info), "\n",
-                self._generate_commands_scaffolding_header_file_command_arguments_structs_table(command_info), "\n",
-            ])
-
-            self._write_header_footer(
-                fp, "CACHEGRAND_MODULE_REDIS_COMMAND_{command_callback_name}_AUTOGENERATED_H".format(
-                    command_callback_name=command_info["command_callback_name"].upper()))
+            self._write_header_footer(fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_TABLE_H")
 
     def _generate_commands_module_redis_command_autogenerated_c_headers_general(self, fp):
         fp.writelines("\n".join([
@@ -497,6 +422,7 @@ class Program:
             "#include \"worker/worker_stats.h\"",
             "#include \"worker/worker_context.h\"",
             "#include \"modules/redis/module_redis.h\"",
+            "#include \"module_redis_autogenerated_commands_contexts.h\"",
             "#include \"module_redis_autogenerated_commands_callbacks.h\"",
             "",
             "",
@@ -510,7 +436,6 @@ class Program:
             "//",
             "// COMMAND {command_string}",
             "//",
-            "#include \"commands/module_redis_command_{command_callback_name}_autogenerated.h\"",
             "#define {tag_name} \"module_redis_command_{command_callback_name}\"",
         ]).format(
             command_string=command_info["command_string"],
@@ -522,12 +447,12 @@ class Program:
         return "\n".join([
             "MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN_AUTOGEN({command_callback_name}) {{",
             "    protocol_context->command_context = "
-            "slab_allocator_mem_alloc_zero(sizeof({command_data_typedef_name}));",
+            "slab_allocator_mem_alloc_zero(sizeof({command_context_typedef_name}));",
             "    return true;",
             "}}",
         ]).format(
             command_callback_name=command_info["command_callback_name"],
-            command_data_typedef_name=self._generate_command_data_typedef_name(command_info)) + "\n"
+            command_context_typedef_name=self._generate_command_context_typedef_name(command_info)) + "\n"
 
     def _generate_commands_module_redis_command_autogenerated_c_argument_require_stream(self, command_info: dict) \
             -> str:
@@ -537,7 +462,7 @@ class Program:
             "}}",
         ]).format(
             command_callback_name=command_info["command_callback_name"],
-            command_data_typedef_name=self._generate_command_data_typedef_name(command_info)) + "\n"
+            command_context_typedef_name=self._generate_command_context_typedef_name(command_info)) + "\n"
 
     def _generate_commands_module_redis_command_autogenerated_c_argument_full(self, command_info: dict) -> str:
         return "\n".join([
@@ -546,7 +471,7 @@ class Program:
             "}}",
         ]).format(
             command_callback_name=command_info["command_callback_name"],
-            command_data_typedef_name=self._generate_command_data_typedef_name(command_info)) + "\n"
+            command_context_typedef_name=self._generate_command_context_typedef_name(command_info)) + "\n"
 
     def _generate_commands_module_redis_command_autogenerated_c_argument_stream_begin(self, command_info: dict) -> str:
         return "\n".join([
@@ -555,7 +480,7 @@ class Program:
             "}}",
         ]).format(
             command_callback_name=command_info["command_callback_name"],
-            command_data_typedef_name=self._generate_command_data_typedef_name(command_info)) + "\n"
+            command_context_typedef_name=self._generate_command_context_typedef_name(command_info)) + "\n"
 
     def _generate_commands_module_redis_command_autogenerated_c_argument_stream_data(self, command_info: dict) -> str:
         return "\n".join([
@@ -564,7 +489,7 @@ class Program:
             "}}",
         ]).format(
             command_callback_name=command_info["command_callback_name"],
-            command_data_typedef_name=self._generate_command_data_typedef_name(command_info)) + "\n"
+            command_context_typedef_name=self._generate_command_context_typedef_name(command_info)) + "\n"
 
     def _generate_commands_module_redis_command_autogenerated_c_argument_stream_end(self, command_info: dict) -> str:
         return "\n".join([
@@ -573,7 +498,7 @@ class Program:
             "}}",
         ]).format(
             command_callback_name=command_info["command_callback_name"],
-            command_data_typedef_name=self._generate_command_data_typedef_name(command_info)) + "\n"
+            command_context_typedef_name=self._generate_command_context_typedef_name(command_info)) + "\n"
 
     def _generate_commands_module_redis_command_autogenerated_c_command_end(self, command_info: dict) -> str:
         return "\n".join([
@@ -616,7 +541,7 @@ class Program:
         ]).format(
             command_callback_name=command_info["command_callback_name"],
             command_callback_name_uppercase=command_info["command_callback_name"].upper(),
-            command_data_typedef_name=self._generate_command_data_typedef_name(command_info),
+            command_context_typedef_name=self._generate_command_context_typedef_name(command_info),
             tag_name=self._generate_commands_module_redis_command_autogenerated_tag_name(
                 command_info=command_info)) + "\n"
 
@@ -628,7 +553,7 @@ class Program:
             "}}",
         ]).format(
             command_callback_name=command_info["command_callback_name"],
-            command_data_typedef_name=self._generate_command_data_typedef_name(command_info)) + "\n"
+            command_context_typedef_name=self._generate_command_context_typedef_name(command_info)) + "\n"
 
     def _generate_commands_module_redis_autogenerated_commands_callbacks_c(self, fp, command_info: dict):
         # TODO: when support for special types will be added it will be necessary to check if extra headers will
@@ -643,27 +568,41 @@ class Program:
             self._generate_commands_module_redis_command_autogenerated_c_argument_stream_begin(command_info), "\n",
             self._generate_commands_module_redis_command_autogenerated_c_argument_stream_data(command_info), "\n",
             self._generate_commands_module_redis_command_autogenerated_c_argument_stream_end(command_info), "\n",
-            # TESTING - HAS TO BE DROPPED!
             self._generate_commands_module_redis_command_autogenerated_c_command_end(command_info), "\n",
             self._generate_commands_module_redis_command_autogenerated_c_command_free(command_info), "\n",
         ])
 
+    def _generate_commands_module_redis_autogenerated_commands_contexts_h_header(self, commands_info: list):
+        with open(path.join(
+                self._arguments.commands_scaffolding_path,
+                "module_redis_autogenerated_commands_contexts.h"), "w") as fp:
+
+            self._write_header_header(fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMAND_CONTEXTS_H")
+
+            for command_info in commands_info:
+                fp.writelines([
+                    self._generate_commands_scaffolding_header_file_command_context_struct(command_info), "\n",
+                ])
+
+            self._write_header_footer(fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMAND_CONTEXTS_H")
+
+    def _generate_commands_module_redis_autogenerated_commands_callbacks_c_code(self, commands_info: list):
+        with open(path.join(
+                self._arguments.commands_scaffolding_path,
+                "module_redis_autogenerated_commands_callbacks.c"), "w") as fp_commands_callbacks:
+
+            self._generate_commands_module_redis_command_autogenerated_c_headers_general(fp_commands_callbacks)
+
+            for command_info in commands_info:
+                self._generate_commands_module_redis_autogenerated_commands_callbacks_c(
+                    fp=fp_commands_callbacks, command_info=command_info)
+
     def _generate_commands_scaffolding(self, commands_info: list):
         self._generate_commands_module_redis_autogenerated_commands_callbacks_h(commands_info=commands_info)
         self._generate_commands_module_redis_autogenerated_commands_enum_h(commands_info=commands_info)
-        self._generate_commands_module_redis_commands_table_autogenerated_c(commands_info=commands_info)
-
-        with open(path.join(
-                self._arguments.commands_scaffolding_path,
-                "module_redis_autogenerated_commands_callbacks.c"), "w") as fp:
-            self._generate_commands_module_redis_command_autogenerated_c_headers_general(fp)
-
-            # Generate the per-command scaffolding files
-            for command_info in commands_info:
-                self._generate_commands_module_redis_autogenerated_command_header_h(
-                    command_info=command_info)
-                self._generate_commands_module_redis_autogenerated_commands_callbacks_c(
-                    fp=fp, command_info=command_info)
+        self._generate_commands_module_redis_autogenerated_commands_table_h_header(commands_info=commands_info)
+        self._generate_commands_module_redis_autogenerated_commands_contexts_h_header(commands_info=commands_info)
+        self._generate_commands_module_redis_autogenerated_commands_callbacks_c_code(commands_info=commands_info)
 
     def main(self):
         logging.basicConfig(
