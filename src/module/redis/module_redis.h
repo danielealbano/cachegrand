@@ -191,7 +191,6 @@ struct module_redis_pattern {
     size_t length;
 };
 
-typedef enum module_redis_key_access_flags module_redis_key_access_flags_t;
 enum module_redis_key_access_flags {
     MODULE_REDIS_COMMAND_KEY_ACCESS_FLAGS_READ_ONLY,
     MODULE_REDIS_COMMAND_KEY_ACCESS_FLAGS_READ_WRITE,
@@ -199,14 +198,15 @@ enum module_redis_key_access_flags {
     MODULE_REDIS_COMMAND_KEY_ACCESS_FLAGS_DELETE,
     MODULE_REDIS_COMMAND_KEY_ACCESS_FLAGS_VARIABLE_FLAGS
 };
+typedef enum module_redis_key_access_flags module_redis_key_access_flags_t;
 
-typedef enum module_redis_value_access_flags module_redis_value_access_flags_t;
 enum module_redis_value_access_flags {
     MODULE_REDIS_COMMAND_VALUE_ACCESS_FLAGS_ACCESS,
     MODULE_REDIS_COMMAND_VALUE_ACCESS_FLAGS_UPDATE,
     MODULE_REDIS_COMMAND_VALUE_ACCESS_FLAGS_INSERT,
     MODULE_REDIS_COMMAND_VALUE_ACCESS_FLAGS_DELETE,
 };
+typedef enum module_redis_value_access_flags module_redis_value_access_flags_t;
 
 typedef struct module_redis_command_key_spec module_redis_command_key_spec_t;
 struct module_redis_command_key_spec {
@@ -219,7 +219,6 @@ struct module_redis_command_key_spec {
     int find_keys_range_limit;
 };
 
-typedef enum module_redis_command_argument_type module_redis_command_argument_type_t;
 enum module_redis_command_argument_type {
     MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY,
     MODULE_REDIS_COMMAND_ARGUMENT_TYPE_STRING,
@@ -231,6 +230,7 @@ enum module_redis_command_argument_type {
     MODULE_REDIS_COMMAND_ARGUMENT_TYPE_BLOCK,
     MODULE_REDIS_COMMAND_ARGUMENT_TYPE_ONEOF,
 };
+typedef enum module_redis_command_argument_type module_redis_command_argument_type_t;
 
 typedef struct module_redis_command_argument module_redis_command_argument_t;
 struct module_redis_command_argument {
