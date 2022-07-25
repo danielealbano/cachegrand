@@ -33,8 +33,10 @@ class Program:
             parents=True,
             exist_ok=True)
 
-    def _generate_commands_scaffolding_header_file_command_context_fields(self, command_info: dict, argument: dict,
-                                                                       start_indentation: int) -> str:
+    def _generate_commands_scaffolding_header_file_command_context_fields(self, command_info: dict,
+                                                                          argument: dict, start_indentation: int,
+                                                                          command_context_struct_name_suffix: str) \
+            -> str:
         lines = []
         field_type = None
 
@@ -53,10 +55,13 @@ class Program:
             field_type = "module_redis_pattern_t"
         elif argument["type"] in ["block", "oneof"]:
             command_context_struct_name = self._generate_command_context_struct_name(command_info)
-            field_type = "{command_context_struct_name}_{struct_type}_argument_{name}_t".format(
-                command_context_struct_name=command_context_struct_name,
-                struct_type="block" if argument["type"] == "block" else "oneof",
-                name=argument["name"])
+            field_type = \
+                "{command_context_struct_name}" \
+                "{command_context_struct_name_suffix}" \
+                "_subargument_{argument_name}_t".format(
+                    command_context_struct_name=command_context_struct_name,
+                    command_context_struct_name_suffix=command_context_struct_name_suffix,
+                    argument_name=argument["name"].replace("-", "_"))
 
         if field_type is None:
             raise Exception("field_type is none")
@@ -86,56 +91,55 @@ class Program:
     def _generate_command_context_typedef_name(self, command_info: dict) -> str:
         return "{}_t".format(self._generate_command_context_struct_name(command_info))
 
-    def _generate_commands_scaffolding_header_file_command_context_struct(self, command_info: dict) -> str:
+    def _generate_commands_scaffolding_header_file_command_context_struct(self, command_info: dict, arguments: list,
+                                                                          is_sub_argument: bool,
+                                                                          command_context_struct_name_suffix: str) \
+            -> str:
         header = ""
 
         command_context_struct_name = self._generate_command_context_struct_name(command_info)
-        command_context_typedef_name = self._generate_command_context_typedef_name(command_info)
 
-        has_block_arguments = False
-        if len(command_info["arguments"]) > 0:
-            for argument_index, argument in enumerate(command_info["arguments"]):
-                if argument["type"] not in ["block", "oneof"]:
-                    continue
-                has_block_arguments = True
+        has_sub_arguments = False
+        for argument_index, argument in enumerate(arguments):
+            if len(argument["sub_arguments"]) == 0:
+                continue
+            has_sub_arguments = True
 
-                struct_type = "block" if argument["type"] == "block" else "oneof"
-                command_context_subargument_struct_name = \
-                    "{command_context_struct_name}_{struct_type}_argument_{name}".format(
-                        command_context_struct_name=command_context_struct_name,
-                        struct_type=struct_type,
-                        name=argument["name"])
-                command_context_subargument_typedef_name = "{}_t".format(command_context_subargument_struct_name)
+            header += self._generate_commands_scaffolding_header_file_command_context_struct(
+                command_info=command_info,
+                arguments=argument["sub_arguments"],
+                is_sub_argument=True,
+                command_context_struct_name_suffix="{}_subargument_{}".format(
+                    command_context_struct_name_suffix,
+                    argument["name"].replace("-", "_")))
 
-                header += "typedef struct {} {};\n".format(
-                    command_context_subargument_struct_name, command_context_subargument_typedef_name)
-                header += "struct {} {{\n".format(command_context_subargument_struct_name)
-
-                for block_argument_index, block_argument in enumerate(argument["sub_arguments"]):
-                    header += self._generate_commands_scaffolding_header_file_command_context_fields(
-                        command_info=command_info, argument=block_argument, start_indentation=4)
-
-                header += "};\n"
-
-        if has_block_arguments:
+        if has_sub_arguments:
             header += "\n"
 
         # Header of the struct
-        header += "typedef struct {} {};\n".format(command_context_struct_name, command_context_typedef_name)
-        header += "struct {} {{\n".format(command_context_struct_name)
+        command_context_arguments_struct_name = "{}{}".format(
+            command_context_struct_name,
+            command_context_struct_name_suffix)
 
-        # Standard error messages related arguments
-        header += "    char *error_message;\n"
-        header += "    bool has_error;\n"
+        header += "typedef struct {} {}_t;\n".format(
+            command_context_arguments_struct_name, command_context_arguments_struct_name)
+        header += "struct {} {{\n".format(command_context_arguments_struct_name)
+
+        if not is_sub_argument:
+            # Standard error messages related arguments
+            header += "    char *error_message;\n"
+            header += "    bool has_error;\n"
 
         # If there are no arguments, everything needed is just the error_message and the has_error properties
-        if len(command_info["arguments"]) > 0:
-            for argument_index, argument in enumerate(command_info["arguments"]):
-                header += self._generate_commands_scaffolding_header_file_command_context_fields(
-                    command_info=command_info, argument=argument, start_indentation=4)
+        for argument_index, argument in enumerate(arguments):
+            header += self._generate_commands_scaffolding_header_file_command_context_fields(
+                command_info=command_info,
+                argument=argument,
+                start_indentation=4,
+                command_context_struct_name_suffix=command_context_struct_name_suffix)
 
         # Close the struct
-        header += "}};\n".format(command_context_struct_name)
+        header += "};\n"
 
         return header
 
@@ -193,8 +197,9 @@ class Program:
 
         return header
 
-    @staticmethod
-    def _generate_commands_scaffolding_header_file_argument_structs_content(arguments) -> str:
+    def _generate_commands_scaffolding_header_file_argument_structs_content(self, command_info: dict,
+                                                                            arguments: list,
+                                                                            command_context_struct_name: str) -> str:
         return ",\n".join([
                 "    {{\n        " +
                 ",\n        ".join([
@@ -210,6 +215,7 @@ class Program:
                     ".has_sub_arguments = {has_sub_arguments}",
                     ".has_multiple_occurrences = {has_multiple_occurrences}",
                     ".has_multiple_token = {has_multiple_token}",
+                    ".argument_context_offset = offsetof({command_context_struct_name}_t,{command_context_field_name})"
                 ]).format(
                     name=argument["name"].replace("-", "_").lower(),
                     type=argument["type"].replace("-", "").upper(),
@@ -226,37 +232,49 @@ class Program:
                     has_sub_arguments="true" if argument["has_sub_arguments"] else "false",
                     has_multiple_occurrences="true" if argument["has_multiple_occurrences"] else "false",
                     has_multiple_token="true" if argument["has_multiple_token"] else "false",
+                    command_context_struct_name=command_context_struct_name,
+                    command_context_field_name=argument["name"].replace("-", "_"),
                 ) +
                 "\n    }}"
                 for argument in arguments
             ]
         )
 
-    def _generate_commands_scaffolding_header_file_command_sub_arguments_structs_tables(
-            self, command_info: dict) -> str:
+    def _generate_commands_scaffolding_header_file_command_arguments_structs_table(self, command_info: dict,
+                                                                                   arguments: list,
+                                                                                   argument_decl_name_suffix: str,
+                                                                                   command_context_struct_name: str) \
+            -> str:
         header = ""
+        argument_decl_name = "module_redis_command_{command_callback_name}{argument_decl_name_suffix}".format(
+            command_callback_name=command_info["command_callback_name"],
+            argument_decl_name_suffix=argument_decl_name_suffix)
 
-        for argument_index, argument in enumerate(command_info["arguments"]):
+        for argument_index, argument in enumerate(arguments):
             if len(argument["sub_arguments"]) == 0:
                 continue
 
-            header += (
-                "module_redis_command_argument_t "
-                "module_redis_command_{command_callback_name}_argument_{argument_index}_sub_arguments[] = {{\n" +
+            header += self._generate_commands_scaffolding_header_file_command_arguments_structs_table(
+                command_info=command_info,
+                arguments=argument["sub_arguments"],
+                argument_decl_name_suffix="{argument_decl_name_suffix}_subargument_{argument_name}".format(
+                    argument_decl_name_suffix=argument_decl_name_suffix,
+                    argument_name=argument["name"].replace("-", "_")),
+                command_context_struct_name="{command_context_struct_name}_subargument_{argument_name}".format(
+                    command_context_struct_name=command_context_struct_name,
+                    argument_name=argument["name"].replace("-", "_")))
+
+        header += (
+                "module_redis_command_argument_t {argument_decl_name}_arguments[] = {{\n" +
                 self._generate_commands_scaffolding_header_file_argument_structs_content(
-                    argument["sub_arguments"]) + "\n" +
+                    command_info=command_info,
+                    arguments=arguments,
+                    command_context_struct_name=command_context_struct_name) + "\n" +
                 "}};\n"
-            ).format(**command_info, argument_index=argument_index)
+        ).format(
+            argument_decl_name=argument_decl_name)
 
         return header
-
-    def _generate_commands_scaffolding_header_file_command_arguments_structs_table(self, command_info: dict) -> str:
-        return (
-                "module_redis_command_argument_t module_redis_command_{command_callback_name}_arguments[] = {{\n" +
-                self._generate_commands_scaffolding_header_file_argument_structs_content(
-                    command_info["arguments"]) + "\n" +
-                "}};\n"
-        ).format(**command_info)
 
     @staticmethod
     def _generate_commands_scaffolding_commands_header_command_callback(command_info: dict) -> str:
@@ -372,9 +390,11 @@ class Program:
             for command_info in commands_info:
                 fp.writelines([
                     self._generate_commands_scaffolding_header_file_command_key_specs_struct_table(command_info),
-                    self._generate_commands_scaffolding_header_file_command_sub_arguments_structs_tables(
-                        command_info),
-                    self._generate_commands_scaffolding_header_file_command_arguments_structs_table(command_info),
+                    self._generate_commands_scaffolding_header_file_command_arguments_structs_table(
+                        command_info=command_info,
+                        arguments=command_info["arguments"],
+                        argument_decl_name_suffix="",
+                        command_context_struct_name=self._generate_command_context_struct_name(command_info)),
                     "\n",
                 ])
 
@@ -556,7 +576,11 @@ class Program:
 
             for command_info in commands_info:
                 fp.writelines([
-                    self._generate_commands_scaffolding_header_file_command_context_struct(command_info), "\n",
+                    self._generate_commands_scaffolding_header_file_command_context_struct(
+                        command_info=command_info,
+                        arguments=command_info["arguments"],
+                        is_sub_argument=False,
+                        command_context_struct_name_suffix=""), "\n",
                 ])
 
             self._write_header_footer(fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMAND_CONTEXTS_H")
