@@ -19,7 +19,7 @@
 #include <netinet/tcp.h>
 
 #include "protocol/redis/protocol_redis.h"
-#include "modules/module.h"
+#include "module/module.h"
 #include "network/io/network_io_common.h"
 
 #include "../network_tests_support.h"

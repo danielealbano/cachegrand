@@ -34,7 +34,7 @@
 #include "config.h"
 #include "log/log.h"
 #include "fiber.h"
-#include "modules/module.h"
+#include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "storage/io/storage_io_common.h"
@@ -52,8 +52,8 @@
 #include "network/network_tls.h"
 #include "network/channel/network_channel_tls.h"
 #include "protocol/redis/protocol_redis_reader.h"
-#include "modules/redis/module_redis.h"
-#include "modules/prometheus/module_prometheus.h"
+#include "module/redis/module_redis.h"
+#include "module/prometheus/module_prometheus.h"
 
 #include "worker_network_op.h"
 
@@ -70,14 +70,14 @@ worker_op_network_receive_fp_t* worker_op_network_receive;
 worker_op_network_send_fp_t* worker_op_network_send;
 worker_op_network_close_fp_t* worker_op_network_close;
 
-worker_network_protocol_context_t *worker_network_protocol_contexts_initialize(
+worker_module_context_t *worker_module_contexts_initialize(
         config_t *config) {
     bool result_ret = false;
-    worker_network_protocol_context_t *worker_network_protocol_context = NULL;
+    worker_module_context_t *worker_module_context = NULL;
 
-    worker_network_protocol_context =
-            slab_allocator_mem_alloc_zero(sizeof(worker_network_protocol_context_t) * config->modules_count);
-    if (!worker_network_protocol_context) {
+    worker_module_context =
+            slab_allocator_mem_alloc_zero(sizeof(worker_module_context_t) * config->modules_count);
+    if (!worker_module_context) {
         goto end;
     }
 
@@ -110,39 +110,39 @@ worker_network_protocol_context_t *worker_network_protocol_contexts_initialize(
             goto end;
         }
 
-        worker_network_protocol_context[module_index].network_tls_config = network_tls_config;
+        worker_module_context[module_index].network_tls_config = network_tls_config;
     }
 
     result_ret = true;
 end:
 
-    if (!result_ret && worker_network_protocol_context) {
+    if (!result_ret && worker_module_context) {
         for (int module_index = 0; module_index < config->modules_count; module_index++) {
-            if (worker_network_protocol_context[module_index].network_tls_config == NULL) {
+            if (worker_module_context[module_index].network_tls_config == NULL) {
                 continue;
             }
 
-            network_tls_config_free(worker_network_protocol_context[module_index].network_tls_config);
+            network_tls_config_free(worker_module_context[module_index].network_tls_config);
         }
 
-        slab_allocator_mem_free(worker_network_protocol_context);
-        worker_network_protocol_context = NULL;
+        slab_allocator_mem_free(worker_module_context);
+        worker_module_context = NULL;
     }
 
-    return worker_network_protocol_context;
+    return worker_module_context;
 }
 
-void worker_network_protocol_context_free(
+void worker_module_context_free(
         config_t *config,
-        worker_network_protocol_context_t *worker_network_protocol_context) {
+        worker_module_context_t *worker_module_context) {
     for (int module_index = 0; module_index < config->modules_count; module_index++) {
-        if (worker_network_protocol_context[module_index].network_tls_config == NULL) {
+        if (worker_module_context[module_index].network_tls_config == NULL) {
             continue;
         }
-        network_tls_config_free(worker_network_protocol_context[module_index].network_tls_config);
+        network_tls_config_free(worker_module_context[module_index].network_tls_config);
     }
 
-    slab_allocator_mem_free(worker_network_protocol_context);
+    slab_allocator_mem_free(worker_module_context);
 }
 
 // TODO: the listener and accept operations should be refactored to split them in an user frontend operation and in an
@@ -151,7 +151,7 @@ bool worker_network_listeners_initialize(
         uint32_t worker_index,
         uint8_t core_index,
         config_t *config,
-        worker_network_protocol_context_t *worker_network_protocol_context,
+        worker_module_context_t *worker_module_context,
         network_channel_t **listeners,
         uint8_t *listeners_count) {
     bool return_res = false;
@@ -231,13 +231,13 @@ bool worker_network_listeners_initialize(
                 // If TLS is enabled for the binding, import the TLS settings
                 if (binding->tls) {
                     network_tls_config_t *network_tls_config =
-                            worker_network_protocol_context[module_index].network_tls_config;
+                            worker_module_context[module_index].network_tls_config;
                     network_channel_tls_set_config(
                             channel_listener,
                             &network_tls_config->config);
                     network_channel_tls_set_enabled(
                             channel_listener,
-                            worker_network_protocol_context[module_index].network_tls_config == NULL ? false : true);
+                            worker_module_context[module_index].network_tls_config == NULL ? false : true);
                     network_channel_tls_set_ktls(
                             channel_listener,
                             false);

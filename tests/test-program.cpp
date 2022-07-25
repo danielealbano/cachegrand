@@ -30,7 +30,7 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
-#include "modules/module.h"
+#include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"

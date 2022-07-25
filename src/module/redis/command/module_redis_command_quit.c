@@ -23,7 +23,7 @@
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "protocol/redis/protocol_redis_writer.h"
-#include "modules/module.h"
+#include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "config.h"
 #include "fiber.h"
@@ -31,16 +31,12 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
-#include "modules/redis/module_redis.h"
+#include "module/redis/module_redis.h"
 #include "network/network.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 
 #define TAG "module_redis_command_quit"
-
-MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(quit) {
-    return true;
-}
 
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(quit) {
     network_channel_buffer_data_t *send_buffer, *send_buffer_start;
@@ -74,8 +70,4 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(quit) {
     // TODO: BUG! The operation is not really failing but currently there is no way to inform the caller that the client
     //       has requested to terminate the connection.
     return false;
-}
-
-MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(quit) {
-    return true;
 }

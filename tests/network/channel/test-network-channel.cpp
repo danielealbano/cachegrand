@@ -16,7 +16,7 @@
 #include "../network_tests_support.h"
 
 #include "config.h"
-#include "modules/module.h"
+#include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 

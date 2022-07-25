@@ -28,7 +28,7 @@
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "protocol/redis/protocol_redis_writer.h"
-#include "modules/module.h"
+#include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "config.h"
 #include "fiber.h"
@@ -36,7 +36,7 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
-#include "modules/redis/module_redis.h"
+#include "module/redis/module_redis.h"
 #include "network/network.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
@@ -56,68 +56,56 @@ struct hello_response_item {
     } value;
 };
 typedef struct hello_response_item hello_response_item_t;
-
-struct hello_command_context {
-    char error_message[200];
-    bool has_error;
-};
-typedef struct hello_command_context hello_command_context_t;
-
-MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_BEGIN(hello) {
-    protocol_context->command_context = slab_allocator_mem_alloc(sizeof(hello_command_context_t));
-    ((hello_command_context_t*)protocol_context->command_context)->has_error = false;
-
-    return true;
-}
-
-MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(hello) {
-    hello_command_context_t *hello_command_context = (hello_command_context_t*)protocol_context->command_context;
-
-    if (argument_index == 0) {
-        char *endptr = NULL;
-        long version;
-
-        version = strtol(chunk_data, &endptr, 10);
-
-        // Validate the parameters
-        if (errno == ERANGE || endptr != chunk_data + chunk_length) {
-            hello_command_context->has_error = true;
-            snprintf(
-                    hello_command_context->error_message,
-                    sizeof(hello_command_context->error_message) - 1,
-                    "ERR Protocol version is not an integer or out of range");
-        } else if (version < 2 || version > 3) {
-            hello_command_context->has_error = true;
-            snprintf(
-                    hello_command_context->error_message,
-                    sizeof(hello_command_context->error_message) - 1,
-                    "NOPROTO unsupported protocol version");
-        } else  {
-            protocol_context->resp_version = version == 2
-                                             ? PROTOCOL_REDIS_RESP_VERSION_2
-                                             : PROTOCOL_REDIS_RESP_VERSION_3;
-        }
-    } else {
-        if (!hello_command_context->has_error) {
-            char *error_msg_format = "ERR Syntax error in HELLO option '%.*s'";
-            hello_command_context->has_error = true;
-            snprintf(
-                    hello_command_context->error_message,
-                    sizeof(hello_command_context->error_message) - 1,
-                    error_msg_format,
-                    sizeof(hello_command_context->error_message) - 1 - strlen(error_msg_format) + 4,
-                    chunk_data);
-        }
-    }
-
-    return true;
-}
+//
+//MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(hello) {
+//    hello_command_context_t *hello_command_context = (hello_command_context_t*)protocol_context->command_context;
+//
+//    if (argument_index == 0) {
+//        char *endptr = NULL;
+//        long version;
+//
+//        version = strtol(chunk_data, &endptr, 10);
+//
+//        // Validate the parameters
+//        if (errno == ERANGE || endptr != chunk_data + chunk_length) {
+//            hello_command_context->has_error = true;
+//            snprintf(
+//                    hello_command_context->error_message,
+//                    sizeof(hello_command_context->error_message) - 1,
+//                    "ERR Protocol version is not an integer or out of range");
+//        } else if (version < 2 || version > 3) {
+//            hello_command_context->has_error = true;
+//            snprintf(
+//                    hello_command_context->error_message,
+//                    sizeof(hello_command_context->error_message) - 1,
+//                    "NOPROTO unsupported protocol version");
+//        } else  {
+//            protocol_context->resp_version = version == 2
+//                                             ? PROTOCOL_REDIS_RESP_VERSION_2
+//                                             : PROTOCOL_REDIS_RESP_VERSION_3;
+//        }
+//    } else {
+//        if (!hello_command_context->has_error) {
+//            char *error_msg_format = "ERR Syntax error in HELLO option '%.*s'";
+//            hello_command_context->has_error = true;
+//            snprintf(
+//                    hello_command_context->error_message,
+//                    sizeof(hello_command_context->error_message) - 1,
+//                    error_msg_format,
+//                    sizeof(hello_command_context->error_message) - 1 - strlen(error_msg_format) + 4,
+//                    chunk_data);
+//        }
+//    }
+//
+//    return true;
+//}
 
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
     bool return_res = false;
     network_channel_buffer_data_t *send_buffer, *send_buffer_start, *send_buffer_end;
 
-    hello_command_context_t *hello_command_context = (hello_command_context_t*)protocol_context->command_context;
+    module_redis_command_hello_context_t *hello_command_context =
+            (module_redis_command_hello_context_t*)connection_context->command_context;
 
     if (hello_command_context->has_error) {
         size_t slice_length = sizeof(hello_command_context->error_message) + 16;
@@ -159,7 +147,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
             {
                     .key = "proto",
                     .value_type = PROTOCOL_REDIS_TYPE_NUMBER,
-                    .value.number = protocol_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2
+                    .value.number = connection_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2
                             ? 2
                             : 3
             },
@@ -195,7 +183,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
 
     send_buffer_end = send_buffer + slice_length;
 
-    if (protocol_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2) {
+    if (connection_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2) {
         send_buffer_start = protocol_redis_writer_write_array(
                 send_buffer_start,
                 send_buffer_end - send_buffer_start,
@@ -269,15 +257,4 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
 end:
 
     return return_res;
-}
-
-MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_FREE(hello) {
-    if (!protocol_context->command_context) {
-        return true;
-    }
-
-    slab_allocator_mem_free(protocol_context->command_context);
-    protocol_context->command_context = NULL;
-
-    return true;
 }

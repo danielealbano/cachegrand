@@ -20,7 +20,7 @@
 #include "misc.h"
 #include "log/log.h"
 
-#include "modules/module.h"
+#include "module/module.h"
 #include "network_io_common.h"
 #include "network_io_common_tls.h"
 
