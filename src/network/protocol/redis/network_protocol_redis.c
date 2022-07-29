@@ -327,8 +327,8 @@ bool network_protocol_redis_process_data(
                             continue;
                         }
 
-                        if (channel->protocol_config->redis->max_command_arguments <
-                            reader_context->arguments.count - 1) {
+                        if (reader_context->arguments.count - 1 >
+                            channel->protocol_config->redis->max_command_arguments) {
                             protocol_context->skip_command = true;
                             continue;
                         }
@@ -507,9 +507,9 @@ bool network_protocol_redis_process_data(
             assert(protocol_context->command_info != NULL);
 
             bool not_enough_arguments = protocol_context->command_info->required_positional_arguments_count >
-                        reader_context->arguments.count - 1;
-            bool too_many_arguments = channel->protocol_config->redis->max_command_arguments <
                     reader_context->arguments.count - 1;
+            bool too_many_arguments = reader_context->arguments.count - 1 >
+                    channel->protocol_config->redis->max_command_arguments;
 
             if (not_enough_arguments || too_many_arguments) {
                 send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
@@ -524,13 +524,11 @@ bool network_protocol_redis_process_data(
                             slice_length,
                             "ERR wrong number of arguments for '%s' command",
                             protocol_context->command_info->string);
-                }
-
-                if (too_many_arguments) {
+                } else {
                     send_buffer_start = protocol_redis_writer_write_simple_error_printf(
                             send_buffer_start,
                             slice_length,
-                            "ERR command arguments has exceeded. Limit <%u>",
+                            "ERR command has too many arguments, the limit is <%u>",
                             channel->protocol_config->redis->max_command_arguments);
                 }
 

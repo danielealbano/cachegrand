@@ -82,7 +82,8 @@ int32_t protocol_redis_reader_read(
         char *args_count_end_ptr = NULL;
         long args_count = strtol(buffer + 1, &args_count_end_ptr, 10);
 
-        if (new_line_ptr - 1 != args_count_end_ptr) {
+        if (new_line_ptr - 1 != args_count_end_ptr ||
+            args_count <= 0) {
             context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_ARRAY_INVALID_LENGTH;
             return -1;
         }
