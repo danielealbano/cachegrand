@@ -134,6 +134,7 @@ network:
       redis:
         max_key_length: 8192
         max_command_length: 1048576
+        max_command_arguments: 10000
       bindings:
         - host: 0.0.0.0
           port: 6379
@@ -191,6 +192,7 @@ network:
       redis:
         max_key_length: 8192
         max_command_length: 1048576
+        max_command_arguments: 10000
       bindings:
         - host: 0.0.0.0
           port: 6379
