@@ -94,6 +94,7 @@ typedef struct config_network_protocol_redis config_network_protocol_redis_t;
 struct config_network_protocol_redis {
     uint32_t max_key_length;
     uint32_t max_command_length;
+    uint32_t max_command_arguments;
 };
 
 typedef struct config_network_protocol config_network_protocol_t;

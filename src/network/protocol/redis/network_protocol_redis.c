@@ -327,6 +327,12 @@ bool network_protocol_redis_process_data(
                             continue;
                         }
 
+                        if (reader_context->arguments.count - 1 >
+                            channel->protocol_config->redis->max_command_arguments) {
+                            protocol_context->skip_command = true;
+                            continue;
+                        }
+
                         if (protocol_context->command_info->command_begin_funcptr) {
                             // Invoke the being function callback if it has been set
                             if (!protocol_context->command_info->command_begin_funcptr(
@@ -500,19 +506,32 @@ bool network_protocol_redis_process_data(
 
             assert(protocol_context->command_info != NULL);
 
-            if (protocol_context->command_info->required_positional_arguments_count >
-                reader_context->arguments.count - 1) {
+            bool not_enough_arguments = protocol_context->command_info->required_positional_arguments_count >
+                    reader_context->arguments.count - 1;
+            bool too_many_arguments = reader_context->arguments.count - 1 >
+                    channel->protocol_config->redis->max_command_arguments;
+
+            if (not_enough_arguments || too_many_arguments) {
                 send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
                 if (send_buffer_start == NULL) {
                     LOG_E(TAG, "Unable to acquire send buffer slice!");
                     goto end;
                 }
 
-                send_buffer_start = protocol_redis_writer_write_simple_error_printf(
-                        send_buffer_start,
-                        slice_length,
-                        "ERR wrong number of arguments for '%s' command",
-                        protocol_context->command_info->string);
+                if (not_enough_arguments) {
+                    send_buffer_start = protocol_redis_writer_write_simple_error_printf(
+                            send_buffer_start,
+                            slice_length,
+                            "ERR wrong number of arguments for '%s' command",
+                            protocol_context->command_info->string);
+                } else {
+                    send_buffer_start = protocol_redis_writer_write_simple_error_printf(
+                            send_buffer_start,
+                            slice_length,
+                            "ERR command has too many arguments, the limit is <%u>",
+                            channel->protocol_config->redis->max_command_arguments);
+                }
+
                 network_send_buffer_release_slice(
                         channel,
                         send_buffer_start ? send_buffer_start - send_buffer : 0);

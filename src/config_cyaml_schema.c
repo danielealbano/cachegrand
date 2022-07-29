@@ -111,6 +111,9 @@ const cyaml_schema_field_t config_network_protocol_redis_schema[] = {
         CYAML_FIELD_UINT(
                 "max_command_length", CYAML_FLAG_DEFAULT,
                 config_network_protocol_redis_t, max_command_length),
+        CYAML_FIELD_UINT(
+                "max_command_arguments", CYAML_FLAG_DEFAULT,
+                config_network_protocol_redis_t, max_command_arguments),
         CYAML_FIELD_END
 };
 
