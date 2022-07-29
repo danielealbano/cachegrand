@@ -620,7 +620,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                     buffer_send + buffer_send_offset,
                     sizeof(buffer_send) - buffer_send_offset - 1,
                     "*%d\r\n$4\r\nMGET\r\n",
-                    key_count);
+                    key_count + 1);
 
             for(int key_index = 0; key_index < key_count; key_index++) {
                 buffer_send_offset += snprintf(
