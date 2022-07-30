@@ -36,6 +36,8 @@
 
 #include "module_redis_command.h"
 
+#define TAG "module_redis_command"
+
 bool module_redis_command_is_key_too_long(
         network_channel_t *channel,
         size_t key_length) {
@@ -203,66 +205,182 @@ bool module_redis_command_process_end(
             connection_context);
 }
 
+#if DEBUG == 1
+void module_redis_command_dump_argument(
+        storage_db_t *db,
+        uint32_t argument_index,
         module_redis_command_argument_t *argument,
-        void *argument_context_base_addr) {
+        uintptr_t argument_context_base_addr,
+        int depth) {
+    int fake_count_1 = 1;
     bool argument_is_list = false;
+    bool has_token = false;
+    char depth_prefix[128] = { 0 };
+    int *count;
+    uintptr_t list;
+    size_t list_item_size;
+
+    char *argument_type_map[] = {
+            "UNSUPPORTED",
+            "KEY",
+            "STRING",
+            "INTEGER",
+            "DOUBLE",
+            "UNIXTIME",
+            "BOOL",
+            "PATTERN",
+            "BLOCK",
+            "ONEOF",
+    };
+
+    if (depth > 0) {
+        sprintf(depth_prefix, "%.*s", depth*4, "                                                                ");
+    }
+
+    fprintf(
+            stdout,
+            "%s[%d] %s <%s%s>: ",
+            depth_prefix,
+            argument_index,
+            argument->name,
+            argument_type_map[argument->type],
+            argument->has_multiple_occurrences ? "[]" : "");
 
     if (argument->has_multiple_occurrences) {
         argument_is_list = true;
     }
 
+    list = argument_context_base_addr + argument->argument_context_member_offset;
+
+    if (argument->token != NULL) {
+        has_token = *(bool*)list;
+
+        // This is VERY flaky, although only 1 byte is occupied for the bool, for performance reasons the compiler pad
+        // the structure with 7 additional bytes to have the pointer or the struct afterwards 8-byte aligned.
+        // This code most likely will not work on different arch and will cause a crash but it's not a massive problem
+        // as this function, together with its caller, are used only for debugging so it's acceptable.
+        list += sizeof(void*);
+    }
+
     if (argument_is_list) {
-        // If the argument is a list, the struct contains always first the list (which is the allocated memory) and
-        // then the count
-        void **list = argument_context_base_addr + argument->argument_context_offset;
-        int *count = argument_context_base_addr + argument->argument_context_offset + sizeof(void*);
+        count = (int *)(list + sizeof(void *));
+
+        fprintf(stdout, "(%d items)\n", *count);
 
         if (*count == 0) {
             return;
         }
 
-        // If count is not zero list should always be allocated
-        assert(*list != NULL);
+        // Get the pointer to the list
+        void **list_ptr = (void*)list;
 
-        if (module_redis_command_free_context_free_argument_value_needs_free(argument->type)) {
-            for (int index = 0; index < *count; index++) {
-                void *list_item = list[index];
-                module_redis_command_free_context_free_argument_value(
-                        argument->type,
-                        list_item);
-            }
-        }
+        // Because count > 0, the pointer to the list can't be null
+        assert(*list_ptr != NULL);
 
-        slab_allocator_mem_free(*list);
-        *list = NULL;
-        *count = 0;
+        // Cast back the list_ptr to uniptr_t to assign it back to list
+        list = (uintptr_t)*list_ptr;
     } else {
-        if (module_redis_command_free_context_free_argument_value_needs_free(argument->type)) {
-            module_redis_command_free_context_free_argument_value(
-                    argument->type,
-                    argument_context_base_addr + argument->argument_context_offset);
+        count = &fake_count_1;
+    }
+
+    list_item_size = argument->argument_context_member_size;
+
+    // If it's not a list, list[0] will be the base address, the loop will not move forward as the count is artificially
+    // set to 1 via the fake_count_1 variable
+    for (int index = 0; index < *count; index++) {
+        storage_db_chunk_sequence_t *chunk_sequence;
+        uintptr_t base_addr = (uintptr_t)(list + (list_item_size * index));
+
+        if (argument_is_list) {
+            fprintf(stdout,"%s    %d: ", depth_prefix, index);
+        }
+
+        switch (argument->type) {
+            case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY:
+                fprintf(
+                        stdout, "%s (%lu)\n",
+                        *(char**)(base_addr + offsetof(module_redis_key_t, key)),
+                        *(size_t*)(base_addr + offsetof(module_redis_key_t, length)));
+                break;
+            case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_STRING:
+                chunk_sequence = *(storage_db_chunk_sequence_t**)(base_addr);
+
+                if (chunk_sequence == NULL) {
+                    fprintf(stdout, "NOT SET\n");
+                } else {
+                    bool is_short_value = chunk_sequence->size <= 64;
+
+                    if (is_short_value) {
+                        char buffer[64] = {0};
+                        storage_db_chunk_read(
+                                db,
+                                storage_db_chunk_sequence_get(chunk_sequence, 0),
+                                buffer);
+
+                        fprintf(stdout, "%*s\n", (int) chunk_sequence->size, buffer);
+                    } else {
+                        fprintf(stdout, "<TOO LONG - %lu bytes>\n", chunk_sequence->size);
+                    }
+                }
+                break;
+            case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_INTEGER:
+                fprintf(stdout, "%ld\n", *(int64_t*)(base_addr));
+                break;
+            case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_DOUBLE:
+                fprintf(stdout, "%lf\n", *(double*)(base_addr));
+                break;
+            case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_UNIXTIME:
+                fprintf(stdout, "%ld\n", *(int64_t*)(base_addr));
+                break;
+            case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_BOOL:
+                fprintf(stdout, "%s\n", *(bool*)(base_addr) ? "true" : "false");
+                break;
+            case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_PATTERN:
+                fprintf(
+                        stdout, "%s (%lu)\n",
+                        *(char**)(base_addr + offsetof(module_redis_pattern_t, pattern)),
+                        *(size_t*)(base_addr + offsetof(module_redis_pattern_t, length)));
+                break;
+            case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_BLOCK:
+            case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_ONEOF:
+                fprintf(stdout, "\n");
+                module_redis_command_dump_arguments(
+                        db,
+                        argument->sub_arguments,
+                        argument->sub_arguments_count,
+                        base_addr,
+                        depth + 1);
+                break;
+            case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_UNSUPPORTED:
+                fprintf(stdout, "UNSUPPORTED!\n");
+                break;
         }
     }
-}
 
-void module_redis_command_free_context_free_arguments(
-        module_redis_command_argument_t *arguments,
-        int arguments_count,
-        void *argument_context_base_addr) {
-    for(int argument_index = 0; argument_index < arguments_count; argument_index++) {
-        module_redis_command_free_context_free_argument(
-                &arguments[argument_index],
-                argument_context_base_addr);
+    if (argument->token != NULL) {
+        fprintf(
+                stdout,
+                "%s    token <%s> is %s\n",
+                depth_prefix,
+                argument->token,
+                has_token ? "true" : "false");
     }
 }
 
-void module_redis_command_free_context(
-        module_redis_command_info_t *command_info,
-        module_redis_command_context_t *command_context) {
-    module_redis_command_free_context_free_arguments(
-            command_info->arguments,
-            command_info->arguments_count,
-            command_context);
+void module_redis_command_dump_arguments(
+        storage_db_t *db,
+        module_redis_command_argument_t arguments[],
+        int arguments_count,
+        uintptr_t argument_context_base_addr,
+        int depth) {
 
-    slab_allocator_mem_free(command_context);
+    for(int argument_index = 0; argument_index < arguments_count; argument_index++) {
+        module_redis_command_dump_argument(
+                db,
+                argument_index,
+                &arguments[argument_index],
+                argument_context_base_addr,
+                depth);
+    }
 }
+#endif
