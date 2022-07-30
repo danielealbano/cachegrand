@@ -282,6 +282,10 @@ void module_redis_connection_try_free_command_context(
     module_redis_command_free_context(
             connection_context->command.info,
             connection_context->command.context);
+    connection_context->command.info->command_free_funcptr(
+            connection_context);
+
+    connection_context->command.context = NULL;
 }
 
 bool module_redis_connection_command_too_long(
