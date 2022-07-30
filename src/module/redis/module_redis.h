@@ -19,69 +19,14 @@ extern "C" {
 #define MODULE_REDIS_COMMAND_FUNCPTR_GENERIC_AUTOGEN(COMMAND_FUNC_PTR, TYPE, ARGUMENTS) \
     module_redis_command_funcptr_retval_t MODULE_REDIS_COMMAND_FUNCPTR_NAME_AUTOGEN(COMMAND_FUNC_PTR, TYPE) (ARGUMENTS)
 
-#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_BEGIN \
-    network_channel_t *channel, \
-    storage_db_t *db, \
-    module_redis_connection_context_t *connection_context, \
-    protocol_redis_reader_context_t *reader_context
-
-#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_REQUIRE_STREAM \
-    MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_BEGIN, \
-    uint32_t argument_index
-
-#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_STREAM_BEGIN \
-    MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_BEGIN, \
-    uint32_t argument_index, \
-    size_t argument_length
-
-#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_STREAM_DATA \
-    MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_BEGIN, \
-    uint32_t argument_index, \
-    char* chunk_data, \
-    size_t chunk_length
-
-#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_STREAM_END \
-    MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_BEGIN, \
-    uint32_t argument_index
-
-#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_FULL \
-    MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_BEGIN, \
-    uint32_t argument_index, \
-    char* chunk_data, \
-    size_t chunk_length
+#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_BASE \
+    module_redis_connection_context_t *connection_context
 
 #define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_END \
-    MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_BEGIN
+    MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_BASE
 
-#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_REQUIRE_STREAM(COMMAND_FUNC_PTR) \
-    MODULE_REDIS_COMMAND_FUNCPTR_GENERIC( \
-        COMMAND_FUNC_PTR, \
-        argument_require_stream, \
-        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_REQUIRE_STREAM)
-
-#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN(COMMAND_FUNC_PTR) \
-    MODULE_REDIS_COMMAND_FUNCPTR_GENERIC( \
-        COMMAND_FUNC_PTR, \
-        argument_stream_begin, \
-        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_STREAM_BEGIN)
-
-#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_DATA(COMMAND_FUNC_PTR) \
-    MODULE_REDIS_COMMAND_FUNCPTR_GENERIC( \
-        COMMAND_FUNC_PTR, \
-        argument_stream_data, \
-        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_STREAM_DATA)
-
-#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(COMMAND_FUNC_PTR) \
-    MODULE_REDIS_COMMAND_FUNCPTR_GENERIC( \
-        COMMAND_FUNC_PTR, \
-        argument_stream_end, \
-        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_STREAM_END)
-
-#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(COMMAND_FUNC_PTR) \
-    MODULE_REDIS_COMMAND_FUNCPTR_GENERIC( \
-        COMMAND_FUNC_PTR, \
-        argument_full, \
-        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_FULL)
+#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_FREE \
+    MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_BASE
 
 #define MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(COMMAND_FUNC_PTR) \
     MODULE_REDIS_COMMAND_FUNCPTR_GENERIC( \
@@ -89,37 +34,13 @@ extern "C" {
         command_end, \
         MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_END)
 
-#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_REQUIRE_STREAM_AUTOGEN(COMMAND_FUNC_PTR) \
+#define MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_FREE_AUTOGEN(COMMAND_FUNC_PTR) \
     MODULE_REDIS_COMMAND_FUNCPTR_GENERIC_AUTOGEN( \
         COMMAND_FUNC_PTR, \
-        argument_require_stream, \
-        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_REQUIRE_STREAM)
+        command_free, \
+        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_FREE)
 
-#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN_AUTOGEN(COMMAND_FUNC_PTR) \
-    MODULE_REDIS_COMMAND_FUNCPTR_GENERIC_AUTOGEN( \
-        COMMAND_FUNC_PTR, \
-        argument_stream_begin, \
-        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_STREAM_BEGIN)
-
-#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_DATA_AUTOGEN(COMMAND_FUNC_PTR) \
-    MODULE_REDIS_COMMAND_FUNCPTR_GENERIC_AUTOGEN( \
-        COMMAND_FUNC_PTR, \
-        argument_stream_data, \
-        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_STREAM_DATA)
-
-#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END_AUTOGEN(COMMAND_FUNC_PTR) \
-    MODULE_REDIS_COMMAND_FUNCPTR_GENERIC_AUTOGEN( \
-        COMMAND_FUNC_PTR, \
-        argument_stream_end, \
-        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_STREAM_END)
-
-#define MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL_AUTOGEN(COMMAND_FUNC_PTR) \
-    MODULE_REDIS_COMMAND_FUNCPTR_GENERIC_AUTOGEN( \
-        COMMAND_FUNC_PTR, \
-        argument_full, \
-        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_FULL)
-
-#define MODULE_REDIS_COMMAND_AUTOGEN(ID, COMMAND, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, KEY_SPECS_COUNT, ARGS_COUNT) \
+#define MODULE_REDIS_COMMAND_AUTOGEN(ID, COMMAND, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, HAS_VARIABLE_ARGUMENTS, ARGS_COUNT, KEY_SPECS_COUNT) \
     { \
         .command = MODULE_REDIS_COMMAND_##ID, \
         .length = sizeof(COMMAND) - 1, \
@@ -127,19 +48,16 @@ extern "C" {
         .string_len = strlen(COMMAND), \
         .context_size = sizeof(CONCAT(CONCAT(module_redis_command, COMMAND_FUNC_PTR), context_t)), \
         .key_specs = CONCAT(CONCAT(module_redis_command, COMMAND_FUNC_PTR), key_specs), \
-        .key_specs_count = (ARGS_COUNT), \
+        .key_specs_count = (KEY_SPECS_COUNT), \
         .arguments = CONCAT(CONCAT(module_redis_command, COMMAND_FUNC_PTR), arguments), \
         .arguments_count = (ARGS_COUNT), \
-        .argument_require_stream_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME_AUTOGEN(COMMAND_FUNC_PTR, argument_require_stream), \
-        .argument_stream_begin_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME_AUTOGEN(COMMAND_FUNC_PTR, argument_stream_begin), \
-        .argument_stream_data_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME_AUTOGEN(COMMAND_FUNC_PTR, argument_stream_data), \
-        .argument_stream_end_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME_AUTOGEN(COMMAND_FUNC_PTR, argument_stream_end), \
-        .argument_full_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME_AUTOGEN(COMMAND_FUNC_PTR, argument_full), \
         .command_end_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, command_end), \
-        .required_arguments_count = (REQUIRED_ARGS_COUNT) \
+        .command_free_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME_AUTOGEN(COMMAND_FUNC_PTR, command_free), \
+        .required_arguments_count = (REQUIRED_ARGS_COUNT), \
+        .has_variable_arguments = (HAS_VARIABLE_ARGUMENTS), \
     }
 
-#define MODULE_REDIS_COMMAND(ID, COMMAND, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, KEY_SPECS_COUNT, ARGS_COUNT) \
+#define MODULE_REDIS_COMMAND(ID, COMMAND, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, HAS_VARIABLE_ARGUMENTS, KEY_SPECS_COUNT, ARGS_COUNT) \
     { \
         .command = MODULE_REDIS_COMMAND_##ID, \
         .length = sizeof(COMMAND) - 1, /* sizeof takes into account the NULL char at the end, different behaviour than strlen */ \
@@ -150,13 +68,10 @@ extern "C" {
         .key_specs_count = (ARGS_COUNT), \
         .arguments = CONCAT(CONCAT(module_redis_command, COMMAND_FUNC_PTR), arguments), \
         .arguments_count = (ARGS_COUNT), \
-        .argument_require_stream_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, argument_require_stream), \
-        .argument_stream_begin_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, argument_stream_begin), \
-        .argument_stream_data_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, argument_stream_data), \
-        .argument_stream_end_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, argument_stream_end), \
-        .argument_full_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, argument_full), \
         .command_end_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, command_end), \
-        .required_arguments_count = (REQUIRED_ARGS_COUNT) \
+        .command_free_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, command_free), \
+        .required_arguments_count = (REQUIRED_ARGS_COUNT), \
+        .has_variable_arguments = (HAS_VARIABLE_ARGUMENTS), \
     }
 
 typedef void module_redis_command_context_t;
@@ -166,18 +81,10 @@ typedef bool module_redis_command_funcptr_retval_t;
 // the entire struct can't be moved because of the dependencies
 typedef struct module_redis_connection_context module_redis_connection_context_t;
 
-typedef module_redis_command_funcptr_retval_t (module_redis_command_argument_require_stream_funcptr_t)(
-        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_REQUIRE_STREAM);
-typedef module_redis_command_funcptr_retval_t (module_redis_command_argument_stream_begin_funcptr_t)(
-        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_STREAM_BEGIN);
-typedef module_redis_command_funcptr_retval_t (module_redis_command_argument_stream_data_funcptr_t)(
-        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_STREAM_DATA);
-typedef module_redis_command_funcptr_retval_t (module_redis_command_argument_stream_end_funcptr_t)(
-        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_STREAM_END);
-typedef module_redis_command_funcptr_retval_t (module_redis_command_argument_full_funcptr_t)(
-        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_ARGUMENT_FULL);
 typedef module_redis_command_funcptr_retval_t (module_redis_command_end_funcptr_t)(
         MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_END);
+typedef module_redis_command_funcptr_retval_t (module_redis_command_free_funcptr_t)(
+        MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_FREE);
 
 typedef struct module_redis_key module_redis_key_t;
 struct module_redis_key {
@@ -262,13 +169,10 @@ struct module_redis_command_info {
     uint16_t key_specs_count;
     module_redis_command_argument_t *arguments;
     uint16_t arguments_count;
-    module_redis_command_argument_require_stream_funcptr_t *argument_require_stream_funcptr;
-    module_redis_command_argument_stream_begin_funcptr_t *argument_stream_begin_funcptr;
-    module_redis_command_argument_stream_data_funcptr_t *argument_stream_data_funcptr;
-    module_redis_command_argument_stream_end_funcptr_t *argument_stream_end_funcptr;
-    module_redis_command_argument_full_funcptr_t *argument_full_funcptr;
     module_redis_command_end_funcptr_t *command_end_funcptr;
+    module_redis_command_free_funcptr_t *command_free_funcptr;
     uint8_t required_arguments_count;
+    bool has_variable_arguments;
 };
 
 struct module_redis_connection_context {
