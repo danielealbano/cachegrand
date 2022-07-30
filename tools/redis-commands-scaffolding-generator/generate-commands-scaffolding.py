@@ -213,32 +213,61 @@ class Program:
             argument_decl_name: str,
             parent_argument_index: Optional[int],
             parent_argument_decl_name: str) -> str:
+        argument_context_member_size_per_type = {
+            "KEY": "sizeof(module_redis_key_t)",
+            "STRING": "sizeof(storage_db_chunk_sequence_t)",
+            "PATTERN": "sizeof(module_redis_pattern_t)",
+            "BLOCK": "sizeof({command_context_struct_name}_subargument_{argument_name}_t)",
+            "ONEOF": "sizeof({command_context_struct_name}_subargument_{argument_name}_t)",
+        }
+
         return ",\n".join([
                 "    {{\n        " +
                 ",\n        ".join([
                     ".name = \"{name}\"",
                     ".type = MODULE_REDIS_COMMAND_ARGUMENT_TYPE_{type}",
                     ".since = \"{since}\"",
+                    # parent can be both NULL or a pointer to an argument
+                    ".parent_argument = {parent_argument}",
                     ".key_spec_index = {key_spec_index}",
-                    # Token can be both NULL or a string, the quoting is taking care in the format below
+                    # token can be both NULL or a string, the quoting is taking care in the format below
                     ".token = {token}",
+                    # sub_arguments can be both NULL or a pointer to an argument list
+                    ".sub_arguments = {sub_arguments}",
+                    ".sub_arguments_count = {sub_arguments_count}",
                     ".is_positional = {is_positional}",
                     ".is_optional = {is_optional}",
                     ".is_sub_argument = {is_sub_argument}",
                     ".has_sub_arguments = {has_sub_arguments}",
                     ".has_multiple_occurrences = {has_multiple_occurrences}",
                     ".has_multiple_token = {has_multiple_token}",
-                    ".argument_context_offset = offsetof({command_context_struct_name}_t,{command_context_field_name})"
+                    ".argument_context_member_size = {argument_context_member_size}",
+                    ".argument_context_member_offset = "
+                    "offsetof({command_context_struct_name}_t,{command_context_field_name})",
                 ]).format(
                     name=argument["name"].replace("-", "_").lower(),
                     type=argument["type"].replace("-", "").upper(),
                     since=argument["since"],
+                    parent_argument=(
+                        "&{}_arguments[{}]".format(parent_argument_decl_name, parent_argument_index)
+                        if parent_argument_index is not None else "NULL"),
                     key_spec_index=(
                         argument["key_spec_index"]
                         if not argument["key_spec_index"] is None else -1),
                     token=(
                         "\"" + argument["token"] + "\""
                         if not argument["token"] is None else "NULL"),
+                    sub_arguments=(
+                        "{argument_decl_name}_subargument_{argument_name}_arguments".format(
+                            argument_decl_name=argument_decl_name,
+                            argument_name=argument["name"].replace("-", "_"))
+                        if argument["has_sub_arguments"] else "NULL"),
+                    argument_context_member_size=(
+                        argument_context_member_size_per_type[argument["type"].replace("-", "").upper()].format(
+                            command_context_struct_name=command_context_struct_name,
+                            argument_name=argument["name"].replace("-", "_"))
+                        if argument["type"].replace("-", "").upper() in argument_context_member_size_per_type else 0),
+                    sub_arguments_count=len(argument["sub_arguments"]),
                     is_optional="true" if argument["is_optional"] else "false",
                     is_positional="true" if argument["is_positional"] else "false",
                     is_sub_argument="true" if argument["is_sub_argument"] else "false",
@@ -260,6 +289,37 @@ class Program:
             argument_decl_name_suffix: str,
             command_context_struct_name: str) -> str:
         header = ""
+        argument_decl_name = "module_redis_command_{command_callback_name}{argument_decl_name_suffix}".format(
+            command_callback_name=command_info["command_callback_name"],
+            argument_decl_name_suffix=argument_decl_name_suffix)
+
+        for argument_index, argument in enumerate(arguments):
+            if len(argument["sub_arguments"]) == 0:
+                continue
+
+            header += self._generate_commands_scaffolding_header_file_command_arguments_structs_definitions(
+                command_info=command_info,
+                arguments=argument["sub_arguments"],
+                argument_decl_name_suffix="{argument_decl_name_suffix}_subargument_{argument_name}".format(
+                    argument_decl_name_suffix=argument_decl_name_suffix,
+                    argument_name=argument["name"].replace("-", "_")),
+                command_context_struct_name="{command_context_struct_name}_subargument_{argument_name}".format(
+                    command_context_struct_name=command_context_struct_name,
+                    argument_name=argument["name"].replace("-", "_")))
+
+        header += "module_redis_command_argument_t {argument_decl_name}_arguments[];\n".format(
+            argument_decl_name=argument_decl_name)
+
+        return header
+
+    def _generate_commands_scaffolding_header_file_command_arguments_structs_table(
+            self,
+            command_info: dict,
+            arguments: list,
+            argument_decl_name_suffix: str,
+            command_context_struct_name: str,
+            parent_argument_index: Optional[int],
+            parent_argument_decl_name: str) -> str:
         header = ""
         argument_decl_name = "module_redis_command_{command_callback_name}{argument_decl_name_suffix}".format(
             command_callback_name=command_info["command_callback_name"],
@@ -272,6 +332,8 @@ class Program:
             header += self._generate_commands_scaffolding_header_file_command_arguments_structs_table(
                 command_info=command_info,
                 arguments=argument["sub_arguments"],
+                parent_argument_index=argument_index,
+                parent_argument_decl_name=argument_decl_name,
                 argument_decl_name_suffix="{argument_decl_name_suffix}_subargument_{argument_name}".format(
                     argument_decl_name_suffix=argument_decl_name_suffix,
                     argument_name=argument["name"].replace("-", "_")),
@@ -284,7 +346,10 @@ class Program:
                 self._generate_commands_scaffolding_header_file_argument_structs_content(
                     command_info=command_info,
                     arguments=arguments,
-                    command_context_struct_name=command_context_struct_name) + "\n" +
+                    parent_argument_index=parent_argument_index,
+                    parent_argument_decl_name=parent_argument_decl_name,
+                    command_context_struct_name=command_context_struct_name,
+                    argument_decl_name=argument_decl_name) + "\n" +
                 "}};\n"
         ).format(
             argument_decl_name=argument_decl_name)
@@ -390,11 +455,23 @@ class Program:
 
             for command_info in commands_info:
                 fp.writelines([
-                    self._generate_commands_scaffolding_header_file_command_arguments_structs_table(
+                    self._generate_commands_scaffolding_header_file_command_arguments_structs_definitions(
                         command_info=command_info,
                         arguments=command_info["arguments"],
                         argument_decl_name_suffix="",
                         command_context_struct_name=self._generate_command_context_struct_name(command_info)),
+                    "\n",
+                ])
+
+            for command_info in commands_info:
+                fp.writelines([
+                    self._generate_commands_scaffolding_header_file_command_arguments_structs_table(
+                        command_info=command_info,
+                        arguments=command_info["arguments"],
+                        argument_decl_name_suffix="",
+                        command_context_struct_name=self._generate_command_context_struct_name(command_info),
+                        parent_argument_index=None,
+                        parent_argument_decl_name=""),
                     "\n",
                 ])
 
