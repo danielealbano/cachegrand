@@ -69,6 +69,8 @@ void module_redis_connection_context_reset(
     connection_context->command.data_length = 0;
     connection_context->terminate_connection = false;
 
+    memset(&connection_context->command.parser_context, 0, sizeof(module_redis_command_parser_context_t));
+
     if (connection_context->error.message != NULL) {
         slab_allocator_mem_free(connection_context->error.message);
         connection_context->error.message = NULL;
