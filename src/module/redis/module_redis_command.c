@@ -83,7 +83,120 @@ void module_redis_command_free_context_free_argument_value(
     }
 }
 
-void module_redis_command_free_context_free_argument(
+bool module_redis_command_process_begin(
+        module_redis_connection_context_t *connection_context) {
+    if (connection_context->command.info->context_size > 0) {
+        if ((connection_context->command.context = slab_allocator_mem_alloc_zero(
+                connection_context->command.info->context_size)) == NULL) {
+            LOG_D(TAG, "Unable to allocate the command context, terminating connection");
+            return false;
+        }
+    }
+
+    // The parser for the arguments works in pretty straightforward way:
+    // - it expects all the positional non-optional arguments
+    // - it then expects the positional optional arguments
+    // - stop searching for the positional optional arguments once it finds the first token
+    //
+
+    // Count the amount of positional arguments
+    uint16_t positional_arguments_total_count = 0, positional_arguments_required_count = 0;
+    for(uint16_t index = 0; index < connection_context->command.info->arguments_count; index++) {
+        module_redis_command_argument_t *argument = &connection_context->command.info->arguments[index];
+
+        // First token found, stop the search
+        if (argument->token) {
+            break;
+        }
+
+        positional_arguments_total_count++;
+        positional_arguments_required_count++;
+    }
+
+    // Builds the token map
+    uint16_t token_count = 0;
+    module_redis_command_parser_context_token_map_entry_t *token_map = NULL;
+
+    build_token_argument_map(
+            connection_context->command.info->arguments,
+            connection_context->command.info->arguments_count,
+            NULL,
+            &token_count);
+
+    token_map = slab_allocator_mem_alloc_zero(
+            sizeof(module_redis_command_parser_context_token_map_entry_t) * token_count);
+    if (token_map == NULL) {
+        return false;
+    }
+
+    token_count = 0;
+    build_token_argument_map(
+            connection_context->command.info->arguments,
+            connection_context->command.info->arguments_count,
+            token_map,
+            &token_count);
+
+    connection_context->command.parser_context.token_count = token_count;
+    connection_context->command.parser_context.token_map = token_map;
+    connection_context->command.parser_context.positional_arguments_total_count = positional_arguments_total_count;
+    connection_context->command.parser_context.positional_arguments_required_count = positional_arguments_required_count;
+
+    return true;
+}
+
+bool module_redis_command_process_argument_stream_begin(
+        module_redis_connection_context_t *connection_context,
+        uint32_t argument_index,
+        uint32_t arguments_count) {
+    module_redis_command_parser_context_t *command_parser_context = &connection_context->command.parser_context;
+    module_redis_command_argument_t *arguments = connection_context->command.info->arguments;
+
+
+
+    return true;
+}
+
+bool module_redis_command_process_argument_require_stream(
+        module_redis_connection_context_t *connection_context,
+        uint32_t argument_index) {
+    module_redis_command_parser_context_t *command_parser_context = &connection_context->command.parser_context;
+
+    return false;
+}
+
+bool module_redis_command_process_argument_stream_data(
+        module_redis_connection_context_t *connection_context,
+        uint32_t argument_index,
+        char *chunk_data,
+        size_t chunk_length) {
+    module_redis_command_parser_context_t *command_parser_context = &connection_context->command.parser_context;
+
+    return true;
+}
+
+bool module_redis_command_process_argument_stream_end(
+        module_redis_connection_context_t *connection_context) {
+    module_redis_command_parser_context_t *command_parser_context = &connection_context->command.parser_context;
+
+    return true;
+}
+
+bool module_redis_command_process_argument_full(
+        module_redis_connection_context_t *connection_context,
+        uint32_t argument_index,
+        char *chunk_data,
+        size_t chunk_length) {
+    module_redis_command_parser_context_t *command_parser_context = &connection_context->command.parser_context;
+
+    return true;
+}
+
+bool module_redis_command_process_end(
+        module_redis_connection_context_t *connection_context) {
+    return connection_context->command.info->command_end_funcptr(
+            connection_context);
+}
+
         module_redis_command_argument_t *argument,
         void *argument_context_base_addr) {
     bool argument_is_list = false;
