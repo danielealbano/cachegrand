@@ -180,11 +180,36 @@ struct module_redis_command_info {
     bool has_variable_arguments;
 };
 
+typedef struct module_redis_command_parser_context_token_map_item module_redis_command_parser_context_token_map_entry_t;
+struct module_redis_command_parser_context_token_map_item {
+    char *token;
+    module_redis_command_argument_t *argument;
+    char *one_of_tokens[16];
+    uint16_t one_of_token_count;
+    bool token_found;
+};
+
+
+typedef struct module_redis_command_parser_context module_redis_command_parser_context_t;
+struct module_redis_command_parser_context {
+    module_redis_command_parser_context_token_map_entry_t *token_map;
+    uint16_t token_count;
+    uint16_t positional_arguments_total_count;
+    uint16_t positional_arguments_required_count;
+    uint16_t positional_arguments_parsed;
+    struct {
+        bool is_in_block;
+        uint16_t block_argument_index;
+        module_redis_command_argument_t block_argument;
+    } block;
+};
+
 struct module_redis_connection_context {
     protocol_redis_resp_version_t resp_version;
     protocol_redis_reader_context_t reader_context;
     network_channel_t *network_channel;
     network_channel_buffer_t read_buffer;
+    storage_db_t *db;
     size_t current_argument_token_data_offset;
     bool terminate_connection;
     struct {
@@ -194,6 +219,7 @@ struct module_redis_connection_context {
         size_t data_length;
         module_redis_command_info_t *info;
         module_redis_command_context_t *context;
+        module_redis_command_parser_context_t parser_context;
         bool skip;
     } command;
 };
