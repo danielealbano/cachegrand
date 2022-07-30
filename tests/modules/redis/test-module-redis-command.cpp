@@ -79,8 +79,8 @@ TEST_CASE("module/redis/module_redis_command.c", "[module][redis][module_redis_c
         }
     }
 
-    SECTION("module_redis_command_alloc_context") {
-        module_redis_command_context_t *command_context = module_redis_command_alloc_context(
+    SECTION("module_redis_command_process_begin") {
+        module_redis_command_context_t *command_context = module_redis_command_process_begin(
                 &test_module_redis_command_sort_command_info);
 
         slab_allocator_mem_free(command_context);
