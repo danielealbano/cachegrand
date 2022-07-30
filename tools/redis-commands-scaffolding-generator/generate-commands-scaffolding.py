@@ -1,15 +1,18 @@
 from pathlib import Path
 from os import path
+from typing import Optional
 import argparse
 import json
 import logging
 
 
 class Program:
-    def __init__(self):
+    def __init__(
+            self):
         self._setup_argument_parser()
 
-    def _setup_argument_parser(self):
+    def _setup_argument_parser(
+            self):
         self._parser = argparse.ArgumentParser()
         self._parser.add_argument(
             "--commands-json-path",
@@ -22,21 +25,25 @@ class Program:
             type=str,
             help="Path to the folder where to generate the commands scaffolding")
 
-    def _parse_arguments(self):
+    def _parse_arguments(
+            self):
         self._arguments = self._parser.parse_args()
 
         if self._arguments.commands_scaffolding_path.endswith("/"):
             self._arguments.commands_scaffolding_path = self._arguments.commands_scaffolding_path[:-1]
 
-    def _ensure_output_folders_exists(self):
+    def _ensure_output_folders_exists(
+            self):
         Path(self._arguments.commands_scaffolding_path).mkdir(
             parents=True,
             exist_ok=True)
 
-    def _generate_commands_scaffolding_header_file_command_context_fields(self, command_info: dict,
-                                                                          argument: dict, start_indentation: int,
-                                                                          command_context_struct_name_suffix: str) \
-            -> str:
+    def _generate_commands_scaffolding_header_file_command_context_fields(
+            self,
+            command_info: dict,
+            argument: dict,
+            start_indentation: int,
+            command_context_struct_name_suffix: str) -> str:
         lines = []
         field_type = None
 
@@ -85,16 +92,20 @@ class Program:
         return header
 
     @staticmethod
-    def _generate_command_context_struct_name(command_info: dict) -> str:
+    def _generate_command_context_struct_name(
+            command_info: dict) -> str:
         return "module_redis_command_{command_callback_name}_context".format(**command_info)
 
-    def _generate_command_context_typedef_name(self, command_info: dict) -> str:
+    def _generate_command_context_typedef_name(
+            self,
+            command_info: dict) -> str:
         return "{}_t".format(self._generate_command_context_struct_name(command_info))
 
-    def _generate_commands_scaffolding_header_file_command_context_struct(self, command_info: dict, arguments: list,
-                                                                          is_sub_argument: bool,
-                                                                          command_context_struct_name_suffix: str) \
-            -> str:
+    def _generate_commands_scaffolding_header_file_command_context_struct(
+            self,
+            command_info: dict,
+            arguments: list,
+            command_context_struct_name_suffix: str) -> str:
         header = ""
 
         command_context_struct_name = self._generate_command_context_struct_name(command_info)
@@ -139,7 +150,8 @@ class Program:
         return header
 
     @staticmethod
-    def _generate_commands_scaffolding_header_file_command_key_specs_struct_table(command_info: dict) -> str:
+    def _generate_commands_scaffolding_header_file_command_key_specs_struct_table(
+            command_info: dict) -> str:
         header = ""
 
         header += "module_redis_command_key_spec_t " \
@@ -192,9 +204,14 @@ class Program:
 
         return header
 
-    def _generate_commands_scaffolding_header_file_argument_structs_content(self, command_info: dict,
-                                                                            arguments: list,
-                                                                            command_context_struct_name: str) -> str:
+    def _generate_commands_scaffolding_header_file_argument_structs_content(
+            self,
+            command_info: dict,
+            arguments: list,
+            command_context_struct_name: str,
+            argument_decl_name: str,
+            parent_argument_index: Optional[int],
+            parent_argument_decl_name: str) -> str:
         return ",\n".join([
                 "    {{\n        " +
                 ",\n        ".join([
@@ -235,11 +252,13 @@ class Program:
             ]
         )
 
-    def _generate_commands_scaffolding_header_file_command_arguments_structs_table(self, command_info: dict,
-                                                                                   arguments: list,
-                                                                                   argument_decl_name_suffix: str,
-                                                                                   command_context_struct_name: str) \
-            -> str:
+    def _generate_commands_scaffolding_header_file_command_arguments_structs_definitions(
+            self,
+            command_info: dict,
+            arguments: list,
+            argument_decl_name_suffix: str,
+            command_context_struct_name: str) -> str:
+        header = ""
         header = ""
         argument_decl_name = "module_redis_command_{command_callback_name}{argument_decl_name_suffix}".format(
             command_callback_name=command_info["command_callback_name"],
@@ -272,7 +291,8 @@ class Program:
         return header
 
     @staticmethod
-    def _generate_commands_scaffolding_commands_header_command_callback(command_info: dict) -> str:
+    def _generate_commands_scaffolding_commands_header_command_callback(
+            command_info: dict) -> str:
         return (
             "\n".join([
                 "MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_REQUIRE_STREAM_AUTOGEN({command_callback_name});",
@@ -287,7 +307,9 @@ class Program:
         )
 
     @staticmethod
-    def _write_header_header(fp, header_name):
+    def _write_header_header(
+            fp,
+            header_name):
         fp.writelines([
             "//\n",
             "// DO NOT EDIT - AUTO GENERATED\n",
@@ -303,7 +325,9 @@ class Program:
         ])
 
     @staticmethod
-    def _write_header_footer(fp, header_name):
+    def _write_header_footer(
+            fp,
+            header_name):
         fp.writelines([
             "\n",
             "#ifdef __cplusplus\n",
@@ -313,7 +337,9 @@ class Program:
             "#endif //{header_name}\n".format(header_name=header_name),
         ])
 
-    def _generate_commands_module_redis_autogenerated_commands_enum_h(self, commands_info: list):
+    def _generate_commands_module_redis_autogenerated_commands_enum_h_header(
+            self,
+            commands_info: list):
         with open(path.join(
                 self._arguments.commands_scaffolding_path,
                 "module_redis_autogenerated_commands_enum.h"), "w") as fp:
@@ -340,7 +366,9 @@ class Program:
             self._write_header_footer(
                 fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_ENUM_H")
 
-    def _generate_commands_module_redis_autogenerated_commands_callbacks_h(self, commands_info: list):
+    def _generate_commands_module_redis_autogenerated_commands_callbacks_h_header(
+            self,
+            commands_info: list):
         with open(path.join(
                 self._arguments.commands_scaffolding_path,
                 "module_redis_autogenerated_commands_callbacks.h"), "w") as fp:
@@ -355,7 +383,9 @@ class Program:
             self._write_header_footer(
                 fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_CALLBACKS_H")
 
-    def _generate_commands_module_redis_autogenerated_commands_arguments_h_header(self, commands_info: list):
+    def _generate_commands_module_redis_autogenerated_commands_arguments_h_header(
+            self,
+            commands_info: list):
         with open(path.join(
                 self._arguments.commands_scaffolding_path, "module_redis_autogenerated_commands_arguments.h"), "w") as fp:
 
@@ -373,7 +403,9 @@ class Program:
 
             self._write_header_footer(fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_ARGUMENTS_H")
 
-    def _generate_commands_module_redis_autogenerated_commands_key_specs_h_header(self, commands_info: list):
+    def _generate_commands_module_redis_autogenerated_commands_key_specs_h_header(
+            self,
+            commands_info: list):
         with open(path.join(
                 self._arguments.commands_scaffolding_path, "module_redis_autogenerated_commands_key_specs.h"), "w") \
                 as fp:
@@ -388,7 +420,9 @@ class Program:
 
             self._write_header_footer(fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_KEY_SPECS_TABLE_H")
 
-    def _generate_commands_module_redis_autogenerated_commands_info_map_h_header(self, commands_info: list):
+    def _generate_commands_module_redis_autogenerated_commands_info_map_h_header(
+            self,
+            commands_info: list):
         with open(path.join(
                 self._arguments.commands_scaffolding_path, "module_redis_autogenerated_commands_info_map.h"), "w") \
                 as fp:
@@ -424,7 +458,9 @@ class Program:
 
             self._write_header_footer(fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_INFO_MAP_H")
 
-    def _generate_commands_module_redis_command_autogenerated_c_headers_general(self, fp):
+    def _generate_commands_module_redis_command_autogenerated_c_headers_general(
+            self,
+            fp):
         fp.writelines("\n".join([
             "#include <stdint.h>",
             "#include <stdbool.h>",
@@ -465,10 +501,14 @@ class Program:
             "",
         ]) + "\n")
 
-    def _generate_commands_module_redis_command_autogenerated_tag_name(self, command_info: dict) -> str:
+    def _generate_commands_module_redis_command_autogenerated_tag_name(
+            self,
+            command_info: dict) -> str:
         return "TAG_{command_callback_name}".format(command_callback_name=command_info["command_callback_name"])
 
-    def _generate_commands_module_redis_command_autogenerated_c_headers(self, command_info: dict) -> str:
+    def _generate_commands_module_redis_command_autogenerated_c_headers(
+            self,
+            command_info: dict) -> str:
         return "\n".join([
             "//",
             "// COMMAND {command_string}",
@@ -557,7 +597,9 @@ class Program:
             self._generate_commands_module_redis_command_autogenerated_c_command_end(command_info), "\n",
         ])
 
-    def _generate_commands_module_redis_autogenerated_commands_contexts_h_header(self, commands_info: list):
+    def _generate_commands_module_redis_autogenerated_commands_contexts_h_header(
+            self,
+            commands_info: list):
         with open(path.join(
                 self._arguments.commands_scaffolding_path,
                 "module_redis_autogenerated_commands_contexts.h"), "w") as fp:
@@ -584,16 +626,28 @@ class Program:
 
             for command_info in commands_info:
                 self._generate_commands_module_redis_autogenerated_commands_callbacks_c(
-                    fp=fp_commands_callbacks, command_info=command_info)
+                    fp=fp_commands_callbacks,
+                    command_info=command_info)
 
-    def _generate_commands_scaffolding(self, commands_info: list):
-        self._generate_commands_module_redis_autogenerated_commands_callbacks_h(commands_info=commands_info)
-        self._generate_commands_module_redis_autogenerated_commands_enum_h(commands_info=commands_info)
-        self._generate_commands_module_redis_autogenerated_commands_arguments_h_header(commands_info=commands_info)
-        self._generate_commands_module_redis_autogenerated_commands_key_specs_h_header(commands_info=commands_info)
-        self._generate_commands_module_redis_autogenerated_commands_info_map_h_header(commands_info=commands_info)
-        self._generate_commands_module_redis_autogenerated_commands_contexts_h_header(commands_info=commands_info)
-        self._generate_commands_module_redis_autogenerated_commands_callbacks_c_code(commands_info=commands_info)
+    def _generate_commands_scaffolding(
+            self,
+            commands_info: list):
+        self._generate_commands_module_redis_autogenerated_commands_enum_h_header(
+            commands_info=commands_info)
+        self._generate_commands_module_redis_autogenerated_commands_arguments_h_header(
+            commands_info=commands_info)
+        self._generate_commands_module_redis_autogenerated_commands_key_specs_h_header(
+            commands_info=commands_info)
+        self._generate_commands_module_redis_autogenerated_commands_info_map_h_header(
+            commands_info=commands_info)
+        self._generate_commands_module_redis_autogenerated_commands_contexts_h_header(
+            commands_info=commands_info)
+        self._generate_commands_module_redis_autogenerated_commands_contexts_c_code(
+            commands_info=commands_info)
+        self._generate_commands_module_redis_autogenerated_commands_callbacks_h_header(
+            commands_info=commands_info)
+        self._generate_commands_module_redis_autogenerated_commands_callbacks_c_code(
+            commands_info=commands_info)
 
     def main(self):
         logging.basicConfig(
