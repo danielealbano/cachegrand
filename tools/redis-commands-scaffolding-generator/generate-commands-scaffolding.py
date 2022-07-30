@@ -297,12 +297,8 @@ class Program:
             command_info: dict) -> str:
         return (
             "\n".join([
-                "MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_REQUIRE_STREAM_AUTOGEN({command_callback_name});",
-                "MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_BEGIN_AUTOGEN({command_callback_name});",
-                "MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_DATA_AUTOGEN({command_callback_name});",
-                "MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END_AUTOGEN({command_callback_name});",
-                "MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL_AUTOGEN({command_callback_name});",
                 "MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END({command_callback_name});",
+                "MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_FREE_AUTOGEN({command_callback_name});",
             ]).format(
                 command_string=command_info["command_string"],
                 command_callback_name=command_info["command_callback_name"]) + "\n"
