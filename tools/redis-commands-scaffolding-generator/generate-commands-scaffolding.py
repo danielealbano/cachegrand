@@ -75,15 +75,14 @@ class Program:
         if field_type is None:
             raise Exception("field_type is none")
 
+        if not argument["token"] is None and argument["type"] != "pure-token":
+            lines.append("bool has_token")
+
         if argument["has_multiple_occurrences"]:
             lines.append("{field_type} *list".format(field_type=field_type))
             lines.append("int count")
-            lines.append("int current_entry")
         else:
             lines.append("{field_type} value".format(field_type=field_type))
-
-        if not argument["token"] is None and argument["type"] != "pure-token":
-            lines.append("bool has_token")
 
         start_indentation_str = " " * start_indentation
         header = \
