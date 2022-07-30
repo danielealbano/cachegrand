@@ -51,9 +51,11 @@ class Program:
         if argument["type"] == "key":
             field_type = "module_redis_key_t"
         elif argument["type"] == "string":
-            field_type = "storage_db_entry_chunk_sequence_t"
-        elif argument["type"] == "integer" or argument["type"] == "unixtime":
+            field_type = "storage_db_chunk_sequence_t*"
+        elif argument["type"] == "integer":
             field_type = "int64_t"
+        elif argument["type"] == "unixtime":
+            field_type = "uint64_t"
         elif argument["type"] == "bool":
             field_type = "bool"
         elif argument["type"] == "double":
