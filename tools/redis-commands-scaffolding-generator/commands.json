@@ -3,6 +3,8 @@
         "command_string": "APPEND",
         "command_callback_name": "append",
         "since": "2.0.0",
+        "required_arguments_count": 2,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -53,6 +55,8 @@
         "command_string": "COPY",
         "command_callback_name": "copy",
         "since": "6.2.0",
+        "required_arguments_count": 2,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -144,6 +148,8 @@
         "command_string": "DECR",
         "command_callback_name": "decr",
         "since": "1.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -181,6 +187,8 @@
         "command_string": "DECRBY",
         "command_callback_name": "decrby",
         "since": "1.0.0",
+        "required_arguments_count": 2,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -232,6 +240,8 @@
         "command_string": "DEL",
         "command_callback_name": "del",
         "since": "1.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -268,6 +278,8 @@
         "command_string": "EXISTS",
         "command_callback_name": "exists",
         "since": "1.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -302,6 +314,8 @@
         "command_string": "EXPIRE",
         "command_callback_name": "expire",
         "since": "1.0.0",
+        "required_arguments_count": 2,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -423,6 +437,8 @@
         "command_string": "EXPIREAT",
         "command_callback_name": "expireat",
         "since": "1.2.0",
+        "required_arguments_count": 2,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -544,6 +560,8 @@
         "command_string": "EXPIRETIME",
         "command_callback_name": "expiretime",
         "since": "7.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -580,6 +598,8 @@
         "command_string": "GET",
         "command_callback_name": "get",
         "since": "1.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -616,6 +636,8 @@
         "command_string": "GETDEL",
         "command_callback_name": "getdel",
         "since": "6.2.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -653,6 +675,8 @@
         "command_string": "GETEX",
         "command_callback_name": "getex",
         "since": "6.2.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -775,6 +799,8 @@
         "command_string": "GETRANGE",
         "command_callback_name": "getrange",
         "since": "2.4.0",
+        "required_arguments_count": 3,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -839,6 +865,8 @@
         "command_string": "GETSET",
         "command_callback_name": "getset",
         "since": "1.0.0",
+        "required_arguments_count": 2,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -890,18 +918,34 @@
         "command_string": "HELLO",
         "command_callback_name": "hello",
         "since": "6.0.0",
+        "required_arguments_count": 0,
+        "has_variable_arguments": true,
         "key_specs": [],
         "arguments": [
             {
-                "name": "arguments",
-                "type": "block",
+                "name": "protover",
+                "type": "integer",
                 "since": "6.0.0",
                 "key_spec_index": null,
                 "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": true,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "auth_username_password",
+                "type": "block",
+                "since": "6.0.0",
+                "key_spec_index": null,
+                "token": "AUTH",
                 "sub_arguments": [
                     {
-                        "name": "protover",
-                        "type": "integer",
+                        "name": "username",
+                        "type": "string",
                         "since": "6.0.0",
                         "key_spec_index": null,
                         "token": null,
@@ -914,24 +958,38 @@
                         "has_multiple_token": false
                     },
                     {
-                        "name": "setname_clientname",
+                        "name": "password",
                         "type": "string",
                         "since": "6.0.0",
                         "key_spec_index": null,
-                        "token": "SETNAME",
+                        "token": null,
                         "sub_arguments": [],
-                        "is_positional": false,
-                        "is_optional": true,
+                        "is_positional": true,
+                        "is_optional": false,
                         "is_sub_argument": true,
                         "has_sub_arguments": false,
                         "has_multiple_occurrences": false,
                         "has_multiple_token": false
                     }
                 ],
-                "is_positional": true,
+                "is_positional": false,
                 "is_optional": true,
-                "is_sub_argument": false,
+                "is_sub_argument": true,
                 "has_sub_arguments": true,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "setname_clientname",
+                "type": "string",
+                "since": "6.0.0",
+                "key_spec_index": null,
+                "token": "SETNAME",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": true,
+                "has_sub_arguments": false,
                 "has_multiple_occurrences": false,
                 "has_multiple_token": false
             }
@@ -941,6 +999,8 @@
         "command_string": "INCR",
         "command_callback_name": "incr",
         "since": "1.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -978,6 +1038,8 @@
         "command_string": "INCRBY",
         "command_callback_name": "incrby",
         "since": "1.0.0",
+        "required_arguments_count": 2,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1029,6 +1091,8 @@
         "command_string": "INCRBYFLOAT",
         "command_callback_name": "incrbyfloat",
         "since": "2.6.0",
+        "required_arguments_count": 2,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1080,6 +1144,8 @@
         "command_string": "KEYS",
         "command_callback_name": "keys",
         "since": "1.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": false,
         "key_specs": [],
         "arguments": [
             {
@@ -1102,6 +1168,8 @@
         "command_string": "LCS",
         "command_callback_name": "lcs",
         "since": "7.0.0",
+        "required_arguments_count": 2,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1208,6 +1276,8 @@
         "command_string": "MGET",
         "command_callback_name": "mget",
         "since": "1.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1244,6 +1314,8 @@
         "command_string": "MOVE",
         "command_callback_name": "move",
         "since": "1.0.0",
+        "required_arguments_count": 2,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1295,6 +1367,8 @@
         "command_string": "MSET",
         "command_callback_name": "mset",
         "since": "1.0.1",
+        "required_arguments_count": 2,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1360,6 +1434,8 @@
         "command_string": "MSETNX",
         "command_callback_name": "msetnx",
         "since": "1.0.1",
+        "required_arguments_count": 2,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1425,6 +1501,8 @@
         "command_string": "PERSIST",
         "command_callback_name": "persist",
         "since": "2.2.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1461,6 +1539,8 @@
         "command_string": "PEXPIRE",
         "command_callback_name": "pexpire",
         "since": "2.6.0",
+        "required_arguments_count": 2,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1582,6 +1662,8 @@
         "command_string": "PEXPIREAT",
         "command_callback_name": "pexpireat",
         "since": "2.6.0",
+        "required_arguments_count": 2,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1703,6 +1785,8 @@
         "command_string": "PEXPIRETIME",
         "command_callback_name": "pexpiretime",
         "since": "7.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1739,6 +1823,8 @@
         "command_string": "PING",
         "command_callback_name": "ping",
         "since": "1.0.0",
+        "required_arguments_count": 0,
+        "has_variable_arguments": true,
         "key_specs": [],
         "arguments": [
             {
@@ -1761,6 +1847,8 @@
         "command_string": "PSETEX",
         "command_callback_name": "psetex",
         "since": "2.6.0",
+        "required_arguments_count": 3,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1825,6 +1913,8 @@
         "command_string": "PTTL",
         "command_callback_name": "pttl",
         "since": "2.6.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1861,6 +1951,8 @@
         "command_string": "QUIT",
         "command_callback_name": "quit",
         "since": "1.0.0",
+        "required_arguments_count": 0,
+        "has_variable_arguments": true,
         "key_specs": [],
         "arguments": []
     },
@@ -1868,6 +1960,8 @@
         "command_string": "RANDOMKEY",
         "command_callback_name": "randomkey",
         "since": "1.0.0",
+        "required_arguments_count": 0,
+        "has_variable_arguments": false,
         "key_specs": [],
         "arguments": []
     },
@@ -1875,6 +1969,8 @@
         "command_string": "RENAME",
         "command_callback_name": "rename",
         "since": "1.0.0",
+        "required_arguments_count": 2,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1939,6 +2035,8 @@
         "command_string": "RENAMENX",
         "command_callback_name": "renamenx",
         "since": "1.0.0",
+        "required_arguments_count": 2,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -2003,6 +2101,8 @@
         "command_string": "SCAN",
         "command_callback_name": "scan",
         "since": "2.8.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": true,
         "key_specs": [],
         "arguments": [
             {
@@ -2067,6 +2167,8 @@
         "command_string": "SET",
         "command_callback_name": "set",
         "since": "1.0.0",
+        "required_arguments_count": 2,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -2261,6 +2363,8 @@
         "command_string": "SETEX",
         "command_callback_name": "setex",
         "since": "2.0.0",
+        "required_arguments_count": 3,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -2325,6 +2429,8 @@
         "command_string": "SETNX",
         "command_callback_name": "setnx",
         "since": "1.0.0",
+        "required_arguments_count": 2,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -2375,6 +2481,8 @@
         "command_string": "SETRANGE",
         "command_callback_name": "setrange",
         "since": "2.2.0",
+        "required_arguments_count": 3,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -2439,6 +2547,8 @@
         "command_string": "SHUTDOWN",
         "command_callback_name": "shutdown",
         "since": "1.0.0",
+        "required_arguments_count": 0,
+        "has_variable_arguments": true,
         "key_specs": [],
         "arguments": [
             {
@@ -2532,6 +2642,8 @@
         "command_string": "SORT",
         "command_callback_name": "sort",
         "since": "1.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -2736,6 +2848,8 @@
         "command_string": "SORT_RO",
         "command_callback_name": "sort_ro",
         "since": "7.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -2913,6 +3027,8 @@
         "command_string": "STRLEN",
         "command_callback_name": "strlen",
         "since": "2.2.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -2947,6 +3063,8 @@
         "command_string": "SUBSTR",
         "command_callback_name": "substr",
         "since": "1.0.0",
+        "required_arguments_count": 3,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -3011,6 +3129,8 @@
         "command_string": "TOUCH",
         "command_callback_name": "touch",
         "since": "3.2.1",
+        "required_arguments_count": 1,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -3045,6 +3165,8 @@
         "command_string": "TTL",
         "command_callback_name": "ttl",
         "since": "1.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -3081,6 +3203,8 @@
         "command_string": "TYPE",
         "command_callback_name": "type",
         "since": "1.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": false,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -3115,6 +3239,8 @@
         "command_string": "UNLINK",
         "command_callback_name": "unlink",
         "since": "4.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": true,
         "key_specs": [
             {
                 "key_access_flags": [
