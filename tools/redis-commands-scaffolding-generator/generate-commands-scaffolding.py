@@ -512,24 +512,21 @@ class Program:
 
             fp.writelines(["module_redis_command_info_t command_infos_map[] = {\n"])
             for command_info in commands_info:
-                required_arguments_count = sum([
-                    0 if argument["is_optional"] else 1
-                    for argument in command_info["arguments"]
-                ])
-
-
                 fp.writelines([
-                    "    MODULE_REDIS_COMMAND_AUTOGEN(" \
-                    "{command_callback_name_uppercase}, " \
-                    "\"{command_string}\", " \
-                    "{command_callback_name}, " \
-                    "{required_arguments_count}, " \
-                    "{arguments_count}, " \
-                    "{key_specs_count}" \
+                    "    MODULE_REDIS_COMMAND_AUTOGEN("
+                    "{command_callback_name_uppercase}, "
+                    "\"{command_string}\", "
+                    "{command_callback_name}, "
+                    "{required_arguments_count}, "
+                    "{has_variable_arguments}, "
+                    "{arguments_count}, " 
+                    "{key_specs_count}"
                     "),".format(
-                        **command_info,
                         command_callback_name_uppercase=command_info["command_callback_name"].upper(),
-                        required_arguments_count=required_arguments_count,
+                        command_string=command_info["command_string"],
+                        command_callback_name=command_info["command_callback_name"],
+                        required_arguments_count=command_info["required_arguments_count"],
+                        has_variable_arguments="true" if command_info["has_variable_arguments"] else "false",
                         arguments_count=len(command_info["arguments"]),
                         key_specs_count=len(command_info["key_specs"])),
                     "\n",
