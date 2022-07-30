@@ -46,40 +46,46 @@ bool module_redis_command_is_key_too_long(
     return false;
 }
 
-module_redis_command_context_t* module_redis_command_alloc_context(
-        module_redis_command_info_t *command_info) {
-    return slab_allocator_mem_alloc_zero(command_info->context_size);
-}
+void build_token_argument_map(
+        module_redis_command_argument_t *arguments,
+        uint16_t arguments_count,
+        module_redis_command_parser_context_token_map_entry_t token_map[],
+        uint16_t *token_count) {
+    for(uint16_t index = 0; index < arguments_count; index++) {
+        module_redis_command_argument_t *argument = &arguments[index];
+        if (argument->token != NULL) {
+            if (token_map != NULL) {
+                module_redis_command_parser_context_token_map_entry_t *token_map_entry = &token_map[*token_count];
+                token_map_entry->token = argument->token;
+                token_map_entry->argument = argument;
+                if (argument->parent_argument &&
+                    argument->parent_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_ONEOF) {
+                    for(
+                            uint16_t parent_oneof_token_index = 0;
+                            parent_oneof_token_index < argument->parent_argument->sub_arguments_count;
+                            parent_oneof_token_index++) {
+                        char *one_of_token = argument->parent_argument->sub_arguments[parent_oneof_token_index].token;
+                        if (one_of_token && one_of_token != argument->token) {
+                            assert(token_map_entry->one_of_token_count <=
+                                sizeof(token_map_entry->one_of_tokens) / sizeof(char*));
+                            token_map_entry->one_of_tokens[token_map_entry->one_of_token_count] = one_of_token;
+                            token_map_entry->one_of_token_count++;
+                        }
+                    }
+                }
 
-bool module_redis_command_free_context_free_argument_value_needs_free(
-        module_redis_command_argument_type_t argument_type) {
-    return argument_type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY ||
-           argument_type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_STRING ||
-           argument_type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_PATTERN;
-}
+            }
 
-void module_redis_command_free_context_free_argument_value(
-        module_redis_command_argument_type_t argument_type,
-        void *argument_context) {
-    if (argument_type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY) {
-        // The key is basically a struct which contains a string and a length, so it's necessary to identify
-        // the correct field containing the pointer to free (although should always be the first, using
-        // offsetof guarantees that if things change and this code doesn't get up to date we will catch it)
-        char **key = argument_context + offsetof(module_redis_key_t, key);
-        if (*key != NULL) {
-            slab_allocator_mem_free(*key);
+            (*token_count)++;
         }
-    } else if (argument_type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_PATTERN) {
-        // The pattern is a string, as the key, but the struct containing it is different so a different
-        // if is necessary
-        char **pattern = argument_context + offsetof(module_redis_pattern_t, pattern);
-        if (*pattern != NULL) {
-            slab_allocator_mem_free(*pattern);
+
+        if (argument->has_sub_arguments) {
+            build_token_argument_map(
+                    argument->sub_arguments,
+                    argument->sub_arguments_count,
+                    token_map,
+                    token_count);
         }
-    } else if (argument_type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_STRING) {
-        // The argument type string is actually a sequence of chunks and
-        // TODO
-        assert(0);
     }
 }
 
