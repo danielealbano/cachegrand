@@ -25,6 +25,8 @@ extern "C" {
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 
+#define SIZEOF_MEMBER(type, member) (sizeof(((type *)0)->member))
+
 #define ELF_SECTION( S ) __attribute__ ((section ( S )))
 
 #define CONCAT_(a, b)   a ## _ ## b
