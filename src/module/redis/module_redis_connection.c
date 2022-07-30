@@ -44,10 +44,12 @@
 
 void module_redis_connection_context_init(
         module_redis_connection_context_t *connection_context,
+        storage_db_t *db,
         network_channel_t *network_channel,
         config_module_t *config_module) {
     connection_context->resp_version = PROTOCOL_REDIS_RESP_VERSION_2,
-    connection_context->network_channel = network_channel,
+    connection_context->db = db;
+    connection_context->network_channel = network_channel;
     connection_context->read_buffer.data = (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
     connection_context->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE;
 }

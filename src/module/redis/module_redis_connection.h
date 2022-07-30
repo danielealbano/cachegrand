@@ -7,6 +7,7 @@ extern "C" {
 
 void module_redis_connection_context_init(
         module_redis_connection_context_t *connection_context,
+        storage_db_t *db,
         network_channel_t *network_channel,
         config_module_t *config_module);
 
