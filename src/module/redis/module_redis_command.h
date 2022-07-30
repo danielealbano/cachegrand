@@ -5,32 +5,56 @@
 extern "C" {
 #endif
 
+
 bool module_redis_command_is_key_too_long(
         network_channel_t *channel,
         size_t key_length);
 
-module_redis_command_context_t* module_redis_command_alloc_context(
-        module_redis_command_info_t *command_info);
+bool module_redis_command_process_begin(
+        module_redis_connection_context_t *connection_context);
 
-bool module_redis_command_free_context_free_argument_value_needs_free(
-        module_redis_command_argument_type_t argument_type);
+bool module_redis_command_process_argument_require_stream(
+        module_redis_connection_context_t *connection_context,
+        uint32_t argument_index);
 
-void module_redis_command_free_context_free_argument_value(
-        module_redis_command_argument_type_t argument_type,
-        void *argument_context);
+bool module_redis_command_process_argument_stream_begin(
+        module_redis_connection_context_t *connection_context,
+        uint32_t argument_index,
+        uint32_t arguments_count);
 
-void module_redis_command_free_context_free_argument(
+bool module_redis_command_process_argument_stream_data(
+        module_redis_connection_context_t *connection_context,
+        uint32_t argument_index,
+        char *chunk_data,
+        size_t chunk_length);
+
+bool module_redis_command_process_argument_stream_end(
+        module_redis_connection_context_t *connection_context);
+
+bool module_redis_command_process_argument_full(
+        module_redis_connection_context_t *connection_context,
+        uint32_t argument_index,
+        char *chunk_data,
+        size_t chunk_length);
+
+bool module_redis_command_process_end(
+        module_redis_connection_context_t *connection_context);
+
+#if DEBUG == 1
+void module_redis_command_dump_argument(
+        storage_db_t *db,
+        uint32_t argument_index,
         module_redis_command_argument_t *argument,
-        void *argument_context_base_addr);
+        uintptr_t argument_context_base_addr,
+        int depth);
 
-void module_redis_command_free_context_free_arguments(
-        module_redis_command_argument_t *arguments,
+void module_redis_command_dump_arguments(
+        storage_db_t *db,
+        module_redis_command_argument_t arguments[],
         int arguments_count,
-        void *argument_context_base_addr);
-
-void module_redis_command_free_context(
-        module_redis_command_info_t *command_info,
-        module_redis_command_context_t *command_context);
+        uintptr_t argument_context_base_addr,
+        int depth);
+#endif
 
 #ifdef __cplusplus
 }
