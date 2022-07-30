@@ -497,7 +497,9 @@ void* slab_allocator_mem_alloc_hugepages(
 void* slab_allocator_mem_alloc_zero(
         size_t size) {
     void* memptr = slab_allocator_mem_alloc(size);
-    memset(memptr, 0, size);
+    if (memptr) {
+        memset(memptr, 0, size);
+    }
 
     return memptr;
 }
@@ -603,6 +605,8 @@ void slab_allocator_mem_free_xalloc(
 void* slab_allocator_mem_alloc(
         size_t size) {
     void* memptr;
+
+    assert(size > 0);
 
     if (likely(slab_allocator_enabled)) {
         if (unlikely(!slab_allocator_thread_cache_has())) {
