@@ -129,6 +129,7 @@ struct module_redis_command_key_spec {
 };
 
 enum module_redis_command_argument_type {
+    MODULE_REDIS_COMMAND_ARGUMENT_TYPE_UNSUPPORTED,
     MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY,
     MODULE_REDIS_COMMAND_ARGUMENT_TYPE_STRING,
     MODULE_REDIS_COMMAND_ARGUMENT_TYPE_INTEGER,
@@ -145,16 +146,20 @@ typedef struct module_redis_command_argument module_redis_command_argument_t;
 struct module_redis_command_argument {
     char *name;
     module_redis_command_argument_type_t type;
+    module_redis_command_argument_t *parent_argument;
     char *since;
-    int key_spec_index;
+    uint16_t key_spec_index;
     char *token;
+    module_redis_command_argument_t *sub_arguments;
+    uint16_t sub_arguments_count;
     bool is_positional;
     bool is_optional;
     bool is_sub_argument;
     bool has_sub_arguments;
     bool has_multiple_occurrences;
     bool has_multiple_token;
-    off_t argument_context_offset;
+    size_t argument_context_member_size;
+    off_t argument_context_member_offset;
 };
 
 typedef struct module_redis_command_info module_redis_command_info_t;
