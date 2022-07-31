@@ -60,7 +60,7 @@ void sentry_support_init(
     }
 
     if (dsn == NULL) {
-        LOG_W(TAG, "Sentry is enabled but no DSN was found.");
+        LOG_W(TAG, "Sentry is enabled but no DSN was found");
     }
 
     sentry_support_register_signal_sigsegv_handler();
