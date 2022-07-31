@@ -59,6 +59,10 @@ void sentry_support_init(
         data_path = data_path_temp;
     }
 
+    if (dsn == NULL) {
+        LOG_W(TAG, "Sentry is enabled but no DSN was found.");
+    }
+
     sentry_support_register_signal_sigsegv_handler();
 
     // Append the data path suffix at the end
