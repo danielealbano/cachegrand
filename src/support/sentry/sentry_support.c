@@ -50,17 +50,12 @@ void sentry_support_register_signal_sigsegv_handler() {
 }
 
 void sentry_support_init(
-        char* data_path,
-        char* dsn) {
+        char* data_path) {
     if (data_path == NULL) {
         // Set the data path if it hasn't been set in the config
         char data_path_temp[] = "/tmp/" CACHEGRAND_CMAKE_CONFIG_NAME;
         mkdir(data_path_temp, 0700);
         data_path = data_path_temp;
-    }
-
-    if (dsn == NULL) {
-        LOG_W(TAG, "Sentry is enabled but no DSN was found");
     }
 
     sentry_support_register_signal_sigsegv_handler();
@@ -73,7 +68,7 @@ void sentry_support_init(
     // Create the folder (it ignore failures & don't check if it already exists on purpose)
     mkdir(internal_data_path, 0700);
 
-    // Initialize the release_str "cachegrand vVERSION (built on TIMESTAMP)"
+    // Initialize the release_str "cachegrand VERSION (built on TIMESTAMP)"
     snprintf(
             release_str,
             sizeof(release_str),
@@ -83,7 +78,7 @@ void sentry_support_init(
 
     LOG_I(TAG, "Configuring sentry.io");
     LOG_I(TAG, "> release: %s", release_str);
-    LOG_I(TAG, "> dsn: %s", dsn == NULL ? "<not set>" : dsn);
+    LOG_I(TAG, "> dsn: %s", SENTRY_DSN);
     LOG_I(TAG, "> data path: %s", internal_data_path);
 
     sentry_options_t *options = sentry_options_new();
@@ -96,7 +91,7 @@ void sentry_support_init(
             release_str);
     sentry_options_set_dsn(
             options,
-            dsn);
+            SENTRY_DSN);
     sentry_options_set_database_path(
             options,
             internal_data_path);

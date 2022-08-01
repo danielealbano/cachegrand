@@ -13,14 +13,13 @@
 TEST_CASE("support/sentry/sentry_support.c", "[support][sentry][sentry_support]") {
     SECTION("sentry_support_init") {
         SECTION("null params") {
-            sentry_support_init(nullptr, nullptr);
+            sentry_support_init(nullptr);
         }
 
         SECTION("with params") {
             char data_path[] = "/fake/path/no/fail";
-            char dsn[] = "/fake/dsn";
 
-            sentry_support_init(data_path, dsn);
+            sentry_support_init(data_path);
         }
     }
 }
