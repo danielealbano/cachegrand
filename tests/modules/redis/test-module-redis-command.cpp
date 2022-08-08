@@ -41,12 +41,11 @@
 extern module_redis_command_argument_t module_redis_command_sort_arguments[];
 
 module_redis_command_info_t test_module_redis_command_sort_command_info = {
-        .command = MODULE_REDIS_COMMAND_SORT,
-        .length = sizeof("SORT") - 1,
         .string = { 'S', 'O', 'R', 'T' },
+        .arguments = module_redis_command_sort_arguments,
+        .command = MODULE_REDIS_COMMAND_SORT,
         .string_len = (uint8_t)strlen("SORT"),
         .context_size = sizeof(module_redis_command_sort_context_t),
-        .arguments = module_redis_command_sort_arguments,
         .arguments_count = 7,
         .required_arguments_count = 3
 };

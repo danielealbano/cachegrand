@@ -201,7 +201,7 @@ bool module_redis_process_data(
                     // Search the command_data in the commands table
                     for (uint32_t command_index = 0; command_index < command_infos_map_count; command_index++) {
                         module_redis_command_info_t *command_info = &command_infos_map[command_index];
-                        if (command_length == command_info->length &&
+                        if (command_length == command_info->string_len &&
                             strncasecmp(command_data, command_info->string, command_length) == 0) {
                             LOG_D(
                                     TAG,
