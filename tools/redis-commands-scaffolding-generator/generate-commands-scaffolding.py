@@ -50,8 +50,10 @@ class Program:
         # Identify the type of the field
         if argument["type"] == "key":
             field_type = "module_redis_key_t"
-        elif argument["type"] == "string":
-            field_type = "storage_db_chunk_sequence_t*"
+        elif argument["type"] == "long_string":
+            field_type = "module_redis_long_string_t"
+        elif argument["type"] == "short_string":
+            field_type = "module_redis_short_string_t"
         elif argument["type"] == "integer":
             field_type = "int64_t"
         elif argument["type"] == "unixtime":
@@ -167,7 +169,8 @@ class Program:
             parent_argument_decl_name: str) -> str:
         argument_context_member_size_per_type = {
             "KEY": "sizeof(module_redis_key_t)",
-            "STRING": "sizeof(storage_db_chunk_sequence_t)",
+            "LONG_STRING": "sizeof(module_redis_long_string_t)",
+            "SHORT_STRING": "sizeof(module_redis_short_string_t)",
             "PATTERN": "sizeof(module_redis_pattern_t)",
             "BLOCK": "sizeof({command_context_struct_name}_subargument_{argument_name}_t)",
             "ONEOF": "sizeof({command_context_struct_name}_subargument_{argument_name}_t)",
@@ -653,28 +656,30 @@ class Program:
                 else:
                     lines.append("{free_memory_func}(db, &context->{argument_name}.value);")
 
-            elif argument["type"] in ["string"]:
+            elif argument["type"] in ["long_string"]:
                 free_memory_func = "storage_db_chunk_sequence_free"
 
                 if argument["has_multiple_occurrences"]:
                     lines.append("if (context->{argument_name}.list) {{")
                     lines.append("    for(int i = 0; i < context->{argument_name}.count; i++) {{")
-                    lines.append("        if (context->{argument_name}.list[i]) {{")
-                    lines.append("            storage_db_chunk_sequence_free(db, context->{argument_name}.list[i]);")
+                    lines.append("        if (context->{argument_name}.list[i].chunk_sequence) {{")
+                    lines.append("            storage_db_chunk_sequence_free(db, context->{argument_name}.list[i].chunk_sequence);")
                     lines.append("        }}")
                     lines.append("    }}")
                     lines.append("    slab_allocator_mem_free(context->{argument_name}.list);")
                     lines.append("}}")
                 else:
-                    lines.append("if (context->{argument_name}.value) {{")
-                    lines.append("    {free_memory_func}(db, context->{argument_name}.value);")
+                    lines.append("if (context->{argument_name}.value.chunk_sequence) {{")
+                    lines.append("    {free_memory_func}(db, context->{argument_name}.value.chunk_sequence);")
                     lines.append("}}")
 
-            elif argument["type"] in ["key", "pattern"]:
+            elif argument["type"] in ["key", "pattern", "short_string"]:
                 if argument["type"] == "key":
                     field_name = "key"
                 elif argument["type"] == "pattern":
                     field_name = "pattern"
+                elif argument["type"] == "short_string":
+                    field_name = "short_string"
 
                 if argument["has_multiple_occurrences"]:
                     lines.append("if (context->{argument_name}.list) {{")

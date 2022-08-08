@@ -37,7 +37,7 @@
             },
             {
                 "name": "value",
-                "type": "string",
+                "type": "long_string",
                 "since": "2.0.0",
                 "key_spec_index": null,
                 "token": null,
@@ -900,7 +900,7 @@
             },
             {
                 "name": "value",
-                "type": "string",
+                "type": "long_string",
                 "since": "1.0.0",
                 "key_spec_index": null,
                 "token": null,
@@ -930,7 +930,7 @@
                 "token": null,
                 "sub_arguments": [],
                 "is_positional": true,
-                "is_optional": false,
+                "is_optional": true,
                 "is_sub_argument": true,
                 "has_sub_arguments": false,
                 "has_multiple_occurrences": false,
@@ -945,7 +945,7 @@
                 "sub_arguments": [
                     {
                         "name": "username",
-                        "type": "string",
+                        "type": "short_string",
                         "since": "6.0.0",
                         "key_spec_index": null,
                         "token": null,
@@ -959,7 +959,7 @@
                     },
                     {
                         "name": "password",
-                        "type": "string",
+                        "type": "short_string",
                         "since": "6.0.0",
                         "key_spec_index": null,
                         "token": null,
@@ -981,7 +981,7 @@
             },
             {
                 "name": "setname_clientname",
-                "type": "string",
+                "type": "short_string",
                 "since": "6.0.0",
                 "key_spec_index": null,
                 "token": "SETNAME",
@@ -1408,7 +1408,7 @@
                     },
                     {
                         "name": "value",
-                        "type": "string",
+                        "type": "long_string",
                         "since": "1.0.1",
                         "key_spec_index": null,
                         "token": null,
@@ -1475,7 +1475,7 @@
                     },
                     {
                         "name": "value",
-                        "type": "string",
+                        "type": "long_string",
                         "since": "1.0.1",
                         "key_spec_index": null,
                         "token": null,
@@ -1829,7 +1829,7 @@
         "arguments": [
             {
                 "name": "message",
-                "type": "string",
+                "type": "short_string",
                 "since": "1.0.0",
                 "key_spec_index": null,
                 "token": null,
@@ -1895,7 +1895,7 @@
             },
             {
                 "name": "value",
-                "type": "string",
+                "type": "long_string",
                 "since": "2.6.0",
                 "key_spec_index": null,
                 "token": null,
@@ -2149,7 +2149,7 @@
             },
             {
                 "name": "type_type",
-                "type": "string",
+                "type": "short_string",
                 "since": "6.0.0",
                 "key_spec_index": null,
                 "token": "TYPE",
@@ -2203,7 +2203,7 @@
             },
             {
                 "name": "value",
-                "type": "string",
+                "type": "long_string",
                 "since": "1.0.0",
                 "key_spec_index": null,
                 "token": null,
@@ -2411,7 +2411,7 @@
             },
             {
                 "name": "value",
-                "type": "string",
+                "type": "long_string",
                 "since": "2.0.0",
                 "key_spec_index": null,
                 "token": null,
@@ -2463,7 +2463,7 @@
             },
             {
                 "name": "value",
-                "type": "string",
+                "type": "long_string",
                 "since": "1.0.0",
                 "key_spec_index": null,
                 "token": null,
@@ -2529,7 +2529,7 @@
             },
             {
                 "name": "value",
-                "type": "string",
+                "type": "long_string",
                 "since": "2.2.0",
                 "key_spec_index": null,
                 "token": null,
