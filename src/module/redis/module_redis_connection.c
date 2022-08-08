@@ -56,6 +56,9 @@ void module_redis_connection_context_init(
 
 void module_redis_connection_context_cleanup(
         module_redis_connection_context_t *connection_context) {
+    if (connection_context->client_name) {
+        slab_allocator_mem_free(connection_context->client_name);
+    }
     slab_allocator_mem_free(connection_context->read_buffer.data);
 }
 
@@ -97,7 +100,7 @@ bool module_redis_connection_should_terminate_connection(
     return connection_context->terminate_connection;
 }
 
-void module_redis_connection_error_message_vprintf_internal(
+bool module_redis_connection_error_message_vprintf_internal(
         module_redis_connection_context_t *connection_context,
         bool override_previous_error,
         char *error_message,
@@ -109,6 +112,7 @@ void module_redis_connection_error_message_vprintf_internal(
 
     if (connection_context->error.message != NULL) {
         slab_allocator_mem_free(connection_context->error.message);
+        return false;
     }
 
     // Calculate the total amount of memory needed
@@ -125,7 +129,7 @@ void module_redis_connection_error_message_vprintf_internal(
 
     if (error_message_with_args == NULL) {
         LOG_E(TAG, "Unable to allocate <%lu> bytes for the command error message", error_message_with_args_length + 1);
-        return;
+        return false;
     }
 
     if (vsnprintf(
@@ -136,37 +140,39 @@ void module_redis_connection_error_message_vprintf_internal(
         LOG_E(TAG, "Failed to format string <%s> with the arguments requested", error_message);
         LOG_E_OS_ERROR(TAG);
 
-        return;
+        return false;
     }
 
     connection_context->error.message = error_message_with_args;
     connection_context->command.skip = true;
 }
 
-void module_redis_connection_error_message_printf_noncritical(
+bool module_redis_connection_error_message_printf_noncritical(
         module_redis_connection_context_t *connection_context,
         char *error_message,
         ...) {
     va_list args;
     va_start(args, error_message);
 
-    module_redis_connection_error_message_vprintf_internal(
+    bool res = module_redis_connection_error_message_vprintf_internal(
             connection_context,
             false,
             error_message,
             args);
 
     va_end(args);
+
+    return res;
 }
 
-void module_redis_connection_error_message_printf_critical(
+bool module_redis_connection_error_message_printf_critical(
         module_redis_connection_context_t *connection_context,
         char *error_message,
         ...) {
     va_list args;
     va_start(args, error_message);
 
-    module_redis_connection_error_message_vprintf_internal(
+    bool res = module_redis_connection_error_message_vprintf_internal(
             connection_context,
             true,
             error_message,
@@ -175,6 +181,8 @@ void module_redis_connection_error_message_printf_critical(
     va_end(args);
 
     connection_context->terminate_connection = true;
+
+    return res;
 }
 
 bool module_redis_connection_has_error(
@@ -260,6 +268,60 @@ end:
     return return_result;
 }
 
+bool module_redis_connection_send_string_null(
+        module_redis_connection_context_t *connection_context) {
+    network_channel_buffer_data_t *send_buffer, *send_buffer_start;
+    size_t slice_length = 16;
+    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
+            connection_context->network_channel,
+            slice_length);
+    if (send_buffer_start == NULL) {
+        LOG_E(TAG, "Unable to acquire send buffer slice!");
+        return false;
+    }
+
+    if (connection_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2) {
+        send_buffer_start = protocol_redis_writer_write_blob_string_null(
+                send_buffer_start,
+                slice_length);
+    } else {
+        send_buffer_start = protocol_redis_writer_write_null(
+                send_buffer_start,
+                slice_length);
+    }
+
+    network_send_buffer_release_slice(
+            connection_context->network_channel,
+            send_buffer_start ? send_buffer_start - send_buffer : 0);
+
+    return true;
+}
+
+bool module_redis_connection_send_array(
+        module_redis_connection_context_t *connection_context,
+        uint32_t count) {
+    network_channel_buffer_data_t *send_buffer, *send_buffer_start;
+    size_t slice_length = 32;
+    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
+            connection_context->network_channel,
+            slice_length);
+    if (send_buffer_start == NULL) {
+        LOG_E(TAG, "Unable to acquire send buffer slice!");
+        return false;
+    }
+
+    send_buffer_start = protocol_redis_writer_write_array(
+            send_buffer_start,
+            slice_length,
+            count);
+
+    network_send_buffer_release_slice(
+            connection_context->network_channel,
+            send_buffer_start ? send_buffer_start - send_buffer : 0);
+
+    return true;
+}
+
 bool module_redis_connection_flush_and_close(
         module_redis_connection_context_t *connection_context) {
     if (network_flush_send_buffer(
@@ -273,21 +335,6 @@ bool module_redis_connection_flush_and_close(
     }
 
     return true;
-}
-
-void module_redis_connection_try_free_command_context(
-        module_redis_connection_context_t *connection_context) {
-    if (connection_context->command.info == NULL || connection_context->command.context == NULL) {
-        return;
-    }
-
-    module_redis_command_free_context(
-            connection_context->command.info,
-            connection_context->command.context);
-    connection_context->command.info->command_free_funcptr(
-            connection_context);
-
-    connection_context->command.context = NULL;
 }
 
 bool module_redis_connection_command_too_long(

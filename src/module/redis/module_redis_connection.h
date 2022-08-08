@@ -26,18 +26,18 @@ void module_redis_connection_set_error_message_from_reader(
 bool module_redis_connection_should_terminate_connection(
         module_redis_connection_context_t *connection_context);
 
-void module_redis_connection_error_message_vprintf_internal(
+bool module_redis_connection_error_message_vprintf_internal(
         module_redis_connection_context_t *connection_context,
         bool override_previous_error,
         char *error_message,
         va_list args);
 
-void module_redis_connection_error_message_printf_noncritical(
+bool module_redis_connection_error_message_printf_noncritical(
         module_redis_connection_context_t *connection_context,
         char *error_message,
         ...);
 
-void module_redis_connection_error_message_printf_critical(
+bool module_redis_connection_error_message_printf_critical(
         module_redis_connection_context_t *connection_context,
         char *error_message,
         ...);
@@ -51,10 +51,14 @@ bool module_redis_connection_send_error(
 bool module_redis_connection_send_ok(
         module_redis_connection_context_t *connection_context);
 
-bool module_redis_connection_flush_and_close(
+bool module_redis_connection_send_string_null(
         module_redis_connection_context_t *connection_context);
 
-void module_redis_connection_try_free_command_context(
+bool module_redis_connection_send_array(
+        module_redis_connection_context_t *connection_context,
+        uint32_t count);
+
+bool module_redis_connection_flush_and_close(
         module_redis_connection_context_t *connection_context);
 
 bool module_redis_connection_command_too_long(

@@ -111,7 +111,8 @@ struct module_redis_short_string {
 enum module_redis_command_argument_type {
     MODULE_REDIS_COMMAND_ARGUMENT_TYPE_UNSUPPORTED,
     MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY,
-    MODULE_REDIS_COMMAND_ARGUMENT_TYPE_STRING,
+    MODULE_REDIS_COMMAND_ARGUMENT_TYPE_SHORT_STRING,
+    MODULE_REDIS_COMMAND_ARGUMENT_TYPE_LONG_STRING,
     MODULE_REDIS_COMMAND_ARGUMENT_TYPE_INTEGER,
     MODULE_REDIS_COMMAND_ARGUMENT_TYPE_DOUBLE,
     MODULE_REDIS_COMMAND_ARGUMENT_TYPE_UNIXTIME,
@@ -170,18 +171,18 @@ typedef struct module_redis_command_parser_context module_redis_command_parser_c
 struct module_redis_command_parser_context {
     module_redis_command_parser_context_token_map_entry_t *token_map;
     uint16_t token_count;
-    uint16_t positional_arguments_total_count;
-    uint16_t positional_arguments_required_count;
-    uint16_t positional_arguments_parsed;
+    uint16_t positional_arguments_parsed_count;
     struct {
-        bool is_in_block;
+        bool require_stream;
+        void *member_context_addr;
+        module_redis_command_argument_t *expected_argument;
         uint16_t block_argument_index;
-        module_redis_command_argument_t block_argument;
-    } block;
+    } current_argument;
 };
 
 struct module_redis_connection_context {
     protocol_redis_resp_version_t resp_version;
+    char *client_name;
     protocol_redis_reader_context_t reader_context;
     network_channel_t *network_channel;
     network_channel_buffer_t read_buffer;
