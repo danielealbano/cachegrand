@@ -36,168 +36,44 @@
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
 #include "module/redis/module_redis.h"
+#include "module/redis/module_redis_connection.h"
+#include "module/redis/module_redis_command.h"
 #include "network/network.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 
 #define TAG "module_redis_command_mget"
 
-//MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
-//    bool res;
-//    bool return_res = false;
-//    storage_db_entry_index_t *entry_index = NULL;
-//
-//    mget_command_context_t *mget_command_context = (mget_command_context_t*)protocol_context->command_context;
-//
-//    if (mget_command_context->has_error) {
-//        char error_send_buffer[256], *error_send_buffer_start, *error_send_buffer_end;
-//        size_t error_send_buffer_length;
-//        error_send_buffer_length = sizeof(error_send_buffer);
-//        error_send_buffer_start = error_send_buffer;
-//        error_send_buffer_end = error_send_buffer_start + error_send_buffer_length;
-//
-//        error_send_buffer_start = protocol_redis_writer_write_simple_error(
-//                error_send_buffer_start,
-//                error_send_buffer_end - error_send_buffer_start,
-//                mget_command_context->error_message,
-//                (int)strlen(mget_command_context->error_message));
-//
-//        if (error_send_buffer_start == NULL) {
-//            LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-//            goto end;
-//        }
-//
-//        return_res = network_send_buffered(
-//                channel,
-//                error_send_buffer,
-//                error_send_buffer_start - error_send_buffer) == NETWORK_OP_RESULT_OK;
-//
-//        goto end;
-//    }
-//
-//    char send_buffer[64], *send_buffer_start, *send_buffer_end;
-//    size_t send_buffer_length;
-//
-//    send_buffer_length = sizeof(send_buffer);
-//    send_buffer_start = send_buffer;
-//    send_buffer_end = send_buffer_start + send_buffer_length;
-//
-//    send_buffer_start = protocol_redis_writer_write_array(
-//            send_buffer_start,
-//            send_buffer_end - send_buffer_start,
-//            mget_command_context->keys_count);
-//
-//    if (send_buffer_start == NULL) {
-//        LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-//        goto end;
-//    }
-//
-//    for(int key_index = 0; key_index < mget_command_context->keys_count; key_index++) {
-//        storage_db_entry_index_status_t old_status;
-//
-//        entry_index = storage_db_get_entry_index(
-//            db,
-//            mget_command_context->keys[key_index]->key,
-//            mget_command_context->keys[key_index]->key_length);
-//
-//        // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
-//        if (likely(entry_index)) {
-//            storage_db_entry_index_status_increase_readers_counter(
-//                    entry_index,
-//                    &old_status);
-//
-//            if (unlikely(old_status.deleted)) {
-//                entry_index = NULL;
-//            }
-//        }
-//
-//        if (likely(entry_index)) {
-//                send_buffer_start = protocol_redis_writer_write_argument_blob_start(
-//                        send_buffer_start,
-//                        send_buffer_length,
-//                        false,
-//                        (int)entry_index->value_length);
-//
-//                if (network_send_buffered(
-//                        channel,
-//                        send_buffer,
-//                        send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
-//                    goto end;
-//                }
-//
-//                send_buffer_start = send_buffer;
-//
-//                // Build the chunks for the value
-//                for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value.count; chunk_index++) {
-//                    storage_db_chunk_info_t *chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
-//                    char *chunk_send_buffer = slab_allocator_mem_alloc(chunk_info->chunk_length);
-//
-//                    res = storage_db_entry_chunk_read(
-//                            db,
-//                            chunk_info,
-//                            chunk_send_buffer);
-//
-//                    if (!res) {
-//                        LOG_E(
-//                                TAG,
-//                                "[REDIS][MGET] Critical error, unable to read chunk <%u> long <%u> bytes",
-//                                chunk_index,
-//                                chunk_info->chunk_length);
-//
-//                        goto end;
-//                    }
-//
-//                    if (network_send_buffered(
-//                            channel,
-//                            chunk_send_buffer,
-//                            chunk_info->chunk_length) != NETWORK_OP_RESULT_OK) {
-//                        slab_allocator_mem_free(chunk_send_buffer);
-//                        goto end;
-//                    }
-//
-//                    slab_allocator_mem_free(chunk_send_buffer);
-//                }
-//
-//                // At this stage the entry index is not accessed further therefore the readers counter can be decreased. The
-//                // entry_index has to be set to null to avoid that it's freed again at the end of the function
-//                storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
-//                entry_index = NULL;
-//
-//                send_buffer_start = protocol_redis_writer_write_argument_blob_end(
-//                        send_buffer_start,
-//                        send_buffer_end - send_buffer_start);
-//        } else {
-//            if (protocol_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2) {
-//                send_buffer_start = protocol_redis_writer_write_blob_string_null(
-//                        send_buffer_start,
-//                        send_buffer_end - send_buffer_start);
-//            } else {
-//                send_buffer_start = protocol_redis_writer_write_null(
-//                        send_buffer_start,
-//                        send_buffer_end - send_buffer_start);
-//            }
-//        }
-//    }
-//
-//    if (network_send_buffered(
-//            channel,
-//            send_buffer,
-//            send_buffer_start - send_buffer) != NETWORK_OP_RESULT_OK) {
-//        goto end;
-//    }
-//
-//    // return_res is set to false at the beginning and switched to true only at this stage, this helps to avoid code
-//    // duplication for the cleanup
-//    return_res = true;
-//
-//end:
-//    if (entry_index != NULL) {
-//        storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
-//    }
-//
-//    return return_res;
-//}
-
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
-    return false;
+    module_redis_command_mget_context_t *context = connection_context->command.context;
+
+    if (!module_redis_connection_send_array(connection_context, context->key.count)) {
+        return false;
+    }
+
+    for(int index = 0; index < context->key.count; index++) {
+        storage_db_entry_index_t *entry_index = storage_db_get_entry_index_for_read(
+                connection_context->db,
+                context->key.list[index].key,
+                context->key.list[index].length);
+
+        if (unlikely(!entry_index)) {
+            if (!module_redis_connection_send_string_null(connection_context)) {
+                return false;
+            }
+        } else {
+            bool res = module_redis_command_stream_entry(
+                    connection_context->network_channel,
+                    connection_context->db,
+                    entry_index);
+
+            storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
+
+            if (!res) {
+                return false;
+            }
+        }
+    }
+
+    return true;
 }

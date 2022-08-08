@@ -37,6 +37,8 @@
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
 #include "module/redis/module_redis.h"
+#include "module/redis/module_redis_command.h"
+#include "module/redis/module_redis_connection.h"
 #include "network/network.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
@@ -56,81 +58,35 @@ struct hello_response_item {
     } value;
 };
 typedef struct hello_response_item hello_response_item_t;
-//
-//MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_FULL(hello) {
-//    hello_command_context_t *hello_command_context = (hello_command_context_t*)protocol_context->command_context;
-//
-//    if (argument_index == 0) {
-//        char *endptr = NULL;
-//        long version;
-//
-//        version = strtol(chunk_data, &endptr, 10);
-//
-//        // Validate the parameters
-//        if (errno == ERANGE || endptr != chunk_data + chunk_length) {
-//            hello_command_context->has_error = true;
-//            snprintf(
-//                    hello_command_context->error_message,
-//                    sizeof(hello_command_context->error_message) - 1,
-//                    "ERR Protocol version is not an integer or out of range");
-//        } else if (version < 2 || version > 3) {
-//            hello_command_context->has_error = true;
-//            snprintf(
-//                    hello_command_context->error_message,
-//                    sizeof(hello_command_context->error_message) - 1,
-//                    "NOPROTO unsupported protocol version");
-//        } else  {
-//            protocol_context->resp_version = version == 2
-//                                             ? PROTOCOL_REDIS_RESP_VERSION_2
-//                                             : PROTOCOL_REDIS_RESP_VERSION_3;
-//        }
-//    } else {
-//        if (!hello_command_context->has_error) {
-//            char *error_msg_format = "ERR Syntax error in HELLO option '%.*s'";
-//            hello_command_context->has_error = true;
-//            snprintf(
-//                    hello_command_context->error_message,
-//                    sizeof(hello_command_context->error_message) - 1,
-//                    error_msg_format,
-//                    sizeof(hello_command_context->error_message) - 1 - strlen(error_msg_format) + 4,
-//                    chunk_data);
-//        }
-//    }
-//
-//    return true;
-//}
 
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
     bool return_res = false;
     network_channel_buffer_data_t *send_buffer, *send_buffer_start, *send_buffer_end;
 
-    module_redis_command_hello_context_t *hello_command_context =
-            (module_redis_command_hello_context_t*)connection_context->command_context;
+    module_redis_command_hello_context_t *context = connection_context->command.context;
 
-    if (hello_command_context->has_error) {
-        size_t slice_length = sizeof(hello_command_context->error_message) + 16;
-        send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
-        if (send_buffer_start == NULL) {
-            LOG_E(TAG, "Unable to acquire send buffer slice!");
-            goto end;
+    // Validate the parameters
+    if (connection_context->reader_context.arguments.count - 1 > 0) {
+        if (context->protover.value < 2 || context->protover.value > 3) {
+            module_redis_connection_error_message_printf_noncritical(
+                    connection_context,
+                    "NOPROTO unsupported protocol version");
+            return true;
         }
 
-        send_buffer_start = protocol_redis_writer_write_simple_error(
-                send_buffer_start,
-                slice_length,
-                hello_command_context->error_message,
-                (int)strlen(hello_command_context->error_message));
-        network_send_buffer_release_slice(
-                channel,
-                send_buffer_start ? send_buffer_start - send_buffer : 0);
+        connection_context->resp_version = context->protover.value == 2
+                                         ? PROTOCOL_REDIS_RESP_VERSION_2
+                                         : PROTOCOL_REDIS_RESP_VERSION_3;
 
-        return_res = send_buffer_start != NULL;
-
-        if (send_buffer_start == NULL) {
-            LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
+        if (context->setname_clientname.has_token) {
+            connection_context->client_name =
+                    slab_allocator_mem_alloc(context->setname_clientname.value.length + 1);
+            strncpy(
+                    context->setname_clientname.value.short_string,
+                    connection_context->client_name,
+                    context->setname_clientname.value.length);
+            connection_context->client_name[context->setname_clientname.value.length] = 0;
         }
-
-        goto end;
     }
 
     hello_response_item_t hello_responses[7] = {
@@ -175,7 +131,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
     };
 
     size_t slice_length = 512;
-    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
+    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
+            connection_context->network_channel,
+            slice_length);
     if (send_buffer_start == NULL) {
         LOG_E(TAG, "Unable to acquire send buffer slice!");
         goto end;
@@ -196,7 +154,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
     }
 
     if (send_buffer_start == NULL) {
-        network_send_buffer_release_slice(channel, 0);
+        network_send_buffer_release_slice(
+                connection_context->network_channel,
+                0);
         LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
         goto end;
     }
@@ -210,7 +170,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
                 (int)strlen(hello_response.key));
 
         if (send_buffer_start == NULL) {
-            network_send_buffer_release_slice(channel, 0);
+            network_send_buffer_release_slice(
+                    connection_context->network_channel,
+                    0);
             LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
             goto end;
         }
@@ -243,14 +205,16 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
         }
 
         if (send_buffer_start == NULL) {
-            network_send_buffer_release_slice(channel, 0);
+            network_send_buffer_release_slice(
+                    connection_context->network_channel,
+                    0);
             LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
             goto end;
         }
     }
 
     network_send_buffer_release_slice(
-            channel,
+            connection_context->network_channel,
             send_buffer_start - send_buffer);
 
     return_res = true;

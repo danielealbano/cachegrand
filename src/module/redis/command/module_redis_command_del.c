@@ -42,92 +42,46 @@
 
 #define TAG "module_redis_command_del"
 
-//MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENT_STREAM_END(del) {
-//    del_command_context_t *del_command_context = (del_command_context_t*)protocol_context->command_context;
-//
-//    if (del_command_context->has_error) {
-//        return true;
-//    }
-//
-//    bool deleted = storage_db_delete_entry_index(
-//            db,
-//            del_command_context->key,
-//            del_command_context->key_length);
-//
-//    if (deleted) {
-//        del_command_context->deleted_keys++;
-//    }
-//
-//end:
-//    if (del_command_context->key_copied_in_buffer) {
-//        slab_allocator_mem_free(del_command_context->key);
-//        del_command_context->key_copied_in_buffer = false;
-//    }
-//
-//    return true;
-//}
-//
-//MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
-//    bool return_res = false;
-//    network_channel_buffer_data_t *send_buffer, *send_buffer_start;
-//
-//    del_command_context_t *del_command_context = (del_command_context_t*)protocol_context->command_context;
-//
-//    // Don't report errors if keys have been deleted, the client need to know that a number of keys have been deleted
-//    if (del_command_context->deleted_keys == 0 && del_command_context->has_error) {
-//        size_t slice_length = sizeof(del_command_context->error_message) + 16;
-//        send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
-//        if (send_buffer_start == NULL) {
-//            LOG_E(TAG, "Unable to acquire send buffer slice!");
-//            goto end;
-//        }
-//
-//        send_buffer_start = protocol_redis_writer_write_simple_error(
-//                send_buffer_start,
-//                slice_length,
-//                del_command_context->error_message,
-//                (int)strlen(del_command_context->error_message));
-//        network_send_buffer_release_slice(
-//                channel,
-//                send_buffer_start ? send_buffer_start - send_buffer : 0);
-//
-//        return_res = send_buffer_start != NULL;
-//
-//        if (send_buffer_start == NULL) {
-//            LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-//        }
-//
-//        goto end;
-//    }
-//
-//    size_t slice_length = 32;
-//    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
-//    if (send_buffer_start == NULL) {
-//        LOG_E(TAG, "Unable to acquire send buffer slice!");
-//        goto end;
-//    }
-//
-//    send_buffer_start = protocol_redis_writer_write_number(
-//            send_buffer_start,
-//            slice_length,
-//            del_command_context->deleted_keys);
-//
-//    network_send_buffer_release_slice(
-//            channel,
-//            send_buffer_start ? send_buffer_start - send_buffer : 0);
-//
-//    if (send_buffer_start == NULL) {
-//        LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-//        goto end;
-//    }
-//
-//    return_res = true;
-//
-//end:
-//
-//    return return_res;
-//}
 
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
-    return false;
+    network_channel_buffer_data_t *send_buffer, *send_buffer_start;
+    bool return_res = false;
+    size_t slice_length = 32;
+    module_redis_command_del_context_t *context = connection_context->command.context;
+
+    int deleted_keys_count = 0;
+    for(int index = 0; index < context->key.count; index++) {
+        deleted_keys_count += storage_db_delete_entry_index(
+                connection_context->db,
+                context->key.list[index].key,
+                context->key.list[index].length) ? 1 : 0;
+    }
+
+    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
+            connection_context->network_channel,
+            slice_length);
+    if (send_buffer_start == NULL) {
+        LOG_E(TAG, "Unable to acquire send buffer slice!");
+        goto end;
+    }
+
+    send_buffer_start = protocol_redis_writer_write_number(
+            send_buffer_start,
+            slice_length,
+            deleted_keys_count);
+
+    network_send_buffer_release_slice(
+            connection_context->network_channel,
+            send_buffer_start ? send_buffer_start - send_buffer : 0);
+
+    if (send_buffer_start == NULL) {
+        LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
+        goto end;
+    }
+
+    return_res = true;
+
+end:
+
+    return return_res;
 }

@@ -42,7 +42,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(quit) {
     network_channel_buffer_data_t *send_buffer, *send_buffer_start;
     size_t slice_length = 32;
 
-    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(channel, slice_length);
+    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
+            connection_context->network_channel,
+            slice_length);
     if (send_buffer_start == NULL) {
         LOG_E(TAG, "Unable to acquire send buffer slice!");
         return false;
@@ -54,7 +56,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(quit) {
             "OK",
             2);
     network_send_buffer_release_slice(
-            channel,
+            connection_context->network_channel,
             send_buffer_start ? send_buffer_start - send_buffer : 0);
 
     if (send_buffer_start == NULL) {
@@ -63,11 +65,11 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(quit) {
     }
 
     // As the connection will be closed, it's necessary to flush the send buffer
-    if (network_flush_send_buffer(channel) != NETWORK_OP_RESULT_OK) {
+    if (network_flush_send_buffer(connection_context->network_channel) != NETWORK_OP_RESULT_OK) {
         return false;
     }
 
-    // TODO: BUG! The operation is not really failing but currently there is no way to inform the caller that the client
-    //       has requested to terminate the connection.
-    return false;
+    connection_context->terminate_connection = true;
+
+    return true;
 }
