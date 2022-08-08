@@ -47,8 +47,6 @@ extern "C" {
         .string = (COMMAND), \
         .string_len = strlen(COMMAND), \
         .context_size = sizeof(CONCAT(CONCAT(module_redis_command, COMMAND_FUNC_PTR), context_t)), \
-        .key_specs = CONCAT(CONCAT(module_redis_command, COMMAND_FUNC_PTR), key_specs), \
-        .key_specs_count = (KEY_SPECS_COUNT), \
         .arguments = CONCAT(CONCAT(module_redis_command, COMMAND_FUNC_PTR), arguments), \
         .arguments_count = (ARGS_COUNT), \
         .command_end_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, command_end), \
@@ -64,8 +62,6 @@ extern "C" {
         .string = (COMMAND), \
         .string_len = strlen(COMMAND), \
         .context_size = sizeof(CONCAT(CONCAT(module_redis_command, COMMAND_FUNC_PTR), context_t)), \
-        .key_specs = CONCAT(CONCAT(module_redis_command, COMMAND_FUNC_PTR), key_specs), \
-        .key_specs_count = (ARGS_COUNT), \
         .arguments = CONCAT(CONCAT(module_redis_command, COMMAND_FUNC_PTR), arguments), \
         .arguments_count = (ARGS_COUNT), \
         .command_end_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, command_end), \
@@ -98,34 +94,19 @@ struct module_redis_pattern {
     size_t length;
 };
 
-enum module_redis_key_access_flags {
-    MODULE_REDIS_COMMAND_KEY_ACCESS_FLAGS_UNKNOWN = 0,
-    MODULE_REDIS_COMMAND_KEY_ACCESS_FLAGS_READ_ONLY = 1 << 0,
-    MODULE_REDIS_COMMAND_KEY_ACCESS_FLAGS_READ_WRITE = 1 << 1,
-    MODULE_REDIS_COMMAND_KEY_ACCESS_FLAGS_WRITE_ONLY = 1 << 2,
-    MODULE_REDIS_COMMAND_KEY_ACCESS_FLAGS_DELETE = 1 << 3,
-    MODULE_REDIS_COMMAND_KEY_ACCESS_FLAGS_VARIABLE_FLAGS = 1 << 4,
+typedef struct module_redis_long_string module_redis_long_string_t;
+struct module_redis_long_string {
+    storage_db_chunk_sequence_t *chunk_sequence;
+    struct {
+        storage_db_chunk_index_t index;
+        off_t offset;
+    } current_chunk;
 };
-typedef enum module_redis_key_access_flags module_redis_key_access_flags_t;
 
-enum module_redis_value_access_flags {
-    MODULE_REDIS_COMMAND_VALUE_ACCESS_FLAGS_UNKNOWN = 0,
-    MODULE_REDIS_COMMAND_VALUE_ACCESS_FLAGS_ACCESS = 1 << 0,
-    MODULE_REDIS_COMMAND_VALUE_ACCESS_FLAGS_UPDATE = 1 << 1,
-    MODULE_REDIS_COMMAND_VALUE_ACCESS_FLAGS_INSERT = 1 << 2,
-    MODULE_REDIS_COMMAND_VALUE_ACCESS_FLAGS_DELETE = 1 << 3,
-};
-typedef enum module_redis_value_access_flags module_redis_value_access_flags_t;
-
-typedef struct module_redis_command_key_spec module_redis_command_key_spec_t;
-struct module_redis_command_key_spec {
-    module_redis_key_access_flags_t key_access_flags;
-    module_redis_value_access_flags_t value_access_flags;
-    bool is_unknown;
-    int begin_search_index_pos;
-    int find_keys_range_lastkey;
-    int find_keys_range_step;
-    int find_keys_range_limit;
+typedef struct module_redis_short_string module_redis_short_string_t;
+struct module_redis_short_string {
+    char *short_string;
+    size_t length;
 };
 
 enum module_redis_command_argument_type {
@@ -148,7 +129,6 @@ struct module_redis_command_argument {
     module_redis_command_argument_type_t type;
     module_redis_command_argument_t *parent_argument;
     char *since;
-    uint16_t key_spec_index;
     char *token;
     module_redis_command_argument_t *sub_arguments;
     uint16_t sub_arguments_count;
@@ -170,8 +150,6 @@ struct module_redis_command_info {
     char string[32];
     uint8_t string_len;
     uint16_t context_size;
-    module_redis_command_key_spec_t *key_specs;
-    uint16_t key_specs_count;
     module_redis_command_argument_t *arguments;
     uint16_t arguments_count;
     module_redis_command_end_funcptr_t *command_end_funcptr;
