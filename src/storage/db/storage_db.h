@@ -243,11 +243,22 @@ storage_db_entry_index_t *storage_db_get_entry_index(
         char *key,
         size_t key_length);
 
+storage_db_entry_index_t *storage_db_get_entry_index_for_read(
+        storage_db_t *db,
+        char *key,
+        size_t key_length);
+
 bool storage_db_set_entry_index(
         storage_db_t *db,
         char *key,
         size_t key_length,
         storage_db_entry_index_t *entry_index);
+
+bool storage_db_add_new_entry_index(
+        storage_db_t *db,
+        char *key,
+        size_t key_length,
+        storage_db_chunk_sequence_t *chunk_sequence);
 
 bool storage_db_delete_entry_index(
         storage_db_t *db,

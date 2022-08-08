@@ -902,6 +902,32 @@ storage_db_entry_index_t *storage_db_get_entry_index(
     return (storage_db_entry_index_t *)memptr;
 }
 
+storage_db_entry_index_t *storage_db_get_entry_index_for_read(
+        storage_db_t *db,
+        char *key,
+        size_t key_length) {
+    storage_db_entry_index_status_t old_status;
+    storage_db_entry_index_t *entry_index;
+
+    entry_index = storage_db_get_entry_index(
+            db,
+            key,
+            key_length);
+
+    if (likely(entry_index)) {
+        // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
+        storage_db_entry_index_status_increase_readers_counter(
+                entry_index,
+                &old_status);
+
+        if (unlikely(old_status.deleted)) {
+            entry_index = NULL;
+        }
+    }
+
+    return entry_index;
+}
+
 bool storage_db_set_entry_index(
         storage_db_t *db,
         char *key,
@@ -921,6 +947,71 @@ bool storage_db_set_entry_index(
     }
 
     return res;
+}
+
+bool storage_db_add_new_entry_index(
+        storage_db_t *db,
+        char *key,
+        size_t key_length,
+        storage_db_chunk_sequence_t *value_chunk_sequence) {
+    bool result_res = false;
+
+    storage_db_entry_index_t *entry_index = storage_db_entry_index_ring_buffer_new(db);
+    if (!entry_index) {
+        LOG_E(TAG, "Unable to allocate the database index entry in memory");
+        goto end;
+    }
+
+    // Set up the key if necessary
+    entry_index->key = NULL;
+    if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
+        entry_index->key = storage_db_chunk_sequence_allocate(db, key_length);
+
+        if (!entry_index->key) {
+            LOG_E(TAG, "Unable to allocate the chunks for the key");
+            goto end;
+        }
+
+        // The key is always one single chunk so no need to be smart here
+        if (!storage_db_chunk_write(
+                db,
+                storage_db_chunk_sequence_get(
+                        entry_index->key,
+                        0),
+                0,
+                key,
+                key_length)) {
+            LOG_E(TAG, "Unable to write an index entry key");
+            goto end;
+        }
+    }
+
+    // Fetch a new entry and assign the key and the value as needed
+    entry_index->value = value_chunk_sequence;
+
+    // Try to store the entry index in the database
+    if (!storage_db_set_entry_index(
+            db,
+            key,
+            key_length,
+            entry_index)) {
+        // As the operation failed while getting ownership of the value, it gets set back to null as to let the caller
+        // handle the memory free as necessary
+        entry_index->value = NULL;
+        goto end;
+    }
+
+    result_res = true;
+
+end:
+
+    if (!result_res) {
+        if (entry_index) {
+            storage_db_entry_index_free(db, entry_index);
+        }
+    }
+
+    return result_res;
 }
 
 bool storage_db_set_small_value(
