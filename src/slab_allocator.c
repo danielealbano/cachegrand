@@ -635,15 +635,17 @@ void* slab_allocator_mem_realloc(
 
     // If the new allocation doesn't fail check if it has to be zeroed
     if (!new_memptr) {
-        if (zero_new_memory) {
-            memset(new_memptr + current_size, 0, new_size - current_size);
-        }
+        return new_memptr;
     }
 
     // Always free the pointer passed, even if the realloc fails
     if (memptr != NULL) {
         memcpy(new_memptr, memptr, current_size);
         slab_allocator_mem_free(memptr);
+    }
+
+    if (zero_new_memory) {
+        memset(new_memptr + current_size, 0, new_size - current_size);
     }
 
     return new_memptr;
