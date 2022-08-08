@@ -246,40 +246,8 @@ bool module_redis_process_data(
                         op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END;
 
                 if (is_argument_op && op->data.argument.index > 0) {
-                    bool require_stream = module_redis_command_process_argument_require_stream(
-                            connection_context,
-                            op->data.argument.index - 1);
-
-                    if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA) {
-                        // If the require_stream flag is false, the argument_full callback will be called once all the data
-                        // have been processed but to ensure that if the buffer gets rewind these data will not be lost
-                        // the buffer pointer is moved back as well if there isn't another op or if op_index + 1 isn't an
-                        // argument-end op.
-                        bool last_op = op_index == (uint8_t) ops_found - 1;
-                        bool op_followed_by_argument_end =
-                                !last_op && (ops[op_index + 1].type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END);
-
-                        if (!require_stream && (last_op || !op_followed_by_argument_end)) {
-                            // Set the reader_context state back to PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA and reset
-                            // the current argument received_length
-                            connection_context->reader_context.state =
-                                    PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA;
-                            connection_context->reader_context.arguments.current.received_length = 0;
-
-                            // Roll back the buffer
-                            read_buffer->data_offset -= op->data_read_len;
-                            read_buffer->data_size += op->data_read_len;
-
-                            // No need to continue the parsing, more data are needed
-                            return_result = true;
-                            goto end;
-                        }
-
-                        connection_context->current_argument_token_data_offset = op->data.argument.offset;
-                    }
-
-                    if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_BEGIN && require_stream) {
-                        if (!module_redis_command_process_argument_stream_begin(
+                    if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_BEGIN) {
+                        if (!module_redis_command_process_argument_begin(
                                 connection_context,
                                 op->data.argument.index - 1,
                                 op->data.argument.length)) {
@@ -289,45 +257,92 @@ bool module_redis_process_data(
                                     connection_context->command.info->string);
                             goto end;
                         }
-                    } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA && require_stream) {
-                        size_t chunk_length = op->data.argument.data_length;
-                        char *chunk_data = read_buffer_data_start + op->data.argument.offset;
-
-                        if (!module_redis_command_process_argument_stream_data(
+                    } else {
+                        bool require_stream = module_redis_command_process_argument_require_stream(
                                 connection_context,
-                                op->data.argument.index - 1,
-                                chunk_data,
-                                chunk_length)) {
-                            module_redis_connection_error_message_printf_noncritical(
-                                    connection_context,
-                                    "ERR protocol error while parsing arguments for command '%s'",
-                                    connection_context->command.info->string);
-                            goto end;
-                        }
-                    } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END && require_stream) {
-                        if (!module_redis_command_process_argument_stream_end(
-                                connection_context)) {
-                            module_redis_connection_error_message_printf_noncritical(
-                                    connection_context,
-                                    "ERR protocol error while parsing arguments for command '%s'",
-                                    connection_context->command.info->string);
-                            goto end;
-                        }
-                    } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END && !require_stream) {
-                        size_t chunk_length = op->data.argument.length;
-                        char *chunk_data =
-                                read_buffer_data_start + connection_context->current_argument_token_data_offset;
+                                op->data.argument.index - 1);
 
-                        if (!module_redis_command_process_argument_full(
-                                connection_context,
-                                op->data.argument.index - 1,
-                                chunk_data,
-                                chunk_length)) {
-                            module_redis_connection_error_message_printf_noncritical(
+                        if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA) {
+                            if (require_stream) {
+                                size_t chunk_length = op->data.argument.data_length;
+                                char *chunk_data = read_buffer_data_start + op->data.argument.offset;
+
+                                if (!module_redis_command_process_argument_stream_data(
+                                        connection_context,
+                                        op->data.argument.index - 1,
+                                        chunk_data,
+                                        chunk_length)) {
+                                    module_redis_connection_error_message_printf_noncritical(
+                                            connection_context,
+                                            "ERR protocol error while parsing arguments for command '%s'",
+                                            connection_context->command.info->string);
+                                    goto end;
+                                }
+                            } else {
+                                // If the require_stream flag is false, the argument_full callback will be called once all the data
+                                // have been processed but to ensure that if the buffer gets rewind these data will not be lost
+                                // the buffer pointer is moved back as well if there isn't another op or if op_index + 1 isn't an
+                                // argument-end op.
+                                bool last_op = op_index == (uint8_t) ops_found - 1;
+                                bool op_followed_by_argument_end =
+                                        !last_op &&
+                                        (ops[op_index + 1].type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END);
+
+                                if (last_op || !op_followed_by_argument_end) {
+                                    // Set the reader_context state back to PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA and reset
+                                    // the current argument received_length
+                                    connection_context->reader_context.state =
+                                            PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA;
+                                    connection_context->reader_context.arguments.current.received_length = 0;
+
+                                    // Roll back the buffer
+                                    read_buffer->data_offset -= op->data_read_len;
+                                    read_buffer->data_size += op->data_read_len;
+
+                                    // No need to continue the parsing, more data are needed
+                                    return_result = true;
+                                    goto end;
+                                }
+
+                                connection_context->current_argument_token_data_offset = op->data.argument.offset;
+                            }
+                        } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END) {
+                            if (require_stream) {
+                                if (!module_redis_command_process_argument_stream_end(
+                                        connection_context)) {
+                                    module_redis_connection_error_message_printf_noncritical(
+                                            connection_context,
+                                            "ERR protocol error while parsing arguments for command '%s'",
+                                            connection_context->command.info->string);
+                                    goto end;
+                                }
+                            } else {
+                                size_t chunk_length = op->data.argument.length;
+                                char *chunk_data =
+                                        read_buffer_data_start + connection_context->current_argument_token_data_offset;
+
+                                if (!module_redis_command_process_argument_full(
+                                        connection_context,
+                                        op->data.argument.index - 1,
+                                        chunk_data,
+                                        chunk_length)) {
+                                    module_redis_connection_error_message_printf_noncritical(
+                                            connection_context,
+                                            "ERR protocol error while parsing arguments for command '%s'",
+                                            connection_context->command.info->string);
+                                    goto end;
+                                }
+                            }
+
+                            if (!module_redis_command_process_argument_end(
                                     connection_context,
-                                    "ERR protocol error while parsing arguments for command '%s'",
-                                    connection_context->command.info->string);
-                            goto end;
+                                    op->data.argument.index - 1)) {
+                                module_redis_connection_error_message_printf_noncritical(
+                                        connection_context,
+                                        "ERR protocol error while parsing arguments for command '%s'",
+                                        connection_context->command.info->string);
+                                goto end;
+                            }
                         }
                     }
                 } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_COMMAND_END) {
