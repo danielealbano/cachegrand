@@ -254,7 +254,7 @@ network_op_result_t network_send_direct(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
         size_t buffer_length) {
-    if (network_should_flush_send_buffer(channel)) {
+    if (unlikely(network_should_flush_send_buffer(channel))) {
         network_flush_send_buffer(channel);
     }
 
