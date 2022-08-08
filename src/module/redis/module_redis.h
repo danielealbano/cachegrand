@@ -40,10 +40,9 @@ extern "C" {
         command_free, \
         MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_FREE)
 
-#define MODULE_REDIS_COMMAND_AUTOGEN(ID, COMMAND, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, HAS_VARIABLE_ARGUMENTS, ARGS_COUNT, KEY_SPECS_COUNT) \
+#define MODULE_REDIS_COMMAND_AUTOGEN(ID, COMMAND, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, HAS_VARIABLE_ARGUMENTS, ARGS_COUNT) \
     { \
         .command = MODULE_REDIS_COMMAND_##ID, \
-        .length = sizeof(COMMAND) - 1, \
         .string = (COMMAND), \
         .string_len = strlen(COMMAND), \
         .context_size = sizeof(CONCAT(CONCAT(module_redis_command, COMMAND_FUNC_PTR), context_t)), \
@@ -55,7 +54,7 @@ extern "C" {
         .has_variable_arguments = (HAS_VARIABLE_ARGUMENTS), \
     }
 
-#define MODULE_REDIS_COMMAND(ID, COMMAND, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, HAS_VARIABLE_ARGUMENTS, KEY_SPECS_COUNT, ARGS_COUNT) \
+#define MODULE_REDIS_COMMAND(ID, COMMAND, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, HAS_VARIABLE_ARGUMENTS, ARGS_COUNT) \
     { \
         .command = MODULE_REDIS_COMMAND_##ID, \
         .length = sizeof(COMMAND) - 1, /* sizeof takes into account the NULL char at the end, different behaviour than strlen */ \
@@ -144,16 +143,15 @@ struct module_redis_command_argument {
 
 typedef struct module_redis_command_info module_redis_command_info_t;
 struct module_redis_command_info {
-    module_redis_commands_t command;
-    size_t length;
-    // Redis longest command is 10 chars
+    // The longest Redis command is 23 chars
     char string[32];
-    uint8_t string_len;
-    uint16_t context_size;
     module_redis_command_argument_t *arguments;
-    uint16_t arguments_count;
     module_redis_command_end_funcptr_t *command_end_funcptr;
     module_redis_command_free_funcptr_t *command_free_funcptr;
+    module_redis_commands_t command;
+    uint8_t string_len;
+    uint16_t context_size;
+    uint16_t arguments_count;
     uint8_t required_arguments_count;
     bool has_variable_arguments;
 };
