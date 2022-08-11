@@ -111,6 +111,9 @@ const cyaml_schema_field_t config_module_redis_schema[] = {
         CYAML_FIELD_UINT(
                 "max_command_length", CYAML_FLAG_DEFAULT,
                 config_module_redis_t, max_command_length),
+        CYAML_FIELD_BOOL(
+                "strict_parsing", CYAML_FLAG_DEFAULT,
+                config_module_redis_t, strict_parsing),
         CYAML_FIELD_END
 };
 

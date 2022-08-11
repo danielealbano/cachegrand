@@ -29,6 +29,9 @@ modules:
       max_key_length: 8192
       max_command_length: 536870912
 
+      # If enabled, the command parsing will prevent
+      strict_parsing: false
+
     network:
       # Timeouts for the read and write operations in milliseconds, set to -1 to disable or greater than 0 to enable
       timeout:
