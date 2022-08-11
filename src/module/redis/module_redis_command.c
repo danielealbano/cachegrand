@@ -6,9 +6,12 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
+#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <errno.h>
+#include <error.h>
 #include <string.h>
 #include <strings.h>
 #include <arpa/inet.h>
@@ -75,18 +78,19 @@ bool module_redis_command_is_key_too_long(
     return false;
 }
 
-void build_token_argument_map(
+bool build_tokens_hashtable(
         module_redis_command_argument_t *arguments,
         uint16_t arguments_count,
-        module_redis_command_parser_context_token_map_entry_t token_map[],
+        hashtable_spsc_t *hashtable,
         uint16_t *token_count) {
     for(uint16_t index = 0; index < arguments_count; index++) {
         module_redis_command_argument_t *argument = &arguments[index];
         if (argument->token != NULL) {
-            if (token_map != NULL) {
-                module_redis_command_parser_context_token_map_entry_t *token_map_entry = &token_map[*token_count];
-                token_map_entry->token = argument->token;
-                token_map_entry->argument = argument;
+            if (hashtable != NULL) {
+                module_redis_command_parser_context_argument_token_entry_t *token_entry =
+                        slab_allocator_mem_alloc(sizeof(module_redis_command_parser_context_argument_token_entry_t));
+                token_entry->token = argument->token;
+                token_entry->argument = argument;
                 if (argument->parent_argument &&
                     argument->parent_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_ONEOF) {
                     for(
@@ -95,27 +99,33 @@ void build_token_argument_map(
                             parent_oneof_token_index++) {
                         char *one_of_token = argument->parent_argument->sub_arguments[parent_oneof_token_index].token;
                         if (one_of_token && one_of_token != argument->token) {
-                            assert(token_map_entry->one_of_token_count <=
-                                sizeof(token_map_entry->one_of_tokens) / sizeof(char*));
-                            token_map_entry->one_of_tokens[token_map_entry->one_of_token_count] = one_of_token;
-                            token_map_entry->one_of_token_count++;
+                            assert(token_entry->one_of_token_count <=
+                                sizeof(token_entry->one_of_tokens) / sizeof(char*));
+                            token_entry->one_of_tokens[token_entry->one_of_token_count] = one_of_token;
+                            token_entry->one_of_token_count++;
                         }
                     }
                 }
 
+                if (!hashtable_spsc_op_try_set(hashtable, argument->token, strlen(argument->token), token_entry)) {
+                    LOG_E(TAG, "Failed to insert the token <%s> in the tokens hashtable", argument->token);
+                    return false;
+                }
             }
 
             (*token_count)++;
         }
 
         if (argument->has_sub_arguments) {
-            build_token_argument_map(
+            build_tokens_hashtable(
                     argument->sub_arguments,
                     argument->sub_arguments_count,
-                    token_map,
+                    hashtable,
                     token_count);
         }
     }
+
+    return true;
 }
 
 bool module_redis_command_process_begin(
@@ -138,31 +148,29 @@ bool module_redis_command_process_begin(
 
     // Builds the token map
     uint16_t token_count = 0;
-    module_redis_command_parser_context_token_map_entry_t *token_map = NULL;
+    hashtable_spsc_t *tokens_hashtable = NULL;
 
-    build_token_argument_map(
+    build_tokens_hashtable(
             connection_context->command.info->arguments,
             connection_context->command.info->arguments_count,
             NULL,
             &token_count);
 
     if (token_count > 0) {
-        token_map = slab_allocator_mem_alloc_zero(
-                sizeof(module_redis_command_parser_context_token_map_entry_t) * token_count);
-        if (token_map == NULL) {
+        tokens_hashtable = hashtable_spsc_new(token_count, HASHTABLE_SPSC_DEFAULT_MAX_RANGE, true);
+        if (tokens_hashtable == NULL) {
             return false;
         }
 
         token_count = 0;
-        build_token_argument_map(
+        build_tokens_hashtable(
                 connection_context->command.info->arguments,
                 connection_context->command.info->arguments_count,
-                token_map,
+                tokens_hashtable,
                 &token_count);
     }
 
-    command_parser_context->token_count = token_count;
-    command_parser_context->token_map = token_map;
+    command_parser_context->tokens_hashtable = tokens_hashtable;
 
     // Figures out if there is a positional argument that has to be handled
     if (connection_context->command.info->arguments_count > 0 &&
@@ -187,10 +195,7 @@ void *module_redis_command_get_base_context_from_argument(
         module_redis_command_argument_t **stopped_at_list_resume_from_argument) {
     uintptr_t base_addr = (uintptr_t)command_context;
     int arguments_queue_count = 0, arguments_queue_index;
-    module_redis_command_argument_t
-        *arguments_queue[4],
-        *arguments_resume_from_queue[ARRAY_SIZE(arguments_queue)],
-        *previous_argument = NULL;
+    module_redis_command_argument_t *arguments_queue[4];
 
     // Uses a for to let gcc unroll the loop easily and have only 1 branch based on the parent_argument check but a
     // queue with just 4 slots might not be enough for all the cases and commands so there is an assert right after
@@ -202,8 +207,6 @@ void *module_redis_command_get_base_context_from_argument(
             argument = argument->parent_argument) {
         fprintf(stdout, "%d. %s\n", arguments_queue_count, argument->name); fflush(stderr);
         arguments_queue[arguments_queue_count] = argument;
-        arguments_resume_from_queue[arguments_queue_count] = previous_argument;
-        previous_argument = argument;
         arguments_queue_count++;
     }
 
@@ -228,13 +231,16 @@ void *module_redis_command_get_base_context_from_argument(
             *stopped_at_list = true;
             *stopped_at_list_count = *(int *)(base_addr + sizeof(void *));
             *stopped_at_list_argument = argument;
-//            *stopped_at_list_resume_from_argument = arguments_resume_from_queue[arguments_queue_index];
             *stopped_at_list_resume_from_argument = arguments_queue[arguments_queue_index];
         }
 
         if (*stopped_at_list) {
             break;
         }
+    }
+
+    if (argument->token) {
+        base_addr -= field_has_token_extra_padding;
     }
 
     return (void*)base_addr;
@@ -303,7 +309,6 @@ void *module_redis_command_context_list_expand_and_get_new_entry(
         module_redis_command_argument_t *argument,
         void *base_addr) {
     void *list, *new_list_entry;
-    base_addr = module_redis_command_context_base_addr_skip_has_token(argument, base_addr);
 
     int list_count = module_redis_command_context_list_get_count(argument, base_addr);
     int list_count_new = list_count + 1;
@@ -337,28 +342,6 @@ void module_redis_command_context_has_token_set(
         void *base_addr,
         bool has_token) {
     *(bool *)base_addr = has_token;
-}
-
-bool module_redis_command_context_has_token_get(
-        module_redis_command_argument_t *argument,
-        void *base_addr) {
-    return *(bool *)base_addr;
-}
-
-void module_redis_command_context_value_set(
-        module_redis_command_argument_t *argument,
-        void *base_addr,
-        void *new_value_addr,
-        size_t new_value_length) {
-    base_addr = module_redis_command_context_base_addr_skip_has_token(argument, base_addr);
-    memcpy(base_addr, new_value_addr, new_value_length);
-}
-
-void *module_redis_command_context_value_get(
-        module_redis_command_argument_t *argument,
-        void *base_addr) {
-    base_addr = module_redis_command_context_base_addr_skip_has_token(argument, base_addr);
-    return base_addr;
 }
 
 void *module_redis_command_context_get_argument_member_context_addr(
@@ -434,7 +417,7 @@ bool module_redis_command_ensure_argument_key_pattern_allowed_length(
                 argument_length)) {
             module_redis_connection_error_message_printf_noncritical(
                     connection_context,
-                    "ERR The %s length has exceeded the allowed size of <%u>",
+                    "ERR The %s length has exceeded the allowed size of '%u'",
                     argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY ? "key" : "pattern",
                     connection_context->network_channel->module_config->redis->max_key_length);
             return false;
@@ -602,7 +585,11 @@ bool module_redis_command_process_argument_full(
         uint32_t argument_index,
         char *chunk_data,
         size_t chunk_length) {
-    bool check_tokens = false, is_in_block = false;
+    char *string_value, *integer_value_end_ptr, *double_value_end_ptr;
+    uint64_t *integer_value;
+    double *double_value;
+    bool check_tokens = false, token_found = false, is_in_block = false;
+    uint16_t block_argument_index = 0;
     module_redis_command_argument_t *guessed_argument = NULL;
     module_redis_command_parser_context_t *command_parser_context = &connection_context->command.parser_context;
     module_redis_command_argument_t *expected_argument = command_parser_context->current_argument.expected_argument;
@@ -614,28 +601,86 @@ bool module_redis_command_process_argument_full(
     //   received argument is a token or not
 
     if (expected_argument != NULL) {
+        // If the current expect argument is a block, it has to be processed till the end
         if (expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_BLOCK) {
             is_in_block = true;
-            expected_argument = &expected_argument->sub_arguments[
+            block_argument_index = command_parser_context->current_argument.block_argument_index;
+            guessed_argument = expected_argument = &expected_argument->sub_arguments[
                     command_parser_context->current_argument.block_argument_index];
-        }
-
-        if (expected_argument->is_optional == false) {
-            // If it's required the guessing is easy
-            guessed_argument = expected_argument;
         } else {
-            check_tokens = true;
+            // If the expected argument is required or it's an already known token there is nothing to guess
+            if (expected_argument->is_optional == false || expected_argument->token) {
+                guessed_argument = expected_argument;
+            } else {
+                check_tokens = true;
+            }
         }
     } else {
         check_tokens = true;
     }
 
     if (check_tokens) {
-        // TODO
-        assert(false);
+        module_redis_command_parser_context_argument_token_entry_t *token_entry = hashtable_spsc_op_get(
+                command_parser_context->tokens_hashtable,
+                chunk_data,
+                chunk_length);
+
+        if (token_entry) {
+            if (connection_context->network_channel->module_config->redis->strict_parsing) {
+                for(int index = 0; index < token_entry->one_of_token_count; index++) {
+                    module_redis_command_parser_context_argument_token_entry_t *oneof_token_entry = hashtable_spsc_op_get(
+                            command_parser_context->tokens_hashtable,
+                            token_entry->one_of_tokens[index],
+                            strlen(token_entry->one_of_tokens[index]));
+
+                    assert(oneof_token_entry);
+
+                    if (oneof_token_entry->token_found) {
+                        module_redis_connection_error_message_printf_noncritical(
+                                connection_context,
+                                "ERR the command '%s' doesn't support both the parameters '%s' and '%s' set",
+                                connection_context->command.info->string,
+                                oneof_token_entry->token,
+                                token_entry->token);
+                        return true;
+                    }
+                }
+
+                if (token_entry->token_found && !token_entry->argument->has_multiple_token) {
+                    module_redis_connection_error_message_printf_noncritical(
+                            connection_context,
+                            "ERR the parameter '%s' has already been specified for the command '%s'",
+                            token_entry->token,
+                            connection_context->command.info->string);
+                    return true;
+                }
+            }
+
+            token_entry->token_found = true;
+            guessed_argument = token_entry->argument;
+            token_found = true;
+            command_parser_context->current_argument.expected_argument = NULL;
+
+            // If the token is found, the next expected argument has to be the argument found to properly set the value
+            // unless it's a boolean argument, in that case has_token is set directly in this iteration as there isn't
+            // another argument
+            if (guessed_argument->type != MODULE_REDIS_COMMAND_ARGUMENT_TYPE_BOOL) {
+                command_parser_context->current_argument.next_expected_argument = guessed_argument;
+            }
+        }
     }
 
-    // If guessed argument is null it means it wasn't possible to find one, report the error and return false
+    // If a token can't be found then we can treat the current argument as a positional one and rely on the
+    // expected_argument argument identified in advance. If that is not available it means that probably an unknown
+    // token has been received or a positional argument has been received after a token, which isn't a supported
+    // scenario.
+    if (!token_found) {
+        if (expected_argument) {
+            guessed_argument = expected_argument;
+        }
+    }
+
+    // If guessed argument is null it means it wasn't possible to guess one, report the error and move on
     if (guessed_argument == NULL) {
         module_redis_connection_error_message_printf_noncritical(
                 connection_context,
@@ -646,45 +691,117 @@ bool module_redis_command_process_argument_full(
         return true;
     }
 
-    if (!module_redis_command_ensure_argument_key_pattern_allowed_length(
-            connection_context,
-            guessed_argument,
-            chunk_length)) {
-        return false;
+    // If the tokens have been checked and the guessed argument has a token, it can be set straight to true and the
+    // operation can be stopped here, if there is an argument associated with the token, it will be processed in the
+    // next iteration as next_expected_argument has been set to guessed_argument.
+    if (check_tokens && guessed_argument->token) {
+        // To properly handle lists, the argument has to be set true bypassing the lists automated expansion so the
+        // code here invokes module_redis_command_get_base_context_from_argument directly.
+        bool stopped_at_list = false;
+        uint16_t stopped_at_list_count = 0;
+        module_redis_command_argument_t *stopped_at_list_argument, *stopped_at_list_resume_from_argument;
+
+        void *base_addr = module_redis_command_get_base_context_from_argument(
+                guessed_argument,
+                NULL,
+                connection_context->command.context,
+                &stopped_at_list,
+                &stopped_at_list_count,
+                &stopped_at_list_argument,
+                &stopped_at_list_resume_from_argument);
+
+        module_redis_command_context_has_token_set(
+                guessed_argument,
+                base_addr,
+                true);
+
+        return true;
     }
 
     command_parser_context->current_argument.member_context_addr =
             module_redis_command_context_get_argument_member_context_addr(
                     guessed_argument,
                     is_in_block,
-                    command_parser_context->current_argument.block_argument_index,
+                    block_argument_index,
                     connection_context->command.context);
 
-    // Handle arguments which require memory allocation
-    if (
-            guessed_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY ||
-            guessed_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_PATTERN) {
-        char *key_or_pattern = slab_allocator_mem_alloc(chunk_length);
+    void *base_addr = module_redis_command_context_base_addr_skip_has_token(
+            guessed_argument,
+            command_parser_context->current_argument.member_context_addr);
 
-        if (!key_or_pattern) {
-            LOG_E(TAG, "Failed to allocate memory for the incoming data");
-            return false;
-        }
+    switch (guessed_argument->type) {
+        case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY:
+        case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_PATTERN:
+        case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_SHORT_STRING:
+            if (!module_redis_command_ensure_argument_key_pattern_allowed_length(
+                    connection_context,
+                    guessed_argument,
+                    chunk_length)) {
+                return true;
+            }
 
-        strncpy(key_or_pattern, chunk_data, chunk_length);
+            string_value = slab_allocator_mem_alloc(chunk_length);
 
-        if (guessed_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY) {
-            module_redis_key_t *key = command_parser_context->current_argument.member_context_addr;
-            key->key = key_or_pattern;
-            key->length = chunk_length;
-        } else {
-            module_redis_pattern_t *pattern = command_parser_context->current_argument.member_context_addr;
-            pattern->pattern = key_or_pattern;
-            pattern->length = chunk_length;
-        }
-    } else {
-        // TODO
-        assert(false);
+            if (!string_value) {
+                LOG_E(TAG, "Failed to allocate memory for the incoming data");
+                return false;
+            }
+
+            strncpy(string_value, chunk_data, chunk_length);
+
+            if (guessed_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY) {
+                module_redis_key_t *key = base_addr;
+                key->key = string_value;
+                key->length = chunk_length;
+            } else if (guessed_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_PATTERN) {
+                module_redis_pattern_t *pattern = base_addr;
+                pattern->pattern = string_value;
+                pattern->length = chunk_length;
+            } else {
+                module_redis_short_string_t *short_string = base_addr;
+                short_string->short_string = string_value;
+                short_string->length = chunk_length;
+            }
+
+            break;
+
+        case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_INTEGER:
+        case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_UNIXTIME:
+            integer_value = base_addr;
+            *integer_value = strtoll(chunk_data, &integer_value_end_ptr, 10);
+
+            if (errno == ERANGE || integer_value_end_ptr != chunk_data + chunk_length) {
+                module_redis_connection_error_message_printf_noncritical(
+                        connection_context,
+                        "ERR value for argument '%s' is not an integer or out of range",
+                        guessed_argument->name);
+                return true;
+            }
+            break;
+
+        case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_DOUBLE:
+            double_value = base_addr;
+            *double_value = strtod(chunk_data, &double_value_end_ptr);
+
+            if (errno == ERANGE || double_value_end_ptr != chunk_data + chunk_length) {
+                module_redis_connection_error_message_printf_noncritical(
+                        connection_context,
+                        "ERR value for argument '%s' is not a double or out of range",
+                        guessed_argument->name);
+                return true;
+            }
+            break;
+
+        case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_BLOCK:
+        case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_BOOL:
+            // Nothing has to be done, the has_token flag is automatically set when a token is found
+            break;
+
+        case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_LONG_STRING:
+        case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_ONEOF:
+        case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_UNSUPPORTED:
+            // This should never really happen
+            assert(false);
     }
 
     return true;
@@ -695,6 +812,15 @@ bool module_redis_command_process_argument_end(
         uint32_t argument_index) {
     module_redis_command_parser_context_t *command_parser_context = &connection_context->command.parser_context;
     module_redis_command_argument_t *expected_argument = command_parser_context->current_argument.expected_argument;
+    module_redis_command_argument_t *next_expected_argument =
+            command_parser_context->current_argument.next_expected_argument;
+
+    if (next_expected_argument) {
+        command_parser_context->current_argument.next_expected_argument = NULL;
+        command_parser_context->current_argument.expected_argument = next_expected_argument;
+        command_parser_context->current_argument.block_argument_index = 0;
+        return true;
+    }
 
     if (!expected_argument) {
         return true;
@@ -755,10 +881,18 @@ bool module_redis_command_process_end(
             expected_argument &&
             expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_BLOCK &&
             command_parser_context->current_argument.block_argument_index > 0) {
-        return module_redis_connection_error_message_printf_noncritical(
-                connection_context,
-                "ERR wrong number of arguments for %s",
-                connection_context->command.info->string);
+        if (expected_argument->is_positional) {
+            return module_redis_connection_error_message_printf_noncritical(
+                    connection_context,
+                    "ERR wrong number of arguments for %s",
+                    connection_context->command.info->string);
+        } else {
+            return module_redis_connection_error_message_printf_noncritical(
+                    connection_context,
+                    "ERR syntax error in %s option '%s'",
+                    connection_context->command.info->string,
+                    expected_argument->token);
+        }
     }
 
     return connection_context->command.info->command_end_funcptr(
@@ -767,9 +901,9 @@ bool module_redis_command_process_end(
 
 bool module_redis_command_process_try_free(
         module_redis_connection_context_t *connection_context) {
-    if (connection_context->command.parser_context.token_map) {
-        slab_allocator_mem_free(connection_context->command.parser_context.token_map);
-        connection_context->command.parser_context.token_map = 0;
+    if (connection_context->command.parser_context.tokens_hashtable) {
+        hashtable_spsc_free(connection_context->command.parser_context.tokens_hashtable);
+        connection_context->command.parser_context.tokens_hashtable = NULL;
     }
 
     if (connection_context->command.info == NULL || connection_context->command.context == NULL) {
@@ -1096,15 +1230,23 @@ void module_redis_command_dump_argument(
         switch (argument->type) {
             case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY:
                 fprintf(
-                        stdout, "%*s (%lu)\n",
+                        stdout, "%.*s (%lu)\n",
                         (int)*(size_t*)(base_addr + offsetof(module_redis_key_t, length)),
                         *(char**)(base_addr + offsetof(module_redis_key_t, key)),
                         *(size_t*)(base_addr + offsetof(module_redis_key_t, length)));
                 break;
 
+            case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_PATTERN:
+                fprintf(
+                        stdout, "%.*s (%lu)\n",
+                        (int)*(size_t*)(base_addr + offsetof(module_redis_pattern_t, length)),
+                        *(char**)(base_addr + offsetof(module_redis_pattern_t, pattern)),
+                        *(size_t*)(base_addr + offsetof(module_redis_pattern_t, length)));
+                break;
+
             case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_SHORT_STRING:
                 fprintf(
-                        stdout, "%*s (%lu)\n",
+                        stdout, "%.*s (%lu)\n",
                         (int)*(size_t*)(base_addr + offsetof(module_redis_short_string_t, length)),
                         *(char**)(base_addr + offsetof(module_redis_short_string_t, short_string)),
                         *(size_t*)(base_addr + offsetof(module_redis_short_string_t, length)));
@@ -1125,7 +1267,7 @@ void module_redis_command_dump_argument(
                                 storage_db_chunk_sequence_get(chunk_sequence, 0),
                                 buffer);
 
-                        fprintf(stdout, "%*s\n", (int) chunk_sequence->size, buffer);
+                        fprintf(stdout, "%.*s\n", (int) chunk_sequence->size, buffer);
                     } else {
                         fprintf(stdout, "<TOO LONG - %lu bytes>\n", chunk_sequence->size);
                     }
@@ -1145,15 +1287,8 @@ void module_redis_command_dump_argument(
                 break;
 
             case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_BOOL:
-                fprintf(stdout, "%s\n", *(bool*)(base_addr) ? "true" : "false");
-                break;
-
-            case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_PATTERN:
-                fprintf(
-                        stdout, "%*s (%lu)\n",
-                        (int)*(size_t*)(base_addr + offsetof(module_redis_pattern_t, length)),
-                        *(char**)(base_addr + offsetof(module_redis_pattern_t, pattern)),
-                        *(size_t*)(base_addr + offsetof(module_redis_pattern_t, length)));
+                // Print nothing, the value is contained in has_token
+                fprintf(stdout, "\n");
                 break;
 
             case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_BLOCK:

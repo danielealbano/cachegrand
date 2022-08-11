@@ -146,6 +146,8 @@ bool module_redis_connection_error_message_vprintf_internal(
 
     connection_context->error.message = error_message_with_args;
     connection_context->command.skip = true;
+
+    return true;
 }
 
 bool module_redis_connection_error_message_printf_noncritical(
