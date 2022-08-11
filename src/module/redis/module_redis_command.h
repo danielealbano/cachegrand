@@ -5,7 +5,6 @@
 extern "C" {
 #endif
 
-
 bool module_redis_command_is_key_too_long(
         network_channel_t *channel,
         size_t key_length);

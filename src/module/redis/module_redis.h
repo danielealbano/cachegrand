@@ -157,7 +157,7 @@ struct module_redis_command_info {
     bool has_variable_arguments;
 };
 
-typedef struct module_redis_command_parser_context_token_map_item module_redis_command_parser_context_token_map_entry_t;
+typedef struct module_redis_command_parser_context_token_map_item module_redis_command_parser_context_argument_token_entry_t;
 struct module_redis_command_parser_context_token_map_item {
     char *token;
     module_redis_command_argument_t *argument;
@@ -166,16 +166,17 @@ struct module_redis_command_parser_context_token_map_item {
     bool token_found;
 };
 
-
 typedef struct module_redis_command_parser_context module_redis_command_parser_context_t;
 struct module_redis_command_parser_context {
-    module_redis_command_parser_context_token_map_entry_t *token_map;
-    uint16_t token_count;
+    /** TO BE MOVED TO THE SCAFFOLDING GENERATOR - START **/
+    hashtable_spsc_t *tokens_hashtable;
+    /** TO BE MOVED TO THE SCAFFOLDING GENERATOR - END **/
     uint16_t positional_arguments_parsed_count;
     struct {
         bool require_stream;
         void *member_context_addr;
         module_redis_command_argument_t *expected_argument;
+        module_redis_command_argument_t *next_expected_argument;
         uint16_t block_argument_index;
     } current_argument;
 };
