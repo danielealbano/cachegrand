@@ -638,7 +638,7 @@ bool module_redis_command_process_argument_full(
                     if (oneof_token_entry->token_found) {
                         module_redis_connection_error_message_printf_noncritical(
                                 connection_context,
-                                "ERR the command '%s' doesn't support both the parameters '%s' and '%s' set",
+                                "ERR the command '%s' doesn't support both the parameters '%s' and '%s' set at the same time",
                                 connection_context->command.info->string,
                                 oneof_token_entry->token,
                                 token_entry->token);
