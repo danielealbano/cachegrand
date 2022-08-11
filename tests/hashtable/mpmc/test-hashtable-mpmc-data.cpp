@@ -15,7 +15,7 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_data.h"
 
-#include "fixtures-hashtable.h"
+#include "fixtures-hashtable-mpmc.h"
 
 TEST_CASE("hashtable/hashtable_data.c", "[hashtable][hashtable_data]") {
     SECTION("hashtable_mcmp_data_init") {

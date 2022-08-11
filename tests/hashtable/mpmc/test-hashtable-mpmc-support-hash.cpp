@@ -15,7 +15,7 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_support_hash.h"
 
-#include "fixtures-hashtable.h"
+#include "fixtures-hashtable-mpmc.h"
 
 TEST_CASE("hashtable/hashtable_support_hash.c", "[hashtable][hashtable_support][hashtable_support_hash]") {
     SECTION("hashtable_mcmp_support_hash_calculate") {

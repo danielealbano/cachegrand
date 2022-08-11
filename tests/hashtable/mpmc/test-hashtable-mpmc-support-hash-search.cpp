@@ -33,7 +33,7 @@
 
 #include "data_structures/hashtable/mcmp/hashtable_support_hash_search_loop.h"
 
-#include "fixtures-hashtable.h"
+#include "fixtures-hashtable-mpmc.h"
 
 #define HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_FUNC CONCAT(CONCAT(hashtable_mcmp_support_hash_search, CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX), 14)
 
