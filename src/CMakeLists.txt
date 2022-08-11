@@ -75,7 +75,7 @@ list(REMOVE_ITEM SRC_FILES_CACHEGRAND ${CMAKE_CURRENT_SOURCE_DIR}/main.c)
 # Remove all the architecture dependant implementation of the hash crc32 algorithm
 list(REMOVE_ITEM SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hash/hash_crc32c_sse42.c")
 
-# Remove all the architecture dependant implementation of the search loop and re-inglude it
+# Remove all the architecture dependant implementation of the search loop and re-include it
 list(FILTER SRC_FILES_CACHEGRAND EXCLUDE REGEX ".*hashtable_support_op_arch.c$")
 
 if(ARCH_IS_X86_64)
