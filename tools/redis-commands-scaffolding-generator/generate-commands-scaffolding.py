@@ -77,13 +77,13 @@ class Program:
         if field_type is None:
             raise Exception("field_type is none")
 
-        if not argument["token"] is None and argument["type"] != "pure-token":
+        if argument["token"] is not None:
             lines.append("bool has_token")
 
         if argument["has_multiple_occurrences"]:
             lines.append("{field_type} *list".format(field_type=field_type))
             lines.append("int count")
-        else:
+        elif argument["type"] != "bool":
             lines.append("{field_type} value".format(field_type=field_type))
 
         start_indentation_str = " " * start_indentation
@@ -478,6 +478,7 @@ class Program:
             "#include \"spinlock.h\"",
             "#include \"data_structures/small_circular_queue/small_circular_queue.h\"",
             "#include \"data_structures/double_linked_list/double_linked_list.h\"",
+            "#include \"data_structures/hashtable/spsc/hashtable_spsc.h\"",
             "#include \"data_structures/queue_mpmc/queue_mpmc.h\"",
             "#include \"slab_allocator.h\"",
             "#include \"data_structures/hashtable/mcmp/hashtable.h\"",
