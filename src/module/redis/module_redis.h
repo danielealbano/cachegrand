@@ -52,12 +52,12 @@ extern "C" {
         .command_free_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME_AUTOGEN(COMMAND_FUNC_PTR, command_free), \
         .required_arguments_count = (REQUIRED_ARGS_COUNT), \
         .has_variable_arguments = (HAS_VARIABLE_ARGUMENTS), \
+        .tokens_hashtable = NULL, \
     }
 
 #define MODULE_REDIS_COMMAND(ID, COMMAND, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, HAS_VARIABLE_ARGUMENTS, ARGS_COUNT) \
     { \
         .command = MODULE_REDIS_COMMAND_##ID, \
-        .length = sizeof(COMMAND) - 1, /* sizeof takes into account the NULL char at the end, different behaviour than strlen */ \
         .string = (COMMAND), \
         .string_len = strlen(COMMAND), \
         .context_size = sizeof(CONCAT(CONCAT(module_redis_command, COMMAND_FUNC_PTR), context_t)), \
@@ -67,6 +67,7 @@ extern "C" {
         .command_free_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME(COMMAND_FUNC_PTR, command_free), \
         .required_arguments_count = (REQUIRED_ARGS_COUNT), \
         .has_variable_arguments = (HAS_VARIABLE_ARGUMENTS), \
+        .tokens_hashtable = NULL, \
     }
 
 typedef void module_redis_command_context_t;
@@ -145,32 +146,30 @@ struct module_redis_command_argument {
 typedef struct module_redis_command_info module_redis_command_info_t;
 struct module_redis_command_info {
     // The longest Redis command is 23 chars
-    char string[32];
-    module_redis_command_argument_t *arguments;
-    module_redis_command_end_funcptr_t *command_end_funcptr;
-    module_redis_command_free_funcptr_t *command_free_funcptr;
-    module_redis_commands_t command;
+    char string[24];
     uint8_t string_len;
+    module_redis_commands_t command;
     uint16_t context_size;
     uint16_t arguments_count;
     uint8_t required_arguments_count;
     bool has_variable_arguments;
+    module_redis_command_argument_t *arguments;
+    module_redis_command_end_funcptr_t *command_end_funcptr;
+    module_redis_command_free_funcptr_t *command_free_funcptr;
+    hashtable_spsc_t *tokens_hashtable;
 };
 
 typedef struct module_redis_command_parser_context_token_map_item module_redis_command_parser_context_argument_token_entry_t;
 struct module_redis_command_parser_context_token_map_item {
     char *token;
     module_redis_command_argument_t *argument;
-    char *one_of_tokens[16];
+    char *one_of_tokens[6];
     uint16_t one_of_token_count;
-    bool token_found;
+    uint8_t token_length;
 };
 
 typedef struct module_redis_command_parser_context module_redis_command_parser_context_t;
 struct module_redis_command_parser_context {
-    /** TO BE MOVED TO THE SCAFFOLDING GENERATOR - START **/
-    hashtable_spsc_t *tokens_hashtable;
-    /** TO BE MOVED TO THE SCAFFOLDING GENERATOR - END **/
     uint16_t positional_arguments_parsed_count;
     struct {
         bool require_stream;
