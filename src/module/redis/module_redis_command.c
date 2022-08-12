@@ -619,23 +619,40 @@ bool module_redis_command_process_argument_full(
         check_tokens = true;
     }
 
-    if (check_tokens) {
+    if (check_tokens && connection_context->command.info->tokens_hashtable) {
         module_redis_command_parser_context_argument_token_entry_t *token_entry = hashtable_spsc_op_get(
-                command_parser_context->tokens_hashtable,
+                connection_context->command.info->tokens_hashtable,
                 chunk_data,
                 chunk_length);
 
         if (token_entry) {
             if (connection_context->network_channel->module_config->redis->strict_parsing) {
+                bool stopped_at_list = false, has_token = false;
+                uint16_t stopped_at_list_count = 0;
+                module_redis_command_argument_t *stopped_at_list_argument, *stopped_at_list_resume_from_argument;
+
                 for(int index = 0; index < token_entry->one_of_token_count; index++) {
                     module_redis_command_parser_context_argument_token_entry_t *oneof_token_entry = hashtable_spsc_op_get(
-                            command_parser_context->tokens_hashtable,
+                            connection_context->command.info->tokens_hashtable,
                             token_entry->one_of_tokens[index],
                             strlen(token_entry->one_of_tokens[index]));
 
                     assert(oneof_token_entry);
 
-                    if (oneof_token_entry->token_found) {
+                    void *base_addr = module_redis_command_get_base_context_from_argument(
+                            oneof_token_entry->argument,
+                            NULL,
+                            connection_context->command.context,
+                            &stopped_at_list,
+                            &stopped_at_list_count,
+                            &stopped_at_list_argument,
+                            &stopped_at_list_resume_from_argument);
+
+                    has_token = module_redis_command_context_has_token_get(
+                            oneof_token_entry->argument,
+                            base_addr);
+
+                    if (has_token) {
                         module_redis_connection_error_message_printf_noncritical(
                                 connection_context,
                                 "ERR the command '%s' doesn't support both the parameters '%s' and '%s' set at the same time",
@@ -646,7 +663,20 @@ bool module_redis_command_process_argument_full(
                     }
                 }
 
-                if (token_entry->token_found && !token_entry->argument->has_multiple_token) {
+                void *base_addr = module_redis_command_get_base_context_from_argument(
+                        token_entry->argument,
+                        NULL,
+                        connection_context->command.context,
+                        &stopped_at_list,
+                        &stopped_at_list_count,
+                        &stopped_at_list_argument,
+                        &stopped_at_list_resume_from_argument);
+
+                has_token = module_redis_command_context_has_token_get(
+                        token_entry->argument,
+                        base_addr);
+
+                if (has_token && !token_entry->argument->has_multiple_token) {
                     module_redis_connection_error_message_printf_noncritical(
                             connection_context,
                             "ERR the parameter '%s' has already been specified for the command '%s'",
@@ -656,9 +686,8 @@ bool module_redis_command_process_argument_full(
                 }
             }
 
-            token_entry->token_found = true;
-            guessed_argument = token_entry->argument;
             token_found = true;
+            guessed_argument = token_entry->argument;
             command_parser_context->current_argument.expected_argument = NULL;
 
             // If the token is found, the next expected argument has to be the argument found to properly set the value
