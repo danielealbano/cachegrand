@@ -43,13 +43,13 @@
 extern module_redis_command_argument_t module_redis_command_sort_arguments[];
 
 module_redis_command_info_t test_module_redis_command_sort_command_info = {
-        .string = { 'S', 'O', 'R', 'T' },
-        .arguments = module_redis_command_sort_arguments,
-        .command = MODULE_REDIS_COMMAND_SORT,
+        .string = { 'S', 'O', 'R', 'T', 0 },
         .string_len = (uint8_t)strlen("SORT"),
+        .command = MODULE_REDIS_COMMAND_SORT,
         .context_size = sizeof(module_redis_command_sort_context_t),
         .arguments_count = 7,
-        .required_arguments_count = 3
+        .required_arguments_count = 3,
+        .arguments = module_redis_command_sort_arguments,
 };
 
 TEST_CASE("module/redis/module_redis_command.c", "[module][redis][module_redis_command]") {
@@ -71,10 +71,10 @@ TEST_CASE("module/redis/module_redis_command.c", "[module][redis][module_redis_c
         }
     }
 
-    SECTION("module_redis_command_process_begin") {
-        module_redis_command_context_t *command_context = module_redis_command_process_begin(
-                &test_module_redis_command_sort_command_info);
-
-        slab_allocator_mem_free(command_context);
-    }
+//    SECTION("module_redis_command_process_begin") {
+//        module_redis_command_context_t *command_context = module_redis_command_process_begin(
+//                &test_module_redis_command_sort_command_info);
+//
+//        slab_allocator_mem_free(command_context);
+//    }
 }
