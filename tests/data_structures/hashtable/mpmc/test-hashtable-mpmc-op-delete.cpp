@@ -21,7 +21,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_delete.h"
 
-#include "../../support.h"
+#include "../../../support.h"
 #include "fixtures-hashtable-mpmc.h"
 
 TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][hashtable_mcmp_op_delete]") {

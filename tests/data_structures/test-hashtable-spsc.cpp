@@ -75,7 +75,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
         hashtable_spsc_free(hashtable);
     }
 
-    SECTION("hashtable_spsc_find_bucket_index") {
+    SECTION("hashtable_spsc_find_bucket_index_by_key") {
         hashtable_spsc_t *hashtable = hashtable_spsc_new(
                 16,
                 HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
@@ -97,7 +97,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_buckets[hashtable_key_bucket_index].key = key;
             hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
-            REQUIRE(hashtable_spsc_find_bucket_index(hashtable, key_hash, key, key_length) == hashtable_key_bucket_index);
+            REQUIRE(hashtable_spsc_find_bucket_index_by_key(hashtable, key_hash, key, key_length) == hashtable_key_bucket_index);
         }
 
         SECTION("bucket found - same hash but different key_length and key") {
@@ -111,7 +111,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_buckets[hashtable_key_bucket_index].key = key2;
             hashtable_buckets[hashtable_key_bucket_index].key_length = key2_length;
 
-            REQUIRE(hashtable_spsc_find_bucket_index(hashtable, key_hash, key, key_length) == hashtable_key_bucket_index + 1);
+            REQUIRE(hashtable_spsc_find_bucket_index_by_key(hashtable, key_hash, key, key_length) == hashtable_key_bucket_index + 1);
         }
 
         SECTION("bucket found - same hash and same key_length but different key") {
@@ -125,7 +125,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_buckets[hashtable_key_bucket_index].key = key2;
             hashtable_buckets[hashtable_key_bucket_index].key_length = hashtable_buckets[hashtable_key_bucket_index + 1].key_length;
 
-            REQUIRE(hashtable_spsc_find_bucket_index(hashtable, key_hash, key, key_length) == hashtable_key_bucket_index + 1);
+            REQUIRE(hashtable_spsc_find_bucket_index_by_key(hashtable, key_hash, key, key_length) == hashtable_key_bucket_index + 1);
         }
 
         SECTION("bucket found - key exists, not first bucket") {
@@ -141,7 +141,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_buckets[hashtable_key_bucket_index + extra_slots].key = key;
             hashtable_buckets[hashtable_key_bucket_index + extra_slots].key_length = key_length;
 
-            REQUIRE(hashtable_spsc_find_bucket_index(
+            REQUIRE(hashtable_spsc_find_bucket_index_by_key(
                     hashtable, key_hash, key, key_length) == hashtable_key_bucket_index + extra_slots);
         }
 
@@ -152,7 +152,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_buckets[hashtable_key_bucket_index].key = key;
             hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
-            REQUIRE(hashtable_spsc_find_bucket_index(hashtable, key_hash, key, key_length) == hashtable_key_bucket_index);
+            REQUIRE(hashtable_spsc_find_bucket_index_by_key(hashtable, key_hash, key, key_length) == hashtable_key_bucket_index);
         }
 
         SECTION("bucket not found - key not-existent") {
@@ -161,7 +161,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_buckets[hashtable_key_bucket_index].key = key;
             hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
-            REQUIRE(hashtable_spsc_find_bucket_index(hashtable, key2_hash, key2, key2_length) == -1);
+            REQUIRE(hashtable_spsc_find_bucket_index_by_key(hashtable, key2_hash, key2, key2_length) == -1);
         }
 
         SECTION("bucket not found - key outside max range") {
@@ -171,7 +171,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_buckets[hashtable_key_bucket_index].key = key;
             hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
-            REQUIRE(hashtable_spsc_find_bucket_index(hashtable, key_hash, key, key_length) == -1);
+            REQUIRE(hashtable_spsc_find_bucket_index_by_key(hashtable, key_hash, key, key_length) == -1);
         }
 
         SECTION("bucket not found - key exists but not set buckets on the way") {
@@ -181,7 +181,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable2_buckets[hashtable2_key_bucket_index].key = key;
             hashtable2_buckets[hashtable2_key_bucket_index].key_length = key_length;
 
-            REQUIRE(hashtable_spsc_find_bucket_index(hashtable2, key_hash, key, key_length) == -1);
+            REQUIRE(hashtable_spsc_find_bucket_index_by_key(hashtable2, key_hash, key, key_length) == -1);
         }
 
         hashtable_spsc_free(hashtable);

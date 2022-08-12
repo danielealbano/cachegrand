@@ -21,7 +21,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_support_index.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"
 
-#include "../../support.h"
+#include "../../../support.h"
 #include "fixtures-hashtable-mpmc.h"
 
 TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashtable_mcmp_op_set]") {
