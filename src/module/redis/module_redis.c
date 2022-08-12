@@ -231,33 +231,25 @@ bool module_redis_process_data(
                     char *command_data = read_buffer_data_start + connection_context->current_argument_token_data_offset;
 
                     // Set the current command to UNKNOWN
-                    connection_context->command.info = NULL;
+                    connection_context->command.info = hashtable_spsc_op_get(
+                            module_redis_commands_hashtable,
+                            command_data,
+                            command_length);
 
-                    // Search the command_data in the commands table
-                    for (uint32_t command_index = 0; command_index < command_infos_map_count; command_index++) {
-                        module_redis_command_info_t *command_info = &command_infos_map[command_index];
-                        if (command_length == command_info->string_len &&
-                            strncasecmp(command_data, command_info->string, command_length) == 0) {
-                            LOG_D(
-                                    TAG,
-                                    "[RECV][REDIS] <%s> command received",
-                                    command_info->string);
-                            connection_context->command.info = command_info;
-
-                            break;
-                        }
-                    }
-
-                    // Check if the command has been found and if the required arguments are going to be provided
-                    if (connection_context->command.info == NULL) {
+                    if (!connection_context->command.info) {
                         module_redis_connection_error_message_printf_noncritical(
                                 connection_context,
                                 "ERR unknown command `%s` with `%d` args",
                                 command_data,
                                 connection_context->reader_context.arguments.count - 1);
                         continue;
-                    } else if (connection_context->command.info->required_arguments_count >
-                        connection_context->reader_context.arguments.count - 1) {
+                    }
+
+                    LOG_D(
+                            TAG,
+                            "[RECV][REDIS] <%s> command received",
+                            connection_context->command.info->string);
+
                     // Check if the command has been found and if the required arguments are going to be provided else
                     if (unlikely(connection_context->command.info->required_arguments_count >
                         connection_context->reader_context.arguments.count - 1)) {
