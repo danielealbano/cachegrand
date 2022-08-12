@@ -608,7 +608,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         SECTION("Limit Arguments - Overflow") {
             off_t buffer_send_offset = 0;
             char expected_error[256] = { 0 };
-            int key_count = (int)config.network->protocols->redis->max_command_arguments + 1;
+            int key_count = (int)config.modules->redis->max_command_arguments + 1;
 
             for(int key_index = 0; key_index < key_count; key_index++) {
                 snprintf(buffer_send, sizeof(buffer_send) - 1, "*3\r\n$3\r\nSET\r\n$11\r\na_key_%05d\r\n$13\r\nb_value_%05d\r\n", key_index, key_index);
@@ -638,7 +638,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             sprintf(
                     expected_error,
                     "-ERR command has too many arguments, the limit is <%u>\r\n",
-                    (int)config.network->protocols->redis->max_command_arguments);
+                    (int)config.modules->redis->max_command_arguments);
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
             REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));

@@ -134,7 +134,6 @@ static inline __attribute__((always_inline)) size_t module_redis_command_get_con
 static inline __attribute__((always_inline)) void *module_redis_command_context_base_addr_skip_has_token(
         module_redis_command_argument_t *argument,
         void *base_addr) {
-
     if (argument->token != NULL) {
         base_addr += module_redis_command_get_context_has_token_padding_size();
     }
@@ -171,7 +170,7 @@ static inline __attribute__((always_inline)) void module_redis_command_context_l
 
     base_addr = module_redis_command_context_base_addr_skip_has_token(argument, base_addr);
 
-    void **list_ptr = (void*)base_addr;
+    void **list_ptr = (void**)base_addr;
     *list_ptr = list;
 }
 
@@ -182,7 +181,7 @@ static inline __attribute__((always_inline)) void *module_redis_command_context_
 
     base_addr = module_redis_command_context_base_addr_skip_has_token(argument, base_addr);
 
-    void **list_ptr = (void*)base_addr;
+    void **list_ptr = (void**)base_addr;
     base_addr = *list_ptr;
 
     return base_addr;

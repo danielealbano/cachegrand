@@ -149,7 +149,6 @@ bool module_redis_process_data(
     uint8_t ops_size = (sizeof(ops) / sizeof(protocol_redis_reader_op_t));
 
     worker_context_t *worker_context = worker_context_get();
-    storage_db_t *db = worker_context->db;
 
     // The loops below terminate if data_size is equals to zero, it should never happen that this function is invoked
     // with the read buffer empty.
@@ -257,6 +256,14 @@ bool module_redis_process_data(
                                 connection_context,
                                 "ERR wrong number of arguments for '%s' command",
                                 connection_context->command.info->string);
+                        continue;
+                    } else if (unlikely(connection_context->reader_context.arguments.count - 1 >
+                            connection_context->network_channel->module_config->redis->max_command_arguments)) {
+                        module_redis_connection_error_message_printf_noncritical(
+                                connection_context,
+                                "ERR command '%s' has too many arguments, the limit is <%u>",
+                                connection_context->command.info->string,
+                                connection_context->network_channel->module_config->redis->max_command_arguments);
                         continue;
                     }
 

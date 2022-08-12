@@ -30,7 +30,7 @@ modules:
       max_command_length: 536870912
       max_command_arguments: 10000
       
-      # If enabled, the command parsing will prevent
+      # If enabled, the command parsing will refuse duplicated or exclusive arguments
       strict_parsing: false
 
     network:
