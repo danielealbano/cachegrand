@@ -52,6 +52,7 @@
 #include "network/network_tls_mbedtls.h"
 #include "network/network_tls.h"
 #include "network/channel/network_channel_tls.h"
+#include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "module/redis/module_redis.h"
 #include "module/prometheus/module_prometheus.h"

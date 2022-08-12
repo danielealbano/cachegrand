@@ -22,6 +22,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "config.h"
 #include "fiber.h"
+#include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"

@@ -26,6 +26,7 @@
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "slab_allocator.h"
+#include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"

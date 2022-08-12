@@ -9,6 +9,7 @@
 #include <catch2/catch.hpp>
 #include <cstring>
 
+#include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
