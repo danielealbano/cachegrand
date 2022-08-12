@@ -99,9 +99,9 @@ void module_redis_accept(
             network_channel->module_config);
 
     do {
-        if (!network_buffer_has_enough_space(
+        if (unlikely(!network_buffer_has_enough_space(
                 &connection_context.read_buffer,
-                NETWORK_CHANNEL_PACKET_SIZE)) {
+                NETWORK_CHANNEL_PACKET_SIZE))) {
             module_redis_connection_error_message_printf_critical(
                     &connection_context,
                     "ERR command too long");
@@ -110,10 +110,10 @@ void module_redis_accept(
             exit_loop = true;
         }
 
-        if (!exit_loop) {
-            if (network_buffer_needs_rewind(
+        if (likely(!exit_loop)) {
+            if (unlikely(network_buffer_needs_rewind(
                     &connection_context.read_buffer,
-                    NETWORK_CHANNEL_PACKET_SIZE)) {
+                    NETWORK_CHANNEL_PACKET_SIZE))) {
                 network_buffer_rewind(&connection_context.read_buffer);
             }
 
@@ -123,7 +123,7 @@ void module_redis_accept(
                     NETWORK_CHANNEL_PACKET_SIZE) != NETWORK_OP_RESULT_OK;
         }
 
-        if (!exit_loop) {
+        if (likely(!exit_loop)) {
             exit_loop = !module_redis_process_data(
                     &connection_context,
                     &connection_context.read_buffer);
@@ -168,11 +168,11 @@ bool module_redis_process_data(
 
             assert(ops_found < UINT8_MAX);
 
-            if (connection_context->reader_context.error != PROTOCOL_REDIS_READER_ERROR_OK) {
+            if (unlikely(connection_context->reader_context.error != PROTOCOL_REDIS_READER_ERROR_OK)) {
                 continue;
             }
 
-            if (ops_found == 0) {
+            if (unlikely(ops_found == 0)) {
                 break;
             }
 
@@ -185,7 +185,7 @@ bool module_redis_process_data(
                 read_buffer->data_size -= op->data_read_len;
                 connection_context->command.data_length += op->data_read_len;
 
-                if (module_redis_connection_command_too_long(connection_context)) {
+                if (unlikely(module_redis_connection_command_too_long(connection_context))) {
                     module_redis_connection_error_message_printf_critical(
                             connection_context,
                             "ERR the command length has exceeded <%u> bytes",
@@ -209,7 +209,7 @@ bool module_redis_process_data(
                     bool op_followed_by_argument_end =
                             !last_op && (ops[op_index + 1].type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END);
 
-                    if (last_op || !op_followed_by_argument_end) {
+                    if (unlikely(last_op || !op_followed_by_argument_end)) {
                         // Set the reader_context state back to PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA and reset
                         // the current argument received_length
                         connection_context->reader_context.state = PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA;
@@ -258,6 +258,9 @@ bool module_redis_process_data(
                         continue;
                     } else if (connection_context->command.info->required_arguments_count >
                         connection_context->reader_context.arguments.count - 1) {
+                    // Check if the command has been found and if the required arguments are going to be provided else
+                    if (unlikely(connection_context->command.info->required_arguments_count >
+                        connection_context->reader_context.arguments.count - 1)) {
                         module_redis_connection_error_message_printf_noncritical(
                                 connection_context,
                                 "ERR wrong number of arguments for '%s' command",
@@ -266,7 +269,7 @@ bool module_redis_process_data(
                     }
 
                     // Invoke the being function callback if it has been set
-                    if (!module_redis_command_process_begin(connection_context)) {
+                    if (unlikely(!module_redis_command_process_begin(connection_context))) {
                         LOG_D(TAG, "[RECV][REDIS] Unable to allocate the command context, terminating connection");
                         goto end;
                     }
@@ -282,10 +285,9 @@ bool module_redis_process_data(
 
                 if (is_argument_op && op->data.argument.index > 0) {
                     if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_BEGIN) {
-                        if (!module_redis_command_process_argument_begin(
+                        if (unlikely(!module_redis_command_process_argument_begin(
                                 connection_context,
-                                op->data.argument.index - 1,
-                                op->data.argument.length)) {
+                                op->data.argument.length))) {
                             module_redis_connection_error_message_printf_noncritical(
                                     connection_context,
                                     "ERR protocol error while parsing arguments for command '%s'",
@@ -294,19 +296,17 @@ bool module_redis_process_data(
                         }
                     } else {
                         bool require_stream = module_redis_command_process_argument_require_stream(
-                                connection_context,
-                                op->data.argument.index - 1);
+                                connection_context);
 
                         if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA) {
                             if (require_stream) {
                                 size_t chunk_length = op->data.argument.data_length;
                                 char *chunk_data = read_buffer_data_start + op->data.argument.offset;
 
-                                if (!module_redis_command_process_argument_stream_data(
+                                if (unlikely(!module_redis_command_process_argument_stream_data(
                                         connection_context,
-                                        op->data.argument.index - 1,
                                         chunk_data,
-                                        chunk_length)) {
+                                        chunk_length))) {
                                     module_redis_connection_error_message_printf_noncritical(
                                             connection_context,
                                             "ERR protocol error while parsing arguments for command '%s'",
@@ -323,7 +323,7 @@ bool module_redis_process_data(
                                         !last_op &&
                                         (ops[op_index + 1].type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END);
 
-                                if (last_op || !op_followed_by_argument_end) {
+                                if (unlikely(last_op || !op_followed_by_argument_end)) {
                                     // Set the reader_context state back to PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA and reset
                                     // the current argument received_length
                                     connection_context->reader_context.state =
@@ -343,8 +343,8 @@ bool module_redis_process_data(
                             }
                         } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END) {
                             if (require_stream) {
-                                if (!module_redis_command_process_argument_stream_end(
-                                        connection_context)) {
+                                if (unlikely(!module_redis_command_process_argument_stream_end(
+                                        connection_context))) {
                                     module_redis_connection_error_message_printf_noncritical(
                                             connection_context,
                                             "ERR protocol error while parsing arguments for command '%s'",
@@ -356,11 +356,10 @@ bool module_redis_process_data(
                                 char *chunk_data =
                                         read_buffer_data_start + connection_context->current_argument_token_data_offset;
 
-                                if (!module_redis_command_process_argument_full(
+                                if (unlikely(!module_redis_command_process_argument_full(
                                         connection_context,
-                                        op->data.argument.index - 1,
                                         chunk_data,
-                                        chunk_length)) {
+                                        chunk_length))) {
                                     module_redis_connection_error_message_printf_noncritical(
                                             connection_context,
                                             "ERR protocol error while parsing arguments for command '%s'",
@@ -369,9 +368,8 @@ bool module_redis_process_data(
                                 }
                             }
 
-                            if (!module_redis_command_process_argument_end(
-                                    connection_context,
-                                    op->data.argument.index - 1)) {
+                            if (unlikely(!module_redis_command_process_argument_end(
+                                    connection_context))) {
                                 module_redis_connection_error_message_printf_noncritical(
                                         connection_context,
                                         "ERR protocol error while parsing arguments for command '%s'",
@@ -381,8 +379,8 @@ bool module_redis_process_data(
                         }
                     }
                 } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_COMMAND_END) {
-                    if (!module_redis_command_process_end(
-                            connection_context)) {
+                    if (unlikely(!module_redis_command_process_end(
+                            connection_context))) {
                         module_redis_connection_error_message_printf_noncritical(
                                 connection_context,
                                 "ERR protocol error while parsing arguments for command '%s'",
@@ -397,17 +395,17 @@ bool module_redis_process_data(
                 connection_context->reader_context.state != PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED &&
                 connection_context->reader_context.error != PROTOCOL_REDIS_READER_ERROR_OK);
 
-        if (module_redis_connection_reader_has_error(connection_context)) {
+        if (unlikely(module_redis_connection_reader_has_error(connection_context))) {
             module_redis_connection_set_error_message_from_reader(connection_context);
         }
 
-        if (module_redis_connection_has_error(connection_context)) {
+        if (unlikely(module_redis_connection_has_error(connection_context))) {
             if (!module_redis_connection_send_error(connection_context)) {
                 goto end;
             }
         }
 
-        if (module_redis_connection_should_terminate_connection(connection_context)) {
+        if (unlikely(module_redis_connection_should_terminate_connection(connection_context))) {
             module_redis_connection_flush_and_close(connection_context);
             goto end;
         }
