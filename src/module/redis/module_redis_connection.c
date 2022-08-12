@@ -38,9 +38,9 @@
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_writer.h"
 #include "module/redis/module_redis.h"
-#include "module_redis_command.h"
 
 #include "module_redis_connection.h"
+#include "module_redis_command.h"
 
 #define TAG "module_redis_connection"
 
