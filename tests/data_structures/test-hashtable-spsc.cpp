@@ -23,25 +23,28 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
     uint32_t key2_hash = fnv_32_hash_ci(key2, key2_length);
 
     SECTION("hashtable_spsc_new") {
-        SECTION("valid buckets_count, default max range, stop_on_not_set true") {
+        SECTION("valid buckets_count, default max range, stop_on_not_set true, free_keys_on_deallocation false") {
             hashtable_spsc_t *hashtable = hashtable_spsc_new(
                     10,
                     HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                    true);
+                    true,
+                    false);
 
             REQUIRE(hashtable->buckets_count == 10);
             REQUIRE(hashtable->buckets_count_pow2 == 16);
             REQUIRE(hashtable->buckets_count_real == 16 + HASHTABLE_SPSC_DEFAULT_MAX_RANGE);
             REQUIRE(hashtable->stop_on_not_set == true);
+            REQUIRE(hashtable->free_keys_on_deallocation == false);
             REQUIRE(hashtable->max_range == HASHTABLE_SPSC_DEFAULT_MAX_RANGE);
 
             hashtable_spsc_free(hashtable);
         }
 
-        SECTION("valid buckets_count, default max range, stop_on_not_set false") {
+        SECTION("valid buckets_count, stop_on_not_set false") {
             hashtable_spsc_t *hashtable = hashtable_spsc_new(
                     10,
                     HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
+                    false,
                     false);
 
             REQUIRE(hashtable->stop_on_not_set == false);
@@ -49,11 +52,24 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_spsc_free(hashtable);
         }
 
-        SECTION("valid buckets_count, max range 1, stop_on_not_set true") {
+        SECTION("valid buckets_count, free_keys_on_deallocation true") {
+            hashtable_spsc_t *hashtable = hashtable_spsc_new(
+                    10,
+                    HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
+                    false,
+                    true);
+
+            REQUIRE(hashtable->free_keys_on_deallocation == true);
+
+            hashtable_spsc_free(hashtable);
+        }
+
+        SECTION("valid buckets_count, max range 1") {
             hashtable_spsc_t *hashtable = hashtable_spsc_new(
                     10,
                     1,
-                    true);
+                    true,
+                    false);
 
             REQUIRE(hashtable->buckets_count_real == 16 + 1);
             REQUIRE(hashtable->max_range == 1);
@@ -66,7 +82,8 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
         hashtable_spsc_t *hashtable = hashtable_spsc_new(
                 10,
                 HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                true);
+                true,
+                false);
 
         hashtable_spsc_bucket_t *buckets = hashtable_spsc_get_buckets(hashtable);
 
@@ -75,10 +92,101 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
         hashtable_spsc_free(hashtable);
     }
 
+    SECTION("hashtable_spsc_find_set_bucket") {
+        hashtable_spsc_t *hashtable = hashtable_spsc_new(
+                16,
+                HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
+                false,
+                false);
+        hashtable_spsc_bucket_count_t hashtable_key_bucket_index = key_hash & (hashtable->buckets_count_pow2 - 1);
+        hashtable_spsc_bucket_count_t hashtable_key_bucket_index_max = hashtable_key_bucket_index + hashtable->max_range;
+
+        SECTION("bucket found") {
+            hashtable->hashes[hashtable_key_bucket_index].set = true;
+
+            REQUIRE(hashtable_spsc_find_set_bucket(
+                    hashtable,
+                    hashtable_key_bucket_index,
+                    hashtable_key_bucket_index_max) == hashtable_key_bucket_index);
+        }
+
+        SECTION("bucket not found - nothing in range") {
+            hashtable->hashes[hashtable_key_bucket_index_max].set = true;
+
+            REQUIRE(hashtable_spsc_find_set_bucket(
+                    hashtable,
+                    hashtable_key_bucket_index,
+                    hashtable_key_bucket_index_max) == -1);
+        }
+
+        SECTION("bucket not found - hashtable empty") {
+            REQUIRE(hashtable_spsc_find_set_bucket(
+                    hashtable,
+                    hashtable_key_bucket_index,
+                    hashtable_key_bucket_index_max) == -1);
+        }
+
+        hashtable_spsc_free(hashtable);
+    }
+
+    SECTION("hashtable_spsc_find_empty_bucket") {
+        hashtable_spsc_t *hashtable = hashtable_spsc_new(
+                16,
+                HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
+                false,
+                false);
+        hashtable_spsc_bucket_count_t hashtable_key_bucket_index = key_hash & (hashtable->buckets_count_pow2 - 1);
+        hashtable_spsc_bucket_count_t hashtable_key_bucket_index_max = hashtable_key_bucket_index + hashtable->max_range;
+
+        SECTION("bucket found") {
+            REQUIRE(hashtable_spsc_find_empty_bucket(
+                    hashtable,
+                    hashtable_key_bucket_index,
+                    hashtable_key_bucket_index_max) == hashtable_key_bucket_index);
+        }
+
+        SECTION("bucket not found - nothing in range") {
+            for(int index = hashtable_key_bucket_index; index < hashtable_key_bucket_index_max; index++) {
+                hashtable->hashes[index].set = true;
+            }
+
+            REQUIRE(hashtable_spsc_find_empty_bucket(
+                    hashtable,
+                    hashtable_key_bucket_index,
+                    hashtable_key_bucket_index_max) == -1);
+        }
+
+        SECTION("bucket not found - hashtable full") {
+            for(int index = 0; index < hashtable->buckets_count_real; index++) {
+                hashtable->hashes[index].set = true;
+            }
+
+            REQUIRE(hashtable_spsc_find_empty_bucket(
+                    hashtable,
+                    hashtable_key_bucket_index,
+                    hashtable_key_bucket_index_max) == -1);
+        }
+
+        hashtable_spsc_free(hashtable);
+    }
+
+    SECTION("hashtable_spsc_bucket_index_from_hash") {
+        hashtable_spsc_t *hashtable = hashtable_spsc_new(
+                16,
+                HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
+                false,
+                false);
+
+        // TODO
+
+        hashtable_spsc_free(hashtable);
+    }
+
     SECTION("hashtable_spsc_find_bucket_index_by_key") {
         hashtable_spsc_t *hashtable = hashtable_spsc_new(
                 16,
                 HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
+                false,
                 false);
         hashtable_spsc_bucket_t *hashtable_buckets = hashtable_spsc_get_buckets(hashtable);
 
@@ -87,7 +195,8 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
         hashtable_spsc_t *hashtable2 = hashtable_spsc_new(
                 16,
                 HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                true);
+                true,
+                false);
         hashtable_spsc_bucket_t *hashtable2_buckets = hashtable_spsc_get_buckets(hashtable2);
         hashtable_spsc_bucket_count_t hashtable2_key_bucket_index = key_hash & (hashtable2->buckets_count_pow2 - 1);
 
@@ -175,7 +284,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
         }
 
         SECTION("bucket not found - key exists but not set buckets on the way") {
-            hashtable2_key_bucket_index += hashtable2->max_range - 1;
+            hashtable2_key_bucket_index += hashtable2->max_range;
             hashtable2->hashes[hashtable2_key_bucket_index].set = true;
             hashtable2->hashes[hashtable2_key_bucket_index].cmp_hash = key_hash & 0x7FFF;
             hashtable2_buckets[hashtable2_key_bucket_index].key = key;
@@ -188,42 +297,13 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
         hashtable_spsc_free(hashtable2);
     }
 
-    SECTION("hashtable_spsc_find_empty_bucket") {
-        hashtable_spsc_t *hashtable = hashtable_spsc_new(
-                16,
-                HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                false);
-        hashtable_spsc_bucket_count_t hashtable_key_bucket_index = key_hash & (hashtable->buckets_count_pow2 - 1);
-
-        SECTION("bucket found") {
-            REQUIRE(hashtable_spsc_find_empty_bucket(hashtable, key_hash) == hashtable_key_bucket_index);
-        }
-
-        SECTION("bucket not found - nothing in range") {
-            for(int index = 0; index < hashtable->max_range; index++) {
-                hashtable->hashes[hashtable_key_bucket_index + index].set = true;
-            }
-
-            REQUIRE(hashtable_spsc_find_empty_bucket(hashtable, key_hash) == -1);
-        }
-
-        SECTION("bucket not found - hashtable full") {
-            for(int index = 0; index < hashtable->buckets_count_real; index++) {
-                hashtable->hashes[index].set = true;
-            }
-
-            REQUIRE(hashtable_spsc_find_empty_bucket(hashtable, key_hash) == -1);
-        }
-
-        hashtable_spsc_free(hashtable);
-    }
-
     SECTION("hashtable_spsc_op_try_set") {
         char *value1 = "first value";
         char *value2 = "second value";
         hashtable_spsc_t *hashtable = hashtable_spsc_new(
                 16,
                 HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
+                false,
                 false);
         hashtable_spsc_bucket_t *hashtable_buckets = hashtable_spsc_get_buckets(hashtable);
 
@@ -274,6 +354,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
         hashtable_spsc_t *hashtable = hashtable_spsc_new(
                 16,
                 HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
+                false,
                 false);
         hashtable_spsc_bucket_t *hashtable_buckets = hashtable_spsc_get_buckets(hashtable);
 
@@ -297,10 +378,10 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
     }
 
     SECTION("hashtable_spsc_op_delete") {
-        char *value1 = "first value";
         hashtable_spsc_t *hashtable = hashtable_spsc_new(
                 16,
                 HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
+                false,
                 false);
         hashtable_spsc_bucket_t *hashtable_buckets = hashtable_spsc_get_buckets(hashtable);
 
@@ -311,7 +392,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_hash & 0x7FFF;
             hashtable_buckets[hashtable_key_bucket_index].key = key;
             hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
-            hashtable_buckets[hashtable_key_bucket_index].value = value1;
 
             REQUIRE(hashtable_spsc_op_delete(hashtable, key, key_length));
 
@@ -320,6 +400,55 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
         SECTION("value not deleted - non-existent key") {
             REQUIRE(!hashtable_spsc_op_delete(hashtable, key, key_length));
+        }
+
+        hashtable_spsc_free(hashtable);
+    }
+
+    SECTION("hashtable_spsc_op_iter") {
+        char *value1 = "first value";
+        char *value2 = "second value";
+        hashtable_spsc_t *hashtable = hashtable_spsc_new(
+                16,
+                HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
+                false,
+                false);
+        hashtable_spsc_bucket_t *hashtable_buckets = hashtable_spsc_get_buckets(hashtable);
+        hashtable_spsc_bucket_index_t hashtable_key_bucket_index = 0;
+
+        SECTION("empty hashtable") {
+            REQUIRE(hashtable_spsc_op_iter(hashtable, &hashtable_key_bucket_index) == NULL);
+            REQUIRE(hashtable_key_bucket_index == -1);
+        }
+
+        SECTION("hashtable with 1 bucket set") {
+            hashtable->hashes[2].set = true;
+            hashtable_buckets[2].value = value1;
+
+            REQUIRE(hashtable_spsc_op_iter(hashtable, &hashtable_key_bucket_index) == value1);
+            REQUIRE(hashtable_key_bucket_index == 2);
+            hashtable_key_bucket_index++;
+
+            REQUIRE(hashtable_spsc_op_iter(hashtable, &hashtable_key_bucket_index) == NULL);
+            REQUIRE(hashtable_key_bucket_index == -1);
+        }
+
+        SECTION("hashtable with 2 bucket set") {
+            hashtable->hashes[2].set = true;
+            hashtable_buckets[2].value = value1;
+            hashtable->hashes[6].set = true;
+            hashtable_buckets[6].value = value2;
+
+            REQUIRE(hashtable_spsc_op_iter(hashtable, &hashtable_key_bucket_index) == value1);
+            REQUIRE(hashtable_key_bucket_index == 2);
+            hashtable_key_bucket_index++;
+
+            REQUIRE(hashtable_spsc_op_iter(hashtable, &hashtable_key_bucket_index) == value2);
+            REQUIRE(hashtable_key_bucket_index == 6);
+            hashtable_key_bucket_index++;
+
+            REQUIRE(hashtable_spsc_op_iter(hashtable, &hashtable_key_bucket_index) == NULL);
+            REQUIRE(hashtable_key_bucket_index == -1);
         }
 
         hashtable_spsc_free(hashtable);
