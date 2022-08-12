@@ -5,8 +5,6 @@
 extern "C" {
 #endif
 
-#define PROTOCOL_REDIS_READER_MAX_ARGUMENTS_PER_COMMAND 10000
-
 enum protocol_redis_reader_errors {
     PROTOCOL_REDIS_READER_ERROR_OK,
     PROTOCOL_REDIS_READER_ERROR_NO_DATA,

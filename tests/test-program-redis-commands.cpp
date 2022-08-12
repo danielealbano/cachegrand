@@ -71,6 +71,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
     config_module_redis_t config_module_redis = {
             .max_key_length = 256,
             .max_command_length = 8 * 1024,
+            .max_command_arguments = 128,
     };
     config_module_network_timeout_t config_module_network_timeout = {
             .read_ms = 1000,
@@ -602,6 +603,46 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                     buffer_recv,
                     "-ERR wrong number of arguments for 'MGET' command\r\n",
                     strlen("-ERR wrong number of arguments for 'MGET' command\r\n")) == 0);
+        }
+
+        SECTION("Limit Arguments - Overflow") {
+            off_t buffer_send_offset = 0;
+            char expected_error[256] = { 0 };
+            int key_count = (int)config.network->protocols->redis->max_command_arguments + 1;
+
+            for(int key_index = 0; key_index < key_count; key_index++) {
+                snprintf(buffer_send, sizeof(buffer_send) - 1, "*3\r\n$3\r\nSET\r\n$11\r\na_key_%05d\r\n$13\r\nb_value_%05d\r\n", key_index, key_index);
+                buffer_send_data_len = strlen(buffer_send);
+
+                REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+                REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
+                REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
+            }
+
+            buffer_send_offset += snprintf(
+                    buffer_send + buffer_send_offset,
+                    sizeof(buffer_send) - buffer_send_offset - 1,
+                    "*%d\r\n$4\r\nMGET\r\n",
+                    key_count + 1);
+
+            for(int key_index = 0; key_index < key_count; key_index++) {
+                buffer_send_offset += snprintf(
+                        buffer_send + buffer_send_offset,
+                        sizeof(buffer_send) - buffer_send_offset - 1,
+                        "$11\r\na_key_%05d\r\n",
+                        key_index);
+            }
+
+            buffer_send_data_len = strlen(buffer_send);
+
+            sprintf(
+                    expected_error,
+                    "-ERR command has too many arguments, the limit is <%u>\r\n",
+                    (int)config.network->protocols->redis->max_command_arguments);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
+            REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
         }
 
         SECTION("Key too long") {

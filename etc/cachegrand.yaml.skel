@@ -28,7 +28,8 @@ modules:
       # The maximum key length can't be greater than 65536 bytes
       max_key_length: 8192
       max_command_length: 536870912
-
+      max_command_arguments: 10000
+      
       # If enabled, the command parsing will prevent
       strict_parsing: false
 
@@ -79,7 +80,6 @@ modules:
 #          - TLS-RSA-WITH-AES-128-CCM-8
 #          - TLS-ECDHE-RSA-WITH-CHACHA20-POLY1305-SHA256
 #          - TLS-DHE-RSA-WITH-CHACHA20-POLY1305-SHA256
-
       # Bindings
       bindings:
         - host: 0.0.0.0
@@ -124,13 +124,10 @@ database:
 # The sentry.io service is used to automatically collect minidumps in case of crashes, it doesn't store them after that
 # they are processed but be aware that minidumps will contain memory regions used by cachegrand and therefore may they
 # may also contain cached data!
-# To avoid accidental/unwanted uploads, it's turned off and the dsn is not set, if you want to provide crash data
-# without having to attach manually generated coredumps or minidumps to a github issue simply enable sentry and set the
-# dsn parameter, or the SENTRY_DSN env variable, to
-# https://05dd54814d8149cab65ba2987d560340@o590814.ingest.sentry.io/5740234
+# To avoid accidental/unwanted uploads, it's turned off, if you want to provide crash data
+# without having to attach manually generated coredumps or minidumps to a github issue simply enable sentry.
 sentry:
   enable: false
-  # dsn: "https://05dd54814d8149cab65ba2987d560340@o590814.ingest.sentry.io/5740234"
 
 # LOGS
 # ---

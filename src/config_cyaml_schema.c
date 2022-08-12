@@ -111,6 +111,9 @@ const cyaml_schema_field_t config_module_redis_schema[] = {
         CYAML_FIELD_UINT(
                 "max_command_length", CYAML_FLAG_DEFAULT,
                 config_module_redis_t, max_command_length),
+        CYAML_FIELD_UINT(
+                "max_command_arguments", CYAML_FLAG_DEFAULT,
+                config_module_redis_t, max_command_arguments),
         CYAML_FIELD_BOOL(
                 "strict_parsing", CYAML_FLAG_DEFAULT,
                 config_module_redis_t, strict_parsing),
@@ -297,9 +300,6 @@ const cyaml_schema_field_t config_sentry_schema[] = {
         CYAML_FIELD_STRING_PTR(
                 "data_path", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
                 config_sentry_t, data_path, 0, CYAML_UNLIMITED),
-        CYAML_FIELD_STRING_PTR(
-                "dsn", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
-                config_sentry_t, dsn, 0, CYAML_UNLIMITED),
         CYAML_FIELD_END
 };
 

@@ -94,6 +94,7 @@ typedef struct config_module_redis config_module_redis_t;
 struct config_module_redis {
     uint32_t max_key_length;
     uint32_t max_command_length;
+    uint32_t max_command_arguments;
     bool strict_parsing;
 };
 

@@ -566,9 +566,7 @@ void program_setup_sentry(
         return;
     }
 
-    sentry_support_init(
-            program_context->config->sentry->data_path,
-            program_context->config->sentry->dsn);
+    sentry_support_init(program_context->config->sentry->data_path);
 }
 
 bool program_setup_pidfile(
