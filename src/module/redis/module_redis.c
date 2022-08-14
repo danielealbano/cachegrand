@@ -287,10 +287,6 @@ bool module_redis_process_data(
                         if (unlikely(!module_redis_command_process_argument_begin(
                                 connection_context,
                                 op->data.argument.length))) {
-                            module_redis_connection_error_message_printf_noncritical(
-                                    connection_context,
-                                    "ERR protocol error while parsing arguments for command '%s'",
-                                    connection_context->command.info->string);
                             goto end;
                         }
                     } else {
@@ -306,10 +302,6 @@ bool module_redis_process_data(
                                         connection_context,
                                         chunk_data,
                                         chunk_length))) {
-                                    module_redis_connection_error_message_printf_noncritical(
-                                            connection_context,
-                                            "ERR protocol error while parsing arguments for command '%s'",
-                                            connection_context->command.info->string);
                                     goto end;
                                 }
                             } else {
@@ -342,12 +334,7 @@ bool module_redis_process_data(
                             }
                         } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END) {
                             if (require_stream) {
-                                if (unlikely(!module_redis_command_process_argument_stream_end(
-                                        connection_context))) {
-                                    module_redis_connection_error_message_printf_noncritical(
-                                            connection_context,
-                                            "ERR protocol error while parsing arguments for command '%s'",
-                                            connection_context->command.info->string);
+                                if (unlikely(!module_redis_command_process_argument_stream_end(connection_context))) {
                                     goto end;
                                 }
                             } else {
@@ -359,31 +346,17 @@ bool module_redis_process_data(
                                         connection_context,
                                         chunk_data,
                                         chunk_length))) {
-                                    module_redis_connection_error_message_printf_noncritical(
-                                            connection_context,
-                                            "ERR protocol error while parsing arguments for command '%s'",
-                                            connection_context->command.info->string);
                                     goto end;
                                 }
                             }
 
-                            if (unlikely(!module_redis_command_process_argument_end(
-                                    connection_context))) {
-                                module_redis_connection_error_message_printf_noncritical(
-                                        connection_context,
-                                        "ERR protocol error while parsing arguments for command '%s'",
-                                        connection_context->command.info->string);
+                            if (unlikely(!module_redis_command_process_argument_end(connection_context))) {
                                 goto end;
                             }
                         }
                     }
                 } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_COMMAND_END) {
-                    if (unlikely(!module_redis_command_process_end(
-                            connection_context))) {
-                        module_redis_connection_error_message_printf_noncritical(
-                                connection_context,
-                                "ERR protocol error while parsing arguments for command '%s'",
-                                connection_context->command.info->string);
+                    if (unlikely(!module_redis_command_process_end(connection_context))) {
                         goto end;
                     }
                 }
