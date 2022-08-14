@@ -1121,10 +1121,20 @@ TEST_CASE("config.c", "[config]") {
     }
 
     SECTION("ensure etc/cachegrand.yaml.skel is valid") {
-        char *config_file_path = "../../etc/cachegrand.yaml.skel";
+        ssize_t tests_executable_path_len;
+        char tests_executable_path[256] = { 0 };
+        char config_file_path_rel[] = "../../etc/cachegrand.yaml.skel";
+
+        // Build the path to the config file dinamically
+        REQUIRE((tests_executable_path_len = readlink(
+                "/proc/self/exe", tests_executable_path, sizeof(tests_executable_path))) > 0);
+        strncpy(
+                strrchr(tests_executable_path, '/') + 1,
+                config_file_path_rel,
+                strlen(config_file_path_rel));
 
         err = cyaml_load_file(
-                config_file_path,
+                tests_executable_path,
                 config_cyaml_config,
                 config_top_schema,
                 (cyaml_data_t **)&config,
