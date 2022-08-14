@@ -168,7 +168,13 @@ bool module_redis_process_data(
             assert(ops_found < UINT8_MAX);
 
             if (unlikely(connection_context->reader_context.error != PROTOCOL_REDIS_READER_ERROR_OK)) {
-                continue;
+                assert(ops_found == -1);
+                module_redis_connection_error_message_printf_critical(
+                        connection_context,
+                        "ERR parsing error '%d'",
+                        connection_context->reader_context.error);
+
+                break;
             }
 
             if (unlikely(ops_found == 0)) {
