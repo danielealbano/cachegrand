@@ -223,7 +223,7 @@ void *module_redis_command_context_get_argument_member_context_addr(
     return argument_member_context_addr;
 }
 
-bool module_redis_command_ensure_argument_key_pattern_allowed_length(
+bool module_redis_command_is_key_pattern_allowed_length(
         module_redis_connection_context_t *connection_context,
         module_redis_command_argument_t *argument,
         size_t argument_length) {
@@ -234,11 +234,6 @@ bool module_redis_command_ensure_argument_key_pattern_allowed_length(
         if (module_redis_command_is_key_too_long(
                 connection_context->network_channel,
                 argument_length)) {
-            module_redis_connection_error_message_printf_noncritical(
-                    connection_context,
-                    "ERR The %s length has exceeded the allowed size of '%u'",
-                    argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY ? "key" : "pattern",
-                    connection_context->network_channel->module_config->redis->max_key_length);
             return false;
         }
     }
@@ -281,11 +276,16 @@ bool module_redis_command_process_argument_begin(
 #endif
     }
 
-    if (!module_redis_command_ensure_argument_key_pattern_allowed_length(
+    if (!module_redis_command_is_key_pattern_allowed_length(
             connection_context,
             expected_argument,
             argument_length)) {
-        return false;
+        module_redis_connection_error_message_printf_noncritical(
+                connection_context,
+                "ERR The %s length has exceeded the allowed size of '%u'",
+                expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY ? "key" : "pattern",
+                connection_context->network_channel->module_config->redis->max_key_length);
+        return true;
     }
 
     if (expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_LONG_STRING) {
@@ -563,10 +563,15 @@ bool module_redis_command_process_argument_full(
         case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY:
         case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_PATTERN:
         case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_SHORT_STRING:
-            if (!module_redis_command_ensure_argument_key_pattern_allowed_length(
+            if (!module_redis_command_is_key_pattern_allowed_length(
                     connection_context,
                     guessed_argument,
                     chunk_length)) {
+                module_redis_connection_error_message_printf_noncritical(
+                        connection_context,
+                        "ERR The %s length has exceeded the allowed size of '%u'",
+                        expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY ? "key" : "pattern",
+                        connection_context->network_channel->module_config->redis->max_key_length);
                 return true;
             }
 
