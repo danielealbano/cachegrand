@@ -57,11 +57,11 @@ module_redis_command_info_t test_module_redis_command_sort_command_info = {
 TEST_CASE("module/redis/module_redis_command.c", "[module][redis][module_redis_command]") {
     SECTION("Ensure that auto generated struct and data haven't changed") {
         SECTION("sizeof(module_redis_command_sort_context_t)") {
-            REQUIRE(sizeof(module_redis_command_sort_context_t) == 136);
+            REQUIRE(sizeof(module_redis_command_sort_context_t) == 120);
         }
 
         SECTION("sizeof(module_redis_command_sort_context_subargument_order_t)") {
-            REQUIRE(sizeof(module_redis_command_sort_context_subargument_order_t) == 4);
+            REQUIRE(sizeof(module_redis_command_sort_context_subargument_order_t) == 2);
         }
 
         SECTION("sizeof(module_redis_command_sort_context_subargument_limit_offset_count_t)") {
