@@ -514,7 +514,7 @@ bool module_redis_command_process_argument_full(
     if (guessed_argument == NULL) {
         module_redis_connection_error_message_printf_noncritical(
                 connection_context,
-                "ERR the command '%s' doesn't support the parameter '%*s'",
+                "ERR the command '%s' doesn't support the parameter '%.*s'",
                 connection_context->command.info->string,
                 MIN((int)chunk_length, 128),
                 chunk_data);
