@@ -114,7 +114,6 @@ bool module_redis_connection_error_message_vprintf_internal(
 
     if (connection_context->error.message != NULL) {
         slab_allocator_mem_free(connection_context->error.message);
-        return false;
     }
 
     // Calculate the total amount of memory needed
