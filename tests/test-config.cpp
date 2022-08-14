@@ -127,6 +127,8 @@ modules:
     redis:
       max_key_length: 8192
       max_command_length: 1048576
+      max_command_arguments: 10000
+      strict_parsing: false
     network:
       timeout:
         read_ms: 2000
@@ -135,9 +137,6 @@ modules:
         time: 0
         interval: 0
         probes: 0
-      redis:
-        max_key_length: 8192
-        max_command_length: 1048576
       bindings:
         - host: 0.0.0.0
           port: 6379
@@ -186,6 +185,7 @@ modules:
       max_key_length: 8192
       max_command_length: 1048576
       max_command_arguments: 10000
+      strict_parsing: false
     network:
       timeout:
         read_ms: 2000
