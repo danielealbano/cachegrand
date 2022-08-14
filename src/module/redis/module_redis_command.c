@@ -691,9 +691,10 @@ bool module_redis_command_process_argument_end(
             expected_argument = &connection_context->command.info->arguments[
                     command_parser_context->positional_arguments_parsed_count];
 
-            // If the argument after the current is not positional they have all been processed and there are only
-            // tokens to process so set it to null
-            if (!expected_argument->is_positional) {
+            // If the argument after the current is not positional (has a token) or it's of type ONEOF they have all
+            // been processed and there are only tokens to process so set the expected argument to null
+            if (!expected_argument->is_positional ||
+                expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_ONEOF) {
                 expected_argument = NULL;
             }
         }
