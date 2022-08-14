@@ -193,7 +193,7 @@ bool module_redis_process_data(
                 if (unlikely(module_redis_connection_command_too_long(connection_context))) {
                     module_redis_connection_error_message_printf_critical(
                             connection_context,
-                            "ERR the command length has exceeded <%u> bytes",
+                            "ERR the command length has exceeded '%u' bytes",
                             connection_context->network_channel->module_config->redis->max_command_length);
                     break;
                 }
@@ -244,7 +244,8 @@ bool module_redis_process_data(
                     if (!connection_context->command.info) {
                         module_redis_connection_error_message_printf_noncritical(
                                 connection_context,
-                                "ERR unknown command `%s` with `%d` args",
+                                "ERR unknown command `%.*s` with `%d` args",
+                                command_length,
                                 command_data,
                                 connection_context->reader_context.arguments.count - 1);
                         continue;
@@ -267,8 +268,9 @@ bool module_redis_process_data(
                             connection_context->network_channel->module_config->redis->max_command_arguments)) {
                         module_redis_connection_error_message_printf_noncritical(
                                 connection_context,
-                                "ERR command '%s' has too many arguments, the limit is <%u>",
+                                "ERR command '%s' has '%u' arguments but only '%u' allowed",
                                 connection_context->command.info->string,
+                                connection_context->reader_context.arguments.count - 1,
                                 connection_context->network_channel->module_config->redis->max_command_arguments);
                         continue;
                     }
