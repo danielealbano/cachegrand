@@ -661,11 +661,11 @@ bool module_redis_command_process_argument_end(
     }
 
     if (expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_BLOCK) {
-        // TODO: It is necessary to handle cases where block arguments are optional, currently it's not handled properly
+        // TODO: It is necessary to handle cases where block arguments are optional, as a token in the block can be
+        //       received or a token from another entirely block can be received, currently it's not handled properly
         command_parser_context->current_argument.block_argument_index++;
 
-        if (command_parser_context->current_argument.block_argument_index <
-                expected_argument->sub_arguments_count) {
+        if (command_parser_context->current_argument.block_argument_index < expected_argument->sub_arguments_count) {
             return true;
         }
 
@@ -677,8 +677,8 @@ bool module_redis_command_process_argument_end(
     // Check if the there is an expected positional argument set, if it does no tokens have been found yet and there
     // might be further positional arguments to be processed
     // Also, if the current argument (expected positional argument is automatically the current argument if it's not
-    // null at this point) is positional and is multi, will never move to the next argument unless it's a token so do
-    // nothing in this case.
+    // null at this point) is positional and is multi, will never move to the next argument, unless it's a token in
+    // which case the code does simply nothing
     if (!expected_argument->is_positional) {
         expected_argument = NULL;
     } else if(!expected_argument->has_multiple_occurrences) {
@@ -686,7 +686,7 @@ bool module_redis_command_process_argument_end(
 
         // Check if there are more arguments
         if (command_parser_context->positional_arguments_parsed_count <
-        connection_context->command.info->arguments_count) {
+            connection_context->command.info->arguments_count) {
             command_parser_context->positional_arguments_parsed_count++;
             expected_argument = &connection_context->command.info->arguments[
                     command_parser_context->positional_arguments_parsed_count];
