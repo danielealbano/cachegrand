@@ -8,16 +8,16 @@
 
 #include <catch2/catch.hpp>
 
-#include <stdio.h>
+#include <cstdio>
+#include <cstring>
 #include <unistd.h>
-#include <string.h>
-#include <assert.h>
 #include <cyaml/cyaml.h>
 
 #include "xalloc.h"
 #include "log/log.h"
 #include "log/sink/log_sink.h"
 #include "log/sink/log_sink_support.h"
+#include "support/simple_file_io.h"
 
 #include "config.h"
 #include "config_cyaml_config.h"
@@ -45,12 +45,12 @@ void test_config_cyaml_logger(
     // Calculate how much memory is needed
     va_list args_copy;
     va_copy(args_copy, args);
-    size_t log_message_size = vsnprintf(NULL, 0, fmt, args_copy);
+    size_t log_message_size = vsnprintf(nullptr, 0, fmt, args_copy);
     va_end(args_copy);
 
     size_t new_data_length = ctx->data_length + log_message_size;
 
-    if (ctx->data == NULL) {
+    if (ctx->data == nullptr) {
         ctx->data = (char*)xalloc_alloc(new_data_length + 1);
     } else {
         ctx->data = (char*)xalloc_realloc(ctx->data, new_data_length + 1);
@@ -107,7 +107,7 @@ log_sink_t *test_config_internal_log_sink_init(
             levels,
             settings,
             test_config_internal_log_sink_printer,
-            NULL);
+            nullptr);
 }
 
 std::string test_config_correct_all_fields_yaml_data =
@@ -195,8 +195,8 @@ modules:
         interval: 0
         probes: 0
       tls:
-        certificate_path: "/path/to/non-existant/certificate"
-        private_key_path: "/path/to/non-existant/private_key"
+        certificate_path: "/path/to/non-existent/certificate"
+        private_key_path: "/path/to/non-existent/private_key"
       bindings:
         - host: 0.0.0.0
           port: 6379
@@ -219,7 +219,7 @@ logs:
 uint16_t max_cpu_count_high = 8;
 uint16_t max_cpu_count_low = 4;
 uint16_t max_cpu_count = max_cpu_count_high;
-uint16_t* cpus_map = NULL;
+uint16_t* cpus_map = nullptr;
 uint16_t cpus_map_count;
 
 #define TEST_CONFIG_CPUS_COUNT_MAX 4
@@ -274,14 +274,14 @@ unsigned test_config_cpus_1_cpu_with_dot_count = 1;
 
 TEST_CASE("config.c", "[config]") {
     cyaml_err_t err = CYAML_OK;
-    config_t* config = NULL;
+    config_t* config = nullptr;
 
     // Initialize the schema and the cyaml config
     cyaml_schema_value_t* config_top_schema = (cyaml_schema_value_t*)config_cyaml_schema_get_top_schema();
     cyaml_config_t * config_cyaml_config = config_cyaml_config_get_global();
 
     // Initialize the internal test logger context
-    test_config_cyaml_logger_context_t cyaml_logger_context = { 0 };
+    test_config_cyaml_logger_context_t cyaml_logger_context = { nullptr };
     config_cyaml_config->log_level = CYAML_LOG_WARNING;
     config_cyaml_config->log_fn = test_config_cyaml_logger;
     config_cyaml_config->log_ctx = (void*)&cyaml_logger_context;
@@ -294,16 +294,16 @@ TEST_CASE("config.c", "[config]") {
                     config_cyaml_config,
                     config_top_schema,
                     (cyaml_data_t **)&config,
-                    NULL);
+                    nullptr);
 
-            REQUIRE(config != NULL);
+            REQUIRE(config != nullptr);
             REQUIRE(config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING);
             REQUIRE(config->modules_count == 1);
             REQUIRE(config->cpus_count == 1);
-            REQUIRE(config->use_slab_allocator != NULL);
+            REQUIRE(config->use_slab_allocator != nullptr);
             REQUIRE(*config->use_slab_allocator == false);
             REQUIRE(config->logs_count == 2);
-            REQUIRE(cyaml_logger_context.data == NULL);
+            REQUIRE(cyaml_logger_context.data == nullptr);
             REQUIRE(cyaml_logger_context.data_length == 0);
             REQUIRE(err == CYAML_OK);
 
@@ -319,9 +319,9 @@ TEST_CASE("config.c", "[config]") {
                     config_cyaml_config,
                     config_top_schema,
                     (cyaml_data_t **)&config,
-                    NULL);
+                    nullptr);
 
-            REQUIRE(config == NULL);
+            REQUIRE(config == nullptr);
             REQUIRE(strcmp(str_cmp, cyaml_logger_context.data) == 0);
             REQUIRE(cyaml_logger_context.data_length == strlen(str_cmp));
             REQUIRE(err == CYAML_ERR_MAPPING_FIELD_MISSING);
@@ -339,9 +339,9 @@ TEST_CASE("config.c", "[config]") {
                     config_cyaml_config,
                     config_top_schema,
                     (cyaml_data_t **)&config,
-                    NULL);
+                    nullptr);
 
-            REQUIRE(config == NULL);
+            REQUIRE(config == nullptr);
             REQUIRE(strcmp(str_cmp, cyaml_logger_context.data) == 0);
             REQUIRE(cyaml_logger_context.data_length == strlen(str_cmp));
             REQUIRE(err == CYAML_ERR_INVALID_KEY);
@@ -358,9 +358,9 @@ TEST_CASE("config.c", "[config]") {
                     config_cyaml_config,
                     config_top_schema,
                     (cyaml_data_t **)&config,
-                    NULL);
+                    nullptr);
 
-            REQUIRE(config != NULL);
+            REQUIRE(config != nullptr);
             REQUIRE(config_validate_after_load(config) == false);
 
             cyaml_free(config_cyaml_config, config_top_schema, config, 0);
@@ -374,9 +374,9 @@ TEST_CASE("config.c", "[config]") {
                 config_cyaml_config,
                 config_top_schema,
                 (cyaml_data_t **)&config,
-                NULL);
+                nullptr);
 
-        REQUIRE(config != NULL);
+        REQUIRE(config != nullptr);
         REQUIRE(err == CYAML_OK);
 
         SECTION("valid") {
@@ -417,7 +417,7 @@ TEST_CASE("config.c", "[config]") {
 
             REQUIRE(config_validate_after_load(config) == false);
 
-            config->modules[0].network->tls = NULL;
+            config->modules[0].network->tls = nullptr;
         }
 
         SECTION("broken - non existing certificate path") {
@@ -429,7 +429,7 @@ TEST_CASE("config.c", "[config]") {
 
             REQUIRE(config_validate_after_load(config) == false);
 
-            config->modules[0].network->tls = NULL;
+            config->modules[0].network->tls = nullptr;
         }
 
         SECTION("valid - existing certificate path and private_key") {
@@ -441,7 +441,7 @@ TEST_CASE("config.c", "[config]") {
 
             REQUIRE(config_validate_after_load(config) == true);
 
-            config->modules[0].network->tls = NULL;
+            config->modules[0].network->tls = nullptr;
         }
 
         SECTION("broken - tls endpoint without no tls settings") {
@@ -460,7 +460,7 @@ TEST_CASE("config.c", "[config]") {
 
             REQUIRE(config_validate_after_load(config) == true);
 
-            config->modules[0].network->tls = NULL;
+            config->modules[0].network->tls = nullptr;
         }
 
         cyaml_free(config_cyaml_config, config_top_schema, config, 0);
@@ -480,12 +480,12 @@ TEST_CASE("config.c", "[config]") {
                                 config_top_schema);
                     });
 
-            REQUIRE(config != NULL);
+            REQUIRE(config != nullptr);
             REQUIRE(config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING);
             REQUIRE(config->modules_count == 1);
             REQUIRE(config->cpus_count == 1);
             REQUIRE(config->logs_count == 2);
-            REQUIRE(cyaml_logger_context.data == NULL);
+            REQUIRE(cyaml_logger_context.data == nullptr);
             REQUIRE(cyaml_logger_context.data_length == 0);
             REQUIRE(err == CYAML_OK);
 
@@ -508,7 +508,7 @@ TEST_CASE("config.c", "[config]") {
                                 config_top_schema);
                     });
 
-            REQUIRE(config == NULL);
+            REQUIRE(config == nullptr);
             REQUIRE(strcmp(str_cmp, cyaml_logger_context.data) == 0);
             REQUIRE(cyaml_logger_context.data_length == strlen(str_cmp));
             REQUIRE(err == CYAML_ERR_MAPPING_FIELD_MISSING);
@@ -532,7 +532,7 @@ TEST_CASE("config.c", "[config]") {
                                 config_top_schema);
                     });
 
-            REQUIRE(config == NULL);
+            REQUIRE(config == nullptr);
             REQUIRE(strcmp(str_cmp, cyaml_logger_context.data) == 0);
             REQUIRE(cyaml_logger_context.data_length == strlen(str_cmp));
             REQUIRE(err == CYAML_ERR_INVALID_KEY);
@@ -551,12 +551,12 @@ TEST_CASE("config.c", "[config]") {
                         config = config_load(config_path);
                     });
 
-            REQUIRE(config != NULL);
+            REQUIRE(config != nullptr);
             REQUIRE(config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING);
             REQUIRE(config->modules_count == 1);
             REQUIRE(config->cpus_count == 1);
             REQUIRE(config->logs_count == 2);
-            REQUIRE(cyaml_logger_context.data == NULL);
+            REQUIRE(cyaml_logger_context.data == nullptr);
             REQUIRE(cyaml_logger_context.data_length == 0);
             REQUIRE(err == CYAML_OK);
 
@@ -572,7 +572,7 @@ TEST_CASE("config.c", "[config]") {
                         config = config_load(config_path);
                     });
 
-            REQUIRE(config == NULL);
+            REQUIRE(config == nullptr);
 
             cyaml_free(config_cyaml_config, config_top_schema, config, 0);
         }
@@ -603,7 +603,7 @@ TEST_CASE("config.c", "[config]") {
                     &cpus_map,
                     &cpus_map_count) == true);
             REQUIRE(cpus_map_count == 1);
-            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map != nullptr);
             REQUIRE(cpus_map[0] == 2);
 
             xalloc_free(cpus_map);
@@ -618,7 +618,7 @@ TEST_CASE("config.c", "[config]") {
                     &cpus_map_count) == true);
 
             REQUIRE(cpus_map_count == 2);
-            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map != nullptr);
             REQUIRE(cpus_map[0] == 3);
             REQUIRE(cpus_map[1] == 4);
 
@@ -634,7 +634,7 @@ TEST_CASE("config.c", "[config]") {
                     &cpus_map_count) == true);
 
             REQUIRE(cpus_map_count == 4);
-            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map != nullptr);
             REQUIRE(cpus_map[0] == 2);
             REQUIRE(cpus_map[1] == 2);
             REQUIRE(cpus_map[2] == 2);
@@ -652,7 +652,7 @@ TEST_CASE("config.c", "[config]") {
                     &cpus_map_count) == true);
 
             REQUIRE(cpus_map_count == 5);
-            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map != nullptr);
             REQUIRE(cpus_map[0] == 2);
             REQUIRE(cpus_map[1] == 3);
             REQUIRE(cpus_map[2] == 4);
@@ -671,7 +671,7 @@ TEST_CASE("config.c", "[config]") {
                     &cpus_map_count) == true);
 
             REQUIRE(cpus_map_count == 2 + 3);
-            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map != nullptr);
             REQUIRE(cpus_map[0] == 2);
             REQUIRE(cpus_map[1] == 3);
             REQUIRE(cpus_map[2] == 6);
@@ -690,7 +690,7 @@ TEST_CASE("config.c", "[config]") {
                     &cpus_map_count) == true);
 
             REQUIRE(cpus_map_count == 2 + 1 + 3 + 1);
-            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map != nullptr);
             REQUIRE(cpus_map[0] == 2);
             REQUIRE(cpus_map[1] == 3);
             REQUIRE(cpus_map[2] == 1);
@@ -711,7 +711,7 @@ TEST_CASE("config.c", "[config]") {
                     &cpus_map_count) == true);
 
             REQUIRE(cpus_map_count == max_cpu_count_low);
-            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map != nullptr);
             REQUIRE(cpus_map[0] == 0);
             REQUIRE(cpus_map[1] == 1);
             REQUIRE(cpus_map[2] == 2);
@@ -729,7 +729,7 @@ TEST_CASE("config.c", "[config]") {
                     &cpus_map_count) == true);
 
             REQUIRE(cpus_map_count == max_cpu_count_low);
-            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map != nullptr);
             REQUIRE(cpus_map[0] == 0);
             REQUIRE(cpus_map[1] == 1);
             REQUIRE(cpus_map[2] == 2);
@@ -747,7 +747,7 @@ TEST_CASE("config.c", "[config]") {
                     &cpus_map_count) == true);
 
             REQUIRE(cpus_map_count == max_cpu_count_low);
-            REQUIRE(cpus_map != NULL);
+            REQUIRE(cpus_map != nullptr);
             REQUIRE(cpus_map[0] == 0);
             REQUIRE(cpus_map[1] == 1);
             REQUIRE(cpus_map[2] == 2);
@@ -997,7 +997,7 @@ TEST_CASE("config.c", "[config]") {
     }
 
     SECTION("config_cpus_filter_duplicates") {
-        uint16_t* unique_cpus_duplicates = NULL;
+        uint16_t* unique_cpus_duplicates = nullptr;
         uint16_t unique_cpus_duplicates_count = 0;
 
         SECTION("list with duplicates") {
@@ -1010,7 +1010,7 @@ TEST_CASE("config.c", "[config]") {
                     &unique_cpus_duplicates,
                     &unique_cpus_duplicates_count);
 
-            REQUIRE(unique_cpus_duplicates != NULL);
+            REQUIRE(unique_cpus_duplicates != nullptr);
             REQUIRE(unique_cpus_duplicates_count == 4);
             REQUIRE(unique_cpus_duplicates[0] == 2);
             REQUIRE(unique_cpus_duplicates[1] == 3);
@@ -1030,7 +1030,7 @@ TEST_CASE("config.c", "[config]") {
                     &unique_cpus_duplicates,
                     &unique_cpus_duplicates_count);
 
-            REQUIRE(unique_cpus_duplicates != NULL);
+            REQUIRE(unique_cpus_duplicates != nullptr);
             REQUIRE(unique_cpus_duplicates_count == 4);
             REQUIRE(unique_cpus_duplicates[0] == 2);
             REQUIRE(unique_cpus_duplicates[1] == 3);
@@ -1050,55 +1050,55 @@ TEST_CASE("config.c", "[config]") {
                     &unique_cpus_duplicates,
                     &unique_cpus_duplicates_count);
 
-            REQUIRE(unique_cpus_duplicates == NULL);
+            REQUIRE(unique_cpus_duplicates == nullptr);
             REQUIRE(unique_cpus_duplicates_count == 0);
         }
     }
 
     SECTION("config_internal_cyaml_log") {
         log_level_t level = (log_level_t)LOG_LEVEL_ALL;
-        log_sink_settings_t settings = { 0 };
+        log_sink_settings_t settings = { false };
         log_sink_register(test_config_internal_log_sink_init(level, &settings));
 
         SECTION("CYAML_LOG_DEBUG") {
             char* str_cmp = "[DEBUG      ][config] test log message: test argument\n";
-            test_config_internal_cyaml_log_wrapper(CYAML_LOG_DEBUG, NULL, "test log message: %s", "test argument");
+            test_config_internal_cyaml_log_wrapper(CYAML_LOG_DEBUG, nullptr, "test log message: %s", "test argument");
             REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
         }
 
         SECTION("CYAML_LOG_NOTICE") {
             char* str_cmp = "[WARNING    ][config] test log message: test argument\n";
-            test_config_internal_cyaml_log_wrapper(CYAML_LOG_NOTICE, NULL, "test log message: %s", "test argument");
+            test_config_internal_cyaml_log_wrapper(CYAML_LOG_NOTICE, nullptr, "test log message: %s", "test argument");
             REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
         }
 
         SECTION("CYAML_LOG_WARNING") {
             char* str_cmp = "[WARNING    ][config] test log message: test argument\n";
-            test_config_internal_cyaml_log_wrapper(CYAML_LOG_WARNING, NULL, "test log message: %s", "test argument");
+            test_config_internal_cyaml_log_wrapper(CYAML_LOG_WARNING, nullptr, "test log message: %s", "test argument");
             REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
         }
 
         SECTION("CYAML_LOG_ERROR") {
             char* str_cmp = "[ERROR      ][config] test log message: test argument\n";
-            test_config_internal_cyaml_log_wrapper(CYAML_LOG_ERROR, NULL, "test log message: %s", "test argument");
+            test_config_internal_cyaml_log_wrapper(CYAML_LOG_ERROR, nullptr, "test log message: %s", "test argument");
             REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
         }
 
         SECTION("CYAML_LOG_INFO") {
             char* str_cmp = "[INFO       ][config] test log message: test argument\n";
-            test_config_internal_cyaml_log_wrapper(CYAML_LOG_INFO, NULL, "test log message: %s", "test argument");
+            test_config_internal_cyaml_log_wrapper(CYAML_LOG_INFO, nullptr, "test log message: %s", "test argument");
             REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
         }
 
         SECTION("CYAML_LOG_INFO - new line at end") {
             char* str_cmp = "[INFO       ][config] test log message: test argument\n";
-            test_config_internal_cyaml_log_wrapper(CYAML_LOG_INFO, NULL, "test log message: %s\n", "test argument");
+            test_config_internal_cyaml_log_wrapper(CYAML_LOG_INFO, nullptr, "test log message: %s\n", "test argument");
             REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
         }
 
         SECTION("CYAML_LOG_INFO - multiple new lines at end") {
             char* str_cmp = "[INFO       ][config] test log message: test argument\n";
-            test_config_internal_cyaml_log_wrapper(CYAML_LOG_INFO, NULL, "test log message: %s\r\n\r\n", "test argument");
+            test_config_internal_cyaml_log_wrapper(CYAML_LOG_INFO, nullptr, "test log message: %s\r\n\r\n", "test argument");
             REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
         }
 
@@ -1120,7 +1120,23 @@ TEST_CASE("config.c", "[config]") {
         REQUIRE((int)CONFIG_LOG_TYPE_MAX == LOG_SINK_TYPE_MAX);
     }
 
-    if (cyaml_logger_context.data != NULL) {
+    SECTION("ensure etc/cachegrand.yaml.skel is valid") {
+        char *config_file_path = "../../etc/cachegrand.yaml.skel";
+
+        err = cyaml_load_file(
+                config_file_path,
+                config_cyaml_config,
+                config_top_schema,
+                (cyaml_data_t **)&config,
+                nullptr);
+
+        REQUIRE(config != nullptr);
+        REQUIRE(config_validate_after_load(config) == true);
+
+        cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+    }
+
+    if (cyaml_logger_context.data != nullptr) {
         xalloc_free(cyaml_logger_context.data);
     }
 }
