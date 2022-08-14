@@ -245,7 +245,7 @@ bool module_redis_process_data(
                         module_redis_connection_error_message_printf_noncritical(
                                 connection_context,
                                 "ERR unknown command `%.*s` with `%d` args",
-                                command_length,
+                                (int)command_length,
                                 command_data,
                                 connection_context->reader_context.arguments.count - 1);
                         continue;

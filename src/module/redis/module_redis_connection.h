@@ -32,11 +32,13 @@ bool module_redis_connection_error_message_vprintf_internal(
         char *error_message,
         va_list args);
 
+__attribute__((format(printf, 2, 3)))
 bool module_redis_connection_error_message_printf_noncritical(
         module_redis_connection_context_t *connection_context,
         char *error_message,
         ...);
 
+__attribute__((format(printf, 2, 3)))
 bool module_redis_connection_error_message_printf_critical(
         module_redis_connection_context_t *connection_context,
         char *error_message,
