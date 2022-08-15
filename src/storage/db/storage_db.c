@@ -540,35 +540,6 @@ storage_db_entry_index_t *storage_db_entry_index_new() {
     return slab_allocator_mem_alloc_zero(sizeof(storage_db_entry_index_t));
 }
 
-//bool storage_db_entry_index_allocate_value_chunks(
-//        storage_db_t *db,
-//        storage_db_entry_index_t *entry_index,
-//        size_t value_length) {
-//    uint32_t chunk_count = ceil((double)value_length / (double)STORAGE_DB_CHUNK_MAX_SIZE);
-//
-//    entry_index->value_length = value_length;
-//    entry_index->value.sequence = slab_allocator_mem_alloc(sizeof(storage_db_chunk_info_t) * chunk_count);
-//    entry_index->value.count = chunk_count;
-//
-//    size_t remaining_length = value_length;
-//    for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value.count; chunk_index++) {
-//        storage_db_chunk_info_t *chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
-//
-//        if (!storage_db_chunk_data_pre_allocate(
-//                db,
-//                chunk_info,
-//                MIN(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
-//            // TODO: If the operation fails all the allocated values should be freed as this might lead to memory leaks
-//            slab_allocator_mem_free(entry_index->value.sequence);
-//            return false;
-//        }
-//
-//        remaining_length -= STORAGE_DB_CHUNK_MAX_SIZE;
-//    }
-//
-//    return true;
-//}
-
 storage_db_chunk_sequence_t *storage_db_chunk_sequence_allocate(
         storage_db_t *db,
         size_t size) {
@@ -579,36 +550,41 @@ storage_db_chunk_sequence_t *storage_db_chunk_sequence_allocate(
 
     storage_db_chunk_sequence_t *chunk_sequence = slab_allocator_mem_alloc(sizeof(storage_db_chunk_sequence_t));
 
-    if (!chunk_sequence) {
+    if (unlikely(!chunk_sequence)) {
         goto end;
     }
 
     chunk_sequence->size = size;
     chunk_sequence->count = chunk_count;
-    chunk_sequence->sequence = slab_allocator_mem_alloc(sizeof(storage_db_chunk_info_t) * chunk_count);
 
-    if (!chunk_sequence->sequence) {
-        goto end;
-    }
+    if (likely(size > 0)) {
+        chunk_sequence->sequence = slab_allocator_mem_alloc(sizeof(storage_db_chunk_info_t) * chunk_count);
 
-    for(storage_db_chunk_index_t chunk_index = 0; chunk_index < chunk_sequence->count; chunk_index++) {
-        storage_db_chunk_info_t *chunk_info = storage_db_chunk_sequence_get(chunk_sequence, chunk_index);
-
-        if (!storage_db_chunk_data_pre_allocate(
-                db,
-                chunk_info,
-                MIN(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
+        if (unlikely(!chunk_sequence->sequence)) {
             goto end;
         }
 
-        remaining_length -= STORAGE_DB_CHUNK_MAX_SIZE;
-        allocated_chunks_count++;
+        for(storage_db_chunk_index_t chunk_index = 0; chunk_index < chunk_sequence->count; chunk_index++) {
+            storage_db_chunk_info_t *chunk_info = storage_db_chunk_sequence_get(chunk_sequence, chunk_index);
+
+            if (!storage_db_chunk_data_pre_allocate(
+                    db,
+                    chunk_info,
+                    MIN(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
+                goto end;
+            }
+
+            remaining_length -= STORAGE_DB_CHUNK_MAX_SIZE;
+            allocated_chunks_count++;
+        }
+    } else {
+        chunk_sequence->sequence = NULL;
     }
 
     return_result = true;
 
 end:
-    if (!return_result) {
+    if (unlikely(!return_result)) {
         if (chunk_sequence) {
             if (chunk_sequence->sequence) {
                 for(storage_db_chunk_index_t chunk_index = 0; chunk_index < allocated_chunks_count; chunk_index++) {
@@ -706,7 +682,7 @@ bool storage_db_chunk_read(
                 chunk_info->file.chunk_offset)) {
             LOG_E(
                     TAG,
-                    "[ENTRY_GET_CHUNK_INTERNAL] Failed to read chunk with offset <%u> long <%u> bytes (path <%s>)",
+                    "Failed to read chunk with offset <%u> long <%u> bytes (path <%s>)",
                     chunk_info->file.chunk_offset,
                     chunk_info->chunk_length,
                     channel->path);
@@ -738,7 +714,7 @@ bool storage_db_chunk_write(
                 chunk_info->file.chunk_offset + chunk_offset)) {
             LOG_E(
                     TAG,
-                    "[ENTRY_CHUNK_WRITE] Failed to write chunk with offset <%u> long <%u> bytes (path <%s>)",
+                    "Failed to write chunk with offset <%u> long <%u> bytes (path <%s>)",
                     chunk_info->file.chunk_offset,
                     chunk_info->chunk_length,
                     channel->path);
@@ -753,7 +729,6 @@ bool storage_db_chunk_write(
 storage_db_chunk_info_t *storage_db_chunk_sequence_get(
         storage_db_chunk_sequence_t *chunk_sequence,
         storage_db_chunk_index_t chunk_index) {
-
     return chunk_sequence->sequence + chunk_index;
 }
 

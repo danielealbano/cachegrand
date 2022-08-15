@@ -340,6 +340,10 @@ bool module_redis_command_process_argument_stream_data(
 
     assert(expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_LONG_STRING);
 
+    if (unlikely(chunk_length == 0)) {
+        return true;
+    }
+
     string = argument_member_context_addr;
     chunk_sequence = string->chunk_sequence;
 
