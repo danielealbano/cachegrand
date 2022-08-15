@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
-typedef struct worker_network_protocol_context worker_network_protocol_context_t;
-struct worker_network_protocol_context {
+typedef struct worker_module_context worker_module_context_t;
+struct worker_module_context {
     void *network_tls_config;
 };
 
@@ -43,18 +43,18 @@ typedef int32_t (worker_op_network_send_fp_t)(
 
 typedef size_t (worker_op_network_channel_size_fp_t)();
 
-worker_network_protocol_context_t *worker_network_protocol_contexts_initialize(
-        config_network_t *config_network);
+worker_module_context_t *worker_module_contexts_initialize(
+        config_t *config);
 
-void worker_network_protocol_context_free(
-        config_network_t *config_network,
-        worker_network_protocol_context_t *worker_network_protocol_context);
+void worker_module_context_free(
+        config_t *config,
+        worker_module_context_t *worker_module_context);
 
 bool worker_network_listeners_initialize(
         uint32_t worker_index,
         uint8_t core_index,
-        config_network_t *config_network,
-        worker_network_protocol_context_t *worker_network_protocol_context,
+        config_t *config,
+        worker_module_context_t *worker_module_context,
         network_channel_t **listeners,
         uint8_t *listeners_count);
 
@@ -62,11 +62,6 @@ void worker_network_listeners_listen(
         fiber_t **listeners_fibers,
         network_channel_t *listeners,
         uint8_t listeners_count);
-
-void worker_network_post_network_channel_close(
-        worker_context_t *context,
-        network_channel_t *channel,
-        void* user_data);
 
 void worker_network_listeners_fiber_entrypoint(
         void *user_data);

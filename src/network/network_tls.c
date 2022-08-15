@@ -26,10 +26,10 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "slab_allocator.h"
 #include "support/simple_file_io.h"
-#include "network/protocol/network_protocol.h"
+#include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "network/io/network_io_common_tls.h"
-#include "network/protocol/network_protocol.h"
+#include "module/module.h"
 #include "config.h"
 #include "network/channel/network_channel.h"
 #include "network.h"
@@ -71,25 +71,25 @@ bool network_tls_does_ulp_tls_support_mbedtls_cipher_suite(
 }
 
 int network_tls_min_version_config_to_mbed(
-        config_network_protocol_tls_min_version_t version) {
+        config_module_network_tls_min_version_t version) {
     int res;
     switch (version) {
         default:
             LOG_W(TAG, "Unsupported TLS min version");
             res = -1;
             break;
-        case CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_ANY:
-        case CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_0:
+        case CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY:
+        case CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_0:
             res = MBEDTLS_SSL_MINOR_VERSION_1;
             break;
-        case CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_1:
+        case CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_1:
             res = MBEDTLS_SSL_MINOR_VERSION_2;
             break;
-        case CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_2:
+        case CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_2:
             res = MBEDTLS_SSL_MINOR_VERSION_3;
             break;
 #if defined(MBEDTLS_SSL_PROTO_TLS1_3)
-        case CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_3:
+        case CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_3:
             res = MBEDTLS_SSL_MINOR_VERSION_4;
             break;
 #endif
@@ -99,7 +99,7 @@ int network_tls_min_version_config_to_mbed(
 }
 
 int network_tls_max_version_config_to_mbed(
-        config_network_protocol_tls_max_version_t version) {
+        config_module_network_tls_max_version_t version) {
     int res;
 
     switch (version) {
@@ -107,21 +107,21 @@ int network_tls_max_version_config_to_mbed(
             LOG_W(TAG, "Unsupported TLS max version");
             res = -1;
             break;
-        case CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_0:
+        case CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_0:
             res = MBEDTLS_SSL_MINOR_VERSION_1;
             break;
-        case CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_1:
+        case CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_1:
             res = MBEDTLS_SSL_MINOR_VERSION_2;
             break;
-        case CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_2:
+        case CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2:
             res = MBEDTLS_SSL_MINOR_VERSION_3;
             break;
 #if defined(MBEDTLS_SSL_PROTO_TLS1_3)
-        case CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_3:
+        case CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_3:
             res = MBEDTLS_SSL_MINOR_VERSION_4;
             break;
 #endif
-        case CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_ANY:
+        case CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY:
 #if defined(MBEDTLS_SSL_PROTO_TLS1_3)
             res = MBEDTLS_SSL_MINOR_VERSION_4;
             break;
@@ -211,8 +211,8 @@ int *network_tls_build_cipher_suites_from_names(
 network_tls_config_t *network_tls_config_init(
         char *certificate_path,
         char *private_key_path,
-        config_network_protocol_tls_min_version_t tls_min_version,
-        config_network_protocol_tls_max_version_t tls_max_version,
+        config_module_network_tls_min_version_t tls_min_version,
+        config_module_network_tls_max_version_t tls_max_version,
         int *cipher_suites,
         size_t cipher_suites_length) {
     network_tls_config_t *network_tls_config = NULL;
@@ -291,7 +291,7 @@ network_tls_config_t *network_tls_config_init(
             network_tls_min_version_config_to_mbed(tls_min_version));
 
     // Set the TLS max version
-    if (tls_max_version != CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_ANY) {
+    if (tls_max_version != CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY) {
         mbedtls_ssl_conf_max_version(
                 &network_tls_config->config,
                 MBEDTLS_SSL_MAJOR_VERSION_3,
@@ -532,24 +532,24 @@ network_tls_mbedtls_cipher_suite_info_t *network_tls_mbedtls_get_all_cipher_suit
 
         // Set the min version for the cipher
         if (mbedtls_ssl_ciphersuite->min_minor_ver <= 1) {
-            cipher_suites[index].min_version = CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_0;
+            cipher_suites[index].min_version = CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_0;
         } else if (mbedtls_ssl_ciphersuite->min_minor_ver == 2) {
-            cipher_suites[index].min_version = CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_1;
+            cipher_suites[index].min_version = CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_1;
         } else if (mbedtls_ssl_ciphersuite->min_minor_ver == 3) {
-            cipher_suites[index].min_version = CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_2;
+            cipher_suites[index].min_version = CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_2;
         } else if (mbedtls_ssl_ciphersuite->min_minor_ver == 4) {
-            cipher_suites[index].min_version = CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_3;
+            cipher_suites[index].min_version = CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_3;
         }
 
         // Set the max version for the cipher
         if (mbedtls_ssl_ciphersuite->max_minor_ver == 1) {
-            cipher_suites[index].max_version = CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_0;
+            cipher_suites[index].max_version = CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_0;
         } else if (mbedtls_ssl_ciphersuite->max_minor_ver == 2) {
-            cipher_suites[index].max_version = CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_1;
+            cipher_suites[index].max_version = CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_1;
         } else if (mbedtls_ssl_ciphersuite->max_minor_ver == 3) {
-            cipher_suites[index].max_version = CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_2;
+            cipher_suites[index].max_version = CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2;
         } else if (mbedtls_ssl_ciphersuite->max_minor_ver == 4) {
-            cipher_suites[index].max_version = CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_3;
+            cipher_suites[index].max_version = CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_3;
         }
     }
 
@@ -557,35 +557,35 @@ network_tls_mbedtls_cipher_suite_info_t *network_tls_mbedtls_get_all_cipher_suit
 }
 
 char *network_tls_min_version_to_string(
-        config_network_protocol_tls_min_version_t version) {
+        config_module_network_tls_min_version_t version) {
     switch(version) {
-        case CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_0:
+        case CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_0:
             return "TLS 1.0";
-        case CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_1:
+        case CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_1:
             return "TLS 1.1";
-        case CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_2:
+        case CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_2:
             return "TLS 1.2";
-        case CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_TLS_1_3:
+        case CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_3:
             return "TLS 1.3";
         default:
-        case CONFIG_NETWORK_PROTOCOL_TLS_MIN_VERSION_ANY:
+        case CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY:
             return "any";
     }
 }
 
 char *network_tls_max_version_to_string(
-        config_network_protocol_tls_max_version_t version) {
+        config_module_network_tls_max_version_t version) {
     switch(version) {
-        case CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_0:
+        case CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_0:
             return "TLS 1.0";
-        case CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_1:
+        case CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_1:
             return "TLS 1.1";
-        case CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_2:
+        case CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2:
             return "TLS 1.2";
-        case CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_TLS_1_3:
+        case CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_3:
             return "TLS 1.3";
         default:
-        case CONFIG_NETWORK_PROTOCOL_TLS_MAX_VERSION_ANY:
+        case CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY:
             return "any";
     }
 }

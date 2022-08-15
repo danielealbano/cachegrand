@@ -9,6 +9,7 @@
 #include <catch2/catch.hpp>
 #include <cstring>
 
+#include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
@@ -105,7 +106,7 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
         }
 
         SECTION("one argument, zero length") {
-            char buffer[] = "*1\r\n$0\r\n";
+            char buffer[] = "*1\r\n$0\r\n\r\n";
 
             int32_t ops_found = protocol_redis_reader_read(
                     buffer,
@@ -114,19 +115,26 @@ TEST_CASE("protocols/redis/protocol_redis_reader.c/resp", "[protocols][redis][pr
                     ops,
                     ops_size);
 
-            REQUIRE(ops_found == 4);
+            REQUIRE(ops_found == 5);
             REQUIRE(context.error == 0);
             REQUIRE(ops[0].type == PROTOCOL_REDIS_READER_OP_TYPE_COMMAND_BEGIN);
             REQUIRE(ops[1].type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_BEGIN);
-            REQUIRE(ops[2].type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END);
-            REQUIRE(ops[3].type == PROTOCOL_REDIS_READER_OP_TYPE_COMMAND_END);
+            REQUIRE(ops[2].type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA);
+            REQUIRE(ops[3].type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END);
+            REQUIRE(ops[4].type == PROTOCOL_REDIS_READER_OP_TYPE_COMMAND_END);
             REQUIRE(ops[0].data_read_len == 4);
             REQUIRE(ops[1].data_read_len == 4);
             REQUIRE(ops[2].data_read_len == 0);
-            REQUIRE(ops[3].data_read_len == 0);
+            REQUIRE(ops[3].data_read_len == 2);
+            REQUIRE(ops[4].data_read_len == 0);
+            REQUIRE(ops[0].data.command.arguments_count == 1);
             REQUIRE(ops[2].data.argument.length == 0);
             REQUIRE(ops[2].data.argument.data_length == 0);
-            REQUIRE(ops[2].data.argument.offset == 4);
+            REQUIRE(ops[2].data.argument.offset == 8);
+            REQUIRE(ops[3].data.argument.length == 0);
+            REQUIRE(ops[3].data.argument.data_length == 0);
+            REQUIRE(ops[3].data.argument.offset == 8);
+            REQUIRE(ops[4].data.command.arguments_count == 1);
             REQUIRE(context.arguments.current.length == 0);
             REQUIRE(context.arguments.current.index == 0);
             REQUIRE(context.state == PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED);

@@ -30,11 +30,12 @@
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
+#include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "slab_allocator.h"
 #include "config.h"
 #include "log/log.h"
 #include "fiber.h"
-#include "network/protocol/network_protocol.h"
+#include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "storage/io/storage_io_common.h"
@@ -51,9 +52,10 @@
 #include "network/network_tls_mbedtls.h"
 #include "network/network_tls.h"
 #include "network/channel/network_channel_tls.h"
+#include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
-#include "network/protocol/redis/network_protocol_redis.h"
-#include "network/protocol/prometheus/network_protocol_prometheus.h"
+#include "module/redis/module_redis.h"
+#include "module/prometheus/module_prometheus.h"
 
 #include "worker_network_op.h"
 
@@ -70,35 +72,35 @@ worker_op_network_receive_fp_t* worker_op_network_receive;
 worker_op_network_send_fp_t* worker_op_network_send;
 worker_op_network_close_fp_t* worker_op_network_close;
 
-worker_network_protocol_context_t *worker_network_protocol_contexts_initialize(
-        config_network_t *config_network) {
+worker_module_context_t *worker_module_contexts_initialize(
+        config_t *config) {
     bool result_ret = false;
-    worker_network_protocol_context_t *worker_network_protocol_context = NULL;
+    worker_module_context_t *worker_module_context = NULL;
 
-    worker_network_protocol_context =
-            slab_allocator_mem_alloc_zero(sizeof(worker_network_protocol_context_t) * config_network->protocols_count);
-    if (!worker_network_protocol_context) {
+    worker_module_context =
+            slab_allocator_mem_alloc_zero(sizeof(worker_module_context_t) * config->modules_count);
+    if (!worker_module_context) {
         goto end;
     }
 
-    for(int protocol_index = 0; protocol_index < config_network->protocols_count; protocol_index++) {
-        config_network_protocol_t *config_network_protocol = &config_network->protocols[protocol_index];
+    for(int module_index = 0; module_index < config->modules_count; module_index++) {
+        config_module_t *config_module = &config->modules[module_index];
 
-        if (config_network_protocol->tls == NULL) {
+        if (config_module->network->tls == NULL) {
             continue;
         }
 
         size_t cipher_suites_ids_size;
         int *cipher_suites = network_tls_build_cipher_suites_from_names(
-                config_network_protocol->tls->cipher_suites,
-                config_network_protocol->tls->cipher_suites_count,
+                config_module->network->tls->cipher_suites,
+                config_module->network->tls->cipher_suites_count,
                 &cipher_suites_ids_size);
 
         network_tls_config_t *network_tls_config = network_tls_config_init(
-                config_network_protocol->tls->certificate_path,
-                config_network_protocol->tls->private_key_path,
-                config_network_protocol->tls->min_version,
-                config_network_protocol->tls->max_version,
+                config_module->network->tls->certificate_path,
+                config_module->network->tls->private_key_path,
+                config_module->network->tls->min_version,
+                config_module->network->tls->max_version,
                 cipher_suites,
                 cipher_suites_ids_size);
 
@@ -110,39 +112,39 @@ worker_network_protocol_context_t *worker_network_protocol_contexts_initialize(
             goto end;
         }
 
-        worker_network_protocol_context[protocol_index].network_tls_config = network_tls_config;
+        worker_module_context[module_index].network_tls_config = network_tls_config;
     }
 
     result_ret = true;
 end:
 
-    if (!result_ret && worker_network_protocol_context) {
-        for (int protocol_index = 0; protocol_index < config_network->protocols_count; protocol_index++) {
-            if (worker_network_protocol_context[protocol_index].network_tls_config == NULL) {
+    if (!result_ret && worker_module_context) {
+        for (int module_index = 0; module_index < config->modules_count; module_index++) {
+            if (worker_module_context[module_index].network_tls_config == NULL) {
                 continue;
             }
 
-            network_tls_config_free(worker_network_protocol_context[protocol_index].network_tls_config);
+            network_tls_config_free(worker_module_context[module_index].network_tls_config);
         }
 
-        slab_allocator_mem_free(worker_network_protocol_context);
-        worker_network_protocol_context = NULL;
+        slab_allocator_mem_free(worker_module_context);
+        worker_module_context = NULL;
     }
 
-    return worker_network_protocol_context;
+    return worker_module_context;
 }
 
-void worker_network_protocol_context_free(
-        config_network_t *config_network,
-        worker_network_protocol_context_t *worker_network_protocol_context) {
-    for (int protocol_index = 0; protocol_index < config_network->protocols_count; protocol_index++) {
-        if (worker_network_protocol_context[protocol_index].network_tls_config == NULL) {
+void worker_module_context_free(
+        config_t *config,
+        worker_module_context_t *worker_module_context) {
+    for (int module_index = 0; module_index < config->modules_count; module_index++) {
+        if (worker_module_context[module_index].network_tls_config == NULL) {
             continue;
         }
-        network_tls_config_free(worker_network_protocol_context[protocol_index].network_tls_config);
+        network_tls_config_free(worker_module_context[module_index].network_tls_config);
     }
 
-    slab_allocator_mem_free(worker_network_protocol_context);
+    slab_allocator_mem_free(worker_module_context);
 }
 
 // TODO: the listener and accept operations should be refactored to split them in an user frontend operation and in an
@@ -150,8 +152,8 @@ void worker_network_protocol_context_free(
 bool worker_network_listeners_initialize(
         uint32_t worker_index,
         uint8_t core_index,
-        config_network_t *config_network,
-        worker_network_protocol_context_t *worker_network_protocol_context,
+        config_t *config,
+        worker_module_context_t *worker_module_context,
         network_channel_t **listeners,
         uint8_t *listeners_count) {
     bool return_res = false;
@@ -162,14 +164,14 @@ bool worker_network_listeners_initialize(
     // With listeners = NULL, the number of needed listeners will be enumerated and listeners_count
     // increased as needed
     listener_new_cb_user_data.listeners = NULL;
-    for(int protocol_index = 0; protocol_index < config_network->protocols_count; protocol_index++) {
-        config_network_protocol_t *config_network_protocol = &config_network->protocols[protocol_index];
-        for(int binding_index = 0; binding_index < config_network_protocol->bindings_count; binding_index++) {
+    for(int module_index = 0; module_index < config->modules_count; module_index++) {
+        config_module_t *config_module = &config->modules[module_index];
+        for(int binding_index = 0; binding_index < config_module->network->bindings_count; binding_index++) {
             if (network_channel_listener_new(
-                    config_network_protocol->bindings[binding_index].host,
-                    config_network_protocol->bindings[binding_index].port,
-                    config_network->listen_backlog,
-                    NETWORK_PROTOCOLS_UNKNOWN,
+                    config_module->network->bindings[binding_index].host,
+                    config_module->network->bindings[binding_index].port,
+                    config->network->listen_backlog,
+                    MODULE_TYPE_UNKNOWN,
                     &listener_new_cb_user_data) == false) {
                 return_res = false;
                 goto end;
@@ -185,28 +187,28 @@ bool worker_network_listeners_initialize(
     listener_new_cb_user_data.listeners_count = 0;
 
     // Allocate the listeners (with the correct protocol config)
-    for(int protocol_index = 0; protocol_index < config_network->protocols_count; protocol_index++) {
-        network_protocols_t network_protocol;
+    for(int module_index = 0; module_index < config->modules_count; module_index++) {
+        module_types_t network_protocol;
 
-        config_network_protocol_t *config_network_protocol = &config_network->protocols[protocol_index];
-        switch(config_network_protocol->type) {
+        config_module_t *config_module = &config->modules[module_index];
+        switch(config_module->type) {
             default:
-            case CONFIG_PROTOCOL_TYPE_REDIS:
-                network_protocol = NETWORK_PROTOCOLS_REDIS;
+            case CONFIG_MODULE_TYPE_REDIS:
+                network_protocol = MODULE_TYPE_REDIS;
                 break;
 
-            case CONFIG_PROTOCOL_TYPE_PROMETHEUS:
-                network_protocol = NETWORK_PROTOCOLS_PROMETHEUS;
+            case CONFIG_MODULE_TYPE_PROMETHEUS:
+                network_protocol = MODULE_TYPE_PROMETHEUS;
                 break;
         }
 
-        for(int binding_index = 0; binding_index < config_network_protocol->bindings_count; binding_index++) {
-            config_network_protocol_binding_t *binding = &config_network_protocol->bindings[binding_index];
+        for(int binding_index = 0; binding_index < config_module->network->bindings_count; binding_index++) {
+            config_module_network_binding_t *binding = &config_module->network->bindings[binding_index];
             uint8_t listeners_count_before = listener_new_cb_user_data.listeners_count;
             if (network_channel_listener_new(
                     binding->host,
                     binding->port,
-                    config_network->listen_backlog,
+                    config->network->listen_backlog,
                     network_protocol,
                     &listener_new_cb_user_data) == false) {
 
@@ -226,18 +228,18 @@ bool worker_network_listeners_initialize(
                 network_channel_t *channel_listener =
                         ((void*)listener_new_cb_user_data.listeners) +
                         (listener_new_cb_user_data.network_channel_size * listener_index);
-                channel_listener->protocol_config = config_network_protocol;
+                channel_listener->module_config = config_module;
 
                 // If TLS is enabled for the binding, import the TLS settings
                 if (binding->tls) {
                     network_tls_config_t *network_tls_config =
-                            worker_network_protocol_context[protocol_index].network_tls_config;
+                            worker_module_context[module_index].network_tls_config;
                     network_channel_tls_set_config(
                             channel_listener,
                             &network_tls_config->config);
                     network_channel_tls_set_enabled(
                             channel_listener,
-                            worker_network_protocol_context[protocol_index].network_tls_config == NULL ? false : true);
+                            worker_module_context[module_index].network_tls_config == NULL ? false : true);
                     network_channel_tls_set_ktls(
                             channel_listener,
                             false);
@@ -311,12 +313,12 @@ void worker_network_new_client_fiber_entrypoint(
                     new_channel->protocol);
             break;
 
-        case NETWORK_PROTOCOLS_REDIS:
-            network_protocol_redis_accept(
+        case MODULE_TYPE_REDIS:
+            module_redis_accept(
                     new_channel);
             break;
-        case NETWORK_PROTOCOLS_PROMETHEUS:
-            network_protocol_prometheus_accept(
+        case MODULE_TYPE_PROMETHEUS:
+            module_prometheus_accept(
                     new_channel);
             break;
     }
@@ -359,12 +361,12 @@ void worker_network_listeners_fiber_entrypoint(
         new_channel->status = NETWORK_CHANNEL_STATUS_CONNECTED;
 
         // TODO: should implement a wrapper for this
-        new_channel->timeout.read_ns = new_channel->protocol_config->timeout->read_ms > 0
-                                        ? new_channel->protocol_config->timeout->read_ms * 1000000
-                                        : new_channel->protocol_config->timeout->read_ms;
-        new_channel->timeout.write_ns = new_channel->protocol_config->timeout->write_ms > 0
-                                        ? new_channel->protocol_config->timeout->write_ms * 1000000
-                                        : new_channel->protocol_config->timeout->write_ms;
+        new_channel->timeout.read_ns = new_channel->module_config->network->timeout->read_ms > 0
+                                        ? new_channel->module_config->network->timeout->read_ms * 1000000
+                                        : new_channel->module_config->network->timeout->read_ms;
+        new_channel->timeout.write_ns = new_channel->module_config->network->timeout->write_ms > 0
+                                        ? new_channel->module_config->network->timeout->write_ms * 1000000
+                                        : new_channel->module_config->network->timeout->write_ms;
 
         LOG_V(
                 TAG,

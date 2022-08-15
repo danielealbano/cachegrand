@@ -540,100 +540,96 @@ storage_db_entry_index_t *storage_db_entry_index_new() {
     return slab_allocator_mem_alloc_zero(sizeof(storage_db_entry_index_t));
 }
 
-bool storage_db_entry_index_allocate_key_chunks(
+storage_db_chunk_sequence_t *storage_db_chunk_sequence_allocate(
         storage_db_t *db,
-        storage_db_entry_index_t *entry_index,
-        size_t key_length) {
-    if (db->config->backend_type == STORAGE_DB_BACKEND_TYPE_MEMORY) {
-        return true;
+        size_t size) {
+    bool return_result = false;
+    storage_db_chunk_index_t allocated_chunks_count = 0;
+    uint32_t chunk_count = ceil((double)size / (double)STORAGE_DB_CHUNK_MAX_SIZE);
+    size_t remaining_length = size;
+
+    storage_db_chunk_sequence_t *chunk_sequence = slab_allocator_mem_alloc(sizeof(storage_db_chunk_sequence_t));
+
+    if (unlikely(!chunk_sequence)) {
+        goto end;
     }
 
-    uint32_t chunk_count = ceil((double)key_length / (double)STORAGE_DB_CHUNK_MAX_SIZE);
+    chunk_sequence->size = size;
+    chunk_sequence->count = chunk_count;
 
-    entry_index->key_length = key_length;
-    entry_index->key_chunks_info = slab_allocator_mem_alloc(sizeof(storage_db_chunk_info_t) * chunk_count);
-    entry_index->key_chunks_count = chunk_count;
+    if (likely(size > 0)) {
+        chunk_sequence->sequence = slab_allocator_mem_alloc(sizeof(storage_db_chunk_info_t) * chunk_count);
 
-    size_t remaining_length = key_length;
-    for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->key_chunks_count; chunk_index++) {
-        storage_db_chunk_info_t *chunk_info = storage_db_entry_key_chunk_get(entry_index, chunk_index);
-
-        if (!storage_db_chunk_data_pre_allocate(
-                db,
-                chunk_info,
-                MIN(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
-            slab_allocator_mem_free(entry_index->key_chunks_info);
-            return false;
+        if (unlikely(!chunk_sequence->sequence)) {
+            goto end;
         }
 
-        remaining_length -= STORAGE_DB_CHUNK_MAX_SIZE;
+        for(storage_db_chunk_index_t chunk_index = 0; chunk_index < chunk_sequence->count; chunk_index++) {
+            storage_db_chunk_info_t *chunk_info = storage_db_chunk_sequence_get(chunk_sequence, chunk_index);
+
+            if (!storage_db_chunk_data_pre_allocate(
+                    db,
+                    chunk_info,
+                    MIN(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
+                goto end;
+            }
+
+            remaining_length -= STORAGE_DB_CHUNK_MAX_SIZE;
+            allocated_chunks_count++;
+        }
+    } else {
+        chunk_sequence->sequence = NULL;
     }
 
-    return true;
+    return_result = true;
+
+end:
+    if (unlikely(!return_result)) {
+        if (chunk_sequence) {
+            if (chunk_sequence->sequence) {
+                for(storage_db_chunk_index_t chunk_index = 0; chunk_index < allocated_chunks_count; chunk_index++) {
+                    storage_db_chunk_data_free(db, storage_db_chunk_sequence_get(chunk_sequence, chunk_index));
+                }
+                slab_allocator_mem_free(chunk_sequence->sequence);
+            }
+
+            slab_allocator_mem_free(chunk_sequence);
+            chunk_sequence = NULL;
+        }
+    }
+
+    return chunk_sequence;
 }
 
-bool storage_db_entry_index_allocate_value_chunks(
+void storage_db_chunk_sequence_free(
         storage_db_t *db,
-        storage_db_entry_index_t *entry_index,
-        size_t value_length) {
-    uint32_t chunk_count = ceil((double)value_length / (double)STORAGE_DB_CHUNK_MAX_SIZE);
-
-    entry_index->value_length = value_length;
-    entry_index->value_chunks_info = slab_allocator_mem_alloc(sizeof(storage_db_chunk_info_t) * chunk_count);
-    entry_index->value_chunks_count = chunk_count;
-
-    size_t remaining_length = value_length;
-    for(storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value_chunks_count; chunk_index++) {
-        storage_db_chunk_info_t *chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
-
-        if (!storage_db_chunk_data_pre_allocate(
-                db,
-                chunk_info,
-                MIN(remaining_length, STORAGE_DB_CHUNK_MAX_SIZE))) {
-            // TODO: If the operation fails all the allocated values should be freed as this might lead to memory leaks
-            slab_allocator_mem_free(entry_index->value_chunks_info);
-            return false;
-        }
-
-        remaining_length -= STORAGE_DB_CHUNK_MAX_SIZE;
+        storage_db_chunk_sequence_t *sequence) {
+    for (
+            storage_db_chunk_index_t chunk_index = 0;
+            chunk_index < sequence->count;
+            chunk_index++) {
+        storage_db_chunk_info_t *chunk_info = storage_db_chunk_sequence_get(sequence, chunk_index);
+        storage_db_chunk_data_free(db, chunk_info);
     }
 
-    return true;
+    slab_allocator_mem_free(sequence->sequence);
+    sequence->count = 0;
+    sequence->sequence = NULL;
 }
 
 void storage_db_entry_index_chunks_free(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index) {
-    if (entry_index->key_chunks_info) {
+    if (entry_index->key) {
         // If the backend is only memory, the key is managed by the hashtable and the chunks are not stored
         // in memory, so it's necessary to free only the chunks of the values
         if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
-            for(
-                    storage_db_chunk_index_t chunk_index = 0;
-                    chunk_index < entry_index->key_chunks_count;
-                    chunk_index++) {
-                storage_db_chunk_info_t *chunk_info = storage_db_entry_key_chunk_get(entry_index, chunk_index);
-                storage_db_chunk_data_free(db, chunk_info);
-            }
-
-            slab_allocator_mem_free(entry_index->key_chunks_info);
-            entry_index->key_chunks_count = 0;
-            entry_index->key_chunks_info = NULL;
+            storage_db_chunk_sequence_free(db, entry_index->key);
         }
     }
 
-    if (entry_index->value_chunks_info) {
-        for (
-                storage_db_chunk_index_t chunk_index = 0;
-                chunk_index < entry_index->value_chunks_count;
-                chunk_index++) {
-            storage_db_chunk_info_t *chunk_info = storage_db_entry_value_chunk_get(entry_index, chunk_index);
-            storage_db_chunk_data_free(db, chunk_info);
-        }
-
-        slab_allocator_mem_free(entry_index->value_chunks_info);
-        entry_index->value_chunks_count = 0;
-        entry_index->value_chunks_info = NULL;
+    if (entry_index->value) {
+        storage_db_chunk_sequence_free(db, entry_index->value);
     }
 }
 
@@ -668,7 +664,7 @@ char* storage_db_entry_chunk_read_fast_from_memory(
     return NULL;
 }
 
-bool storage_db_entry_chunk_read(
+bool storage_db_chunk_read(
         storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
         char *buffer) {
@@ -686,7 +682,7 @@ bool storage_db_entry_chunk_read(
                 chunk_info->file.chunk_offset)) {
             LOG_E(
                     TAG,
-                    "[ENTRY_GET_CHUNK_INTERNAL] Failed to read chunk with offset <%u> long <%u> bytes (path <%s>)",
+                    "Failed to read chunk with offset <%u> long <%u> bytes (path <%s>)",
                     chunk_info->file.chunk_offset,
                     chunk_info->chunk_length,
                     channel->path);
@@ -698,7 +694,7 @@ bool storage_db_entry_chunk_read(
     return true;
 }
 
-bool storage_db_entry_chunk_write(
+bool storage_db_chunk_write(
         storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
         off_t chunk_offset,
@@ -718,7 +714,7 @@ bool storage_db_entry_chunk_write(
                 chunk_info->file.chunk_offset + chunk_offset)) {
             LOG_E(
                     TAG,
-                    "[ENTRY_CHUNK_WRITE] Failed to write chunk with offset <%u> long <%u> bytes (path <%s>)",
+                    "Failed to write chunk with offset <%u> long <%u> bytes (path <%s>)",
                     chunk_info->file.chunk_offset,
                     chunk_info->chunk_length,
                     channel->path);
@@ -730,18 +726,10 @@ bool storage_db_entry_chunk_write(
     return true;
 }
 
-storage_db_chunk_info_t *storage_db_entry_key_chunk_get(
-        storage_db_entry_index_t* entry_index,
+storage_db_chunk_info_t *storage_db_chunk_sequence_get(
+        storage_db_chunk_sequence_t *chunk_sequence,
         storage_db_chunk_index_t chunk_index) {
-
-    return entry_index->key_chunks_info + chunk_index;
-}
-
-storage_db_chunk_info_t *storage_db_entry_value_chunk_get(
-        storage_db_entry_index_t* entry_index,
-        storage_db_chunk_index_t chunk_index) {
-
-    return entry_index->value_chunks_info + chunk_index;
+    return chunk_sequence->sequence + chunk_index;
 }
 
 void storage_db_entry_index_status_increase_readers_counter(
@@ -889,6 +877,32 @@ storage_db_entry_index_t *storage_db_get_entry_index(
     return (storage_db_entry_index_t *)memptr;
 }
 
+storage_db_entry_index_t *storage_db_get_entry_index_for_read(
+        storage_db_t *db,
+        char *key,
+        size_t key_length) {
+    storage_db_entry_index_status_t old_status;
+    storage_db_entry_index_t *entry_index;
+
+    entry_index = storage_db_get_entry_index(
+            db,
+            key,
+            key_length);
+
+    if (likely(entry_index)) {
+        // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
+        storage_db_entry_index_status_increase_readers_counter(
+                entry_index,
+                &old_status);
+
+        if (unlikely(old_status.deleted)) {
+            entry_index = NULL;
+        }
+    }
+
+    return entry_index;
+}
+
 bool storage_db_set_entry_index(
         storage_db_t *db,
         char *key,
@@ -910,17 +924,81 @@ bool storage_db_set_entry_index(
     return res;
 }
 
+bool storage_db_add_new_entry_index(
+        storage_db_t *db,
+        char *key,
+        size_t key_length,
+        storage_db_chunk_sequence_t *value_chunk_sequence) {
+    bool result_res = false;
+
+    storage_db_entry_index_t *entry_index = storage_db_entry_index_ring_buffer_new(db);
+    if (!entry_index) {
+        LOG_E(TAG, "Unable to allocate the database index entry in memory");
+        goto end;
+    }
+
+    // Set up the key if necessary
+    entry_index->key = NULL;
+    if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
+        entry_index->key = storage_db_chunk_sequence_allocate(db, key_length);
+
+        if (!entry_index->key) {
+            LOG_E(TAG, "Unable to allocate the chunks for the key");
+            goto end;
+        }
+
+        // The key is always one single chunk so no need to be smart here
+        if (!storage_db_chunk_write(
+                db,
+                storage_db_chunk_sequence_get(
+                        entry_index->key,
+                        0),
+                0,
+                key,
+                key_length)) {
+            LOG_E(TAG, "Unable to write an index entry key");
+            goto end;
+        }
+    }
+
+    // Fetch a new entry and assign the key and the value as needed
+    entry_index->value = value_chunk_sequence;
+
+    // Try to store the entry index in the database
+    if (!storage_db_set_entry_index(
+            db,
+            key,
+            key_length,
+            entry_index)) {
+        // As the operation failed while getting ownership of the value, it gets set back to null as to let the caller
+        // handle the memory free as necessary
+        entry_index->value = NULL;
+        goto end;
+    }
+
+    result_res = true;
+
+end:
+
+    if (!result_res) {
+        if (entry_index) {
+            storage_db_entry_index_free(db, entry_index);
+        }
+    }
+
+    return result_res;
+}
+
 bool storage_db_set_small_value(
         storage_db_t *db,
         char *key,
         size_t key_length,
-        void *value,
-        size_t value_length) {
+        storage_db_chunk_sequence_t *value_chunk_sequence) {
     storage_db_entry_index_t *entry_index = NULL;
     bool return_res = false;
 
     assert(key_length <= STORAGE_DB_CHUNK_MAX_SIZE);
-    assert(value_length <= STORAGE_DB_CHUNK_MAX_SIZE);
+    assert(value_chunk_sequence->size <= STORAGE_DB_CHUNK_MAX_SIZE);
 
     entry_index = storage_db_entry_index_ring_buffer_new(db);
     if (!entry_index) {
@@ -935,12 +1013,11 @@ bool storage_db_set_small_value(
     // the only case in which the keys are read from the storage is when the database gets loaded from the disk at the
     // startup
     if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
-        bool res = storage_db_entry_index_allocate_key_chunks(
+        entry_index->key = storage_db_chunk_sequence_allocate(
                 db,
-                entry_index,
                 key_length);
 
-        if (!res) {
+        if (!entry_index->key) {
             LOG_E(
                     TAG,
                     "Unable to allocate database chunks for a key long <%lu> bytes",
@@ -950,9 +1027,9 @@ bool storage_db_set_small_value(
         }
 
         // Write the key
-        bool res_write = storage_db_entry_chunk_write(
+        bool res_write = storage_db_chunk_write(
                 db,
-                storage_db_entry_key_chunk_get(entry_index, 0),
+                storage_db_chunk_sequence_get(entry_index->key, 0),
                 0,
                 key,
                 key_length);
@@ -968,35 +1045,7 @@ bool storage_db_set_small_value(
     }
 
     // The value stored is the key itself as it is
-    bool res = storage_db_entry_index_allocate_value_chunks(
-            db,
-            entry_index,
-            value_length);
-
-    if (!res) {
-        LOG_E(
-                TAG,
-                "Unable to allocate database chunks for a value long <%lu> bytes",
-                value_length);
-        goto end;
-    }
-
-    // Write the value
-    bool res_write = storage_db_entry_chunk_write(
-            db,
-            storage_db_entry_value_chunk_get(entry_index, 0),
-            0,
-            value,
-            value_length);
-
-    if (!res_write) {
-        LOG_E(
-                TAG,
-                "Unable to write the database chunks for a value long <%lu> bytes",
-                value_length);
-
-        goto end;
-    }
+    entry_index->value = value_chunk_sequence;
 
     // Set the entry index
     bool result = storage_db_set_entry_index(

@@ -29,7 +29,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "support/simple_file_io.h"
 #include "config.h"
-#include "network/protocol/network_protocol.h"
+#include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "worker/worker_stats.h"
@@ -254,7 +254,7 @@ network_op_result_t network_send_direct(
         network_channel_t *channel,
         network_channel_buffer_data_t *buffer,
         size_t buffer_length) {
-    if (network_should_flush_send_buffer(channel)) {
+    if (unlikely(network_should_flush_send_buffer(channel))) {
         network_flush_send_buffer(channel);
     }
 

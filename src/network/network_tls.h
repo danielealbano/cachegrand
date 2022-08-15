@@ -15,8 +15,8 @@ struct network_tls_mbedtls_cipher_suite_info
 {
     const char *name;
     bool offloading;
-    config_network_protocol_tls_min_version_t min_version;
-    config_network_protocol_tls_max_version_t max_version;
+    config_module_network_tls_min_version_t min_version;
+    config_module_network_tls_max_version_t max_version;
 };
 
 bool network_tls_is_ulp_tls_supported_internal();
@@ -29,8 +29,8 @@ int *network_tls_build_cipher_suites_from_names(
 network_tls_config_t *network_tls_config_init(
         char *certificate_path,
         char *private_key_path,
-        config_network_protocol_tls_min_version_t tls_min_version,
-        config_network_protocol_tls_max_version_t tls_max_version,
+        config_module_network_tls_min_version_t tls_min_version,
+        config_module_network_tls_max_version_t tls_max_version,
         int *cipher_suites,
         size_t cipher_suites_length);
 
@@ -42,10 +42,10 @@ char* network_tls_mbedtls_version();
 network_tls_mbedtls_cipher_suite_info_t *network_tls_mbedtls_get_all_cipher_suites_info();
 
 char *network_tls_min_version_to_string(
-        config_network_protocol_tls_min_version_t version);
+        config_module_network_tls_min_version_t version);
 
 char *network_tls_max_version_to_string(
-        config_network_protocol_tls_max_version_t version);
+        config_module_network_tls_max_version_t version);
 
 static bool tls_ulp_supported_fetched = false;
 static bool tls_ulp_supported = false;

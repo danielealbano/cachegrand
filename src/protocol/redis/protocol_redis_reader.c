@@ -354,28 +354,8 @@ int32_t protocol_redis_reader_read(
         ops[op_index].data.argument.length = data_length;
         op_index++;
 
-        // Change the state to PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA only if there are data
-        if (likely(data_length > 0)) {
-            context->state = PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA;
-        } else {
-            // Update the OPs list
-            ops[op_index].type = PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END;
-            ops[op_index].data_read_len = 0;
-            ops[op_index].data.argument.index = context->arguments.current.index;
-            ops[op_index].data.argument.length = 0;
-            ops[op_index].data.argument.offset = read_offset - move_offset;
-            op_index++;
-
-            if (context->arguments.current.index == context->arguments.count - 1) {
-                context->state = PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED;
-
-                // Update the OPs list
-                ops[op_index].type = PROTOCOL_REDIS_READER_OP_TYPE_COMMAND_END;
-                ops[op_index].data_read_len = 0;
-                ops[op_index].data.command.arguments_count = context->arguments.count;
-                op_index++;
-            }
-        }
+        // Change the state to PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA
+        context->state = PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA;
     }
 
     if (length > 0 && context->state == PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA) {
@@ -412,22 +392,13 @@ int32_t protocol_redis_reader_read(
             // Update the status
             context->state = PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA_END;
         }
-
-        // Check if there are enough data to contain the argument data end signature
-        if (length >= 2) {
-            // Check if the end of the data has the proper signature (\r\n)
-            if (*buffer != '\r' || *(buffer + 1) != '\n') {
-                context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_MISSING_END_SIGNATURE;
-                return -1;
-            }
-        }
     }
 
     if (length > 0 && context->state == PROTOCOL_REDIS_READER_STATE_RESP_WAITING_ARGUMENT_DATA_END) {
         size_t waiting_data_length = 2;
 
         // Check if there are enough data to contain the argument data end signature
-        if (length >= waiting_data_length) {
+        if (likely(length >= waiting_data_length)) {
             // Check if the end of the data has the proper signature (\r\n)
             if (*buffer != '\r' || *(buffer + 1) != '\n') {
                 context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_BLOB_STRING_MISSING_END_SIGNATURE;
