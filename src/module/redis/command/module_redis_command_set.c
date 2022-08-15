@@ -53,7 +53,8 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
             connection_context->db,
             context->key.value.key,
             context->key.value.length,
-            context->value.value.chunk_sequence)) {
+            context->value.value.chunk_sequence,
+            STORAGE_DB_ENTRY_NO_EXPIRY)) {
         module_redis_connection_error_message_printf_noncritical(connection_context, "ERR set failed");
         return true;
     }
