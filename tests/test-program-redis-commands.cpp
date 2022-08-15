@@ -189,7 +189,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
         }
 
-        SECTION("Key too long") {
+        SECTION("Key too long - Positional") {
             int key_length = (int)config.modules[0].redis->max_key_length + 1;
             char expected_error[256] = { 0 };
 
@@ -202,6 +202,29 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                     buffer_send,
                     sizeof(buffer_send) - 1,
                     "*2\r\n$3\r\nGET\r\n$%d\r\n%0*d\r\n",
+                    key_length,
+                    key_length,
+                    0);
+            buffer_send_data_len = strlen(buffer_send);
+
+            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
+            REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
+        }
+
+        SECTION("Key too long - Token") {
+            int key_length = (int)config.modules[0].redis->max_key_length + 1;
+            char expected_error[256] = { 0 };
+
+            sprintf(
+                    expected_error,
+                    "-ERR The %s length has exceeded the allowed size of '%u'\r\n",
+                    "key",
+                    (int)config.modules[0].redis->max_key_length);
+            snprintf(
+                    buffer_send,
+                    sizeof(buffer_send) - 1,
+                    "*4\r\n$4\r\nSORT\r\n$1\r\na\r\n$5\r\nSTORE\r\n$%d\r\n%0*d\r\n",
                     key_length,
                     key_length,
                     0);
