@@ -16,10 +16,13 @@ extern "C" {
 // being in use anymore.
 #define STORAGE_DB_WORKER_ENTRY_INDEX_RING_BUFFER_SIZE 512
 
+#define STORAGE_DB_ENTRY_NO_EXPIRY (0)
+
 typedef uint16_t storage_db_chunk_index_t;
 typedef uint16_t storage_db_chunk_length_t;
 typedef uint32_t storage_db_chunk_offset_t;
 typedef uint32_t storage_db_shard_index_t;
+typedef int64_t storage_db_expiry_time_ms_t;
 
 enum storage_db_backend_type {
     STORAGE_DB_BACKEND_TYPE_UNKNOWN = 0,
@@ -108,9 +111,10 @@ struct storage_db_chunk_sequence {
 typedef struct storage_db_entry_index storage_db_entry_index_t;
 struct storage_db_entry_index {
     storage_db_entry_index_status_t status;
+    storage_db_expiry_time_ms_t expiry_time_ms;
     storage_db_chunk_sequence_t *key;
     storage_db_chunk_sequence_t *value;
-} __attribute__((aligned(32)));
+};
 
 char *storage_db_shard_build_path(
         char *basedir_path,
@@ -258,7 +262,8 @@ bool storage_db_add_new_entry_index(
         storage_db_t *db,
         char *key,
         size_t key_length,
-        storage_db_chunk_sequence_t *chunk_sequence);
+        storage_db_chunk_sequence_t *chunk_sequence,
+        storage_db_expiry_time_ms_t expiry_time_realtime);
 
 bool storage_db_delete_entry_index(
         storage_db_t *db,
