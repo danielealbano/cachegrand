@@ -25,6 +25,8 @@ extern "C" {
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 
+#define SIZEOF_MEMBER(type, member) (sizeof(((type *)0)->member))
+
 #define ELF_SECTION( S ) __attribute__ ((section ( S )))
 
 #define CONCAT_(a, b)   a ## _ ## b
@@ -47,10 +49,10 @@ extern "C" {
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
 
-#define FUNCTION_STATIC(NAME, ...) \
-    static void NAME () { \
-        __VA_ARGS__ \
-    }
+#define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(!!(COND))*2-1]
+#define COMPILE_TIME_ASSERT3(X,L) STATIC_ASSERT(X,static_assertion_at_line_##L)
+#define COMPILE_TIME_ASSERT2(X,L) COMPILE_TIME_ASSERT3(X,L)
+#define COMPILE_TIME_ASSERT(X) COMPILE_TIME_ASSERT2(X,__LINE__)
 
 #define FUNCTION_CTOR_DTOR(SECTION_TYPE, SECTION_TYPE_STR, NAME, FUNC_BODY) \
     static void CONCAT(NAME, SECTION_TYPE) (){ \

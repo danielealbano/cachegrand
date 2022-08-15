@@ -20,9 +20,20 @@ network:
   max_clients: 250
   listen_backlog: 100
 
-  protocols:
-    - type: redis
+modules:
+  - type: redis
 
+    # Redis specific settings
+    redis:
+      # The maximum key length can't be greater than 65536 bytes
+      max_key_length: 8192
+      max_command_length: 536870912
+      max_command_arguments: 10000
+      
+      # If enabled, the command parsing will refuse duplicated or exclusive arguments
+      strict_parsing: false
+
+    network:
       # Timeouts for the read and write operations in milliseconds, set to -1 to disable or greater than 0 to enable
       timeout:
         read_ms: -1
@@ -34,49 +45,41 @@ network:
         interval: 0
         probes: 0
 
-      # TLS settings
-      # If the configuration is missing or commented out, TLS is automatically disabled
-      # If kTLS is available, it will be automatically enabled.
-      # tls:
-      #   # Path to the certificate and private key to use
-      #   certificate_path: "/path/to/certificate.pem"
-      #   private_key_path: "/path/to/private_key.key"
-
-      #   # Optional parameters to set the min and max version of the TLS versions accepted:
-      #   # - any
-      #   # - tls1.0
-      #   # - tls1.1
-      #   # - tls1.2
-      #   # - tls1.3
-      #   # When any is selected for min_version, automatically tls1.0 will be used.
-      #   min_version: tls1.2
-      #   max_version: any
-      #
-      #   # Optional parameter to set the allowed cipher suites, list the available ones with using
-      #   # /path/to/cachegrand-server --list-tls-cipher-suites
-      #   # The default list enables the ciphers supported by kTLS to allow the kernel offloading, other cipher suites
-      #   # are not supporte by kTLS.
-      #   cipher_suites:
-      #     - TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384
-      #     - TLS-DHE-RSA-WITH-AES-256-GCM-SHA384
-      #     - TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256
-      #     - TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
-      #     - TLS-DHE-RSA-WITH-AES-128-CCM
-      #     - TLS-DHE-RSA-WITH-AES-128-CCM-8
-      #     - TLS-RSA-WITH-AES-256-GCM-SHA384
-      #     - TLS-RSA-WITH-AES-128-GCM-SHA256
-      #     - TLS-RSA-WITH-AES-128-CCM
-      #     - TLS-RSA-WITH-AES-128-CCM-8
-      #     - TLS-ECDHE-RSA-WITH-CHACHA20-POLY1305-SHA256
-      #     - TLS-DHE-RSA-WITH-CHACHA20-POLY1305-SHA256
-
-      # Redis specific settings
-      redis:
-        # The maximum key length can't be greater than 65536 bytes
-        max_key_length: 8192
-        max_command_length: 536870912
-        max_command_arguments: 10000
-
+#      # TLS settings
+#      # If the configuration is missing or commented out, TLS is automatically disabled
+#      # If kTLS is available, it will be automatically enabled.
+#      tls:
+#        # Path to the certificate and private key to use
+#        certificate_path: "/etc/cachegrand/certificate.pem"
+#        private_key_path: "/etc/cachegrand/certificate.key"
+#
+#        # Optional parameters to set the min and max version of the TLS versions accepted:
+#        # - any
+#        # - tls1.0
+#        # - tls1.1
+#        # - tls1.2
+#        # - tls1.3
+#        # When any is selected for min_version, automatically tls1.0 will be used.
+#        min_version: tls1.2
+#        max_version: any
+#
+#        # Optional parameter to set the allowed cipher suites, list the available ones with using
+#        # /path/to/cachegrand-server --list-tls-cipher-suites
+#        # The default list enables the ciphers supported by kTLS to allow the kernel offloading, other cipher suites
+#        # are not supporte by kTLS.
+#        cipher_suites:
+#          - TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384
+#          - TLS-DHE-RSA-WITH-AES-256-GCM-SHA384
+#          - TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256
+#          - TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
+#          - TLS-DHE-RSA-WITH-AES-128-CCM
+#          - TLS-DHE-RSA-WITH-AES-128-CCM-8
+#          - TLS-RSA-WITH-AES-256-GCM-SHA384
+#          - TLS-RSA-WITH-AES-128-GCM-SHA256
+#          - TLS-RSA-WITH-AES-128-CCM
+#          - TLS-RSA-WITH-AES-128-CCM-8
+#          - TLS-ECDHE-RSA-WITH-CHACHA20-POLY1305-SHA256
+#          - TLS-DHE-RSA-WITH-CHACHA20-POLY1305-SHA256
       # Bindings
       bindings:
         - host: 0.0.0.0
@@ -96,7 +99,8 @@ network:
 
 # Uncomment to enable prometheus support, more information available at
 # https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/prometheus.md
-#    - type: prometheus
+#  - type: prometheus
+#    network:
 #      timeout:
 #        read_ms: -1
 #        write_ms: 10000
@@ -120,13 +124,10 @@ database:
 # The sentry.io service is used to automatically collect minidumps in case of crashes, it doesn't store them after that
 # they are processed but be aware that minidumps will contain memory regions used by cachegrand and therefore may they
 # may also contain cached data!
-# To avoid accidental/unwanted uploads, it's turned off and the dsn is not set, if you want to provide crash data
-# without having to attach manually generated coredumps or minidumps to a github issue simply enable sentry and set the
-# dsn parameter, or the SENTRY_DSN env variable, to
-# https://05dd54814d8149cab65ba2987d560340@o590814.ingest.sentry.io/5740234
+# To avoid accidental/unwanted uploads, it's turned off, if you want to provide crash data
+# without having to attach manually generated coredumps or minidumps to a github issue simply enable sentry.
 sentry:
   enable: false
-  # dsn: "https://05dd54814d8149cab65ba2987d560340@o590814.ingest.sentry.io/5740234"
 
 # LOGS
 # ---

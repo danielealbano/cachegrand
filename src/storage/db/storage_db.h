@@ -98,15 +98,18 @@ union storage_db_entry_index_status {
     };
 };
 
+typedef struct storage_db_chunk_sequence storage_db_chunk_sequence_t;
+struct storage_db_chunk_sequence {
+    storage_db_chunk_index_t count;
+    storage_db_chunk_info_t *sequence;
+    size_t size;
+};
+
 typedef struct storage_db_entry_index storage_db_entry_index_t;
 struct storage_db_entry_index {
     storage_db_entry_index_status_t status;
-    uint16_t key_length;
-    uint32_t value_length;
-    storage_db_chunk_index_t key_chunks_count;
-    storage_db_chunk_index_t value_chunks_count;
-    storage_db_chunk_info_t *key_chunks_info;
-    storage_db_chunk_info_t *value_chunks_info;
+    storage_db_chunk_sequence_t *key;
+    storage_db_chunk_sequence_t *value;
 } __attribute__((aligned(32)));
 
 char *storage_db_shard_build_path(
@@ -175,16 +178,6 @@ void storage_db_chunk_data_free(
 
 storage_db_entry_index_t *storage_db_entry_index_new();
 
-bool storage_db_entry_index_allocate_key_chunks(
-        storage_db_t *db,
-        storage_db_entry_index_t *entry_index,
-        size_t key_length);
-
-bool storage_db_entry_index_allocate_value_chunks(
-        storage_db_t *db,
-        storage_db_entry_index_t *entry_index,
-        size_t value_length);
-
 void storage_db_entry_index_chunks_free(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index);
@@ -208,25 +201,29 @@ char* storage_db_entry_chunk_read_fast_from_memory(
         storage_db_t *db,
         storage_db_chunk_info_t *chunk_info);
 
-bool storage_db_entry_chunk_read(
+bool storage_db_chunk_read(
         storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
         char *buffer);
 
-bool storage_db_entry_chunk_write(
+bool storage_db_chunk_write(
         storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
         off_t chunk_offset,
         char *buffer,
         size_t buffer_length);
 
-storage_db_chunk_info_t *storage_db_entry_key_chunk_get(
-        storage_db_entry_index_t* entry_index,
+storage_db_chunk_sequence_t *storage_db_chunk_sequence_allocate(
+        storage_db_t *db,
+        size_t size);
+
+storage_db_chunk_info_t *storage_db_chunk_sequence_get(
+        storage_db_chunk_sequence_t *chunk_sequence,
         storage_db_chunk_index_t chunk_index);
 
-storage_db_chunk_info_t *storage_db_entry_value_chunk_get(
-        storage_db_entry_index_t* entry_index,
-        storage_db_chunk_index_t chunk_index);
+void storage_db_chunk_sequence_free(
+        storage_db_t *db,
+        storage_db_chunk_sequence_t *sequence);
 
 void storage_db_entry_index_status_increase_readers_counter(
         storage_db_entry_index_t* entry_index,
@@ -246,11 +243,22 @@ storage_db_entry_index_t *storage_db_get_entry_index(
         char *key,
         size_t key_length);
 
+storage_db_entry_index_t *storage_db_get_entry_index_for_read(
+        storage_db_t *db,
+        char *key,
+        size_t key_length);
+
 bool storage_db_set_entry_index(
         storage_db_t *db,
         char *key,
         size_t key_length,
         storage_db_entry_index_t *entry_index);
+
+bool storage_db_add_new_entry_index(
+        storage_db_t *db,
+        char *key,
+        size_t key_length,
+        storage_db_chunk_sequence_t *chunk_sequence);
 
 bool storage_db_delete_entry_index(
         storage_db_t *db,
@@ -261,8 +269,7 @@ bool storage_db_set_small_value(
         storage_db_t *db,
         char *key,
         size_t key_length,
-        void *value,
-        size_t value_length);
+        storage_db_chunk_sequence_t *value_chunk_sequence);
 
 #ifdef __cplusplus
 }

@@ -497,7 +497,9 @@ void* slab_allocator_mem_alloc_hugepages(
 void* slab_allocator_mem_alloc_zero(
         size_t size) {
     void* memptr = slab_allocator_mem_alloc(size);
-    memset(memptr, 0, size);
+    if (memptr) {
+        memset(memptr, 0, size);
+    }
 
     return memptr;
 }
@@ -604,6 +606,8 @@ void* slab_allocator_mem_alloc(
         size_t size) {
     void* memptr;
 
+    assert(size > 0);
+
     if (likely(slab_allocator_enabled)) {
         if (unlikely(!slab_allocator_thread_cache_has())) {
             slab_allocator_thread_cache_set(slab_allocator_thread_cache_init());
@@ -631,15 +635,17 @@ void* slab_allocator_mem_realloc(
 
     // If the new allocation doesn't fail check if it has to be zeroed
     if (!new_memptr) {
-        if (zero_new_memory) {
-            memset(new_memptr + current_size, 0, new_size - current_size);
-        }
+        return new_memptr;
     }
 
     // Always free the pointer passed, even if the realloc fails
     if (memptr != NULL) {
         memcpy(new_memptr, memptr, current_size);
         slab_allocator_mem_free(memptr);
+    }
+
+    if (zero_new_memory) {
+        memset(new_memptr + current_size, 0, new_size - current_size);
     }
 
     return new_memptr;

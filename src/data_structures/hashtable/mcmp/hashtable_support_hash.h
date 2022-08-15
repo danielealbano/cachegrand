@@ -29,7 +29,7 @@ extern "C" {
 #error "Unsupported hash algorithm"
 #endif
 
-static inline hashtable_hash_t hashtable_mcmp_support_hash_calculate(
+static inline __attribute__((always_inline)) hashtable_hash_t hashtable_mcmp_support_hash_calculate(
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size) {
 #if CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2 == 1
@@ -44,12 +44,12 @@ static inline hashtable_hash_t hashtable_mcmp_support_hash_calculate(
 #endif
 }
 
-static inline hashtable_hash_half_t hashtable_mcmp_support_hash_half(
+static inline __attribute__((always_inline)) hashtable_hash_half_t hashtable_mcmp_support_hash_half(
         hashtable_hash_t hash) {
     return (hash >> 32u) | 0x80000000u;
 }
 
-static inline hashtable_hash_quarter_t hashtable_mcmp_support_hash_quarter(
+static inline __attribute__((always_inline)) hashtable_hash_quarter_t hashtable_mcmp_support_hash_quarter(
         hashtable_hash_half_t hash_half) {
     return hash_half & 0xFFFFu;
 }

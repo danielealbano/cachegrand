@@ -21,7 +21,7 @@
 
 #include "config.h"
 #include "protocol/redis/protocol_redis.h"
-#include "network/protocol/network_protocol.h"
+#include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "network/io/network_io_common_tls.h"
 #include "network/network_tls.h"

@@ -6,12 +6,12 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdatomic.h>
 #include <assert.h>
+#include <time.h>
 
 #include "exttypes.h"
 #include "memory_fences.h"

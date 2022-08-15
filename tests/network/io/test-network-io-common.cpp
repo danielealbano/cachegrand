@@ -19,7 +19,7 @@
 #include <netinet/tcp.h>
 
 #include "protocol/redis/protocol_redis.h"
-#include "network/protocol/network_protocol.h"
+#include "module/module.h"
 #include "network/io/network_io_common.h"
 
 #include "../network_tests_support.h"
@@ -36,7 +36,7 @@ bool test_network_io_common_parse_addresses_foreach_callback_loopback_ipv4_addre
         socklen_t socket_address_size,
         uint16_t port,
         uint16_t backlog,
-        network_protocols_t protocol,
+        module_types_t protocol,
         void* user_data) {
     REQUIRE(port == test_port);
     REQUIRE(backlog == test_backlog);
@@ -53,7 +53,7 @@ bool test_network_io_common_parse_addresses_foreach_callback_loopback_ipv6_addre
         socklen_t socket_address_size,
         uint16_t port,
         uint16_t backlog,
-        network_protocols_t protocol,
+        module_types_t protocol,
         void* user_data) {
     struct in6_addr addr = {0};
     inet_pton(AF_INET6, "::1", &addr);
@@ -76,7 +76,7 @@ bool test_network_io_common_parse_addresses_foreach_callback_localhost_ipv4_ipv6
         socklen_t socket_address_size,
         uint16_t port,
         uint16_t backlog,
-        network_protocols_t protocol,
+        module_types_t protocol,
         void* user_data) {
     if (socket_address->sa_family == AF_INET) {
         ((uint8_t*)user_data)[0] = 1;
@@ -793,7 +793,7 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
                     test_port,
                     test_backlog,
                     test_network_io_common_parse_addresses_foreach_callback_loopback_ipv4_address,
-                    NETWORK_PROTOCOLS_UNKNOWN,
+                    MODULE_TYPE_UNKNOWN,
                     (void*)&test_user_data) == 1);
         }
 
@@ -803,7 +803,7 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
                     test_port,
                     test_backlog,
                     test_network_io_common_parse_addresses_foreach_callback_loopback_ipv6_address,
-                    NETWORK_PROTOCOLS_UNKNOWN,
+                    MODULE_TYPE_UNKNOWN,
                     (void*)&test_user_data) == 1);
         }
 
@@ -814,7 +814,7 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
                     test_port,
                     test_backlog,
                     test_network_io_common_parse_addresses_foreach_callback_localhost_ipv4_ipv6_addresses,
-                    NETWORK_PROTOCOLS_UNKNOWN,
+                    MODULE_TYPE_UNKNOWN,
                     &res) == 2);
 
             REQUIRE(res[0] == 1);
@@ -827,7 +827,7 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
                     test_port,
                     test_backlog,
                     test_network_io_common_parse_addresses_foreach_callback_loopback_ipv6_address,
-                    NETWORK_PROTOCOLS_UNKNOWN,
+                    MODULE_TYPE_UNKNOWN,
                     (void*)&test_user_data) == -1);
         }
     }

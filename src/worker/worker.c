@@ -45,7 +45,7 @@
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "support/simple_file_io.h"
-#include "network/protocol/network_protocol.h"
+#include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
 #include "network/channel/network_channel_iouring.h"
@@ -319,12 +319,12 @@ void worker_cleanup(
         char* log_producer_early_prefix_thread,
         network_channel_t *listeners,
         uint8_t listeners_count,
-        worker_network_protocol_context_t *worker_network_protocol_contexts,
+        worker_module_context_t *worker_module_contexts,
         bool aborted) {
 
-    worker_network_protocol_context_free(
-            worker_context->config->network,
-            worker_network_protocol_contexts);
+    worker_module_context_free(
+            worker_context->config,
+            worker_module_contexts);
     worker_cleanup_network(
             worker_context,
             worker_context->fibers.listeners_fibers,
@@ -346,7 +346,7 @@ void* worker_thread_func(
     bool aborted = true;
     bool res;
 
-    worker_network_protocol_context_t *worker_network_protocol_contexts = NULL;
+    worker_module_context_t *worker_module_contexts = NULL;
     network_channel_t *listeners = NULL;
     uint8_t listeners_count = 0;
     worker_context_t *worker_context = user_data;
@@ -390,8 +390,8 @@ void* worker_thread_func(
         goto end;
     }
 
-    if ((worker_network_protocol_contexts = worker_network_protocol_contexts_initialize(
-            worker_context->config->network)) == NULL) {
+    if ((worker_module_contexts = worker_module_contexts_initialize(
+            worker_context->config)) == NULL) {
         LOG_E(TAG, "Unable to initialize the listeners, can't continue!");
         goto end;
     }
@@ -399,8 +399,8 @@ void* worker_thread_func(
     if (!worker_network_listeners_initialize(
             worker_context->worker_index,
             worker_context->core_index,
-            worker_context->config->network,
-            worker_network_protocol_contexts,
+            worker_context->config,
+            worker_module_contexts,
             &listeners,
             &listeners_count)) {
         LOG_E(TAG, "Unable to initialize the listeners, can't continue!");
@@ -463,7 +463,7 @@ end:
             log_producer_early_prefix_thread,
             listeners,
             listeners_count,
-            worker_network_protocol_contexts,
+            worker_module_contexts,
             aborted);
 
     return NULL;
