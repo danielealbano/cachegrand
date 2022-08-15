@@ -43,7 +43,14 @@
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(ping) {
     network_channel_buffer_data_t *send_buffer, *send_buffer_start;
     module_redis_command_ping_context_t *context = connection_context->command.context;
-    size_t slice_length = 32;
+    char *string = context->message.value.short_string ? context->message.value.short_string : "PONG";
+    int string_length = context->message.value.short_string ? (int)context->message.value.length : 4;
+
+    // The string gets truncated if string_length + 32 > 64kb, not really great but no person should EVER use a string
+    // so long for a ping as it would be devastating for performances so we don't really care and trucate it if needed
+    string_length = string_length + 32 > 64 * 1024 ? (64 * 1024) - 32 : string_length;
+
+    size_t slice_length = 32 + string_length;
 
     send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
             connection_context->network_channel,
@@ -52,9 +59,6 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(ping) {
         LOG_E(TAG, "Unable to acquire send buffer slice!");
         return false;
     }
-
-    char *string = context->message.value.short_string ? context->message.value.short_string : "PONG";
-    int string_length = context->message.value.short_string ? (int)context->message.value.length : 4;
 
     send_buffer_start = protocol_redis_writer_write_blob_string(
             send_buffer_start,
