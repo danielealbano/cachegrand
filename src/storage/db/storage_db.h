@@ -263,7 +263,7 @@ bool storage_db_add_new_entry_index(
         char *key,
         size_t key_length,
         storage_db_chunk_sequence_t *chunk_sequence,
-        storage_db_expiry_time_ms_t expiry_time_realtime);
+        storage_db_expiry_time_ms_t expiry_time_ms);
 
 bool storage_db_delete_entry_index(
         storage_db_t *db,
