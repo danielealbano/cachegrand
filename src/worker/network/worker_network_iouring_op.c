@@ -293,8 +293,8 @@ int32_t worker_network_iouring_op_network_receive(
     int32_t res;
     worker_iouring_context_t *context = worker_iouring_context_get();
     kernel_timespec_t kernel_timespec = {
-            .tv_sec = 0,
-            .tv_nsec = channel->timeout.read_ns,
+            .tv_sec = channel->timeout.read.sec,
+            .tv_nsec = channel->timeout.read.nsec,
     };
 
     fiber_scheduler_reset_error();
@@ -357,8 +357,8 @@ int32_t worker_network_iouring_op_network_send(
     int32_t res;
     worker_iouring_context_t *context = worker_iouring_context_get();
     kernel_timespec_t kernel_timespec = {
-            .tv_sec = 0,
-            .tv_nsec = channel->timeout.write_ns,
+            .tv_sec = channel->timeout.read.sec,
+            .tv_nsec = channel->timeout.read.nsec,
     };
 
     fiber_scheduler_reset_error();
