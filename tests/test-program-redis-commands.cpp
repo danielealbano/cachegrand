@@ -8,11 +8,14 @@
 
 #include <catch2/catch.hpp>
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <string.h>
+#include <cstdint>
+#include <cstdbool>
+#include <cstring>
+#include <memory>
+#include <string>
+#include <stdexcept>
+
 #include <pthread.h>
-#include <signal.h>
 #include <mcheck.h>
 #include <unistd.h>
 #include <netinet/in.h>
@@ -23,17 +26,12 @@
 
 #include "clock.h"
 #include "exttypes.h"
-#include "support/simple_file_io.h"
-#include "pidfile.h"
-#include "xalloc.h"
 #include "memory_fences.h"
 #include "spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
-#include "protocol/redis/protocol_redis.h"
-#include "protocol/redis/protocol_redis_reader.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -51,12 +49,68 @@
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
+template<typename ... Args>
+std::string string_format( const std::string& format, Args ... args )
+{
+    int size_s = std::snprintf( nullptr, 0, format.c_str(), args ... ) + 1; // Extra space for '\0'
+    if( size_s <= 0 ){ throw std::runtime_error( "Error during formatting." ); }
+    auto size = static_cast<size_t>( size_s );
+    std::unique_ptr<char[]> buf( new char[ size ] );
+    std::snprintf( buf.get(), size, format.c_str(), args ... );
+    return std::string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
+}
+
 #define PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(WORKER_CONTEXT, RUNNING) { \
     do { \
         sched_yield(); \
         usleep(10000); \
         MEMORY_FENCE_LOAD(); \
-    } while((WORKER_CONTEXT)->running == !RUNNING); \
+    } while((WORKER_CONTEXT)->running == !(RUNNING)); \
+}
+
+size_t build_resp_command(
+        char *buffer,
+        size_t buffer_size,
+        const std::vector<std::string>& arguments) {
+    size_t buffer_offset = 0;
+    size_t arguments_count = arguments.size();
+
+    buffer_offset += snprintf(buffer, buffer_size, "*%lu\r\n", arguments_count);
+
+    for(const auto& value: arguments) {
+        buffer_offset += snprintf(
+                buffer ? buffer + buffer_offset : nullptr,
+                buffer ? buffer_size - buffer_offset : 0,
+                "$%lu\r\n%s\r\n",
+                value.length(),
+                value.c_str());
+    }
+
+    return buffer_offset;
+}
+
+void send_recv_resp_command(
+        int clientfd,
+        const std::vector<std::string>& arguments,
+        char *expected_recv) {
+    size_t buffer_recv_size = 16 * 1024;
+    char *buffer_recv = (char*)malloc(buffer_recv_size);
+    size_t expected_recv_size = strlen(expected_recv);
+
+    // Build the resp command
+    size_t buffer_send_size = build_resp_command(nullptr, 0, arguments);
+    char *buffer_send = (char*)malloc(buffer_send_size + 1);
+    build_resp_command(buffer_send, buffer_send_size + 1, arguments);
+
+    ssize_t send_length = send(clientfd, buffer_send, buffer_send_size, 0);
+    ssize_t recv_length = recv(clientfd, buffer_recv, buffer_recv_size, 0);
+
+    REQUIRE(send_length == buffer_send_size);
+    REQUIRE(recv_length == expected_recv_size);
+    REQUIRE(strncmp(buffer_recv, expected_recv, strlen(expected_recv)) == 0);
+
+    free(buffer_send);
+    free(buffer_recv);
 }
 
 TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
@@ -140,13 +194,10 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
     SECTION("Redis - command - generic tests") {
         SECTION("Unknown / unsupported command") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$15\r\nUNKNOWN COMMAND\r\n");
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 54);
-            REQUIRE(strncmp(buffer_recv, "-ERR unknown command `UNKNOWN COMMAND` with `0` args\r\n",
-                            strlen("-ERR unknown command `UNKNOWN COMMAND` with `0` args\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "UNKNOWN COMMAND" },
+                    "-ERR unknown command `UNKNOWN COMMAND` with `0` args\r\n");
         }
 
         SECTION("Malformed - more data than declared") {
@@ -155,8 +206,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
             REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 24);
-            REQUIRE(strncmp(buffer_recv, "-ERR parsing error <8>\r\n",
-                            strlen("-ERR parsing error <8>\r\n")) == 0);
+            REQUIRE(strncmp(buffer_recv, "-ERR parsing error '8'\r\n",
+                            strlen("-ERR parsing error '8'\r\n")) == 0);
         }
 
         SECTION("Timeout") {
@@ -238,29 +289,20 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         SECTION("Max command arguments") {
             off_t buffer_send_offset = 0;
             char expected_error[256] = { 0 };
-            int key_count = (int)config.modules->redis->max_command_arguments + 1;
-
-            for(int key_index = 0; key_index < key_count; key_index++) {
-                snprintf(buffer_send, sizeof(buffer_send) - 1, "*3\r\n$3\r\nSET\r\n$11\r\na_key_%05d\r\n$13\r\nb_value_%05d\r\n", key_index, key_index);
-                buffer_send_data_len = strlen(buffer_send);
-
-                REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-                REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
-                REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
-            }
+            int arguments_count = (int)config.modules->redis->max_command_arguments + 1;
 
             buffer_send_offset += snprintf(
                     buffer_send + buffer_send_offset,
                     sizeof(buffer_send) - buffer_send_offset - 1,
                     "*%d\r\n$4\r\nMGET\r\n",
-                    key_count + 1);
+                    arguments_count + 1);
 
-            for(int key_index = 0; key_index < key_count; key_index++) {
+            for(int argument_index = 0; argument_index < arguments_count; argument_index++) {
                 buffer_send_offset += snprintf(
                         buffer_send + buffer_send_offset,
                         sizeof(buffer_send) - buffer_send_offset - 1,
                         "$11\r\na_key_%05d\r\n",
-                        key_index);
+                        argument_index);
             }
 
             buffer_send_data_len = strlen(buffer_send);
@@ -269,7 +311,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                     expected_error,
                     "-ERR command '%s' has '%u' arguments but only '%u' allowed\r\n",
                     "MGET",
-                    key_count,
+                    arguments_count,
                     (int)config.modules->redis->max_command_arguments);
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
@@ -360,143 +402,143 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
     }
 
     SECTION("Redis - command - SET") {
-        char *cmd_buffer_1 = "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nb_value\r\n";
-        char *cmd_buffer_2 = "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nvalue_z\r\n";
-        char *cmd_buffer_3 = "*3\r\n$3\r\nSET\r\n$40\r\nthis is a long key that can't be inlined\r\n$7\r\nb_value\r\n";
-
         SECTION("New key - short") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "%s", cmd_buffer_1);
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
-            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "SET", "a_key", "b_value" },
+                    "+OK\r\n");
 
             // TODO: check the hashtable
         }
 
         SECTION("New key - long") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "%s", cmd_buffer_3);
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0));
-            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "SET", "a_key", "this is a long key that can't be inlined" },
+                    "+OK\r\n");
 
             // TODO: check the hashtable
         }
 
         SECTION("Overwrite key") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "%s", cmd_buffer_1);
-            buffer_send_data_len = strlen(buffer_send);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "SET", "a_key", "b_value" },
+                    "+OK\r\n");
 
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
-            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
-
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "%s", cmd_buffer_2);
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
-            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "SET", "a_key", "value_z" },
+                    "+OK\r\n");
 
             // TODO: check the hashtable
         }
 
         SECTION("Missing parameters - key and value") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$3\r\nSET\r\n");
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 50);
-            REQUIRE(strncmp(
-                    buffer_recv,
-                    "-ERR wrong number of arguments for 'SET' command\r\n",
-                    strlen("-ERR wrong number of arguments for 'SET' command\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "SET" },
+                    "-ERR wrong number of arguments for 'SET' command\r\n");
         }
 
         SECTION("Missing parameters - value") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*2\r\n$3\r\nSET\r\n$5\r\na_key\r\n");
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 50);
-            REQUIRE(strncmp(
-                    buffer_recv,
-                    "-ERR wrong number of arguments for 'SET' command\r\n",
-                    strlen("-ERR wrong number of arguments for 'SET' command\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "SET", "a_key" },
+                    "-ERR wrong number of arguments for 'SET' command\r\n");
         }
 
         SECTION("Too many parameters - one extra parameter") {
-            char expected_error[] = "-ERR the command 'SET' doesn't support the parameter 'extra parameter'\r\n";
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "SET", "a_key", "b_value", "extra parameter" },
+                    "-ERR the command 'SET' doesn't support the parameter 'extra parameter'\r\n");
+        }
 
-            snprintf(
-                    buffer_send,
-                    sizeof(buffer_send) - 1,
-                    "*4\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nb_value\r\n$15\r\nextra parameter\r\n");
-            buffer_send_data_len = strlen(buffer_send);
+        SECTION("New key - expire in 500ms") {
+            config_module_network_timeout.read_ms = 1000;
 
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
-            REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "SET", "a_key", "b_value", "PX", "500" },
+                    "+OK\r\n");
+
+            send_recv_resp_command(
+                    clientfd,
+                   std::vector<std::string> { "GET", "a_key" },
+                    "$7\r\nb_value\r\n");
+
+            // Wait for 600 ms and try to get the value after the expiration
+            usleep((500 + 100) * 1000);
+
+            send_recv_resp_command(
+                    clientfd,
+                   std::vector<std::string> { "GET", "a_key" },
+                    "$-1\r\n");
+        }
+
+        SECTION("New key - expire in 1s") {
+            config_module_network_timeout.read_ms = 2000;
+
+            send_recv_resp_command(
+                    clientfd,
+                   std::vector<std::string> { "SET", "a_key", "b_value", "EX", "1" },
+                    "+OK\r\n");
+
+            send_recv_resp_command(
+                    clientfd,
+                   std::vector<std::string> { "GET", "a_key" },
+                    "$7\r\nb_value\r\n");
+
+            // Wait for 1100 ms and try to get the value after the expiration
+            usleep((1000 + 100) * 1000);
+
+            send_recv_resp_command(
+                    clientfd,
+                   std::vector<std::string> { "GET", "a_key" },
+                    "$-1\r\n");
         }
     }
 
     SECTION("Redis - command - DEL") {
         SECTION("Existing key") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nb_value\r\n");
-            buffer_send_data_len = strlen(buffer_send);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "SET", "a_key", "b_value" },
+                    "+OK\r\n");
 
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
-            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
-
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*2\r\n$3\r\nDEL\r\n$5\r\na_key\r\n");
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 4);
-            REQUIRE(strncmp(buffer_recv, ":1\r\n", strlen(":1\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "DEL", "a_key" },
+                    ":1\r\n");
         }
 
         SECTION("Non-existing key") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*2\r\n$3\r\nDEL\r\n$5\r\na_key\r\n");
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 4);
-            REQUIRE(strncmp(buffer_recv, ":0\r\n", strlen(":0\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "DEL", "a_key" },
+                    ":0\r\n");
         }
 
         SECTION("Missing parameters - key") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$3\r\nDEL\r\n");
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 50);
-            REQUIRE(strncmp(
-                    buffer_recv,
-                    "-ERR wrong number of arguments for 'DEL' command\r\n",
-                    strlen("-ERR wrong number of arguments for 'DEL' command\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "DEL" },
+                    "-ERR wrong number of arguments for 'DEL' command\r\n");
         }
     }
 
     SECTION("Redis - command - GET") {
         SECTION("Existing key") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nb_value\r\n");
-            buffer_send_data_len = strlen(buffer_send);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "SET", "a_key", "b_value" },
+                    "+OK\r\n");
 
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
-            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
-
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*2\r\n$3\r\nGET\r\n$5\r\na_key\r\n");
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 13);
-            REQUIRE(strncmp(buffer_recv, "$7\r\nb_value\r\n", strlen("$7\r\nb_value\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "GET", "a_key" },
+                    "$7\r\nb_value\r\n");
         }
 
         SECTION("Existing key - pipelining") {
@@ -535,42 +577,31 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
 
         SECTION("Non-existing key") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*2\r\n$3\r\nGET\r\n$5\r\na_key\r\n");
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
-            REQUIRE(strncmp(buffer_recv, "$-1\r\n", strlen("$-1\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "GET", "a_key" },
+                    "$-1\r\n");
         }
 
         SECTION("Missing parameters - key") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$3\r\nGET\r\n");
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 50);
-            REQUIRE(strncmp(
-                    buffer_recv,
-                    "-ERR wrong number of arguments for 'GET' command\r\n",
-                    strlen("-ERR wrong number of arguments for 'GET' command\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "GET" },
+                    "-ERR wrong number of arguments for 'GET' command\r\n");
         }
     }
 
     SECTION("Redis - command - MGET") {
         SECTION("Existing key") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nb_value\r\n");
-            buffer_send_data_len = strlen(buffer_send);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "SET", "a_key", "b_value" },
+                    "+OK\r\n");
 
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
-            REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
-
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*2\r\n$4\r\nMGET\r\n$5\r\na_key\r\n");
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 17);
-            REQUIRE(strncmp(buffer_recv, "*1\r\n$7\r\nb_value\r\n", strlen("*1\r\n$7\r\nb_value\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "MGET", "a_key" },
+                    "*1\r\n$7\r\nb_value\r\n");
         }
 
         SECTION("Existing key - pipelining") {
@@ -609,70 +640,34 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
 
         SECTION("Non-existing key") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*2\r\n$4\r\nMGET\r\n$5\r\na_key\r\n");
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 9);
-            REQUIRE(strncmp(buffer_recv, "*1\r\n$-1\r\n", strlen("*1\r\n$-1\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "MGET", "a_key" },
+                    "*1\r\n$-1\r\n");
         }
 
         SECTION("Missing parameters - key") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$4\r\nMGET\r\n");
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 51);
-            REQUIRE(strncmp(
-                    buffer_recv,
-                    "-ERR wrong number of arguments for 'MGET' command\r\n",
-                    strlen("-ERR wrong number of arguments for 'MGET' command\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "MGET" },
+                    "-ERR wrong number of arguments for 'MGET' command\r\n");
         }
 
         SECTION("Fetch 2 keys") {
-            int key_count = 2;
-            char buffer_recv_cmp[8 * 1024] = { 0 };
-            size_t buffer_recv_cmp_length;
-            off_t buffer_recv_cmp_offset = 0;
-            off_t buffer_send_offset = 0;
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "SET", "a_key_1", "b_value_1" },
+                    "+OK\r\n");
 
-            for(int key_index = 0; key_index < key_count; key_index++) {
-                snprintf(buffer_send, sizeof(buffer_send) - 1, "*3\r\n$3\r\nSET\r\n$11\r\na_key_%05d\r\n$13\r\nb_value_%05d\r\n", key_index, key_index);
-                buffer_send_data_len = strlen(buffer_send);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "SET", "a_key_2", "b_value_2" },
+                    "+OK\r\n");
 
-                REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-                REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
-                REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
-            }
-
-            buffer_send_offset += snprintf(
-                    buffer_send + buffer_send_offset,
-                    sizeof(buffer_send) - buffer_send_offset - 1,
-                    "*3\r\n$4\r\nMGET\r\n");
-            buffer_recv_cmp_offset += snprintf(
-                    buffer_recv_cmp + buffer_recv_cmp_offset,
-                    sizeof(buffer_recv_cmp) - buffer_recv_cmp_offset - 1,
-                    "*2\r\n");
-
-            for(int key_index = 0; key_index < key_count; key_index++) {
-                buffer_send_offset += snprintf(
-                        buffer_send + buffer_send_offset,
-                        sizeof(buffer_send) - buffer_send_offset - 1,
-                        "$11\r\na_key_%05d\r\n",
-                        key_index);
-                buffer_recv_cmp_offset += snprintf(
-                        buffer_recv_cmp + buffer_recv_cmp_offset,
-                        sizeof(buffer_recv_cmp) - buffer_recv_cmp_offset - 1,
-                        "$13\r\nb_value_%05d\r\n",
-                        key_index);
-            }
-
-            buffer_send_data_len = strlen(buffer_send);
-            buffer_recv_cmp_length = strlen(buffer_recv_cmp);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == buffer_recv_cmp_length);
-            REQUIRE(strncmp(buffer_recv, buffer_recv_cmp, buffer_recv_cmp_length) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "MGET", "a_key_1", "a_key_2" },
+                    "*2\r\n$7\r\nb_value_1\r\n$7\r\nb_value_2\r\n");
         }
 
         SECTION("Fetch 128 keys") {
@@ -683,12 +678,14 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             off_t buffer_send_offset = 0;
 
             for(int key_index = 0; key_index < key_count; key_index++) {
-                snprintf(buffer_send, sizeof(buffer_send) - 1, "*3\r\n$3\r\nSET\r\n$11\r\na_key_%05d\r\n$13\r\nb_value_%05d\r\n", key_index, key_index);
-                buffer_send_data_len = strlen(buffer_send);
-
-                REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-                REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 5);
-                REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string> {
+                                "SET",
+                                string_format("a_key_%05d", key_index),
+                                string_format("b_value_%05d", key_index)
+                            },
+                        "+OK\r\n");
             }
 
             buffer_send_offset += snprintf(
@@ -722,42 +719,35 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
     }
 
+
     SECTION("Redis - command - PING") {
         SECTION("Without value") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$4\r\nPING\r\n");
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 10);
-            REQUIRE(strncmp(buffer_recv, "$4\r\nPONG\r\n", strlen("$4\r\nPONG\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "PING" },
+                    "$4\r\nPONG\r\n");
         }
 
         SECTION("With value") {
-            snprintf(buffer_send, sizeof(buffer_send) - 1, "*2\r\n$4\r\nPING\r\n$4\r\ntest\r\n");
-            buffer_send_data_len = strlen(buffer_send);
-
-            REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-            REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 10);
-            REQUIRE(strncmp(buffer_recv, "$4\r\ntest\r\n", strlen("$4\r\ntest\r\n")) == 0);
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "PING", "a test" },
+                    "$6\r\na test\r\n");
         }
     }
 
     SECTION("Redis - command - QUIT") {
-        snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$4\r\nQUIT\r\n");
-        buffer_send_data_len = strlen(buffer_send);
-
-        REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-        REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 8);
-        REQUIRE(strncmp(buffer_recv, "$2\r\nOK\r\n", strlen("$2\r\nOK\r\n")) == 0);
+        send_recv_resp_command(
+                clientfd,
+                std::vector<std::string> { "QUIT" },
+                "$2\r\nOK\r\n");
     }
 
     SECTION("Redis - command - SHUTDOWN") {
-        snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$8\r\nSHUTDOWN\r\n");
-        buffer_send_data_len = strlen(buffer_send);
-
-        REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-        REQUIRE(recv(clientfd, buffer_recv, sizeof(buffer_recv), 0) == 8);
-        REQUIRE(strncmp(buffer_recv, "$2\r\nOK\r\n", strlen("$2\r\nOK\r\n")) == 0);
+        send_recv_resp_command(
+                clientfd,
+                std::vector<std::string> { "SHUTDOWN" },
+                "$2\r\nOK\r\n");
 
         // Wait 5 seconds in addition to the max duration of the wait time in the loop to ensure that the worker has
         // plenty of time to shutdown
