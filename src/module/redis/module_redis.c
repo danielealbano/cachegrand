@@ -167,13 +167,9 @@ bool module_redis_process_data(
 
             assert(ops_found < UINT8_MAX);
 
-            if (unlikely(connection_context->reader_context.error != PROTOCOL_REDIS_READER_ERROR_OK)) {
+            if (unlikely(module_redis_connection_reader_has_error(connection_context))) {
                 assert(ops_found == -1);
-                module_redis_connection_error_message_printf_critical(
-                        connection_context,
-                        "ERR parsing error '%d'",
-                        connection_context->reader_context.error);
-
+                module_redis_connection_set_error_message_from_reader(connection_context);
                 break;
             }
 
@@ -374,10 +370,6 @@ bool module_redis_process_data(
                 read_buffer->data_size > 0 &&
                 connection_context->reader_context.state != PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED &&
                 connection_context->reader_context.error != PROTOCOL_REDIS_READER_ERROR_OK);
-
-        if (unlikely(module_redis_connection_reader_has_error(connection_context))) {
-            module_redis_connection_set_error_message_from_reader(connection_context);
-        }
 
         if (unlikely(module_redis_connection_has_error(connection_context))) {
             if (!module_redis_connection_send_error(connection_context)) {
