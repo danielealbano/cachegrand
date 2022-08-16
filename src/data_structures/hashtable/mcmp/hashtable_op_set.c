@@ -126,7 +126,7 @@ bool hashtable_mcmp_op_set(
 
     LOG_DI("unlocking half_hashes_chunk 0x%016x", half_hashes_chunk);
 
-    // Validate if the passed key can be freed because unused or beacuse inlined
+    // Validate if the passed key can be freed because unused or because inlined
     if (!created_new || key_inlined) {
         slab_allocator_mem_free(key);
     }

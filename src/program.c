@@ -671,6 +671,11 @@ int program_main(
                 CACHEGRAND_CMAKE_CONFIG_NAME);
     }
 
+    LOG_I(
+            TAG,
+            "> Clock resolution: %ld ms",
+            clock_realtime_coarse_get_resolution_ms());
+
     // Initialize the log sinks defined in the configuration, if any is defined. The function will take care of dropping
     // the temporary log sink defined initially
     program_config_setup_log_sinks(program_context->config);

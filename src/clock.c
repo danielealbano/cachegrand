@@ -7,3 +7,19 @@
  **/
 
 #include "clock.h"
+
+int64_t clock_realtime_coarse_get_resolution_ms() {
+    timespec_t res;
+    clock_getres(CLOCK_REALTIME_COARSE, &res);
+    int64_t res_ms = clock_timespec_to_int64_ms(&res);
+
+    return res_ms;
+}
+
+int64_t clock_monotonic_coarse_get_resolution_ms() {
+    timespec_t res;
+    clock_getres(CLOCK_MONOTONIC_COARSE, &res);
+    int64_t res_ms = clock_timespec_to_int64_ms(&res);
+
+    return res_ms;
+}
