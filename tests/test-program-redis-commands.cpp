@@ -667,7 +667,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             send_recv_resp_command(
                     clientfd,
                     std::vector<std::string> { "MGET", "a_key_1", "a_key_2" },
-                    "*2\r\n$7\r\nb_value_1\r\n$7\r\nb_value_2\r\n");
+                    "*2\r\n$9\r\nb_value_1\r\n$9\r\nb_value_2\r\n");
         }
 
         SECTION("Fetch 128 keys") {
