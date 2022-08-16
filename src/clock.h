@@ -22,6 +22,9 @@ extern "C" {
 
 typedef struct timespec timespec_t;
 
+int64_t clock_monotonic_coarse_get_resolution_ms();
+int64_t clock_realtime_coarse_get_resolution_ms();
+
 static inline __attribute__((always_inline)) int64_t clock_timespec_to_int64_ms(
         timespec_t *timespec) {
     time_t s = timespec->tv_sec * 1000;

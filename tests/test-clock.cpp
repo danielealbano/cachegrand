@@ -126,12 +126,11 @@ TEST_CASE("clock.c", "[clock]") {
     }
 
     SECTION("clock_monotonic_coarse_int64_ms") {
-        timespec_t a, res;
+        timespec_t a;
         clock_monotonic_coarse(&a);
         int64_t b = clock_monotonic_coarse_int64_ms();
 
-        clock_getres(CLOCK_MONOTONIC_COARSE, &res);
-        int64_t res_ms = clock_timespec_to_int64_ms(&res);
+        int64_t res_ms = clock_monotonic_coarse_get_resolution_ms();
 
         // Allow up to res in ms of difference
         int64_t diff = (b - clock_timespec_to_int64_ms(&a)) + res_ms;
@@ -139,12 +138,11 @@ TEST_CASE("clock.c", "[clock]") {
     }
 
     SECTION("clock_realtime_coarse_int64_ms") {
-        timespec_t a, res;
+        timespec_t a;
         clock_realtime_coarse(&a);
         int64_t b = clock_realtime_coarse_int64_ms();
 
-        clock_getres(CLOCK_REALTIME_COARSE, &res);
-        int64_t res_ms = clock_timespec_to_int64_ms(&res);
+        int64_t res_ms = clock_realtime_coarse_get_resolution_ms();
 
         // Allow up to res in ms of difference
         int64_t diff = (b - clock_timespec_to_int64_ms(&a)) + res_ms;
