@@ -93,7 +93,7 @@ void module_redis_connection_set_error_message_from_reader(
         module_redis_connection_context_t *connection_context) {
     module_redis_connection_error_message_printf_critical(
             connection_context,
-            "ERR parsing error <%d>",
+            "ERR parsing error '%d'",
             connection_context->reader_context.error);
 }
 
