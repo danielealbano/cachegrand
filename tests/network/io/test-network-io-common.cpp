@@ -236,14 +236,14 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
         }
     }
 
-    SECTION("network_io_common_socket_set_keepalive") {
+    SECTION("network_io_common_socket_enable_keepalive") {
         SECTION("valid socket fd") {
             int val;
             socklen_t val_size = sizeof(val);
             int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
             REQUIRE(fd > 0);
-            REQUIRE(network_io_common_socket_set_keepalive(fd, true));
+            REQUIRE(network_io_common_socket_enable_keepalive(fd, true));
             REQUIRE(getsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &val, &val_size) == 0);
             REQUIRE(val == 1);
 
@@ -251,7 +251,67 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
         }
 
         SECTION("invalid socket fd") {
-            REQUIRE(!network_io_common_socket_set_keepalive(-1, true));
+            REQUIRE(!network_io_common_socket_enable_keepalive(-1, true));
+        }
+    }
+
+    SECTION("network_io_common_socket_enable_keepalive") {
+        SECTION("valid socket fd") {
+            int val;
+            socklen_t val_size = sizeof(val);
+            int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(fd > 0);
+            REQUIRE(network_io_common_socket_enable_keepalive(fd, true));
+            REQUIRE(network_io_common_socket_set_keepalive_count(fd, 3));
+            REQUIRE(getsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &val, &val_size) == 0);
+            REQUIRE(val == 3);
+
+            close(fd);
+        }
+
+        SECTION("invalid socket fd") {
+            REQUIRE(!network_io_common_socket_set_keepalive_count(-1, true));
+        }
+    }
+
+    SECTION("network_io_common_socket_enable_keepalive") {
+        SECTION("valid socket fd") {
+            int val;
+            socklen_t val_size = sizeof(val);
+            int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(fd > 0);
+            REQUIRE(network_io_common_socket_enable_keepalive(fd, true));
+            REQUIRE(network_io_common_socket_set_keepalive_idle(fd, 6));
+            REQUIRE(getsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &val, &val_size) == 0);
+            REQUIRE(val == 6);
+
+            close(fd);
+        }
+
+        SECTION("invalid socket fd") {
+            REQUIRE(!network_io_common_socket_set_keepalive_idle(-1, true));
+        }
+    }
+
+    SECTION("network_io_common_socket_enable_keepalive") {
+        SECTION("valid socket fd") {
+            int val;
+            socklen_t val_size = sizeof(val);
+            int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+            REQUIRE(fd > 0);
+            REQUIRE(network_io_common_socket_enable_keepalive(fd, true));
+            REQUIRE(network_io_common_socket_set_keepalive_interval(fd, 9));
+            REQUIRE(getsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &val, &val_size) == 0);
+            REQUIRE(val == 9);
+
+            close(fd);
+        }
+
+        SECTION("invalid socket fd") {
+            REQUIRE(!network_io_common_socket_set_keepalive_interval(-1, true));
         }
     }
 

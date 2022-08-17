@@ -106,11 +106,29 @@ bool network_io_common_socket_set_linger(
     return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger));
 }
 
-bool network_io_common_socket_set_keepalive(
+bool network_io_common_socket_enable_keepalive(
         network_io_common_fd_t fd,
         bool enable) {
     int val = enable ? 1 : 0;
     return network_io_common_socket_set_option(fd, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val));
+}
+
+bool network_io_common_socket_set_keepalive_count(
+        network_io_common_fd_t fd,
+        uint32_t keepalive_count) {
+    return network_io_common_socket_set_option(fd, IPPROTO_TCP, TCP_KEEPCNT, &keepalive_count, sizeof(keepalive_count));
+}
+
+bool network_io_common_socket_set_keepalive_idle(
+        network_io_common_fd_t fd,
+        uint32_t keepalive_idle) {
+    return network_io_common_socket_set_option(fd, IPPROTO_TCP, TCP_KEEPIDLE, &keepalive_idle, sizeof(keepalive_idle));
+}
+
+bool network_io_common_socket_set_keepalive_interval(
+        network_io_common_fd_t fd,
+        uint32_t keepalive_interval) {
+    return network_io_common_socket_set_option(fd, IPPROTO_TCP, TCP_KEEPINTVL, &keepalive_interval, sizeof(keepalive_interval));
 }
 
 bool network_io_common_socket_set_incoming_cpu(
