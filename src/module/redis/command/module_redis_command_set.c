@@ -130,7 +130,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
                 expiry_time_ms = previous_entry_index->expiry_time_ms;
             }
 
-            if (unlikely(!storage_db_op_rmw_commit(
+            if (unlikely(!storage_db_op_rmw_commit_update(
                     connection_context->db,
                     &transaction,
                     context->value.value.chunk_sequence,
