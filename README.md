@@ -26,8 +26,8 @@ cachegrand is able to scale linearly if enough cpu power is left to the operatin
 Latencies are great as well, especially taking into account that with 6400 clients over 64 cores the operating system
 doesn't really have too much room to handle the network traffic.
 
-![Latency with 1 threads and 100 clients](https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/benchmarks/cachegrand-amd-epyc-7502p-latencies-1t.png)
-![Latency with 64 threads and 6400 clients](https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/benchmarks/cachegrand-amd-epyc-7502p-latencies-64t.png)
+![Latency with 1 threads and 100 clients](https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/benchmarks/cachegrand-amd-epyc-7502p-latencies-t1.jpg)
+![Latency with 64 threads and 6400 clients](https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/benchmarks/cachegrand-amd-epyc-7502p-latencies-t64.jpg)
 
 Key features:
 - [Modular](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules.md) architecture to support widely used protocols, e.g.
