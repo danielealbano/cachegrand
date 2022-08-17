@@ -286,11 +286,15 @@ bool storage_db_op_rmw_begin(
         storage_db_op_rmw_transaction_t *rmw_transaction,
         storage_db_entry_index_t **previous_entry_index);
 
-bool storage_db_op_rmw_commit(
+bool storage_db_op_rmw_commit_update(
         storage_db_t *db,
         storage_db_op_rmw_transaction_t *rmw_transaction,
         storage_db_chunk_sequence_t *value_chunk_sequence,
         storage_db_expiry_time_ms_t expiry_time_ms);
+
+void storage_db_op_rmw_commit_delete(
+        storage_db_t *db,
+        storage_db_op_rmw_transaction_t *rmw_transaction);
 
 void storage_db_op_rmw_abort(
         storage_db_op_rmw_transaction_t *rmw_transaction);

@@ -1032,7 +1032,7 @@ bool storage_db_op_rmw_begin(
             (uintptr_t*)previous_entry_index);
 }
 
-bool storage_db_op_rmw_commit(
+bool storage_db_op_rmw_commit_update(
         storage_db_t *db,
         storage_db_op_rmw_transaction_t *rmw_transaction,
         storage_db_chunk_sequence_t *value_chunk_sequence,
@@ -1075,9 +1075,9 @@ bool storage_db_op_rmw_commit(
     entry_index->value = value_chunk_sequence;
     entry_index->expiry_time_ms = expiry_time_ms;
 
-    hashtable_mcmp_op_rmw_commit(
+    hashtable_mcmp_op_rmw_commit_update(
             &rmw_transaction->hashtable_rmw_transaction,
-            (uintptr_t)entry_index);
+            (uintptr_t) entry_index);
 
     if (rmw_transaction->hashtable_rmw_transaction.previous_entry_index != 0) {
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
@@ -1099,6 +1099,16 @@ end:
     }
 
     return result_res;
+}
+
+void storage_db_op_rmw_commit_delete(
+        storage_db_t *db,
+        storage_db_op_rmw_transaction_t *rmw_transaction) {
+    storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
+            db,
+            (storage_db_entry_index_t *)rmw_transaction->hashtable_rmw_transaction.previous_entry_index);
+
+    hashtable_mcmp_op_rmw_commit_delete(&rmw_transaction->hashtable_rmw_transaction);
 }
 
 void storage_db_op_rmw_abort(
