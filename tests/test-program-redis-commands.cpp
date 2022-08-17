@@ -455,6 +455,68 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                     "-ERR the command 'SET' doesn't support the parameter 'extra parameter'\r\n");
         }
 
+        SECTION("New key - XX") {
+            SECTION("Key not existing") {
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string>{"SET", "a_key", "b_value", "XX"},
+                        "$-1\r\n");
+
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string> { "GET", "a_key" },
+                        "$-1\r\n");
+            }
+
+            SECTION("Key existing") {
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string>{"SET", "a_key", "b_value"},
+                        "+OK\r\n");
+
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string>{"SET", "a_key", "c_value", "XX"},
+                        "+OK\r\n");
+
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string> { "GET", "a_key" },
+                        "$7\r\nc_value\r\n");
+            }
+        }
+
+        SECTION("New key - NX") {
+            SECTION("Key not existing") {
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string>{"SET", "a_key", "b_value", "NX"},
+                        "+OK\r\n");
+
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string> { "GET", "a_key" },
+                        "$7\r\nb_value\r\n");
+            }
+
+            SECTION("Key existing") {
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string>{"SET", "a_key", "b_value"},
+                        "+OK\r\n");
+
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string>{"SET", "a_key", "c_value", "NX"},
+                        "$-1\r\n");
+
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string> { "GET", "a_key" },
+                        "$7\r\nb_value\r\n");
+            }
+        }
+
         SECTION("New key - expire in 500ms") {
             config_module_network_timeout.read_ms = 1000;
 
@@ -482,12 +544,12 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             send_recv_resp_command(
                     clientfd,
-                   std::vector<std::string> { "SET", "a_key", "b_value", "EX", "1" },
+                    std::vector<std::string> { "SET", "a_key", "b_value", "EX", "1" },
                     "+OK\r\n");
 
             send_recv_resp_command(
                     clientfd,
-                   std::vector<std::string> { "GET", "a_key" },
+                    std::vector<std::string> { "GET", "a_key" },
                     "$7\r\nb_value\r\n");
 
             // Wait for 1100 ms and try to get the value after the expiration
@@ -495,8 +557,102 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             send_recv_resp_command(
                     clientfd,
-                   std::vector<std::string> { "GET", "a_key" },
+                    std::vector<std::string> { "GET", "a_key" },
                     "$-1\r\n");
+        }
+
+        SECTION("New key - KEEPTTL") {
+            config_module_network_timeout.read_ms = 1000;
+
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "SET", "a_key", "b_value", "PX", "500" },
+                    "+OK\r\n");
+
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "GET", "a_key" },
+                    "$7\r\nb_value\r\n");
+
+            // Wait for 250 ms and then try to get the value and try to update the value keeping the same ttl
+            // as the initial was in 500ms will expire after 250
+            usleep(250 * 1000);
+
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "GET", "a_key" },
+                    "$7\r\nb_value\r\n");
+
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "SET", "a_key", "c_value", "KEEPTTL" },
+                    "+OK\r\n");
+
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "GET", "a_key" },
+                    "$7\r\nc_value\r\n");
+
+            // Wait for 350 ms and try to get the value after the expiration
+            usleep((250 + 100) * 1000);
+
+            send_recv_resp_command(
+                    clientfd,
+                    std::vector<std::string> { "GET", "a_key" },
+                    "$-1\r\n");
+        }
+
+        SECTION("New key - GET") {
+            SECTION("Key not existing") {
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string>{"SET", "a_key", "b_value", "GET"},
+                        "$-1\r\n");
+            }
+
+            SECTION("Key existing") {
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string>{"SET", "a_key", "b_value"},
+                        "+OK\r\n");
+
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string>{"SET", "a_key", "c_value", "GET"},
+                        "$7\r\nb_value\r\n");
+
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string>{"GET", "a_key"},
+                        "$7\r\nc_value\r\n");
+            }
+
+            SECTION("Multiple SET") {
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string>{"SET", "a_key", "b_value"},
+                        "+OK\r\n");
+
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string>{"SET", "a_key", "c_value", "GET"},
+                        "$7\r\nb_value\r\n");
+
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string>{"SET", "a_key", "d_value", "GET"},
+                        "$7\r\nc_value\r\n");
+
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string>{"SET", "a_key", "e_value", "GET"},
+                        "$7\r\nd_value\r\n");
+
+                send_recv_resp_command(
+                        clientfd,
+                        std::vector<std::string>{"GET", "a_key"},
+                        "$7\r\ne_value\r\n");
+            }
         }
     }
 
