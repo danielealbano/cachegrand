@@ -891,6 +891,8 @@ bool storage_db_entry_index_is_expired(
 
 storage_db_entry_index_t *storage_db_get_entry_index_prep_for_read(
         storage_db_t *db,
+        char *key,
+        size_t key_length,
         storage_db_entry_index_t *entry_index) {
     storage_db_entry_index_status_t old_status;
 
@@ -921,7 +923,7 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read(
     entry_index = storage_db_get_entry_index(db, key, key_length);
 
     if (likely(entry_index)) {
-        entry_index = storage_db_get_entry_index_prep_for_read(db, entry_index);
+        entry_index = storage_db_get_entry_index_prep_for_read(db,  key, key_length, entry_index);
     }
 
     return entry_index;

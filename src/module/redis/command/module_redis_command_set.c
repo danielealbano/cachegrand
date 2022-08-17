@@ -110,6 +110,8 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
             previous_entry_index_prepped_for_read = true;
             previous_entry_index = storage_db_get_entry_index_prep_for_read(
                     connection_context->db,
+                    context->key.value.key,
+                    context->key.value.length,
                     previous_entry_index);
         }
 
