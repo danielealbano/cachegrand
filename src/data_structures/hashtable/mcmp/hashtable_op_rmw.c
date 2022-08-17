@@ -79,7 +79,7 @@ bool hashtable_mcmp_op_rmw_begin(
     rmw_status->chunk_slot_index = chunk_slot_index;
     rmw_status->key_value = key_value;
     rmw_status->created_new = created_new;
-    rmw_status->previous_entry_index = created_new ? 0 : key_value->data;
+    rmw_status->current_value = created_new ? 0 : key_value->data;
 
     return true;
 }

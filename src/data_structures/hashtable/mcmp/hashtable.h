@@ -173,7 +173,7 @@ struct hashtable_mcmp_op_rmw_transaction {
     hashtable_chunk_index_t chunk_index;
     hashtable_chunk_slot_index_t chunk_slot_index;
     bool created_new;
-    uintptr_t previous_entry_index;
+    uintptr_t current_value;
 };
 
 hashtable_t* hashtable_mcmp_init(hashtable_config_t* hashtable_config);
