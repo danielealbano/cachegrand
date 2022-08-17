@@ -44,9 +44,18 @@ bool network_io_common_socket_set_linger(
         network_io_common_fd_t fd,
         bool enable,
         int seconds);
-bool network_io_common_socket_set_keepalive(
+bool network_io_common_socket_enable_keepalive(
         network_io_common_fd_t fd,
         bool enable);
+bool network_io_common_socket_set_keepalive_count(
+        network_io_common_fd_t fd,
+        uint32_t keepalive_count);
+bool network_io_common_socket_set_keepalive_idle(
+        network_io_common_fd_t fd,
+        uint32_t keepalive_idle);
+bool network_io_common_socket_set_keepalive_interval(
+        network_io_common_fd_t fd,
+        uint32_t keepalive_interval);
 bool network_io_common_socket_set_incoming_cpu(
         network_io_common_fd_t fd,
         int cpu);
