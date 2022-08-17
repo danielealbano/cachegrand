@@ -128,6 +128,28 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
         return NULL;
     }
 
+    if (listener_channel->wrapped_channel.module_config->network->keepalive != NULL) {
+        bool error = false;
+        error |= !network_io_common_socket_enable_keepalive(new_channel->wrapped_channel.fd, true);
+        error |= !network_io_common_socket_set_keepalive_count(
+                new_channel->wrapped_channel.fd,
+                listener_channel->wrapped_channel.module_config->network->keepalive->probes);
+        error |= !network_io_common_socket_set_keepalive_idle(
+                new_channel->wrapped_channel.fd,
+                listener_channel->wrapped_channel.module_config->network->keepalive->time);
+        error |= !network_io_common_socket_set_keepalive_interval(
+                new_channel->wrapped_channel.fd,
+                listener_channel->wrapped_channel.module_config->network->keepalive->interval);
+
+        if (error) {
+            LOG_W(
+                    TAG,
+                    "Failed to enable the keepalive settings the connection <%s> coming from listener <%s>",
+                    new_channel->wrapped_channel.address.str,
+                    listener_channel->wrapped_channel.address.str);
+        }
+    }
+
     if (listener_channel->wrapped_channel.tls.enabled) {
         network_channel_tls_set_config(
                 &new_channel->wrapped_channel,
