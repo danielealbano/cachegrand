@@ -23,10 +23,10 @@ cachegrand is able to scale linearly if enough cpu power is left to the operatin
 ![GET Operations/s](https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/benchmarks/cachegrand-amd-epyc-7502p-get-ops.png)
 ![SET Operations/s](https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/benchmarks/cachegrand-amd-epyc-7502p-set-ops.png)
 
-Latencies are also very good, especially when handling 6400 clients taking into account that the operating system
-doesn't have any free cpu core to handle the network traffic.
+Latencies are great as well, especially taking into account that with 6400 clients over 64 cores the operating system
+doesn't really have too much room to handle the network traffic.
 
-![Latency with 2 threads and 200 clients](https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/benchmarks/cachegrand-amd-epyc-7502p-latencies-2t.png)
+![Latency with 1 threads and 100 clients](https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/benchmarks/cachegrand-amd-epyc-7502p-latencies-1t.png)
 ![Latency with 64 threads and 6400 clients](https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/benchmarks/cachegrand-amd-epyc-7502p-latencies-64t.png)
 
 Key features:
@@ -60,7 +60,7 @@ Planned Key Features:
 - [Active-Active](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/clustering-and-replication.md#active-active)
   [last-write-wins](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/clustering-and-replication.md#last-write-wins) data replication, it's a
   cache, write to any node of a replication group to which the replication tags are assigned, no need to think worry it;
-  
+
 It's possible to find more information in the [docs'](https://github.com/danielealbano/cachegrand/blob/main/docs/)
 folder.
 
@@ -112,7 +112,7 @@ cachegrand doesn't need to run as root but please review the configuration secti
 has been allowed, enough files can be opened and that the slab allocator has been enabled and enough huge pages have been provided
 
 Before trying to start cachegrand, take a look to the
-[performance tips](https://github.com/danielealbano/cachegrand/blob/main/docs/performance-tips.md) available in the 
+[performance tips](https://github.com/danielealbano/cachegrand/blob/main/docs/performance-tips.md) available in the
 docs' section as they might provide a valuable help!
 
 #### Help
