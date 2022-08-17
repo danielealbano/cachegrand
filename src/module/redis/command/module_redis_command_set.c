@@ -108,10 +108,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
         // If the current value has to be returned, the entry index needs to be prepped for read
         if (previous_entry_index && context->get_get.has_token) {
             previous_entry_index_prepped_for_read = true;
-            previous_entry_index = storage_db_get_entry_index_prep_for_read_outside_rmw(
+            previous_entry_index = storage_db_op_rmw_current_entry_index_prep_for_read(
                     connection_context->db,
-                    context->key.value.key,
-                    context->key.value.length,
+                    &rmw_status,
                     previous_entry_index);
         }
 
@@ -124,7 +123,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
                 );
 
         if (abort_rmw) {
-            storage_db_op_rmw_abort(&rmw_status);
+            storage_db_op_rmw_abort(connection_context->db, &rmw_status);
         } else {
             if (previous_entry_index && context->expiration.value.keepttl_keepttl.has_token) {
                 expiry_time_ms = previous_entry_index->expiry_time_ms;
@@ -146,8 +145,8 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
         }
 
         // previous_entry_index might have been set to null by the return value of
-        // storage_db_get_entry_index_prep_for_read if it had been deleted or if it's expired so it's necessary
-        // to double-check
+        // storage_db_get_entry_index_prep_for_read if it had been deleted or if it's expired, it's necessary to check
+        // again
         if (context->get_get.has_token && previous_entry_index) {
             return_res = module_redis_command_stream_entry(
                     connection_context->network_channel,
