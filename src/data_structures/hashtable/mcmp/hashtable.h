@@ -163,7 +163,7 @@ struct hashtable {
     hashtable_data_volatile_t* ht_old;
 };
 
-typedef struct hashtable_mcmp_op_rmw_transaction hashtable_mcmp_op_rmw_transaction_t;
+typedef struct hashtable_mcmp_op_rmw_transaction hashtable_mcmp_op_rmw_status_t;
 struct hashtable_mcmp_op_rmw_transaction {
     hashtable_hash_t hash;
     hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk;

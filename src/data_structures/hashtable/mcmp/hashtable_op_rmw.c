@@ -30,7 +30,7 @@
 
 bool hashtable_mcmp_op_rmw_begin(
         hashtable_t *hashtable,
-        hashtable_mcmp_op_rmw_transaction_t *rmw_transaction,
+        hashtable_mcmp_op_rmw_status_t *rmw_status,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_value_data_t *current_value) {
@@ -71,27 +71,27 @@ bool hashtable_mcmp_op_rmw_begin(
         *current_value = key_value->data;
     }
 
-    rmw_transaction->key = key;
-    rmw_transaction->key_size = key_size;
-    rmw_transaction->hash = hash;
-    rmw_transaction->half_hashes_chunk = half_hashes_chunk;
-    rmw_transaction->chunk_index = chunk_index;
-    rmw_transaction->chunk_slot_index = chunk_slot_index;
-    rmw_transaction->key_value = key_value;
-    rmw_transaction->created_new = created_new;
-    rmw_transaction->previous_entry_index = created_new ? 0 : key_value->data;
+    rmw_status->key = key;
+    rmw_status->key_size = key_size;
+    rmw_status->hash = hash;
+    rmw_status->half_hashes_chunk = half_hashes_chunk;
+    rmw_status->chunk_index = chunk_index;
+    rmw_status->chunk_slot_index = chunk_slot_index;
+    rmw_status->key_value = key_value;
+    rmw_status->created_new = created_new;
+    rmw_status->previous_entry_index = created_new ? 0 : key_value->data;
 
     return true;
 }
 
 void hashtable_mcmp_op_rmw_commit_update(
-        hashtable_mcmp_op_rmw_transaction_t *rmw_transaction,
+        hashtable_mcmp_op_rmw_status_t *rmw_status,
         hashtable_value_data_t new_value) {
     bool key_inlined = false;
 
-    rmw_transaction->key_value->data = new_value;
+    rmw_status->key_value->data = new_value;
 
-    if (rmw_transaction->created_new) {
+    if (rmw_status->created_new) {
         hashtable_key_value_flags_t flags = 0;
 
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
@@ -109,8 +109,8 @@ void hashtable_mcmp_op_rmw_commit_update(
             key_value->inline_key.size = key_size;
         } else {
 #endif
-        rmw_transaction->key_value->external_key.data = rmw_transaction->key;
-        rmw_transaction->key_value->external_key.size = rmw_transaction->key_size;
+        rmw_status->key_value->external_key.data = rmw_status->key;
+        rmw_status->key_value->external_key.size = rmw_status->key_size;
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
         }
 #endif
@@ -120,27 +120,27 @@ void hashtable_mcmp_op_rmw_commit_update(
 
         MEMORY_FENCE_STORE();
 
-        rmw_transaction->key_value->flags = flags;
+        rmw_status->key_value->flags = flags;
     }
 
     // Will perform the memory fence for us
-    spinlock_unlock(&rmw_transaction->half_hashes_chunk->write_lock);
+    spinlock_unlock(&rmw_status->half_hashes_chunk->write_lock);
 
     // Validate if the passed key can be freed because unused or because inlined
-    if (!rmw_transaction->created_new || key_inlined) {
-        slab_allocator_mem_free(rmw_transaction->key);
+    if (!rmw_status->created_new || key_inlined) {
+        slab_allocator_mem_free(rmw_status->key);
     }
 }
 
 void hashtable_mcmp_op_rmw_commit_delete(
-        hashtable_mcmp_op_rmw_transaction_t *rmw_transaction) {
-    rmw_transaction->half_hashes_chunk->metadata.is_full = 0;
-    rmw_transaction->half_hashes_chunk->half_hashes[rmw_transaction->chunk_slot_index].slot_id = 0;
+        hashtable_mcmp_op_rmw_status_t *rmw_status) {
+    rmw_status->half_hashes_chunk->metadata.is_full = 0;
+    rmw_status->half_hashes_chunk->half_hashes[rmw_status->chunk_slot_index].slot_id = 0;
     MEMORY_FENCE_STORE();
 
-    if (likely(!rmw_transaction->created_new)) {
-        hashtable_key_value_flags_t key_value_flags = rmw_transaction->key_value->flags;
-        rmw_transaction->key_value->flags = HASHTABLE_KEY_VALUE_FLAG_DELETED;
+    if (likely(!rmw_status->created_new)) {
+        hashtable_key_value_flags_t key_value_flags = rmw_status->key_value->flags;
+        rmw_status->key_value->flags = HASHTABLE_KEY_VALUE_FLAG_DELETED;
 
         MEMORY_FENCE_STORE();
 
@@ -156,23 +156,23 @@ void hashtable_mcmp_op_rmw_commit_delete(
         // the slab allocator will just get marked as reusable and the worst case scenario is that it will be picked
         // up and filled or zero-ed immediately and the key comparison being carried out in get will fail, but this
         // is an acceptable scenario because the bucket is being deleted.
-        slab_allocator_mem_free(rmw_transaction->key_value->external_key.data);
-        rmw_transaction->key_value->external_key.data = NULL;
-        rmw_transaction->key_value->external_key.size = 0;
+        slab_allocator_mem_free(rmw_status->key_value->external_key.data);
+        rmw_status->key_value->external_key.data = NULL;
+        rmw_status->key_value->external_key.size = 0;
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
         }
 #endif
     }
 
-    spinlock_unlock(&rmw_transaction->half_hashes_chunk->write_lock);
+    spinlock_unlock(&rmw_status->half_hashes_chunk->write_lock);
 }
 
 void hashtable_mcmp_op_rmw_abort(
-        hashtable_mcmp_op_rmw_transaction_t *rmw_transaction) {
-    if (rmw_transaction->created_new) {
-        rmw_transaction->half_hashes_chunk->half_hashes[rmw_transaction->chunk_slot_index].slot_id = 0;
+        hashtable_mcmp_op_rmw_status_t *rmw_status) {
+    if (rmw_status->created_new) {
+        rmw_status->half_hashes_chunk->half_hashes[rmw_status->chunk_slot_index].slot_id = 0;
     }
 
     // Will perform the memory fence for us
-    spinlock_unlock(&rmw_transaction->half_hashes_chunk->write_lock);
+    spinlock_unlock(&rmw_status->half_hashes_chunk->write_lock);
 }

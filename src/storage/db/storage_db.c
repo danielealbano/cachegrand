@@ -889,7 +889,7 @@ bool storage_db_entry_index_is_expired(
     return false;
 }
 
-storage_db_entry_index_t *storage_db_get_entry_index_prep_for_read(
+storage_db_entry_index_t *storage_db_get_entry_index_prep_for_read_inside_rmw(
         storage_db_t *db,
         char *key,
         size_t key_length,
@@ -908,29 +908,29 @@ storage_db_entry_index_t *storage_db_get_entry_index_prep_for_read(
     if (storage_db_entry_index_is_expired(entry_index)) {
         storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
 
-        // If the storage db entry index is actually expired it's necessary to start a read modify write transaction
+        // If the storage db entry index is actually expired it's necessary to start a read modify write operation
         // because the check has to be carried out again under the lock to check if the entry index only has to be
         // deleted or the entire bucket in the hashtable has to be deleted
-        storage_db_op_rmw_transaction_t transaction;
+        storage_db_op_rmw_status_t rmw_status;
         storage_db_entry_index_t *previous_entry_index;
         if (unlikely(!storage_db_op_rmw_begin(
                 db,
                 key,
                 key_length,
-                &transaction,
+                &rmw_status,
                 &previous_entry_index))) {
             return NULL;
         }
 
         // Check if the entry index in the hashtable is the same we need to remove, if yes the rmw op commits a delete
-        // and marks to be purged the entry index cleaning also up the hashtable as needed, otherwise the transaction is
+        // and marks to be purged the entry index cleaning also up the hashtable as needed, otherwise the operation is
         // aborted, to do not carry out any changes, and only the entry index is marked to be purged.
         if (previous_entry_index == entry_index) {
             // No need to invoke storage_db_worker_mark_deleted_or_deleting_previous_entry_index as it's done by the
-            // read-modify-write commit delete opertation
-            storage_db_op_rmw_commit_delete(db, &transaction);
+            // read-modify-write commit delete operation
+            storage_db_op_rmw_commit_delete(db, &rmw_status);
         } else {
-            storage_db_op_rmw_abort(&transaction);
+            storage_db_op_rmw_abort(&rmw_status);
             storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, entry_index);
         }
 
@@ -940,7 +940,58 @@ storage_db_entry_index_t *storage_db_get_entry_index_prep_for_read(
     return entry_index;
 }
 
-storage_db_entry_index_t *storage_db_get_entry_index_for_read(
+storage_db_entry_index_t *storage_db_get_entry_index_prep_for_read_outside_rmw(
+        storage_db_t *db,
+        char *key,
+        size_t key_length,
+        storage_db_entry_index_t *entry_index) {
+    storage_db_entry_index_status_t old_status;
+
+    // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
+    storage_db_entry_index_status_increase_readers_counter(
+            entry_index,
+            &old_status);
+
+    if (unlikely(old_status.deleted)) {
+        entry_index = NULL;
+    }
+
+    if (storage_db_entry_index_is_expired(entry_index)) {
+        storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
+
+        // If the storage db entry index is actually expired it's necessary to start a read modify write operation
+        // because the check has to be carried out again under the lock to check if the entry index only has to be
+        // deleted or the entire bucket in the hashtable has to be deleted
+        storage_db_op_rmw_status_t rmw_status;
+        storage_db_entry_index_t *previous_entry_index;
+        if (unlikely(!storage_db_op_rmw_begin(
+                db,
+                key,
+                key_length,
+                &rmw_status,
+                &previous_entry_index))) {
+            return NULL;
+        }
+
+        // Check if the entry index in the hashtable is the same we need to remove, if yes the rmw op commits a delete
+        // and marks to be purged the entry index cleaning also up the hashtable as needed, otherwise the operation is
+        // aborted, to do not carry out any changes, and only the entry index is marked to be purged.
+        if (previous_entry_index == entry_index) {
+            // No need to invoke storage_db_worker_mark_deleted_or_deleting_previous_entry_index as it's done by the
+            // read-modify-write commit delete operation
+            storage_db_op_rmw_commit_delete(db, &rmw_status);
+        } else {
+            storage_db_op_rmw_abort(&rmw_status);
+            storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, entry_index);
+        }
+
+        entry_index = NULL;
+    }
+
+    return entry_index;
+}
+
+storage_db_entry_index_t *storage_db_get_entry_index_for_read_outside_rmw(
         storage_db_t *db,
         char *key,
         size_t key_length) {
@@ -949,7 +1000,7 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read(
     entry_index = storage_db_get_entry_index(db, key, key_length);
 
     if (likely(entry_index)) {
-        entry_index = storage_db_get_entry_index_prep_for_read(db,  key, key_length, entry_index);
+        entry_index = storage_db_get_entry_index_prep_for_read_outside_rmw(db, key, key_length, entry_index);
     }
 
     return entry_index;
@@ -1047,12 +1098,12 @@ bool storage_db_op_rmw_begin(
         storage_db_t *db,
         char *key,
         size_t key_length,
-        storage_db_op_rmw_transaction_t *rmw_transaction,
+        storage_db_op_rmw_status_t *rmw_status,
         storage_db_entry_index_t **previous_entry_index) {
 
     return hashtable_mcmp_op_rmw_begin(
             db->hashtable,
-            &rmw_transaction->hashtable_rmw_transaction,
+            &rmw_status->hashtable,
             key,
             key_length,
             (uintptr_t*)previous_entry_index);
@@ -1060,7 +1111,7 @@ bool storage_db_op_rmw_begin(
 
 bool storage_db_op_rmw_commit_update(
         storage_db_t *db,
-        storage_db_op_rmw_transaction_t *rmw_transaction,
+        storage_db_op_rmw_status_t *rmw_status,
         storage_db_chunk_sequence_t *value_chunk_sequence,
         storage_db_expiry_time_ms_t expiry_time_ms) {
     bool result_res = false;
@@ -1076,7 +1127,7 @@ bool storage_db_op_rmw_commit_update(
     if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
         entry_index->key = storage_db_chunk_sequence_allocate(
                 db,
-                rmw_transaction->hashtable_rmw_transaction.key_size);
+                rmw_status->hashtable.key_size);
 
         if (!entry_index->key) {
             LOG_E(TAG, "Unable to allocate the chunks for the key");
@@ -1090,8 +1141,8 @@ bool storage_db_op_rmw_commit_update(
                         entry_index->key,
                         0),
                 0,
-                rmw_transaction->hashtable_rmw_transaction.key,
-                rmw_transaction->hashtable_rmw_transaction.key_size)) {
+                rmw_status->hashtable.key,
+                rmw_status->hashtable.key_size)) {
             LOG_E(TAG, "Unable to write an index entry key");
             goto end;
         }
@@ -1102,13 +1153,13 @@ bool storage_db_op_rmw_commit_update(
     entry_index->expiry_time_ms = expiry_time_ms;
 
     hashtable_mcmp_op_rmw_commit_update(
-            &rmw_transaction->hashtable_rmw_transaction,
+            &rmw_status->hashtable,
             (uintptr_t) entry_index);
 
-    if (rmw_transaction->hashtable_rmw_transaction.previous_entry_index != 0) {
+    if (rmw_status->hashtable.previous_entry_index != 0) {
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
                 db,
-                (storage_db_entry_index_t *)rmw_transaction->hashtable_rmw_transaction.previous_entry_index);
+                (storage_db_entry_index_t *)rmw_status->hashtable.previous_entry_index);
     }
 
     result_res = true;
@@ -1120,8 +1171,8 @@ end:
             storage_db_entry_index_free(db, entry_index);
         }
 
-        // Abort the underlying rmw transaction in the hashtable if the commit fails
-        hashtable_mcmp_op_rmw_abort(&rmw_transaction->hashtable_rmw_transaction);
+        // Abort the underlying rmw operation in the hashtable if the commit fails
+        hashtable_mcmp_op_rmw_abort(&rmw_status->hashtable);
     }
 
     return result_res;
@@ -1129,17 +1180,17 @@ end:
 
 void storage_db_op_rmw_commit_delete(
         storage_db_t *db,
-        storage_db_op_rmw_transaction_t *rmw_transaction) {
+        storage_db_op_rmw_status_t *rmw_status) {
     storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
             db,
-            (storage_db_entry_index_t *)rmw_transaction->hashtable_rmw_transaction.previous_entry_index);
+            (storage_db_entry_index_t *)rmw_status->hashtable.previous_entry_index);
 
-    hashtable_mcmp_op_rmw_commit_delete(&rmw_transaction->hashtable_rmw_transaction);
+    hashtable_mcmp_op_rmw_commit_delete(&rmw_status->hashtable);
 }
 
 void storage_db_op_rmw_abort(
-        storage_db_op_rmw_transaction_t *rmw_transaction) {
-    hashtable_mcmp_op_rmw_abort(&rmw_transaction->hashtable_rmw_transaction);
+        storage_db_op_rmw_status_t *rmw_status) {
+    hashtable_mcmp_op_rmw_abort(&rmw_status->hashtable);
 }
 
 bool storage_db_op_delete(
