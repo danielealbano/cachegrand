@@ -918,7 +918,7 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
                 key,
                 key_length,
                 &rmw_status,
-                &previous_entry_index))) {
+                &current_entry_index))) {
             return NULL;
         }
 
@@ -1106,7 +1106,7 @@ bool storage_db_op_rmw_begin(
             &rmw_status->hashtable,
             key,
             key_length,
-            (uintptr_t*)previous_entry_index);
+            (uintptr_t*)current_entry_index))) {
 }
 
 bool storage_db_op_rmw_commit_update(
@@ -1156,10 +1156,10 @@ bool storage_db_op_rmw_commit_update(
             &rmw_status->hashtable,
             (uintptr_t) entry_index);
 
-    if (rmw_status->hashtable.previous_entry_index != 0) {
+    if (rmw_status->hashtable.current_value != 0) {
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
                 db,
-                (storage_db_entry_index_t *)rmw_status->hashtable.previous_entry_index);
+                (storage_db_entry_index_t *)rmw_status->hashtable.current_value);
     }
 
     result_res = true;
@@ -1183,7 +1183,7 @@ void storage_db_op_rmw_commit_delete(
         storage_db_op_rmw_status_t *rmw_status) {
     storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
             db,
-            (storage_db_entry_index_t *)rmw_status->hashtable.previous_entry_index);
+            (storage_db_entry_index_t *)rmw_status->hashtable.current_value);
 
     hashtable_mcmp_op_rmw_commit_delete(&rmw_status->hashtable);
 }
