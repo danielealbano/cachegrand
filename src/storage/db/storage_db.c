@@ -894,7 +894,7 @@ storage_db_entry_index_t *storage_db_get_entry_index_prep_for_read_inside_rmw(
         char *key,
         size_t key_length,
         storage_db_entry_index_t *entry_index) {
-    storage_db_entry_index_status_t old_status;
+    storage_db_entry_index_status_t old_status = { 0 };
 
     // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
     storage_db_entry_index_status_increase_readers_counter(
@@ -911,8 +911,8 @@ storage_db_entry_index_t *storage_db_get_entry_index_prep_for_read_inside_rmw(
         // If the storage db entry index is actually expired it's necessary to start a read modify write operation
         // because the check has to be carried out again under the lock to check if the entry index only has to be
         // deleted or the entire bucket in the hashtable has to be deleted
-        storage_db_op_rmw_status_t rmw_status;
-        storage_db_entry_index_t *previous_entry_index;
+        storage_db_op_rmw_status_t rmw_status = { 0 };
+        storage_db_entry_index_t *current_entry_index = NULL;
         if (unlikely(!storage_db_op_rmw_begin(
                 db,
                 key,
@@ -995,7 +995,7 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_outside_rmw(
         storage_db_t *db,
         char *key,
         size_t key_length) {
-    storage_db_entry_index_t *entry_index;
+    storage_db_entry_index_t *entry_index = NULL;
 
     entry_index = storage_db_get_entry_index(db, key, key_length);
 

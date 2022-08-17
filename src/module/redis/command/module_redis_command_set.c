@@ -90,7 +90,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
         return_res = module_redis_connection_send_ok(connection_context);
     } else {
         bool abort_rmw = false;
-        storage_db_op_rmw_status_t rmw_status;
+        storage_db_op_rmw_status_t rmw_status = { 0 };
 
         if (unlikely(!storage_db_op_rmw_begin(
                 connection_context->db,
