@@ -889,7 +889,7 @@ bool storage_db_entry_index_is_expired(
     return false;
 }
 
-storage_db_entry_index_t *storage_db_get_entry_index_prep_for_read_inside_rmw(
+storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         storage_db_t *db,
         char *key,
         size_t key_length,
