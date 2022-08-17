@@ -9,7 +9,7 @@ bool hashtable_mcmp_op_set(
         hashtable_t *hashtable,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
-        hashtable_value_data_t value,
+        hashtable_value_data_t new_value,
         hashtable_value_data_t *current_value);
 
 #ifdef __cplusplus

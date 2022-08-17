@@ -21,7 +21,9 @@ extern bool hashtable_mcmp_support_op_search_key_or_create_new(
         hashtable_hash_t hash,
         bool create_new_if_missing,
         bool *created_new,
+        hashtable_chunk_index_t *found_chunk_index,
         hashtable_half_hashes_chunk_volatile_t **found_half_hashes_chunk,
+        hashtable_chunk_slot_index_t *found_chunk_slot_index,
         hashtable_key_value_volatile_t **found_key_value);
 
 extern bool hashtable_mcmp_support_op_half_hashes_chunk_lock(
