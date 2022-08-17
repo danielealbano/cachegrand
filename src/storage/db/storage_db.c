@@ -907,7 +907,33 @@ storage_db_entry_index_t *storage_db_get_entry_index_prep_for_read(
 
     if (storage_db_entry_index_is_expired(entry_index)) {
         storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
-        storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, entry_index);
+
+        // If the storage db entry index is actually expired it's necessary to start a read modify write transaction
+        // because the check has to be carried out again under the lock to check if the entry index only has to be
+        // deleted or the entire bucket in the hashtable has to be deleted
+        storage_db_op_rmw_transaction_t transaction;
+        storage_db_entry_index_t *previous_entry_index;
+        if (unlikely(!storage_db_op_rmw_begin(
+                db,
+                key,
+                key_length,
+                &transaction,
+                &previous_entry_index))) {
+            return NULL;
+        }
+
+        // Check if the entry index in the hashtable is the same we need to remove, if yes the rmw op commits a delete
+        // and marks to be purged the entry index cleaning also up the hashtable as needed, otherwise the transaction is
+        // aborted, to do not carry out any changes, and only the entry index is marked to be purged.
+        if (previous_entry_index == entry_index) {
+            // No need to invoke storage_db_worker_mark_deleted_or_deleting_previous_entry_index as it's done by the
+            // read-modify-write commit delete opertation
+            storage_db_op_rmw_commit_delete(db, &transaction);
+        } else {
+            storage_db_op_rmw_abort(&transaction);
+            storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, entry_index);
+        }
+
         entry_index = NULL;
     }
 
