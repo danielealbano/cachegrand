@@ -119,6 +119,8 @@ struct storage_db_entry_index {
 typedef struct storage_db_op_rmw_transaction storage_db_op_rmw_status_t;
 struct storage_db_op_rmw_transaction {
     hashtable_mcmp_op_rmw_status_t hashtable;
+    storage_db_entry_index_t *current_entry_index;
+    bool delete_entry_index_on_abort;
 };
 
 char *storage_db_shard_build_path(
@@ -255,13 +257,13 @@ storage_db_entry_index_t *storage_db_get_entry_index(
 bool storage_db_entry_index_is_expired(
         storage_db_entry_index_t *entry_index);
 
-storage_db_entry_index_t *storage_db_get_entry_index_prep_for_read_outside_rmw(
+storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         storage_db_t *db,
         char *key,
         size_t key_length,
         storage_db_entry_index_t *entry_index);
 
-storage_db_entry_index_t *storage_db_get_entry_index_for_read_outside_rmw(
+storage_db_entry_index_t *storage_db_get_entry_index_for_read(
         storage_db_t *db,
         char *key,
         size_t key_length);
@@ -284,7 +286,12 @@ bool storage_db_op_rmw_begin(
         char *key,
         size_t key_length,
         storage_db_op_rmw_status_t *rmw_status,
-        storage_db_entry_index_t **previous_entry_index);
+        storage_db_entry_index_t **current_entry_index);
+
+storage_db_entry_index_t *storage_db_op_rmw_current_entry_index_prep_for_read(
+        storage_db_t *db,
+        storage_db_op_rmw_status_t *rmw_status,
+        storage_db_entry_index_t *entry_index);
 
 bool storage_db_op_rmw_commit_update(
         storage_db_t *db,
@@ -297,6 +304,7 @@ void storage_db_op_rmw_commit_delete(
         storage_db_op_rmw_status_t *rmw_status);
 
 void storage_db_op_rmw_abort(
+        storage_db_t *db,
         storage_db_op_rmw_status_t *rmw_status);
 
 bool storage_db_op_delete(
