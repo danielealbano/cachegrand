@@ -48,7 +48,6 @@ proc client_watcher {} {
 #        lappend ::failed_tests $err
 #        show_clients_state
 #        kill_clients
-#        force_kill_all_servers
 #        the_end
     }
 
@@ -105,8 +104,11 @@ proc read_from_test_client fd {
 #        }
     } elseif {$status eq {exception}} {
         puts "\[[colorstr red $status]\]: $data"
+
+        #TODO questo se non sistemato fa implodere il mondo
         kill_clients
         force_kill_all_servers
+        exit 1
 
     } elseif {$status eq {testing}} {
         set ::active_clients_task($fd) "(IN PROGRESS) $data"
@@ -149,15 +151,13 @@ proc signal_idle_client fd {
         send_data_packet $fd run [lindex $::all_tests $::next_test]
         lappend ::active_clients $fd
         incr ::next_test
-        if {$::loop && $::next_test == [llength $::all_tests]} {
-            set ::next_test 0
-        }
     } elseif {[llength $::run_solo_tests] != 0 && [llength $::active_clients] == 0} {
         if {$::verbose} {
             puts [colorstr bold-white "Testing solo test and ASSIGNED to client : $fd"]
             set ::active_clients_task($fd) "ASSIGNED: $fd solo test"
         }
 
+        #TODO: rimuovere il solo test??
         set ::clients_start_time($fd) [clock seconds]
         send_data_packet $fd run_code [lpop ::run_solo_tests]
         lappend ::active_clients $fd
@@ -165,6 +165,7 @@ proc signal_idle_client fd {
         lappend ::idle_clients $fd
         set ::active_clients_task($fd) "SLEEPING, no more units to assign"
         if {[llength $::active_clients] == 0} {
+            linespacer
             the_end
         }
     }

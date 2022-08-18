@@ -29,15 +29,29 @@ proc find_available_port {start count} {
     error "Can't find a non busy port in the $start-[expr {$start+$count-1}] range."
 }
 
+proc linespacer {} {
+  puts "\n################################################"
+}
+
+
+proc is_alive config {
+    set pid [dict get $config pid]
+    if {[catch {exec kill -0 $pid} err]} {
+        return 0
+    } else {
+        return 1
+    }
+}
+
+
+proc send_data_packet {fd status data {elapsed 0}} {
+    set payload [list $status $data $elapsed]
+    puts $fd [string length $payload]
+    puts -nonewline $fd $payload
+    flush $fd
+}
+
 ###################################### TODO: 👇
-
-
-
-
-
-
-
-
 
 
 # Test if TERM looks like to support colors
@@ -70,129 +84,7 @@ proc colorstr {color str} {
     }
 }
 
-# Check if current ::tags match requested tags. If ::allowtags are used,
-# there must be some intersection. If ::denytags are used, no intersection
-# is allowed. Returns 1 if tags are acceptable or 0 otherwise, in which
-# case err_return names a return variable for the message to be logged.
-proc tags_acceptable {tags err_return} {
-    upvar $err_return err
 
-    # If tags are whitelisted, make sure there's match
-    if {[llength $::allowtags] > 0} {
-        set matched 0
-        foreach tag $::allowtags {
-            if {[lsearch $tags $tag] >= 0} {
-                incr matched
-            }
-        }
-        if {$matched < 1} {
-            set err "Tag: none of the tags allowed"
-            return 0
-        }
-    }
-
-    foreach tag $::denytags {
-        if {[lsearch $tags $tag] >= 0} {
-            set err "Tag: $tag denied"
-            return 0
-        }
-    }
-
-#    if {$::external && [lsearch $tags "external:skip"] >= 0} {
-#        set err "Not supported on external server"
-#        return 0
-#    }
-
-#    if {$::singledb && [lsearch $tags "singledb:skip"] >= 0} {
-#        set err "Not supported on singledb"
-#        return 0
-#    }
-
-#    if {$::cluster_mode && [lsearch $tags "cluster:skip"] >= 0} {
-#        set err "Not supported in cluster mode"
-#        return 0
-#    }
-
-#    if {$::tls && [lsearch $tags "tls:skip"] >= 0} {
-#        set err "Not supported in tls mode"
-#        return 0
-#    }
-
-#    if {!$::large_memory && [lsearch $tags "large-memory"] >= 0} {
-#        set err "large memory flag not provided"
-#        return 0
-#    }
-
-    return 1
-}
-
-# returns the number of times a line with that pattern appears in a file
-proc count_message_lines {file pattern} {
-    set res 0
-    # exec fails when grep exists with status other than 0 (when the patter wasn't found)
-    catch {
-        set res [string trim [exec grep $pattern $file 2> /dev/null | wc -l]]
-    }
-    return $res
-}
-
-proc is_alive config {
-    set pid [dict get $config pid]
-    if {[catch {exec kill -0 $pid} err]} {
-        return 0
-    } else {
-        return 1
-    }
-}
-
-# Return all log lines starting with the first line that contains a warning.
-# Generally, this will be an assertion error with a stack trace.
-proc crashlog_from_file {filename} {
-    set lines [split [exec cat $filename] "\n"]
-    set matched 0
-    set logall 0
-    set result {}
-    foreach line $lines {
-        if {[string match {*REDIS BUG REPORT START*} $line]} {
-            set logall 1
-        }
-        if {[regexp {^\[\d+\]\s+\d+\s+\w+\s+\d{2}:\d{2}:\d{2} \#} $line]} {
-            set matched 1
-        }
-        if {$logall || $matched} {
-            lappend result $line
-        }
-    }
-    join $result "\n"
-}
-
-# Return sanitizer log lines
-proc sanitizer_errors_from_file {filename} {
-    set log [exec cat $filename]
-    set lines [split [exec cat $filename] "\n"]
-
-    foreach line $lines {
-        # Ignore huge allocation warnings
-        if ([string match {*WARNING: AddressSanitizer failed to allocate*} $line]) {
-            continue
-        }
-
-        # GCC UBSAN output does not contain 'Sanitizer' but 'runtime error'.
-        if {[string match {*runtime error*} $log] ||
-            [string match {*Sanitizer*} $log]} {
-            return $log
-        }
-    }
-
-    return ""
-}
-
-proc check_sanitizer_errors stderr {
-    set res [sanitizer_errors_from_file $stderr]
-    if {$res != ""} {
-        send_data_packet $::test_server_fd err "Sanitizer error: $res\n"
-    }
-}
 
 # The the_end function gets called when all the test units were already
 # executed, so the test finished.
@@ -217,32 +109,7 @@ proc the_end {} {
     }
 }
 
-proc send_data_packet {fd status data {elapsed 0}} {
-    set payload [list $status $data $elapsed]
-    puts $fd [string length $payload]
-    puts -nonewline $fd $payload
-    flush $fd
-}
 
-# try to match a value to a list of patterns that are either regex (starts with "/") or plain string.
-# The caller can specify to use only glob-pattern match
-proc search_pattern_list {value pattern_list {glob_pattern false}} {
-    foreach el $pattern_list {
-        if {[string length $el] == 0} { continue }
-        if { $glob_pattern } {
-            if {[string match $el $value]} {
-                return 1
-            }
-            continue
-        }
-        if {[string equal / [string index $el 0]] && [regexp -- [string range $el 1 end] $value]} {
-            return 1
-        } elseif {[string equal $el $value]} {
-            return 1
-        }
-    }
-    return 0
-}
 
 proc dump_server_log {srv} {
     set pid [dict get $srv "pid"]
@@ -262,8 +129,3 @@ proc lpop {listVar {count 1}} {
     set ele
 }
 
-proc lremove {listVar value} {
-    upvar 1 $listVar var
-    set idx [lsearch -exact $var $value]
-    set var [lreplace $var $idx $idx]
-}

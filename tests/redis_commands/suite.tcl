@@ -37,14 +37,8 @@ set ::timeout 1200; # 20 minutes without progresses will quit the test.
 ########################
 # Client
 ########################
-# Set to 1 when we are running in client mode. The Redis test uses a
-# server-client model to run tests simultaneously. The server instance
-# runs the specified number of client instances that will actually run tests.
-# The server is responsible of showing the result to the user, and exit with
-# the appropriate exit code depending on the test outcome.
 set ::client 0
 set ::numclients 1
-set ::loop 0
 
 ########################
 # Tests
@@ -57,38 +51,24 @@ set ::num_skipped 0
 set ::num_aborted 0
 set ::tests_failed {}
 set ::cur_test ""
-set ::curfile ""; # Hold the filename of the current suite
+set ::curfile "";
 set ::durable 1
 set ::skiptests {}
 set ::run_solo_tests {}
 set ::last_progress [clock seconds]
+set ::tags {}
 
 # Index to the next test to run in the ::all_tests list.
 set ::next_test 0
 set ::all_tests {
     string
+    set
 }
 
-set ::tags {}
-set ::denytags {}
-set ::allowtags {}
-
-
-# Parse arguments
-puts "** Parsing arguments..."
 for {set j 0} {$j < [llength $argv]} {incr j} {
     set opt [lindex $argv $j]
     set arg [lindex $argv [expr $j+1]]
-    if {$opt eq {--tags}} {
-        foreach tag $arg {
-            if {[string index $tag 0] eq "-"} {
-                lappend ::denytags [string range $tag 1 end]
-            } else {
-                lappend ::allowtags $tag
-            }
-        }
-        incr j
-    } elseif {$opt eq {--config}} {
+    if {$opt eq {--config}} {
         set arg2 [lindex $argv [expr $j+2]]
         lappend ::global_overrides $arg
         lappend ::global_overrides $arg2
@@ -103,9 +83,6 @@ for {set j 0} {$j < [llength $argv]} {incr j} {
     } elseif {$opt eq {--portcount}} {
         set ::portcount $arg
         incr j
-    } elseif {$opt eq {--single}} {
-        lappend ::single_tests $arg
-        incr j
     } elseif {$opt eq {--verbose}} {
         set ::verbose 1
     } elseif {$opt eq {--client}} {
@@ -117,12 +94,12 @@ for {set j 0} {$j < [llength $argv]} {incr j} {
         incr j
     } else {
         puts "Wrong argument: $opt"
-#        exit 1
+        exit 1
     }
 }
 
 if {$::client} {
-    if {[catch { tests_launcher $::socket_port } err]} {
+    if {[catch { test_launcher $::socket_port } err]} {
         set estr "Executing test client: $err.\n$::errorInfo"
         if {[catch {send_data_packet $::test_server_fd exception $estr}]} {
             puts $estr
@@ -133,7 +110,10 @@ if {$::client} {
     exit 0
 }
 
+puts "************************************************"
 puts "** Cachegrand - Commands Redis Tests Launcher **"
+puts "- Founded [llength $::all_tests] tests file to run!"
+puts "************************************************"
 if {[catch { spawn_client } err]} {
     if {[string length $err] > 0} {
 
