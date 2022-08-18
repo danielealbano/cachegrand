@@ -34,21 +34,13 @@ proc spawn_client {} {
     vwait forever
 }
 
-
-###################################### TODO: 👇
-
-
-
 proc client_watcher {} {
     set elapsed [expr {[clock seconds]-$::last_progress}]
 
     if {$elapsed > $::timeout} {
-        set err "\[[colorstr red TIMEOUT]\]: clients state report follows."
-        puts $err
-#        lappend ::failed_tests $err
-#        show_clients_state
-#        kill_clients
-#        the_end
+        puts "\[TIMEOUT\]: clients state report follows."
+        kill_clients
+        the_end
     }
 
     after 100 client_watcher
@@ -75,39 +67,33 @@ proc read_from_test_client fd {
         set running_tests_count [expr {[llength $::active_clients]-1}]
         set completed_tests_count [expr {$::next_test-$running_tests_count}]
 
-        puts "\[$completed_tests_count/$all_tests_count [colorstr yellow $status]\]: $data ($elapsed seconds)"
+        puts "\[$completed_tests_count/$all_tests_count $status\]: $data ($elapsed seconds)"
         lappend ::clients_time_history $elapsed $data
 
         signal_idle_client $fd
         set ::active_clients_task($fd) "(DONE) $data"
 
     } elseif {$status eq {ok}} {
-        if {$::verbose} { puts "\[[colorstr green $status]\]: $data ($elapsed ms)" }
+        if {$::verbose} { puts "\[$status\]: $data ($elapsed ms)" }
         set ::active_clients_task($fd) "(OK) $data"
 
     } elseif {$status eq {skip}} {
-        if {$::verbose} { puts "\[[colorstr yellow $status]\]: $data" }
+        if {$::verbose} { puts "\[$status\]: $data" }
 
     } elseif {$status eq {ignore}} {
-        if {$::verbose} { puts "\[[colorstr cyan $status]\]: $data" }
+        if {$::verbose} { puts "\[$status\]: $data" }
 
     } elseif {$status eq {err}} {
-        set err "\[[colorstr red $status]\]: $data"
+        set err "\[$status\]: $data"
         puts $err
         lappend ::failed_tests $err
         set ::active_clients_task($fd) "(ERR) $data"
 
-#        if {$::stop_on_failure} {
-#            puts -nonewline "(Test stopped, press enter to resume the tests)"
-#            flush stdout
-#            gets stdin
-#        }
     } elseif {$status eq {exception}} {
-        puts "\[[colorstr red $status]\]: $data"
+        puts "\[$status\]: $data"
 
-        #TODO questo se non sistemato fa implodere il mondo
         kill_clients
-        force_kill_all_servers
+        kill_server $::srv
         exit 1
 
     } elseif {$status eq {testing}} {
@@ -143,7 +129,7 @@ proc signal_idle_client fd {
     # New unit to process?
     if {$::next_test != [llength $::all_tests]} {
         if {$::verbose} {
-            puts [colorstr bold-white "Testing \[[lindex $::all_tests $::next_test]\] and ASSIGNED to client : $fd"]
+            puts "Testing \[[lindex $::all_tests $::next_test]\] and ASSIGNED to client : $fd"
             set ::active_clients_task($fd) "ASSIGNED: $fd ([lindex $::all_tests $::next_test])"
         }
 
@@ -153,11 +139,10 @@ proc signal_idle_client fd {
         incr ::next_test
     } elseif {[llength $::run_solo_tests] != 0 && [llength $::active_clients] == 0} {
         if {$::verbose} {
-            puts [colorstr bold-white "Testing solo test and ASSIGNED to client : $fd"]
+            puts "Testing solo test and ASSIGNED to client : $fd"
             set ::active_clients_task($fd) "ASSIGNED: $fd solo test"
         }
 
-        #TODO: rimuovere il solo test??
         set ::clients_start_time($fd) [clock seconds]
         send_data_packet $fd run_code [lpop ::run_solo_tests]
         lappend ::active_clients $fd

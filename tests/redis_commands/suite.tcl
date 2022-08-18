@@ -34,6 +34,9 @@ set ::socket_port 21111
 set ::portcount 8000; # we don't wanna use more than 10000 to avoid collision with cluster bus ports]
 set ::timeout 1200; # 20 minutes without progresses will quit the test.
 
+set ::server_path "../../cmake-build-debug/src/cachegrand-server"
+set ::server_cfg "/tmp/cachegrand/cachegrand-conf.yml"
+
 ########################
 # Client
 ########################

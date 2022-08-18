@@ -143,3 +143,14 @@ proc r {args} {
 
     [srv $level "client"] {*}$args
 }
+
+proc tags {tags code} {
+    set tags [string map { \" "" } $tags]
+    set ::tags [concat $::tags $tags]
+
+    uplevel 1 $code
+    set ::tags [lrange $::tags 0 end-[llength $tags]]
+}
+
+########################################### TODO 👇
+

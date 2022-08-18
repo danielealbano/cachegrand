@@ -54,9 +54,8 @@ proc spawn_server {tags code stdout stderr} {
     # Emit event server-spawning
     send_data_packet $::test_server_fd "server-spawning" "port $::server_port"
 
-    # TODO pass binary and conf via conf
     if {$::verbose} {puts -nonewline "Spawing... "}
-    set pid [exec ../../cmake-build-debug/src/cachegrand-server -c /tmp/cachegrand/cachegrand-conf.yml >> $stdout 2>> $stderr &]
+    set pid [exec $::server_path -c $::server_cfg >> $stdout 2>> $stderr &]
     if {$::verbose} {puts "OK Server spawned with pid \[$pid\]"}
 
     # Emit event server-spawned
