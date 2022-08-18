@@ -880,14 +880,23 @@ bool module_redis_command_stream_entry_with_multiple_chunks(
             buffer_to_send_length = chunk_info->chunk_length;
         }
 
-        // TODO: check if it's the last chunk and, if yes, if it would fit in the send buffer with the protocol
-        //       bits that have to be sent later without doing an implicit flush
-        if (network_send_direct(
-                network_channel,
-                buffer_to_send,
-                buffer_to_send_length) != NETWORK_OP_RESULT_OK) {
-            return false;
-        }
+        size_t sent_data = 0;
+        do {
+            size_t data_available_to_send_length = buffer_to_send_length - sent_data;
+            size_t data_to_send_length = data_available_to_send_length > NETWORK_CHANNEL_PACKET_SIZE
+                    ? NETWORK_CHANNEL_PACKET_SIZE : data_available_to_send_length;
+
+            // TODO: check if it's the last chunk and, if yes, if it would fit in the send buffer with the protocol
+            //       bits that have to be sent later without doing an implicit flush
+            if (network_send_direct(
+                    network_channel,
+                    buffer_to_send + sent_data,
+                    data_to_send_length) != NETWORK_OP_RESULT_OK) {
+                return false;
+            }
+
+            sent_data += data_to_send_length;
+        } while (sent_data < buffer_to_send_length);
     }
 
     send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
