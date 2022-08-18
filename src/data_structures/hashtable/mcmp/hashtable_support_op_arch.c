@@ -209,13 +209,15 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
         hashtable_hash_t hash,
         bool create_new_if_missing,
         bool *created_new,
+        hashtable_chunk_index_t *found_chunk_index,
         hashtable_half_hashes_chunk_volatile_t **found_half_hashes_chunk,
+        hashtable_chunk_slot_index_t *found_chunk_slot_index,
         hashtable_key_value_volatile_t **found_key_value) {
     hashtable_hash_half_t hash_half;
     hashtable_slot_id_wrapper_t slot_id_wrapper = {0};
     hashtable_bucket_index_t bucket_index;
     hashtable_chunk_index_t chunk_index, chunk_index_start, chunk_index_start_initial, chunk_index_end,
-        chunk_first_with_freespace, found_chunk_index = 0, locked_up_to_chunk_index = 0;
+        chunk_first_with_freespace, locked_up_to_chunk_index = 0;
     hashtable_chunk_slot_index_t chunk_slot_index;
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
     hashtable_key_value_volatile_t* key_value;
@@ -225,6 +227,8 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
     bool found = false;
     bool found_chunk_with_freespace = false;
     *created_new = false;
+    *found_chunk_index = 0;
+    *found_chunk_slot_index = 0;
 
     bucket_index = hashtable_mcmp_support_index_from_hash(hashtable_data->buckets_count, hash);
     chunk_index_start = chunk_index_start_initial = bucket_index / HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
@@ -399,13 +403,14 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
 
                 *found_half_hashes_chunk = half_hashes_chunk;
                 *found_key_value = key_value;
-                found_chunk_index = chunk_index;
+                *found_chunk_index = chunk_index;
+                *found_chunk_slot_index = chunk_slot_index;
                 found = true;
 
                 LOG_DI(">>> updating found_chunk_index and found_key_value");
 
                 // Update the overflowed_chunks_counter if necessary
-                uint8_volatile_t overflowed_chunks_counter_new = (uint8_t)(found_chunk_index - chunk_index_start_initial);
+                uint8_volatile_t overflowed_chunks_counter_new = (uint8_t)(*found_chunk_index - chunk_index_start_initial);
                 uint8_volatile_t overflowed_chunks_counter_current =
                         hashtable_data->half_hashes_chunk[chunk_index_start_initial].metadata.overflowed_chunks_counter;
                 uint8_volatile_t overflowed_chunks_counter_update = MAX(
@@ -435,7 +440,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
     // Iterate of the chunks to remove the place locks, the only lock not removed is if the chunk holding the hash
 
     if (found) {
-        LOG_DI("chunk %lu will not be unlocked, it has to be returned to the caller", found_chunk_index);
+        LOG_DI("chunk %lu will not be unlocked, it has to be returned to the caller", *found_chunk_index);
     }
 
     // TODO: refactor the code to have a sliding locking window, if the algorithm is not finding free slots there are
@@ -443,7 +448,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
     LOG_DI("unlocking chunks from %lu to %lu", chunk_index_start_initial, locked_up_to_chunk_index);
     for (chunk_index = chunk_index_start_initial; chunk_index <= locked_up_to_chunk_index; chunk_index++) {
         LOG_DI("> processing chunk %lu", chunk_index);
-        if (found == true && chunk_index == found_chunk_index) {
+        if (found == true && chunk_index == *found_chunk_index) {
             LOG_DI("> chunk to return to the caller, keeping it locked");
             continue;
         }

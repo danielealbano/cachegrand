@@ -32,15 +32,15 @@ bool hashtable_mcmp_op_set(
         hashtable_t *hashtable,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
-        hashtable_value_data_t value,
+        hashtable_value_data_t new_value,
         hashtable_value_data_t *previous_value) {
     bool created_new = true;
     bool key_inlined = false;
     hashtable_hash_t hash;
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk = 0;
+    hashtable_chunk_index_t chunk_index = 0;
+    hashtable_chunk_slot_index_t chunk_slot_index = 0;
     hashtable_key_value_volatile_t* key_value = 0;
-
-    hashtable_key_data_t* ht_key;
 
     hash = hashtable_mcmp_support_hash_calculate(key, key_size);
 
@@ -49,8 +49,8 @@ bool hashtable_mcmp_op_set(
 
     assert(*key != 0);
 
-    // TODO: the resize logic has to be reviewed, the underlying hash search function has to be aware that it hasn't
-    //       to create a new item if it's missing
+    // TODO: there is no support for resizing right now but when creating a new item the function must be aware that
+    //       it has to be created in the new hashtable and not in the one being looked into
     bool ret = hashtable_mcmp_support_op_search_key_or_create_new(
             hashtable->ht_current,
             key,
@@ -58,7 +58,9 @@ bool hashtable_mcmp_op_set(
             hash,
             true,
             &created_new,
+            &chunk_index,
             &half_hashes_chunk,
+            &chunk_slot_index,
             &key_value);
 
     LOG_DI("created_new = %s", created_new ? "YES" : "NO");
@@ -79,9 +81,9 @@ bool hashtable_mcmp_op_set(
     if (!created_new && previous_value != NULL) {
         *previous_value = key_value->data;
     }
-    key_value->data = value;
+    key_value->data = new_value;
 
-    LOG_DI("updating value to 0x%016x", value);
+    LOG_DI("updating value to 0x%016x", new_value);
 
     if (created_new) {
         LOG_DI("it is a new key, updating flags and key");
@@ -93,6 +95,8 @@ bool hashtable_mcmp_op_set(
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
         // Get the destination pointer for the key
         if (key_size <= HASHTABLE_KEY_INLINE_MAX_LENGTH) {
+            hashtable_key_data_t* ht_key;
+
             key_inlined = true;
             LOG_DI("key can be inline-ed", key_size);
 
@@ -126,7 +130,7 @@ bool hashtable_mcmp_op_set(
 
     LOG_DI("unlocking half_hashes_chunk 0x%016x", half_hashes_chunk);
 
-    // Validate if the passed key can be freed because unused or beacuse inlined
+    // Validate if the passed key can be freed because unused or because inlined
     if (!created_new || key_inlined) {
         slab_allocator_mem_free(key);
     }

@@ -361,12 +361,12 @@ void worker_network_listeners_fiber_entrypoint(
         new_channel->status = NETWORK_CHANNEL_STATUS_CONNECTED;
 
         // TODO: should implement a wrapper for this
-        new_channel->timeout.read_ns = new_channel->module_config->network->timeout->read_ms > 0
-                                        ? new_channel->module_config->network->timeout->read_ms * 1000000
-                                        : new_channel->module_config->network->timeout->read_ms;
-        new_channel->timeout.write_ns = new_channel->module_config->network->timeout->write_ms > 0
-                                        ? new_channel->module_config->network->timeout->write_ms * 1000000
-                                        : new_channel->module_config->network->timeout->write_ms;
+        int64_t read_ms = new_channel->module_config->network->timeout->read_ms;
+        int64_t write_ms = new_channel->module_config->network->timeout->write_ms;
+        new_channel->timeout.read.sec = read_ms > 0 ? read_ms / 1000 : -1;
+        new_channel->timeout.read.nsec = read_ms > 0 ? (read_ms % 1000) * 1000000 : -1;
+        new_channel->timeout.write.sec = write_ms > 0 ? write_ms / 1000 : -1;
+        new_channel->timeout.write.nsec = write_ms > 0 ? (write_ms % 1000) * 1000000 : -1;
 
         LOG_V(
                 TAG,

@@ -55,11 +55,12 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(mset) {
     for(int index = 0; index < context->key_value.count; index++) {
         module_redis_command_mset_context_subargument_key_value_t *key_value = &context->key_value.list[index];
 
-        if (!storage_db_add_new_entry_index(
+        if (!storage_db_op_set(
                 connection_context->db,
                 key_value->key.value.key,
                 key_value->key.value.length,
-                key_value->value.value.chunk_sequence)) {
+                key_value->value.value.chunk_sequence,
+                STORAGE_DB_ENTRY_NO_EXPIRY)) {
             module_redis_connection_error_message_printf_noncritical(connection_context, "ERR mset failed");
             return true;
         }

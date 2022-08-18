@@ -30,6 +30,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_delete.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_iter.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_rmw.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "slab_allocator.h"
 #include "fiber.h"
@@ -877,27 +878,78 @@ storage_db_entry_index_t *storage_db_get_entry_index(
     return (storage_db_entry_index_t *)memptr;
 }
 
+bool storage_db_entry_index_is_expired(
+        storage_db_entry_index_t *entry_index) {
+    if (entry_index && entry_index->expiry_time_ms > 0) {
+        if (unlikely(clock_realtime_coarse_int64_ms() > entry_index->expiry_time_ms)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
+        storage_db_t *db,
+        char *key,
+        size_t key_length,
+        storage_db_entry_index_t *entry_index) {
+    storage_db_entry_index_status_t old_status = { 0 };
+
+    // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
+    storage_db_entry_index_status_increase_readers_counter(
+            entry_index,
+            &old_status);
+
+    if (unlikely(old_status.deleted)) {
+        entry_index = NULL;
+    }
+
+    if (storage_db_entry_index_is_expired(entry_index)) {
+        storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
+
+        // If the storage db entry index is actually expired it's necessary to start a read modify write operation
+        // because the check has to be carried out again under the lock to check if the entry index only has to be
+        // deleted or the entire bucket in the hashtable has to be deleted
+        storage_db_op_rmw_status_t rmw_status = { 0 };
+        storage_db_entry_index_t *current_entry_index = NULL;
+        if (unlikely(!storage_db_op_rmw_begin(
+                db,
+                key,
+                key_length,
+                &rmw_status,
+                &current_entry_index))) {
+            return NULL;
+        }
+
+        // If the current entry index still matches entry index the storage_db_op_rmw_abort will carry out the clean up
+        // for us because it's the same expired entry and the rmw operation is getting aborted. If instead the value
+        // has been updated in the meantime, the entry index has to be marked for deletion without touching the
+        // hashtable.
+        // The current entry index returned by storage_db_op_rmw_begin might be NULL if it's expired (e.g. if it hasn't
+        // changed or if the expiration has been set to 1 ms or similar) so the code relies on the current_value field
+        // of the rmw operation
+        if ((storage_db_entry_index_t*)rmw_status.current_entry_index != entry_index) {
+            storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, entry_index);
+        }
+
+        storage_db_op_rmw_abort(db, &rmw_status);
+        entry_index = NULL;
+    }
+
+    return entry_index;
+}
+
 storage_db_entry_index_t *storage_db_get_entry_index_for_read(
         storage_db_t *db,
         char *key,
         size_t key_length) {
-    storage_db_entry_index_status_t old_status;
-    storage_db_entry_index_t *entry_index;
+    storage_db_entry_index_t *entry_index = NULL;
 
-    entry_index = storage_db_get_entry_index(
-            db,
-            key,
-            key_length);
+    entry_index = storage_db_get_entry_index(db, key, key_length);
 
     if (likely(entry_index)) {
-        // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
-        storage_db_entry_index_status_increase_readers_counter(
-                entry_index,
-                &old_status);
-
-        if (unlikely(old_status.deleted)) {
-            entry_index = NULL;
-        }
+        entry_index = storage_db_get_entry_index_for_read_prep(db, key, key_length, entry_index);
     }
 
     return entry_index;
@@ -924,11 +976,12 @@ bool storage_db_set_entry_index(
     return res;
 }
 
-bool storage_db_add_new_entry_index(
+bool storage_db_op_set(
         storage_db_t *db,
         char *key,
         size_t key_length,
-        storage_db_chunk_sequence_t *value_chunk_sequence) {
+        storage_db_chunk_sequence_t *value_chunk_sequence,
+        storage_db_expiry_time_ms_t expiry_time_ms) {
     bool result_res = false;
 
     storage_db_entry_index_t *entry_index = storage_db_entry_index_ring_buffer_new(db);
@@ -963,6 +1016,7 @@ bool storage_db_add_new_entry_index(
 
     // Fetch a new entry and assign the key and the value as needed
     entry_index->value = value_chunk_sequence;
+    entry_index->expiry_time_ms = expiry_time_ms;
 
     // Try to store the entry index in the database
     if (!storage_db_set_entry_index(
@@ -989,90 +1043,136 @@ end:
     return result_res;
 }
 
-bool storage_db_set_small_value(
+bool storage_db_op_rmw_begin(
         storage_db_t *db,
         char *key,
         size_t key_length,
-        storage_db_chunk_sequence_t *value_chunk_sequence) {
-    storage_db_entry_index_t *entry_index = NULL;
-    bool return_res = false;
+        storage_db_op_rmw_status_t *rmw_status,
+        storage_db_entry_index_t **current_entry_index) {
 
-    assert(key_length <= STORAGE_DB_CHUNK_MAX_SIZE);
-    assert(value_chunk_sequence->size <= STORAGE_DB_CHUNK_MAX_SIZE);
+    if (unlikely(!hashtable_mcmp_op_rmw_begin(
+            db->hashtable,
+            &rmw_status->hashtable,
+            key,
+            key_length,
+            (uintptr_t*)current_entry_index))) {
+        return false;
+    }
 
-    entry_index = storage_db_entry_index_ring_buffer_new(db);
+    rmw_status->current_entry_index = *current_entry_index;
+
+    if (
+            *current_entry_index &&
+            storage_db_entry_index_is_expired((storage_db_entry_index_t *)*current_entry_index)) {
+        rmw_status->delete_entry_index_on_abort = true;
+        *current_entry_index = NULL;
+    }
+
+    return true;
+}
+
+storage_db_entry_index_t *storage_db_op_rmw_current_entry_index_prep_for_read(
+        storage_db_t *db,
+        storage_db_op_rmw_status_t *rmw_status,
+        storage_db_entry_index_t *entry_index) {
+    // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
+    storage_db_entry_index_status_increase_readers_counter(
+            entry_index,
+            NULL);
+
+    return entry_index;
+}
+
+bool storage_db_op_rmw_commit_update(
+        storage_db_t *db,
+        storage_db_op_rmw_status_t *rmw_status,
+        storage_db_chunk_sequence_t *value_chunk_sequence,
+        storage_db_expiry_time_ms_t expiry_time_ms) {
+    bool result_res = false;
+
+    storage_db_entry_index_t *entry_index = storage_db_entry_index_ring_buffer_new(db);
     if (!entry_index) {
-        LOG_E(
-                TAG,
-                "Unable to fetch a database entry index");
-
+        LOG_E(TAG, "Unable to allocate the database index entry in memory");
         goto end;
     }
 
-    // If the backend is in memory it's not necessary to write the key to the storage because it will never be used as
-    // the only case in which the keys are read from the storage is when the database gets loaded from the disk at the
-    // startup
+    // Set up the key if necessary
+    entry_index->key = NULL;
     if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
         entry_index->key = storage_db_chunk_sequence_allocate(
                 db,
-                key_length);
+                rmw_status->hashtable.key_size);
 
         if (!entry_index->key) {
-            LOG_E(
-                    TAG,
-                    "Unable to allocate database chunks for a key long <%lu> bytes",
-                    key_length);
-
+            LOG_E(TAG, "Unable to allocate the chunks for the key");
             goto end;
         }
 
-        // Write the key
-        bool res_write = storage_db_chunk_write(
+        // The key is always one single chunk so no need to be smart here
+        if (!storage_db_chunk_write(
                 db,
-                storage_db_chunk_sequence_get(entry_index->key, 0),
+                storage_db_chunk_sequence_get(
+                        entry_index->key,
+                        0),
                 0,
-                key,
-                key_length);
-
-        if (!res_write) {
-            LOG_E(
-                    TAG,
-                    "Unable to write the database chunks for a key long <%lu> bytes",
-                    key_length);
-
+                rmw_status->hashtable.key,
+                rmw_status->hashtable.key_size)) {
+            LOG_E(TAG, "Unable to write an index entry key");
             goto end;
         }
     }
 
-    // The value stored is the key itself as it is
+    // Fetch a new entry and assign the key and the value as needed
     entry_index->value = value_chunk_sequence;
+    entry_index->expiry_time_ms = expiry_time_ms;
 
-    // Set the entry index
-    bool result = storage_db_set_entry_index(
-            db,
-            key,
-            key_length,
-            entry_index);
+    hashtable_mcmp_op_rmw_commit_update(
+            &rmw_status->hashtable,
+            (uintptr_t) entry_index);
 
-    if (!result) {
-        LOG_E(
-                TAG,
-                "Unable to update the database entry index");
-
-        goto end;
+    if (rmw_status->hashtable.current_value != 0) {
+        storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
+                db,
+                (storage_db_entry_index_t *)rmw_status->hashtable.current_value);
     }
 
-    return_res = true;
+    result_res = true;
 
 end:
-    if (!return_res && entry_index) {
-        storage_db_entry_index_free(db, entry_index);
+
+    if (!result_res) {
+        if (entry_index) {
+            storage_db_entry_index_free(db, entry_index);
+        }
+
+        // Abort the underlying rmw operation in the hashtable if the commit fails
+        hashtable_mcmp_op_rmw_abort(&rmw_status->hashtable);
     }
 
-    return return_res;
+    return result_res;
 }
 
-bool storage_db_delete_entry_index(
+void storage_db_op_rmw_commit_delete(
+        storage_db_t *db,
+        storage_db_op_rmw_status_t *rmw_status) {
+    storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
+            db,
+            (storage_db_entry_index_t *)rmw_status->hashtable.current_value);
+
+    hashtable_mcmp_op_rmw_commit_delete(&rmw_status->hashtable);
+}
+
+void storage_db_op_rmw_abort(
+        storage_db_t *db,
+        storage_db_op_rmw_status_t *rmw_status) {
+    if (rmw_status->delete_entry_index_on_abort) {
+        storage_db_op_rmw_commit_delete(db, rmw_status);
+    } else {
+        hashtable_mcmp_op_rmw_abort(&rmw_status->hashtable);
+    }
+}
+
+bool storage_db_op_delete(
         storage_db_t *db,
         char *key,
         size_t key_length) {

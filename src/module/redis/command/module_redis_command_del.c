@@ -53,7 +53,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
 
     int deleted_keys_count = 0;
     for(int index = 0; index < context->key.count; index++) {
-        deleted_keys_count += storage_db_delete_entry_index(
+        deleted_keys_count += storage_db_op_delete(
                 connection_context->db,
                 context->key.list[index].key,
                 context->key.list[index].length) ? 1 : 0;

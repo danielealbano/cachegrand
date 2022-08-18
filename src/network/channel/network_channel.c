@@ -43,7 +43,6 @@ bool network_channel_client_setup(
     // majority of the cases in cachegrand, the data can be sent immediately
     error |= !network_io_common_socket_set_nodelay(fd, true);
     error |= !network_io_common_socket_set_linger(fd, true, 2);
-    error |= !network_io_common_socket_set_keepalive(fd, true);
     error |= !network_io_common_socket_set_receive_timeout(fd, 5, 0);
     error |= !network_io_common_socket_set_send_timeout(fd, 5, 0);
 
@@ -84,8 +83,10 @@ bool network_channel_init(
         network_channel_t *channel) {
     channel->type = type;
     channel->address.size = sizeof(channel->address.socket);
-    channel->timeout.read_ns = -1;
-    channel->timeout.write_ns = -1;
+    channel->timeout.read.sec = -1;
+    channel->timeout.read.nsec = -1;
+    channel->timeout.write.sec = -1;
+    channel->timeout.write.nsec = -1;
 
     if (channel->type == NETWORK_CHANNEL_TYPE_CLIENT) {
         channel->buffers.send.length = NETWORK_CHANNEL_SEND_BUFFER_SIZE;

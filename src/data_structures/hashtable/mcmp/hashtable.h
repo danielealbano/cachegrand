@@ -163,6 +163,19 @@ struct hashtable {
     hashtable_data_volatile_t* ht_old;
 };
 
+typedef struct hashtable_mcmp_op_rmw_transaction hashtable_mcmp_op_rmw_status_t;
+struct hashtable_mcmp_op_rmw_transaction {
+    hashtable_hash_t hash;
+    hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk;
+    hashtable_key_value_volatile_t *key_value;
+    hashtable_key_data_t *key;
+    hashtable_key_size_t key_size;
+    hashtable_chunk_index_t chunk_index;
+    hashtable_chunk_slot_index_t chunk_slot_index;
+    bool created_new;
+    uintptr_t current_value;
+};
+
 hashtable_t* hashtable_mcmp_init(hashtable_config_t* hashtable_config);
 void hashtable_mcmp_free(hashtable_t* hashtable);
 

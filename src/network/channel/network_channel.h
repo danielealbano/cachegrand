@@ -80,8 +80,14 @@ struct network_channel {
         void *config;
     } tls;
     struct {
-        int64_t read_ns;
-        int64_t write_ns;
+        struct {
+            int64_t sec;
+            int64_t nsec;
+        } read;
+        struct {
+            int64_t sec;
+            int64_t nsec;
+        } write;
     } timeout;
 };
 
