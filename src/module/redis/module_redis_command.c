@@ -349,19 +349,28 @@ bool module_redis_command_process_argument_stream_data(
 
     size_t written_data = 0;
     do {
+        // When all the data have been written current_chunk.index will always match chunk_sequence_count, this assert
+        // catch the cases when this function is invoked to write data even if all the chunks have been written.
+        assert(string->current_chunk.index < chunk_sequence->count);
+
         storage_db_chunk_info_t *chunk_info = storage_db_chunk_sequence_get(
                 chunk_sequence,
                 string->current_chunk.index);
 
+        size_t chunk_length_to_write = chunk_length - written_data;
         size_t chunk_available_size = chunk_info->chunk_length - string->current_chunk.offset;
         size_t chunk_data_to_write_length =
-                chunk_length > chunk_available_size ? chunk_available_size : chunk_length;
+                chunk_length_to_write > chunk_available_size ? chunk_available_size : chunk_length_to_write;
+
+        // There should always be something to write
+        assert(chunk_length_to_write > 0);
+        assert(chunk_data_to_write_length > 0);
 
         bool res = storage_db_chunk_write(
                 connection_context->db,
                 chunk_info,
                 string->current_chunk.offset,
-                chunk_data,
+                chunk_data + written_data,
                 chunk_data_to_write_length);
 
         if (!res) {
@@ -378,6 +387,7 @@ bool module_redis_command_process_argument_stream_data(
 
         if (string->current_chunk.offset == chunk_info->chunk_length) {
             string->current_chunk.index++;
+            string->current_chunk.offset = 0;
         }
     } while(written_data < chunk_length);
 
@@ -870,14 +880,23 @@ bool module_redis_command_stream_entry_with_multiple_chunks(
             buffer_to_send_length = chunk_info->chunk_length;
         }
 
-        // TODO: check if it's the last chunk and, if yes, if it would fit in the send buffer with the protocol
-        //       bits that have to be sent later without doing an implicit flush
-        if (network_send_direct(
-                network_channel,
-                buffer_to_send,
-                buffer_to_send_length) != NETWORK_OP_RESULT_OK) {
-            return false;
-        }
+        size_t sent_data = 0;
+        do {
+            size_t data_available_to_send_length = buffer_to_send_length - sent_data;
+            size_t data_to_send_length = data_available_to_send_length > NETWORK_CHANNEL_PACKET_SIZE
+                    ? NETWORK_CHANNEL_PACKET_SIZE : data_available_to_send_length;
+
+            // TODO: check if it's the last chunk and, if yes, if it would fit in the send buffer with the protocol
+            //       bits that have to be sent later without doing an implicit flush
+            if (network_send_direct(
+                    network_channel,
+                    buffer_to_send + sent_data,
+                    data_to_send_length) != NETWORK_OP_RESULT_OK) {
+                return false;
+            }
+
+            sent_data += data_to_send_length;
+        } while (sent_data < buffer_to_send_length);
     }
 
     send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
