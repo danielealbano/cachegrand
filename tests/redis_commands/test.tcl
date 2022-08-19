@@ -80,7 +80,6 @@ proc test_controller {code tags} {
 }
 
 proc test {name code {okpattern undefined} {tags {}}} {
-
     set tags [concat $::tags $tags]
     if {![tags_acceptable $tags err]} {
         incr ::num_aborted
@@ -180,4 +179,105 @@ proc tags {tags code} {
 
     uplevel 1 $code
     set ::tags [lrange $::tags 0 end-[llength $tags]]
+}
+
+#######################################################################
+# Asserts Check List
+#######################################################################
+proc fail {msg} {
+    error "assertion:$msg"
+}
+
+proc assert {condition} {
+    if {![uplevel 1 [list expr $condition]]} {
+        set context "(context: [info frame -1])"
+        error "assertion:Expected [uplevel 1 [list subst -nocommands $condition]] $context"
+    }
+}
+
+proc assert_no_match {pattern value} {
+    if {[string match $pattern $value]} {
+        set context "(context: [info frame -1])"
+        error "assertion:Expected '$value' to not match '$pattern' $context"
+    }
+}
+
+proc assert_match {pattern value {detail ""}} {
+    if {![string match $pattern $value]} {
+        set context "(context: [info frame -1])"
+        error "assertion:Expected '$value' to match '$pattern' $context $detail"
+    }
+}
+
+proc assert_failed {expected_err detail} {
+     if {$detail ne ""} {
+        set detail "(detail: $detail)"
+     } else {
+        set detail "(context: [info frame -2])"
+     }
+     error "assertion:$expected_err $detail"
+}
+
+proc assert_not_equal {value expected {detail ""}} {
+    if {!($expected ne $value)} {
+        assert_failed "Expected '$value' not equal to '$expected'" $detail
+    }
+}
+
+proc assert_equal {value expected {detail ""}} {
+    if {$expected ne $value} {
+        assert_failed "Expected '$value' to be equal to '$expected'" $detail
+    }
+}
+
+proc assert_lessthan {value expected {detail ""}} {
+    if {!($value < $expected)} {
+        assert_failed "Expected '$value' to be less than '$expected'" $detail
+    }
+}
+
+proc assert_lessthan_equal {value expected {detail ""}} {
+    if {!($value <= $expected)} {
+        assert_failed "Expected '$value' to be less than or equal to '$expected'" $detail
+    }
+}
+
+proc assert_morethan {value expected {detail ""}} {
+    if {!($value > $expected)} {
+        assert_failed "Expected '$value' to be more than '$expected'" $detail
+    }
+}
+
+proc assert_morethan_equal {value expected {detail ""}} {
+    if {!($value >= $expected)} {
+        assert_failed "Expected '$value' to be more than or equal to '$expected'" $detail
+    }
+}
+
+proc assert_range {value min max {detail ""}} {
+    if {!($value <= $max && $value >= $min)} {
+        assert_failed "Expected '$value' to be between to '$min' and '$max'" $detail
+    }
+}
+
+proc assert_error {pattern code {detail ""}} {
+    if {[catch {uplevel 1 $code} error]} {
+        assert_match $pattern $error $detail
+    } else {
+        assert_failed "Expected an error matching '$pattern' but got '$error'" $detail
+    }
+}
+
+proc assert_encoding {enc key} {
+    set val [r object encoding $key]
+    assert_match $enc $val
+}
+
+proc assert_type {type key} {
+    assert_equal $type [r type $key]
+}
+
+proc assert_refcount {ref key} {
+    set val [r object refcount $key]
+    assert_equal $ref $val
 }

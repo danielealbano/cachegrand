@@ -38,7 +38,7 @@ set ::server_cfg "../../etc/cachegrand.yaml.skel"
 set ::client 0
 set ::numclients 1; # Use static value for the moment
 set ::timeout 1200; # If this limit will reach quit the test.
-set ::portcount 8000; # Don't wanna use more than 10000 to avoid collision with cluster bus ports]
+set ::portcount 8000
 
 ########################
 # Tests
@@ -60,10 +60,7 @@ set ::tags {}
 set ::allowed_tags {}
 
 set ::next_test 0
-set ::all_tests {
-    string
-    set
-}
+set ::all_tests {}
 
 for {set j 0} {$j < [llength $argv]} {incr j} {
     set opt [lindex $argv $j]
@@ -87,10 +84,18 @@ for {set j 0} {$j < [llength $argv]} {incr j} {
     } elseif {$opt eq {--test_path}} {
         set ::test_path $arg
         incr j
+    } elseif {$opt eq {--tests}} {
+        foreach test $arg {
+            lappend ::all_tests $test
+        }
+        incr j
     } elseif {$opt eq {--allowed_tags}} {
         foreach tag $arg {
             lappend ::allowed_tags $tag
         }
+        incr j
+    } elseif {$opt eq {--dont_clean}} {
+        set ::dont_clean 1
         incr j
     } else {
         puts "Wrong argument: $opt"
@@ -112,7 +117,7 @@ if {$::client} {
 
 puts "************************************************"
 puts "** Cachegrand - Commands Redis Tests Launcher **"
-puts "- Founded [llength $::all_tests] tests file to run!"
+puts "- Founded [llength $::all_tests] test files to run!"
 puts "************************************************"
 if {[catch { spawn_client } err]} {
     if {[string length $err] > 0} {

@@ -64,7 +64,7 @@ proc spawn_server {} {
     }
 
     # Struct server's info
-    set client [redis $::server_host $::server_port 0 $::tls]
+    set client [redis $::server_host $::server_port]
     dict set ::srv "client" $client
     dict set ::srv "pid" $::server_pid
     dict set ::srv "host" $::server_host
