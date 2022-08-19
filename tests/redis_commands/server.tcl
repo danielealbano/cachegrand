@@ -26,13 +26,41 @@ proc start_server {options {code undefined}} {
         }
     }
 
-    set stdout [format "%s/%s" $::tmproot "stdout"]
-    set stderr [format "%s/%s" $::tmproot "stderr"]
-
     # Starting server
     set server_started 0
     while {$server_started == 0} {
-        set server_started [spawn_server $tags $code $stdout $stderr]
+        if {$code ne "undefined"} {
+          set server_started [spawn_server]
+        } else {
+          set server_started 1
+        }
+    }
+
+    # Run Test
+    test_controller $code $tags
+}
+
+proc spawn_server {} {
+    puts "\n** Spawn server \[$::server_host@$::server_port\]"
+
+    set stdout [format "%s/%s" $::tmproot "stdout"]
+    set stderr [format "%s/%s" $::tmproot "stderr"]
+
+    # Emit event server-spawning
+    send_data_packet $::test_server_fd "server-spawning" "port $::server_port"
+
+    if {$::verbose} {puts -nonewline "Spawing... "}
+    set pid [exec $::server_path -c $::server_cfg >> $stdout 2>> $stderr &]
+    set ::server_pid $pid
+    if {$::verbose} {puts "OK Server spawned with pid \[$pid\]"}
+
+    # Emit event server-spawned
+    send_data_packet $::test_server_fd server-spawned $pid
+
+    # Check if server is truly up
+    set serverisup [server_is_up $::server_host $::server_port 100]
+    if {!$serverisup} {
+        error "Probably there are some errors with server :("
     }
 
     # Struct server's info
@@ -44,37 +72,8 @@ proc start_server {options {code undefined}} {
     dict set ::srv "stdout" $stdout
     dict set ::srv "stderr" $stderr
 
-    # Run Test
-    test_controller $code $tags
-}
-
-proc spawn_server {tags code stdout stderr} {
-    puts "** Spawn server \[$::server_host@$::server_port\]"
-
-    # Emit event server-spawning
-    send_data_packet $::test_server_fd "server-spawning" "port $::server_port"
-
-    if {$::verbose} {puts -nonewline "Spawing... "}
-    set pid [exec $::server_path -c $::server_cfg >> $stdout 2>> $stderr &]
-    if {$::verbose} {puts "OK Server spawned with pid \[$pid\]"}
-
-    # Emit event server-spawned
-    send_data_packet $::test_server_fd server-spawned $pid
-
-    # Check if server is truly up
-    set retrynum 100
-    if {$code ne "undefined"} {
-        set serverisup [server_is_up $::server_host $::server_port $retrynum]
-    } else {
-        set serverisup 1
-    }
-
-    if {!$serverisup} {
-        error "Probably there are some errors with server :("
-    }
-
-    set ::server_pid $pid
-    return 1
+    puts ""
+    return $serverisup
 }
 
 proc server_is_up {host port retrynum} {
@@ -111,7 +110,7 @@ proc ping_server {host port} {
         }
     } else {
         if {$::verbose} {
-            puts -nonewline " Communication was good.\n"
+            puts -nonewline " Communication was good."
         }
     }
 

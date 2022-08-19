@@ -29,8 +29,8 @@ proc find_available_port {start count} {
     error "Can't find a non busy port in the $start-[expr {$start+$count-1}] range."
 }
 
-proc linespacer {} {
-  puts "\n################################################"
+proc linespacer {chr} {
+  puts [string repeat $chr 50]
 }
 
 proc is_alive config {
@@ -49,45 +49,6 @@ proc send_data_packet {fd status data {elapsed 0}} {
     flush $fd
 }
 
-###################################### TODO: 👇
-
-
-
-
-# The the_end function gets called when all the test units were already
-# executed, so the test finished.
-proc the_end {} {
-    # TODO: print the status, exit with the right exit code.
-    puts "\n                   The End\n"
-    puts "Execution time of different units:"
-    foreach {time name} $::clients_time_history {
-        puts "  $time seconds - $name"
-    }
-    if {[llength $::failed_tests]} {
-        puts "\n{!!! WARNING} The following tests failed:\n"
-        foreach failed $::failed_tests {
-            puts "*** $failed"
-        }
-        if {!$::dont_clean} cleanup
-        exit 1
-    } else {
-        puts "\n \o/ All tests passed without errors!\n"
-        if {!$::dont_clean} cleanup
-        exit 0
-    }
-}
-
-proc dump_server_log {srv} {
-    set pid [dict get $srv "pid"]
-    puts "\n===== Start of server log (pid $pid) =====\n"
-    puts [exec cat [dict get $srv "stdout"]]
-    puts "===== End of server log (pid $pid) =====\n"
-
-    puts "\n===== Start of server stderr log (pid $pid) =====\n"
-    puts [exec cat [dict get $srv "stderr"]]
-    puts "===== End of server stderr log (pid $pid) =====\n"
-}
-
 proc lpop {listVar {count 1}} {
     upvar 1 $listVar l
     set ele [lindex $l 0]
@@ -97,4 +58,41 @@ proc lpop {listVar {count 1}} {
 
 proc randomInt {max} {
     expr {int(rand()*$max)}
+}
+
+proc dump_server_log {srv} {
+    set pid [dict get $srv "pid"]
+    linespacer "="
+    puts "STDOUT LOG"
+    puts [exec cat [dict get $srv "stdout"]]
+    linespacer "="
+
+    linespacer "="
+    puts "STDERR LOG"
+    puts [exec cat [dict get $srv "stderr"]]
+    linespacer "="
+}
+
+proc the_end {} {
+    linespacer "="
+    puts "End Report"
+    puts "Execution time of different units:"
+    foreach {time name} $::clients_time_history {
+        puts "- $time seconds - $name"
+    }
+
+    if {[llength $::failed_tests]} {
+        puts "\n :( [llength $::failed_tests] tests failed:"
+        foreach failed $::failed_tests {
+            puts "-> $failed"
+        }
+        if {!$::dont_clean} cleanup
+        linespacer "="
+        exit 1
+    } else {
+        puts "\n :) All tests passed without errors!"
+        if {!$::dont_clean} cleanup
+        linespacer "="
+        exit 0
+    }
 }

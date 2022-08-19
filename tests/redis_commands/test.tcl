@@ -28,7 +28,7 @@ proc execute_test_file __testname {
     set path "$::test_path/$__testname.tcl"
     set ::curfile $path
 
-    linespacer
+    linespacer "#"
     puts  "** Executing test file: $::curfile"
     source $path
     send_data_packet $::test_server_fd done "$__testname"
@@ -37,7 +37,7 @@ proc execute_test_file __testname {
 proc execute_test_code {__testname filename code} {
     set ::curfile $filename
 
-    linespacer
+    linespacer "#"
     puts "\n** Executing test code..."
     eval $code
     send_data_packet $::test_server_fd done "$__testname"
@@ -103,12 +103,30 @@ proc test {name code {okpattern undefined} {tags {}}} {
         set assertion [string match "assertion:*" $error]
         # Durable permit to continue to run other tests in case of error
         if {$assertion || $::durable} {
+            linespacer "+"
+            puts "Owhh No! Bad error occurred!"
+
             lappend details $error
             lappend ::tests_failed $details
             incr ::num_failed
 
             # Emit event error
             send_data_packet $::test_server_fd err [join $details "\n"]
+
+            puts "Check if the server is still alive..."
+            set serverisup [server_is_up $::server_host $::server_port 10]
+            if {!$serverisup} {
+                puts "Server goes away"
+                set server_started 0
+                while {$server_started == 0} {
+                    if {$code ne "undefined"} {
+                      set server_started [spawn_server]
+                    } else {
+                      set server_started 1
+                    }
+                }
+            }
+            linespacer "+"
         } else {
             error $error $::errorInfo
         }

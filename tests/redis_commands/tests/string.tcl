@@ -10,54 +10,54 @@ start_server {tags {"string"}} {
     } {}
 
     test {Very big payload in GET/SET} {
-        set buf [string repeat "abcd" 100]
+        set buf [string repeat "abcd" 1000000]
         r set foo $buf
         r get foo
-    } [string repeat "abcd" 100]
+    } [string repeat "abcd" 1000000]
 
-#    tags {"slow"} {
-#        test {Very big payload random access} {
-#            set err {}
-#            array set payload {}
-#            for {set j 0} {$j < 100} {incr j} {
-#                set size [expr 1+[randomInt 100000]]
-#                set buf [string repeat "pl-$j" $size]
-#                set payload($j) $buf
-#                r set bigpayload_$j $buf
-#            }
-#            for {set j 0} {$j < 1000} {incr j} {
-#                set index [randomInt 100]
-#                set buf [r get bigpayload_$index]
-#                if {$buf != $payload($index)} {
-#                    set err "Values differ: I set '$payload($index)' but I read back '$buf'"
-#                    break
-#                }
-#            }
-#            unset payload
-#            set _ $err
-#        } {}
-#
-#        test {SET 10000 numeric keys and access all them in reverse order} {
-#            r flushdb
-#            set err {}
-#            for {set x 0} {$x < 100} {incr x} {
-#                r set $x $x
-#            }
-#            set sum 0
-#            for {set x 99} {$x >= 0} {incr x -1} {
-#                set val [r get $x]
-#                if {$val ne $x} {
-#                    set err "Element at position $x is $val instead of $x"
-#                    break
-#                }
-#            }
-#            set _ $err
-#        } {}
-#
-#        test {DBSIZE should be 10000 now} {
-#            r dbsize
-#        } {10000}
-#    }
+    tags {"slow"} {
+        test {Very big payload random access} {
+            set err {}
+            array set payload {}
+            for {set j 0} {$j < 100} {incr j} {
+                set size [expr 1+[randomInt 100000]]
+                set buf [string repeat "pl-$j" $size]
+                set payload($j) $buf
+                r set bigpayload_$j $buf
+            }
+            for {set j 0} {$j < 1000} {incr j} {
+                set index [randomInt 100]
+                set buf [r get bigpayload_$index]
+                if {$buf != $payload($index)} {
+                    set err "Values differ: I set '$payload($index)' but I read back '$buf'"
+                    break
+                }
+            }
+            unset payload
+            set _ $err
+        } {}
+
+        test {SET 10000 numeric keys and access all them in reverse order} {
+            r flushdb
+            set err {}
+            for {set x 0} {$x < 10000} {incr x} {
+                r set $x $x
+            }
+            set sum 0
+            for {set x 9999} {$x >= 0} {incr x -1} {
+                set val [r get $x]
+                if {$val ne $x} {
+                    set err "Element at position $x is $val instead of $x"
+                    break
+                }
+            }
+            set _ $err
+        } {}
+
+        test {DBSIZE should be 10000 now} {
+            r dbsize
+        } {10000}
+    }
 
     test "SETNX target key missing" {
         r del novar

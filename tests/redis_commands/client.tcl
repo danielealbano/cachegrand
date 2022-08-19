@@ -150,7 +150,7 @@ proc signal_idle_client fd {
         lappend ::idle_clients $fd
         set ::active_clients_task($fd) "SLEEPING, no more units to assign"
         if {[llength $::active_clients] == 0} {
-            linespacer
+            linespacer "#"
             the_end
         }
     }

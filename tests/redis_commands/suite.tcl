@@ -65,7 +65,6 @@ set ::tags {}
 set ::next_test 0
 set ::all_tests {
     string
-    set
 }
 
 for {set j 0} {$j < [llength $argv]} {incr j} {
