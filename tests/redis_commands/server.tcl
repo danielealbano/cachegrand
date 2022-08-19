@@ -110,7 +110,7 @@ proc ping_server {host port} {
         }
     } else {
         if {$::verbose} {
-            puts -nonewline " Communication was good."
+            puts -nonewline " Communication was good.\n"
         }
     }
 

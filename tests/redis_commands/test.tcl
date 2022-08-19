@@ -59,11 +59,11 @@ proc test_controller {code tags} {
               # Emit event error with details
               send_data_packet $::test_server_fd err [join $error_details "\n"]
             } else {
+              if {$::dump_logs} {
+                  dump_server_log $::srv
+              }
+
               error $error $backtrace
-            }
-        } else {
-            if {$::dump_logs && $prev_num_failed != $::num_failed} {
-                dump_server_log $::srv
             }
         }
 
@@ -80,6 +80,15 @@ proc test_controller {code tags} {
 }
 
 proc test {name code {okpattern undefined} {tags {}}} {
+
+    set tags [concat $::tags $tags]
+    if {![tags_acceptable $tags err]} {
+        incr ::num_aborted
+        # Emit event ingore for logging [skipped at the moment]
+#        send_data_packet $::test_server_fd ignore "$name: $err"
+        return
+    }
+
     incr ::num_tests
     set details {}
     lappend details "$name in $::curfile"
@@ -101,11 +110,10 @@ proc test {name code {okpattern undefined} {tags {}}} {
     if {[catch {set retval [uplevel 1 $code]} error]} {
         # We are here if for example a command is not implemented
         set assertion [string match "assertion:*" $error]
+        set cmd_not_implemented [string match "Command not implemented!" $error]
+
         # Durable permit to continue to run other tests in case of error
         if {$assertion || $::durable} {
-            linespacer "+"
-            puts "Owhh No! Bad error occurred!"
-
             lappend details $error
             lappend ::tests_failed $details
             incr ::num_failed
@@ -113,20 +121,24 @@ proc test {name code {okpattern undefined} {tags {}}} {
             # Emit event error
             send_data_packet $::test_server_fd err [join $details "\n"]
 
-            puts "Check if the server is still alive..."
-            set serverisup [server_is_up $::server_host $::server_port 10]
-            if {!$serverisup} {
-                puts "Server goes away"
-                set server_started 0
-                while {$server_started == 0} {
-                    if {$code ne "undefined"} {
-                      set server_started [spawn_server]
-                    } else {
-                      set server_started 1
+            if {!$cmd_not_implemented} {
+                linespacer "+"
+                puts "Owhh No! Bad error occurred!"
+                puts "Check if the server is still alive..."
+                set serverisup [server_is_up $::server_host $::server_port 10]
+                if {!$serverisup} {
+                    puts "Server goes away"
+                    set server_started 0
+                    while {$server_started == 0} {
+                        if {$code ne "undefined"} {
+                          set server_started [spawn_server]
+                        } else {
+                          set server_started 1
+                        }
                     }
                 }
+                linespacer "+"
             }
-            linespacer "+"
         } else {
             error $error $::errorInfo
         }
@@ -169,6 +181,3 @@ proc tags {tags code} {
     uplevel 1 $code
     set ::tags [lrange $::tags 0 end-[llength $tags]]
 }
-
-########################################### TODO 👇
-

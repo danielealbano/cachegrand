@@ -12,9 +12,10 @@ proc find_available_port {start count} {
         if {$port < $start || $port >= $start+$count} {
             set port $start
         }
+
         set fd1 -1
-        if {[catch {set fd1 [socket -server 127.0.0.1 $port]}] ||
-            [catch {set fd2 [socket -server 127.0.0.1 [expr $port+10000]]}]} {
+        if {[catch {set fd1 [socket -server $::socket_host $port]}] ||
+            [catch {set fd2 [socket -server $::server_host [expr $port+10000]]}]} {
             if {$fd1 != -1} {
                 close $fd1
             }
@@ -26,6 +27,7 @@ proc find_available_port {start count} {
         }
         incr port
     }
+
     error "Can't find a non busy port in the $start-[expr {$start+$count-1}] range."
 }
 
@@ -58,6 +60,26 @@ proc lpop {listVar {count 1}} {
 
 proc randomInt {max} {
     expr {int(rand()*$max)}
+}
+
+proc tags_acceptable {tags err_return} {
+    upvar $err_return err
+
+    if {[llength $::allowed_tags] > 0} {
+        set matched 0
+        foreach tag $::allowed_tags {
+            if {[lsearch $tags $tag] >= 0} {
+                incr matched
+            }
+        }
+
+        if {$matched < 1} {
+            set err "Tag: none of the tags allowed"
+            return 0
+        }
+    }
+
+    return 1
 }
 
 proc dump_server_log {srv} {

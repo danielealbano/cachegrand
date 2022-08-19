@@ -22,7 +22,7 @@ proc spawn_client {} {
     set start_port $::socket_port
     set port_count [expr {$::portcount / $::numclients}]
     for {set j 0} {$j < $::numclients} {incr j} {
-        set p [exec $::tclsh [info script] {*}$::argv --client $client_socket_port --portcount $port_count &]
+        set p [exec $::tclsh [info script] {*}$::argv --client $client_socket_port &]
         if {$::verbose} { puts "- Creating instances with PID: $p"}
         lappend ::clients_pids $p
         incr start_port $port_count
@@ -91,11 +91,9 @@ proc read_from_test_client fd {
 
     } elseif {$status eq {exception}} {
         puts "\[$status\]: $data"
-
         kill_clients
         kill_server $::srv
         exit 1
-
     } elseif {$status eq {testing}} {
         set ::active_clients_task($fd) "(IN PROGRESS) $data"
 
