@@ -1,3 +1,9 @@
+# Copyright (C) 2018-2022 Vito Castellano
+# All rights reserved.
+#
+# This software may be modified and distributed under the terms
+# of the BSD license.  See the LICENSE file for details.
+
 proc cleanup {} {
     if {$::verbose} {puts -nonewline "Cleanup: take a seconds... "}
     flush stdout
