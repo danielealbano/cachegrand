@@ -227,40 +227,7 @@ bool send_recv_resp_command_multi_recv(
 
         total_recv_length += recv_length;
 
-        int memcmp_res = memcmp(buffer_recv, expected, total_recv_length);
-        recv_matches_expected = memcmp_res == 0;
-
-        if (!recv_matches_expected) {
-            char temp_output[300] = { 0 };
-            char* buffer_recv_start = buffer_recv + total_recv_length - recv_length;
-            char* expected_start = expected + total_recv_length - recv_length;
-            int slide_back = 32;
-            buffer_recv_start -= slide_back;
-            expected_start -= slide_back;
-
-            fprintf(
-                    stdout,
-                    ">>> RECV n. %d (recv: %ld / strlen recv: %ld / total recv: %lu / expected len: %lu / expected matches: %s (%d))\n",
-                    i,
-                    recv_length,
-                    strlen(buffer_recv + total_recv_length - recv_length),
-                    total_recv_length,
-                    expected_length,
-                    recv_matches_expected ? "true" : "false",
-                    memcmp_res);
-            fflush(stdout);
-
-            string_replace(buffer_recv_start, recv_length + slide_back, "\r\n", "\\r\\n", temp_output, sizeof(temp_output));
-            fprintf(stdout, "RECV: '%s'\n", temp_output);
-
-            string_replace(expected_start, recv_length + slide_back, "\r\n", "\\r\\n", temp_output, sizeof(temp_output));
-            fprintf(stdout, "EXPC: '%s'\n", temp_output);
-
-            fprintf(stdout, ">     |%*s|%*s|'\n", slide_back - 1, "PREV 32B", (int)(recv_length - 1), "CURRENT");
-
-            fprintf(stdout, "<<<\n");
-            fflush(stdout);
-
+        if (memcmp(buffer_recv, expected, total_recv_length) != 0) {
             break;
         }
     }
@@ -604,35 +571,50 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
     SECTION("Redis - command - SET") {
         SECTION("New key - short") {
+            char *key = "a_key";
+            char *value = "b_value";
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    std::vector<std::string>{"SET", key, value},
                     "+OK\r\n"));
 
-            // TODO: check the hashtable
+            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
+            REQUIRE(entry_index->value->sequence[0].chunk_length == strlen(value));
+            REQUIRE(strncmp((char*)entry_index->value->sequence[0].memory.chunk_data, value, strlen(value)) == 0);
         }
 
         SECTION("New key - long") {
+            char *key = "a_key";
+            char *value = "this is a long key that can't be inlined";
+
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"SET", "a_key", "this is a long key that can't be inlined"},
+                    std::vector<std::string>{"SET", key, value},
                     "+OK\r\n"));
 
-            // TODO: check the hashtable
+            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
+            REQUIRE(entry_index->value->sequence[0].chunk_length == strlen(value));
+            REQUIRE(strncmp((char*)entry_index->value->sequence[0].memory.chunk_data, value, strlen(value)) == 0);
         }
 
         SECTION("Overwrite key") {
+            char *key = "a_key";
+            char *value1 = "b_value";
+            char *value2 = "value_z";
+
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    std::vector<std::string>{"SET", key, value1},
                     "+OK\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"SET", "a_key", "value_z"},
+                    std::vector<std::string>{"SET", key, value2},
                     "+OK\r\n"));
 
-            // TODO: check the hashtable
+            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
+            REQUIRE(entry_index->value->sequence[0].chunk_length == strlen(value2));
+            REQUIRE(strncmp((char*)entry_index->value->sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
         }
 
         SECTION("Missing parameters - key and value") {
@@ -657,16 +639,18 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
 
         SECTION("New key - expire in 500ms") {
+            char *key = "a_key";
+            char *value = "b_value";
             config_module_network_timeout.read_ms = 1000;
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"SET", "a_key", "b_value", "PX", "500"},
+                    std::vector<std::string>{"SET", key, value, "PX", "500"},
                     "+OK\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"GET", "a_key"},
+                    std::vector<std::string>{"GET", key},
                     "$7\r\nb_value\r\n"));
 
             // Wait for 600 ms and try to get the value after the expiration
@@ -674,21 +658,26 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"GET", "a_key"},
+                    std::vector<std::string>{"GET", key},
                     "$-1\r\n"));
+
+            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
+            REQUIRE(entry_index == NULL);
         }
 
         SECTION("New key - expire in 1s") {
+            char *key = "a_key";
+            char *value = "b_value";
             config_module_network_timeout.read_ms = 2000;
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "1"},
+                    std::vector<std::string>{"SET", key, value, "EX", "1"},
                     "+OK\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"GET", "a_key"},
+                    std::vector<std::string>{"GET", key},
                     "$7\r\nb_value\r\n"));
 
             // Wait for 1100 ms and try to get the value after the expiration
@@ -696,22 +685,32 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"GET", "a_key"},
+                    std::vector<std::string>{"GET", key},
                     "$-1\r\n"));
+
+            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
+            REQUIRE(entry_index == NULL);
         }
 
         SECTION("New key - KEEPTTL") {
+            char *key = "a_key";
+            char *value1 = "b_value";
+            char *value2 = "value_z";
             config_module_network_timeout.read_ms = 1000;
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"SET", "a_key", "b_value", "PX", "500"},
+                    std::vector<std::string>{"SET", key, value1, "PX", "500"},
                     "+OK\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"GET", "a_key"},
+                    std::vector<std::string>{"GET", key},
                     "$7\r\nb_value\r\n"));
+
+            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
+            REQUIRE(entry_index->value->sequence[0].chunk_length == strlen(value1));
+            REQUIRE(strncmp((char*)entry_index->value->sequence[0].memory.chunk_data, value1, strlen(value1)) == 0);
 
             // Wait for 250 ms and then try to get the value and try to update the value keeping the same ttl
             // as the initial was in 500ms will expire after 250
@@ -719,26 +718,33 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"GET", "a_key"},
+                    std::vector<std::string>{"GET", key},
                     "$7\r\nb_value\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"SET", "a_key", "c_value", "KEEPTTL"},
+                    std::vector<std::string>{"SET", key, value2, "KEEPTTL"},
                     "+OK\r\n"));
+
+            entry_index = storage_db_get_entry_index(db, key, strlen(key));
+            REQUIRE(entry_index->value->sequence[0].chunk_length == strlen(value2));
+            REQUIRE(strncmp((char*)entry_index->value->sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"GET", "a_key"},
-                    "$7\r\nc_value\r\n"));
+                    std::vector<std::string>{"GET", key},
+                    "$7\r\nvalue_z\r\n"));
 
             // Wait for 350 ms and try to get the value after the expiration
             usleep((250 + 100) * 1000);
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"GET", "a_key"},
+                    std::vector<std::string>{"GET", key},
                     "$-1\r\n"));
+
+            entry_index = storage_db_get_entry_index(db, key, strlen(key));
+            REQUIRE(entry_index == NULL);
         }
 
         SECTION("New key - XX") {
