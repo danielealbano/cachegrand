@@ -43,7 +43,7 @@ uint64_t random_generate() {
     timespec_t seed;
 
     if (random_state.a == 0) {
-        clock_monotonic(&seed);
+        clock_monotonic_coarse(&seed);
         random_init(seed.tv_nsec);
     }
 
