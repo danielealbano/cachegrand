@@ -49,6 +49,8 @@
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
+int recv_packet_size = 32 * 1024;
+
 template<typename ... Args>
 std::string string_format( const std::string& format, Args ... args )
 {
@@ -106,10 +108,10 @@ size_t string_replace(char *input, size_t input_len, char *replace, char *with, 
         size_t offset = current_char - input;
         size_t remaining_length = input_len - offset;
 
-        assert(output_offset + (current_char - previous_char - 1) < output_len);
+        assert(output_offset + (current_char - previous_char) < output_len);
 
-        memcpy(output + output_offset, previous_char, current_char - previous_char - 1);
-        output_offset += current_char - previous_char - 1;
+        memcpy(output + output_offset, previous_char, current_char - previous_char);
+        output_offset += current_char - previous_char;
 
         if (replace_len > remaining_length) {
             previous_char = current_char;
@@ -139,11 +141,9 @@ size_t string_replace(char *input, size_t input_len, char *replace, char *with, 
     return output_offset;
 }
 
-int recv_packet_size = NETWORK_CHANNEL_MAX_PACKET_SIZE;
-
 size_t send_recv_resp_command_calculate_multi_recv(
         size_t expected_length) {
-    if (expected_length < NETWORK_CHANNEL_MAX_PACKET_SIZE) {
+    if (expected_length < recv_packet_size) {
         return 1;
     }
 
@@ -161,8 +161,11 @@ bool send_recv_resp_command_multi_recv(
     size_t total_send_length, total_recv_length;
 
     // Allocates the memory to receive the response with a length up to n. of recv expected * max size of the packets
-    char *buffer_recv = (char *)malloc((max_recv_count * NETWORK_CHANNEL_MAX_PACKET_SIZE) + 1);
-    memset(buffer_recv, 0, (max_recv_count * NETWORK_CHANNEL_MAX_PACKET_SIZE) + 1);
+    size_t buffer_recv_length = (max_recv_count * recv_packet_size) + 1;
+    char *buffer_recv = (char *)malloc(buffer_recv_length);
+    memset(buffer_recv, 0, buffer_recv_length);
+
+    assert(buffer_recv_length >= expected_length);
 
     // Build the resp command
     size_t buffer_send_length = build_resp_command(nullptr, 0, arguments);
@@ -183,7 +186,8 @@ bool send_recv_resp_command_multi_recv(
         ssize_t send_length = send(client_fd, buffer_send + total_send_length, allowed_buffer_send_length, MSG_NOSIGNAL);
         if (send_length <= 0) {
             if (send_length < 0) {
-                perror("[ SEND ERROR ]");
+                fprintf(stderr, "[ SEND - ERROR %d AFTER %lu BYTES SENT ]\n", errno, total_send_length);
+                perror("[ SEND - ERROR ]");
             } else {
                 fprintf(stderr, "[ SEND - SOCKET CLOSED ]\n");
             }
@@ -200,13 +204,13 @@ bool send_recv_resp_command_multi_recv(
     // easily by a code change, this is part of a unit test, so it's fine
     total_recv_length = 0;
     for(int i = 0; i < max_recv_count && total_recv_length < expected_length; i++) {
-        size_t allowed_buffer_recv_size =
-                expected_length - total_recv_length > recv_packet_size
+        size_t allowed_buffer_recv_size = expected_length - total_recv_length;
+        allowed_buffer_recv_size =
+                allowed_buffer_recv_size < recv_packet_size
                 ? recv_packet_size
-                : expected_length - total_recv_length;
+                : allowed_buffer_recv_size;
 
         assert(allowed_buffer_recv_size > 0);
-        assert(allowed_buffer_recv_size <= recv_packet_size);
 
         ssize_t recv_length = recv(
                 client_fd,
@@ -216,7 +220,8 @@ bool send_recv_resp_command_multi_recv(
 
         if (recv_length <= 0) {
             if (recv_length < 0) {
-                perror("[ RECV ERROR ]");
+                fprintf(stderr, "[ RECV - ERROR %d AFTER %lu BYTES RECEIVED ]\n", errno, total_recv_length);
+                perror("[ RECV - ERROR ]");
                 return false;
             } else {
                 fprintf(stderr, "[ RECV - SOCKET CLOSED ]\n");
@@ -236,24 +241,72 @@ bool send_recv_resp_command_multi_recv(
     return_res = total_send_length == buffer_send_length && total_recv_length == expected_length && recv_matches_expected;
 
     if (!return_res) {
+        char temp_buffer_1[256] = { 0 };
+        char temp_buffer_2[256] = { 0 };
+
+        string_replace(
+                buffer_send,
+                total_send_length > 64 ? 64 : total_send_length,
+                "\r\n",
+                "\\r\\n",
+                temp_buffer_1,
+                sizeof(temp_buffer_1));
+        string_replace(
+                buffer_send + total_send_length - (64 > total_send_length ? total_send_length : 64),
+                64 > total_send_length ? total_send_length : 64,
+                "\r\n",
+                "\\r\\n",
+                temp_buffer_2,
+                sizeof(temp_buffer_2));
+
         fprintf(
                 stderr,
-                "[ BUFFER SEND(%ld) ]\n'%.*s'\n\n",
+                "[ BUFFER SEND(%ld) ]\n'%s' (%lu)\n'%s' (%lu)\n\n",
                 total_send_length,
-                (int)total_send_length > 256 ? 256 : (int)total_send_length,
-                buffer_send);
+                temp_buffer_1, strlen(temp_buffer_1),
+                temp_buffer_2, strlen(temp_buffer_2));
+
+        string_replace(
+                buffer_recv,
+                total_recv_length > 64 ? 64 : total_recv_length,
+                "\r\n",
+                "\\r\\n",
+                temp_buffer_1,
+                sizeof(temp_buffer_1));
+        string_replace(
+                buffer_recv + total_recv_length - (64 > total_recv_length ? total_recv_length : 64),
+                64 > total_recv_length ? total_recv_length : 64,
+                "\r\n",
+                "\\r\\n",
+                temp_buffer_2,
+                sizeof(temp_buffer_2));
         fprintf(
                 stderr,
-                "[ BUFFER RECV(%ld) ]\n'%.*s'\n\n",
+                "[ BUFFER RECV(%ld) ]\n'%s' (%lu)\n'%s' (%lu)\n\n",
                 total_recv_length,
-                (int)total_recv_length > 256 ? 256 : (int)total_recv_length,
-                buffer_recv);
+                temp_buffer_1, strlen(temp_buffer_1),
+                temp_buffer_2, strlen(temp_buffer_2));
+
+        string_replace(
+                expected,
+                expected_length > 64 ? 64 : expected_length,
+                "\r\n",
+                "\\r\\n",
+                temp_buffer_1,
+                sizeof(temp_buffer_1));
+        string_replace(
+                expected + expected_length - (64 > expected_length ? expected_length : 64),
+                64 > expected_length ? expected_length : 64,
+                "\r\n",
+                "\\r\\n",
+                temp_buffer_2,
+                sizeof(temp_buffer_2));
         fprintf(
                 stderr,
-                "[ EXPECTED RECV(%ld) ]\n'%.*s'\n\n",
+                "[ EXPECTED RECV(%ld) ]\n'%s' (%lu)\n'%s' (%lu)\n\n",
                 expected_length,
-                (int)expected_length > 256 ? 256 : (int)expected_length,
-                expected);
+                temp_buffer_1, strlen(temp_buffer_1),
+                temp_buffer_2, strlen(temp_buffer_2));
         fflush(stderr);
     }
 
@@ -293,8 +346,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             .max_command_arguments = 128,
     };
     config_module_network_timeout_t config_module_network_timeout = {
-            .read_ms = 1000,
-            .write_ms = 1000,
+            .read_ms = 1000000,
+            .write_ms = 1000000,
     };
     config_module_network_t config_module_network = {
             .timeout = &config_module_network_timeout,
@@ -580,7 +633,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
             REQUIRE(entry_index->value->sequence[0].chunk_length == strlen(value));
-            REQUIRE(strncmp((char*)entry_index->value->sequence[0].memory.chunk_data, value, strlen(value)) == 0);
+            REQUIRE(strncmp((char *) entry_index->value->sequence[0].memory.chunk_data, value, strlen(value)) == 0);
         }
 
         SECTION("New key - long") {
@@ -594,7 +647,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
             REQUIRE(entry_index->value->sequence[0].chunk_length == strlen(value));
-            REQUIRE(strncmp((char*)entry_index->value->sequence[0].memory.chunk_data, value, strlen(value)) == 0);
+            REQUIRE(strncmp((char *) entry_index->value->sequence[0].memory.chunk_data, value, strlen(value)) == 0);
         }
 
         SECTION("Overwrite key") {
@@ -614,7 +667,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
             REQUIRE(entry_index->value->sequence[0].chunk_length == strlen(value2));
-            REQUIRE(strncmp((char*)entry_index->value->sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
+            REQUIRE(strncmp((char *) entry_index->value->sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
         }
 
         SECTION("Missing parameters - key and value") {
@@ -710,7 +763,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
             REQUIRE(entry_index->value->sequence[0].chunk_length == strlen(value1));
-            REQUIRE(strncmp((char*)entry_index->value->sequence[0].memory.chunk_data, value1, strlen(value1)) == 0);
+            REQUIRE(strncmp((char *) entry_index->value->sequence[0].memory.chunk_data, value1, strlen(value1)) == 0);
 
             // Wait for 250 ms and then try to get the value and try to update the value keeping the same ttl
             // as the initial was in 500ms will expire after 250
@@ -728,7 +781,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             entry_index = storage_db_get_entry_index(db, key, strlen(key));
             REQUIRE(entry_index->value->sequence[0].chunk_length == strlen(value2));
-            REQUIRE(strncmp((char*)entry_index->value->sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
+            REQUIRE(strncmp((char *) entry_index->value->sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
@@ -940,18 +993,18 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                     "$-1\r\n"));
         }
 
-        SECTION("New key - 2MB") {
-            size_t long_value_length = 2 * 1024 * 1024;
+        SECTION("New key - 4MB") {
+            size_t long_value_length = 4 * 1024 * 1024;
             config_module_redis.max_command_length = long_value_length + 1024;
 
             // The long value is, on purpose, not filled with anything to have a very simple fuzzy testing (although
             // it's not repeatable)
-            char *long_value = (char*)malloc(long_value_length + 1);
+            char *long_value = (char *) malloc(long_value_length + 1);
 
             // Fill with random data the long value
             char range = 'z' - 'a';
-            for(size_t i = 0; i < long_value_length; i++) {
-                long_value[i] = (char)(i % range) + 'a';
+            for (size_t i = 0; i < long_value_length; i++) {
+                long_value[i] = (char) (i % range) + 'a';
             }
 
             // This is legit as long_value_length + 1 is actually being allocated
@@ -962,16 +1015,16 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                     0,
                     "$%lu\r\n%.*s\r\n",
                     long_value_length,
-                    (int)long_value_length,
+                    (int) long_value_length,
                     long_value);
 
-            char *expected_response = (char*)malloc(expected_response_length + 1);
+            char *expected_response = (char *) malloc(expected_response_length + 1);
             snprintf(
                     expected_response,
                     expected_response_length + 1,
                     "$%lu\r\n%.*s\r\n",
                     long_value_length,
-                    (int)long_value_length,
+                    (int) long_value_length,
                     long_value);
 
             REQUIRE(send_recv_resp_command_text(
@@ -981,7 +1034,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             REQUIRE(send_recv_resp_command_multi_recv(
                     client_fd,
-                    std::vector<std::string> { "GET", "a_key" },
+                    std::vector<std::string>{"GET", "a_key"},
                     expected_response,
                     expected_response_length,
                     send_recv_resp_command_calculate_multi_recv(long_value_length)));
@@ -989,60 +1042,54 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             free(expected_response);
         }
 
-        // The test currently fails in a very weird way, about after 2650000 bytes received that received data starts
-        // to differ from what they should be. It's not an issue with the cachegrand as manual testing via redis-cli,
-        // redis client libraries for different languages and netcat all produce valid results verified via a comparison
-        // of the hashes of the data set in the key and the received ones.
-        // The issue also appears to do not be triggered if the amount of data sent at once is low (e.g., 512 bytes).
-        //
-        // SECTION("New key - 4MB") {
-        //     size_t long_value_length = 4 * 1024 * 1024;
-        //     config_module_redis.max_command_length = long_value_length + 1024;
+        SECTION("New key - 256MB") {
+            size_t long_value_length = 256 * 1024 * 1024;
+            config_module_redis.max_command_length = long_value_length + 1024;
 
-        //     // The long value is, on purpose, not filled with anything to have a very simple fuzzy testing (although
-        //     // it's not repeatable)
-        //     char *long_value = (char*)malloc(long_value_length + 1);
+            // The long value is, on purpose, not filled with anything to have a very simple fuzzy testing (although
+            // it's not repeatable)
+            char *long_value = (char *) malloc(long_value_length + 1);
 
-        //     // Fill with random data the long value
-        //     char range = 'z' - 'a';
-        //     for(size_t i = 0; i < long_value_length; i++) {
-        //         long_value[i] = (char)(i % range) + 'a';
-        //    }
+            // Fill with random data the long value
+            char range = 'z' - 'a';
+            for (size_t i = 0; i < long_value_length; i++) {
+                long_value[i] = (char) (i % range) + 'a';
+            }
 
-        //    // This is legit as long_value_length + 1 is actually being allocated
-        //    long_value[long_value_length] = 0;
+            // This is legit as long_value_length + 1 is actually being allocated
+            long_value[long_value_length] = 0;
 
-        //    size_t expected_response_length = snprintf(
-        //            nullptr,
-        //            0,
-        //            "$%lu\r\n%.*s\r\n",
-        //            long_value_length,
-        //            (int)long_value_length,
-        //            long_value);
+            size_t expected_response_length = snprintf(
+                    nullptr,
+                    0,
+                    "$%lu\r\n%.*s\r\n",
+                    long_value_length,
+                    (int) long_value_length,
+                    long_value);
 
-        //    char *expected_response = (char*)malloc(expected_response_length + 1);
-        //    snprintf(
-        //            expected_response,
-        //            expected_response_length + 1,
-        //            "$%lu\r\n%.*s\r\n",
-        //            long_value_length,
-        //            (int)long_value_length,
-        //            long_value);
+            char *expected_response = (char *) malloc(expected_response_length + 1);
+            snprintf(
+                    expected_response,
+                    expected_response_length + 1,
+                    "$%lu\r\n%.*s\r\n",
+                    long_value_length,
+                    (int) long_value_length,
+                    long_value);
 
-        //    REQUIRE(send_recv_resp_command_text(
-        //            client_fd,
-        //            std::vector<std::string>{"SET", "a_key", long_value},
-        //            "+OK\r\n"));
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", long_value},
+                    "+OK\r\n"));
 
-        //    REQUIRE(send_recv_resp_command_multi_recv(
-        //            client_fd,
-        //            std::vector<std::string> { "GET", "a_key" },
-        //            expected_response,
-        //            expected_response_length,
-        //            send_recv_resp_command_calculate_multi_recv(long_value_length)));
+            REQUIRE(send_recv_resp_command_multi_recv(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    expected_response,
+                    expected_response_length,
+                    send_recv_resp_command_calculate_multi_recv(long_value_length)));
 
-        //    free(expected_response);
-        //}
+            free(expected_response);
+        }
     }
 
     SECTION("Redis - command - DEL") {
