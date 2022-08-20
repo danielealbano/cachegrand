@@ -128,6 +128,10 @@ proc kill_server config {
         [dict get $config "client"] close
     }
 
+    if {![dict exists $config "pid"]} {
+        return
+    }
+
     if {![is_alive $config]} {
         return
     }

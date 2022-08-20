@@ -34,6 +34,11 @@ proc execute_test_file __testname {
     set path "$::test_path/$__testname.tcl"
     set ::curfile $path
 
+    if {![file exists $path]} {
+         set path_not_exists "File test not found in this path: $path"
+         send_data_packet $::test_server_fd exception $path_not_exists
+    }
+
     linespacer "#"
     puts  "** Executing test file: $::curfile"
     source $path

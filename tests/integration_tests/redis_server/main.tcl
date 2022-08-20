@@ -35,8 +35,8 @@ set ::server_pid 0;
 set ::socket_host 127.0.0.1
 set ::socket_port 21111
 
-set ::server_path "../../cmake-build-debug/src/cachegrand-server"
-set ::server_cfg "../../etc/cachegrand.yaml.skel"
+set ::server_path "../../../cmake-build-debug/src/cachegrand-server"
+set ::server_cfg "../../../etc/cachegrand.yaml.skel"
 
 ########################
 # Client
@@ -49,7 +49,7 @@ set ::portcount 8000
 ########################
 # Tests
 ########################
-set ::test_path "./tests"
+set ::test_path "./examples"
 set ::num_tests 0
 set ::num_passed 0
 set ::num_failed 0
