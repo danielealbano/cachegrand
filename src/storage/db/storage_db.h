@@ -10,7 +10,7 @@ extern "C" {
 //#define STORAGE_DB_SHARD_MAGIC_NUMBER_LOW  0x5241000000000000
 
 #define STORAGE_DB_SHARD_VERSION 1
-#define STORAGE_DB_CHUNK_MAX_SIZE (64 * 1024)
+#define STORAGE_DB_CHUNK_MAX_SIZE ((64 * 1024) - 1)
 
 // This magic value defines the size of the ring buffer used to keep in memory data long enough to be sure they are not
 // being in use anymore.

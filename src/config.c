@@ -136,8 +136,8 @@ bool config_validate_after_load(
 
         // Validate ad-hoc protocol settings (redis)
         if (module.type == CONFIG_MODULE_TYPE_REDIS) {
-            if (module.redis->max_key_length > SLAB_OBJECT_SIZE_MAX) {
-                LOG_E(TAG, "The allowed maximum value of max_key_length is <%u>", SLAB_OBJECT_SIZE_MAX);
+            if (module.redis->max_key_length > SLAB_OBJECT_SIZE_MAX - 1) {
+                LOG_E(TAG, "The allowed maximum value of max_key_length is <%u>", SLAB_OBJECT_SIZE_MAX - 1);
                 return_result = false;
             }
         }
