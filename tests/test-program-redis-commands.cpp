@@ -941,7 +941,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
 
         SECTION("New key - 2MB") {
-            size_t long_value_length = 2 * 1000 * 1000;
+            size_t long_value_length = 2 * 1024 * 1024;
             config_module_redis.max_command_length = long_value_length + 1024;
 
             // The long value is, on purpose, not filled with anything to have a very simple fuzzy testing (although
