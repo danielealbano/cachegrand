@@ -346,8 +346,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             .max_command_arguments = 128,
     };
     config_module_network_timeout_t config_module_network_timeout = {
-            .read_ms = 1000000,
-            .write_ms = 1000000,
+            .read_ms = -1,
+            .write_ms = -1,
     };
     config_module_network_t config_module_network = {
             .timeout = &config_module_network_timeout,
@@ -429,22 +429,30 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
 
         SECTION("Timeout") {
-            // Wait the read timeout plus 250ms
-            usleep((config.modules[0].network->timeout->read_ms * 1000) + (250 * 1000));
+            config_module_network_timeout.read_ms = 1000;
+
+            // Send a NOP command to pickup the new timeout
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_value"},
+                    "$-1\r\n"));
+
+            // Wait the read timeout plus 100ms
+            usleep((config.modules[0].network->timeout->read_ms * 1000) + (100 * 1000));
 
             // The socket should be closed so recv should return 0
             REQUIRE(recv(client_fd, buffer_recv, sizeof(buffer_recv), 0) == 0);
         }
 
         SECTION("Command too long") {
-            int cmd_length = (int)config.modules[0].redis->max_command_length + 1;
+            int cmd_length = (int)config_module_redis.max_command_length + 1;
             char expected_error[256] = {0};
             char *allocated_buffer_send = (char*)malloc(cmd_length + 64);
 
             sprintf(
                     expected_error,
                     "-ERR the command length has exceeded '%u' bytes\r\n",
-                    (int) config.modules[0].redis->max_command_length);
+                    (int)config_module_redis.max_command_length);
             snprintf(
                     allocated_buffer_send,
                     cmd_length + 64,
@@ -452,7 +460,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                     cmd_length,
                     cmd_length,
                     0);
-            buffer_send_data_len = strlen(buffer_send);
+            buffer_send_data_len = strlen(allocated_buffer_send);
 
             REQUIRE(send(client_fd, allocated_buffer_send, strlen(allocated_buffer_send), 0) == buffer_send_data_len);
             REQUIRE(recv(client_fd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
