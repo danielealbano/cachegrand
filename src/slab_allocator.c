@@ -421,7 +421,7 @@ void slab_allocator_grow(
 void* slab_allocator_mem_alloc_hugepages(
         slab_allocator_t* slab_allocator,
         size_t size) {
-    assert(size < SLAB_OBJECT_SIZE_MAX);
+    assert(size <= SLAB_OBJECT_SIZE_MAX);
 
     double_linked_list_t* slots_list;
     double_linked_list_item_t* slots_head_item;
