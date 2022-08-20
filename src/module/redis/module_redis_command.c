@@ -883,8 +883,8 @@ bool module_redis_command_stream_entry_with_multiple_chunks(
         size_t sent_data = 0;
         do {
             size_t data_available_to_send_length = buffer_to_send_length - sent_data;
-            size_t data_to_send_length = data_available_to_send_length > NETWORK_CHANNEL_PACKET_SIZE
-                    ? NETWORK_CHANNEL_PACKET_SIZE : data_available_to_send_length;
+            size_t data_to_send_length = data_available_to_send_length > NETWORK_CHANNEL_MAX_PACKET_SIZE
+                                         ? NETWORK_CHANNEL_MAX_PACKET_SIZE : data_available_to_send_length;
 
             // TODO: check if it's the last chunk and, if yes, if it would fit in the send buffer with the protocol
             //       bits that have to be sent later without doing an implicit flush
