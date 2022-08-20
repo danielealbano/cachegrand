@@ -541,12 +541,33 @@ storage_db_entry_index_t *storage_db_entry_index_new() {
     return slab_allocator_mem_alloc_zero(sizeof(storage_db_entry_index_t));
 }
 
+size_t storage_db_chunk_sequence_calculate_chunk_count(
+        size_t size) {
+    return ceil((double)size / (double)STORAGE_DB_CHUNK_MAX_SIZE);
+}
+
+size_t storage_db_chunk_sequence_allowed_max_size() {
+    return ((int)(SLAB_OBJECT_SIZE_MAX / sizeof(storage_db_chunk_info_t))) * STORAGE_DB_CHUNK_MAX_SIZE;
+}
+
+bool storage_db_chunk_sequence_is_size_allowed(
+        size_t size) {
+    bool error = false;
+
+    // TODO: should check if the other limits (e.g. number of chunks allowed) are broken
+    if (slab_allocator_is_enabled()) {
+        error |= size > storage_db_chunk_sequence_allowed_max_size();
+    }
+
+    return !error;
+}
+
 storage_db_chunk_sequence_t *storage_db_chunk_sequence_allocate(
         storage_db_t *db,
         size_t size) {
     bool return_result = false;
     storage_db_chunk_index_t allocated_chunks_count = 0;
-    uint32_t chunk_count = ceil((double)size / (double)STORAGE_DB_CHUNK_MAX_SIZE);
+    uint32_t chunk_count = storage_db_chunk_sequence_calculate_chunk_count(size);
     size_t remaining_length = size;
 
     storage_db_chunk_sequence_t *chunk_sequence = slab_allocator_mem_alloc(sizeof(storage_db_chunk_sequence_t));

@@ -342,40 +342,43 @@ network_op_result_t network_send_direct_internal(
         size_t buffer_length,
         size_t *sent_length) {
     *sent_length = 0;
-    int32_t res = (int32_t)worker_op_network_send(
-            channel,
-            buffer,
-            buffer_length);
 
-    if (unlikely(res == 0)) {
-        LOG_D(
-                TAG,
-                "[FD:%5d][SEND] The client <%s> closed the connection",
-                channel->fd,
-                channel->address.str);
+    do {
+        int32_t res = (int32_t) worker_op_network_send(
+                channel,
+                buffer + *sent_length,
+                buffer_length - *sent_length);
 
-        return NETWORK_OP_RESULT_CLOSE_SOCKET;
-    } else if (unlikely(res == -ECANCELED)) {
-        LOG_I(
-                TAG,
-                "[FD:%5d][ERROR CLIENT] Send timeout to client <%s>",
-                channel->fd,
-                channel->address.str);
-        return NETWORK_OP_RESULT_ERROR;
-    } else if (unlikely(res < 0)) {
-        int error_number = -res;
-        LOG_I(
-                TAG,
-                "[FD:%5d][ERROR CLIENT] Error <%s (%d)> from client <%s>",
-                channel->fd,
-                strerror(error_number),
-                error_number,
-                channel->address.str);
+        if (unlikely(res == 0)) {
+            LOG_D(
+                    TAG,
+                    "[FD:%5d][SEND] The client <%s> closed the connection",
+                    channel->fd,
+                    channel->address.str);
 
-        return NETWORK_OP_RESULT_ERROR;
-    }
+            return NETWORK_OP_RESULT_CLOSE_SOCKET;
+        } else if (unlikely(res == -ECANCELED)) {
+            LOG_I(
+                    TAG,
+                    "[FD:%5d][ERROR CLIENT] Send timeout to client <%s>",
+                    channel->fd,
+                    channel->address.str);
+            return NETWORK_OP_RESULT_ERROR;
+        } else if (unlikely(res < 0)) {
+            int error_number = -res;
+            LOG_I(
+                    TAG,
+                    "[FD:%5d][ERROR CLIENT] Error <%s (%d)> from client <%s>",
+                    channel->fd,
+                    strerror(error_number),
+                    error_number,
+                    channel->address.str);
 
-    *sent_length = res;
+            return NETWORK_OP_RESULT_ERROR;
+        }
+
+        *sent_length += res;
+    } while(*sent_length < buffer_length);
 
     return NETWORK_OP_RESULT_OK;
 }

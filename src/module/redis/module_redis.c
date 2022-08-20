@@ -101,7 +101,7 @@ void module_redis_accept(
     do {
         if (unlikely(!network_buffer_has_enough_space(
                 &connection_context.read_buffer,
-                NETWORK_CHANNEL_PACKET_SIZE))) {
+                NETWORK_CHANNEL_MAX_PACKET_SIZE))) {
             module_redis_connection_error_message_printf_critical(
                     &connection_context,
                     "ERR command too long");
@@ -113,14 +113,14 @@ void module_redis_accept(
         if (likely(!exit_loop)) {
             if (unlikely(network_buffer_needs_rewind(
                     &connection_context.read_buffer,
-                    NETWORK_CHANNEL_PACKET_SIZE))) {
+                    NETWORK_CHANNEL_MAX_PACKET_SIZE))) {
                 network_buffer_rewind(&connection_context.read_buffer);
             }
 
             exit_loop = network_receive(
                     network_channel,
                     &connection_context.read_buffer,
-                    NETWORK_CHANNEL_PACKET_SIZE) != NETWORK_OP_RESULT_OK;
+                    NETWORK_CHANNEL_MAX_PACKET_SIZE) != NETWORK_OP_RESULT_OK;
         }
 
         if (likely(!exit_loop)) {

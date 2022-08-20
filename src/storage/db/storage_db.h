@@ -224,6 +224,14 @@ bool storage_db_chunk_write(
         char *buffer,
         size_t buffer_length);
 
+size_t storage_db_chunk_sequence_calculate_chunk_count(
+        size_t size);
+
+size_t storage_db_chunk_sequence_allowed_max_size();
+
+bool storage_db_chunk_sequence_is_size_allowed(
+        size_t size);
+
 storage_db_chunk_sequence_t *storage_db_chunk_sequence_allocate(
         storage_db_t *db,
         size_t size);

@@ -665,21 +665,21 @@ void module_prometheus_accept(
     do {
         if (!network_buffer_has_enough_space(
                 &module_prometheus_client.read_buffer,
-                NETWORK_CHANNEL_PACKET_SIZE)) {
+                NETWORK_CHANNEL_MAX_PACKET_SIZE)) {
             exit_loop = true;
         }
 
         if (!exit_loop) {
             if (network_buffer_needs_rewind(
                     &module_prometheus_client.read_buffer,
-                    NETWORK_CHANNEL_PACKET_SIZE)) {
+                    NETWORK_CHANNEL_MAX_PACKET_SIZE)) {
                 network_buffer_rewind(&module_prometheus_client.read_buffer);
             }
 
             exit_loop = network_receive(
                     channel,
                     &module_prometheus_client.read_buffer,
-                    NETWORK_CHANNEL_PACKET_SIZE) != NETWORK_OP_RESULT_OK;
+                    NETWORK_CHANNEL_MAX_PACKET_SIZE) != NETWORK_OP_RESULT_OK;
         }
 
         if (!exit_loop) {
