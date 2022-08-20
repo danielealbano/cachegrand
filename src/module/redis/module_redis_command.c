@@ -16,6 +16,7 @@
 #include <strings.h>
 #include <arpa/inet.h>
 #include <assert.h>
+#include <math.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -289,6 +290,14 @@ bool module_redis_command_process_argument_begin(
     }
 
     if (expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_LONG_STRING) {
+        if (!storage_db_chunk_sequence_is_size_allowed(argument_length)) {
+            module_redis_connection_error_message_printf_noncritical(
+                    connection_context,
+                    "ERR The argument length has exceeded the allowed size of '%lu'",
+                    storage_db_chunk_sequence_allowed_max_size());
+            return true;
+        }
+
         command_parser_context->current_argument.member_context_addr =
                 module_redis_command_context_get_argument_member_context_addr(
                         expected_argument,
@@ -899,6 +908,8 @@ bool module_redis_command_stream_entry_with_multiple_chunks(
 
             sent_data += data_to_send_length;
         } while (sent_data < buffer_to_send_length);
+
+        assert(sent_data == buffer_to_send_length);
     }
 
     send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
