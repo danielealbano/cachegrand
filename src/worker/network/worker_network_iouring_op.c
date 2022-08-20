@@ -388,7 +388,7 @@ int32_t worker_network_iouring_op_network_send(
     do {
         uint8_t extra_sqes = 0;
 
-        if (kernel_timespec.tv_nsec != -1) {
+        if (kernel_timespec.tv_sec > 0 || kernel_timespec.tv_nsec > 0) {
             extra_sqes |= IOSQE_IO_LINK;
         }
 
