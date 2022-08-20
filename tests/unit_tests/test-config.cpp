@@ -1123,7 +1123,7 @@ TEST_CASE("config.c", "[config]") {
     SECTION("ensure etc/cachegrand.yaml.skel is valid") {
         ssize_t tests_executable_path_len;
         char tests_executable_path[256] = { 0 };
-        char config_file_path_rel[] = "../../etc/cachegrand.yaml.skel";
+        char config_file_path_rel[] = "../../../etc/cachegrand.yaml.skel";
 
         // Build the path to the config file dinamically
         REQUIRE((tests_executable_path_len = readlink(
