@@ -183,6 +183,10 @@ void slab_allocator_enable(
     slab_allocator_enabled = enable;
 }
 
+bool slab_allocator_is_enabled() {
+    return slab_allocator_enabled;
+}
+
 uint8_t slab_index_by_object_size(
         size_t object_size) {
     assert(object_size <= SLAB_OBJECT_SIZE_MAX);
@@ -417,6 +421,8 @@ void slab_allocator_grow(
 void* slab_allocator_mem_alloc_hugepages(
         slab_allocator_t* slab_allocator,
         size_t size) {
+    assert(size < SLAB_OBJECT_SIZE_MAX);
+
     double_linked_list_t* slots_list;
     double_linked_list_item_t* slots_head_item;
     slab_slot_t* slab_slot = NULL;

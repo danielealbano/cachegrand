@@ -123,6 +123,8 @@ bool slab_allocator_thread_cache_has();
 void slab_allocator_enable(
         bool enable);
 
+bool slab_allocator_is_enabled();
+
 slab_allocator_t* slab_allocator_thread_cache_get_slab_allocator_by_size(
         size_t object_size);
 
