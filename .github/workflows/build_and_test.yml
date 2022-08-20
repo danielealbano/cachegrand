@@ -66,7 +66,7 @@ jobs:
       - name: Test
         working-directory: ${{github.workspace}}/build
         shell: bash
-        run: sudo tests/cachegrand-tests --order lex
+        run: sudo tests/unit_tests/cachegrand-tests --order lex
 
       - name: Code Coverage - Generation
         uses: danielealbano/lcov-action@v3
