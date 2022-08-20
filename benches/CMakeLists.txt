@@ -45,7 +45,7 @@ foreach(SRC_CACHEGRAND_BENCH ${SRC_CACHEGRAND_BENCHES})
 
     add_executable(
             ${CACHEGRAND_BENCH_EXEC_NAME}
-            ${SRC_CACHEGRAND_BENCH} ../tests/support.c)
+            ${SRC_CACHEGRAND_BENCH} ../tests/unit_tests/support.c)
 
     add_dependencies(
             ${CACHEGRAND_BENCH_EXEC_NAME}
