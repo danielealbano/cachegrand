@@ -94,15 +94,60 @@ size_t build_resp_command(
     return buffer_offset;
 }
 
+size_t string_replace(char *input, size_t input_len, char *replace, char *with, char *output, size_t output_len) {
+    char *previous_char = input;
+    char *current_char = input;
+    size_t replace_len = strlen(replace);
+    size_t with_len = strlen(with);
+    size_t output_offset = 0;
+    while(
+            (current_char = (char*)memchr(current_char, replace[0], input_len - (current_char - input))) != nullptr &&
+            previous_char <= input + input_len) {
+        size_t offset = current_char - input;
+        size_t remaining_length = input_len - offset;
+
+        assert(output_offset + (current_char - previous_char - 1) < output_len);
+
+        memcpy(output + output_offset, previous_char, current_char - previous_char - 1);
+        output_offset += current_char - previous_char - 1;
+
+        if (replace_len > remaining_length) {
+            previous_char = current_char;
+            continue;
+        }
+
+        if (strncmp(current_char, replace, replace_len) != 0) {
+            previous_char = current_char;
+            continue;
+        }
+
+        assert(output_offset + with_len < output_len);
+        strncpy(output + output_offset, with, with_len);
+        output_offset += with_len;
+
+        current_char += replace_len;
+        previous_char = current_char;
+    }
+
+    if (previous_char != input + input_len) {
+        memcpy(output + output_offset, previous_char, input_len - (previous_char - input));
+        output_offset += input_len - (previous_char - input);
+    }
+
+    output[output_offset + 1] = 0;
+
+    return output_offset;
+}
+
 int recv_packet_size = NETWORK_CHANNEL_MAX_PACKET_SIZE;
 
 size_t send_recv_resp_command_calculate_multi_recv(
         size_t expected_length) {
-    if (expected_length < recv_packet_size) {
+    if (expected_length < NETWORK_CHANNEL_MAX_PACKET_SIZE) {
         return 1;
     }
 
-    return 1 + (size_t)ceil((float)expected_length / (float)recv_packet_size) + 1;
+    return 1 + ceil((float)expected_length / (float)recv_packet_size) + 1;
 }
 
 bool send_recv_resp_command_multi_recv(
