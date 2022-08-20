@@ -988,6 +988,61 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             free(expected_response);
         }
+
+        // The test currently fails in a very weird way, about after 2650000 bytes received that received data starts
+        // to differ from what they should be. It's not an issue with the cachegrand as manual testing via redis-cli,
+        // redis client libraries for different languages and netcat all produce valid results verified via a comparison
+        // of the hashes of the data set in the key and the received ones.
+        // The issue also appears to do not be triggered if the amount of data sent at once is low (e.g., 512 bytes).
+        //
+        // SECTION("New key - 4MB") {
+        //     size_t long_value_length = 4 * 1024 * 1024;
+        //     config_module_redis.max_command_length = long_value_length + 1024;
+
+        //     // The long value is, on purpose, not filled with anything to have a very simple fuzzy testing (although
+        //     // it's not repeatable)
+        //     char *long_value = (char*)malloc(long_value_length + 1);
+
+        //     // Fill with random data the long value
+        //     char range = 'z' - 'a';
+        //     for(size_t i = 0; i < long_value_length; i++) {
+        //         long_value[i] = (char)(i % range) + 'a';
+        //    }
+
+        //    // This is legit as long_value_length + 1 is actually being allocated
+        //    long_value[long_value_length] = 0;
+
+        //    size_t expected_response_length = snprintf(
+        //            nullptr,
+        //            0,
+        //            "$%lu\r\n%.*s\r\n",
+        //            long_value_length,
+        //            (int)long_value_length,
+        //            long_value);
+
+        //    char *expected_response = (char*)malloc(expected_response_length + 1);
+        //    snprintf(
+        //            expected_response,
+        //            expected_response_length + 1,
+        //            "$%lu\r\n%.*s\r\n",
+        //            long_value_length,
+        //            (int)long_value_length,
+        //            long_value);
+
+        //    REQUIRE(send_recv_resp_command_text(
+        //            client_fd,
+        //            std::vector<std::string>{"SET", "a_key", long_value},
+        //            "+OK\r\n"));
+
+        //    REQUIRE(send_recv_resp_command_multi_recv(
+        //            client_fd,
+        //            std::vector<std::string> { "GET", "a_key" },
+        //            expected_response,
+        //            expected_response_length,
+        //            send_recv_resp_command_calculate_multi_recv(long_value_length)));
+
+        //    free(expected_response);
+        //}
     }
 
     SECTION("Redis - command - DEL") {
