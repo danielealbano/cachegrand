@@ -63,7 +63,7 @@ jobs:
         shell: bash
         run: cmake --build . --target cachegrand-tests -- -j 4
 
-      - name: Test
+      - name: Tests - Unit Tests
         working-directory: ${{github.workspace}}/build
         shell: bash
         run: sudo tests/unit_tests/cachegrand-tests --order lex
@@ -78,3 +78,14 @@ jobs:
         shell: bash
         working-directory: ${{github.workspace}}
         run: bash <(curl -s https://codecov.io/bash) -X gcov -Z -f coverage.info
+
+      - name: Tests - Integration Tests - Redis Server
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: ctest -R cachegrand-integration-tests-redis-server --verbose
+
+      - name: Publish redis-server commands test report
+        uses: mikepenz/action-junit-report@v3
+        with:
+          detailed_summary: true
+          report_paths: '${{github.workspace}}/build/tests/integration_tests/redis_server/junit-report.xml'
