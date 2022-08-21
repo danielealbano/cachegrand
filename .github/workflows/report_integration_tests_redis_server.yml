@@ -20,4 +20,4 @@ jobs:
           artifact: tests-integration-tests-redis-server-results
           name: Tests - Integration Tests - Redis Server
           path: '*.xml'
-          reporter: jest-junit
+          reporter: java-junit
