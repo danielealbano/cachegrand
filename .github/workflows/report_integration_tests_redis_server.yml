@@ -1,0 +1,18 @@
+name: 'Tests - Integration Tests - Redis Server - Report'
+
+on:
+  workflow_run:
+    workflows: ['Build & Test']
+    types:
+      - completed
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dorny/test-reporter@v1
+        with:
+          artifact: tests-integration-tests-redis-server-results
+          name: Tests - Integration Tests - Redis Server
+          path: '*.xml'
+          reporter: jest-junit
