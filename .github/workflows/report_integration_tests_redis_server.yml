@@ -5,7 +5,12 @@ on:
     workflows: ['Build & Test']
     types:
       - completed
- 
+
+permissions:
+    checks: write
+    contents: write
+    pull-requests: write
+
 jobs:
   report:
     runs-on: ubuntu-latest
