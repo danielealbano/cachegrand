@@ -38,6 +38,8 @@
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
 #include "module/redis/module_redis.h"
+#include "module/redis/module_redis_connection.h"
+#include "module/redis/module_redis_command.h"
 #include "network/network.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
@@ -46,12 +48,9 @@
 
 
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
-    network_channel_buffer_data_t *send_buffer, *send_buffer_start;
-    bool return_res = false;
-    size_t slice_length = 32;
+    int deleted_keys_count = 0;
     module_redis_command_del_context_t *context = connection_context->command.context;
 
-    int deleted_keys_count = 0;
     for(int index = 0; index < context->key.count; index++) {
         deleted_keys_count += storage_db_op_delete(
                 connection_context->db,
@@ -59,31 +58,5 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
                 context->key.list[index].length) ? 1 : 0;
     }
 
-    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
-            connection_context->network_channel,
-            slice_length);
-    if (send_buffer_start == NULL) {
-        LOG_E(TAG, "Unable to acquire send buffer slice!");
-        goto end;
-    }
-
-    send_buffer_start = protocol_redis_writer_write_number(
-            send_buffer_start,
-            slice_length,
-            deleted_keys_count);
-
-    network_send_buffer_release_slice(
-            connection_context->network_channel,
-            send_buffer_start ? send_buffer_start - send_buffer : 0);
-
-    if (send_buffer_start == NULL) {
-        LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-        goto end;
-    }
-
-    return_res = true;
-
-end:
-
-    return return_res;
+    return module_redis_connection_send_number(connection_context, deleted_keys_count);
 }
