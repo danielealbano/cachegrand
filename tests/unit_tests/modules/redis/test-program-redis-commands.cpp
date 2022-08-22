@@ -702,7 +702,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
                     std::vector<std::string>{"SET", "a_key", "b_value", "extra parameter"},
-                    "-ERR the command 'SET' doesn't support the parameter 'extra parameter'\r\n"));
+                    "-ERR syntax error\r\n"));
         }
 
         SECTION("New key - expire in 500ms") {
