@@ -244,6 +244,8 @@ bool send_recv_resp_command_multi_recv(
         char temp_buffer_1[256] = { 0 };
         char temp_buffer_2[256] = { 0 };
 
+        memset(temp_buffer_1, 0, sizeof(temp_buffer_1));
+        memset(temp_buffer_2, 0, sizeof(temp_buffer_2));
         string_replace(
                 buffer_send,
                 total_send_length > 64 ? 64 : total_send_length,
@@ -266,6 +268,8 @@ bool send_recv_resp_command_multi_recv(
                 temp_buffer_1, strlen(temp_buffer_1),
                 temp_buffer_2, strlen(temp_buffer_2));
 
+        memset(temp_buffer_1, 0, sizeof(temp_buffer_1));
+        memset(temp_buffer_2, 0, sizeof(temp_buffer_2));
         string_replace(
                 buffer_recv,
                 total_recv_length > 64 ? 64 : total_recv_length,
@@ -287,6 +291,8 @@ bool send_recv_resp_command_multi_recv(
                 temp_buffer_1, strlen(temp_buffer_1),
                 temp_buffer_2, strlen(temp_buffer_2));
 
+        memset(temp_buffer_1, 0, sizeof(temp_buffer_1));
+        memset(temp_buffer_2, 0, sizeof(temp_buffer_2));
         string_replace(
                 expected,
                 expected_length > 64 ? 64 : expected_length,
