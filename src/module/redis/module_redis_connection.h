@@ -50,11 +50,20 @@ bool module_redis_connection_has_error(
 bool module_redis_connection_send_error(
         module_redis_connection_context_t *connection_context);
 
+bool module_redis_connection_send_number(
+        module_redis_connection_context_t *connection_context,
+        int64_t number);
+
 bool module_redis_connection_send_ok(
         module_redis_connection_context_t *connection_context);
 
 bool module_redis_connection_send_string_null(
         module_redis_connection_context_t *connection_context);
+
+bool module_redis_connection_send_string(
+        module_redis_connection_context_t *connection_context,
+        char *string,
+        size_t string_length);
 
 bool module_redis_connection_send_array(
         module_redis_connection_context_t *connection_context,

@@ -535,12 +535,11 @@ bool module_redis_command_process_argument_full(
 
     // If guessed argument is null it means it wasn't possible to guess one, report the error and move on
     if (guessed_argument == NULL) {
+        // Although the error message can be much smarter, as was being in a previous iteration, to match the Redis
+        // behaviour the error message has been changed simply to "syntax error".
         module_redis_connection_error_message_printf_noncritical(
                 connection_context,
-                "ERR the command '%s' doesn't support the parameter '%.*s'",
-                connection_context->command.info->string,
-                MIN((int)chunk_length, 128),
-                chunk_data);
+                "ERR syntax error");
         return true;
     }
 
@@ -766,17 +765,17 @@ bool module_redis_command_stream_entry_with_one_chunk(
         network_channel_t *network_channel,
         storage_db_t *db,
         storage_db_entry_index_t *entry_index) {
-    bool res = false, result_res = false;
+    bool result_res = false;
     network_channel_buffer_data_t *send_buffer = NULL, *send_buffer_start = NULL, *send_buffer_end = NULL;
     storage_db_chunk_info_t *chunk_info;
 
-    if (!module_redis_command_acquire_slice_and_write_blob_start(
+    if (unlikely(!module_redis_command_acquire_slice_and_write_blob_start(
             network_channel,
             MIN(entry_index->value->size + 32, STORAGE_DB_CHUNK_MAX_SIZE),
             entry_index->value->size,
             &send_buffer,
             &send_buffer_start,
-            &send_buffer_end)) {
+            &send_buffer_end))) {
         return false;
     }
 
@@ -784,12 +783,10 @@ bool module_redis_command_stream_entry_with_one_chunk(
             entry_index->value,
             0);
 
-    res = storage_db_chunk_read(
+    if (unlikely(!storage_db_chunk_read(
             db,
             chunk_info,
-            send_buffer_start);
-
-    if (!res) {
+            send_buffer_start))) {
         LOG_E(
                 TAG,
                 "[REDIS][GET] Critical error, unable to read chunk <%u> long <%u> bytes",
@@ -804,7 +801,7 @@ bool module_redis_command_stream_entry_with_one_chunk(
             send_buffer_start,
             send_buffer_end - send_buffer_start);
 
-    if (send_buffer_start == NULL) {
+    if (unlikely(send_buffer_start == NULL)) {
         LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
         goto end;
     }
@@ -812,13 +809,13 @@ bool module_redis_command_stream_entry_with_one_chunk(
     network_send_buffer_release_slice(
             network_channel,
             send_buffer_start - send_buffer);
-    send_buffer = NULL;
 
+    send_buffer = NULL;
     result_res = true;
 
-    end:
+end:
 
-    if (send_buffer != NULL && !result_res) {
+    if (unlikely(send_buffer != NULL && !result_res)) {
         network_send_buffer_release_slice(
                 network_channel,
                 0);
@@ -836,13 +833,13 @@ bool module_redis_command_stream_entry_with_multiple_chunks(
     storage_db_chunk_info_t *chunk_info = NULL;
     size_t slice_length = 32;
 
-    if (!module_redis_command_acquire_slice_and_write_blob_start(
+    if (unlikely(!module_redis_command_acquire_slice_and_write_blob_start(
             network_channel,
             32,
             entry_index->value->size,
             &send_buffer,
             &send_buffer_start,
-            &send_buffer_end)) {
+            &send_buffer_end))) {
         return false;
     }
 
@@ -854,39 +851,15 @@ bool module_redis_command_stream_entry_with_multiple_chunks(
     for (storage_db_chunk_index_t chunk_index = 0; chunk_index < entry_index->value->count; chunk_index++) {
         char *buffer_to_send;
         size_t buffer_to_send_length;
-
+        bool allocated_new_buffer = false;
         chunk_info = storage_db_chunk_sequence_get(entry_index->value, chunk_index);
 
-        if (storage_db_entry_chunk_can_read_from_memory(
+        buffer_to_send_length = chunk_info->chunk_length;
+        if (unlikely((buffer_to_send = storage_db_get_chunk_data(
                 db,
-                chunk_info)) {
-            buffer_to_send = storage_db_entry_chunk_read_fast_from_memory(
-                    db,
-                    chunk_info);
-            buffer_to_send_length = chunk_info->chunk_length;
-        } else {
-            // TODO: once the on-disk database will be fully implemented this will not be necessary as the data will
-            //       have to be in cache (memory) to be sent over the network
-            if (send_buffer == NULL) {
-                send_buffer = slab_allocator_mem_alloc(STORAGE_DB_CHUNK_MAX_SIZE);
-            }
-
-            res = storage_db_chunk_read(
-                    db,
-                    chunk_info,
-                    send_buffer);
-
-            if (!res) {
-                LOG_E(
-                        TAG,
-                        "[REDIS][GET] Critical error, unable to read chunk <%u> long <%u> bytes",
-                        chunk_index,
-                        chunk_info->chunk_length);
-                return false;
-            }
-
-            buffer_to_send = send_buffer;
-            buffer_to_send_length = chunk_info->chunk_length;
+                chunk_info,
+                &allocated_new_buffer)) == NULL)) {
+            return false;
         }
 
         size_t sent_data = 0;
@@ -910,12 +883,16 @@ bool module_redis_command_stream_entry_with_multiple_chunks(
         } while (sent_data < buffer_to_send_length);
 
         assert(sent_data == buffer_to_send_length);
+
+        if (allocated_new_buffer) {
+            slab_allocator_mem_free(buffer_to_send);
+        }
     }
 
     send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
             network_channel,
             slice_length);
-    if (send_buffer_start == NULL) {
+    if (unlikely(send_buffer_start == NULL)) {
         LOG_E(TAG, "Unable to acquire send buffer slice!");
         return false;
     }
@@ -927,7 +904,7 @@ bool module_redis_command_stream_entry_with_multiple_chunks(
             network_channel,
             send_buffer_start ? send_buffer_start - send_buffer : 0);
 
-    if (send_buffer_start == NULL) {
+    if (unlikely(send_buffer_start == NULL)) {
         LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
         return false;
     }

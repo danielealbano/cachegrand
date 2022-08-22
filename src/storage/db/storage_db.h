@@ -242,6 +242,11 @@ storage_db_chunk_info_t *storage_db_chunk_sequence_get(
         storage_db_chunk_sequence_t *chunk_sequence,
         storage_db_chunk_index_t chunk_index);
 
+char *storage_db_get_chunk_data(
+        storage_db_t *db,
+        storage_db_chunk_info_t *chunk_info,
+        bool *allocated_new_buffer);
+
 void storage_db_chunk_sequence_free(
         storage_db_t *db,
         storage_db_chunk_sequence_t *sequence);
