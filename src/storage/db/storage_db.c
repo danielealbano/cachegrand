@@ -1246,8 +1246,12 @@ bool storage_db_op_flush_sync(
             hashtable_key_data_t *key;
             hashtable_key_size_t key_size;
 
-            hashtable_mcmp_op_get_key(db->hashtable, bucket_index, &key, &key_size);
-            storage_db_op_delete(db, key, key_size);
+            // The bucket might have been deleted in the meantime so get_key has to return true
+            if (hashtable_mcmp_op_get_key(db->hashtable, bucket_index, &key, &key_size)) {
+                storage_db_op_delete(db, key, key_size);
+            }
         }
     }
+
+    return true;
 }
