@@ -66,14 +66,19 @@ static inline __attribute__((always_inline)) bool module_redis_command_process_e
             expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_BLOCK &&
             command_parser_context->current_argument.block_argument_index > 0) {
         if (expected_argument->is_positional) {
+            char command_lowercase_buffer[32] = { 0 };
+            for(int i = 0; i < strlen(connection_context->command.info->string); i++) {
+                command_lowercase_buffer[i] = tolower(connection_context->command.info->string[i]);
+            }
+
             return module_redis_connection_error_message_printf_noncritical(
                     connection_context,
-                    "ERR wrong number of arguments for %s",
-                    connection_context->command.info->string);
+                    "ERR wrong number of arguments for '%s' command",
+                    command_lowercase_buffer);
         } else {
             return module_redis_connection_error_message_printf_noncritical(
                     connection_context,
-                    "ERR syntax error in %s option '%s'",
+                    "ERR syntax error in '%s' option '%s'",
                     connection_context->command.info->string,
                     expected_argument->token);
         }

@@ -535,12 +535,11 @@ bool module_redis_command_process_argument_full(
 
     // If guessed argument is null it means it wasn't possible to guess one, report the error and move on
     if (guessed_argument == NULL) {
+        // Although the error message can be much smarter, as was being in a previous iteration, to match the Redis
+        // behaviour the error message has been changed simply to "syntax error".
         module_redis_connection_error_message_printf_noncritical(
                 connection_context,
-                "ERR the command '%s' doesn't support the parameter '%.*s'",
-                connection_context->command.info->string,
-                MIN((int)chunk_length, 128),
-                chunk_data);
+                "ERR syntax error");
         return true;
     }
 
