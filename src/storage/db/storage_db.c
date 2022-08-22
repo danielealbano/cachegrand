@@ -28,6 +28,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
 #include "data_structures/hashtable/mcmp/hashtable_data.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_get.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_get_key.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_delete.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_iter.h"
@@ -521,6 +522,8 @@ storage_db_entry_index_t *storage_db_entry_index_ring_buffer_new(
     } else {
         entry_index = storage_db_entry_index_new();
     }
+
+    entry_index->created_time_ms = clock_monotonic_int64_ms();
 
     return entry_index;
 }
@@ -1212,4 +1215,29 @@ bool storage_db_op_delete(
     }
 
     return res;
+}
+
+bool storage_db_op_flush_sync(
+        storage_db_t *db) {
+    // As the resizing has to be taken into account but not yet implemented, the assert will catch if the resizing is
+    // implemented without having dealt with the flush
+    assert(db->hashtable->ht_old == NULL);
+    int64_t deletion_start_ms = clock_monotonic_int64_ms();
+
+    // Iterates over the hashtable to free up the entry index
+    hashtable_bucket_index_t bucket_index = 0;
+    for(
+            void *data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index);
+            data;
+            ++bucket_index && (data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index))) {
+        storage_db_entry_index_t *entry_index = data;
+
+        if (entry_index->created_time_ms <= deletion_start_ms) {
+            hashtable_key_data_t *key;
+            hashtable_key_size_t key_size;
+
+            hashtable_mcmp_op_get_key(db->hashtable, bucket_index, &key, &key_size);
+            storage_db_op_delete(db, key, key_size);
+        }
+    }
 }

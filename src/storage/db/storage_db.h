@@ -22,6 +22,7 @@ typedef uint16_t storage_db_chunk_index_t;
 typedef uint16_t storage_db_chunk_length_t;
 typedef uint32_t storage_db_chunk_offset_t;
 typedef uint32_t storage_db_shard_index_t;
+typedef uint64_t storage_db_create_time_ms_t;
 typedef int64_t storage_db_expiry_time_ms_t;
 
 enum storage_db_backend_type {
@@ -111,6 +112,7 @@ struct storage_db_chunk_sequence {
 typedef struct storage_db_entry_index storage_db_entry_index_t;
 struct storage_db_entry_index {
     storage_db_entry_index_status_t status;
+    storage_db_create_time_ms_t created_time_ms;
     storage_db_expiry_time_ms_t expiry_time_ms;
     storage_db_chunk_sequence_t *key;
     storage_db_chunk_sequence_t *value;
@@ -319,6 +321,9 @@ bool storage_db_op_delete(
         storage_db_t *db,
         char *key,
         size_t key_length);
+
+bool storage_db_op_flush_sync(
+        storage_db_t *db);
 
 #ifdef __cplusplus
 }
