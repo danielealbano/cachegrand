@@ -193,6 +193,42 @@ bool module_redis_connection_has_error(
     return connection_context->error.message != NULL;
 }
 
+bool module_redis_connection_send_number(
+        module_redis_connection_context_t *connection_context,
+        int64_t number) {
+    bool return_result = false;
+    network_channel_buffer_data_t *send_buffer, *send_buffer_start;
+    size_t slice_length = 48;
+
+    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
+            connection_context->network_channel,
+            slice_length);
+    if (send_buffer_start == NULL) {
+        LOG_E(TAG, "Unable to acquire send buffer slice!");
+        goto end;
+    }
+
+    send_buffer_start = protocol_redis_writer_write_number(
+            send_buffer_start,
+            slice_length,
+            number);
+
+    network_send_buffer_release_slice(
+            connection_context->network_channel,
+            send_buffer_start ? send_buffer_start - send_buffer : 0);
+
+    if (send_buffer_start == NULL) {
+        LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
+        goto end;
+    }
+
+    return_result = true;
+
+    end:
+
+    return return_result;
+}
+
 bool module_redis_connection_send_ok(
         module_redis_connection_context_t *connection_context) {
     bool return_result = false;
@@ -296,6 +332,82 @@ bool module_redis_connection_send_string_null(
     network_send_buffer_release_slice(
             connection_context->network_channel,
             send_buffer_start ? send_buffer_start - send_buffer : 0);
+
+    return true;
+}
+
+bool module_redis_connection_send_string(
+        module_redis_connection_context_t *connection_context,
+        char *string,
+        size_t string_length) {
+    network_channel_buffer_data_t *send_buffer, *send_buffer_start, *send_buffer_end;
+    size_t slice_length = 32;
+
+    if (likely(string_length < NETWORK_CHANNEL_MAX_PACKET_SIZE - slice_length)) {
+        slice_length += string_length;
+        send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
+                connection_context->network_channel,
+                slice_length);
+        if (send_buffer_start == NULL) {
+            LOG_E(TAG, "Unable to acquire send buffer slice!");
+            return false;
+        }
+
+        send_buffer_start = protocol_redis_writer_write_simple_string(
+                send_buffer_start,
+                slice_length,
+                string,
+                (int)string_length);
+
+        network_send_buffer_release_slice(
+                connection_context->network_channel,
+                send_buffer_start ? send_buffer_start - send_buffer : 0);
+    } else {
+        if (unlikely(!module_redis_command_acquire_slice_and_write_blob_start(
+                connection_context->network_channel,
+                slice_length,
+                string_length,
+                &send_buffer,
+                &send_buffer_start,
+                &send_buffer_end))) {
+            return false;
+        }
+
+        for(size_t string_offset = 0; string_offset < string_length; string_offset += NETWORK_CHANNEL_MAX_PACKET_SIZE) {
+            size_t total_string_to_send = string_length - string_offset;
+            size_t string_length_to_send = total_string_to_send > NETWORK_CHANNEL_MAX_PACKET_SIZE
+                    ? NETWORK_CHANNEL_MAX_PACKET_SIZE
+                    : total_string_to_send;
+
+            if (network_send_direct(
+                    connection_context->network_channel,
+                    string + string_offset,
+                    string_length_to_send) != NETWORK_OP_RESULT_OK) {
+                LOG_E(TAG, "Failed to send string chunk!");
+                return false;
+            }
+        }
+
+        send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
+                connection_context->network_channel,
+                slice_length);
+        if (unlikely(send_buffer_start == NULL)) {
+            LOG_E(TAG, "Unable to acquire send buffer slice!");
+            return false;
+        }
+
+        send_buffer_start = protocol_redis_writer_write_argument_blob_end(
+                send_buffer_start,
+                slice_length);
+        network_send_buffer_release_slice(
+                connection_context->network_channel,
+                send_buffer_start ? send_buffer_start - send_buffer : 0);
+    }
+
+    if (unlikely(send_buffer_start == NULL)) {
+        LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
+        return false;
+    }
 
     return true;
 }
