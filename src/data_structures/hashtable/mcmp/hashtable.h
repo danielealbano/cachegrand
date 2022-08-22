@@ -125,6 +125,12 @@ struct hashtable_half_hashes_chunk {
     hashtable_slot_id_wrapper_t half_hashes[HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT];
 } __attribute__((aligned(64)));
 
+typedef struct hashtable_counters hashtable_counters_t;
+typedef _Volatile(hashtable_counters_t) hashtable_counters_volatile_t;
+struct hashtable_counters {
+    int64_t size;
+};
+
 /**
  * Struct holding the hashtable data
  **/
@@ -137,7 +143,11 @@ struct hashtable_data {
     bool can_be_deleted;
     size_t half_hashes_chunk_size;
     size_t keys_values_size;
-
+    struct {
+        spinlock_lock_volatile_t lock;
+        uint32_volatile_t size;
+        hashtable_counters_volatile_t **list;
+    } thread_counters;
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
     hashtable_key_value_volatile_t* keys_values;
 };
@@ -158,14 +168,15 @@ struct hashtable_data {
 typedef struct hashtable hashtable_t;
 struct hashtable {
     hashtable_config_t* config;
-    bool is_resizing;
     hashtable_data_volatile_t* ht_current;
     hashtable_data_volatile_t* ht_old;
+    bool is_resizing;
 };
 
 typedef struct hashtable_mcmp_op_rmw_transaction hashtable_mcmp_op_rmw_status_t;
 struct hashtable_mcmp_op_rmw_transaction {
     hashtable_hash_t hash;
+    hashtable_t *hashtable;
     hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk;
     hashtable_key_value_volatile_t *key_value;
     hashtable_key_data_t *key;
