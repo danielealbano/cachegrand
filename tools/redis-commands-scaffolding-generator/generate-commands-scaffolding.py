@@ -531,7 +531,7 @@ class Program:
         return "\n".join([
             "#ifndef MODULE_REDIS_COMMAND_{command_callback_name_uppercase}_CALLBACK_PROVIDED",
             "MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END({command_callback_name}) {{",
-            "    module_redis_connection_error_message_printf_noncritical(connection_context, \"Command not implemented!\");",
+            "    module_redis_connection_error_message_printf_noncritical(connection_context, \"Command '{command_callback_name_uppercase}' not implemented!\");",
             "    return true;",
             "}}",
             "#endif",
