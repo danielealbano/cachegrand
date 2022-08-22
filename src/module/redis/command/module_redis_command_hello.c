@@ -67,6 +67,13 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
 
     module_redis_command_hello_context_t *context = connection_context->command.context;
 
+    if (context->auth_username_password.has_token || context->setname_clientname.has_token) {
+        return_res = module_redis_connection_error_message_printf_noncritical(
+                connection_context,
+                "ERR the AUTH and SETNAME parameters are not yet supported");
+        goto end;
+    }
+
     // Validate the parameters
     if (connection_context->reader_context.arguments.count - 1 > 0) {
         if (context->protover.value < 2 || context->protover.value > 3) {
@@ -77,8 +84,8 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
         }
 
         connection_context->resp_version = context->protover.value == 2
-                                         ? PROTOCOL_REDIS_RESP_VERSION_2
-                                         : PROTOCOL_REDIS_RESP_VERSION_3;
+                ? PROTOCOL_REDIS_RESP_VERSION_2
+                : PROTOCOL_REDIS_RESP_VERSION_3;
 
         if (context->setname_clientname.has_token) {
             connection_context->client_name =

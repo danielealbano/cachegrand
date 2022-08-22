@@ -145,6 +145,17 @@
         ]
     },
     {
+        "command_string": "DBSIZE",
+        "command_callback_name": "dbsize",
+        "since": "1.0.0",
+        "required_arguments_count": 0,
+        "has_variable_arguments": false,
+        "key_specs": [
+        ],
+        "arguments": [
+        ]
+    },
+    {
         "command_string": "DECR",
         "command_callback_name": "decr",
         "since": "1.0.0",
@@ -589,6 +600,60 @@
                 "is_optional": false,
                 "is_sub_argument": false,
                 "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
+        "command_string": "FLUSHDB",
+        "command_callback_name": "flushdb",
+        "since": "1.0.0",
+        "required_arguments_count": 0,
+        "has_variable_arguments": false,
+        "key_specs": [
+        ],
+        "arguments": [
+            {
+                "name": "condition",
+                "type": "oneof",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [
+                    {
+                        "name": "sync_sync",
+                        "type": "bool",
+                        "since": "4.0.0",
+                        "key_spec_index": null,
+                        "token": "SYNC",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": true,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "async_async",
+                        "type": "bool",
+                        "since": "6.2.0",
+                        "key_spec_index": null,
+                        "token": "ASYNC",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": true,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": true,
                 "has_multiple_occurrences": false,
                 "has_multiple_token": false
             }

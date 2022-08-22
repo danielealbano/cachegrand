@@ -44,19 +44,18 @@
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 
-#define TAG "module_redis_command_del"
+#define TAG "module_redis_command_exists"
 
-
-MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
-    int deleted_keys_count = 0;
-    module_redis_command_del_context_t *context = connection_context->command.context;
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(exists) {
+    int found_keys_count = 0;
+    module_redis_command_exists_context_t *context = connection_context->command.context;
 
     for(int index = 0; index < context->key.count; index++) {
-        deleted_keys_count += storage_db_op_delete(
+        found_keys_count += storage_db_get_entry_index(
                 connection_context->db,
                 context->key.list[index].key,
-                context->key.list[index].length) ? 1 : 0;
+                context->key.list[index].length) != NULL ? 1 : 0;
     }
 
-    return module_redis_connection_send_number(connection_context, deleted_keys_count);
+    return module_redis_connection_send_number(connection_context, found_keys_count);
 }

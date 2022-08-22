@@ -1387,6 +1387,397 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
     }
 
+    SECTION("Redis - command - MSETNX") {
+        SECTION("1 key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSETNX", "a_key", "b_value"},
+                    ":1\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    "$7\r\nb_value\r\n"));
+        }
+
+        SECTION("2 keys") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSETNX", "a_key", "b_value", "b_key", "value_z"},
+                    ":1\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    "$7\r\nb_value\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "b_key"},
+                    "$7\r\nvalue_z\r\n"));
+        }
+
+        SECTION("Existing keys") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSETNX", "a_key", "b_value", "b_key", "value_z"},
+                    ":1\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    "$7\r\nb_value\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "b_key"},
+                    "$7\r\nvalue_z\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSETNX", "b_key", "another_value", "c_key", "value_not_being_set"},
+                    ":0\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "b_key"},
+                    "$7\r\nvalue_z\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "c_key"},
+                    "$-1\r\n"));
+        }
+
+        // TODO: need to fix rmw multi key transactions first
+//        SECTION("Set 64 keys") {
+//            int key_count = 64;
+//            std::vector<std::string> arguments = std::vector<std::string>();
+//
+//            arguments.emplace_back("MSETNX");
+//            for(int key_index = 0; key_index < key_count; key_index++) {
+//                arguments.push_back(string_format("a_key_%05d", key_index));
+//                arguments.push_back(string_format("b_value_%05d", key_index));
+//            }
+//
+//            REQUIRE(send_recv_resp_command_text(
+//                    client_fd,
+//                    arguments,
+//                    ":1\r\n"));
+//
+//            for(int key_index = 0; key_index < key_count; key_index++) {
+//                char expected_response[32] = { 0 };
+//                REQUIRE(send_recv_resp_command_text(
+//                        client_fd,
+//                        std::vector<std::string>{ "GET", string_format("a_key_%05d", key_index) },
+//                        (char*)(string_format("$13\r\nb_value_%05d\r\n", key_index).c_str())));
+//            }
+//        }
+
+        SECTION("Missing parameters - key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSETNX"},
+                    "-ERR wrong number of arguments for 'MSETNX' command\r\n"));
+        }
+
+        SECTION("Missing parameters - value") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSETNX", "a_key"},
+                    "-ERR wrong number of arguments for 'MSETNX' command\r\n"));
+        }
+    }
+
+    SECTION("Redis - command - EXISTS") {
+        SECTION("Non-existing key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXISTS", "a_key"},
+                    ":0\r\n"));
+        }
+
+        SECTION("1 key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXISTS", "a_key"},
+                    ":1\r\n"));
+        }
+
+        SECTION("2 keys") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSET", "a_key", "b_value", "b_key", "value_z"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXISTS", "a_key", "b_key"},
+                    ":2\r\n"));
+        }
+
+        SECTION("Repeated key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXISTS", "a_key", "a_key", "a_key"},
+                    ":3\r\n"));
+        }
+    }
+
+    SECTION("Redis - command - TTL") {
+        SECTION("Non-existing key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"TTL", "a_key"},
+                    ":-2\r\n"));
+        }
+
+        SECTION("Key without expiry") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"TTL", "a_key"},
+                    ":-1\r\n"));
+        }
+
+        SECTION("Key with 5 second expire") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"TTL", "a_key"},
+                    ":5\r\n"));
+        }
+    }
+
+    SECTION("Redis - command - PTTL") {
+        SECTION("Non-existing key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PTTL", "a_key"},
+                    ":-2\r\n"));
+        }
+
+        SECTION("Key without expiry") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PTTL", "a_key"},
+                    ":-1\r\n"));
+        }
+
+        SECTION("Key with 5 second expire") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
+                    "+OK\r\n"));
+
+            // Potentially flaky test
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PTTL", "a_key"},
+                    ":5000\r\n"));
+        }
+    }
+
+    SECTION("Redis - command - GETSET") {
+        SECTION("Non-existing key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETSET", "a_key", "b_value"},
+                    "$-1\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    "$7\r\nb_value\r\n"));
+        }
+
+        SECTION("Existing key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETSET", "a_key", "z_value"},
+                    "$7\r\nb_value\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    "$7\r\nz_value\r\n"));
+        }
+    }
+
+    SECTION("Redis - command - LCS") {
+        SECTION("No common substrings - String") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"LCS", "a_key", "b_key"},
+                    "$0\r\n\r\n"));
+        }
+
+        SECTION("No common substrings - Length") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"LCS", "a_key", "b_key", "LEN"},
+                    ":0\r\n"));
+        }
+
+        SECTION("One common substring - String") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSET", "a_key", "b_value", "b_key", "value_z"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"LCS", "a_key", "b_key"},
+                    "$5\r\nvalue\r\n"));
+        }
+
+        SECTION("One common substring - String") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSET", "a_key", "b_value", "b_key", "value_z"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"LCS", "a_key", "b_key", "LEN"},
+                    ":5\r\n"));
+        }
+
+        SECTION("Multiple common substring - String") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{
+                        "MSET",
+                        "a_key",
+                        "a very long string",
+                        "b_key",
+                        "another very string but long"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"LCS", "a_key", "b_key"},
+                    "$13\r\na very string\r\n"));
+        }
+
+        SECTION("Multiple common substring - Length") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{
+                            "MSET",
+                            "a_key",
+                            "a very long string",
+                            "b_key",
+                            "another very string but long"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"LCS", "a_key", "b_key", "LEN"},
+                    ":13\r\n"));
+        }
+    }
+
+    SECTION("Redis - command - DBSIZE") {
+        SECTION("Empty database") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"DBSIZE"},
+                    ":0\r\n"));
+        }
+
+        SECTION("Database with 1 key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"DBSIZE"},
+                    ":1\r\n"));
+        }
+
+        SECTION("Database with 1 key overwritten") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "value_z"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"DBSIZE"},
+                    ":1\r\n"));
+        }
+
+        SECTION("Database with 1 key deleted") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"DEL", "a_key"},
+                    ":1\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"DBSIZE"},
+                    ":0\r\n"));
+        }
+
+        SECTION("Database with 1 key flushed") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"FLUSHDB"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"DBSIZE"},
+                    ":0\r\n"));
+        }
+    }
+
     SECTION("Redis - command - PING") {
         SECTION("Without value") {
             REQUIRE(send_recv_resp_command_text(
