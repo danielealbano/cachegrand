@@ -759,6 +759,36 @@ storage_db_chunk_info_t *storage_db_chunk_sequence_get(
     return chunk_sequence->sequence + chunk_index;
 }
 
+char *storage_db_get_chunk_data(
+        storage_db_t *db,
+        storage_db_chunk_info_t *chunk_info,
+        bool *allocated_new_buffer) {
+    char *buffer = NULL;
+    *allocated_new_buffer = false;
+    if (likely(storage_db_entry_chunk_can_read_from_memory(
+            db,
+            chunk_info))) {
+        buffer = storage_db_entry_chunk_read_fast_from_memory(
+                db,
+                chunk_info);
+    } else {
+        *allocated_new_buffer = true;
+        buffer = slab_allocator_mem_alloc(chunk_info->chunk_length);
+
+        if (unlikely(!storage_db_chunk_read(
+                db,
+                chunk_info,
+                buffer))) {
+            LOG_E(
+                    TAG,
+                    "[REDIS][GET] Critical error, unable to read chunk");
+            return NULL;
+        }
+    }
+
+    return buffer;
+}
+
 void storage_db_entry_index_status_increase_readers_counter(
         storage_db_entry_index_t* entry_index,
         storage_db_entry_index_status_t *old_status) {
