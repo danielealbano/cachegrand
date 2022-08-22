@@ -28,7 +28,6 @@
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
 #include "data_structures/hashtable/mcmp/hashtable_data.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_get.h"
-#include "data_structures/hashtable/mcmp/hashtable_op_get_key.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_delete.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_iter.h"
