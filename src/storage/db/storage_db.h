@@ -322,6 +322,9 @@ bool storage_db_op_delete(
         char *key,
         size_t key_length);
 
+int64_t storage_db_op_get_size(
+        storage_db_t *db);
+
 bool storage_db_op_flush_sync(
         storage_db_t *db);
 

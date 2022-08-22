@@ -1217,6 +1217,16 @@ bool storage_db_op_delete(
     return res;
 }
 
+int64_t storage_db_op_get_size(
+        storage_db_t *db) {
+    int64_t size = 0;
+    hashtable_counters_t *counters_sum = hashtable_mcmp_thread_counters_sum_fetch(db->hashtable);
+    size = counters_sum->size;
+    hashtable_mcmp_thread_counters_sum_free(counters_sum);
+
+    return size;
+}
+
 bool storage_db_op_flush_sync(
         storage_db_t *db) {
     // As the resizing has to be taken into account but not yet implemented, the assert will catch if the resizing is
