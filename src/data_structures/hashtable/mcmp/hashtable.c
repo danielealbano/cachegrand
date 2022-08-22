@@ -19,7 +19,6 @@
 #include "hashtable.h"
 #include "hashtable_config.h"
 #include "hashtable_data.h"
-#include "hashtable_op_iter.h"
 
 hashtable_t* hashtable_mcmp_init(hashtable_config_t* hashtable_config) {
     hashtable_bucket_count_t buckets_count = pow2_next(hashtable_config->initial_size);
@@ -43,7 +42,6 @@ hashtable_t* hashtable_mcmp_init(hashtable_config_t* hashtable_config) {
     hashtable->is_resizing = false;
     hashtable->ht_current = hashtable_data;
     hashtable->ht_old = NULL;
-
     hashtable->config = hashtable_config;
 
     return hashtable;

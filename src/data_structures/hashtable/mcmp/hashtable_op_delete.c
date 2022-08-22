@@ -27,6 +27,7 @@
 #include "hashtable_op_delete.h"
 #include "hashtable_support_hash.h"
 #include "hashtable_support_op.h"
+#include "hashtable_thread_counters.h"
 
 bool hashtable_mcmp_op_delete(
         hashtable_t* hashtable,
@@ -139,6 +140,9 @@ bool hashtable_mcmp_op_delete(
     LOG_DI("deleted = %s", deleted ? "YES" : "NO");
     LOG_DI("chunk_index = 0x%016x", chunk_index);
     LOG_DI("chunk_slot_index = 0x%016x", chunk_slot_index);
+
+    // Decrement the size counter if deleted is true
+    hashtable_mcmp_thread_counters_get_current_thread(hashtable)->size -= deleted ? 1 : 0;
 
     return deleted;
 }
