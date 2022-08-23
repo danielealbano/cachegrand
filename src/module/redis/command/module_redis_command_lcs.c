@@ -189,6 +189,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
     bool return_res = true;
     char *lcs_string = NULL;
     uint32_t *lcsmap = NULL;
+    uint32_t lcs_length = 0;
     storage_db_entry_index_t *entry_index_1 = NULL, *entry_index_2 = NULL;
     module_redis_command_lcs_context_t *context = connection_context->command.context;
 
@@ -235,7 +236,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
     lcsmap = lcsmap_build(connection_context->db, value_1, value_2);
 
     // Get the length of the longest substring
-    uint32_t lcs_length = lcsmap_get(
+    lcs_length = lcsmap_get(
             lcsmap,
             value_1->size,
             value_1->size,
@@ -287,22 +288,33 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
         }
     }
 
-    if (!context->len_len.has_token && !context->idx_idx.has_token) {
-        module_redis_connection_send_string(
-                connection_context,
-                lcs_string,
-                strlen(lcs_string));
-    } else if (context->len_len.has_token) {
-        module_redis_connection_send_number(
-                connection_context,
-                lcsmap_get(
-                        lcsmap,
-                        value_1->size,
-                        value_1->size,
-                        value_2->size));
-    }
-
 end:
+
+    if (likely(!module_redis_connection_has_error(connection_context))) {
+        if (!context->len_len.has_token && !context->idx_idx.has_token) {
+            if (unlikely(lcs_string == NULL)) {
+                return_res = module_redis_connection_send_string(
+                        connection_context,
+                        "",
+                        0);
+            } else {
+                return_res = module_redis_connection_send_string(
+                        connection_context,
+                        lcs_string,
+                        strlen(lcs_string));
+            }
+        } else if (context->len_len.has_token) {
+            return_res = module_redis_connection_send_number(
+                    connection_context,
+                    lcsmap_get(
+                            lcsmap,
+                            value_1->size,
+                            value_1->size,
+                            value_2->size));
+        } else {
+            assert(false);
+        }
+    }
 
     if (lcsmap != NULL) {
         xalloc_free(lcsmap);
