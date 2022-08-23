@@ -221,10 +221,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
         goto end;
     }
 
-    if (entry_index_1->value->size >= UINT32_MAX || entry_index_1->value->size >= UINT32_MAX) {
-        return_res = module_redis_connection_error_message_printf_noncritical(
-                connection_context,
-                "String too long for LCS");
+    if (entry_index_1->value->size == 0 || entry_index_2->value->size == 0) {
         goto end;
     }
 
