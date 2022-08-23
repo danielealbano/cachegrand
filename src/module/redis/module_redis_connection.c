@@ -353,7 +353,7 @@ bool module_redis_connection_send_string(
             return false;
         }
 
-        send_buffer_start = protocol_redis_writer_write_simple_string(
+        send_buffer_start = protocol_redis_writer_write_blob_string(
                 send_buffer_start,
                 slice_length,
                 string,
