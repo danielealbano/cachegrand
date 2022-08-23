@@ -1633,7 +1633,50 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
     }
 
     SECTION("Redis - command - LCS") {
+        SECTION("Missing keys - String") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"LCS", "a_key", "b_key"},
+                    "$0\r\n\r\n"));
+        }
+
+        SECTION("Missing keys - Length") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"LCS", "a_key", "b_key", "LEN"},
+                    ":0\r\n"));
+        }
+
+        SECTION("Empty keys - String") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSET", "a_key", "", "b_key", ""},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"LCS", "a_key", "b_key"},
+                    "$0\r\n\r\n"));
+        }
+
+        SECTION("Empty keys - Length") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSET", "a_key", "", "b_key", ""},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"LCS", "a_key", "b_key", "LEN"},
+                    ":0\r\n"));
+        }
+
         SECTION("No common substrings - String") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSET", "a_key", "qwertyuiop", "b_key", "asdfghjkl"},
+                    "+OK\r\n"));
+
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
                     std::vector<std::string>{"LCS", "a_key", "b_key"},
@@ -1641,6 +1684,11 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
 
         SECTION("No common substrings - Length") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSET", "a_key", "qwertyuiop", "b_key", "asdfghjkl"},
+                    "+OK\r\n"));
+
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
                     std::vector<std::string>{"LCS", "a_key", "b_key", "LEN"},
