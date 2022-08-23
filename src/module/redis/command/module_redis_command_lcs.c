@@ -189,6 +189,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
     bool return_res = true;
     char *lcs_string = NULL;
     uint32_t *lcsmap = NULL;
+    uint32_t lcs_string_length = 0;
     storage_db_entry_index_t *entry_index_1 = NULL, *entry_index_2 = NULL;
     module_redis_command_lcs_context_t *context = connection_context->command.context;
 
@@ -220,10 +221,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
         goto end;
     }
 
-    if (entry_index_1->value->size >= UINT32_MAX || entry_index_1->value->size >= UINT32_MAX) {
-        return_res = module_redis_connection_error_message_printf_noncritical(
-                connection_context,
-                "String too long for LCS");
+    if (entry_index_1->value->size == 0 || entry_index_2->value->size == 0) {
         goto end;
     }
 
@@ -235,7 +233,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
     lcsmap = lcsmap_build(connection_context->db, value_1, value_2);
 
     // Get the length of the longest substring
-    uint32_t lcs_length = lcsmap_get(
+    lcs_string_length = lcsmap_get(
             lcsmap,
             value_1->size,
             value_1->size,
@@ -244,7 +242,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
     uint32_t value_1_offset_plus_one = value_1->size, value_2_offset_plus_one = value_2->size;
 
     if (!context->len_len.has_token) {
-        lcs_string = xalloc_alloc_zero(lcs_length + 1);
+        lcs_string = xalloc_alloc_zero(lcs_string_length + 1);
     }
 
     bool value_1_chunk_data_allocated_new = false;
@@ -257,14 +255,14 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
             connection_context->db,
             storage_db_chunk_sequence_get(value_2, 0),
             &value_2_chunk_data_allocated_new);
-
-    while (lcs_length > 0 && value_1_offset_plus_one > 0 && value_2_offset_plus_one > 0) {
+    uint32_t lcs_string_index = lcs_string_length;
+    while (value_1_offset_plus_one > 0 && value_2_offset_plus_one > 0) {
         if (value_1_chunk_data[value_1_offset_plus_one - 1] == value_2_chunk_data[value_2_offset_plus_one - 1]) {
             if (!context->len_len.has_token) {
-                lcs_string[lcs_length - 1] = value_1_chunk_data[value_1_offset_plus_one - 1];
+                lcs_string[lcs_string_index - 1] = value_1_chunk_data[value_1_offset_plus_one - 1];
             }
 
-            lcs_length--;
+            lcs_string_index--;
             value_1_offset_plus_one--;
             value_2_offset_plus_one--;
         } else {
@@ -287,22 +285,29 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
         }
     }
 
-    if (!context->len_len.has_token && !context->idx_idx.has_token) {
-        module_redis_connection_send_string(
-                connection_context,
-                lcs_string,
-                strlen(lcs_string));
-    } else if (context->len_len.has_token) {
-        module_redis_connection_send_number(
-                connection_context,
-                lcsmap_get(
-                        lcsmap,
-                        value_1->size,
-                        value_1->size,
-                        value_2->size));
-    }
-
 end:
+
+    if (likely(!module_redis_connection_has_error(connection_context))) {
+        if (!context->len_len.has_token && !context->idx_idx.has_token) {
+            if (unlikely(lcs_string == NULL)) {
+                return_res = module_redis_connection_send_string(
+                        connection_context,
+                        "",
+                        0);
+            } else {
+                return_res = module_redis_connection_send_string(
+                        connection_context,
+                        lcs_string,
+                        strlen(lcs_string));
+            }
+        } else if (context->len_len.has_token) {
+            return_res = module_redis_connection_send_number(
+                    connection_context,
+                    lcs_string_length);
+        } else {
+            assert(false);
+        }
+    }
 
     if (lcsmap != NULL) {
         xalloc_free(lcsmap);
