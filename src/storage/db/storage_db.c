@@ -949,6 +949,15 @@ bool storage_db_entry_index_is_expired(
     return false;
 }
 
+int64_t storage_db_entry_index_ttl_ms(
+        storage_db_entry_index_t *entry_index) {
+    if (entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY) {
+        return -1;
+    }
+
+    return entry_index->expiry_time_ms - clock_realtime_coarse_int64_ms();
+}
+
 storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         storage_db_t *db,
         char *key,
@@ -1143,6 +1152,16 @@ storage_db_entry_index_t *storage_db_op_rmw_current_entry_index_prep_for_read(
     return entry_index;
 }
 
+bool storage_db_op_rmw_commit_metadata(
+        storage_db_t *db,
+        storage_db_op_rmw_status_t *rmw_status) {
+    hashtable_mcmp_op_rmw_commit_update(
+            &rmw_status->hashtable,
+            rmw_status->current_entry_index);
+
+    return true;
+}
+
 bool storage_db_op_rmw_commit_update(
         storage_db_t *db,
         storage_db_op_rmw_status_t *rmw_status,
@@ -1198,7 +1217,7 @@ bool storage_db_op_rmw_commit_update(
 
     result_res = true;
 
-end:
+    end:
 
     if (!result_res) {
         if (entry_index) {
