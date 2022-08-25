@@ -949,7 +949,7 @@ bool storage_db_entry_index_is_expired(
     return false;
 }
 
-int64_t storage_db_entry_index_expires_in_ms(
+int64_t storage_db_entry_index_ttl_ms(
         storage_db_entry_index_t *entry_index) {
     if (entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY) {
         return -1;
