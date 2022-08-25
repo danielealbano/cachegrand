@@ -1753,6 +1753,321 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
     }
 
+    SECTION("Redis - command - PERSIST") {
+        SECTION("No key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PERSIST", "a_key"},
+                    ":0\r\n"));
+        }
+
+        SECTION("Key without expiry") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PERSIST", "a_key"},
+                    ":0\r\n"));
+        }
+
+        SECTION("Key with expiry") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PERSIST", "a_key"},
+                    ":1\r\n"));
+        }
+    }
+
+    SECTION("Redis - command - EXPIRE") {
+        SECTION("No key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXPIRE", "a_key", "5"},
+                    ":0\r\n"));
+        }
+
+        SECTION("Existing key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXPIRE", "a_key", "5"},
+                    ":1\r\n"));
+        }
+
+        SECTION("Existing key - NX - key without expiry") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXPIRE", "a_key", "5", "NX"},
+                    ":1\r\n"));
+        }
+
+        SECTION("Existing key - NX - key with expiry") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXPIRE", "a_key", "5", "NX"},
+                    ":0\r\n"));
+        }
+
+        SECTION("Existing key - XX - key without expiry") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXPIRE", "a_key", "5", "XX"},
+                    ":0\r\n"));
+        }
+
+        SECTION("Existing key - XX - key with expiry") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXPIRE", "a_key", "5", "XX"},
+                    ":1\r\n"));
+        }
+
+        SECTION("Existing key - GT - key without expiry") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXPIRE", "a_key", "5", "GT"},
+                    ":0\r\n"));
+        }
+
+        SECTION("Existing key - GT - key with expiry - lower than") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "7"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXPIRE", "a_key", "5", "GT"},
+                    ":0\r\n"));
+        }
+
+        SECTION("Existing key - GT - key with expiry - greater than") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "3"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXPIRE", "a_key", "5", "GT"},
+                    ":1\r\n"));
+        }
+
+        SECTION("Existing key - LT - key without expiry") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXPIRE", "a_key", "5", "LT"},
+                    ":1\r\n"));
+        }
+
+        SECTION("Existing key - LT - key with expiry - lower than") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "7"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXPIRE", "a_key", "5", "LT"},
+                    ":1\r\n"));
+        }
+
+        SECTION("Existing key - LT - key with expiry - greater than") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "3"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXPIRE", "a_key", "5", "LT"},
+                    ":0\r\n"));
+        }
+    }
+
+    SECTION("Redis - command - PEXPIRE") {
+        SECTION("No key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PEXPIRE", "a_key", "5000"},
+                    ":0\r\n"));
+        }
+
+        SECTION("Existing key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PEXPIRE", "a_key", "5000"},
+                    ":1\r\n"));
+        }
+
+        SECTION("Existing key - NX - key without expiry") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PEXPIRE", "a_key", "5000", "NX"},
+                    ":1\r\n"));
+        }
+
+        SECTION("Existing key - NX - key with expiry") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PEXPIRE", "a_key", "5000", "NX"},
+                    ":0\r\n"));
+        }
+
+        SECTION("Existing key - XX - key without expiry") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PEXPIRE", "a_key", "5000", "XX"},
+                    ":0\r\n"));
+        }
+
+        SECTION("Existing key - XX - key with expiry") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PEXPIRE", "a_key", "5000", "XX"},
+                    ":1\r\n"));
+        }
+
+        SECTION("Existing key - GT - key without expiry") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PEXPIRE", "a_key", "5000", "GT"},
+                    ":0\r\n"));
+        }
+
+        SECTION("Existing key - GT - key with expiry - lower than") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "7"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PEXPIRE", "a_key", "5000", "GT"},
+                    ":0\r\n"));
+        }
+
+        SECTION("Existing key - GT - key with expiry - greater than") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "3"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PEXPIRE", "a_key", "5000", "GT"},
+                    ":1\r\n"));
+        }
+
+        SECTION("Existing key - LT - key without expiry") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PEXPIRE", "a_key", "5000", "LT"},
+                    ":1\r\n"));
+        }
+
+        SECTION("Existing key - LT - key with expiry - lower than") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "7"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PEXPIRE", "a_key", "5000", "LT"},
+                    ":1\r\n"));
+        }
+
+        SECTION("Existing key - LT - key with expiry - greater than") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "3"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PEXPIRE", "a_key", "5000", "LT"},
+                    ":0\r\n"));
+        }
+    }
+
     SECTION("Redis - command - LCS") {
         SECTION("Missing keys - String") {
             REQUIRE(send_recv_resp_command_text(
