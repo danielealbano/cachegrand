@@ -73,7 +73,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(expiretime) {
             connection_context,
             current_entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY
             ? -1
-            : (current_entry_index->expiry_time_ms - clock_realtime_coarse_int64_ms()) / 1000);
+            : current_entry_index->expiry_time_ms / 1000);
 
     storage_db_op_rmw_abort(connection_context->db, &rmw_status);
 
