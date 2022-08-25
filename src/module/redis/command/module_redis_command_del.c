@@ -46,7 +46,6 @@
 
 #define TAG "module_redis_command_del"
 
-
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
     int deleted_keys_count = 0;
     module_redis_command_del_context_t *context = connection_context->command.context;
