@@ -955,7 +955,7 @@ int64_t storage_db_entry_index_expires_in_ms(
         return -1;
     }
 
-    return clock_realtime_coarse_int64_ms() - entry_index->expiry_time_ms;
+    return entry_index->expiry_time_ms - clock_realtime_coarse_int64_ms();
 }
 
 storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
