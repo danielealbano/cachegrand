@@ -79,11 +79,13 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(pexpire) {
             abort_rmw = true;
         }
     } else if (context->condition.value.gt_gt.has_token) {
-        if (milliseconds <= storage_db_entry_index_expires_in_ms(current_entry_index)) {
+        if (current_entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY ||
+            milliseconds <= storage_db_entry_index_expires_in_ms(current_entry_index)) {
             abort_rmw = true;
         }
     } else if (context->condition.value.lt_lt.has_token) {
-        if (milliseconds >= storage_db_entry_index_expires_in_ms(current_entry_index)) {
+        if (current_entry_index->expiry_time_ms != STORAGE_DB_ENTRY_NO_EXPIRY &&
+            milliseconds >= storage_db_entry_index_expires_in_ms(current_entry_index)) {
             abort_rmw = true;
         }
     }
