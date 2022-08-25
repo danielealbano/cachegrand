@@ -528,6 +528,11 @@ storage_db_entry_index_t *storage_db_entry_index_ring_buffer_new(
     return entry_index;
 }
 
+void storage_db_entry_index_touch(
+        storage_db_entry_index_t *entry_index) {
+    entry_index->last_access_time_ms = clock_monotonic_int64_ms();
+}
+
 void storage_db_entry_index_ring_buffer_free(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index) {
@@ -923,6 +928,7 @@ storage_db_entry_index_t *storage_db_get_entry_index(
         storage_db_t *db,
         char *key,
         size_t key_length) {
+    storage_db_entry_index_t *entry_index = NULL;
     hashtable_value_data_t memptr = 0;
 
     bool res = hashtable_mcmp_op_get(
@@ -935,7 +941,13 @@ storage_db_entry_index_t *storage_db_get_entry_index(
         return NULL;
     }
 
-    return (storage_db_entry_index_t *)memptr;
+    entry_index = (storage_db_entry_index_t *)memptr;
+
+    if (entry_index) {
+        storage_db_entry_index_touch(entry_index);
+    }
+
+    return entry_index;
 }
 
 bool storage_db_entry_index_is_expired(
@@ -1021,6 +1033,8 @@ bool storage_db_set_entry_index(
         size_t key_length,
         storage_db_entry_index_t *entry_index) {
     storage_db_entry_index_t *previous_entry_index = NULL;
+
+    storage_db_entry_index_touch(entry_index);
 
     bool res = hashtable_mcmp_op_set(
             db->hashtable,
@@ -1128,6 +1142,10 @@ bool storage_db_op_rmw_begin(
         *current_entry_index = NULL;
     }
 
+    if (*current_entry_index) {
+        storage_db_entry_index_touch(*current_entry_index);
+    }
+
     return true;
 }
 
@@ -1141,6 +1159,17 @@ storage_db_entry_index_t *storage_db_op_rmw_current_entry_index_prep_for_read(
             NULL);
 
     return entry_index;
+}
+
+bool storage_db_op_rmw_commit_metadata(
+        storage_db_t *db,
+        storage_db_op_rmw_status_t *rmw_status) {
+    storage_db_entry_index_touch(rmw_status->current_entry_index);
+    hashtable_mcmp_op_rmw_commit_update(
+            &rmw_status->hashtable,
+            (uintptr_t)rmw_status->current_entry_index);
+
+    return true;
 }
 
 bool storage_db_op_rmw_commit_update(
@@ -1185,6 +1214,8 @@ bool storage_db_op_rmw_commit_update(
     // Fetch a new entry and assign the key and the value as needed
     entry_index->value = value_chunk_sequence;
     entry_index->expiry_time_ms = expiry_time_ms;
+
+    storage_db_entry_index_touch(entry_index);
 
     hashtable_mcmp_op_rmw_commit_update(
             &rmw_status->hashtable,
