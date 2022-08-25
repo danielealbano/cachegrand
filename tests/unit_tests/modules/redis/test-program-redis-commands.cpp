@@ -1186,6 +1186,39 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
     }
 
+    SECTION("Redis - command - TOUCH") {
+        SECTION("Existing key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"TOUCH", "a_key"},
+                    ":1\r\n"));
+        }
+
+        SECTION("Multiple key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSET", "a_key", "b_value", "b_key", "value_z", "c_key", "d_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"TOUCH", "a_key", "b_key", "c_key"},
+                    ":3\r\n"));
+        }
+
+        SECTION("Non-existing key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"TOUCH", "a_key"},
+                    ":0\r\n"));
+        }
+    }
+
     SECTION("Redis - command - GET") {
         SECTION("Existing key") {
             REQUIRE(send_recv_resp_command_text(
