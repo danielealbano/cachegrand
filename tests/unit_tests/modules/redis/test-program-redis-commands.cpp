@@ -1632,6 +1632,127 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
     }
 
+    SECTION("Redis - command - COPY") {
+        SECTION("Non existant key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"COPY", "a_key", "b_key"},
+                    ":0\r\n"));
+        }
+
+        SECTION("Existent key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"COPY", "a_key", "b_key"},
+                    ":1\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "b_key"},
+                    "$7\r\nb_value\r\n"));
+        }
+
+        SECTION("Existent key - 4MB") {
+            size_t long_value_length = 4 * 1024 * 1024;
+            config_module_redis.max_command_length = long_value_length + 1024;
+
+            // The long value is, on purpose, not filled with anything to have a very simple fuzzy testing (although
+            // it's not repeatable)
+            char *long_value = (char *) malloc(long_value_length + 1);
+
+            // Fill with random data the long value
+            char range = 'z' - 'a';
+            for (size_t i = 0; i < long_value_length; i++) {
+                long_value[i] = (char) (i % range) + 'a';
+            }
+
+            // This is legit as long_value_length + 1 is actually being allocated
+            long_value[long_value_length] = 0;
+
+            size_t expected_response_length = snprintf(
+                    nullptr,
+                    0,
+                    "$%lu\r\n%.*s\r\n",
+                    long_value_length,
+                    (int) long_value_length,
+                    long_value);
+
+            char *expected_response = (char *) malloc(expected_response_length + 1);
+            snprintf(
+                    expected_response,
+                    expected_response_length + 1,
+                    "$%lu\r\n%.*s\r\n",
+                    long_value_length,
+                    (int) long_value_length,
+                    long_value);
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", long_value},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"COPY", "a_key", "b_key"},
+                    ":1\r\n"));
+
+            REQUIRE(send_recv_resp_command_multi_recv(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    expected_response,
+                    expected_response_length,
+                    send_recv_resp_command_calculate_multi_recv(long_value_length)));
+
+            REQUIRE(send_recv_resp_command_multi_recv(
+                    client_fd,
+                    std::vector<std::string>{"GET", "b_key"},
+                    expected_response,
+                    expected_response_length,
+                    send_recv_resp_command_calculate_multi_recv(long_value_length)));
+
+            free(expected_response);
+        }
+
+        SECTION("Existent destination key - fail") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSET", "a_key", "b_value", "b_key", "value_z"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"COPY", "a_key", "b_key"},
+                    ":0\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "b_key"},
+                    "$7\r\nvalue_z\r\n"));
+        }
+
+        SECTION("Existent destination key - Overwrite") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSET", "a_key", "b_value", "b_key", "value_z"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"COPY", "a_key", "b_key", "REPLACE"},
+                    ":1\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "b_key"},
+                    "$7\r\nb_value\r\n"));
+        }
+    }
+
     SECTION("Redis - command - LCS") {
         SECTION("Missing keys - String") {
             REQUIRE(send_recv_resp_command_text(
