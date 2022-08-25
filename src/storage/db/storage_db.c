@@ -756,6 +756,10 @@ bool storage_db_chunk_write(
 storage_db_chunk_info_t *storage_db_chunk_sequence_get(
         storage_db_chunk_sequence_t *chunk_sequence,
         storage_db_chunk_index_t chunk_index) {
+    if (unlikely(chunk_index >= chunk_sequence->count)) {
+        return NULL;
+    }
+
     return chunk_sequence->sequence + chunk_index;
 }
 
