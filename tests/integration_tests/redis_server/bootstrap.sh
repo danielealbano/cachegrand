@@ -212,7 +212,7 @@ do
 		TOTAL_TESTS_COUNT=$(($TOTAL_TESTS_COUNT + 1))
 		TEST_NAME_GREP=$(printf '%q' "$TEST_NAME")
 
-		TEST_RESULT=$($CAT $TESTS_RESULTS_PATH | $GREP -v "\->" | $EGREP -e "\]: ${TEST_NAME_GREP} (\(|in ${TEMP_FOLDER}/tests)" | $CUT -d"[" -f 2 | $CUT -d"]" -f 1)
+		TEST_RESULT=$($CAT $TESTS_RESULTS_PATH | $GREP -v "\->" | $EGREP -e "\]: ${TEST_NAME_GREP} (\([0-9]+ ms\)|in ${TEMP_FOLDER}/tests)" | $CUT -d"[" -f 2 | $CUT -d"]" -f 1)
 
 		# Check that something was found and map it to success or failure
 		if [ -z "${TEST_RESULT}" ]
@@ -220,7 +220,7 @@ do
 			echo "Failed to fetch the test result for '${TEST_NAME}' in '${TEST_FILE_PATH}'" >&2
 			echo $TEST_RESULT
 			exit 1
-		elif [ $TEST_RESULT != "ok" ] && [ $TEST_RESULT != "err" ]
+		elif [ "${TEST_RESULT}" != "ok" ] && [ "${TEST_RESULT}" != "err" ]
 		then
 			echo "The test result '${TEST_RESULT}' fetched for '${TEST_NAME}' in '${TEST_FILE_PATH}' doesn\'t match the expected 'ok' or 'err' values" >&2
 			exit 1

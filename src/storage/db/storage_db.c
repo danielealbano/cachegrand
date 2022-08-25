@@ -961,6 +961,15 @@ bool storage_db_entry_index_is_expired(
     return false;
 }
 
+int64_t storage_db_entry_index_ttl_ms(
+        storage_db_entry_index_t *entry_index) {
+    if (entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY) {
+        return -1;
+    }
+
+    return entry_index->expiry_time_ms - clock_realtime_coarse_int64_ms();
+}
+
 storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         storage_db_t *db,
         char *key,
@@ -1229,7 +1238,7 @@ bool storage_db_op_rmw_commit_update(
 
     result_res = true;
 
-end:
+    end:
 
     if (!result_res) {
         if (entry_index) {
