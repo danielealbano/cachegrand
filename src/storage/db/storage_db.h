@@ -23,6 +23,7 @@ typedef uint16_t storage_db_chunk_length_t;
 typedef uint32_t storage_db_chunk_offset_t;
 typedef uint32_t storage_db_shard_index_t;
 typedef uint64_t storage_db_create_time_ms_t;
+typedef uint64_t storage_db_last_access_time_ms_t;
 typedef int64_t storage_db_expiry_time_ms_t;
 
 enum storage_db_backend_type {
@@ -114,6 +115,7 @@ struct storage_db_entry_index {
     storage_db_entry_index_status_t status;
     storage_db_create_time_ms_t created_time_ms;
     storage_db_expiry_time_ms_t expiry_time_ms;
+    storage_db_last_access_time_ms_t last_access_time_ms;
     storage_db_chunk_sequence_t *key;
     storage_db_chunk_sequence_t *value;
 };
@@ -197,6 +199,9 @@ void storage_db_entry_index_chunks_free(
 
 void storage_db_entry_index_free(
         storage_db_t *db,
+        storage_db_entry_index_t *entry_index);
+
+void storage_db_entry_index_touch(
         storage_db_entry_index_t *entry_index);
 
 storage_db_entry_index_t *storage_db_entry_index_ring_buffer_new(

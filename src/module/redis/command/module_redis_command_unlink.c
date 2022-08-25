@@ -44,11 +44,11 @@
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 
-#define TAG "module_redis_command_del"
+#define TAG "module_redis_command_unlink"
 
-MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(unlink) {
     int deleted_keys_count = 0;
-    module_redis_command_del_context_t *context = connection_context->command.context;
+    module_redis_command_unlink_context_t *context = connection_context->command.context;
 
     for(int index = 0; index < context->key.count; index++) {
         deleted_keys_count += storage_db_op_delete(

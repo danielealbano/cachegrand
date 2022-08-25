@@ -44,18 +44,32 @@
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 
-#define TAG "module_redis_command_del"
+#define TAG "module_redis_command_touch"
 
-MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
-    int deleted_keys_count = 0;
-    module_redis_command_del_context_t *context = connection_context->command.context;
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(touch) {
+    int touched_keys_count = 0;
+    storage_db_entry_index_t *current_entry_index = NULL;
+    module_redis_command_touch_context_t *context = connection_context->command.context;
+    storage_db_op_rmw_status_t rmw_status = { 0 };
 
     for(int index = 0; index < context->key.count; index++) {
-        deleted_keys_count += storage_db_op_delete(
+        if (unlikely(!storage_db_op_rmw_begin(
                 connection_context->db,
                 context->key.list[index].key,
-                context->key.list[index].length) ? 1 : 0;
+                context->key.list[index].length,
+                &rmw_status,
+                &current_entry_index))) {
+            return module_redis_connection_error_message_printf_noncritical(
+                    connection_context,
+                    "ERR expire failed");
+        }
+
+        if (current_entry_index) {
+            touched_keys_count++;
+        }
+
+        storage_db_op_rmw_abort(connection_context->db, &rmw_status);
     }
 
-    return module_redis_connection_send_number(connection_context, deleted_keys_count);
+    return module_redis_connection_send_number(connection_context, touched_keys_count);
 }
