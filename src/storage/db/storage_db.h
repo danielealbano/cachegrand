@@ -272,6 +272,9 @@ storage_db_entry_index_t *storage_db_get_entry_index(
 bool storage_db_entry_index_is_expired(
         storage_db_entry_index_t *entry_index);
 
+int64_t storage_db_entry_index_expires_in_ms(
+        storage_db_entry_index_t *entry_index);
+
 storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         storage_db_t *db,
         char *key,
@@ -307,6 +310,10 @@ storage_db_entry_index_t *storage_db_op_rmw_current_entry_index_prep_for_read(
         storage_db_t *db,
         storage_db_op_rmw_status_t *rmw_status,
         storage_db_entry_index_t *entry_index);
+
+bool storage_db_op_rmw_commit_metadata(
+        storage_db_t *db,
+        storage_db_op_rmw_status_t *rmw_status);
 
 bool storage_db_op_rmw_commit_update(
         storage_db_t *db,
