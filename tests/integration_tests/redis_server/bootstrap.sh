@@ -177,8 +177,9 @@ $TCLSH \
 	--server_path $CACHEGRAND_SERVER_PATH \
 	--server_cfg $CACHEGRAND_CONFIG_PATH \
 	--server_port $CACHEGRAND_SERVER_PORT \
-	--test_path $TEMP_FOLDER/tests/unit/type \
-	--tests string \
+	--test_path $TEMP_FOLDER/tests/unit \
+	--tests keyspace \
+	--tests type/string \
 	2>&1 \
 	> $TESTS_RESULTS_PATH
 
