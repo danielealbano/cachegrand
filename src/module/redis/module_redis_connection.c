@@ -224,7 +224,7 @@ bool module_redis_connection_send_number(
 
     return_result = true;
 
-    end:
+end:
 
     return return_result;
 }
