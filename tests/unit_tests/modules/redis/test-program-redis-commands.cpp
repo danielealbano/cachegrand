@@ -2358,6 +2358,76 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
     }
 
+    SECTION("Redis - command - EXPIRETIME") {
+        SECTION("No key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXPIRETIME", "a_key"},
+                    ":-2\r\n"));
+        }
+
+        SECTION("Existing key - no expiration") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXPIRETIME", "a_key"},
+                    ":-1\r\n"));
+        }
+
+        SECTION("Existing key - expiration") {
+            int64_t unixtime_plus_5s = (clock_realtime_coarse_int64_ms() / 1000) + 5;
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"EXPIRETIME", "a_key"},
+                    (char*)string_format(":%ld\r\n", unixtime_plus_5s).c_str()));
+        }
+    }
+
+    SECTION("Redis - command - PEXPIRETIME") {
+        SECTION("No key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PEXPIRETIME", "a_key"},
+                    ":-2\r\n"));
+        }
+
+        SECTION("Existing key - no expiration") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PEXPIRETIME", "a_key"},
+                    ":-1\r\n"));
+        }
+
+        SECTION("Existing key - expiration") {
+            int64_t unixtime_ms_plus_5s = clock_realtime_coarse_int64_ms() + 5000;
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PEXPIRETIME", "a_key"},
+                    (char*)string_format(":%ld\r\n", unixtime_ms_plus_5s).c_str()));
+        }
+    }
+
     SECTION("Redis - command - LCS") {
         SECTION("Missing keys - String") {
             REQUIRE(send_recv_resp_command_text(
