@@ -177,8 +177,9 @@ $TCLSH \
 	--server_path $CACHEGRAND_SERVER_PATH \
 	--server_cfg $CACHEGRAND_CONFIG_PATH \
 	--server_port $CACHEGRAND_SERVER_PORT \
-	--test_path $TEMP_FOLDER/tests/unit/type \
-	--tests string \
+	--test_path $TEMP_FOLDER/tests/unit \
+	--tests keyspace \
+	--tests type/string \
 	2>&1 \
 	> $TESTS_RESULTS_PATH
 
@@ -271,10 +272,16 @@ do
 		TEST_NUMBER=$((TEST_NUMBER + 1))
 		TEST_NAME_GREP=$(printf '%q' "$TEST_NAME")
 
-		TEST_RESULT=$($CAT $TESTS_RESULTS_PATH | $GREP -v "\->" | $EGREP -e "\]: ${TEST_NAME_GREP} (\(|in ${TEMP_FOLDER}/tests)" | $CUT -d"[" -f 2 | $CUT -d"]" -f 1)
+		TEST_RESULT=$($CAT $TESTS_RESULTS_PATH | $GREP -v "\->" | $EGREP -e "\]: ${TEST_NAME_GREP} (\([0-9]+ ms\)|in ${TEMP_FOLDER}/tests)" | $CUT -d"[" -f 2 | $CUT -d"]" -f 1)
+
+		if [ ! "${TEST_RESULT}" == "err" ] && [ ! "${TEST_RESULT}" == "ok" ]
+		then
+			echo "Unknown test result: ${TEST_RESULT}"
+			$CAT $TESTS_RESULTS_PATH | $GREP -v "\->" | $EGREP -e "\]: ${TEST_NAME_GREP} (\([0-9]+ ms\)|in ${TEMP_FOLDER}/tests)"
+		fi
 
 		TEST_CASE_FAILURE_REASON=""
-		if [ $TEST_RESULT == "err" ]
+		if [ "${TEST_RESULT}" == "err" ]
 		then
 			TEST_CASE_FAILURE_REASON=$($CAT $TESTS_RESULTS_PATH | $EGREP -e "\-> \[err\]: ${TEST_NAME_GREP} in" -A 1 | tail -n 1)
 		fi
@@ -282,7 +289,7 @@ do
 		if [ $JUNIT -eq 1 ];
 		then
 			JUNIT_TEST_CASE_FAILURE_XML=""
-			if [ $TEST_RESULT == "err" ]
+			if [ "${TEST_RESULT}" == "err" ]
 			then
 				JUNIT_TEST_CASE_FAILURE_XML="<failure message=\"test failed\"><![CDATA[${TEST_CASE_FAILURE_REASON}]]></failure>
 "
@@ -297,7 +304,7 @@ EOF
 		fi
 
 		echo -n ">       [${TEST_NUMBER}/${TOTAL_TESTS_COUNT}] Test '${TEST_NAME}' "
-		if [ $TEST_RESULT == "err" ]
+		if [ "${TEST_RESULT}" == "err" ]
 		then
 			echo -ne $RED
 			echo -n "failed: ${TEST_CASE_FAILURE_REASON}"
