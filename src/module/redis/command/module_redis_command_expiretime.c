@@ -58,6 +58,12 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(expiretime) {
             context->key.value.length,
             &rmw_status,
             &current_entry_index))) {
+        return module_redis_connection_error_message_printf_noncritical(
+                connection_context,
+                "ERR expiretime failed");
+    }
+
+    if (!current_entry_index) {
         return module_redis_connection_send_number(
                 connection_context,
                 -2);

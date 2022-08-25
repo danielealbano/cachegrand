@@ -59,6 +59,12 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(persist) {
             context->key.value.length,
             &rmw_status,
             &current_entry_index))) {
+        return module_redis_connection_error_message_printf_noncritical(
+                connection_context,
+                "ERR persist failed");
+    }
+
+    if (!current_entry_index) {
         goto end;
     }
 
@@ -72,6 +78,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(persist) {
         current_entry_index->expiry_time_ms = STORAGE_DB_ENTRY_NO_EXPIRY;
         metadata_updated = true;
         storage_db_op_rmw_commit_metadata(connection_context->db, &rmw_status);
+
+        context->key.value.key = NULL;
+        context->key.value.length = 0;
     }
 
 end:
