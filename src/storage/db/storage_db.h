@@ -222,7 +222,9 @@ char* storage_db_entry_chunk_read_fast_from_memory(
 bool storage_db_chunk_read(
         storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
-        char *buffer);
+        char *buffer,
+        off_t offset,
+        size_t length);
 
 bool storage_db_chunk_write(
         storage_db_t *db,

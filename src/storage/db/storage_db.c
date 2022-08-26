@@ -699,9 +699,13 @@ char* storage_db_entry_chunk_read_fast_from_memory(
 bool storage_db_chunk_read(
         storage_db_t *db,
         storage_db_chunk_info_t *chunk_info,
-        char *buffer) {
+        char *buffer,
+        off_t offset,
+        size_t length) {
+    assert(offset + length < chunk_info->chunk_length);
+
     if (db->config->backend_type == STORAGE_DB_BACKEND_TYPE_MEMORY) {
-        if (!memcpy(buffer, chunk_info->memory.chunk_data, chunk_info->chunk_length)) {
+        if (!memcpy(buffer, chunk_info->memory.chunk_data + offset, length)) {
             return false;
         }
     } else {
@@ -710,13 +714,13 @@ bool storage_db_chunk_read(
         if (!storage_read(
                 channel,
                 buffer,
-                chunk_info->chunk_length,
-                chunk_info->file.chunk_offset)) {
+                length,
+                chunk_info->file.chunk_offset + offset)) {
             LOG_E(
                     TAG,
-                    "Failed to read chunk with offset <%u> long <%u> bytes (path <%s>)",
-                    chunk_info->file.chunk_offset,
-                    chunk_info->chunk_length,
+                    "Failed to read chunk with offset <%ld> long <%lu> bytes (path <%s>)",
+                    chunk_info->file.chunk_offset + offset,
+                    length,
                     channel->path);
 
             return false;
@@ -787,10 +791,9 @@ char *storage_db_get_chunk_data(
         if (unlikely(!storage_db_chunk_read(
                 db,
                 chunk_info,
-                buffer))) {
-            LOG_E(
-                    TAG,
-                    "[REDIS][GET] Critical error, unable to read chunk");
+                buffer,
+                0,
+                chunk_info->chunk_length))) {
             return NULL;
         }
     }
