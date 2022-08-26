@@ -50,15 +50,15 @@ bool module_redis_command_stream_entry_range_with_one_chunk(
         network_channel_t *network_channel,
         storage_db_t *db,
         storage_db_entry_index_t *entry_index,
-        size_t range_start,
-        size_t range_length);
+        off_t offset,
+        size_t length);
 
 bool module_redis_command_stream_entry_range_with_multiple_chunks(
         network_channel_t *network_channel,
         storage_db_t *db,
         storage_db_entry_index_t *entry_index,
-        size_t range_start,
-        size_t range_length);
+        off_t offset,
+        size_t length);
 
 static inline __attribute__((always_inline)) bool module_redis_command_process_end(
         module_redis_connection_context_t *connection_context) {
@@ -231,9 +231,9 @@ static inline __attribute__((always_inline)) bool module_redis_command_stream_en
         network_channel_t *network_channel,
         storage_db_t *db,
         storage_db_entry_index_t *entry_index,
-        size_t range_start,
-        size_t range_length) {
-    if (unlikely(range_start + range_length > entry_index->value->size)) {
+        off_t offset,
+        size_t length) {
+    if (unlikely(offset + length > entry_index->value->size)) {
         return false;
     }
 
@@ -245,15 +245,15 @@ static inline __attribute__((always_inline)) bool module_redis_command_stream_en
                 network_channel,
                 db,
                 entry_index,
-                range_start,
-                range_length);
+                offset,
+                length);
     } else {
         return module_redis_command_stream_entry_range_with_multiple_chunks(
                 network_channel,
                 db,
                 entry_index,
-                range_start,
-                range_length);
+                offset,
+                length);
     }
 }
 

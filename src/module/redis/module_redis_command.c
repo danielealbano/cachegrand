@@ -765,19 +765,19 @@ bool module_redis_command_stream_entry_range_with_one_chunk(
         network_channel_t *network_channel,
         storage_db_t *db,
         storage_db_entry_index_t *entry_index,
-        size_t range_start,
-        size_t range_length) {
+        off_t offset,
+        size_t length) {
     bool result_res = false;
     network_channel_buffer_data_t *send_buffer = NULL, *send_buffer_start = NULL, *send_buffer_end = NULL;
     storage_db_chunk_info_t *chunk_info;
 
-    assert(entry_index->value->count == 1 && range_length + 32 <= NETWORK_CHANNEL_MAX_PACKET_SIZE);
+    assert(entry_index->value->count == 1 && length + 32 <= NETWORK_CHANNEL_MAX_PACKET_SIZE);
 
     // Acquires a slice long enough to stream the data and the protocol bits
     if (unlikely(!module_redis_command_acquire_slice_and_write_blob_start(
             network_channel,
-            range_length + 32,
-            range_length,
+            length + 32,
+            length,
             &send_buffer,
             &send_buffer_start,
             &send_buffer_end))) {
@@ -792,8 +792,8 @@ bool module_redis_command_stream_entry_range_with_one_chunk(
             db,
             chunk_info,
             send_buffer_start,
-            range_start,
-            range_length))) {
+            offset,
+            length))) {
         return false;
     }
 
@@ -830,19 +830,19 @@ bool module_redis_command_stream_entry_range_with_multiple_chunks(
         network_channel_t *network_channel,
         storage_db_t *db,
         storage_db_entry_index_t *entry_index,
-        size_t range_start,
-        size_t range_length) {
+        off_t offset,
+        size_t length) {
     bool res;
     network_channel_buffer_data_t *send_buffer = NULL, *send_buffer_start = NULL, *send_buffer_end = NULL;
     storage_db_chunk_info_t *chunk_info = NULL;
     size_t slice_length = 32;
 
-    assert(entry_index->value->count > 1 || range_length + 32 > NETWORK_CHANNEL_MAX_PACKET_SIZE);
+    assert(entry_index->value->count > 1 || length + 32 > NETWORK_CHANNEL_MAX_PACKET_SIZE);
 
     if (unlikely(!module_redis_command_acquire_slice_and_write_blob_start(
             network_channel,
             32,
-            range_length,
+            length,
             &send_buffer,
             &send_buffer_start,
             &send_buffer_end))) {
@@ -860,18 +860,18 @@ bool module_redis_command_stream_entry_range_with_multiple_chunks(
     for (; chunk_index < entry_index->value->count; chunk_index++) {
         chunk_info = storage_db_chunk_sequence_get(entry_index->value, chunk_index);
 
-        if (range_start < chunk_info->chunk_length) {
+        if (offset < chunk_info->chunk_length) {
             break;
         }
 
-        range_start -= chunk_info->chunk_length;
+        offset -= chunk_info->chunk_length;
     }
 
     // Set sent_data to the value of range_start to skip the initial part of the first chunk selected to be sent
-    sent_data = range_start;
+    sent_data = offset;
 
     // Build the chunks for the value
-    for (; chunk_index < entry_index->value->count && range_length > 0; chunk_index++) {
+    for (; chunk_index < entry_index->value->count && length > 0; chunk_index++) {
         char *buffer_to_send;
         bool allocated_new_buffer = false;
         chunk_info = storage_db_chunk_sequence_get(entry_index->value, chunk_index);
@@ -883,9 +883,9 @@ bool module_redis_command_stream_entry_range_with_multiple_chunks(
             return false;
         }
 
-        size_t chunk_length_to_send = range_length > chunk_info->chunk_length
+        size_t chunk_length_to_send = length > chunk_info->chunk_length
                 ? chunk_info->chunk_length
-                : range_length;
+                : length;
         do {
             size_t data_available_to_send_length = chunk_length_to_send - sent_data;
             size_t data_to_send_length =
@@ -903,7 +903,7 @@ bool module_redis_command_stream_entry_range_with_multiple_chunks(
             }
 
             sent_data += data_to_send_length;
-            range_length -= data_to_send_length;
+            length -= data_to_send_length;
         } while (sent_data < chunk_length_to_send);
 
         assert(sent_data == chunk_length_to_send);
