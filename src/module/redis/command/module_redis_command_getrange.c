@@ -79,6 +79,10 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(getrange) {
         goto end;
     }
 
+    if (unlikely(range_start + range_length > entry_index->value->size)) {
+        range_length = entry_index->value->size = range_start;
+    }
+
     return_res = module_redis_command_stream_entry_range(
             connection_context->network_channel,
             connection_context->db,
