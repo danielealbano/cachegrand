@@ -46,15 +46,19 @@ bool module_redis_command_acquire_slice_and_write_blob_start(
         network_channel_buffer_data_t **send_buffer_start,
         network_channel_buffer_data_t **send_buffer_end);
 
-bool module_redis_command_stream_entry_with_one_chunk(
+bool module_redis_command_stream_entry_range_with_one_chunk(
         network_channel_t *network_channel,
         storage_db_t *db,
-        storage_db_entry_index_t *entry_index);
+        storage_db_entry_index_t *entry_index,
+        size_t range_start,
+        size_t range_length);
 
-bool module_redis_command_stream_entry_with_multiple_chunks(
+bool module_redis_command_stream_entry_range_with_multiple_chunks(
         network_channel_t *network_channel,
         storage_db_t *db,
-        storage_db_entry_index_t *entry_index);
+        storage_db_entry_index_t *entry_index,
+        size_t range_start,
+        size_t range_length);
 
 static inline __attribute__((always_inline)) bool module_redis_command_process_end(
         module_redis_connection_context_t *connection_context) {
@@ -223,24 +227,46 @@ static inline __attribute__((always_inline)) bool module_redis_command_process_a
     return command_parser_context->current_argument.require_stream;
 }
 
+static inline __attribute__((always_inline)) bool module_redis_command_stream_entry_range(
+        network_channel_t *network_channel,
+        storage_db_t *db,
+        storage_db_entry_index_t *entry_index,
+        size_t range_start,
+        size_t range_length) {
+    if (unlikely(range_start + range_length > entry_index->value->size)) {
+        return false;
+    }
+
+    // Check if the value is small enough to be contained in 1 single chunk and if it would fit in a memory single
+    // memory allocation leaving enough space for the protocol begin and end signatures themselves.
+    // The 32 bytes extra are required for the protocol data
+    if (likely(entry_index->value->count == 1 && entry_index->value->size + 32 <= NETWORK_CHANNEL_MAX_PACKET_SIZE)) {
+        return module_redis_command_stream_entry_range_with_one_chunk(
+                network_channel,
+                db,
+                entry_index,
+                range_start,
+                range_length);
+    } else {
+        return module_redis_command_stream_entry_range_with_multiple_chunks(
+                network_channel,
+                db,
+                entry_index,
+                range_start,
+                range_length);
+    }
+}
+
 static inline __attribute__((always_inline)) bool module_redis_command_stream_entry(
         network_channel_t *network_channel,
         storage_db_t *db,
         storage_db_entry_index_t *entry_index) {
-    // Check if the value is small enough to be contained in 1 single chunk and if it would fit in a memory single
-    // memory allocation leaving enough space for the protocol begin and end signatures themselves.
-    // The 32 bytes extra are required for the protocol data
-    if (likely(entry_index->value->count == 1 && entry_index->value->size < NETWORK_CHANNEL_MAX_PACKET_SIZE)) {
-        return module_redis_command_stream_entry_with_one_chunk(
-                network_channel,
-                db,
-                entry_index);
-    } else {
-        return module_redis_command_stream_entry_with_multiple_chunks(
-                network_channel,
-                db,
-                entry_index);
-    }
+    return module_redis_command_stream_entry_range(
+            network_channel,
+            db,
+            entry_index,
+            0,
+            entry_index->value->size);
 }
 
 #if CACHEGRAND_MODULE_REDIS_COMMAND_DUMP_CONTEXT == 1
