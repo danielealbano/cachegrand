@@ -1106,6 +1106,87 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
     }
 
+    SECTION("Redis - command - GETEX") {
+        SECTION("Existing key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETEX", "a_key"},
+                    "$7\r\nb_value\r\n"));
+        }
+
+        SECTION("Non-existing key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETEX", "a_key"},
+                    "$-1\r\n"));
+        }
+
+        SECTION("New key - expire in 500ms") {
+            config_module_network_timeout.read_ms = 1000;
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETEX", "a_key", "PX", "500"},
+                    "$7\r\nb_value\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    "$7\r\nb_value\r\n"));
+
+            // Wait for 600 ms and try to get the value after the expiration
+            usleep((500 + 100) * 1000);
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    "$-1\r\n"));
+
+            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, "a_key", strlen("a_key"));
+            REQUIRE(entry_index == NULL);
+        }
+
+        SECTION("New key - expire in 1s") {
+            config_module_network_timeout.read_ms = 2000;
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETEX", "a_key", "EX", "1"},
+                    "$7\r\nb_value\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    "$7\r\nb_value\r\n"));
+
+            // Wait for 1100 ms and try to get the value after the expiration
+            usleep((1000 + 100) * 1000);
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    "$-1\r\n"));
+
+            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, "a_key", strlen("a_key"));
+            REQUIRE(entry_index == NULL);
+        }
+    }
+
     SECTION("Redis - command - DEL") {
         SECTION("Existing key") {
             REQUIRE(send_recv_resp_command_text(
@@ -1274,11 +1355,87 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                     "$-1\r\n"));
         }
 
+        SECTION("Existent key - 4MB") {
+            size_t long_value_length = 4 * 1024 * 1024;
+            config_module_redis.max_command_length = long_value_length + 1024;
+
+            // The long value is, on purpose, not filled with anything to have a very simple fuzzy testing (although
+            // it's not repeatable)
+            char *long_value = (char *) malloc(long_value_length + 1);
+
+            // Fill with random data the long value
+            char range = 'z' - 'a';
+            for (size_t i = 0; i < long_value_length; i++) {
+                long_value[i] = (char) (i % range) + 'a';
+            }
+
+            // This is legit as long_value_length + 1 is actually being allocated
+            long_value[long_value_length] = 0;
+
+            size_t expected_response_length = snprintf(
+                    nullptr,
+                    0,
+                    "$%lu\r\n%.*s\r\n",
+                    long_value_length,
+                    (int) long_value_length,
+                    long_value);
+
+            char *expected_response = (char *) malloc(expected_response_length + 1);
+            snprintf(
+                    expected_response,
+                    expected_response_length + 1,
+                    "$%lu\r\n%.*s\r\n",
+                    long_value_length,
+                    (int) long_value_length,
+                    long_value);
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", long_value},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_multi_recv(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    expected_response,
+                    expected_response_length,
+                    send_recv_resp_command_calculate_multi_recv(long_value_length)));
+
+            free(expected_response);
+        }
+
         SECTION("Missing parameters - key") {
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
                     std::vector<std::string>{"GET"},
                     "-ERR wrong number of arguments for 'GET' command\r\n"));
+        }
+    }
+
+
+    SECTION("Redis - command - GETDEL") {
+        SECTION("Existing key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETDEL", "a_key"},
+                    "$7\r\nb_value\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    "$-1\r\n"));
+        }
+
+        SECTION("Non-existing key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETDEL", "a_key"},
+                    "$-1\r\n"));
         }
     }
 
