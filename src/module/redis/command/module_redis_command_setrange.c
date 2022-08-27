@@ -54,6 +54,13 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
     storage_db_chunk_sequence_t *new_chunk_sequence = NULL;
     module_redis_command_setrange_context_t *context = connection_context->command.context;
 
+    if (context->offset.value < 0) {
+        return_res = module_redis_connection_error_message_printf_noncritical(
+                connection_context,
+                "ERR offset is out of range");
+        goto end;
+    }
+
     if (unlikely(!storage_db_op_rmw_begin(
             connection_context->db,
             context->key.value.key,
@@ -63,13 +70,6 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
         return_res = module_redis_connection_error_message_printf_noncritical(
                 connection_context,
                 "ERR setrange failed");
-        goto end;
-    }
-
-    if (context->offset.value < 0) {
-        return_res = module_redis_connection_error_message_printf_noncritical(
-                connection_context,
-                "ERR offset is out of range");
         goto end;
     }
 
