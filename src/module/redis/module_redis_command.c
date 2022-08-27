@@ -884,7 +884,7 @@ bool module_redis_command_stream_entry_range_with_multiple_chunks(
 
         size_t chunk_length_to_send = length > chunk_info->chunk_length
                 ? chunk_info->chunk_length
-                : length;
+                : length + sent_data;
         do {
             size_t data_available_to_send_length = chunk_length_to_send - sent_data;
             size_t data_to_send_length =
