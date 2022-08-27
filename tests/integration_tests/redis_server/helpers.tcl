@@ -85,6 +85,20 @@ proc tags_acceptable {tags err_return} {
         }
     }
 
+    if {[llength $::forbidden_tags] > 0} {
+        set matched 0
+        foreach tag $::forbidden_tags {
+            if {[lsearch $tags $tag] >= 0} {
+                incr matched
+            }
+        }
+
+        if {$matched >= 1} {
+            set err "Found forbidden tags"
+            return 0
+        }
+    }
+
     return 1
 }
 

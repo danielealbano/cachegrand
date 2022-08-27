@@ -178,6 +178,7 @@ $TCLSH \
 	--server_cfg $CACHEGRAND_CONFIG_PATH \
 	--server_port $CACHEGRAND_SERVER_PORT \
 	--test_path $TEMP_FOLDER/tests/unit \
+	--forbidden_tags needs:repls \
 	--tests keyspace \
 	--tests type/string \
 	2>&1 \

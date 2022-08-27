@@ -64,6 +64,7 @@ set ::last_progress [clock seconds]
 
 set ::tags {}
 set ::allowed_tags {}
+set ::forbidden_tags {}
 
 set ::next_test 0
 set ::all_tests {}
@@ -98,6 +99,11 @@ for {set j 0} {$j < [llength $argv]} {incr j} {
     } elseif {$opt eq {--allowed_tags}} {
         foreach tag $arg {
             lappend ::allowed_tags $tag
+        }
+        incr j
+    } elseif {$opt eq {--forbidden_tags}} {
+        foreach tag $arg {
+            lappend ::forbidden_tags $tag
         }
         incr j
     } elseif {$opt eq {--dont_clean}} {
