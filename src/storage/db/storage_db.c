@@ -583,6 +583,9 @@ storage_db_chunk_sequence_t *storage_db_chunk_sequence_allocate(
     storage_db_chunk_sequence_t *chunk_sequence = slab_allocator_mem_alloc(sizeof(storage_db_chunk_sequence_t));
 
     if (unlikely(!chunk_sequence)) {
+        LOG_E(
+                TAG,
+                "Failed to allocate a chunk sequence");
         goto end;
     }
 
