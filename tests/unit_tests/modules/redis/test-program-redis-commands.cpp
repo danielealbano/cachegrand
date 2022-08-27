@@ -1252,7 +1252,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                     "$-1\r\n"));
         }
 
-        SECTION("Existing key - short") {
+        SECTION("Existing key - short value") {
             SECTION("all") {
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
@@ -1312,9 +1312,33 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                         std::vector<std::string>{"GETRANGE", "a_key", "-4", "-2"},
                         "$3\r\nalu\r\n"));
             }
+
+            SECTION("start after end") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"SET", "a_key", "b_value"},
+                        "+OK\r\n"));
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"GETRANGE", "a_key", "7", "3"},
+                        "$-1\r\n"));
+            }
+
+            SECTION("start before end, length after end") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"SET", "a_key", "b_value"},
+                        "+OK\r\n"));
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"GETRANGE", "a_key", "3", "15"},
+                        "$4\r\nalue\r\n"));
+            }
         }
 
-        SECTION("Existing key - large") {
+        SECTION("Existing key - long value") {
             char *expected_response;
             size_t long_value_length = 4 * 1024 * 1024;
             config_module_redis.max_command_length = long_value_length + 1024;
