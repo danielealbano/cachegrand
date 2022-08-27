@@ -702,7 +702,7 @@ bool storage_db_chunk_read(
         char *buffer,
         off_t offset,
         size_t length) {
-    assert(offset + length < chunk_info->chunk_length);
+    assert(offset + length <= chunk_info->chunk_length);
 
     if (db->config->backend_type == STORAGE_DB_BACKEND_TYPE_MEMORY) {
         if (!memcpy(buffer, chunk_info->memory.chunk_data + offset, length)) {
