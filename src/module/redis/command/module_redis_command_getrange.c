@@ -72,7 +72,12 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(getrange) {
         range_end += (off_t)entry_index->value->size;
     }
 
-    size_t range_length = range_end - range_start + 1;
+    if (unlikely(range_end < range_start)) {
+        return_res = module_redis_connection_send_string(connection_context, "", 0);
+        goto end;
+    }
+
+    off_t range_length = range_end - range_start + 1;
 
     if (unlikely(range_start > entry_index->value->size || range_length <= 0)) {
         return_res = module_redis_connection_send_string(connection_context, "", 0);
@@ -80,7 +85,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(getrange) {
     }
 
     if (unlikely(range_start + range_length > entry_index->value->size)) {
-        range_length = entry_index->value->size = range_start;
+        range_length = (off_t)entry_index->value->size - range_start;
     }
 
     return_res = module_redis_command_stream_entry_range(
