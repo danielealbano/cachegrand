@@ -437,7 +437,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         SECTION("Timeout") {
             config_module_network_timeout.read_ms = 1000;
 
-            // Send a NOP command to pickup the new timeout
+            // Send a NOP command to pick up the new timeout
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
                     std::vector<std::string>{"GET", "a_value"},
@@ -1253,12 +1253,12 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
 
         SECTION("Existing key - short value") {
-            SECTION("all") {
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
-                        std::vector<std::string>{"SET", "a_key", "b_value"},
-                        "+OK\r\n"));
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
 
+            SECTION("all") {
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
                         std::vector<std::string>{"GETRANGE", "a_key", "0", "6"},
@@ -1268,21 +1268,11 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             SECTION("first char") {
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
-                        std::vector<std::string>{"SET", "a_key", "b_value"},
-                        "+OK\r\n"));
-
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"GETRANGE", "a_key", "0", "0"},
                         "$1\r\nb\r\n"));
             }
 
             SECTION("last char") {
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
-                        std::vector<std::string>{"SET", "a_key", "b_value"},
-                        "+OK\r\n"));
-
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
                         std::vector<std::string>{"GETRANGE", "a_key", "6", "6"},
@@ -1292,11 +1282,6 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             SECTION("last char - negative start negative end") {
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
-                        std::vector<std::string>{"SET", "a_key", "b_value"},
-                        "+OK\r\n"));
-
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"GETRANGE", "a_key", "-1", "-1"},
                         "$1\r\ne\r\n"));
             }
@@ -1304,33 +1289,25 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             SECTION("from the last fourth char to the second from the last") {
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
-                        std::vector<std::string>{"SET", "a_key", "b_value"},
-                        "+OK\r\n"));
-
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"GETRANGE", "a_key", "-4", "-2"},
                         "$3\r\nalu\r\n"));
+            }
+
+            SECTION("end before start") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"GETRANGE", "a_key", "5", "3"},
+                        "$0\r\n\r\n"));
             }
 
             SECTION("start after end") {
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
-                        std::vector<std::string>{"SET", "a_key", "b_value"},
-                        "+OK\r\n"));
-
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
-                        std::vector<std::string>{"GETRANGE", "a_key", "7", "3"},
-                        "$-1\r\n"));
+                        std::vector<std::string>{"GETRANGE", "a_key", "7", "15"},
+                        "$0\r\n\r\n"));
             }
 
             SECTION("start before end, length after end") {
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
-                        std::vector<std::string>{"SET", "a_key", "b_value"},
-                        "+OK\r\n"));
-
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
                         std::vector<std::string>{"GETRANGE", "a_key", "3", "15"},
@@ -1339,7 +1316,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
 
         SECTION("Existing key - long value") {
-            char *expected_response;
+            char *expected_response = NULL;
+            char *expected_response_static[256] = { 0 };
             size_t long_value_length = 4 * 1024 * 1024;
             config_module_redis.max_command_length = long_value_length + 1024;
 
@@ -1356,15 +1334,15 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             // This is legit as long_value_length + 1 is actually being allocated
             long_value[long_value_length] = 0;
 
+            char end[32] = { 0 };
+            snprintf(end, sizeof(end), "%lu", long_value_length - 1);
+
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
                     std::vector<std::string>{"SET", "a_key", long_value},
                     "+OK\r\n"));
 
             SECTION("all") {
-                char end[32] = {0 };
-                snprintf(end, sizeof(end), "%lu", long_value_length + 1);
-
                 size_t expected_response_length = snprintf(
                         nullptr,
                         0,
@@ -1390,7 +1368,131 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                         send_recv_resp_command_calculate_multi_recv(long_value_length)));
             }
 
-            free(expected_response);
+            SECTION("first char") {
+                snprintf((char*)expected_response_static, sizeof(expected_response_static), "$1\r\n%c\r\n", long_value[0]);
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"GETRANGE", "a_key", "0", "0"},
+                        (char*)expected_response_static));
+            }
+
+            SECTION("last char") {
+                snprintf(
+                        (char*)expected_response_static,
+                        sizeof(expected_response_static),
+                        "$1\r\n%c\r\n",
+                        long_value[long_value_length - 1]);
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"GETRANGE", "a_key", end, end},
+                        (char*)expected_response_static));
+            }
+
+            SECTION("last char - negative start negative end") {
+                snprintf(
+                        (char*)expected_response_static,
+                        sizeof(expected_response_static),
+                        "$1\r\n%c\r\n",
+                        long_value[long_value_length - 1]);
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"GETRANGE", "a_key", "-1", "-1"},
+                        (char*)expected_response_static));
+            }
+
+            SECTION("from the last fourth char to the second from the last") {
+                snprintf(
+                        (char*)expected_response_static,
+                        sizeof(expected_response_static),
+                        "$3\r\n%.*s\r\n",
+                        3,
+                        long_value + long_value_length - 4);
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"GETRANGE", "a_key", "-4", "-2"},
+                        (char*)expected_response_static));
+            }
+
+            SECTION("end before start") {
+                char start1[32] = { 0 };
+                snprintf(start1, sizeof(start1), "%lu", long_value_length - 50);
+                char end1[32] = { 0 };
+                snprintf(end1, sizeof(end1), "%lu", long_value_length - 100);
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"GETRANGE", "a_key", start1, end1},
+                        "$0\r\n\r\n"));
+            }
+
+            SECTION("start after end") {
+                char start1[32] = { 0 };
+                snprintf(start1, sizeof(start1), "%lu", long_value_length + 50);
+                char end1[32] = { 0 };
+                snprintf(end1, sizeof(end1), "%lu", long_value_length + 100);
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"GETRANGE", "a_key", start1, end1},
+                        "$0\r\n\r\n"));
+            }
+
+            SECTION("start before end, length after end") {
+                char start1[32] = { 0 };
+                snprintf(start1, sizeof(start1), "%lu", long_value_length -4);
+                char end1[32] = { 0 };
+                snprintf(end1, sizeof(end1), "%lu", long_value_length + 100);
+
+                snprintf(
+                        (char*)expected_response_static,
+                        sizeof(expected_response_static),
+                        "$4\r\n%s\r\n",
+                        long_value + long_value_length - 4);
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"GETRANGE", "a_key", start1, end1},
+                        (char*)expected_response_static));
+            }
+
+            SECTION("50 chars after first chunk + 50") {
+                off_t start1_int = ((64 * 1024) - 1) + 50;
+                off_t end1_int = start1_int + 50;
+                char start1[32] = { 0 };
+                snprintf(start1, sizeof(start1), "%lu", start1_int);
+                char end1[32] = { 0 };
+                snprintf(end1, sizeof(end1), "%lu", end1_int);
+
+                size_t expected_response_length = snprintf(
+                        nullptr,
+                        0,
+                        "$%lu\r\n%.*s\r\n",
+                        end1_int - start1_int + 1,
+                        (int)(end1_int - start1_int + 1),
+                        long_value + start1_int);
+
+                expected_response = (char *)malloc(expected_response_length + 1);
+                snprintf(
+                        expected_response,
+                        expected_response_length + 1,
+                        "$%lu\r\n%.*s\r\n",
+                        end1_int - start1_int + 1,
+                        (int)(end1_int - start1_int + 1),
+                        long_value + start1_int);
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"GETRANGE", "a_key", start1, end1},
+                        (char*)expected_response));
+            }
+
+            if (expected_response) {
+                free(expected_response);
+            }
         }
 
         SECTION("Missing parameters - key") {
