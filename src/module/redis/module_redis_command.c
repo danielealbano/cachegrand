@@ -781,7 +781,7 @@ bool module_redis_command_stream_entry_range_with_one_chunk(
             &send_buffer,
             &send_buffer_start,
             &send_buffer_end))) {
-        return false;
+        goto end;
     }
 
     chunk_info = storage_db_chunk_sequence_get(
@@ -794,10 +794,10 @@ bool module_redis_command_stream_entry_range_with_one_chunk(
             send_buffer_start,
             offset,
             length))) {
-        return false;
+        goto end;
     }
 
-    send_buffer_start += chunk_info->chunk_length;
+    send_buffer_start += length;
 
     send_buffer_start = protocol_redis_writer_write_argument_blob_end(
             send_buffer_start,
@@ -815,7 +815,7 @@ bool module_redis_command_stream_entry_range_with_one_chunk(
     send_buffer = NULL;
     result_res = true;
 
-    end:
+end:
 
     if (unlikely(send_buffer != NULL && !result_res)) {
         network_send_buffer_release_slice(
@@ -832,7 +832,6 @@ bool module_redis_command_stream_entry_range_with_multiple_chunks(
         storage_db_entry_index_t *entry_index,
         off_t offset,
         size_t length) {
-    bool res;
     network_channel_buffer_data_t *send_buffer = NULL, *send_buffer_start = NULL, *send_buffer_end = NULL;
     storage_db_chunk_info_t *chunk_info = NULL;
     size_t slice_length = 32;
