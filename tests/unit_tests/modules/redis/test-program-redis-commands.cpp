@@ -1620,6 +1620,96 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                         send_recv_resp_command_calculate_multi_recv(header_len + offset + strlen("b_value\r\n"))));
             }
         }
+
+        SECTION("Existing key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "value_f"},
+                    "+OK\r\n"));
+
+            SECTION("Beginning of first chunk") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"SETRANGE", "a_key", "0", "b_value"},
+                        ":7\r\n"));
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"GET", "a_key"},
+                        "$7\r\nb_value\r\n"));
+            }
+
+            SECTION("Offset 10, padded with nulls") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"SETRANGE", "a_key", "10", "b_value"},
+                        ":17\r\n"));
+
+                REQUIRE(send_recv_resp_command(
+                        client_fd,
+                        std::vector<std::string>{"GET", "a_key"},
+                        "$17\r\nvalue_f\0\0\0b_value\r\n",
+                        24));
+            }
+
+            SECTION("Pad then overwrite padding") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"SETRANGE", "a_key", "10", "b_value"},
+                        ":17\r\n"));
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"SETRANGE", "a_key", "3", "b_value"},
+                        ":17\r\n"));
+
+                REQUIRE(send_recv_resp_command(
+                        client_fd,
+                        std::vector<std::string>{"GET", "a_key"},
+                        "$17\r\nvalb_valueb_value\r\n",
+                        24));
+            }
+
+            SECTION("Pad then pad again padding") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"SETRANGE", "a_key", "10", "b_value"},
+                        ":17\r\n"));
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"SETRANGE", "a_key", "20", "value_z"},
+                        ":27\r\n"));
+
+                REQUIRE(send_recv_resp_command(
+                        client_fd,
+                        std::vector<std::string>{"GET", "a_key"},
+                        "$27\r\nvalue_f\0\0\0b_value\0\0\0value_z\r\n",
+                        34));
+            }
+
+            SECTION("Pad till a few bytes before the end of first chunk and then write at the beginning of the second") {
+                char offset_str[16] = { 0 };
+                off_t offset = STORAGE_DB_CHUNK_MAX_SIZE - 3;
+                snprintf(offset_str, sizeof(offset_str), "%ld", offset);
+
+                char expected[STORAGE_DB_CHUNK_MAX_SIZE + 64] = { 0 };
+                size_t header_len = snprintf(expected, sizeof(expected), "$%lu\r\n%s", offset + strlen("b_value"), "value_f");
+                memcpy(expected + header_len + offset, "b_value\r\n", strlen("b_value\r\n"));
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"SETRANGE", "a_key", offset_str, "b_value"},
+                        ":65539\r\n"));
+
+                REQUIRE(send_recv_resp_command_multi_recv(
+                        client_fd,
+                        std::vector<std::string>{"GET", "a_key"},
+                        (char*)expected,
+                        header_len + offset + strlen("b_value\r\n"),
+                        send_recv_resp_command_calculate_multi_recv(header_len + offset + strlen("b_value\r\n"))));
+            }
+        }
     }
 
     SECTION("Redis - command - GETEX") {
