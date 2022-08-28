@@ -444,7 +444,7 @@ bool module_redis_command_process_argument_full(
     }
 
     if (check_tokens && connection_context->command.info->tokens_hashtable) {
-        module_redis_command_parser_context_argument_token_entry_t *token_entry = hashtable_spsc_op_get(
+        module_redis_command_parser_context_argument_token_entry_t *token_entry = hashtable_spsc_op_get_ci(
                 connection_context->command.info->tokens_hashtable,
                 chunk_data,
                 chunk_length);
@@ -456,7 +456,7 @@ bool module_redis_command_process_argument_full(
                 module_redis_command_argument_t *stopped_at_list_argument, *stopped_at_list_resume_from_argument;
 
                 for(int index = 0; index < token_entry->one_of_token_count; index++) {
-                    module_redis_command_parser_context_argument_token_entry_t *oneof_token_entry = hashtable_spsc_op_get(
+                    module_redis_command_parser_context_argument_token_entry_t *oneof_token_entry = hashtable_spsc_op_get_ci(
                             connection_context->command.info->tokens_hashtable,
                             token_entry->one_of_tokens[index],
                             strlen(token_entry->one_of_tokens[index]));
