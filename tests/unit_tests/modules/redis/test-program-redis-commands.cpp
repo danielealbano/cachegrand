@@ -59,7 +59,7 @@ std::string string_format( const std::string& format, Args ... args ) {
     auto size = static_cast<size_t>( size_s );
     std::unique_ptr<char[]> buf( new char[ size ] );
     std::snprintf( buf.get(), size, format.c_str(), args ... );
-    return ( buf.get(), buf.get() + size - 1 );
+    return std::string( buf.get(), buf.get() + size - 1 );
 }
 
 #define PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(WORKER_CONTEXT, RUNNING) { \
