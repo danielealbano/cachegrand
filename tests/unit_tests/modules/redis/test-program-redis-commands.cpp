@@ -1530,6 +1530,13 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         char end[32] = { 0 };
         snprintf(end, sizeof(end), "%lu", long_value_length - 1);
 
+        SECTION("Invalid offset") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SETRANGE", "a_key", "-10", "b_value"},
+                    "-ERR offset is out of range\r\n"));
+        }
+
         SECTION("Non-existing key") {
             SECTION("Beginning of first chunk") {
                 REQUIRE(send_recv_resp_command_text(
