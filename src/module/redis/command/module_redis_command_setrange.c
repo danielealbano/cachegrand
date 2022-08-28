@@ -53,6 +53,8 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
     storage_db_entry_index_t *current_entry_index = NULL;
     storage_db_chunk_sequence_t *destination_chunk_sequence = NULL, *current_chunk_sequence = NULL;
     char *padding_memory_zeroed = NULL;
+    size_t chunk_sequence_required_length = 0, requested_total_length = 0, current_chunk_sequence_length = 0;
+
     module_redis_command_setrange_context_t *context = connection_context->command.context;
 
     if (context->offset.value < 0) {
@@ -83,12 +85,13 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
 
     if (likely(current_entry_index)) {
         current_chunk_sequence = current_entry_index->value;
+        current_chunk_sequence_length = current_chunk_sequence->size;
     }
 
-    size_t requested_total_length = context->offset.value + context->value.value.chunk_sequence->size;
-    size_t chunk_sequence_required_length =  requested_total_length > current_entry_index->value->size
+    requested_total_length = context->offset.value + context->value.value.chunk_sequence->size;
+    chunk_sequence_required_length =  requested_total_length > current_chunk_sequence_length
             ? requested_total_length
-            : current_entry_index->value->size;
+            : current_chunk_sequence_length;
 
     if (unlikely((destination_chunk_sequence = storage_db_chunk_sequence_allocate(
             connection_context->db,
