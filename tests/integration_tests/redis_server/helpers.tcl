@@ -85,6 +85,20 @@ proc tags_acceptable {tags err_return} {
         }
     }
 
+    if {[llength $::excluded_tags] > 0} {
+        set matched 0
+        foreach tag $::excluded_tags {
+            if {[lsearch $tags $tag] >= 0} {
+                incr matched
+            }
+        }
+
+        if {$matched >= 1} {
+            set err "Found excluded tags"
+            return 0
+        }
+    }
+
     return 1
 }
 
