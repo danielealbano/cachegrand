@@ -1665,7 +1665,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
                 REQUIRE(send_recv_resp_command(
                         client_fd,
                         std::vector<std::string>{"GET", "a_key"},
-                        (char*)string_format("$17\r\n%.*s%s%s\r\n", 3, value1, value2, value2).c_str(),
+                        "$17\r\nvalb_valueb_value\r\n",
                         24));
             }
 
