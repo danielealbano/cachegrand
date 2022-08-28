@@ -65,7 +65,7 @@ void hashtable_spsc_free(
     xalloc_free(hashtable);
 }
 
-bool hashtable_spsc_op_try_set(
+bool hashtable_spsc_op_try_set_ci(
         hashtable_spsc_t *hashtable,
         const char *key,
         hashtable_spsc_key_length_t key_length,
@@ -76,7 +76,7 @@ bool hashtable_spsc_op_try_set(
     uint32_t hash = fnv_32_hash_ci((void *)key, key_length);
 
     // Search if there is already a bucket with the same hash and key
-    bucket_index = hashtable_spsc_find_bucket_index_by_key(hashtable, hash, key, key_length);
+    bucket_index = hashtable_spsc_find_bucket_index_by_key_ci(hashtable, hash, key, key_length);
 
     if (bucket_index == -1) {
         // If not search for an empty bucket within the allowed range
@@ -107,12 +107,79 @@ bool hashtable_spsc_op_try_set(
     return true;
 }
 
-bool hashtable_spsc_op_delete(
+bool hashtable_spsc_op_delete_ci(
         hashtable_spsc_t *hashtable,
         const char* key,
         hashtable_spsc_key_length_t key_length) {
     uint32_t hash = fnv_32_hash_ci((void *)key, key_length);
-    hashtable_spsc_bucket_index_t bucket_index = hashtable_spsc_find_bucket_index_by_key(
+    hashtable_spsc_bucket_index_t bucket_index = hashtable_spsc_find_bucket_index_by_key_ci(
+            hashtable,
+            hash,
+            key,
+            key_length);
+
+    if (unlikely(bucket_index == -1)) {
+        return false;
+    }
+
+    hashtable->hashes[bucket_index].set = false;
+
+    if (hashtable->free_keys_on_deallocation) {
+        hashtable_spsc_bucket_t *buckets = hashtable_spsc_get_buckets(hashtable);
+        slab_allocator_mem_free((void*)buckets[bucket_index].key);
+    }
+
+    return true;
+}
+
+bool hashtable_spsc_op_try_set_cs(
+        hashtable_spsc_t *hashtable,
+        const char *key,
+        hashtable_spsc_key_length_t key_length,
+        void *value) {
+    hashtable_spsc_bucket_index_t bucket_index;
+    hashtable_spsc_bucket_count_t bucket_index_max;
+
+    uint32_t hash = fnv_32_hash((void *)key, key_length);
+
+    // Search if there is already a bucket with the same hash and key
+    bucket_index = hashtable_spsc_find_bucket_index_by_key_cs(hashtable, hash, key, key_length);
+
+    if (bucket_index == -1) {
+        // If not search for an empty bucket within the allowed range
+        bucket_index = hashtable_spsc_bucket_index_from_hash(hashtable, hash);
+        bucket_index_max = bucket_index + hashtable->max_range;
+        bucket_index = hashtable_spsc_find_empty_bucket(
+                hashtable,
+                bucket_index,
+                bucket_index_max);
+
+        if (bucket_index > -1) {
+            // If an empty bucket was found, update the hash and mark it as in use
+            hashtable->hashes[bucket_index].set = true;
+            hashtable->hashes[bucket_index].cmp_hash = hash & 0x7fff;
+        }
+    }
+
+    if (unlikely(bucket_index == -1)) {
+        return false;
+    }
+
+    hashtable_spsc_bucket_t *buckets = hashtable_spsc_get_buckets(hashtable);
+
+    buckets[bucket_index].key = key;
+    buckets[bucket_index].key_length = key_length;
+    buckets[bucket_index].value = value;
+
+    return true;
+}
+
+bool hashtable_spsc_op_delete_cs(
+        hashtable_spsc_t *hashtable,
+        const char* key,
+        hashtable_spsc_key_length_t key_length) {
+    uint32_t hash = fnv_32_hash((void *)key, key_length);
+    hashtable_spsc_bucket_index_t bucket_index = hashtable_spsc_find_bucket_index_by_key_cs(
             hashtable,
             hash,
             key,

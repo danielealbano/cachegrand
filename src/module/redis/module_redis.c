@@ -232,7 +232,7 @@ bool module_redis_process_data(
                     char *command_data = read_buffer_data_start + connection_context->current_argument_token_data_offset;
 
                     // Set the current command to UNKNOWN
-                    connection_context->command.info = hashtable_spsc_op_get(
+                    connection_context->command.info = hashtable_spsc_op_get_ci(
                             module_redis_commands_hashtable,
                             command_data,
                             command_length);

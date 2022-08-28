@@ -53,7 +53,7 @@ hashtable_spsc_t *module_redis_commands_build_commands_hashtables(
             command_info_index++) {
         module_redis_command_info_t *command_info = &command_infos[command_info_index];
 
-        if (!hashtable_spsc_op_try_set(
+        if (!hashtable_spsc_op_try_set_ci(
                 commands_hashtable,
                 command_info->string,
                 command_info->string_len,
@@ -154,7 +154,7 @@ bool module_redis_commands_build_command_arguments_token_entries_hashtable(
         }
 
         // These are fixed hashtable generated at the start, if the set fails the software must stop
-        if (!hashtable_spsc_op_try_set(
+        if (!hashtable_spsc_op_try_set_ci(
                 hashtable,
                 argument->token,
                 strlen(argument->token),

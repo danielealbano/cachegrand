@@ -87,12 +87,12 @@ TEST_CASE("module/redis/module_redis_commands.c", "[module][redis][module_redis_
 
         REQUIRE(hashtable != nullptr);
 
-        REQUIRE(hashtable_spsc_op_get(
+        REQUIRE(hashtable_spsc_op_get_ci(
                 hashtable,
                 command_infos_map[0].string,
                 command_infos_map[0].string_len) == &command_infos_map[0]);
 
-        REQUIRE(hashtable_spsc_op_get(
+        REQUIRE(hashtable_spsc_op_get_ci(
                 hashtable,
                 command_infos_map[1].string,
                 command_infos_map[1].string_len) == &command_infos_map[1]);
@@ -177,7 +177,7 @@ TEST_CASE("module/redis/module_redis_commands.c", "[module][redis][module_redis_
                     command_infos_map[0].arguments_count,
                     hashtable) == true);
 
-            token_entry = (module_redis_command_parser_context_argument_token_entry_t*)hashtable_spsc_op_get(
+            token_entry = (module_redis_command_parser_context_argument_token_entry_t*) hashtable_spsc_op_get_ci(
                     hashtable,
                     "LIMIT",
                     strlen("LIMIT"));
@@ -189,7 +189,7 @@ TEST_CASE("module/redis/module_redis_commands.c", "[module][redis][module_redis_
             REQUIRE(token_entry->one_of_tokens[0] == nullptr);
             REQUIRE(token_entry->one_of_token_count == 0);
 
-            token_entry = (module_redis_command_parser_context_argument_token_entry_t*)hashtable_spsc_op_get(
+            token_entry = (module_redis_command_parser_context_argument_token_entry_t*) hashtable_spsc_op_get_ci(
                     hashtable,
                     "ASC",
                     strlen("ASC"));
@@ -233,7 +233,7 @@ TEST_CASE("module/redis/module_redis_commands.c", "[module][redis][module_redis_
         REQUIRE(command_infos_map[0].tokens_hashtable != nullptr);
         REQUIRE(command_infos_map[1].tokens_hashtable == nullptr);
 
-        token_entry = (module_redis_command_parser_context_argument_token_entry_t*)hashtable_spsc_op_get(
+        token_entry = (module_redis_command_parser_context_argument_token_entry_t*) hashtable_spsc_op_get_ci(
                 command_infos_map[0].tokens_hashtable,
                 "LIMIT",
                 strlen("LIMIT"));
