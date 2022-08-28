@@ -164,7 +164,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
                 range_value_chunk_offset = 0;
             }
         } else {
-            // If source_chunk_info is NULL, then it means that current_chunk_info was selected and it's empty so it's not
+            // If source_chunk_info is NULL it means that current_chunk_info was selected and it's empty, it's not
             // necessary to try to identify again the source_chunk_info until the range requested to be set is reached.
             if (unlikely(current_chunk_info == NULL)) {
                 // When the source is null, an empty chunk of memory has to be written
@@ -175,7 +175,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
                 // Calculate how much has to be written, if current_chunk_info is NULL there will be nothing to write
                 // after the value passed in setrange is set, so the logic can be fairly simple and can be checked only
                 // with an assert via testing
-                size_t needed_padding = context->offset.value - destination_offset;
+                off_t needed_padding = context->offset.value - (off_t)destination_offset;
                 assert(needed_padding >= 0);
 
                 data_to_write_length = needed_padding > STORAGE_DB_CHUNK_MAX_SIZE
