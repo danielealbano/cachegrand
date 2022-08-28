@@ -258,25 +258,23 @@ bool send_recv_resp_command_multi_recv(
     return_res = total_send_length == buffer_send_length && total_recv_length == expected_length && recv_matches_expected;
 
     if (!return_res) {
-        char temp_buffer_1[256] = { 0 };
-        char temp_buffer_2[256] = { 0 };
+        char temp_buffer_1[1024] = { 0 };
+        char temp_buffer_2[1024] = { 0 };
 
         memset(temp_buffer_1, 0, sizeof(temp_buffer_1));
         memset(temp_buffer_2, 0, sizeof(temp_buffer_2));
         string_replace(
-                buffer_send,
-                total_send_length > 64 ? 64 : total_send_length,
-                "\r\n",
-                "\\r\\n",
-                temp_buffer_1,
-                sizeof(temp_buffer_1));
+                buffer_send, total_send_length > 64 ? 64 : total_send_length,
+                temp_buffer_1, sizeof(temp_buffer_1),
+                2,
+                "\r\n", 2, "\\r\\n", 4,
+                "\0", 1, "\\0", 2);
         string_replace(
-                buffer_send + total_send_length - (64 > total_send_length ? total_send_length : 64),
-                64 > total_send_length ? total_send_length : 64,
-                "\r\n",
-                "\\r\\n",
-                temp_buffer_2,
-                sizeof(temp_buffer_2));
+                buffer_send + total_send_length - (64 > total_send_length ? total_send_length : 64), 64 > total_send_length ? total_send_length : 64,
+                temp_buffer_2, sizeof(temp_buffer_2),
+                2,
+                "\r\n", 2, "\\r\\n", 4,
+                "\0", 1, "\\0", 2);
 
         fprintf(
                 stderr,
@@ -288,19 +286,17 @@ bool send_recv_resp_command_multi_recv(
         memset(temp_buffer_1, 0, sizeof(temp_buffer_1));
         memset(temp_buffer_2, 0, sizeof(temp_buffer_2));
         string_replace(
-                buffer_recv,
-                total_recv_length > 64 ? 64 : total_recv_length,
-                "\r\n",
-                "\\r\\n",
-                temp_buffer_1,
-                sizeof(temp_buffer_1));
+                buffer_recv, total_recv_length > 64 ? 64 : total_recv_length,
+                temp_buffer_1, sizeof(temp_buffer_1),
+                2,
+                "\r\n", 2, "\\r\\n", 4,
+                "\0", 1, "\\0", 2);
         string_replace(
-                buffer_recv + total_recv_length - (64 > total_recv_length ? total_recv_length : 64),
-                64 > total_recv_length ? total_recv_length : 64,
-                "\r\n",
-                "\\r\\n",
-                temp_buffer_2,
-                sizeof(temp_buffer_2));
+                buffer_recv + total_recv_length - (64 > total_recv_length ? total_recv_length : 64), 64 > total_recv_length ? total_recv_length : 64,
+                temp_buffer_2, sizeof(temp_buffer_2),
+                2,
+                "\r\n", 2, "\\r\\n", 4,
+                "\0", 1, "\\0", 2);
         fprintf(
                 stderr,
                 "[ BUFFER RECV(%ld) ]\n'%s' (%lu)\n'%s' (%lu)\n\n",
@@ -311,19 +307,17 @@ bool send_recv_resp_command_multi_recv(
         memset(temp_buffer_1, 0, sizeof(temp_buffer_1));
         memset(temp_buffer_2, 0, sizeof(temp_buffer_2));
         string_replace(
-                expected,
-                expected_length > 64 ? 64 : expected_length,
-                "\r\n",
-                "\\r\\n",
-                temp_buffer_1,
-                sizeof(temp_buffer_1));
+                expected, expected_length > 64 ? 64 : expected_length,
+                temp_buffer_1, sizeof(temp_buffer_1),
+                2,
+                "\r\n", 2, "\\r\\n", 4,
+                "\0", 1, "\\0", 2);
         string_replace(
-                expected + expected_length - (64 > expected_length ? expected_length : 64),
-                64 > expected_length ? expected_length : 64,
-                "\r\n",
-                "\\r\\n",
-                temp_buffer_2,
-                sizeof(temp_buffer_2));
+                expected + expected_length - (64 > expected_length ? expected_length : 64), 64 > expected_length ? expected_length : 64,
+                temp_buffer_2, sizeof(temp_buffer_2),
+                2,
+                "\r\n", 2, "\\r\\n", 4,
+                "\0", 1, "\\0", 2);
         fprintf(
                 stderr,
                 "[ EXPECTED RECV(%ld) ]\n'%s' (%lu)\n'%s' (%lu)\n\n",
