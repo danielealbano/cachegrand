@@ -14,6 +14,7 @@
 #include <memory>
 #include <string>
 #include <stdexcept>
+#include <stdarg.h>
 
 #include <pthread.h>
 #include <mcheck.h>
@@ -96,49 +97,65 @@ size_t build_resp_command(
     return buffer_offset;
 }
 
-size_t string_replace(char *input, size_t input_len, char *replace, char *with, char *output, size_t output_len) {
-    char *previous_char = input;
+size_t string_replace(
+        char *input,
+        size_t input_len,
+        char *output,
+        size_t output_len,
+        int count,
+        ...) {
+    va_list arg_ptr;
     char *current_char = input;
-    size_t replace_len = strlen(replace);
-    size_t with_len = strlen(with);
-    size_t output_offset = 0;
-    while(
-            (current_char = (char*)memchr(current_char, replace[0], input_len - (current_char - input))) != nullptr &&
-            previous_char <= input + input_len) {
-        size_t offset = current_char - input;
-        size_t remaining_length = input_len - offset;
+    char *output_begin = output;
 
-        assert(output_offset + (current_char - previous_char) < output_len);
+    char **replace_list = (char**)malloc(sizeof(char*) * count);
+    size_t *replace_len_list = (size_t*)malloc(sizeof(size_t) * count);
+    char **with_list = (char**)malloc(sizeof(char*) * count);
+    size_t *with_len_list = (size_t*)malloc(sizeof(size_t) * count);
 
-        memcpy(output + output_offset, previous_char, current_char - previous_char);
-        output_offset += current_char - previous_char;
+    int arg_index = 0;
+    va_start(arg_ptr, count);
+    while(arg_index < count) {
+        replace_list[arg_index] = va_arg(arg_ptr, char *);
+        replace_len_list[arg_index] = va_arg(arg_ptr, size_t);
+        with_list[arg_index] = va_arg(arg_ptr, char *);
+        with_len_list[arg_index] = va_arg(arg_ptr, size_t);
 
-        if (replace_len > remaining_length) {
-            previous_char = current_char;
+        arg_index++;
+    }
+    va_end(arg_ptr);
+
+    while(current_char - input < input_len) {
+        int replace_index_found = -1;
+
+        for(int index = 0; index < count; index++) {
+            if (*current_char != *(replace_list[index])) {
+                continue;
+            }
+
+            if (memcmp(current_char, replace_list[index], replace_len_list[index]) != 0) {
+                continue;
+            }
+
+            replace_index_found = index;
+        }
+
+        if (replace_index_found == -1) {
+            *output = *current_char;
+            output++;
+            current_char++;
             continue;
         }
 
-        if (strncmp(current_char, replace, replace_len) != 0) {
-            previous_char = current_char;
-            continue;
-        }
+        memcpy(output, with_list[replace_index_found], with_len_list[replace_index_found]);
 
-        assert(output_offset + with_len < output_len);
-        strncpy(output + output_offset, with, with_len);
-        output_offset += with_len;
-
-        current_char += replace_len;
-        previous_char = current_char;
+        output += with_len_list[replace_index_found];
+        current_char += replace_len_list[replace_index_found];
     }
 
-    if (previous_char != input + input_len) {
-        memcpy(output + output_offset, previous_char, input_len - (previous_char - input));
-        output_offset += input_len - (previous_char - input);
-    }
+    *(output+1) = 0;
 
-    output[output_offset + 1] = 0;
-
-    return output_offset;
+    return output - output_begin;
 }
 
 size_t send_recv_resp_command_calculate_multi_recv(
