@@ -53,14 +53,13 @@
 int recv_packet_size = 32 * 1024;
 
 template<typename ... Args>
-std::string string_format( const std::string& format, Args ... args )
-{
-    int size_s = std::snprintf( nullptr, 0, format.c_str(), args ... ) + 1; // Extra space for '\0'
+std::string string_format( const std::string& format, Args ... args ) {
+    int size_s = std::snprintf( nullptr, 0, format.c_str(), args ... ) + 1;
     if( size_s <= 0 ){ throw std::runtime_error( "Error during formatting." ); }
     auto size = static_cast<size_t>( size_s );
     std::unique_ptr<char[]> buf( new char[ size ] );
     std::snprintf( buf.get(), size, format.c_str(), args ... );
-    return std::string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
+    return ( buf.get(), buf.get() + size - 1 );
 }
 
 #define PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(WORKER_CONTEXT, RUNNING) { \
@@ -97,13 +96,7 @@ size_t build_resp_command(
     return buffer_offset;
 }
 
-size_t string_replace(
-        char *input,
-        size_t input_len,
-        char *output,
-        size_t output_len,
-        int count,
-        ...) {
+size_t string_replace(char *input, size_t input_len, char *output, size_t output_len, int count, ...) {
     va_list arg_ptr;
     char *current_char = input;
     char *output_begin = output;
@@ -113,16 +106,17 @@ size_t string_replace(
     char **with_list = (char**)malloc(sizeof(char*) * count);
     size_t *with_len_list = (size_t*)malloc(sizeof(size_t) * count);
 
-    int arg_index = 0;
     va_start(arg_ptr, count);
+
+    int arg_index = 0;
     while(arg_index < count) {
         replace_list[arg_index] = va_arg(arg_ptr, char *);
         replace_len_list[arg_index] = va_arg(arg_ptr, size_t);
         with_list[arg_index] = va_arg(arg_ptr, char *);
         with_len_list[arg_index] = va_arg(arg_ptr, size_t);
-
         arg_index++;
     }
+
     va_end(arg_ptr);
 
     while(current_char - input < input_len) {
@@ -164,7 +158,7 @@ size_t send_recv_resp_command_calculate_multi_recv(
         return 1;
     }
 
-    return 1 + ceil((float)expected_length / (float)recv_packet_size) + 1;
+    return 1 + (size_t)ceil((float)expected_length / (float)recv_packet_size) + 1;
 }
 
 bool send_recv_resp_command_multi_recv(
@@ -1029,7 +1023,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             // Fill with random data the long value
             char range = 'z' - 'a';
             for (size_t i = 0; i < long_value_length; i++) {
-                long_value[i] = (char) (i % range) + 'a';
+                long_value[i] = ((char)i % range) + 'a';
             }
 
             // This is legit as long_value_length + 1 is actually being allocated
@@ -1078,7 +1072,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             // Fill with random data the long value
             char range = 'z' - 'a';
             for (size_t i = 0; i < long_value_length; i++) {
-                long_value[i] = (char) (i % range) + 'a';
+                long_value[i] = ((char)i % range) + 'a';
             }
 
             // This is legit as long_value_length + 1 is actually being allocated
@@ -1183,7 +1177,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             // Fill with random data the long value
             char range = 'z' - 'a';
             for (size_t i = 0; i < long_value_length; i++) {
-                long_value[i] = (char) (i % range) + 'a';
+                long_value[i] = ((char)i % range) + 'a';
             }
 
             // This is legit as long_value_length + 1 is actually being allocated
@@ -1327,8 +1321,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         }
 
         SECTION("Existing key - long value") {
-            char *expected_response = NULL;
-            char *expected_response_static[256] = { 0 };
+            char *expected_response = nullptr;
+            char *expected_response_static[256] = { nullptr };
             size_t long_value_length = 4 * 1024 * 1024;
             config_module_redis.max_command_length = long_value_length + 1024;
 
@@ -1339,7 +1333,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             // Fill with random data the long value
             char range = 'z' - 'a';
             for (size_t i = 0; i < long_value_length; i++) {
-                long_value[i] = (char) (i % range) + 'a';
+                long_value[i] = ((char)i % range) + 'a';
             }
 
             // This is legit as long_value_length + 1 is actually being allocated
@@ -1515,8 +1509,8 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
     }
 
     SECTION("Redis - command - SETRANGE") {
-        char *expected_response = NULL;
-        char *expected_response_static[256] = { 0 };
+        char *expected_response = nullptr;
+        char *expected_response_static[256] = { nullptr };
         size_t long_value_length = 4 * 1024 * 1024;
         config_module_redis.max_command_length = long_value_length + 1024;
 
@@ -1527,7 +1521,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
         // Fill with random data the long value
         char range = 'z' - 'a';
         for (size_t i = 0; i < long_value_length; i++) {
-            long_value[i] = (char) (i % range) + 'a';
+            long_value[i] = ((char)i % range) + 'a';
         }
 
         // This is legit as long_value_length + 1 is actually being allocated
@@ -1837,7 +1831,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
     }
 
     SECTION("Redis - command - COPY") {
-        SECTION("Non existant key") {
+        SECTION("Non existent key") {
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
                     std::vector<std::string>{"COPY", "a_key", "b_key"},
@@ -1872,7 +1866,7 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             // Fill with random data the long value
             char range = 'z' - 'a';
             for (size_t i = 0; i < long_value_length; i++) {
-                long_value[i] = (char) (i % range) + 'a';
+                long_value[i] = ((char)i % range) + 'a';
             }
 
             // This is legit as long_value_length + 1 is actually being allocated
