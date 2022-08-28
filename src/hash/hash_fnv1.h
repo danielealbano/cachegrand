@@ -32,7 +32,7 @@ static inline __attribute__((always_inline)) uint32_t fnv_32_hash_ci_internal(
     char *cp = (char*)buf;
     while (len > 0) {
         char c = *cp++;
-        c = c >= 'A' && c <= 'Z' ? c | (char) 32 : c;
+        c = c >= 'A' && c <= 'Z' ? (char)(c | 32) : c;
 
         hval += (hval<<1) + (hval<<4) + (hval<<7) + (hval<<8) + (hval<<24);
         hval ^= (uint32_t)c;
