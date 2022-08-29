@@ -107,6 +107,8 @@ bool module_redis_connection_error_message_vprintf_internal(
         bool override_previous_error,
         char *error_message,
         va_list args) {
+    bool return_res = false;
+
     if (!override_previous_error) {
         // Can't set an error message on top of an existing one, something is wrong if that happens
         assert(connection_context->error.message == NULL);
@@ -130,7 +132,7 @@ bool module_redis_connection_error_message_vprintf_internal(
 
     if (error_message_with_args == NULL) {
         LOG_E(TAG, "Unable to allocate <%lu> bytes for the command error message", error_message_with_args_length + 1);
-        return false;
+        goto end;
     }
 
     if (vsnprintf(
@@ -140,14 +142,21 @@ bool module_redis_connection_error_message_vprintf_internal(
             args) < 0) {
         LOG_E(TAG, "Failed to format string <%s> with the arguments requested", error_message);
         LOG_E_OS_ERROR(TAG);
-
-        return false;
+        goto end;
     }
 
     connection_context->error.message = error_message_with_args;
-    connection_context->command.skip = true;
 
-    return true;
+    return_res = true;
+
+end:
+
+    connection_context->command.skip = true;
+    if (!return_res) {
+        connection_context->terminate_connection = true;
+    }
+
+    return return_res;
 }
 
 bool module_redis_connection_error_message_printf_noncritical(
