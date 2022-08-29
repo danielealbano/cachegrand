@@ -589,12 +589,17 @@ bool module_redis_command_process_argument_full(
                     connection_context,
                     guessed_argument,
                     chunk_length)) {
-                module_redis_connection_error_message_printf_noncritical(
+                return module_redis_connection_error_message_printf_noncritical(
                         connection_context,
                         "ERR The %s length has exceeded the allowed size of '%u'",
-                        expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY ? "key" : "pattern",
+                        expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY
+                        ? "key"
+                        : (expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_PATTERN
+                            ? "pattern"
+                            : "short string"),
                         connection_context->network_channel->module_config->redis->max_key_length);
-                return true;
+            }
+
             if (unlikely(chunk_length == 0)) {
                 return module_redis_connection_error_message_printf_noncritical(
                         connection_context,
