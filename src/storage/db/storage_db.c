@@ -33,6 +33,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_op_delete.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_iter.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_rmw.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_get_random_key.h"
 #include "data_structures/hashtable/mcmp/hashtable_thread_counters.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "slab_allocator.h"
@@ -1305,6 +1306,19 @@ int64_t storage_db_op_get_size(
     hashtable_mcmp_thread_counters_sum_free(counters_sum);
 
     return size;
+}
+
+char *storage_db_op_random_key(
+        storage_db_t *db,
+        hashtable_key_size_t *key_size) {
+    char *key = NULL;
+
+    while(storage_db_op_get_size(db) > 0 &&
+        !hashtable_mcmp_op_get_random_key_try(db->hashtable, &key, key_size)) {
+        // do nothing
+    }
+
+    return key;
 }
 
 bool storage_db_op_flush_sync(
