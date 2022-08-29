@@ -61,8 +61,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(mset) {
                 key_value->key.value.length,
                 key_value->value.value.chunk_sequence,
                 STORAGE_DB_ENTRY_NO_EXPIRY)) {
-            module_redis_connection_error_message_printf_noncritical(connection_context, "ERR mset failed");
-            return true;
+            return module_redis_connection_error_message_printf_noncritical(connection_context, "ERR mset failed");
         }
 
         // Mark both the key and the chunk_sequence as NULL as the storage db now owns them, we don't want them to be

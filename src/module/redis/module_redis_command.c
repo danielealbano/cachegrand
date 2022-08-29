@@ -281,21 +281,19 @@ bool module_redis_command_process_argument_begin(
             connection_context,
             expected_argument,
             argument_length)) {
-        module_redis_connection_error_message_printf_noncritical(
+        return module_redis_connection_error_message_printf_noncritical(
                 connection_context,
                 "ERR The %s length has exceeded the allowed size of '%u'",
                 expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY ? "key" : "pattern",
                 connection_context->network_channel->module_config->redis->max_key_length);
-        return true;
     }
 
     if (expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_LONG_STRING) {
         if (!storage_db_chunk_sequence_is_size_allowed(argument_length)) {
-            module_redis_connection_error_message_printf_noncritical(
+            return module_redis_connection_error_message_printf_noncritical(
                     connection_context,
                     "ERR The argument length has exceeded the allowed size of '%lu'",
                     storage_db_chunk_sequence_allowed_max_size());
-            return true;
         }
 
         command_parser_context->current_argument.member_context_addr =
@@ -477,13 +475,12 @@ bool module_redis_command_process_argument_full(
                             base_addr);
 
                     if (has_token) {
-                        module_redis_connection_error_message_printf_noncritical(
+                        return module_redis_connection_error_message_printf_noncritical(
                                 connection_context,
                                 "ERR the command '%s' doesn't support both the parameters '%s' and '%s' set at the same time",
                                 connection_context->command.info->string,
                                 oneof_token_entry->token,
                                 token_entry->token);
-                        return true;
                     }
                 }
 
@@ -501,12 +498,11 @@ bool module_redis_command_process_argument_full(
                         base_addr);
 
                 if (has_token && !token_entry->argument->has_multiple_token) {
-                    module_redis_connection_error_message_printf_noncritical(
+                    return module_redis_connection_error_message_printf_noncritical(
                             connection_context,
                             "ERR the parameter '%s' has already been specified for the command '%s'",
                             token_entry->token,
                             connection_context->command.info->string);
-                    return true;
                 }
             }
 
@@ -537,10 +533,9 @@ bool module_redis_command_process_argument_full(
     if (guessed_argument == NULL) {
         // Although the error message can be much smarter, as was being in a previous iteration, to match the Redis
         // behaviour the error message has been changed simply to "syntax error".
-        module_redis_connection_error_message_printf_noncritical(
+        return module_redis_connection_error_message_printf_noncritical(
                 connection_context,
                 "ERR syntax error");
-        return true;
     }
 
     // If the tokens have been checked and the guessed argument has a token, it can be set straight to true and the
@@ -643,11 +638,10 @@ bool module_redis_command_process_argument_full(
             *integer_value = strtoll(chunk_data, &integer_value_end_ptr, 10);
 
             if (errno == ERANGE || integer_value_end_ptr != chunk_data + chunk_length) {
-                module_redis_connection_error_message_printf_noncritical(
+                return module_redis_connection_error_message_printf_noncritical(
                         connection_context,
                         "ERR value for argument '%s' is not an integer or out of range",
                         guessed_argument->name);
-                return true;
             }
             break;
 
@@ -656,11 +650,10 @@ bool module_redis_command_process_argument_full(
             *double_value = strtod(chunk_data, &double_value_end_ptr);
 
             if (errno == ERANGE || double_value_end_ptr != chunk_data + chunk_length) {
-                module_redis_connection_error_message_printf_noncritical(
+                return module_redis_connection_error_message_printf_noncritical(
                         connection_context,
                         "ERR value for argument '%s' is not a double or out of range",
                         guessed_argument->name);
-                return true;
             }
             break;
 
