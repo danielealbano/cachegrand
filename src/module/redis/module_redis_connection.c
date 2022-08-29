@@ -238,6 +238,41 @@ end:
     return return_result;
 }
 
+bool module_redis_connection_send_array_header(
+        module_redis_connection_context_t *connection_context,
+        uint64_t array_length) {
+    bool return_result = false;
+    network_channel_buffer_data_t *send_buffer, *send_buffer_start;
+    size_t slice_length = 32;
+    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
+            connection_context->network_channel,
+            slice_length);
+    if (send_buffer_start == NULL) {
+        LOG_E(TAG, "Unable to acquire send buffer slice!");
+        goto end;
+    }
+
+    send_buffer_start = protocol_redis_writer_write_array(
+            send_buffer_start,
+            slice_length,
+            array_length);
+
+    network_send_buffer_release_slice(
+            connection_context->network_channel,
+            send_buffer_start ? send_buffer_start - send_buffer : 0);
+
+    if (send_buffer_start == NULL) {
+        LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
+        goto end;
+    }
+
+    return_result = true;
+
+end:
+
+    return return_result;
+}
+
 bool module_redis_connection_send_ok(
         module_redis_connection_context_t *connection_context) {
     bool return_result = false;
@@ -252,10 +287,10 @@ bool module_redis_connection_send_ok(
     }
 
     send_buffer_start = protocol_redis_writer_write_simple_string(
-        send_buffer_start,
-        slice_length,
-        "OK",
-        2);
+            send_buffer_start,
+            slice_length,
+            "OK",
+            2);
 
     network_send_buffer_release_slice(
             connection_context->network_channel,
@@ -268,7 +303,7 @@ bool module_redis_connection_send_ok(
 
     return_result = true;
 
-end:
+    end:
 
     return return_result;
 }
