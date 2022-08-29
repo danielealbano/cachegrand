@@ -526,6 +526,27 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
         }
 
+        SECTION("Zero length - Key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "", "b_value"},
+                    "-ERR the key 'key' has length '0', not allowed\r\n"));
+        }
+
+        SECTION("Zero length - Pattern") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SORT", "a_key", "BY", ""},
+                    "-ERR the pattern 'by_pattern' has length '0', not allowed\r\n"));
+        }
+
+        SECTION("Zero length - Short String") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PING", ""},
+                    "-ERR the short string 'message' has length '0', not allowed\r\n"));
+        }
+
         SECTION("Max command arguments") {
             off_t buffer_send_offset = 0;
             char expected_error[256] = { 0 };

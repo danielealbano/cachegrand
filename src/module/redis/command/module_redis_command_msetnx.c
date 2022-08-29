@@ -72,8 +72,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(msetnx) {
                 key_value->key.value.length,
                 &rmw_statuses[index],
                 &entry_index))) {
-            module_redis_connection_error_message_printf_noncritical(connection_context, "ERR msetnx failed");
-            return_res = true;
+            return_res = module_redis_connection_error_message_printf_noncritical(connection_context, "ERR msetnx failed");
             can_commit_update = false;
             error_found = true;
             break;
@@ -102,8 +101,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(msetnx) {
                     &rmw_statuses[index],
                     key_value->value.value.chunk_sequence,
                     STORAGE_DB_ENTRY_NO_EXPIRY))) {
-                module_redis_connection_error_message_printf_noncritical(connection_context, "ERR msetnx failed");
-                return_res = true;
+                return_res = module_redis_connection_error_message_printf_noncritical(connection_context, "ERR msetnx failed");
                 error_found = true;
                 break;
             }
