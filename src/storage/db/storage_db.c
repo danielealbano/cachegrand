@@ -1329,6 +1329,7 @@ bool storage_db_op_flush_sync(
             // The bucket might have been deleted in the meantime so get_key has to return true
             if (hashtable_mcmp_op_get_key(db->hashtable, bucket_index, &key, &key_size)) {
                 storage_db_op_delete(db, key, key_size);
+                slab_allocator_mem_free(key);
             }
         }
     }
