@@ -619,7 +619,7 @@ bool module_redis_command_process_argument_full(
                 return false;
             }
 
-            strncpy(string_value, chunk_data, chunk_length);
+            memcpy(string_value, chunk_data, chunk_length);
 
             if (guessed_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY) {
                 module_redis_key_t *key = base_addr;
