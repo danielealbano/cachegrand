@@ -595,6 +595,16 @@ bool module_redis_command_process_argument_full(
                         expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY ? "key" : "pattern",
                         connection_context->network_channel->module_config->redis->max_key_length);
                 return true;
+            if (unlikely(chunk_length == 0)) {
+                return module_redis_connection_error_message_printf_noncritical(
+                        connection_context,
+                        "ERR the %s '%s' has length '0', not allowed",
+                        expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_KEY
+                        ? "key"
+                        : (expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_PATTERN
+                           ? "pattern"
+                           : "short string"),
+                       guessed_argument->name);
             }
 
             string_value = slab_allocator_mem_alloc(chunk_length);
