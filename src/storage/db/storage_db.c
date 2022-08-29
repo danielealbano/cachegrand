@@ -33,6 +33,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_op_delete.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_iter.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_rmw.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_get_random_key.h"
 #include "data_structures/hashtable/mcmp/hashtable_thread_counters.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "slab_allocator.h"
@@ -1307,6 +1308,19 @@ int64_t storage_db_op_get_size(
     return size;
 }
 
+char *storage_db_op_random_key(
+        storage_db_t *db,
+        hashtable_key_size_t *key_size) {
+    char *key = NULL;
+
+    while(storage_db_op_get_size(db) > 0 &&
+        !hashtable_mcmp_op_get_random_key_try(db->hashtable, &key, key_size)) {
+        // do nothing
+    }
+
+    return key;
+}
+
 bool storage_db_op_flush_sync(
         storage_db_t *db) {
     // As the resizing has to be taken into account but not yet implemented, the assert will catch if the resizing is
@@ -1329,6 +1343,7 @@ bool storage_db_op_flush_sync(
             // The bucket might have been deleted in the meantime so get_key has to return true
             if (hashtable_mcmp_op_get_key(db->hashtable, bucket_index, &key, &key_size)) {
                 storage_db_op_delete(db, key, key_size);
+                slab_allocator_mem_free(key);
             }
         }
     }

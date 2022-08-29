@@ -378,7 +378,6 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
 #endif
                     LOG_DI(">>> key fetched, comparing");
 
-
                     if (key_size != found_key_compare_size || strncmp(
                             key,
                             (const char*)found_key,

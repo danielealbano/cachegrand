@@ -3360,8 +3360,34 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    "$-1\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
                     std::vector<std::string>{"DBSIZE"},
                     ":0\r\n"));
+        }
+    }
+
+    SECTION("Redis - command - RANDOMKEY") {
+        SECTION("Empty database") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"RANDOMKEY"},
+                    "$-1\r\n"));
+        }
+
+        SECTION("One key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"RANDOMKEY"},
+                    "$5\r\na_key\r\n"));
         }
     }
 

@@ -119,11 +119,11 @@ bool hashtable_mcmp_op_delete(
                 // scenario in which it might happen is that the code in the get operation has already checked the flags
                 // and therefore is now comparing the key.
                 // Under very heavy load (64 cores, 128 hw threads, 2048 threads operating on the hashtable) it has never
-                // caused any though.
-                // It's not a problem though if the slab allocator using hugepages is enabled (as it should), the slot in
-                // the slab allocator will just get marked as reusable and the worst case scenario is that it will be picked
-                // up and filled or zero-ed immediately and the key comparison being carried out in get will fail, but this
-                // is an acceptable scenario because the bucket is being deleted.
+                // caused any problem though.
+                // When the custom memory allocator is enabled (as it should) it's not a concern though, the slot in the
+                // slab allocator will just get marked as reusable and the worst case scenario is that it will be picked
+                // up and filled or zero-ed immediately and the key comparison being carried out in get will fail, the
+                // scenario because the bucket is being deleted.
                 slab_allocator_mem_free(key_value->external_key.data);
                 key_value->external_key.data = NULL;
                 key_value->external_key.size = 0;

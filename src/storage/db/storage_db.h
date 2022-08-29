@@ -341,6 +341,10 @@ bool storage_db_op_delete(
         char *key,
         size_t key_length);
 
+char *storage_db_op_random_key(
+        storage_db_t *db,
+        hashtable_key_size_t *key_size);
+
 int64_t storage_db_op_get_size(
         storage_db_t *db);
 
