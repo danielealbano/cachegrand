@@ -127,6 +127,12 @@ struct storage_db_op_rmw_transaction {
     bool delete_entry_index_on_abort;
 };
 
+typedef struct storage_db_key_and_key_length storage_db_key_and_key_length_t;
+struct storage_db_key_and_key_length {
+    char *key;
+    size_t key_size;
+};
+
 char *storage_db_shard_build_path(
         char *basedir_path,
         storage_db_shard_index_t shard_index);
@@ -350,6 +356,16 @@ int64_t storage_db_op_get_size(
 
 bool storage_db_op_flush_sync(
         storage_db_t *db);
+
+storage_db_key_and_key_length_t *storage_db_op_get_keys(
+        storage_db_t *db,
+        char *pattern,
+        size_t pattern_length,
+        uint64_t *keys_count);
+
+void storage_db_free_key_and_key_length_list(
+        storage_db_key_and_key_length_t *keys,
+        uint64_t keys_count);
 
 #ifdef __cplusplus
 }

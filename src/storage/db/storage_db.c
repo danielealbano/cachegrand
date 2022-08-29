@@ -22,6 +22,8 @@
 #include "clock.h"
 #include "memory_fences.h"
 #include "spinlock.h"
+#include "utils_string.h"
+#include "xalloc.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -1349,4 +1351,67 @@ bool storage_db_op_flush_sync(
     }
 
     return true;
+}
+
+storage_db_key_and_key_length_t *storage_db_op_get_keys(
+        storage_db_t *db,
+        char *pattern,
+        size_t pattern_length,
+        uint64_t *keys_count) {
+    hashtable_key_data_t *key;
+    hashtable_key_size_t key_size;
+
+    *keys_count = 0;
+    uint64_t keys_allocated_count = 8;
+    storage_db_key_and_key_length_t *keys = xalloc_alloc(sizeof(storage_db_key_and_key_length_t) * keys_allocated_count);
+
+    // As the resizing has to be taken into account but not yet implemented, the assert will catch if the resizing is
+    // implemented without having dealt with the flush
+    assert(db->hashtable->ht_old == NULL);
+    int64_t scan_start_ms = clock_monotonic_int64_ms();
+
+    // Iterates over the hashtable to free up the entry index
+    hashtable_bucket_index_t bucket_index = 0;
+    for(
+            void *data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index);
+            data;
+            ++bucket_index && (data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index))) {
+        storage_db_entry_index_t *entry_index = data;
+
+        if (unlikely(entry_index->created_time_ms > scan_start_ms)) {
+            continue;
+        }
+
+        // The bucket might have been deleted in the meantime so get_key has to return true
+        if (unlikely(!hashtable_mcmp_op_get_key(db->hashtable, bucket_index, &key, &key_size))) {
+            continue;
+        }
+
+        if (likely(pattern_length > 0)) {
+            if (!utils_string_glob_match(key, key_size, pattern, pattern_length)) {
+                slab_allocator_mem_free(key);
+                continue;
+            }
+        }
+
+        if (unlikely(*keys_count == keys_allocated_count)) {
+            keys_allocated_count *= 2;
+            keys = xalloc_realloc(keys, sizeof(storage_db_key_and_key_length_t) * keys_allocated_count);
+        }
+
+        keys[*keys_count].key = key;
+        keys[*keys_count].key_size = key_size;
+        (*keys_count)++;
+    }
+
+    return keys;
+}
+
+void storage_db_free_key_and_key_length_list(
+        storage_db_key_and_key_length_t *keys,
+        uint64_t keys_count) {
+    for(uint64_t index = 0; index < keys_count; index++) {
+        slab_allocator_mem_free(keys[index].key);
+    }
+    xalloc_free(keys);
 }
