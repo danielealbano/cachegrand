@@ -28,6 +28,17 @@ bool UTILS_STRING_SIGNATURE_IMPL(casecmp_eq_32, sw, (const char *a, size_t a_len
 bool UTILS_STRING_SIGNATURE_IMPL(casecmp_eq_32, avx2, (const char *a, size_t a_len, const char *b, size_t b_len));
 bool UTILS_STRING_SIGNATURE_IMPL(casecmp_eq_32, avx2_internal, (const char *a, size_t a_len, const char *b, size_t b_len));
 
+uint32_t utils_string_utf8_decode_char(
+        char *string,
+        size_t string_length,
+        size_t *char_length);
+
+bool utils_string_glob_match(
+        char *string,
+        size_t string_length,
+        char *pattern,
+        size_t pattern_length);
+
 #ifdef __cplusplus
 }
 #endif

@@ -54,6 +54,10 @@ bool module_redis_connection_send_number(
         module_redis_connection_context_t *connection_context,
         int64_t number);
 
+bool module_redis_connection_send_array_header(
+        module_redis_connection_context_t *connection_context,
+        uint64_t array_length);
+
 bool module_redis_connection_send_ok(
         module_redis_connection_context_t *connection_context);
 

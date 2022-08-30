@@ -526,6 +526,27 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
             REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
         }
 
+        SECTION("Zero length - Key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "", "b_value"},
+                    "-ERR the key 'key' has length '0', not allowed\r\n"));
+        }
+
+        SECTION("Zero length - Pattern") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SORT", "a_key", "BY", ""},
+                    "-ERR the pattern 'by_pattern' has length '0', not allowed\r\n"));
+        }
+
+        SECTION("Zero length - Short String") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"PING", ""},
+                    "-ERR the short string 'message' has length '0', not allowed\r\n"));
+        }
+
         SECTION("Max command arguments") {
             off_t buffer_send_offset = 0;
             char expected_error[256] = { 0 };
@@ -3339,8 +3360,168 @@ TEST_CASE("program.c-redis-commands", "[program-redis-commands]") {
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    "$-1\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
                     std::vector<std::string>{"DBSIZE"},
                     ":0\r\n"));
+        }
+    }
+
+    SECTION("Redis - command - RANDOMKEY") {
+        SECTION("Empty database") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"RANDOMKEY"},
+                    "$-1\r\n"));
+        }
+
+        SECTION("One key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"RANDOMKEY"},
+                    "$5\r\na_key\r\n"));
+        }
+    }
+
+    SECTION("Redis - command - KEYS") {
+        SECTION("Empty database") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"KEYS", "nomatch"},
+                    "*0\r\n"));
+        }
+
+        SECTION("One key") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"MSET", "a_key", "b_value"},
+                    "+OK\r\n"));
+
+            SECTION("No match") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"KEYS", "nomatch"},
+                        "*0\r\n"));
+            }
+
+            SECTION("Match - simple") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"KEYS", "a_key"},
+                        "*1\r\n$5\r\na_key\r\n"));
+            }
+
+            SECTION("Match - star") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"KEYS", "a_*"},
+                        "*1\r\n$5\r\na_key\r\n"));
+            }
+
+            SECTION("Match - question mark") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"KEYS", "a_???"},
+                        "*1\r\n$5\r\na_key\r\n"));
+            }
+
+            SECTION("Match - backslash") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"KEYS", "a\_key"},
+                        "*1\r\n$5\r\na_key\r\n"));
+            }
+
+            SECTION("Match - brackets") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"KEYS", "[a-z]_key"},
+                        "*1\r\n$5\r\na_key\r\n"));
+            }
+
+            SECTION("Match - everything") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"KEYS", "*"},
+                        "*1\r\n$5\r\na_key\r\n"));
+            }
+        }
+
+        SECTION("Multiple keys") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{
+                        "MSET",
+                        "a_key", "a_value",
+                        "b_key", "b_value",
+                        "c_key", "c_value",
+                        "d_key", "d_value",
+                        "key_zzz", "value_z"},
+                    "+OK\r\n"));
+
+            SECTION("No match") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"KEYS", "nomatch"},
+                        "*0\r\n"));
+            }
+
+            SECTION("Match - simple") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"KEYS", "a_key"},
+                        "*1\r\n$5\r\na_key\r\n"));
+            }
+
+            SECTION("Match - star - 1 result") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"KEYS", "a_*"},
+                        "*1\r\n$5\r\na_key\r\n"));
+            }
+
+            SECTION("Match - star - multiple results") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"KEYS", "*key"},
+                        "*4\r\n$5\r\nb_key\r\n$5\r\na_key\r\n$5\r\nd_key\r\n$5\r\nc_key\r\n"));
+            }
+
+            SECTION("Match - question mark") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"KEYS", "a_???"},
+                        "*1\r\n$5\r\na_key\r\n"));
+            }
+
+            SECTION("Match - backslash") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"KEYS", "a\_key"},
+                        "*1\r\n$5\r\na_key\r\n"));
+            }
+
+            SECTION("Match - brackets") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"KEYS", "[a-z]_key"},
+                        "*4\r\n$5\r\nb_key\r\n$5\r\na_key\r\n$5\r\nd_key\r\n$5\r\nc_key\r\n"));
+            }
+
+            SECTION("Match - everything") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"KEYS", "*"},
+                        "*5\r\n$7\r\nkey_zzz\r\n$5\r\nb_key\r\n$5\r\na_key\r\n$5\r\nd_key\r\n$5\r\nc_key\r\n"));
+            }
         }
     }
 

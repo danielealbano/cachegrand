@@ -119,11 +119,6 @@ hashtable_hash_quarter_t test_key_long_1_hash_quarter = test_key_long_1_hash_hal
     HASHTABLE_FREE(); \
 }
 
-#define HASHTABLE_TO_CHUNK_INDEX(bucket_index) \
-    (int)(bucket_index / HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT)
-#define HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index) \
-    (chunk_index * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index
-
 #define HASHTABLE_HALF_HASHES_CHUNK(chunk_index) \
     hashtable->ht_current->half_hashes_chunk[chunk_index]
 #define HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index) \

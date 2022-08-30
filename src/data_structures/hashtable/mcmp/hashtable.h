@@ -22,6 +22,13 @@ extern "C" {
 #define HASHTABLE_KEY_INLINE_MAX_LENGTH                 22
 #endif
 
+#define HASHTABLE_TO_CHUNK_INDEX(bucket_index) \
+    ((bucket_index) / HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT)
+#define HASHTABLE_TO_CHUNK_SLOT_INDEX(bucket_index) \
+    ((bucket_index) % HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT)
+#define HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index) \
+    (((chunk_index) * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + (chunk_slot_index))
+
 typedef uint8_t hashtable_key_value_flags_t;
 typedef uint64_t hashtable_hash_t;
 typedef uint32_t hashtable_hash_half_t;
