@@ -79,7 +79,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - KEYS", "[red
         SECTION("Match - backslash") {
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"KEYS", "a\_key"},
+                    std::vector<std::string>{"KEYS", "a\\_key"},
                     "*1\r\n$5\r\na_key\r\n"));
         }
 
@@ -148,7 +148,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - KEYS", "[red
         SECTION("Match - backslash") {
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{"KEYS", "a\_key"},
+                    std::vector<std::string>{"KEYS", "a\\_key"},
                     "*1\r\n$5\r\na_key\r\n"));
         }
 
