@@ -26,7 +26,7 @@
 
 #include "program.h"
 
-#include "test-modules-redis-command.hpp"
+#include "test-modules-redis-command-fixture.hpp"
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
