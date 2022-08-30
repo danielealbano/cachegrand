@@ -1,3 +1,11 @@
+/**
+ * Copyright (C) 2018-2022 Daniele Salvatore Albano
+ * All rights reserved.
+ *
+ * This software may be modified and distributed under the terms
+ * of the BSD license.  See the LICENSE file for details.
+ **/
+
 #include <catch2/catch.hpp>
 
 #include <cstdbool>
@@ -70,9 +78,3 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - EXISTS", "[r
                 ":3\r\n"));
     }
 }
-
-
-
-
-
-
