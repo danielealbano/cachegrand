@@ -70,8 +70,13 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - MSET", "[red
 
         arguments.emplace_back("MSET");
         for(int key_index = 0; key_index < key_count; key_index++) {
-            arguments.push_back(string_format("a_key_%05d", key_index));
-            arguments.push_back(string_format("b_value_%05d", key_index));
+            char buffer1[32] = { 0 };
+            char buffer2[32] = { 0 };
+            snprintf(buffer1, sizeof(buffer1), "a_key_%05d", key_index);
+            snprintf(buffer2, sizeof(buffer2), "b_value_%05d", key_index);
+
+            arguments.push_back(buffer1);
+            arguments.push_back(buffer2);
         }
 
         REQUIRE(send_recv_resp_command_text(
@@ -80,11 +85,15 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - MSET", "[red
                 "+OK\r\n"));
 
         for(int key_index = 0; key_index < key_count; key_index++) {
-            char expected_response[32] = { 0 };
+            char buffer1[32] = { 0 };
+            char expected_response[64] = { 0 };
+            snprintf(buffer1, sizeof(buffer1), "a_key_%05d", key_index);
+            snprintf(expected_response, sizeof(expected_response), "$13\r\nb_value_%05d\r\n", key_index);
+
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{ "GET", string_format("a_key_%05d", key_index) },
-                    (char*)(string_format("$13\r\nb_value_%05d\r\n", key_index).c_str())));
+                    std::vector<std::string>{"GET", buffer1},
+                    expected_response));
         }
     }
 
