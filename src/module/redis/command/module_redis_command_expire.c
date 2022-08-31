@@ -64,7 +64,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(expire) {
                 "ERR expire failed");
     }
 
-    if (!current_entry_index) {
+    if (unlikely(!current_entry_index)) {
         goto end;
     }
 
@@ -90,13 +90,13 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(expire) {
         }
     }
 
-    if (abort_rmw) {
+    if (unlikely(abort_rmw)) {
         storage_db_op_rmw_abort(connection_context->db, &rmw_status);
     } else {
         current_entry_index->expiry_time_ms = clock_realtime_coarse_int64_ms() + milliseconds;
         metadata_updated = true;
 
-        if (milliseconds <= 0) {
+        if (unlikely(milliseconds <= 0)) {
             storage_db_op_rmw_commit_delete(connection_context->db, &rmw_status);
         } else {
             storage_db_op_rmw_commit_metadata(connection_context->db, &rmw_status);

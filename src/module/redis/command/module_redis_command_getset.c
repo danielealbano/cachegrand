@@ -95,7 +95,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(getset) {
 
 end:
 
-    if (previous_entry_index) {
+    if (likely(previous_entry_index)) {
         storage_db_entry_index_status_decrease_readers_counter(previous_entry_index, NULL);
         previous_entry_index = NULL;
     }

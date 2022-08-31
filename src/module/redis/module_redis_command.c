@@ -407,7 +407,7 @@ bool module_redis_command_process_argument_full(
         size_t chunk_length) {
     char *string_value, *integer_value_end_ptr, *double_value_end_ptr;
     uint64_t *integer_value;
-    double *double_value;
+    long double *double_value;
     bool check_tokens = false, token_found = false, is_in_block = false;
     uint16_t block_argument_index = 0;
     module_redis_command_argument_t *guessed_argument = NULL;
@@ -647,7 +647,7 @@ bool module_redis_command_process_argument_full(
 
         case MODULE_REDIS_COMMAND_ARGUMENT_TYPE_DOUBLE:
             double_value = base_addr;
-            *double_value = strtod(chunk_data, &double_value_end_ptr);
+            *double_value = strtold(chunk_data, &double_value_end_ptr);
 
             if (errno == ERANGE || double_value_end_ptr != chunk_data + chunk_length) {
                 return module_redis_connection_error_message_printf_noncritical(
@@ -906,6 +906,10 @@ bool module_redis_command_stream_entry_range_with_multiple_chunks(
                     network_channel,
                     buffer_to_send + sent_data,
                     data_to_send_length) != NETWORK_OP_RESULT_OK) {
+                if (allocated_new_buffer) {
+                    slab_allocator_mem_free(buffer_to_send);
+                }
+
                 return false;
             }
 
