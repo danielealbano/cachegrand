@@ -52,6 +52,13 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setex) {
     bool key_and_value_owned = false;
     module_redis_command_setex_context_t *context = connection_context->command.context;
 
+    if (context->seconds.value <= 0) {
+        return_res = module_redis_connection_error_message_printf_noncritical(
+                connection_context,
+                "ERR invalid expire time in 'setex' command");
+        goto end;
+    }
+
     storage_db_expiry_time_ms_t expiry_time_ms =
             clock_realtime_coarse_int64_ms() + ((int64_t)context->seconds.value * 1000);
 
