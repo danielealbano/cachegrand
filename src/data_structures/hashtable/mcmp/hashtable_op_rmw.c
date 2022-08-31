@@ -35,7 +35,7 @@ bool hashtable_mcmp_op_rmw_begin(
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_value_data_t *current_value) {
-    bool created_new = true;
+    bool created_new = false;
     hashtable_hash_t hash;
     hashtable_chunk_index_t chunk_index = 0;
     hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk = 0;
