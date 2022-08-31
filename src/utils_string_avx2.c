@@ -12,10 +12,12 @@
 #include <assert.h>
 #include <immintrin.h>
 #include <stdio.h>
+#include <ctype.h>
+#include <string.h>
 
-#include "utils_string.h"
 #include "misc.h"
 #include "exttypes.h"
+#include "utils_string.h"
 
 bool UTILS_STRING_SIGNATURE_IMPL(cmp_eq_32, avx2_internal, (const char a[32], size_t a_len, const char b[32], size_t b_len)) {
     static uint32_t len_mask_table[33] = {

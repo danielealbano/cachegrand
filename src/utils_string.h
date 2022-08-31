@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#define UTILS_STRING_INT64_MIN_STR_LENGTH (strlen("-9223372036854775808"))
+
 // These double wrappers are used to allow the usage of nested macros
 #define IFUNC_WRAPPER2(NAME, ARGS) NAME ARGS __attribute__ ((ifunc (#NAME "_resolve")));
 #define IFUNC_WRAPPER(NAME, ARGS) IFUNC_WRAPPER2(NAME, ARGS)
@@ -38,6 +40,16 @@ bool utils_string_glob_match(
         size_t string_length,
         char *pattern,
         size_t pattern_length);
+
+int64_t utils_string_to_int64(
+        char *string,
+        size_t string_length,
+        bool *invalid);
+
+long double utils_string_to_long_double(
+        char *string,
+        size_t string_length,
+        bool *invalid);
 
 #ifdef __cplusplus
 }

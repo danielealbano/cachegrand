@@ -10,8 +10,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <ctype.h>
+#include <string.h>
 
 #include "misc.h"
+#include "exttypes.h"
 #include "utils_string.h"
 
 bool UTILS_STRING_SIGNATURE_IMPL(cmp_eq_32, sw, (const char *a, size_t a_len, const char *b, size_t b_len)) {
