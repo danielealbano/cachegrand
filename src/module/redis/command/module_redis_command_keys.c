@@ -45,15 +45,21 @@
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(keys) {
     bool return_res = false;
     uint64_t keys_count = 0;
+    uint64_t cursor_next = 0;
     module_redis_command_keys_context_t *context = connection_context->command.context;
 
     storage_db_key_and_key_length_t *keys = storage_db_op_get_keys(
             connection_context->db,
+            0,
+            0,
             context->pattern.value.pattern,
             context->pattern.value.length,
-            &keys_count);
+            &keys_count,
+            &cursor_next);
 
-    if (!module_redis_connection_send_array_header(connection_context, keys_count)) {
+    assert(cursor_next == 0);
+
+    if (unlikely(!module_redis_connection_send_array_header(connection_context, keys_count))) {
         goto end;
     }
 
