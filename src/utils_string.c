@@ -342,8 +342,7 @@ long double utils_string_to_long_double(
     if (unlikely(
             end_ptr - buffer != string_length ||
             errno == ERANGE ||
-            isnan(number) ||
-            fpclassify(number) != FP_NORMAL)) {
+            isnan(number))) {
         *invalid = true;
         number = 0;
     }
