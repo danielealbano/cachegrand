@@ -44,7 +44,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
 
     // The long value is, on purpose, not filled with anything to have a very simple fuzzy testing (although
     // it's not repeatable)
-    char *long_value = (char *) malloc(long_value_length + 1);
+    char *long_value = (char *)malloc(long_value_length + 1);
 
     // Fill with random data the long value
     char range = 'z' - 'a';
@@ -54,9 +54,6 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
 
     // This is legit as long_value_length + 1 is actually being allocated
     long_value[long_value_length] = 0;
-
-    char end[32] = { 0 };
-    snprintf(end, sizeof(end), "%lu", long_value_length - 1);
 
     SECTION("Invalid offset") {
         REQUIRE(send_recv_resp_command_text(
@@ -76,6 +73,45 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
                     client_fd,
                     std::vector<std::string>{"GET", "a_key"},
                     "$7\r\nb_value\r\n"));
+        }
+
+        SECTION("Beginning of first chunk - Set 4MB") {
+            snprintf(
+                    (char*)expected_response_static,
+                    sizeof(expected_response_static),
+                    ":%lu\r\n",
+                    long_value_length);
+
+            size_t expected_response_length = snprintf(
+                    nullptr,
+                    0,
+                    "$%lu\r\n%.*s\r\n",
+                    long_value_length,
+                    (int) long_value_length,
+                    long_value);
+
+            expected_response = (char *)malloc(expected_response_length + 1);
+            snprintf(
+                    expected_response,
+                    expected_response_length + 1,
+                    "$%lu\r\n%.*s\r\n",
+                    long_value_length,
+                    (int) long_value_length,
+                    long_value);
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SETRANGE", "a_key", "0", long_value},
+                    (char*)expected_response_static));
+
+            REQUIRE(send_recv_resp_command_multi_recv(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    expected_response,
+                    expected_response_length,
+                    send_recv_resp_command_calculate_multi_recv(long_value_length)));
+
+            free(expected_response);
         }
 
         SECTION("Offset 10, padded with nulls") {
@@ -171,6 +207,99 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
                     client_fd,
                     std::vector<std::string>{"GET", "a_key"},
                     "$7\r\nb_value\r\n"));
+        }
+
+        SECTION("Beginning of first chunk - Set 4MB") {
+            snprintf(
+                    (char*)expected_response_static,
+                    sizeof(expected_response_static),
+                    ":%lu\r\n",
+                    long_value_length);
+
+            size_t expected_response_length = snprintf(
+                    nullptr,
+                    0,
+                    "$%lu\r\n%.*s\r\n",
+                    long_value_length,
+                    (int) long_value_length,
+                    long_value);
+
+            expected_response = (char *)malloc(expected_response_length + 1);
+            snprintf(
+                    expected_response,
+                    expected_response_length + 1,
+                    "$%lu\r\n%.*s\r\n",
+                    long_value_length,
+                    (int) long_value_length,
+                    long_value);
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SETRANGE", "a_key", "0", long_value},
+                    (char*)expected_response_static));
+
+            REQUIRE(send_recv_resp_command_multi_recv(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    expected_response,
+                    expected_response_length,
+                    send_recv_resp_command_calculate_multi_recv(long_value_length)));
+
+            free(expected_response);
+        }
+
+        SECTION("Beginning of first chunk and after 4MB - Set 4MB") {
+            snprintf(
+                    (char*)expected_response_static,
+                    sizeof(expected_response_static),
+                    ":%lu\r\n",
+                    long_value_length);
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SETRANGE", "a_key", "0", long_value},
+                    (char*)expected_response_static));
+
+            char offset[32] = { 0 };
+            snprintf(offset, sizeof(offset), "%lu", long_value_length);
+
+            snprintf(
+                    (char*)expected_response_static,
+                    sizeof(expected_response_static),
+                    ":%lu\r\n",
+                    long_value_length * 2);
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SETRANGE", "a_key", offset, long_value},
+                    (char*)expected_response_static));
+
+            size_t expected_response_length = snprintf(
+                    nullptr,
+                    0,
+                    "$%lu\r\n%.*s%.*s\r\n",
+                    long_value_length * 2,
+                    (int) long_value_length,
+                    long_value,
+                    (int) long_value_length,
+                    long_value);
+
+            expected_response = (char *)malloc(expected_response_length + 1);
+            snprintf(
+                    expected_response,
+                    expected_response_length + 1,
+                    "$%lu\r\n%.*s%.*s\r\n",
+                    long_value_length * 2,
+                    (int) long_value_length,
+                    long_value,
+                    (int) long_value_length,
+                    long_value);
+            REQUIRE(send_recv_resp_command_multi_recv(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    expected_response,
+                    expected_response_length,
+                    send_recv_resp_command_calculate_multi_recv(long_value_length * 2)));
+
+            free(expected_response);
         }
 
         SECTION("Offset 10, padded with nulls") {
