@@ -106,7 +106,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
         }
 
         // If the current value has to be returned, the entry index needs to be prepped for read
-        if (previous_entry_index && context->get_get.has_token) {
+        if (unlikely(previous_entry_index && context->get_get.has_token)) {
             previous_entry_index_prepped_for_read = true;
             previous_entry_index = storage_db_op_rmw_current_entry_index_prep_for_read(
                     connection_context->db,
@@ -122,10 +122,10 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
                         (context->condition.value.xx_xx.has_token && !previous_entry_index)
                 );
 
-        if (abort_rmw) {
+        if (unlikely(abort_rmw)) {
             storage_db_op_rmw_abort(connection_context->db, &rmw_status);
         } else {
-            if (previous_entry_index && context->expiration.value.keepttl_keepttl.has_token) {
+            if (unlikely(previous_entry_index && context->expiration.value.keepttl_keepttl.has_token)) {
                 expiry_time_ms = previous_entry_index->expiry_time_ms;
             }
 
@@ -147,12 +147,12 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
         // previous_entry_index might have been set to null by the return value of
         // storage_db_get_entry_index_prep_for_read if it had been deleted or if it's expired, it's necessary to check
         // again
-        if (context->get_get.has_token && previous_entry_index) {
+        if (unlikely(context->get_get.has_token && previous_entry_index)) {
             return_res = module_redis_command_stream_entry(
                     connection_context->network_channel,
                     connection_context->db,
                     previous_entry_index);
-        } else if (abort_rmw || (context->get_get.has_token && !previous_entry_index)) {
+        } else if (unlikely(abort_rmw || (context->get_get.has_token && !previous_entry_index))) {
             return_res = module_redis_connection_send_string_null(connection_context);
         } else {
             return_res = module_redis_connection_send_ok(connection_context);
@@ -161,7 +161,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
 
 end:
 
-    if (previous_entry_index && previous_entry_index_prepped_for_read) {
+    if (unlikely(previous_entry_index && previous_entry_index_prepped_for_read)) {
         storage_db_entry_index_status_decrease_readers_counter(previous_entry_index, NULL);
         previous_entry_index = NULL;
     }

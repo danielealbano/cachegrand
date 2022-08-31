@@ -125,7 +125,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(msetnx) {
                 &rmw_statuses[index]);
     }
 
-    if (!error_found) {
+    if (likely(!error_found)) {
         return_res = module_redis_connection_send_number(connection_context, command_response);
     }
 
