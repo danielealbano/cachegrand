@@ -64,7 +64,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(touch) {
                     "ERR expire failed");
         }
 
-        if (current_entry_index) {
+        if (likely(current_entry_index)) {
             touched_keys_count++;
         }
 

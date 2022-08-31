@@ -58,10 +58,12 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
     storage_db_entry_index_t *entry_index_destination_current = NULL;
     storage_db_chunk_sequence_t *chunk_sequence_source = NULL;
     storage_db_chunk_sequence_t *chunk_sequence_destination = NULL;
+    bool allocated_new_buffer = false;
+    char *source_chunk_data = NULL;
 
     module_redis_command_copy_context_t *context = connection_context->command.context;
 
-    if (context->db_destination_db.has_token) {
+    if (unlikely(context->db_destination_db.has_token)) {
         error_found = true;
         return_res = module_redis_connection_error_message_printf_noncritical(
                 connection_context,
@@ -82,7 +84,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
         goto end;
     }
 
-    if (!context->replace_replace.has_token && entry_index_destination_current != NULL) {
+    if (unlikely(!context->replace_replace.has_token && entry_index_destination_current != NULL)) {
         storage_db_op_rmw_abort(connection_context->db, &rmw_status);
         return_res = true;
         goto end;
@@ -109,15 +111,20 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
             chunk_sequence_destination,
             destination_chunk_index);
     for(storage_db_chunk_index_t source_chunk_index = 0; source_chunk_index < chunk_sequence_source->count; source_chunk_index++) {
-        bool allocated_new_buffer = false;
         size_t source_chunk_written_data = 0;
         storage_db_chunk_info_t *source_chunk_info = storage_db_chunk_sequence_get(
                 chunk_sequence_source,
                 source_chunk_index);
-        char *source_chunk_data = storage_db_get_chunk_data(
+        source_chunk_data = storage_db_get_chunk_data(
                 connection_context->db,
                 source_chunk_info,
                 &allocated_new_buffer);
+        if (unlikely(source_chunk_data == NULL)) {
+            return_res = module_redis_connection_error_message_printf_noncritical(
+                    connection_context,
+                    "ERR copy failed");
+            goto end;
+        }
 
         do {
             assert(destination_chunk_info != NULL);
@@ -138,7 +145,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
                     source_chunk_data + source_chunk_written_data,
                     chunk_data_to_write_length);
 
-            if (!res) {
+            if (unlikely(!res)) {
                 LOG_E(
                         TAG,
                         "Unable to write value chunk <%u> long <%u> bytes",
@@ -161,8 +168,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
             }
         } while(source_chunk_written_data < source_chunk_info->chunk_length);
 
-        if (allocated_new_buffer) {
+        if (unlikely(allocated_new_buffer)) {
             slab_allocator_mem_free(source_chunk_data);
+            allocated_new_buffer = false;
         }
     }
 
@@ -190,17 +198,22 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
 
 end:
 
-    if (entry_index_source) {
+    if (unlikely(allocated_new_buffer)) {
+        slab_allocator_mem_free(source_chunk_data);
+        allocated_new_buffer = false;
+    }
+
+    if (likely(entry_index_source)) {
         storage_db_entry_index_status_decrease_readers_counter(entry_index_source, NULL);
         entry_index_source = NULL;
     }
 
-    if (chunk_sequence_destination) {
+    if (unlikely(chunk_sequence_destination)) {
         storage_db_chunk_sequence_free(connection_context->db, chunk_sequence_destination);
         chunk_sequence_destination = NULL;
     }
 
-    if (!error_found) {
+    if (unlikely(!error_found)) {
         module_redis_connection_send_number(connection_context, value_copied ? 1 : 0);
     }
 

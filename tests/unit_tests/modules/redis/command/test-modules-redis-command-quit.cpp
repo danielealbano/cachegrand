@@ -35,8 +35,8 @@
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - QUIT", "[redis][command][QUIT]") {
-    send_recv_resp_command_text(
+    REQUIRE(send_recv_resp_command_text(
             client_fd,
             std::vector<std::string>{"QUIT"},
-            "$2\r\nOK\r\n");
+            "+OK\r\n"));
 }

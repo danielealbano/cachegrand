@@ -191,6 +191,8 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
     uint32_t *lcsmap = NULL;
     uint32_t lcs_string_length = 0;
     storage_db_entry_index_t *entry_index_1 = NULL, *entry_index_2 = NULL;
+    bool value_1_chunk_data_allocated_new = false, value_2_chunk_data_allocated_new = false;
+    char *value_1_chunk_data = NULL, *value_2_chunk_data = NULL;
     module_redis_command_lcs_context_t *context = connection_context->command.context;
 
     if (context->idx_idx.has_token || context->minmatchlen_len.has_token || context->withmatchlen_withmatchlen.has_token) {
@@ -245,16 +247,30 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
         lcs_string = xalloc_alloc_zero(lcs_string_length + 1);
     }
 
-    bool value_1_chunk_data_allocated_new = false;
-    char *value_1_chunk_data = storage_db_get_chunk_data(
+    value_1_chunk_data_allocated_new = false;
+    value_1_chunk_data = storage_db_get_chunk_data(
             connection_context->db,
             storage_db_chunk_sequence_get(value_1, 0),
             &value_1_chunk_data_allocated_new);
-    bool value_2_chunk_data_allocated_new = false;
-    char *value_2_chunk_data = storage_db_get_chunk_data(
+    if (unlikely(value_1_chunk_data == NULL)) {
+        return_res = module_redis_connection_error_message_printf_noncritical(
+                connection_context,
+                "ERR lcs failed");
+        goto end;
+    }
+
+    value_2_chunk_data_allocated_new = false;
+    value_2_chunk_data = storage_db_get_chunk_data(
             connection_context->db,
             storage_db_chunk_sequence_get(value_2, 0),
             &value_2_chunk_data_allocated_new);
+    if (unlikely(value_2_chunk_data == NULL)) {
+        return_res = module_redis_connection_error_message_printf_noncritical(
+                connection_context,
+                "ERR lcs failed");
+        goto end;
+    }
+
     uint32_t lcs_string_index = lcs_string_length;
     while (value_1_offset_plus_one > 0 && value_2_offset_plus_one > 0) {
         if (value_1_chunk_data[value_1_offset_plus_one - 1] == value_2_chunk_data[value_2_offset_plus_one - 1]) {
@@ -311,6 +327,14 @@ end:
 
     if (lcsmap != NULL) {
         xalloc_free(lcsmap);
+    }
+
+    if (value_1_chunk_data_allocated_new) {
+        slab_allocator_mem_free(value_2_chunk_data);
+    }
+
+    if (value_2_chunk_data_allocated_new) {
+        slab_allocator_mem_free(value_2_chunk_data);
     }
 
     if (entry_index_1) {

@@ -35,6 +35,8 @@
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
 #include "module/redis/module_redis.h"
+#include "module/redis/module_redis_connection.h"
+#include "module/redis/module_redis_command.h"
 #include "network/network.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
@@ -42,8 +44,6 @@
 #define TAG "module_redis_command_ttl"
 
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(ttl) {
-    network_channel_buffer_data_t *send_buffer, *send_buffer_start;
-    size_t slice_length = 48;
     int64_t response = -2;
     storage_db_entry_index_t *entry_index = NULL;
     module_redis_command_ttl_context_t *context = connection_context->command.context;
@@ -62,27 +62,5 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(ttl) {
         }
     }
 
-    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
-            connection_context->network_channel,
-            slice_length);
-    if (send_buffer_start == NULL) {
-        LOG_E(TAG, "Unable to acquire send buffer slice!");
-        return false;
-    }
-
-    send_buffer_start = protocol_redis_writer_write_number(
-            send_buffer_start,
-            slice_length,
-            response);
-
-    network_send_buffer_release_slice(
-            connection_context->network_channel,
-            send_buffer_start ? send_buffer_start - send_buffer : 0);
-
-    if (send_buffer_start == NULL) {
-        LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-        return false;
-    }
-
-    return true;
+    return module_redis_connection_send_number(connection_context, response);
 }

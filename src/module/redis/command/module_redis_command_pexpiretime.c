@@ -63,7 +63,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(pexpiretime) {
                 "ERR pexpiretime failed");
     }
 
-    if (!current_entry_index) {
+    if (unlikely(!current_entry_index)) {
         return module_redis_connection_send_number(
                 connection_context,
                 -2);

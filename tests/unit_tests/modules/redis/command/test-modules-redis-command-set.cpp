@@ -419,7 +419,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         // Fill with random data the long value
         char range = 'z' - 'a';
         for (size_t i = 0; i < long_value_length; i++) {
-            long_value[i] = ((char)i % range) + 'a';
+            long_value[i] = (char)(i % range) + 'a';
         }
 
         // This is legit as long_value_length + 1 is actually being allocated
@@ -468,7 +468,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         // Fill with random data the long value
         char range = 'z' - 'a';
         for (size_t i = 0; i < long_value_length; i++) {
-            long_value[i] = ((char)i % range) + 'a';
+            long_value[i] = (char)(i % range) + 'a';
         }
 
         // This is legit as long_value_length + 1 is actually being allocated
@@ -504,5 +504,33 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 send_recv_resp_command_calculate_multi_recv(long_value_length)));
 
         free(expected_response);
+    }
+
+    SECTION("Invalid EX") {
+        REQUIRE(send_recv_resp_command_text(
+                client_fd,
+                std::vector<std::string>{"SET", "a_key", "b_value", "EX", "0"},
+                "-ERR invalid expire time in 'set' command\r\n"));
+    }
+
+    SECTION("Invalid PX") {
+        REQUIRE(send_recv_resp_command_text(
+                client_fd,
+                std::vector<std::string>{"SET", "a_key", "b_value", "PX", "0"},
+                "-ERR invalid expire time in 'set' command\r\n"));
+    }
+
+    SECTION("Invalid EXAT") {
+        REQUIRE(send_recv_resp_command_text(
+                client_fd,
+                std::vector<std::string>{"SET", "a_key", "b_value", "EXAT", "0"},
+                "-ERR invalid expire time in 'set' command\r\n"));
+    }
+
+    SECTION("Invalid PXAT") {
+        REQUIRE(send_recv_resp_command_text(
+                client_fd,
+                std::vector<std::string>{"SET", "a_key", "b_value", "PXAT", "0"},
+                "-ERR invalid expire time in 'set' command\r\n"));
     }
 }
