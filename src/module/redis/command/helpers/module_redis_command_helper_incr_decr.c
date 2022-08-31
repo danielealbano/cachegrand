@@ -12,6 +12,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -172,6 +173,10 @@ bool module_redis_command_helper_incr_decr_float(
         long double amount,
         char **key,
         size_t *key_length) {
+    size_t new_number_buffer_length;
+    char new_number_buffer_static[128] = { 0 };
+    char *new_number_buffer = NULL;
+    bool new_number_allocated_buffer = false;
     char *current_string = NULL;
     bool return_res = false;
     bool abort_rmw = true;
@@ -225,35 +230,77 @@ bool module_redis_command_helper_incr_decr_float(
     }
 
     new_number = number + amount;
-    bool overflow = (amount > 0 && new_number < number) || (amount < 0 && new_number > number);
 
-    if (unlikely(overflow)) {
+    if (isnan(new_number) || isinf(new_number)) {
         return_res = module_redis_connection_error_message_printf_noncritical(
                 connection_context,
-                "ERR increment or decrement would overflow");
+                "ERR Increment would produce NaN or Infinity");
 
         goto end;
     }
 
-    // A static buffer is just fine as the maximum number of chars allowed for in the snprintf is smaller than the size
-    // of the buffer
-    size_t buffer_length;
-    char buffer[32] = { 0 };
+    // Doubles can be long almost 5kb (as per DBL_MAX and DBL_MIN) so allocate 6 * 1024 using a static buffer
 
     // For Redis compatibility
     if ((int64_t)new_number == new_number) {
-        buffer_length = snprintf(buffer, sizeof(buffer), "%ld", (int64_t)new_number);
+        new_number_buffer = (char*)new_number_buffer_static;
+        new_number_buffer_length = snprintf(new_number_buffer, sizeof(new_number_buffer_static), "%ld", (int64_t)new_number);
     } else {
-        buffer_length = snprintf(buffer, sizeof(buffer), "%.20Lf", new_number);
+        bool new_number_has_trailing_zeros = false;
+
+        new_number_buffer_length = snprintf(NULL, 0, "%.17Lf", new_number);
+        if (unlikely(new_number_buffer_length > sizeof(new_number_buffer_static))) {
+            new_number_buffer = slab_allocator_mem_alloc(new_number_buffer_length + 1);
+            new_number_allocated_buffer = true;
+        } else {
+            new_number_buffer = (char*)new_number_buffer_static;
+        }
+
+        // %Lf always produces trailing zeros and for compatibility with Redis we want to drop them
+        new_number_buffer_length = snprintf(new_number_buffer, new_number_buffer_length + 1, "%.17Lf", new_number);
+
+        // Fast path for the numbers starting with 0.
+        if (likely(new_number_buffer_length >= 2 && new_number_buffer[1] == '.')) {
+            new_number_has_trailing_zeros = true;
+        } else if (new_number_buffer_length > 1) {
+            for(int index = 1; likely(index < new_number_buffer_length); index++) {
+                if (unlikely(new_number_buffer[index] == '.')) {
+                    new_number_has_trailing_zeros = true;
+                    break;
+                }
+            }
+        }
+
+        // It's likely the number has trailing zeros
+        if (likely(new_number_has_trailing_zeros)) {
+            char *new_number_buffer_ptr = new_number_buffer + new_number_buffer_length - 1;
+            while(*new_number_buffer_ptr == '0') {
+                new_number_buffer_ptr--;
+                new_number_buffer_length--;
+            }
+
+            // If only the dot is at the end after removing the trailing zeros drop it
+            if (*new_number_buffer_ptr == '.') {
+                new_number_buffer_length--;
+            }
+
+            // If the resulting string formatting is -0, convert it just to zero
+            if (new_number_buffer_length == 2 && new_number_buffer[0] == '-' && new_number_buffer[1] == '0') {
+                new_number_buffer[0] = '0';
+                new_number_buffer_length = 1;
+            }
+        }
     }
 
-    chunk_sequence_new = storage_db_chunk_sequence_allocate(connection_context->db, buffer_length);
+    new_number_buffer[new_number_buffer_length] = 0;
+
+    chunk_sequence_new = storage_db_chunk_sequence_allocate(connection_context->db, new_number_buffer_length);
     if (unlikely(!storage_db_chunk_write(
             connection_context->db,
             storage_db_chunk_sequence_get(chunk_sequence_new, 0),
             0,
-            buffer,
-            buffer_length))) {
+            new_number_buffer,
+            new_number_buffer_length))) {
         return_res = module_redis_connection_error_message_printf_noncritical(
                 connection_context,
                 "ERR operation failed");
@@ -280,14 +327,18 @@ bool module_redis_command_helper_incr_decr_float(
 
     if ((return_res = module_redis_connection_send_string(
             connection_context,
-            buffer,
-            buffer_length)) == false) {
+            new_number_buffer,
+            new_number_buffer_length)) == false) {
         goto end;
     }
 
     return_res = true;
 
 end:
+
+    if (new_number_allocated_buffer) {
+        slab_allocator_mem_free(new_number_buffer);
+    }
 
     if (allocated_new_buffer) {
         slab_allocator_mem_free(current_string);
