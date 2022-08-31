@@ -61,7 +61,7 @@ class Program:
         elif argument["type"] == "bool":
             field_type = "bool"
         elif argument["type"] == "double":
-            field_type = "double"
+            field_type = "long double"
         elif argument["type"] == "pattern":
             field_type = "module_redis_pattern_t"
         elif argument["type"] in ["block", "oneof"]:
