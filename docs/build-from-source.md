@@ -79,7 +79,7 @@ sudo dnf install \
     libcurl libcurl-devel \
     libyaml libyaml-devel \
     mbedtls mbedtls-devel \
-    libatomic libatomic-devel
+    libatomic
 ```
 
 ## How to build it
@@ -98,7 +98,7 @@ git submodule update --init --recursive
 mkdir cmake-build-debug
 cd cmake-build-debug
 cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_HASH_ALGORITHM_T1HA2=1
-make cachegrand-server
+make
 ```
 
 The binary will be available in `cmake-build-debug/src`
@@ -111,8 +111,7 @@ For development or testing purposes you can enable the tests, which are built us
 mkdir cmake-build-debug
 cd cmake-build-debug
 cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1
-make cachegrand-server
-make cachegrand-tests
+make
 ```
 
 The `cachegrand-server` binary will be available in `cmake-build-debug/src`, instead the `cachegrand-tests` binary will
@@ -124,10 +123,10 @@ be available in `cmake-build-debug/tests`
 mkdir cmake-build-release
 cd cmake-build-release
 cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1
-make cachegrand-server
+make -j8
 ```
 
-The binary will be available in `cmake-build-release/src`
+The cachegrand-server binary will be available in `cmake-build-release/src`
 
 ### Release build with benchmarks
 
@@ -135,11 +134,15 @@ The binary will be available in `cmake-build-release/src`
 mkdir cmake-build-release
 cd cmake-build-release
 cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_INTERNAL_BENCHES=1
-make cachegrand-server
+make -j8
 ```
 
-The binary will be available in `cmake-build-release/src`, the `cachegrand-benches` binary will be available in
-`cmake-build-debug/tests`
+The cachegrand-server binary will be available in `cmake-build-release/src` meanwhile for the benchmarls a binary will
+be produced for each one and they will be available in `cmake-build-release/benches` folder.
 
 *Please be aware that the benchmark suite is built for developers and require code modifications to be properly
-configured for the hardware on which it has to run*
+configured for the hardware on which it has to run.*
+
+*Also, please be aware that the benchmark suite is not built as part of the PR validation process and therefore breaking
+changes might get merged, the benchmark suite is used for ad-hoc evaluations and it's normally used to benchmark
+architectural changes or new internal functionalities or components.*
