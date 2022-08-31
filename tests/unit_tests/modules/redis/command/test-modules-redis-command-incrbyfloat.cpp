@@ -12,6 +12,7 @@
 #include <memory>
 
 #include <netinet/in.h>
+#include <cfloat>
 
 #include "clock.h"
 #include "exttypes.h"
@@ -72,6 +73,25 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBYFLOAT"
                     client_fd,
                     std::vector<std::string>{"INCRBYFLOAT", "a_key", "1.5"},
                     "$1\r\n3\r\n"));
+        }
+
+        SECTION("Increase 0.00001 - once") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"INCRBYFLOAT", "a_key", "0.00001"},
+                    "$7\r\n0.00001\r\n"));
+        }
+
+        SECTION("Increase 0.00001 - twice") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"INCRBYFLOAT", "a_key", "0.00001"},
+                    "$7\r\n0.00001\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"INCRBYFLOAT", "a_key", "0.00001"},
+                    "$7\r\n0.00002\r\n"));
         }
 
         SECTION("Increase integer amount - once") {
@@ -276,7 +296,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBYFLOAT"
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
                         std::vector<std::string>{"INCRBYFLOAT", "a_key", "6.4"},
-                        "$3\r\n6.9\r\n"));
+                        "$20\r\n6.9\r\n"));
             }
         }
 
@@ -302,11 +322,16 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBYFLOAT"
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
                         std::vector<std::string>{"INCRBYFLOAT", "a_key", "1.6"},
-                        "$20\r\n-9223372036854775806\r\n"));
+                        "$22\r\n-9223372036854775806.5\r\n"));
             }
         }
 
         SECTION("Non numeric") {
+            char huge_val_max[64] = { 0 };
+            snprintf(huge_val_max, sizeof(huge_val_max), "%Lf", HUGE_VALL);
+            char huge_val_min[64] = { 0 };
+            snprintf(huge_val_min, sizeof(huge_val_min), "%Lf", -HUGE_VALL);
+
             SECTION("String") {
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
@@ -322,39 +347,39 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBYFLOAT"
             SECTION("Greater than INT64_MAX") {
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
-                        std::vector<std::string>{"SET", "a_key", "9223372036854775808"},
+                        std::vector<std::string>{"SET", "a_key", huge_val_max},
                         "+OK\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
                         std::vector<std::string>{"INCRBYFLOAT", "a_key", "1"},
-                        "-ERR value is not an integer or out of range\r\n"));
+                        "-ERR Increment would produce NaN or Infinity\r\n"));
             }
 
             SECTION("Smaller than INT64_MIN") {
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
-                        std::vector<std::string>{"SET", "a_key", "-9223372036854775809"},
+                        std::vector<std::string>{"SET", "a_key", huge_val_min},
                         "+OK\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
                         std::vector<std::string>{"INCRBYFLOAT", "a_key", "1"},
-                        "-ERR value is not an integer or out of range\r\n"));
+                        "-ERR Increment would produce NaN or Infinity\r\n"));
             }
         }
 
         SECTION("Overflow number") {
-            SECTION("One") {
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
-                        std::vector<std::string>{"SET", "a_key", "9223372036854775806"},
-                        "+OK\r\n"));
+            char buffer_ldbl_max[5 * 1024] = { 0 };
+            snprintf(buffer_ldbl_max, sizeof(buffer_ldbl_max), "%Lf", LDBL_MAX);
+            char buffer_ldbl_min[5 * 1024] = { 0 };
+            snprintf(buffer_ldbl_min, sizeof(buffer_ldbl_min), "%Lf", LDBL_MIN);
 
+            SECTION("Increment by one") {
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
-                        std::vector<std::string>{"INCRBYFLOAT", "a_key", "1"},
-                        "$19\r\n9223372036854775807\r\n"));
+                        std::vector<std::string>{"SET", "a_key", buffer_ldbl_max},
+                        "+OK\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
@@ -362,10 +387,10 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBYFLOAT"
                         "-ERR increment or decrement would overflow\r\n"));
             }
 
-            SECTION("Integer amount") {
+            SECTION("Increment by integer amount") {
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
-                        std::vector<std::string>{"SET", "a_key", "9223372036854775806"},
+                        std::vector<std::string>{"SET", "a_key", buffer_ldbl_max},
                         "+OK\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
@@ -374,15 +399,51 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBYFLOAT"
                         "-ERR increment or decrement would overflow\r\n"));
             }
 
-            SECTION("Decimal amount") {
+            SECTION("Increment by decimal amount") {
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
-                        std::vector<std::string>{"SET", "a_key", "9223372036854775806"},
+                        std::vector<std::string>{"SET", "a_key", buffer_ldbl_max},
                         "+OK\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
                         std::vector<std::string>{"INCRBYFLOAT", "a_key", "1.5"},
+                        "-ERR increment or decrement would overflow\r\n"));
+            }
+
+            SECTION("Decrement by one") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"SET", "a_key", buffer_ldbl_min},
+                        "+OK\r\n"));
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"INCRBYFLOAT", "a_key", "-1"},
+                        "-ERR increment or decrement would overflow\r\n"));
+            }
+
+            SECTION("Decrement by integer amount") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"SET", "a_key", buffer_ldbl_min},
+                        "+OK\r\n"));
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"INCRBYFLOAT", "a_key", "-2"},
+                        "-ERR increment or decrement would overflow\r\n"));
+            }
+
+            SECTION("Decrement by decimal amount") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"SET", "a_key", buffer_ldbl_min},
+                        "+OK\r\n"));
+
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"INCRBYFLOAT", "a_key", "-1.5"},
                         "-ERR increment or decrement would overflow\r\n"));
             }
         }
