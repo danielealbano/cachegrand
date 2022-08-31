@@ -120,18 +120,17 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - MGET", "[red
         int key_count = 128;
         std::vector<std::string> arguments = std::vector<std::string>();
         char buffer_recv_cmp[8 * 1024] = { 0 };
-        size_t buffer_recv_cmp_length;
         off_t buffer_recv_cmp_offset = 0;
-        off_t buffer_send_offset = 0;
 
         for(int key_index = 0; key_index < key_count; key_index++) {
+            char buffer1[32] = { 0 };
+            char buffer2[32] = { 0 };
+            snprintf(buffer1, sizeof(buffer1), "a_key_%05d", key_index);
+            snprintf(buffer2, sizeof(buffer2), "b_value_%05d", key_index);
+
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
-                    std::vector<std::string>{
-                            "SET",
-                            string_format("a_key_%05d", key_index),
-                            string_format("b_value_%05d", key_index)
-                    },
+                    std::vector<std::string>{"SET", buffer1, buffer2},
                     "+OK\r\n"));
         }
 
@@ -142,7 +141,10 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - MGET", "[red
 
         arguments.emplace_back("MGET");
         for(int key_index = 0; key_index < key_count; key_index++) {
-            arguments.push_back(string_format("a_key_%05d", key_index));
+            char buffer1[32] = { 0 };
+            snprintf(buffer1, sizeof(buffer1), "a_key_%05d", key_index);
+
+            arguments.push_back(buffer1);
 
             buffer_recv_cmp_offset += snprintf(
                     buffer_recv_cmp + buffer_recv_cmp_offset,

@@ -37,10 +37,10 @@
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SHUTDOWN", "[redis][command][SHUTDOWN]") {
-    send_recv_resp_command_text(
+    REQUIRE(send_recv_resp_command_text(
             client_fd,
             std::vector<std::string>{"SHUTDOWN"},
-            "$2\r\nOK\r\n");
+            "+OK\r\n"));
 
     // Wait 5 seconds in addition to the max duration of the wait time in the loop to ensure that the worker has
     // plenty of time to shut-down
