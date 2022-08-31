@@ -213,13 +213,19 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
                 destination_chunk_offset,
                 data_to_write_buffer,
                 data_to_write_length))) {
+            if (unlikely(allocated_new_buffer)) {
+                slab_allocator_mem_free(allocated_buffer);
+                allocated_buffer = NULL;
+                allocated_new_buffer = false;
+            }
+
             return_res = module_redis_connection_error_message_printf_noncritical(
                     connection_context,
                     "ERR setrange failed");
             goto end;
         }
 
-        if (allocated_new_buffer) {
+        if (unlikely(allocated_new_buffer)) {
             slab_allocator_mem_free(allocated_buffer);
             allocated_buffer = NULL;
             allocated_new_buffer = false;
@@ -252,8 +258,6 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
         }
     } while(destination_chunk_index < destination_chunk_sequence->count);
 
-    module_redis_connection_send_number(connection_context, (int64_t)destination_chunk_sequence->size);
-
     if (unlikely(!storage_db_op_rmw_commit_update(
             connection_context->db,
             &rmw_status,
@@ -265,24 +269,26 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
         goto end;
     }
 
-    // Set the key null as now it's owned by the storage_db / hashtable
     context->key.value.key = NULL;
+    abort_rmw = false;
+
+    return_res = module_redis_connection_send_number(
+            connection_context,
+            (int64_t)destination_chunk_sequence->size);
 
     destination_chunk_sequence = NULL;
-    abort_rmw = false;
-    return_res = true;
 
 end:
 
-    if (current_entry_index && abort_rmw) {
+    if (unlikely(current_entry_index && abort_rmw)) {
         storage_db_op_rmw_abort(connection_context->db, &rmw_status);
     }
 
-    if (current_entry_index) {
+    if (unlikely(current_entry_index)) {
         storage_db_entry_index_status_decrease_readers_counter(current_entry_index, NULL);
     }
 
-    if (destination_chunk_sequence) {
+    if (unlikely(destination_chunk_sequence)) {
         storage_db_chunk_sequence_free(connection_context->db, destination_chunk_sequence);
     }
 

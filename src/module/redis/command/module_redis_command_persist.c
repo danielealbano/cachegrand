@@ -64,15 +64,15 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(persist) {
                 "ERR persist failed");
     }
 
-    if (!current_entry_index) {
+    if (unlikely(!current_entry_index)) {
         goto end;
     }
 
-    if (current_entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY) {
+    if (unlikely(current_entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY)) {
         abort_rmw = true;
     }
 
-    if (abort_rmw) {
+    if (unlikely(abort_rmw)) {
         storage_db_op_rmw_abort(connection_context->db, &rmw_status);
     } else {
         current_entry_index->expiry_time_ms = STORAGE_DB_ENTRY_NO_EXPIRY;
