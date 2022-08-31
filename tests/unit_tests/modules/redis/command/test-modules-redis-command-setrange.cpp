@@ -38,7 +38,7 @@
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "[redis][command][SETRANGE]") {
     char *expected_response = nullptr;
-    char *expected_response_static[256] = { nullptr };
+    char expected_response_static[256] = { 0 };
     size_t long_value_length = 4 * 1024 * 1024;
     config_module_redis.max_command_length = long_value_length + 1024;
 
@@ -109,7 +109,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
                     expected_response_length,
-                    send_recv_resp_command_calculate_multi_recv(long_value_length)));
+                    send_recv_resp_command_calculate_multi_recv(expected_response_length)));
 
             free(expected_response);
         }
@@ -243,7 +243,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
                     expected_response_length,
-                    send_recv_resp_command_calculate_multi_recv(long_value_length)));
+                    send_recv_resp_command_calculate_multi_recv(expected_response_length)));
 
             free(expected_response);
         }
@@ -297,7 +297,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
                     expected_response_length,
-                    send_recv_resp_command_calculate_multi_recv(long_value_length * 2)));
+                    send_recv_resp_command_calculate_multi_recv(expected_response_length)));
 
             free(expected_response);
         }
