@@ -359,9 +359,12 @@ bool storage_db_op_flush_sync(
 
 storage_db_key_and_key_length_t *storage_db_op_get_keys(
         storage_db_t *db,
+        uint64_t cursor,
+        uint64_t count,
         char *pattern,
         size_t pattern_length,
-        uint64_t *keys_count);
+        uint64_t *keys_count,
+        uint64_t *cursor_next);
 
 void storage_db_free_key_and_key_length_list(
         storage_db_key_and_key_length_t *keys,
