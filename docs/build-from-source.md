@@ -79,7 +79,7 @@ sudo dnf install \
     libcurl libcurl-devel \
     libyaml libyaml-devel \
     mbedtls mbedtls-devel \
-    libatomic libatomic-devel
+    libatomic
 ```
 
 ## How to build it
