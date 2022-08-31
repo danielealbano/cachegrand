@@ -40,7 +40,6 @@
 #include "module/redis/module_redis.h"
 #include "module/redis/module_redis_connection.h"
 #include "module/redis/module_redis_command.h"
-#include "module/redis/command/helpers/module_redis_command_helper_incr_decr.h"
 #include "network/network.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
