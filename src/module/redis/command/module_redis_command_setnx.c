@@ -49,14 +49,12 @@
 
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setnx) {
     bool return_res = false;
+    bool abort_rmw = false;
     bool key_and_value_owned = false;
     bool previous_entry_index_prepped_for_read = false;
     storage_db_entry_index_t *previous_entry_index = NULL;
     module_redis_command_setnx_context_t *context = connection_context->command.context;
     storage_db_expiry_time_ms_t expiry_time_ms = STORAGE_DB_ENTRY_NO_EXPIRY;
-
-
-    bool abort_rmw = false;
     storage_db_op_rmw_status_t rmw_status = { 0 };
 
     if (unlikely(!storage_db_op_rmw_begin(
@@ -72,22 +70,12 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setnx) {
         goto end;
     }
 
-    // If the current value has to be returned, the entry index needs to be prepped for read
-    if (previous_entry_index) {
-        previous_entry_index_prepped_for_read = true;
-        previous_entry_index = storage_db_op_rmw_current_entry_index_prep_for_read(
-                connection_context->db,
-                &rmw_status,
-                previous_entry_index);
-    }
-
-    // Checks if the operation has to be aborted because the NX flag is set but a value exists or because the XX
-    // flag is set but a value doesn't exist
-    if (previous_entry_index) {
+    // Checks if the operation has to be aborted because a value exists
+    if (likely(previous_entry_index)) {
         abort_rmw = true;
     }
 
-    if (abort_rmw) {
+    if (unlikely(abort_rmw)) {
         storage_db_op_rmw_abort(connection_context->db, &rmw_status);
     } else {
         if (unlikely(!storage_db_op_rmw_commit_update(
@@ -101,19 +89,10 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setnx) {
             goto end;
         }
 
-        // Once the
         key_and_value_owned = true;
     }
 
-    // previous_entry_index might have been set to null by the return value of
-    // storage_db_get_entry_index_prep_for_read if it had been deleted or if it's expired, it's necessary to check
-    // again
-    if (previous_entry_index) {
-        return_res = module_redis_command_stream_entry(
-                connection_context->network_channel,
-                connection_context->db,
-                previous_entry_index);
-    } else if (abort_rmw || previous_entry_index) {
+    if (unlikely(abort_rmw)) {
         return_res = module_redis_connection_send_string_null(connection_context);
     } else {
         return_res = module_redis_connection_send_ok(connection_context);
@@ -121,7 +100,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setnx) {
 
 end:
 
-    if (previous_entry_index && previous_entry_index_prepped_for_read) {
+    if (unlikely(previous_entry_index && previous_entry_index_prepped_for_read)) {
         storage_db_entry_index_status_decrease_readers_counter(previous_entry_index, NULL);
         previous_entry_index = NULL;
     }
