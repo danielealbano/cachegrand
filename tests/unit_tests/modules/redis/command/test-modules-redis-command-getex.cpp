@@ -43,76 +43,126 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GETEX", "[re
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
-                std::vector<std::string>{"GETEX", "a_key"},
-                "$7\r\nb_value\r\n"));
+        SECTION("No expiration") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETEX", "a_key"},
+                    "$7\r\nb_value\r\n"));
+        }
+
+        SECTION("Expire in 500ms") {
+            config_module_network_timeout.read_ms = 1000;
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETEX", "a_key", "PX", "500"},
+                    "$7\r\nb_value\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    "$7\r\nb_value\r\n"));
+
+            // Wait for 600 ms and try to get the value after the expiration
+            usleep((500 + 100) * 1000);
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    "$-1\r\n"));
+
+            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, "a_key", strlen("a_key"));
+            REQUIRE(entry_index == NULL);
+        }
+
+        SECTION("Expire in 1s") {
+            config_module_network_timeout.read_ms = 2000;
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETEX", "a_key", "EX", "1"},
+                    "$7\r\nb_value\r\n"));
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    "$7\r\nb_value\r\n"));
+
+            // Wait for 1100 ms and try to get the value after the expiration
+            usleep((1000 + 100) * 1000);
+
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GET", "a_key"},
+                    "$-1\r\n"));
+
+            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, "a_key", strlen("a_key"));
+            REQUIRE(entry_index == NULL);
+        }
+
+        SECTION("Invalid EX") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETEX", "a_key", "EX", "0"},
+                    "-ERR invalid expire time in 'getex' command\r\n"));
+        }
+
+        SECTION("Invalid PX") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETEX", "a_key", "PX", "0"},
+                    "-ERR invalid expire time in 'getex' command\r\n"));
+        }
+
+        SECTION("Invalid EXAT") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETEX", "a_key", "EXAT", "0"},
+                    "-ERR invalid expire time in 'getex' command\r\n"));
+        }
+
+        SECTION("Invalid PXAT") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETEX", "a_key", "PXAT", "0"},
+                    "-ERR invalid expire time in 'getex' command\r\n"));
+        }
     }
 
     SECTION("Non-existing key") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
-                std::vector<std::string>{"GETEX", "a_key"},
-                "$-1\r\n"));
-    }
+        SECTION("No expiration") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETEX", "a_key"},
+                    "$-1\r\n"));
+        }
 
-    SECTION("New key - expire in 500ms") {
-        config_module_network_timeout.read_ms = 1000;
+        SECTION("Invalid EX") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETEX", "a_key", "EX", "0"},
+                    "$-1\r\n"));
+        }
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
-                std::vector<std::string>{"SET", "a_key", "b_value"},
-                "+OK\r\n"));
+        SECTION("Invalid PX") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETEX", "a_key", "PX", "0"},
+                    "$-1\r\n"));
+        }
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
-                std::vector<std::string>{"GETEX", "a_key", "PX", "500"},
-                "$7\r\nb_value\r\n"));
+        SECTION("Invalid EXAT") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETEX", "a_key", "EXAT", "0"},
+                    "$-1\r\n"));
+        }
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
-                std::vector<std::string>{"GET", "a_key"},
-                "$7\r\nb_value\r\n"));
-
-        // Wait for 600 ms and try to get the value after the expiration
-        usleep((500 + 100) * 1000);
-
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
-                std::vector<std::string>{"GET", "a_key"},
-                "$-1\r\n"));
-
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, "a_key", strlen("a_key"));
-        REQUIRE(entry_index == NULL);
-    }
-
-    SECTION("New key - expire in 1s") {
-        config_module_network_timeout.read_ms = 2000;
-
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
-                std::vector<std::string>{"SET", "a_key", "b_value"},
-                "+OK\r\n"));
-
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
-                std::vector<std::string>{"GETEX", "a_key", "EX", "1"},
-                "$7\r\nb_value\r\n"));
-
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
-                std::vector<std::string>{"GET", "a_key"},
-                "$7\r\nb_value\r\n"));
-
-        // Wait for 1100 ms and try to get the value after the expiration
-        usleep((1000 + 100) * 1000);
-
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
-                std::vector<std::string>{"GET", "a_key"},
-                "$-1\r\n"));
-
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, "a_key", strlen("a_key"));
-        REQUIRE(entry_index == NULL);
+        SECTION("Invalid PXAT") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"GETEX", "a_key", "PXAT", "0"},
+                    "$-1\r\n"));
+        }
     }
 }

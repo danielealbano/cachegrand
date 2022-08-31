@@ -49,7 +49,7 @@
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
     module_redis_command_mget_context_t *context = connection_context->command.context;
 
-    if (!module_redis_connection_send_array(connection_context, context->key.count)) {
+    if (unlikely(!module_redis_connection_send_array(connection_context, context->key.count))) {
         return false;
     }
 

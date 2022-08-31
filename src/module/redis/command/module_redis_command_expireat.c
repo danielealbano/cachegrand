@@ -64,7 +64,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(expireat) {
                 "ERR expireat failed");
     }
 
-    if (!current_entry_index) {
+    if (unlikely(!current_entry_index)) {
         goto end;
     }
 
