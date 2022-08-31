@@ -59,6 +59,13 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PSETEX", "[r
                 "-ERR syntax error\r\n"));
     }
 
+    SECTION("Zero value as expire") {
+        REQUIRE(send_recv_resp_command_text(
+                client_fd,
+                std::vector<std::string>{"PSETEX", "a_key", "0", "b_value"},
+                "-ERR invalid expire time in 'psetex' command\r\n"));
+    }
+
     SECTION("New key - expire in 500ms") {
         char *key = "a_key";
         char *value = "b_value";
