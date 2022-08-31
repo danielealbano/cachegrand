@@ -58,12 +58,40 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
     storage_db_expiry_time_ms_t expiry_time_ms = STORAGE_DB_ENTRY_NO_EXPIRY;
 
     if (context->expiration.value.pxat_unix_time_milliseconds.has_token) {
+        if (context->expiration.value.pxat_unix_time_milliseconds.value <= 0) {
+            return_res = module_redis_connection_error_message_printf_noncritical(
+                    connection_context,
+                    "ERR invalid expire time in 'set' command");
+            goto end;
+        }
+
         expiry_time_ms = (int64_t)context->expiration.value.pxat_unix_time_milliseconds.value;
     } else if (context->expiration.value.exat_unix_time_seconds.has_token) {
+        if (context->expiration.value.exat_unix_time_seconds.value <= 0) {
+            return_res = module_redis_connection_error_message_printf_noncritical(
+                    connection_context,
+                    "ERR invalid expire time in 'set' command");
+            goto end;
+        }
+
         expiry_time_ms = (int64_t)context->expiration.value.exat_unix_time_seconds.value * 1000;
     } else if (context->expiration.value.px_milliseconds.has_token) {
+        if (context->expiration.value.px_milliseconds.value <= 0) {
+            return_res = module_redis_connection_error_message_printf_noncritical(
+                    connection_context,
+                    "ERR invalid expire time in 'set' command");
+            goto end;
+        }
+
         expiry_time_ms = clock_realtime_coarse_int64_ms() + (int64_t)context->expiration.value.px_milliseconds.value;
     } else if (context->expiration.value.ex_seconds.has_token) {
+        if (context->expiration.value.ex_seconds.value <= 0) {
+            return_res = module_redis_connection_error_message_printf_noncritical(
+                    connection_context,
+                    "ERR invalid expire time in 'set' command");
+            goto end;
+        }
+
         expiry_time_ms = clock_realtime_coarse_int64_ms() + ((int64_t)context->expiration.value.ex_seconds.value * 1000);
     }
 
