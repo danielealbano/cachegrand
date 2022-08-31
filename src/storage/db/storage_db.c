@@ -16,6 +16,7 @@
 #include <pow2.h>
 #include <stdatomic.h>
 #include <assert.h>
+#include <ctype.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -1237,7 +1238,7 @@ bool storage_db_op_rmw_commit_update(
 
     hashtable_mcmp_op_rmw_commit_update(
             &rmw_status->hashtable,
-            (uintptr_t) entry_index);
+            (uintptr_t)entry_index);
 
     if (rmw_status->hashtable.current_value != 0) {
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
@@ -1355,13 +1356,32 @@ bool storage_db_op_flush_sync(
 
 storage_db_key_and_key_length_t *storage_db_op_get_keys(
         storage_db_t *db,
+        uint64_t cursor,
+        uint64_t count,
         char *pattern,
         size_t pattern_length,
-        uint64_t *keys_count) {
+        uint64_t *keys_count,
+        uint64_t *cursor_next) {
     hashtable_key_data_t *key;
     hashtable_key_size_t key_size;
-
+    bool end_reached = false;
+    hashtable_bucket_index_t bucket_index = cursor;
+    storage_db_entry_index_t *entry_index = NULL;
     *keys_count = 0;
+    *cursor_next = 0;
+
+    if (unlikely(storage_db_op_get_size(db)) == 0) {
+        return NULL;
+    }
+
+    if (cursor >= db->hashtable->ht_current->buckets_count_real) {
+        return NULL;
+    }
+
+    if (count == 0) {
+        count = db->hashtable->ht_current->buckets_count_real;
+    }
+
     uint64_t keys_allocated_count = 8;
     storage_db_key_and_key_length_t *keys = xalloc_alloc(sizeof(storage_db_key_and_key_length_t) * keys_allocated_count);
 
@@ -1371,12 +1391,15 @@ storage_db_key_and_key_length_t *storage_db_op_get_keys(
     int64_t scan_start_ms = clock_monotonic_int64_ms();
 
     // Iterates over the hashtable to free up the entry index
-    hashtable_bucket_index_t bucket_index = 0;
-    for(
-            void *data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index);
-            data;
-            ++bucket_index && (data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index))) {
-        storage_db_entry_index_t *entry_index = data;
+    do {
+        entry_index = hashtable_mcmp_op_iter(db->hashtable, &bucket_index);
+
+        if (unlikely(entry_index == NULL)) {
+            end_reached = true;
+            break;
+        }
+
+        *cursor_next = bucket_index + 1;
 
         if (unlikely(entry_index->created_time_ms > scan_start_ms)) {
             continue;
@@ -1402,6 +1425,10 @@ storage_db_key_and_key_length_t *storage_db_op_get_keys(
         keys[*keys_count].key = key;
         keys[*keys_count].key_size = key_size;
         (*keys_count)++;
+    } while(likely(entry_index && ++bucket_index < cursor + count));
+
+    if (unlikely(end_reached)) {
+        *cursor_next = 0;
     }
 
     return keys;

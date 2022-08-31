@@ -109,13 +109,11 @@ uint32_t utils_string_utf8_decode_char(
 }
 
 // Derived from https://www.codeproject.com/Articles/5163931/Fast-String-Matching-with-Wildcards-Globs-and-Giti
-// TODO: should handle UTF-8? Redis code seems doesn't do it;
 bool utils_string_glob_match(
         char *string,
         size_t string_length,
         char *pattern,
         size_t pattern_length) {
-    int last_char;
     bool matched, reverse;
     char *string_backup = NULL, *pattern_backup = NULL;
     size_t string_length_backup = 0, pattern_length_backup = 0;
@@ -195,7 +193,7 @@ bool utils_string_glob_match(
                                 }
                             }
 
-                            prev_char = *pattern;
+                            prev_char = (int)*pattern;
                             pattern++;
                             pattern_length--;
                             break;
