@@ -70,6 +70,6 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - UNLINK", "[r
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"UNLINK"},
-                "-ERR wrong number of arguments for 'UNLINK' command\r\n"));
+                "-ERR wrong number of arguments for 'unlink' command\r\n"));
     }
 }

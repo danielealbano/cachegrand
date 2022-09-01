@@ -144,6 +144,6 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GET", "[redi
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"GET"},
-                "-ERR wrong number of arguments for 'GET' command\r\n"));
+                "-ERR wrong number of arguments for 'get' command\r\n"));
     }
 }

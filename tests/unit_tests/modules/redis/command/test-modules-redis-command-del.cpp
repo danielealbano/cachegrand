@@ -70,6 +70,6 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - DEL", "[redi
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"DEL"},
-                "-ERR wrong number of arguments for 'DEL' command\r\n"));
+                "-ERR wrong number of arguments for 'del' command\r\n"));
     }
 }

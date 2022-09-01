@@ -42,14 +42,14 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETNX", "[re
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"SETNX"},
-                "-ERR wrong number of arguments for 'SETNX' command\r\n"));
+                "-ERR wrong number of arguments for 'setnx' command\r\n"));
     }
 
     SECTION("Missing parameters - value") {
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"SETNX", "a_key"},
-                "-ERR wrong number of arguments for 'SETNX' command\r\n"));
+                "-ERR wrong number of arguments for 'setnx' command\r\n"));
     }
 
     SECTION("Too many parameters - one extra parameter") {

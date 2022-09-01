@@ -42,14 +42,14 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PSETEX", "[r
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"PSETEX"},
-                "-ERR wrong number of arguments for 'PSETEX' command\r\n"));
+                "-ERR wrong number of arguments for 'psetex' command\r\n"));
     }
 
     SECTION("Missing parameters - value") {
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"PSETEX", "a_key", "100"},
-                "-ERR wrong number of arguments for 'PSETEX' command\r\n"));
+                "-ERR wrong number of arguments for 'psetex' command\r\n"));
     }
 
     SECTION("Too many parameters - one extra parameter") {

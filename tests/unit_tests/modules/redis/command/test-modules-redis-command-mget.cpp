@@ -96,7 +96,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - MGET", "[red
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"MGET"},
-                "-ERR wrong number of arguments for 'MGET' command\r\n"));
+                "-ERR wrong number of arguments for 'mget' command\r\n"));
     }
 
     SECTION("Fetch 2 keys") {
