@@ -228,7 +228,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - DECRBY", "[r
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
                         std::vector<std::string>{"DECRBY", "a_key", "1"},
-                        ":9223372036854775808\r\n"));
+                        ":-9223372036854775808\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
