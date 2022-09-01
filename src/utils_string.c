@@ -9,6 +9,12 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
+#include <ctype.h>
+#include <errno.h>
+#include <error.h>
+#include <math.h>
+#include <xalloc.h>
 
 #include "misc.h"
 
@@ -254,4 +260,94 @@ bool utils_string_glob_match(
     }
 
     return pattern_length == 0 && string_length == 0 ? true : false;
+}
+
+int64_t utils_string_to_int64(
+        char *string,
+        size_t string_length,
+        bool *invalid) {
+    uint64_t number = 0;
+    int sign_multiplier = 1;
+    *invalid = false;
+
+    if (unlikely(string_length == 0)) {
+        return 0;
+    }
+
+    if (unlikely(string_length > UTILS_STRING_INT64_MIN_STR_LENGTH)) {
+        *invalid = true;
+        return 0;
+    }
+
+    if (*string == '-') {
+        sign_multiplier = -1;
+        string_length--;
+        string++;
+    }
+
+    while(likely(string_length--)) {
+        // Handle non-numeric chars
+        if (unlikely(!isdigit(*string))) {
+            *invalid = true;
+            return 0;
+        }
+
+        uint64_t prev_number = number;
+        number = (number * 10) + (*string - '0');
+        string++;
+
+        // Handle numbers that are too long and overflow
+        if (unlikely(number < prev_number)) {
+            *invalid = true;
+            return 0;
+        }
+    }
+
+    if (unlikely(number > ((uint64_t)INT64_MAX) + (sign_multiplier == -1 ? 1 : 0))) {
+        *invalid = true;
+        return 0;
+    }
+
+    return (int64_t)number * sign_multiplier;
+}
+
+long double utils_string_to_long_double(
+        char *string,
+        size_t string_length,
+        bool *invalid) {
+    long double number;
+    char *end_ptr = NULL;
+    bool allocated_new_buffer = false;
+    char static_buffer[128] = { 0 };
+    char *buffer = static_buffer;
+    size_t buffer_length = sizeof(static_buffer);
+
+    if (unlikely(string_length == 0)) {
+        return 0;
+    }
+
+    if (unlikely(string_length > buffer_length - 1)) {
+        allocated_new_buffer = true;
+        buffer_length = string_length + 1;
+        buffer = xalloc_alloc(buffer_length);
+        buffer[string_length] = 0;
+    }
+
+    memcpy(buffer, string, string_length);
+
+    errno = 0;
+    number = strtold(buffer, &end_ptr);
+    if (unlikely(
+            end_ptr - buffer != string_length ||
+            errno == ERANGE ||
+            isnan(number))) {
+        *invalid = true;
+        number = 0;
+    }
+
+    if (unlikely(allocated_new_buffer)) {
+        xalloc_free(buffer);
+    }
+
+    return number;
 }
