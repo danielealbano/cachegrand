@@ -43,7 +43,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(ping) {
                 ? NETWORK_CHANNEL_MAX_PACKET_SIZE - 32
                 : context->message.value.length;
 
-        return module_redis_connection_send_simple_string(
+        return module_redis_connection_send_blob_string(
                 connection_context,
                 context->message.value.short_string,
                 string_length);
