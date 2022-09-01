@@ -286,11 +286,4 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SUBSTR", "[r
             free(expected_response);
         }
     }
-
-    SECTION("Missing parameters - key") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
-                std::vector<std::string>{"GET"},
-                "-ERR wrong number of arguments for 'GET' command\r\n"));
-    }
 }

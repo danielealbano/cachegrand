@@ -56,7 +56,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETNX", "[re
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"SETNX", "a_key", "b_value", "extra parameter"},
-                "-ERR syntax error\r\n"));
+                "-ERR wrong number of arguments for 'setnx' command\r\n"));
     }
 
     SECTION("New key - NX") {

@@ -56,7 +56,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETEX", "[re
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"SETEX", "a_key", "100", "b_value", "extra parameter"},
-                "-ERR syntax error\r\n"));
+                "-ERR wrong number of arguments for 'setex' command\r\n"));
     }
 
     SECTION("Zero value as expire") {
