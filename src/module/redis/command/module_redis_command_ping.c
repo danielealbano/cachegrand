@@ -52,5 +52,5 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(ping) {
             : 4;
 
     string_length = string_length + 32 > NETWORK_CHANNEL_MAX_PACKET_SIZE ? NETWORK_CHANNEL_MAX_PACKET_SIZE - 32 : string_length;
-    return module_redis_connection_send_blob_string(connection_context, string, string_length);
+    return module_redis_connection_send_simple_string(connection_context, string, string_length);
 }
