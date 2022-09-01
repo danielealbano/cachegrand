@@ -69,6 +69,11 @@ bool module_redis_connection_send_blob_string(
         char *string,
         size_t string_length);
 
+bool module_redis_connection_send_simple_string(
+        module_redis_connection_context_t *connection_context,
+        char *string,
+        size_t string_length);
+
 bool module_redis_connection_send_array(
         module_redis_connection_context_t *connection_context,
         uint32_t count);

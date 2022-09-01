@@ -456,6 +456,49 @@ bool module_redis_connection_send_blob_string(
     return true;
 }
 
+bool module_redis_connection_send_simple_string(
+        module_redis_connection_context_t *connection_context,
+        char *string,
+        size_t string_length) {
+    network_channel_buffer_data_t *send_buffer, *send_buffer_start;
+    size_t slice_length = 32;
+
+    // Makes no sense to support sending out simple strings longer than 32kb so report it as a failure
+    if (unlikely(string_length > NETWORK_CHANNEL_MAX_PACKET_SIZE - slice_length)) {
+        LOG_E(
+                TAG,
+                "String too long to be sent as simple string, the max simple string length is %lu",
+                NETWORK_CHANNEL_MAX_PACKET_SIZE - slice_length);
+        return false;
+    }
+
+    slice_length += string_length;
+    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
+            connection_context->network_channel,
+            slice_length);
+    if (send_buffer_start == NULL) {
+        LOG_E(TAG, "Unable to acquire send buffer slice!");
+        return false;
+    }
+
+    send_buffer_start = protocol_redis_writer_write_simple_string(
+            send_buffer_start,
+            slice_length,
+            string,
+            (int)string_length);
+
+    network_send_buffer_release_slice(
+            connection_context->network_channel,
+            send_buffer_start ? send_buffer_start - send_buffer : 0);
+
+    if (unlikely(send_buffer_start == NULL)) {
+        LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
+        return false;
+    }
+
+    return true;
+}
+
 bool module_redis_connection_send_array(
         module_redis_connection_context_t *connection_context,
         uint32_t count) {
