@@ -10,12 +10,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
-#include <strings.h>
+#include <stdarg.h>
 #include <arpa/inet.h>
 
 #include "misc.h"
 #include "exttypes.h"
-#include "log/log.h"
 #include "clock.h"
 #include "spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
@@ -35,7 +34,6 @@
 #include "storage/db/storage_db.h"
 #include "module/redis/module_redis.h"
 #include "module/redis/module_redis_connection.h"
-#include "module/redis/module_redis_command.h"
 #include "network/network.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"

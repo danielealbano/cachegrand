@@ -39,10 +39,6 @@
 #include "storage/db/storage_db.h"
 #include "module/redis/module_redis.h"
 #include "module/redis/module_redis_connection.h"
-#include "module/redis/module_redis_command.h"
-#include "network/network.h"
-#include "worker/worker_stats.h"
-#include "worker/worker_context.h"
 
 #define TAG "module_redis_command_lcs"
 
