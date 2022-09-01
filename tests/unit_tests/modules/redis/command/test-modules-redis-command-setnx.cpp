@@ -64,7 +64,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETNX", "[re
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
                     std::vector<std::string>{"SETNX", "a_key", "b_value"},
-                    "+OK\r\n"));
+                    ":1\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
@@ -76,12 +76,12 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETNX", "[re
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
                     std::vector<std::string>{"SETNX", "a_key", "b_value"},
-                    "+OK\r\n"));
+                    ":1\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
                     std::vector<std::string>{"SETNX", "a_key", "c_value"},
-                    "$-1\r\n"));
+                    ":0\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
