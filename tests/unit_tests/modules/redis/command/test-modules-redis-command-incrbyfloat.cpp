@@ -387,23 +387,25 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBYFLOAT"
         }
 
         SECTION("Overflow number") {
-            char buffer_ldbl_max[(5 * 1024)+1] = { 0 };
-            char expected_response_ldbl_max[(5 * 1024)+64] = { 0 };
+            char buffer_ldbl_max[(6 * 1024)+1] = { 0 };
+            char expected_response_ldbl_max[(6 * 1024)+64] = { 0 };
             snprintf(buffer_ldbl_max, sizeof(buffer_ldbl_max), "%Lf", LDBL_MAX);
+            buffer_ldbl_max[strlen(buffer_ldbl_max) - 7] = 0;
             snprintf(
-                    buffer_ldbl_max,
-                    sizeof(buffer_ldbl_max),
-                    "%lu\r\n%s\r\n",
+                    expected_response_ldbl_max,
+                    sizeof(expected_response_ldbl_max),
+                    "$%lu\r\n%s\r\n",
                     strlen(buffer_ldbl_max),
                     buffer_ldbl_max);
 
-            char buffer_ldbl_min[5 * 1024] = { 0 };
-            char expected_response_ldbl_min[(5 * 1024)+64] = { 0 };
-            snprintf(buffer_ldbl_min, sizeof(buffer_ldbl_min), "%Lf", LDBL_MIN);
+            char buffer_ldbl_min[6 * 1024] = { 0 };
+            char expected_response_ldbl_min[(6 * 1024)+64] = { 0 };
+            snprintf(buffer_ldbl_min, sizeof(buffer_ldbl_min), "%Lf", -LDBL_MAX);
+            buffer_ldbl_min[strlen(buffer_ldbl_min) - 7] = 0;
             snprintf(
-                    buffer_ldbl_min,
-                    sizeof(buffer_ldbl_min),
-                    "%lu\r\n%s\r\n",
+                    expected_response_ldbl_min,
+                    sizeof(expected_response_ldbl_min),
+                    "$%lu\r\n%s\r\n",
                     strlen(buffer_ldbl_min),
                     buffer_ldbl_min);
 

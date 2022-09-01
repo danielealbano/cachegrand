@@ -334,6 +334,11 @@ bool storage_db_op_rmw_commit_update(
         storage_db_chunk_sequence_t *value_chunk_sequence,
         storage_db_expiry_time_ms_t expiry_time_ms);
 
+void storage_db_op_rmw_commit_rename(
+        storage_db_t *db,
+        storage_db_op_rmw_status_t *rmw_status_source,
+        storage_db_op_rmw_status_t *rmw_status_destination);
+
 void storage_db_op_rmw_commit_delete(
         storage_db_t *db,
         storage_db_op_rmw_status_t *rmw_status);

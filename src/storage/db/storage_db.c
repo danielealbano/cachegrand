@@ -1262,6 +1262,25 @@ bool storage_db_op_rmw_commit_update(
     return result_res;
 }
 
+void storage_db_op_rmw_commit_rename(
+        storage_db_t *db,
+        storage_db_op_rmw_status_t *rmw_status_source,
+        storage_db_op_rmw_status_t *rmw_status_destination) {
+    storage_db_entry_index_touch(rmw_status_source->current_entry_index);
+
+    hashtable_mcmp_op_rmw_commit_update(
+            &rmw_status_destination->hashtable,
+            (uintptr_t)rmw_status_source->current_entry_index);
+
+    if (rmw_status_destination->hashtable.current_value != 0) {
+        storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
+                db,
+                (storage_db_entry_index_t *)rmw_status_destination->hashtable.current_value);
+    }
+
+    hashtable_mcmp_op_rmw_commit_delete(&rmw_status_source->hashtable);
+}
+
 void storage_db_op_rmw_commit_delete(
         storage_db_t *db,
         storage_db_op_rmw_status_t *rmw_status) {
