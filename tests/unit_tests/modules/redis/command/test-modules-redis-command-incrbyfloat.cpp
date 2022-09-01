@@ -302,12 +302,12 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBYFLOAT"
         }
 
         SECTION("Increment INT64_MIN") {
-            SECTION("Integer") {
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
-                        std::vector<std::string>{"SET", "a_key", "-9223372036854775808"},
-                        "+OK\r\n"));
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "-9223372036854775808"},
+                    "+OK\r\n"));
 
+            SECTION("Integer") {
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
                         std::vector<std::string>{"INCRBYFLOAT", "a_key", "1"},
@@ -317,13 +317,29 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBYFLOAT"
             SECTION("Decimal") {
                 REQUIRE(send_recv_resp_command_text(
                         client_fd,
-                        std::vector<std::string>{"SET", "a_key", "-9223372036854775808"},
-                        "+OK\r\n"));
-
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBYFLOAT", "a_key", "1.6"},
                         "$22\r\n-9223372036854775806.5\r\n"));
+            }
+        }
+
+        SECTION("Decrement INT64_MAX") {
+            REQUIRE(send_recv_resp_command_text(
+                    client_fd,
+                    std::vector<std::string>{"SET", "a_key", "9223372036854775807"},
+                    "+OK\r\n"));
+
+            SECTION("Integer") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"INCRBYFLOAT", "a_key", "-1"},
+                        "$19\r\n9223372036854775806\r\n"));
+            }
+
+            SECTION("Decimal") {
+                REQUIRE(send_recv_resp_command_text(
+                        client_fd,
+                        std::vector<std::string>{"INCRBYFLOAT", "a_key", "-1.6"},
+                        "$21\r\n9223372036854775805.5\r\n"));
             }
         }
 
