@@ -89,21 +89,21 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"SET"},
-                "-ERR wrong number of arguments for 'SET' command\r\n"));
+                "-ERR wrong number of arguments for 'set' command\r\n"));
     }
 
     SECTION("Missing parameters - value") {
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"SET", "a_key"},
-                "-ERR wrong number of arguments for 'SET' command\r\n"));
+                "-ERR wrong number of arguments for 'set' command\r\n"));
     }
 
     SECTION("Too many parameters - one extra parameter") {
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"SET", "a_key", "b_value", "extra parameter"},
-                "-ERR syntax error\r\n"));
+                "-ERR wrong number of arguments for 'set' command\r\n"));
     }
 
     SECTION("New key - expire in 500ms") {

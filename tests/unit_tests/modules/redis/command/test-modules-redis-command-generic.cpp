@@ -166,8 +166,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - generic test
 
         sprintf(
                 expected_error,
-                "-ERR command '%s' has '%u' arguments but only '%u' allowed\r\n",
-                "MGET",
+                "-ERR command 'mget' has '%u' arguments but only '%u' allowed\r\n",
                 arguments_count,
                 (int)config.modules->redis->max_command_arguments);
 

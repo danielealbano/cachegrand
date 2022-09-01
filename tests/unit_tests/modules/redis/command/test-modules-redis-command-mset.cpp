@@ -101,13 +101,13 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - MSET", "[red
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"MSET"},
-                "-ERR wrong number of arguments for 'MSET' command\r\n"));
+                "-ERR wrong number of arguments for 'mset' command\r\n"));
     }
 
     SECTION("Missing parameters - value") {
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"MSET", "a_key"},
-                "-ERR wrong number of arguments for 'MSET' command\r\n"));
+                "-ERR wrong number of arguments for 'mset' command\r\n"));
     }
 }

@@ -42,21 +42,21 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETNX", "[re
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"SETNX"},
-                "-ERR wrong number of arguments for 'SETNX' command\r\n"));
+                "-ERR wrong number of arguments for 'setnx' command\r\n"));
     }
 
     SECTION("Missing parameters - value") {
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"SETNX", "a_key"},
-                "-ERR wrong number of arguments for 'SETNX' command\r\n"));
+                "-ERR wrong number of arguments for 'setnx' command\r\n"));
     }
 
     SECTION("Too many parameters - one extra parameter") {
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"SETNX", "a_key", "b_value", "extra parameter"},
-                "-ERR syntax error\r\n"));
+                "-ERR wrong number of arguments for 'setnx' command\r\n"));
     }
 
     SECTION("New key - NX") {
@@ -64,7 +64,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETNX", "[re
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
                     std::vector<std::string>{"SETNX", "a_key", "b_value"},
-                    "+OK\r\n"));
+                    ":1\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
@@ -76,12 +76,12 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETNX", "[re
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
                     std::vector<std::string>{"SETNX", "a_key", "b_value"},
-                    "+OK\r\n"));
+                    ":1\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,
                     std::vector<std::string>{"SETNX", "a_key", "c_value"},
-                    "$-1\r\n"));
+                    ":0\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
                     client_fd,

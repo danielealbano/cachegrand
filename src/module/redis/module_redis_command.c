@@ -531,11 +531,10 @@ bool module_redis_command_process_argument_full(
 
     // If guessed argument is null it means it wasn't possible to guess one, report the error and move on
     if (guessed_argument == NULL) {
-        // Although the error message can be much smarter, as was being in a previous iteration, to match the Redis
-        // behaviour the error message has been changed simply to "syntax error".
         return module_redis_connection_error_message_printf_noncritical(
                 connection_context,
-                "ERR syntax error");
+                "ERR wrong number of arguments for '%s' command",
+                connection_context->command.info->string);
     }
 
     // If the tokens have been checked and the guessed argument has a token, it can be set straight to true and the

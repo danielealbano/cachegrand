@@ -325,7 +325,7 @@ bool module_redis_command_helper_incr_decr_float(
     chunk_sequence_new = NULL;
     abort_rmw = false;
 
-    if ((return_res = module_redis_connection_send_string(
+    if ((return_res = module_redis_connection_send_blob_string(
             connection_context,
             new_number_buffer,
             new_number_buffer_length)) == false) {

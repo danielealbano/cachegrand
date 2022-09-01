@@ -9,8 +9,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdarg.h>
 #include <string.h>
-#include <strings.h>
 #include <arpa/inet.h>
 #include <assert.h>
 
@@ -32,17 +32,12 @@
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "config.h"
-#include "fiber.h"
 #include "network/channel/network_channel.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
 #include "module/redis/module_redis.h"
 #include "module/redis/module_redis_connection.h"
-#include "module/redis/module_redis_command.h"
-#include "network/network.h"
-#include "worker/worker_stats.h"
-#include "worker/worker_context.h"
 
 #define TAG "module_redis_command_append"
 

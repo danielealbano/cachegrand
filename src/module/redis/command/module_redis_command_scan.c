@@ -10,12 +10,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
-#include <strings.h>
+#include <stdarg.h>
 #include <arpa/inet.h>
 
 #include "misc.h"
 #include "exttypes.h"
-#include "log/log.h"
 #include "clock.h"
 #include "spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
@@ -28,17 +27,12 @@
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "config.h"
-#include "fiber.h"
 #include "network/channel/network_channel.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
 #include "module/redis/module_redis.h"
 #include "module/redis/module_redis_connection.h"
-#include "module/redis/module_redis_command.h"
-#include "network/network.h"
-#include "worker/worker_stats.h"
-#include "worker/worker_context.h"
 
 #define TAG "module_redis_command_scan"
 
@@ -95,7 +89,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(scan) {
 
     if (likely(keys && keys_count > 0)) {
         for(uint64_t index = 0; index < keys_count; index++) {
-            if (!module_redis_connection_send_string(
+            if (!module_redis_connection_send_blob_string(
                     connection_context,
                     keys[index].key,
                     keys[index].key_size)) {

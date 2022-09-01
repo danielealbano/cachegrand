@@ -39,7 +39,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PING", "[red
         REQUIRE(send_recv_resp_command_text(
                 client_fd,
                 std::vector<std::string>{"PING"},
-                "$4\r\nPONG\r\n"));
+                "+PONG\r\n"));
     }
 
     SECTION("With value") {
