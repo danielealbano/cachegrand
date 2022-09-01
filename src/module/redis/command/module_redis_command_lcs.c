@@ -306,12 +306,12 @@ end:
     if (likely(!module_redis_connection_has_error(connection_context))) {
         if (!context->len_len.has_token && !context->idx_idx.has_token) {
             if (unlikely(lcs_string == NULL)) {
-                return_res = module_redis_connection_send_string(
+                return_res = module_redis_connection_send_blob_string(
                         connection_context,
                         "",
                         0);
             } else {
-                return_res = module_redis_connection_send_string(
+                return_res = module_redis_connection_send_blob_string(
                         connection_context,
                         lcs_string,
                         strlen(lcs_string));

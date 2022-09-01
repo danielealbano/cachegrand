@@ -64,7 +64,7 @@ bool module_redis_connection_send_ok(
 bool module_redis_connection_send_string_null(
         module_redis_connection_context_t *connection_context);
 
-bool module_redis_connection_send_string(
+bool module_redis_connection_send_blob_string(
         module_redis_connection_context_t *connection_context,
         char *string,
         size_t string_length);

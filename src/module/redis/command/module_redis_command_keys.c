@@ -64,7 +64,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(keys) {
     }
 
     for(uint64_t index = 0; index < keys_count; index++) {
-        if (!module_redis_connection_send_string(
+        if (!module_redis_connection_send_blob_string(
                 connection_context,
                 keys[index].key,
                 keys[index].key_size)) {

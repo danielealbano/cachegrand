@@ -52,7 +52,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(randomkey) {
     char *key = storage_db_op_random_key(connection_context->db, &key_size);
 
     if (likely(key)) {
-        return_res = module_redis_connection_send_string(connection_context, key, key_size);
+        return_res = module_redis_connection_send_blob_string(connection_context, key, key_size);
         slab_allocator_mem_free(key);
     } else {
         return_res = module_redis_connection_send_string_null(connection_context);

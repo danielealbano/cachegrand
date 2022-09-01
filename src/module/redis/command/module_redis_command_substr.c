@@ -73,14 +73,14 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(substr) {
     }
 
     if (unlikely(range_end < range_start)) {
-        return_res = module_redis_connection_send_string(connection_context, "", 0);
+        return_res = module_redis_connection_send_blob_string(connection_context, "", 0);
         goto end;
     }
 
     off_t range_length = range_end - range_start + 1;
 
     if (unlikely(range_start > entry_index->value->size || range_length <= 0)) {
-        return_res = module_redis_connection_send_string(connection_context, "", 0);
+        return_res = module_redis_connection_send_blob_string(connection_context, "", 0);
         goto end;
     }
 
