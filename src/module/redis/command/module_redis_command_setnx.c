@@ -82,11 +82,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setnx) {
         key_and_value_owned = true;
     }
 
-    if (unlikely(abort_rmw)) {
-        return_res = module_redis_connection_send_string_null(connection_context);
-    } else {
-        return_res = module_redis_connection_send_ok(connection_context);
-    }
+    return_res = module_redis_connection_send_number(connection_context, unlikely(abort_rmw) ? 0 : 1);
 
 end:
 
