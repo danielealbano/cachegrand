@@ -223,7 +223,7 @@ bool module_redis_command_helper_incr_decr_float(
         if (unlikely(invalid)) {
             return_res = module_redis_connection_error_message_printf_noncritical(
                     connection_context,
-                    "ERR value is not an integer or out of range");
+                    "ERR value is not a valid float");
 
             goto end;
         }
@@ -234,7 +234,7 @@ bool module_redis_command_helper_incr_decr_float(
     if (isnan(new_number) || isinf(new_number)) {
         return_res = module_redis_connection_error_message_printf_noncritical(
                 connection_context,
-                "ERR Increment would produce NaN or Infinity");
+                "ERR increment would produce NaN or Infinity");
 
         goto end;
     }
