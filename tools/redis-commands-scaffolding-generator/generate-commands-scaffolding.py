@@ -449,7 +449,7 @@ class Program:
                     "{arguments_count}" 
                     "),".format(
                         command_callback_name_uppercase=command_info["command_callback_name"].upper(),
-                        command_string=command_info["command_string"],
+                        command_string=command_info["command_string"].lower(),
                         command_callback_name=command_info["command_callback_name"],
                         required_arguments_count=command_info["required_arguments_count"],
                         has_variable_arguments="true" if command_info["has_variable_arguments"] else "false",
