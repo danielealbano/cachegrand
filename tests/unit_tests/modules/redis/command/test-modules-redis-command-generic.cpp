@@ -42,7 +42,7 @@
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - generic tests", "[redis][command][generic]") {
     SECTION("Unknown / unsupported command") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"UNKNOWN COMMAND"},
                 "-ERR unknown command `UNKNOWN COMMAND` with `0` args\r\n"));
     }
@@ -61,7 +61,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - generic test
         config_module_network_timeout.read_ms = 1000;
 
         // Send a NOP command to pick up the new timeout
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "a_value"},
                 "$-1\r\n"));
 

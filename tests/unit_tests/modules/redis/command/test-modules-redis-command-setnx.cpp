@@ -41,44 +41,44 @@
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETNX", "[redis][command][SETNX]") {
     SECTION("Missing parameters - key and value") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SETNX"},
                 "-ERR wrong number of arguments for 'setnx' command\r\n"));
     }
 
     SECTION("Missing parameters - value") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SETNX", "a_key"},
                 "-ERR wrong number of arguments for 'setnx' command\r\n"));
     }
 
     SECTION("Too many parameters - one extra parameter") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SETNX", "a_key", "b_value", "extra parameter"},
                 "-ERR wrong number of arguments for 'setnx' command\r\n"));
     }
 
     SECTION("New key - NX") {
         SECTION("Key not existing") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETNX", "a_key", "b_value"},
                     ":1\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$7\r\nb_value\r\n"));
         }
 
         SECTION("Key existing") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETNX", "a_key", "b_value"},
                     ":1\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETNX", "a_key", "c_value"},
                     ":0\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$7\r\nb_value\r\n"));
         }

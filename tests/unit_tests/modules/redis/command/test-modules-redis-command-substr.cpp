@@ -40,60 +40,60 @@
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SUBSTR", "[redis][command][SUBSTR]") {
     SECTION("Non-existing key") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
                 "$-1\r\n"));
     }
 
     SECTION("Existing key - short value") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
         SECTION("all") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", "0", "6"},
                     "$7\r\nb_value\r\n"));
         }
 
         SECTION("first char") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", "0", "0"},
                     "$1\r\nb\r\n"));
         }
 
         SECTION("last char") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", "6", "6"},
                     "$1\r\ne\r\n"));
         }
 
         SECTION("last char - negative start negative end") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", "-1", "-1"},
                     "$1\r\ne\r\n"));
         }
 
         SECTION("from the last fourth char to the second from the last") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", "-4", "-2"},
                     "$3\r\nalu\r\n"));
         }
 
         SECTION("end before start") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", "5", "3"},
                     "$0\r\n\r\n"));
         }
 
         SECTION("start after end") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", "7", "15"},
                     "$0\r\n\r\n"));
         }
 
         SECTION("start before end, length after end") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", "3", "15"},
                     "$4\r\nalue\r\n"));
         }
@@ -121,7 +121,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SUBSTR", "[r
         char end[32] = { 0 };
         snprintf(end, sizeof(end), "%lu", long_value_length - 1);
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", long_value},
                 "+OK\r\n"));
 
@@ -143,7 +143,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SUBSTR", "[r
                     (int) long_value_length,
                     long_value);
 
-            REQUIRE(send_recv_resp_command_multi_recv(
+            REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", "0", end},
                     expected_response,
                     expected_response_length,
@@ -153,9 +153,9 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SUBSTR", "[r
         SECTION("first char") {
             snprintf((char*)expected_response_static, sizeof(expected_response_static), "$1\r\n%c\r\n", long_value[0]);
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", "0", "0"},
-                    (char*)expected_response_static));
+                    (char *) expected_response_static));
         }
 
         SECTION("last char") {
@@ -165,9 +165,9 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SUBSTR", "[r
                     "$1\r\n%c\r\n",
                     long_value[long_value_length - 1]);
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", end, end},
-                    (char*)expected_response_static));
+                    (char *) expected_response_static));
         }
 
         SECTION("last char - negative start negative end") {
@@ -177,9 +177,9 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SUBSTR", "[r
                     "$1\r\n%c\r\n",
                     long_value[long_value_length - 1]);
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", "-1", "-1"},
-                    (char*)expected_response_static));
+                    (char *) expected_response_static));
         }
 
         SECTION("from the last fourth char to the second from the last") {
@@ -190,9 +190,9 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SUBSTR", "[r
                     3,
                     long_value + long_value_length - 4);
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", "-4", "-2"},
-                    (char*)expected_response_static));
+                    (char *) expected_response_static));
         }
 
         SECTION("end before start") {
@@ -201,7 +201,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SUBSTR", "[r
             char end1[32] = { 0 };
             snprintf(end1, sizeof(end1), "%lu", long_value_length - 100);
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", start1, end1},
                     "$0\r\n\r\n"));
         }
@@ -212,7 +212,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SUBSTR", "[r
             char end1[32] = { 0 };
             snprintf(end1, sizeof(end1), "%lu", long_value_length + 100);
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", start1, end1},
                     "$0\r\n\r\n"));
         }
@@ -229,9 +229,9 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SUBSTR", "[r
                     "$4\r\n%s\r\n",
                     long_value + long_value_length - 4);
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", start1, end1},
-                    (char*)expected_response_static));
+                    (char *) expected_response_static));
         }
 
         SECTION("50 chars after first chunk + 50") {
@@ -259,9 +259,9 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SUBSTR", "[r
                     (int)(end1_int - start1_int + 1),
                     long_value + start1_int);
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", start1, end1},
-                    (char*)expected_response));
+                    (char *) expected_response));
         }
 
         if (expected_response) {

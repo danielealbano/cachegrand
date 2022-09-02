@@ -38,37 +38,37 @@
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - EXISTS", "[redis][command][EXISTS]") {
     SECTION("Non-existing key") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"EXISTS", "a_key"},
                 ":0\r\n"));
     }
 
     SECTION("1 key") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"EXISTS", "a_key"},
                 ":1\r\n"));
     }
 
     SECTION("2 keys") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSET", "a_key", "b_value", "b_key", "value_z"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"EXISTS", "a_key", "b_key"},
                 ":2\r\n"));
     }
 
     SECTION("Repeated key") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"EXISTS", "a_key", "a_key", "a_key"},
                 ":3\r\n"));
     }

@@ -38,21 +38,21 @@
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GETDEL", "[redis][command][GETDEL]") {
     SECTION("Existing key") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GETDEL", "a_key"},
                 "$7\r\nb_value\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
                 "$-1\r\n"));
     }
 
     SECTION("Non-existing key") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GETDEL", "a_key"},
                 "$-1\r\n"));
     }

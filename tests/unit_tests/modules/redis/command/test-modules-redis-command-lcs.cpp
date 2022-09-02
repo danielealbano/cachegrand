@@ -38,79 +38,79 @@
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - LCS", "[redis][command][LCS]") {
     SECTION("Missing keys - String") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"LCS", "a_key", "b_key"},
                 "$0\r\n\r\n"));
     }
 
     SECTION("Missing keys - Length") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"LCS", "a_key", "b_key", "LEN"},
                 ":0\r\n"));
     }
 
     SECTION("Empty keys - String") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSET", "a_key", "", "b_key", ""},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"LCS", "a_key", "b_key"},
                 "$0\r\n\r\n"));
     }
 
     SECTION("Empty keys - Length") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSET", "a_key", "", "b_key", ""},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"LCS", "a_key", "b_key", "LEN"},
                 ":0\r\n"));
     }
 
     SECTION("No common substrings - String") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSET", "a_key", "qwertyuiop", "b_key", "asdfghjkl"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"LCS", "a_key", "b_key"},
                 "$0\r\n\r\n"));
     }
 
     SECTION("No common substrings - Length") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSET", "a_key", "qwertyuiop", "b_key", "asdfghjkl"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"LCS", "a_key", "b_key", "LEN"},
                 ":0\r\n"));
     }
 
     SECTION("One common substring - String") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSET", "a_key", "b_value", "b_key", "value_z"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"LCS", "a_key", "b_key"},
                 "$5\r\nvalue\r\n"));
     }
 
     SECTION("One common substring - String") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSET", "a_key", "b_value", "b_key", "value_z"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"LCS", "a_key", "b_key", "LEN"},
                 ":5\r\n"));
     }
 
     SECTION("Multiple common substring - String") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{
                         "MSET",
                         "a_key",
@@ -119,13 +119,13 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - LCS", "[redi
                         "another very string but long"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"LCS", "a_key", "b_key"},
                 "$13\r\na very string\r\n"));
     }
 
     SECTION("Multiple common substring - Length") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{
                         "MSET",
                         "a_key",
@@ -134,7 +134,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - LCS", "[redi
                         "another very string but long"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"LCS", "a_key", "b_key", "LEN"},
                 ":13\r\n"));
     }

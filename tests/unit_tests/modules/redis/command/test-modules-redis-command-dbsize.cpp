@@ -38,59 +38,59 @@
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - DBSIZE", "[redis][command][DBSIZE]") {
     SECTION("Empty database") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"DBSIZE"},
                 ":0\r\n"));
     }
 
     SECTION("Database with 1 key") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"DBSIZE"},
                 ":1\r\n"));
     }
 
     SECTION("Database with 1 key overwritten") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "value_z"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"DBSIZE"},
                 ":1\r\n"));
     }
 
     SECTION("Database with 1 key deleted") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"DEL", "a_key"},
                 ":1\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"DBSIZE"},
                 ":0\r\n"));
     }
 
     SECTION("Database with 1 key flushed") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"FLUSHDB"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"DBSIZE"},
                 ":0\r\n"));
     }

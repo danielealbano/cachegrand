@@ -39,33 +39,33 @@
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - DECRBY", "[redis][command][DECRBY]") {
     SECTION("Non-existing key") {
         SECTION("Decrease 1 - once") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"DECRBY", "a_key", "1"},
                     ":-1\r\n"));
         }
 
         SECTION("Decrease 1 - twice") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"DECRBY", "a_key", "1"},
                     ":-1\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"DECRBY", "a_key", "1"},
                     ":-2\r\n"));
         }
 
         SECTION("Decrease amount - once") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"DECRBY", "a_key", "5"},
                     ":-5\r\n"));
         }
 
         SECTION("Decrease amount - twice") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"DECRBY", "a_key", "5"},
                     ":-5\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"DECRBY", "a_key", "6"},
                     ":-11\r\n"));
         }
@@ -73,76 +73,76 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - DECRBY", "[r
 
     SECTION("Existing key") {
         SECTION("Simple negative number") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "-5"},
                     "+OK\r\n"));
 
             SECTION("Decrease 1 - once") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "1"},
                         ":-6\r\n"));
             }
 
             SECTION("Decrease 1 - twice") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "1"},
                         ":-6\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "1"},
                         ":-7\r\n"));
             }
 
             SECTION("Decrease amount - once") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "5"},
                         ":-10\r\n"));
             }
 
             SECTION("Decrease amount - twice") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "5"},
                         ":-10\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "6"},
                         ":-16\r\n"));
             }
         }
 
         SECTION("Simple positive number") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "5"},
                     "+OK\r\n"));
 
             SECTION("Decrease 1 - once") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "1"},
                         ":4\r\n"));
             }
 
             SECTION("Decrease 1 - twice") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "1"},
                         ":4\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "1"},
                         ":3\r\n"));
             }
 
             SECTION("Decrease amount - once") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "5"},
                         ":0\r\n"));
             }
 
             SECTION("Decrease amount - twice") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "5"},
                         ":0\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "6"},
                         ":-6\r\n"));
             }
@@ -150,11 +150,11 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - DECRBY", "[r
 
         SECTION("Decrement INT64_MAX") {
             SECTION("One") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SET", "a_key", "9223372036854775807"},
                         "+OK\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "1"},
                         ":9223372036854775806\r\n"));
             }
@@ -162,31 +162,31 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - DECRBY", "[r
 
         SECTION("Non numeric") {
             SECTION("String") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SET", "a_key", "b_value"},
                         "+OK\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "1"},
                         "-ERR value is not an integer or out of range\r\n"));
             }
 
             SECTION("Greater than INT64_MAX") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SET", "a_key", "9223372036854775808"},
                         "+OK\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "1"},
                         "-ERR value is not an integer or out of range\r\n"));
             }
 
             SECTION("Smaller than INT64_MIN") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SET", "a_key", "-9223372036854775809"},
                         "+OK\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "1"},
                         "-ERR value is not an integer or out of range\r\n"));
             }
@@ -194,25 +194,25 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - DECRBY", "[r
 
         SECTION("Overflow number") {
             SECTION("One") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SET", "a_key", "-9223372036854775807"},
                         "+OK\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "1"},
                         ":-9223372036854775808\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "1"},
                         "-ERR increment or decrement would overflow\r\n"));
             }
 
             SECTION("Amount") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SET", "a_key", "-9223372036854775807"},
                         "+OK\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECRBY", "a_key", "2"},
                         "-ERR increment or decrement would overflow\r\n"));
             }

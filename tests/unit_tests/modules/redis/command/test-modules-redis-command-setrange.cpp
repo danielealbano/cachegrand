@@ -58,18 +58,18 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
     long_value[long_value_length] = 0;
 
     SECTION("Invalid offset") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SETRANGE", "a_key", "-10", "b_value"},
                 "-ERR offset is out of range\r\n"));
     }
 
     SECTION("Non-existing key") {
         SECTION("Beginning of first chunk") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", "0", "b_value"},
                     ":7\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$7\r\nb_value\r\n"));
         }
@@ -98,11 +98,11 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
                     (int) long_value_length,
                     long_value);
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", "0", long_value},
-                    (char*)expected_response_static));
+                    (char *) expected_response_static));
 
-            REQUIRE(send_recv_resp_command_multi_recv(
+            REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
                     expected_response_length,
@@ -112,41 +112,41 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
         }
 
         SECTION("Offset 10, padded with nulls") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", "10", "b_value"},
                     ":17\r\n"));
 
-            REQUIRE(send_recv_resp_command(
+            REQUIRE(send_recv_resp_command_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$17\r\n\0\0\0\0\0\0\0\0\0\0b_value\r\n",
                     24));
         }
 
         SECTION("Pad then overwrite padding") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", "10", "b_value"},
                     ":17\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", "3", "b_value"},
                     ":17\r\n"));
 
-            REQUIRE(send_recv_resp_command(
+            REQUIRE(send_recv_resp_command_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$17\r\n\0\0\0b_valueb_value\r\n",
                     24));
         }
 
         SECTION("Pad then pad again padding") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", "10", "b_value"},
                     ":17\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", "20", "value_z"},
                     ":27\r\n"));
 
-            REQUIRE(send_recv_resp_command(
+            REQUIRE(send_recv_resp_command_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$27\r\n\0\0\0\0\0\0\0\0\0\0b_value\0\0\0value_z\r\n",
                     34));
@@ -161,13 +161,13 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
             size_t header_len = snprintf(expected, sizeof(expected), "$%lu\r\n", offset + strlen("b_value"));
             memcpy(expected + header_len + offset, "b_value\r\n", strlen("b_value\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", offset_str, "b_value"},
                     ":65539\r\n"));
 
-            REQUIRE(send_recv_resp_command_multi_recv(
+            REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
-                    (char*)expected,
+                    (char *) expected,
                     header_len + offset + strlen("b_value\r\n"),
                     send_recv_resp_command_calculate_multi_recv(header_len + offset + strlen("b_value\r\n"))));
         }
@@ -179,16 +179,16 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
         char *value2 = "b_value";
         size_t value2_len = strlen(value2);
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", value1},
                 "+OK\r\n"));
 
         SECTION("Beginning of first chunk") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", "0", value2},
                     ":7\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$7\r\nb_value\r\n"));
         }
@@ -217,11 +217,11 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
                     (int) long_value_length,
                     long_value);
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", "0", long_value},
-                    (char*)expected_response_static));
+                    (char *) expected_response_static));
 
-            REQUIRE(send_recv_resp_command_multi_recv(
+            REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
                     expected_response_length,
@@ -236,9 +236,9 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
                     sizeof(expected_response_static),
                     ":%lu\r\n",
                     long_value_length);
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", "0", long_value},
-                    (char*)expected_response_static));
+                    (char *) expected_response_static));
 
             char offset[32] = { 0 };
             snprintf(offset, sizeof(offset), "%lu", long_value_length);
@@ -248,9 +248,9 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
                     sizeof(expected_response_static),
                     ":%lu\r\n",
                     long_value_length * 2);
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", offset, long_value},
-                    (char*)expected_response_static));
+                    (char *) expected_response_static));
 
             size_t expected_response_length = snprintf(
                     nullptr,
@@ -272,7 +272,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
                     long_value,
                     (int) long_value_length,
                     long_value);
-            REQUIRE(send_recv_resp_command_multi_recv(
+            REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
                     expected_response_length,
@@ -282,41 +282,41 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
         }
 
         SECTION("Offset 10, padded with nulls") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", "10", value2},
                     ":17\r\n"));
 
-            REQUIRE(send_recv_resp_command(
+            REQUIRE(send_recv_resp_command_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$17\r\nvalue_f\0\0\0b_value\r\n",
                     24));
         }
 
         SECTION("Pad then overwrite padding") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", "10", value2},
                     ":17\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", "3", value2},
                     ":17\r\n"));
 
-            REQUIRE(send_recv_resp_command(
+            REQUIRE(send_recv_resp_command_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$17\r\nvalb_valueb_value\r\n",
                     24));
         }
 
         SECTION("Pad then pad again padding") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", "10", value2},
                     ":17\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", "20", value2},
                     ":27\r\n"));
 
-            REQUIRE(send_recv_resp_command(
+            REQUIRE(send_recv_resp_command_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$27\r\nvalue_f\0\0\0b_value\0\0\0b_value\r\n",
                     34));
@@ -336,13 +336,13 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
             memcpy(expected + header_len + offset - value1_len + value2_len, "\r\n", strlen("\r\n"));
             size_t expected_len = header_len + offset - value1_len + value2_len + 2;
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SETRANGE", "a_key", offset_str, value2},
                     ":65539\r\n"));
 
-            REQUIRE(send_recv_resp_command_multi_recv(
+            REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
-                    (char*)expected,
+                    (char *) expected,
                     expected_len,
                     send_recv_resp_command_calculate_multi_recv(expected_len)));
         }

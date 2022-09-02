@@ -8,23 +8,19 @@
 
 #include <catch2/catch.hpp>
 
-#include <cstdint>
 #include <cstdbool>
 #include <cstring>
 #include <memory>
 #include <string>
-#include <stdexcept>
-#include <stdarg.h>
+#include <cstdarg>
 
 #include <pthread.h>
 #include <mcheck.h>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <netdb.h>
 #include <sys/types.h>
 
-#include "random.h"
 #include "clock.h"
 #include "exttypes.h"
 #include "memory_fences.h"
@@ -201,9 +197,9 @@ size_t TestModulesRedisCommandFixture::string_replace(
     char *output_begin = output;
 
     char **replace_list = (char**)malloc(sizeof(char*) * count);
-    size_t *replace_len_list = (size_t*)malloc(sizeof(size_t) * count);
+    auto *replace_len_list = (size_t*)malloc(sizeof(size_t) * count);
     char **with_list = (char**)malloc(sizeof(char*) * count);
-    size_t *with_len_list = (size_t*)malloc(sizeof(size_t) * count);
+    auto *with_len_list = (size_t*)malloc(sizeof(size_t) * count);
 
     va_start(arg_ptr, count);
 
@@ -219,6 +215,7 @@ size_t TestModulesRedisCommandFixture::string_replace(
     va_end(arg_ptr);
 
     while(current_char - input < input_len) {
+        assert(output - output_begin < output_len);
         int replace_index_found = -1;
 
         for(int index = 0; index < count; index++) {
@@ -252,7 +249,7 @@ size_t TestModulesRedisCommandFixture::string_replace(
 }
 
 size_t TestModulesRedisCommandFixture::send_recv_resp_command_calculate_multi_recv(
-        size_t expected_length) {
+        size_t expected_length) const {
     if (expected_length < recv_packet_size) {
         return 1;
     }
@@ -262,24 +259,19 @@ size_t TestModulesRedisCommandFixture::send_recv_resp_command_calculate_multi_re
 
 bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
         const std::vector<std::string>& arguments,
-        char *expected,
-        size_t expected_length,
-        int max_recv_count) {
-    bool return_res = false;
-    bool recv_matches_expected = false;
+        char *buffer_recv,
+        size_t buffer_recv_length,
+        size_t *out_buffer_recv_length,
+        int max_recv_count,
+        size_t expected_len) const {
     size_t total_send_length, total_recv_length;
-
-    // Allocates the memory to receive the response with a length up to n. of recv expected * max size of the packets
-    size_t buffer_recv_length = (max_recv_count * recv_packet_size) + 1;
-    char *buffer_recv = (char *)malloc(buffer_recv_length);
+    *out_buffer_recv_length = 0;
     memset(buffer_recv, 0, buffer_recv_length);
-
-    assert(buffer_recv_length >= expected_length);
 
     // Build the resp command
     size_t buffer_send_length = build_resp_command(nullptr, 0, arguments);
-    char *buffer_send = (char *) malloc(buffer_send_length + 1);
-    build_resp_command(buffer_send, buffer_send_length + 1, arguments);
+    char *buffer_send_internal = (char *) malloc(buffer_send_length + 1);
+    build_resp_command(buffer_send_internal, buffer_send_length + 1, arguments);
 
     // Send the data
     total_send_length = 0;
@@ -292,7 +284,7 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
         assert(allowed_buffer_send_length > 0);
         assert(allowed_buffer_send_length <= NETWORK_CHANNEL_MAX_PACKET_SIZE);
 
-        ssize_t send_length = send(client_fd, buffer_send + total_send_length, allowed_buffer_send_length, MSG_NOSIGNAL);
+        ssize_t send_length = send(client_fd, buffer_send_internal + total_send_length, allowed_buffer_send_length, MSG_NOSIGNAL);
         if (send_length <= 0) {
             if (send_length < 0) {
                 fprintf(stderr, "[ SEND - ERROR %d AFTER %lu BYTES SENT ]\n", errno, total_send_length);
@@ -308,14 +300,10 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
         total_send_length += send_length;
     } while(total_send_length < buffer_send_length);
 
-    // To ensure that the test will not wait forever on some data because of a bug, recv_count has to point to the
-    // number of expected packets will be received, although this is very implementation specific and can be broken
-    // easily by a code change, this is part of a unit test, so it's fine
     total_recv_length = 0;
-    for(int i = 0; i < max_recv_count && total_recv_length < expected_length; i++) {
-        size_t allowed_buffer_recv_size = expected_length - total_recv_length;
-        allowed_buffer_recv_size =
-                allowed_buffer_recv_size < recv_packet_size
+    for(int i = 0; i < max_recv_count && total_recv_length < expected_len; i++) {
+        size_t allowed_buffer_recv_size = buffer_recv_length - total_recv_length;
+        allowed_buffer_recv_size = allowed_buffer_recv_size > recv_packet_size
                 ? recv_packet_size
                 : allowed_buffer_recv_size;
 
@@ -340,29 +328,53 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
         }
 
         total_recv_length += recv_length;
-
-        if (memcmp(buffer_recv, expected, total_recv_length) != 0) {
-            break;
-        }
     }
 
-    recv_matches_expected = memcmp(buffer_recv, expected, total_recv_length) == 0;
-    return_res = total_send_length == buffer_send_length && total_recv_length == expected_length && recv_matches_expected;
+    *out_buffer_recv_length = total_recv_length;
+
+    return true;
+}
+
+bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv_and_validate_recv(
+        const std::vector<std::string>& arguments,
+        char *expected,
+        size_t expected_length,
+        int max_recv_count) {
+    size_t buffer_recv_length = (max_recv_count * recv_packet_size) + 1;
+    size_t out_buffer_recv_length = 0;
+    char *buffer_recv_internal = (char *)malloc(buffer_recv_length);
+
+    if (!send_recv_resp_command_multi_recv(
+            arguments,
+            buffer_recv_internal,
+            buffer_recv_length,
+            &out_buffer_recv_length,
+            max_recv_count,
+            expected_length)) {
+        return false;
+    }
+
+    bool recv_matches_expected = memcmp(buffer_recv_internal, expected, min(expected_length, out_buffer_recv_length)) == 0;
+    bool return_res = out_buffer_recv_length == expected_length && recv_matches_expected;
 
     if (!return_res) {
+        size_t buffer_send_length = build_resp_command(nullptr, 0, arguments);
+        char *buffer_send_internal = (char *) malloc(buffer_send_length + 1);
+        build_resp_command(buffer_send_internal, buffer_send_length + 1, arguments);
+
         char temp_buffer_1[1024] = { 0 };
         char temp_buffer_2[1024] = { 0 };
 
         memset(temp_buffer_1, 0, sizeof(temp_buffer_1));
         memset(temp_buffer_2, 0, sizeof(temp_buffer_2));
         string_replace(
-                buffer_send, total_send_length > 64 ? 64 : total_send_length,
+                buffer_send_internal, buffer_send_length > 64 ? 64 : buffer_send_length,
                 temp_buffer_1, sizeof(temp_buffer_1),
                 2,
                 "\r\n", 2, "\\r\\n", 4,
                 "\0", 1, "\\0", 2);
         string_replace(
-                buffer_send + total_send_length - (64 > total_send_length ? total_send_length : 64), 64 > total_send_length ? total_send_length : 64,
+                buffer_send_internal + buffer_send_length - (64 > buffer_send_length ? buffer_send_length : 64), 64 > buffer_send_length ? buffer_send_length : 64,
                 temp_buffer_2, sizeof(temp_buffer_2),
                 2,
                 "\r\n", 2, "\\r\\n", 4,
@@ -371,20 +383,20 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
         fprintf(
                 stderr,
                 "[ BUFFER SEND(%ld) ]\n'%s' (%lu)\n'%s' (%lu)\n\n",
-                total_send_length,
+                buffer_send_length,
                 temp_buffer_1, strlen(temp_buffer_1),
                 temp_buffer_2, strlen(temp_buffer_2));
 
         memset(temp_buffer_1, 0, sizeof(temp_buffer_1));
         memset(temp_buffer_2, 0, sizeof(temp_buffer_2));
         string_replace(
-                buffer_recv, total_recv_length > 64 ? 64 : total_recv_length,
+                buffer_recv_internal, out_buffer_recv_length > 64 ? 64 : out_buffer_recv_length,
                 temp_buffer_1, sizeof(temp_buffer_1),
                 2,
                 "\r\n", 2, "\\r\\n", 4,
                 "\0", 1, "\\0", 2);
         string_replace(
-                buffer_recv + total_recv_length - (64 > total_recv_length ? total_recv_length : 64), 64 > total_recv_length ? total_recv_length : 64,
+                buffer_recv_internal + out_buffer_recv_length - (64 > out_buffer_recv_length ? out_buffer_recv_length : 64), 64 > out_buffer_recv_length ? out_buffer_recv_length : 64,
                 temp_buffer_2, sizeof(temp_buffer_2),
                 2,
                 "\r\n", 2, "\\r\\n", 4,
@@ -392,7 +404,7 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
         fprintf(
                 stderr,
                 "[ BUFFER RECV(%ld) ]\n'%s' (%lu)\n'%s' (%lu)\n\n",
-                total_recv_length,
+                out_buffer_recv_length,
                 temp_buffer_1, strlen(temp_buffer_1),
                 temp_buffer_2, strlen(temp_buffer_2));
 
@@ -417,23 +429,24 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
                 temp_buffer_1, strlen(temp_buffer_1),
                 temp_buffer_2, strlen(temp_buffer_2));
         fflush(stderr);
+
+        free(buffer_send_internal);
     }
 
-    free(buffer_send);
-    free(buffer_recv);
+    free(buffer_recv_internal);
 
     return return_res;
 }
 
-bool TestModulesRedisCommandFixture::send_recv_resp_command(
+bool TestModulesRedisCommandFixture::send_recv_resp_command_and_validate_recv(
         const std::vector<std::string>& arguments,
         char *expected,
         size_t expected_length) {
-    return send_recv_resp_command_multi_recv(arguments, expected, expected_length, 1);
+    return send_recv_resp_command_multi_recv_and_validate_recv(arguments, expected, expected_length, 1);
 }
 
-bool TestModulesRedisCommandFixture::send_recv_resp_command_text(
+bool TestModulesRedisCommandFixture::send_recv_resp_command_text_and_validate_recv(
         const std::vector<std::string>& arguments,
         char *expected) {
-    return send_recv_resp_command(arguments, expected, strlen(expected));
+    return send_recv_resp_command_and_validate_recv(arguments, expected, strlen(expected));
 }

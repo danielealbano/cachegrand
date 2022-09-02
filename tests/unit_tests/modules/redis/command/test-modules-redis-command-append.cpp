@@ -57,25 +57,25 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - APPEND", "[r
 
     SECTION("Non-existing key") {
         SECTION("Append once") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"APPEND", "a_key", "b_value"},
                     ":7\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$7\r\nb_value\r\n"));
         }
 
         SECTION("Append twice") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"APPEND", "a_key", "b_value"},
                     ":7\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"APPEND", "a_key", "c_value"},
                     ":14\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$14\r\nb_valuec_value\r\n"));
         }
@@ -92,7 +92,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - APPEND", "[r
                     sizeof(expected),
                     ":%lu\r\n",
                     sizeof(value));
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"APPEND", "a_key", value},
                     expected));
 
@@ -103,9 +103,9 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - APPEND", "[r
                     sizeof(value),
                     (int)sizeof(value),
                     value);
-            REQUIRE(send_recv_resp_command_multi_recv(
+            REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
-                    (char*)expected,
+                    (char *) expected,
                     expected_length,
                     send_recv_resp_command_calculate_multi_recv(expected_length)));
         }
@@ -135,11 +135,11 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - APPEND", "[r
                     (int) long_value_length,
                     long_value);
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"APPEND", "a_key", long_value},
-                    (char*)expected_response_static));
+                    (char *) expected_response_static));
 
-            REQUIRE(send_recv_resp_command_multi_recv(
+            REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
                     expected_response_length,
@@ -173,11 +173,11 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - APPEND", "[r
                     (int) long_value_length,
                     long_value);
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"APPEND", "a_key", long_value},
-                    (char*)expected_response_static));
+                    (char *) expected_response_static));
 
-            REQUIRE(send_recv_resp_command_multi_recv(
+            REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
                     expected_response_length,
@@ -192,30 +192,30 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - APPEND", "[r
         size_t value1_len = strlen(value1);
         char *value2 = "b_value";
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", value1},
                 "+OK\r\n"));
 
         SECTION("Append once") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"APPEND", "a_key", value2},
                     ":14\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$14\r\nvalue_fb_value\r\n"));
         }
 
         SECTION("Append twice") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"APPEND", "a_key", value2},
                     ":14\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"APPEND", "a_key", value1},
                     ":21\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$21\r\nvalue_fb_valuevalue_f\r\n"));
         }
@@ -232,7 +232,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - APPEND", "[r
                     sizeof(expected),
                     ":%lu\r\n",
                     value1_len + sizeof(value));
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"APPEND", "a_key", value},
                     expected));
 
@@ -244,9 +244,9 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - APPEND", "[r
                     value1,
                     (int)sizeof(value),
                     value);
-            REQUIRE(send_recv_resp_command_multi_recv(
+            REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
-                    (char*)expected,
+                    (char *) expected,
                     expected_length,
                     send_recv_resp_command_calculate_multi_recv(expected_length)));
         }
@@ -278,11 +278,11 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - APPEND", "[r
                     (int) long_value_length,
                     long_value);
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"APPEND", "a_key", long_value},
-                    (char*)expected_response_static));
+                    (char *) expected_response_static));
 
-            REQUIRE(send_recv_resp_command_multi_recv(
+            REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
                     expected_response_length,
@@ -328,15 +328,15 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - APPEND", "[r
                     (int) long_value_length,
                     long_value);
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"APPEND", "a_key", long_value},
-                    (char*)expected_response_static1));
+                    (char *) expected_response_static1));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"APPEND", "a_key", long_value},
-                    (char*)expected_response_static2));
+                    (char *) expected_response_static2));
 
-            REQUIRE(send_recv_resp_command_multi_recv(
+            REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
                     expected_response_length,

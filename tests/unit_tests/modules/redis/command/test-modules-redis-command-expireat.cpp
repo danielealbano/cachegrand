@@ -42,117 +42,117 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - EXPIREAT", "
     snprintf(unixtime_plus_5s_str, sizeof(unixtime_plus_5s_str), "%ld", unixtime_plus_5);
 
     SECTION("No key") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"EXPIREAT", "a_key", unixtime_plus_5s_str},
                 ":0\r\n"));
     }
 
     SECTION("Existing key") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"EXPIREAT", "a_key", unixtime_plus_5s_str},
                 ":1\r\n"));
     }
 
     SECTION("Existing key - NX - key without expiry") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"EXPIREAT", "a_key", unixtime_plus_5s_str, "NX"},
                 ":1\r\n"));
     }
 
     SECTION("Existing key - NX - key with expiry") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"EXPIREAT", "a_key", unixtime_plus_5s_str, "NX"},
                 ":0\r\n"));
     }
 
     SECTION("Existing key - XX - key without expiry") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"EXPIREAT", "a_key", unixtime_plus_5s_str, "XX"},
                 ":0\r\n"));
     }
 
     SECTION("Existing key - XX - key with expiry") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"EXPIREAT", "a_key", unixtime_plus_5s_str, "XX"},
                 ":1\r\n"));
     }
 
     SECTION("Existing key - GT - key without expiry") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"EXPIREAT", "a_key", unixtime_plus_5s_str, "GT"},
                 ":0\r\n"));
     }
 
     SECTION("Existing key - GT - key with expiry - lower than") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "EX", "7"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"EXPIREAT", "a_key", unixtime_plus_5s_str, "GT"},
                 ":0\r\n"));
     }
 
     SECTION("Existing key - GT - key with expiry - greater than") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "EX", "3"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"EXPIREAT", "a_key", unixtime_plus_5s_str, "GT"},
                 ":1\r\n"));
     }
 
     SECTION("Existing key - LT - key without expiry") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"EXPIREAT", "a_key", unixtime_plus_5s_str, "LT"},
                 ":1\r\n"));
     }
 
     SECTION("Existing key - LT - key with expiry - lower than") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "EX", "7"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"EXPIREAT", "a_key", unixtime_plus_5s_str, "LT"},
                 ":1\r\n"));
     }
 
     SECTION("Existing key - LT - key with expiry - greater than") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "EX", "3"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"EXPIREAT", "a_key", unixtime_plus_5s_str, "LT"},
                 ":0\r\n"));
     }

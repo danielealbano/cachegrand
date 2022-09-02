@@ -39,17 +39,17 @@
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCR", "[redis][command][INCR]") {
     SECTION("Non-existing key") {
         SECTION("Increase once") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"INCR", "a_key"},
                     ":1\r\n"));
         }
 
         SECTION("Increase twice") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"INCR", "a_key"},
                     ":1\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"INCR", "a_key"},
                     ":2\r\n"));
         }
@@ -57,101 +57,101 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCR", "[red
 
     SECTION("Existing key") {
         SECTION("Simple positive number") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "5"},
                     "+OK\r\n"));
 
             SECTION("Increase once") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"INCR", "a_key"},
                         ":6\r\n"));
             }
 
             SECTION("Increase twice") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"INCR", "a_key"},
                         ":6\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"INCR", "a_key"},
                         ":7\r\n"));
             }
         }
 
         SECTION("Simple negative number") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "-5"},
                     "+OK\r\n"));
 
             SECTION("Increase once") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"INCR", "a_key"},
                         ":-4\r\n"));
             }
 
             SECTION("Increase twice") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"INCR", "a_key"},
                         ":-4\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"INCR", "a_key"},
                         ":-3\r\n"));
             }
         }
 
         SECTION("Increment INT64_MIN") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "-9223372036854775808"},
                     "+OK\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"INCR", "a_key"},
                     ":-9223372036854775807\r\n"));
         }
 
         SECTION("Non numeric") {
             SECTION("String") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SET", "a_key", "b_value"},
                         "+OK\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"INCR", "a_key"},
                         "-ERR value is not an integer or out of range\r\n"));
             }
 
             SECTION("Greater than INT64_MAX") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SET", "a_key", "9223372036854775808"},
                         "+OK\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"INCR", "a_key"},
                         "-ERR value is not an integer or out of range\r\n"));
             }
 
             SECTION("Smaller than INT64_MIN") {
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SET", "a_key", "-9223372036854775809"},
                         "+OK\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"INCR", "a_key"},
                         "-ERR value is not an integer or out of range\r\n"));
             }
         }
 
         SECTION("Overflow number") {
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "9223372036854775806"},
                     "+OK\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"INCR", "a_key"},
                     ":9223372036854775807\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"INCR", "a_key"},
                     "-ERR increment or decrement would overflow\r\n"));
         }

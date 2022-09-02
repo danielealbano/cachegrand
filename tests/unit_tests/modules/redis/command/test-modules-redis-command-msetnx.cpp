@@ -38,51 +38,51 @@
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - MSETNX", "[redis][command][MSETNX]") {
     SECTION("1 key") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSETNX", "a_key", "b_value"},
                 ":1\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
                 "$7\r\nb_value\r\n"));
     }
 
     SECTION("2 keys") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSETNX", "a_key", "b_value", "b_key", "value_z"},
                 ":1\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
                 "$7\r\nb_value\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "b_key"},
                 "$7\r\nvalue_z\r\n"));
     }
 
     SECTION("Existing keys") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSETNX", "a_key", "b_value", "b_key", "value_z"},
                 ":1\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
                 "$7\r\nb_value\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "b_key"},
                 "$7\r\nvalue_z\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSETNX", "b_key", "another_value", "c_key", "value_not_being_set"},
                 ":0\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "b_key"},
                 "$7\r\nvalue_z\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "c_key"},
                 "$-1\r\n"));
     }
@@ -102,7 +102,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - MSETNX", "[r
             arguments.push_back(buffer2);
         }
 
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 arguments,
                 ":1\r\n"));
 
@@ -112,20 +112,20 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - MSETNX", "[r
             snprintf(buffer1, sizeof(buffer1), "a_key_%05d", key_index);
             snprintf(expected_response, sizeof(expected_response), "$13\r\nb_value_%05d\r\n", key_index);
 
-            REQUIRE(send_recv_resp_command_text(
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", buffer1},
                     expected_response));
         }
     }
 
     SECTION("Missing parameters - key") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSETNX"},
                 "-ERR wrong number of arguments for 'msetnx' command\r\n"));
     }
 
     SECTION("Missing parameters - value") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSETNX", "a_key"},
                 "-ERR wrong number of arguments for 'msetnx' command\r\n"));
     }

@@ -38,13 +38,13 @@
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PING", "[redis][command][PING]") {
     SECTION("Without value") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"PING"},
                 "+PONG\r\n"));
     }
 
     SECTION("With value") {
-        REQUIRE(send_recv_resp_command_text(
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"PING", "a test"},
                 "$6\r\na test\r\n"));
     }
