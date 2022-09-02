@@ -17,6 +17,8 @@
 #include "exttypes.h"
 #include "memory_fences.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "xalloc.h"
 #include "hashtable.h"
 
@@ -29,7 +31,7 @@ hashtable_counters_t *hashtable_mcmp_thread_counters_sum_fetch(
         hashtable_t *hashtable) {
     hashtable_counters_t *counters_sum = xalloc_alloc_zero(sizeof(hashtable_counters_t));
 
-    for(uint32_t index = 0; index < hashtable->ht_current->thread_counters.size; index++) {
+    for(uint32_t index = 0; likely(index < hashtable->ht_current->thread_counters.size); index++) {
         hashtable_counters_volatile_t *thread_counter = hashtable_mcmp_thread_counters_get_by_index(
                 hashtable->ht_current, index);
         counters_sum->size += thread_counter->size;
@@ -47,7 +49,7 @@ void hashtable_mcmp_thread_counters_sum_free(
 
 void hashtable_mcmp_thread_counters_reset(
         hashtable_data_volatile_t *hashtable_data) {
-    spinlock_lock(&hashtable_data->thread_counters.lock, true);
+    spinlock_lock(&hashtable_data->thread_counters.lock);
 
     if (hashtable_data->thread_counters.size == 0) {
         // If the current list has size 0 it doesn't contain any counter so there is nothing to reset
@@ -61,7 +63,7 @@ void hashtable_mcmp_thread_counters_reset(
 
     spinlock_unlock(&hashtable_data->thread_counters.lock);
 
-    if (old_counters) {
+    if (likely(old_counters)) {
         // At this point a memory fence has been issued so the old counters can be flushed away
         xalloc_free(old_counters);
     }
@@ -72,7 +74,7 @@ void hashtable_mcmp_thread_counters_expand_to(
         uint32_t new_size) {
     assert(hashtable_data->thread_counters.size < UINT32_MAX);
 
-    spinlock_lock(&hashtable_data->thread_counters.lock, true);
+    spinlock_lock(&hashtable_data->thread_counters.lock);
 
     // Ensure that the resize is actually needed under lock
     if (new_size <= hashtable_data->thread_counters.size) {
@@ -124,7 +126,7 @@ hashtable_counters_volatile_t* hashtable_mcmp_thread_counters_get_by_index(
     // Ensure that the current thread_counters size contains the index being requested, if it's not the case it expands
     // the list as needed. This is necessary because the hashtable might be flushed, we don't want to deal with the
     // thread_counters at the high level.
-    if (index >= hashtable_data->thread_counters.size) {
+    if (unlikely(index >= hashtable_data->thread_counters.size)) {
         hashtable_mcmp_thread_counters_expand_to(hashtable_data, index + 1);
     }
 
@@ -147,8 +149,6 @@ hashtable_counters_volatile_t* hashtable_mcmp_thread_counters_get_current_thread
 void hashtable_mcmp_thread_counters_init(
         hashtable_data_volatile_t *hashtable_data,
         uint32_t initial_size) {
-    hashtable_counters_volatile_t **counters = NULL;
-
     spinlock_init(&hashtable_data->thread_counters.lock);
     hashtable_data->thread_counters.list = NULL;
     hashtable_data->thread_counters.size = 0;
