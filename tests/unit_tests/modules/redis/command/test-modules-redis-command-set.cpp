@@ -19,6 +19,8 @@
 #include "clock.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -41,8 +43,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
     SECTION("New key - short") {
         char *key = "a_key";
         char *value = "b_value";
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", key, value},
                 "+OK\r\n"));
 
@@ -55,8 +56,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         char *key = "a_key";
         char *value = "this is a long key that can't be inlined";
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", key, value},
                 "+OK\r\n"));
 
@@ -70,13 +70,11 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         char *value1 = "b_value";
         char *value2 = "value_z";
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", key, value1},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", key, value2},
                 "+OK\r\n"));
 
@@ -86,22 +84,19 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
     }
 
     SECTION("Missing parameters - key and value") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET"},
                 "-ERR wrong number of arguments for 'set' command\r\n"));
     }
 
     SECTION("Missing parameters - value") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key"},
                 "-ERR wrong number of arguments for 'set' command\r\n"));
     }
 
     SECTION("Too many parameters - one extra parameter") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "extra parameter"},
                 "-ERR wrong number of arguments for 'set' command\r\n"));
     }
@@ -111,21 +106,18 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         char *value = "b_value";
         config_module_network_timeout.read_ms = 1000;
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", key, value, "PX", "500"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", key},
                 "$7\r\nb_value\r\n"));
 
         // Wait for 600 ms and try to get the value after the expiration
         usleep((500 + 100) * 1000);
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", key},
                 "$-1\r\n"));
 
@@ -138,21 +130,18 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         char *value = "b_value";
         config_module_network_timeout.read_ms = 2000;
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", key, value, "EX", "1"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", key},
                 "$7\r\nb_value\r\n"));
 
         // Wait for 1100 ms and try to get the value after the expiration
         usleep((1000 + 100) * 1000);
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", key},
                 "$-1\r\n"));
 
@@ -166,13 +155,11 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         char *value2 = "value_z";
         config_module_network_timeout.read_ms = 1000;
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", key, value1, "PX", "500"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", key},
                 "$7\r\nb_value\r\n"));
 
@@ -184,13 +171,11 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         // as the initial was in 500ms will expire after 250
         usleep(250 * 1000);
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", key},
                 "$7\r\nb_value\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", key, value2, "KEEPTTL"},
                 "+OK\r\n"));
 
@@ -198,16 +183,14 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         REQUIRE(entry_index->value->sequence[0].chunk_length == strlen(value2));
         REQUIRE(strncmp((char *) entry_index->value->sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", key},
                 "$7\r\nvalue_z\r\n"));
 
         // Wait for 350 ms and try to get the value after the expiration
         usleep((250 + 100) * 1000);
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", key},
                 "$-1\r\n"));
 
@@ -217,30 +200,25 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
 
     SECTION("New key - XX") {
         SECTION("Key not existing") {
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "b_value", "XX"},
                     "$-1\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$-1\r\n"));
         }
 
         SECTION("Key existing") {
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "b_value"},
                     "+OK\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "c_value", "XX"},
                     "+OK\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$7\r\nc_value\r\n"));
         }
@@ -248,21 +226,18 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         SECTION("Key expired") {
             config_module_network_timeout.read_ms = 100000;
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "b_value", "PX", "500"},
                     "+OK\r\n"));
 
             // Wait for 600 ms and try to get the value after the expiration
             usleep((500 + 100) * 1000);
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "c_value", "XX"},
                     "$-1\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$-1\r\n"));
         }
@@ -270,30 +245,25 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
 
     SECTION("New key - NX") {
         SECTION("Key not existing") {
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "b_value", "NX"},
                     "+OK\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$7\r\nb_value\r\n"));
         }
 
         SECTION("Key existing") {
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "b_value"},
                     "+OK\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "c_value", "NX"},
                     "$-1\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$7\r\nb_value\r\n"));
         }
@@ -301,21 +271,18 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         SECTION("Key expired") {
             config_module_network_timeout.read_ms = 1000;
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "b_value", "PX", "500"},
                     "+OK\r\n"));
 
             // Wait for 600 ms and try to get the value after the expiration
             usleep((500 + 100) * 1000);
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "c_value", "NX"},
                     "+OK\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$7\r\nc_value\r\n"));
         }
@@ -323,25 +290,21 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
 
     SECTION("New key - GET") {
         SECTION("Key not existing") {
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "b_value", "GET"},
                     "$-1\r\n"));
         }
 
         SECTION("Key existing") {
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "b_value"},
                     "+OK\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "c_value", "GET"},
                     "$7\r\nb_value\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$7\r\nc_value\r\n"));
         }
@@ -349,43 +312,36 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         SECTION("Key expired") {
             config_module_network_timeout.read_ms = 1000;
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "b_value", "PX", "500"},
                     "+OK\r\n"));
 
             // Wait for 600 ms and try to get the value after the expiration
             usleep((500 + 100) * 1000);
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "c_value", "GET"},
                     "$-1\r\n"));
         }
 
         SECTION("Multiple SET") {
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "b_value"},
                     "+OK\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "c_value", "GET"},
                     "$7\r\nb_value\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "d_value", "GET"},
                     "$7\r\nc_value\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "e_value", "GET"},
                     "$7\r\nd_value\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     "$7\r\ne_value\r\n"));
         }
@@ -394,16 +350,14 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
     SECTION("New key - SET with GET after key expired (test risk of deadlocks)") {
         config_module_network_timeout.read_ms = 2000;
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "PX", "500"},
                 "+OK\r\n"));
 
         // Wait for 600 ms and try to set the value after the expiration requesting to get returned the previous one
         usleep((500 + 100) * 1000);
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "GET"},
                 "$-1\r\n"));
     }
@@ -442,13 +396,11 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 (int) long_value_length,
                 long_value);
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", long_value},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_multi_recv(
-                client_fd,
+        REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
                 expected_response,
                 expected_response_length,
@@ -491,45 +443,39 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 (int) long_value_length,
                 long_value);
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", long_value},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_multi_recv(
-                client_fd,
+        REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
                 expected_response,
                 expected_response_length,
-                send_recv_resp_command_calculate_multi_recv(long_value_length)));
+                send_recv_resp_command_calculate_multi_recv(expected_response_length) + 10));
 
         free(expected_response);
     }
 
     SECTION("Invalid EX") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "EX", "0"},
                 "-ERR invalid expire time in 'set' command\r\n"));
     }
 
     SECTION("Invalid PX") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "PX", "0"},
                 "-ERR invalid expire time in 'set' command\r\n"));
     }
 
     SECTION("Invalid EXAT") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "EXAT", "0"},
                 "-ERR invalid expire time in 'set' command\r\n"));
     }
 
     SECTION("Invalid PXAT") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "PXAT", "0"},
                 "-ERR invalid expire time in 'set' command\r\n"));
     }

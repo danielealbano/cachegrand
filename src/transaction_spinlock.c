@@ -6,21 +6,18 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <numa.h>
 
+#include "misc.h"
 #include "exttypes.h"
-#include "spinlock.h"
+
 #include "transaction.h"
 #include "transaction_spinlock.h"
 
-#include "hashtable.h"
-#include "hashtable_support_index.h"
+#define TAG "transaction_spinlock"
 
-hashtable_bucket_index_t hashtable_mcmp_support_index_from_hash(
-        hashtable_bucket_count_t buckets_count,
-        hashtable_hash_t hash) {
-    return hash & (buckets_count - 1);
+void transaction_spinlock_init(
+        transaction_spinlock_lock_volatile_t* spinlock) {
+    spinlock->transaction_id = TRANSACTION_SPINLOCK_UNLOCKED;
 }

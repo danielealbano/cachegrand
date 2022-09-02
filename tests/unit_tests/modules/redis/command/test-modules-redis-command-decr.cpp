@@ -16,6 +16,8 @@
 #include "clock.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -37,20 +39,17 @@
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - DECR", "[redis][command][DECR]") {
     SECTION("Non-existing key") {
         SECTION("Decrease once") {
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"DECR", "a_key"},
                     ":-1\r\n"));
         }
 
         SECTION("Decrease twice") {
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"DECR", "a_key"},
                     ":-1\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"DECR", "a_key"},
                     ":-2\r\n"));
         }
@@ -58,120 +57,101 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - DECR", "[red
 
     SECTION("Existing key") {
         SECTION("Simple negative number") {
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "-5"},
                     "+OK\r\n"));
 
             SECTION("Decrease once") {
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECR", "a_key"},
                         ":-6\r\n"));
             }
 
             SECTION("Decrease twice") {
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECR", "a_key"},
                         ":-6\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECR", "a_key"},
                         ":-7\r\n"));
             }
         }
 
         SECTION("Simple positive number") {
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "5"},
                     "+OK\r\n"));
 
             SECTION("Decrease once") {
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECR", "a_key"},
                         ":4\r\n"));
             }
 
             SECTION("Decrease twice") {
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECR", "a_key"},
                         ":4\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECR", "a_key"},
                         ":3\r\n"));
             }
         }
 
         SECTION("Decrease INT64_MAX") {
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "9223372036854775807"},
                     "+OK\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"DECR", "a_key"},
                     ":9223372036854775806\r\n"));
         }
 
         SECTION("Non numeric") {
             SECTION("String") {
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SET", "a_key", "b_value"},
                         "+OK\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECR", "a_key"},
                         "-ERR value is not an integer or out of range\r\n"));
             }
 
             SECTION("Greater than INT64_MAX") {
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SET", "a_key", "9223372036854775808"},
                         "+OK\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECR", "a_key"},
                         "-ERR value is not an integer or out of range\r\n"));
             }
 
             SECTION("Smaller than INT64_MIN") {
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SET", "a_key", "-9223372036854775809"},
                         "+OK\r\n"));
 
-                REQUIRE(send_recv_resp_command_text(
-                        client_fd,
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"DECR", "a_key"},
                         "-ERR value is not an integer or out of range\r\n"));
             }
         }
 
         SECTION("Overflow number") {
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"SET", "a_key", "-9223372036854775807"},
                     "+OK\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"DECR", "a_key"},
                     ":-9223372036854775808\r\n"));
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"DECR", "a_key"},
                     "-ERR increment or decrement would overflow\r\n"));
         }

@@ -16,6 +16,8 @@
 #include "clock.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -37,33 +39,28 @@
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PTTL", "[redis][command][PTTL]") {
 
     SECTION("Non-existing key") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"PTTL", "a_key"},
                 ":-2\r\n"));
     }
 
     SECTION("Key without expiry") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"PTTL", "a_key"},
                 ":-1\r\n"));
     }
 
     SECTION("Key with 5 second expire") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
                 "+OK\r\n"));
 
         // Potentially flaky test
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"PTTL", "a_key"},
                 ":5000\r\n"));
     }

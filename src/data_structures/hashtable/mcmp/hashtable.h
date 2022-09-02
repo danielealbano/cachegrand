@@ -120,7 +120,7 @@ typedef union {
 typedef struct hashtable_half_hashes_chunk hashtable_half_hashes_chunk_t;
 typedef _Volatile(hashtable_half_hashes_chunk_t) hashtable_half_hashes_chunk_volatile_t;
 struct hashtable_half_hashes_chunk {
-    spinlock_lock_volatile_t write_lock;
+    transaction_spinlock_lock_volatile_t write_lock;
     union {
         uint32_t padding;
         struct {
@@ -184,6 +184,7 @@ typedef struct hashtable_mcmp_op_rmw_transaction hashtable_mcmp_op_rmw_status_t;
 struct hashtable_mcmp_op_rmw_transaction {
     hashtable_hash_t hash;
     hashtable_t *hashtable;
+    transaction_t *transaction;
     hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk;
     hashtable_key_value_volatile_t *key_value;
     hashtable_key_data_t *key;

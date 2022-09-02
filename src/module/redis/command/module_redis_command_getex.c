@@ -17,6 +17,8 @@
 #include "exttypes.h"
 #include "clock.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -38,13 +40,20 @@
 #define TAG "module_redis_command_getex"
 
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(getex) {
+    bool abort_rmw = true;
+    bool release_transaction = true;
     bool return_res = false;
     storage_db_entry_index_t *current_entry_index = NULL;
+    transaction_t transaction = { 0 };
     storage_db_op_rmw_status_t rmw_status = { 0 };
+
     module_redis_command_getex_context_t *context = connection_context->command.context;
+
+    transaction_acquire(&transaction);
 
     if (unlikely(!storage_db_op_rmw_begin(
             connection_context->db,
+            &transaction,
             context->key.value.key,
             context->key.value.length,
             &rmw_status,
@@ -65,8 +74,8 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(getex) {
 
     if (unlikely(!current_entry_index)) {
         storage_db_op_rmw_abort(connection_context->db, &rmw_status);
-        return_res = module_redis_connection_send_string_null(connection_context);
-        goto end;
+        transaction_release(&transaction);
+        return module_redis_connection_send_string_null(connection_context);
     }
 
     storage_db_expiry_time_ms_t expiry_time_ms = current_entry_index->expiry_time_ms;
@@ -114,6 +123,11 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(getex) {
     current_entry_index->expiry_time_ms = expiry_time_ms;
 
     storage_db_op_rmw_commit_metadata(connection_context->db, &rmw_status);
+    transaction_release(&transaction);
+
+    abort_rmw = false;
+    release_transaction = false;
+
     context->key.value.key = NULL;
     context->key.value.length = 0;
 
@@ -126,6 +140,14 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(getex) {
     current_entry_index = NULL;
 
 end:
+
+    if (abort_rmw) {
+        storage_db_op_rmw_abort(connection_context->db, &rmw_status);
+    }
+
+    if (release_transaction) {
+        transaction_release(&transaction);
+    }
 
     return return_res;
 }

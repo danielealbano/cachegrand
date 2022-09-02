@@ -17,6 +17,8 @@
 #include "exttypes.h"
 #include "clock.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -39,33 +41,39 @@
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(pexpiretime) {
     bool return_res = false;
     storage_db_entry_index_t *current_entry_index = NULL;
-    module_redis_command_expiretime_context_t *context = connection_context->command.context;
+    int64_t expiry_time;
+    transaction_t transaction = { 0 };
     storage_db_op_rmw_status_t rmw_status = { 0 };
+
+    module_redis_command_expiretime_context_t *context = connection_context->command.context;
+
+    transaction_acquire(&transaction);
 
     if (unlikely(!storage_db_op_rmw_begin(
             connection_context->db,
+            &transaction,
             context->key.value.key,
             context->key.value.length,
             &rmw_status,
             &current_entry_index))) {
+        transaction_release(&transaction);
         return module_redis_connection_error_message_printf_noncritical(
                 connection_context,
                 "ERR pexpiretime failed");
     }
 
     if (unlikely(!current_entry_index)) {
-        return module_redis_connection_send_number(
-                connection_context,
-                -2);
+        expiry_time = -2;
+    } else {
+        expiry_time = current_entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY
+                ? -1
+                  : current_entry_index->expiry_time_ms;
     }
 
-    return_res = module_redis_connection_send_number(
-            connection_context,
-            current_entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY
-            ? -1
-            : current_entry_index->expiry_time_ms);
+end:
 
     storage_db_op_rmw_abort(connection_context->db, &rmw_status);
+    transaction_release(&transaction);
 
-    return return_res;
+    return module_redis_connection_send_number(connection_context, expiry_time);
 }

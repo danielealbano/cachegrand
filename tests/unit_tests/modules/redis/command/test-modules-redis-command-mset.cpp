@@ -16,6 +16,8 @@
 #include "clock.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -36,30 +38,25 @@
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - MSET", "[redis][command][MSET]") {
     SECTION("1 key") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
                 "$7\r\nb_value\r\n"));
     }
 
     SECTION("2 keys") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSET", "a_key", "b_value", "b_key", "value_z"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
                 "$7\r\nb_value\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "b_key"},
                 "$7\r\nvalue_z\r\n"));
     }
@@ -79,8 +76,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - MSET", "[red
             arguments.push_back(buffer2);
         }
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 arguments,
                 "+OK\r\n"));
 
@@ -90,23 +86,20 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - MSET", "[red
             snprintf(buffer1, sizeof(buffer1), "a_key_%05d", key_index);
             snprintf(expected_response, sizeof(expected_response), "$13\r\nb_value_%05d\r\n", key_index);
 
-            REQUIRE(send_recv_resp_command_text(
-                    client_fd,
+            REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"GET", buffer1},
                     expected_response));
         }
     }
 
     SECTION("Missing parameters - key") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSET"},
                 "-ERR wrong number of arguments for 'mset' command\r\n"));
     }
 
     SECTION("Missing parameters - value") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"MSET", "a_key"},
                 "-ERR wrong number of arguments for 'mset' command\r\n"));
     }

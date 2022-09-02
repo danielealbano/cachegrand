@@ -33,6 +33,8 @@
 #include "clock.h"
 #include "thread.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "memory_fences.h"
 #include "utils_numa.h"
 #include "log/log.h"

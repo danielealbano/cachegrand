@@ -18,6 +18,8 @@
 #include "memory_fences.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "log/log.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
@@ -42,6 +44,7 @@ bool hashtable_mcmp_op_set(
     hashtable_chunk_index_t chunk_index = 0;
     hashtable_chunk_slot_index_t chunk_slot_index = 0;
     hashtable_key_value_volatile_t* key_value = 0;
+    transaction_t transaction = { 0 };
 
     hash = hashtable_mcmp_support_hash_calculate(key, key_size);
 
@@ -49,6 +52,8 @@ bool hashtable_mcmp_op_set(
     LOG_DI("hash = 0x%016x", hash);
 
     assert(*key != 0);
+
+    transaction_acquire(&transaction);
 
     // TODO: there is no support for resizing right now but when creating a new item the function must be aware that
     //       it has to be created in the new hashtable and not in the one being looked into
@@ -58,6 +63,7 @@ bool hashtable_mcmp_op_set(
             key_size,
             hash,
             true,
+            &transaction,
             &created_new,
             &chunk_index,
             &half_hashes_chunk,
@@ -69,6 +75,7 @@ bool hashtable_mcmp_op_set(
     LOG_DI("key_value =  0x%016x", key_value);
 
     if (ret == false) {
+        transaction_release(&transaction);
         LOG_DI("key not found or not created, continuing");
         return false;
     }
@@ -127,7 +134,7 @@ bool hashtable_mcmp_op_set(
     }
 
     // Will perform the memory fence for us
-    spinlock_unlock(&half_hashes_chunk->write_lock);
+    transaction_release(&transaction);
 
     LOG_DI("unlocking half_hashes_chunk 0x%016x", half_hashes_chunk);
 

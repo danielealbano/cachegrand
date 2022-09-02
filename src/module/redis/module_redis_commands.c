@@ -18,6 +18,8 @@
 #include "exttypes.h"
 #include "log/log.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "clock.h"
 #include "config.h"
 #include "xalloc.h"

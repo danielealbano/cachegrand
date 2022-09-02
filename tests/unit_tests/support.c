@@ -34,6 +34,8 @@
 #include "memory_fences.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "misc.h"
 #include "log/log.h"
 #include "fatal.h"

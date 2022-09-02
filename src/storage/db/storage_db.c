@@ -23,6 +23,8 @@
 #include "clock.h"
 #include "memory_fences.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "utils_string.h"
 #include "xalloc.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
@@ -380,7 +382,7 @@ storage_db_shard_t *storage_db_new_active_shard(
     // the initial owner of the lock will never get the chance to finish the operation.
     // For this reason, if the lock is in use, the fiber yields to ensure that at some point the original fiber that
     // acquired the lock will get the chance to complete the operations.
-    while (!spinlock_lock(&db->shards.write_spinlock, false)) {
+    while (!spinlock_try_lock(&db->shards.write_spinlock)) {
         fiber_scheduler_switch_back();
     }
 
@@ -1002,10 +1004,15 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         // If the storage db entry index is actually expired it's necessary to start a read modify write operation
         // because the check has to be carried out again under the lock to check if the entry index only has to be
         // deleted or the entire bucket in the hashtable has to be deleted
+        transaction_t transaction = { 0 };
         storage_db_op_rmw_status_t rmw_status = { 0 };
+
+        transaction_acquire(&transaction);
+
         storage_db_entry_index_t *current_entry_index = NULL;
         if (unlikely(!storage_db_op_rmw_begin(
                 db,
+                &transaction,
                 key,
                 key_length,
                 &rmw_status,
@@ -1138,13 +1145,16 @@ end:
 
 bool storage_db_op_rmw_begin(
         storage_db_t *db,
+        transaction_t *transaction,
         char *key,
         size_t key_length,
         storage_db_op_rmw_status_t *rmw_status,
         storage_db_entry_index_t **current_entry_index) {
+    assert(transaction->transaction_id.id != TRANSACTION_ID_NOT_ACQUIRED);
 
     if (unlikely(!hashtable_mcmp_op_rmw_begin(
             db->hashtable,
+            transaction,
             &rmw_status->hashtable,
             key,
             key_length,
@@ -1152,6 +1162,7 @@ bool storage_db_op_rmw_begin(
         return false;
     }
 
+    rmw_status->transaction = transaction;
     rmw_status->current_entry_index = *current_entry_index;
 
     if (
@@ -1161,10 +1172,6 @@ bool storage_db_op_rmw_begin(
         *current_entry_index = NULL;
     }
 
-    if (*current_entry_index) {
-        storage_db_entry_index_touch(*current_entry_index);
-    }
-
     return true;
 }
 
@@ -1172,6 +1179,10 @@ storage_db_entry_index_t *storage_db_op_rmw_current_entry_index_prep_for_read(
         storage_db_t *db,
         storage_db_op_rmw_status_t *rmw_status,
         storage_db_entry_index_t *entry_index) {
+    if (entry_index && !rmw_status->delete_entry_index_on_abort) {
+        storage_db_entry_index_touch(entry_index);
+    }
+
     // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
     storage_db_entry_index_status_increase_readers_counter(
             entry_index,
@@ -1183,7 +1194,10 @@ storage_db_entry_index_t *storage_db_op_rmw_current_entry_index_prep_for_read(
 bool storage_db_op_rmw_commit_metadata(
         storage_db_t *db,
         storage_db_op_rmw_status_t *rmw_status) {
-    storage_db_entry_index_touch(rmw_status->current_entry_index);
+    if (rmw_status->current_entry_index && !rmw_status->delete_entry_index_on_abort) {
+        storage_db_entry_index_touch(rmw_status->current_entry_index);
+    }
+
     hashtable_mcmp_op_rmw_commit_update(
             &rmw_status->hashtable,
             (uintptr_t)rmw_status->current_entry_index);
@@ -1248,12 +1262,10 @@ bool storage_db_op_rmw_commit_update(
 
     result_res = true;
 
-    end:
+end:
 
     if (!result_res) {
-        if (entry_index) {
-            storage_db_entry_index_free(db, entry_index);
-        }
+        storage_db_entry_index_free(db, entry_index);
 
         // Abort the underlying rmw operation in the hashtable if the commit fails
         hashtable_mcmp_op_rmw_abort(&rmw_status->hashtable);
@@ -1266,8 +1278,6 @@ void storage_db_op_rmw_commit_rename(
         storage_db_t *db,
         storage_db_op_rmw_status_t *rmw_status_source,
         storage_db_op_rmw_status_t *rmw_status_destination) {
-    storage_db_entry_index_touch(rmw_status_source->current_entry_index);
-
     hashtable_mcmp_op_rmw_commit_update(
             &rmw_status_destination->hashtable,
             (uintptr_t)rmw_status_source->current_entry_index);
@@ -1279,6 +1289,10 @@ void storage_db_op_rmw_commit_rename(
     }
 
     hashtable_mcmp_op_rmw_commit_delete(&rmw_status_source->hashtable);
+
+    if (rmw_status_source->current_entry_index && !rmw_status_source->delete_entry_index_on_abort) {
+        storage_db_entry_index_touch(rmw_status_source->current_entry_index);
+    }
 }
 
 void storage_db_op_rmw_commit_delete(

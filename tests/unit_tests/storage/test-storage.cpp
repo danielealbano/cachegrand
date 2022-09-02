@@ -20,6 +20,8 @@
 #include "exttypes.h"
 #include "xalloc.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "fiber.h"
 #include "fiber_scheduler.h"
 #include "clock.h"

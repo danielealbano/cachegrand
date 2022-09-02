@@ -7,6 +7,7 @@ extern "C" {
 
 bool hashtable_mcmp_op_rmw_begin(
         hashtable_t *hashtable,
+        transaction_t *transaction,
         hashtable_mcmp_op_rmw_status_t *rmw_status,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,

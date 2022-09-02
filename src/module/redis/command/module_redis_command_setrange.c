@@ -18,6 +18,8 @@
 #include "exttypes.h"
 #include "clock.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
@@ -43,6 +45,8 @@
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
     bool return_res = false;
     bool abort_rmw = true;
+    bool release_transaction = false;
+    transaction_t transaction = { 0 };
     storage_db_op_rmw_status_t rmw_status = { 0 };
     storage_db_entry_index_t *current_entry_index = NULL;
     storage_db_chunk_sequence_t *destination_chunk_sequence = NULL, *current_chunk_sequence = NULL;
@@ -58,8 +62,15 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
         goto end;
     }
 
+    // TODO: optimize setrange to use the get operation (which will not lock), create the new chunk sequence and then
+    //       only at the end start the transaction to update the destination key otherwise the execution of the setrange
+    //       command can impact the overall performances
+
+    transaction_acquire(&transaction);
+
     if (unlikely(!storage_db_op_rmw_begin(
             connection_context->db,
+            &transaction,
             context->key.value.key,
             context->key.value.length,
             &rmw_status,
@@ -263,8 +274,11 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
         goto end;
     }
 
+    transaction_release(&transaction);
+
     context->key.value.key = NULL;
     abort_rmw = false;
+    release_transaction = false;
 
     return_res = module_redis_connection_send_number(
             connection_context,
@@ -276,6 +290,10 @@ end:
 
     if (unlikely(current_entry_index && abort_rmw)) {
         storage_db_op_rmw_abort(connection_context->db, &rmw_status);
+    }
+
+    if (unlikely(release_transaction)) {
+        transaction_release(&transaction);
     }
 
     if (unlikely(current_entry_index)) {

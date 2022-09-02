@@ -17,6 +17,8 @@
 #include "exttypes.h"
 #include "clock.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -39,12 +41,17 @@
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(touch) {
     int touched_keys_count = 0;
     storage_db_entry_index_t *current_entry_index = NULL;
-    module_redis_command_touch_context_t *context = connection_context->command.context;
+    transaction_t transaction = { 0 };
     storage_db_op_rmw_status_t rmw_status = { 0 };
 
+    module_redis_command_touch_context_t *context = connection_context->command.context;
+
     for(int index = 0; index < context->key.count; index++) {
+        transaction_acquire(&transaction);
+
         if (unlikely(!storage_db_op_rmw_begin(
                 connection_context->db,
+                &transaction,
                 context->key.list[index].key,
                 context->key.list[index].length,
                 &rmw_status,

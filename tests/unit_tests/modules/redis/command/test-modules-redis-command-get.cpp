@@ -18,6 +18,8 @@
 #include "clock.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -38,13 +40,11 @@
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GET", "[redis][command][GET]") {
     SECTION("Existing key") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
                 "$7\r\nb_value\r\n"));
     }
@@ -85,8 +85,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GET", "[redi
     }
 
     SECTION("Non-existing key") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
                 "$-1\r\n"));
     }
@@ -125,13 +124,11 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GET", "[redi
                 (int) long_value_length,
                 long_value);
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", long_value},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_multi_recv(
-                client_fd,
+        REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
                 expected_response,
                 expected_response_length,
@@ -141,8 +138,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GET", "[redi
     }
 
     SECTION("Missing parameters - key") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET"},
                 "-ERR wrong number of arguments for 'get' command\r\n"));
     }

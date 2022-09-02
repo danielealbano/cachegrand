@@ -16,6 +16,8 @@
 #include "clock.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -36,37 +38,42 @@
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PEXPIRETIME", "[redis][command][PEXPIRETIME]") {
     SECTION("No key") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"PEXPIRETIME", "a_key"},
                 ":-2\r\n"));
     }
 
     SECTION("Existing key - no expiration") {
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"PEXPIRETIME", "a_key"},
                 ":-1\r\n"));
     }
 
     SECTION("Existing key - expiration") {
         char buffer[32] = { 0 };
+        size_t out_buffer_length = 0;
+        int64_t unixtime_response;
         int64_t unixtime_ms_plus_5s = clock_realtime_coarse_int64_ms() + 5000;
-        snprintf(buffer, sizeof(buffer), ":%ld\r\n", unixtime_ms_plus_5s);
+        size_t expected_length = snprintf(nullptr, 0, ":%ld\r\n", unixtime_ms_plus_5s);
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
                 "+OK\r\n"));
 
-        REQUIRE(send_recv_resp_command_text(
-                client_fd,
+        REQUIRE(send_recv_resp_command_multi_recv(
                 std::vector<std::string>{"PEXPIRETIME", "a_key"},
-                buffer));
+                buffer,
+                sizeof(buffer),
+                &out_buffer_length,
+                expected_length,
+                send_recv_resp_command_calculate_multi_recv(expected_length)));
+
+        unixtime_response = strtoll(buffer + 1, nullptr, 10);
+
+        REQUIRE((unixtime_response >= unixtime_ms_plus_5s - 5 && unixtime_response <= unixtime_ms_plus_5s));
     }
 }

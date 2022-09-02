@@ -26,6 +26,8 @@
 #include "fatal.h"
 #include "xalloc.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "config.h"
 #include "fiber.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"

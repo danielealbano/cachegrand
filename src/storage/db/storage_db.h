@@ -123,6 +123,7 @@ struct storage_db_entry_index {
 typedef struct storage_db_op_rmw_transaction storage_db_op_rmw_status_t;
 struct storage_db_op_rmw_transaction {
     hashtable_mcmp_op_rmw_status_t hashtable;
+    transaction_t *transaction;
     storage_db_entry_index_t *current_entry_index;
     bool delete_entry_index_on_abort;
 };
@@ -314,6 +315,7 @@ bool storage_db_op_set(
 
 bool storage_db_op_rmw_begin(
         storage_db_t *db,
+        transaction_t *transaction,
         char *key,
         size_t key_length,
         storage_db_op_rmw_status_t *rmw_status,
