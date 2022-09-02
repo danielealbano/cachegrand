@@ -233,6 +233,8 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
     *found_chunk_index = 0;
     *found_chunk_slot_index = 0;
 
+    assert(transaction->transaction_id.id != TRANSACTION_ID_NOT_ACQUIRED);
+
     bucket_index = hashtable_mcmp_support_index_from_hash(hashtable_data->buckets_count, hash);
     chunk_index_start = chunk_index_start_initial = bucket_index / HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
 

@@ -45,6 +45,8 @@ bool hashtable_mcmp_op_rmw_begin(
     hashtable_chunk_slot_index_t chunk_slot_index = 0;
     hashtable_key_value_volatile_t *key_value = 0;
 
+    assert(transaction->transaction_id.id != TRANSACTION_ID_NOT_ACQUIRED);
+
     hash = hashtable_mcmp_support_hash_calculate(key, key_size);
 
     assert(*key != 0);

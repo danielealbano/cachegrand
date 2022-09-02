@@ -1150,6 +1150,7 @@ bool storage_db_op_rmw_begin(
         size_t key_length,
         storage_db_op_rmw_status_t *rmw_status,
         storage_db_entry_index_t **current_entry_index) {
+    assert(transaction->transaction_id.id != TRANSACTION_ID_NOT_ACQUIRED);
 
     if (unlikely(!hashtable_mcmp_op_rmw_begin(
             db->hashtable,
