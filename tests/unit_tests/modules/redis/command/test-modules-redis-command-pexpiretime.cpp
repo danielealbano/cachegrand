@@ -56,9 +56,9 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PEXPIRETIME"
     SECTION("Existing key - expiration") {
         char buffer[32] = { 0 };
         size_t out_buffer_length = 0;
-        int64_t unixtime_response = 0;
+        int64_t unixtime_response;
         int64_t unixtime_ms_plus_5s = clock_realtime_coarse_int64_ms() + 5000;
-        size_t expected_length = snprintf(NULL, 0, ":%ld\r\n", unixtime_ms_plus_5s);
+        size_t expected_length = snprintf(nullptr, 0, ":%ld\r\n", unixtime_ms_plus_5s);
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
@@ -72,7 +72,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PEXPIRETIME"
                 expected_length,
                 send_recv_resp_command_calculate_multi_recv(expected_length)));
 
-        unixtime_response = strtoll(buffer + 1, NULL, 10);
+        unixtime_response = strtoll(buffer + 1, nullptr, 10);
 
         REQUIRE((unixtime_response >= unixtime_ms_plus_5s - 5 && unixtime_response <= unixtime_ms_plus_5s));
     }
