@@ -18,7 +18,6 @@ using namespace std;
 #include <sys/syscall.h>
 #endif
 
-#include "exttypes.h"
 #include "memory_fences.h"
 #include "utils_cpu.h"
 #include "thread.h"
@@ -28,11 +27,11 @@ using namespace std;
 // to wait for the spinlock to become free
 void* test_spinlock_lock_lock_retry_try_lock_thread_func(void* rawdata) {
     spinlock_lock_t* lock = (spinlock_lock_t*)rawdata;
-    if (spinlock_lock(lock, false)) {
+    if (spinlock_try_lock(lock)) {
         return (void*)1;
     }
 
-    spinlock_lock(lock, true);
+    spinlock_lock(lock);
 
     if (spinlock_is_locked(lock) == 1) {
         return (void*)2;
@@ -67,41 +66,10 @@ void* test_spinlock_lock_counter_thread_func(void* rawdata) {
     test_spinlock_lock_thread_wait_on_flag(data->start_flag, true);
 
     for(uint64_t i = 0; i < data->increments; i++) {
-        spinlock_lock(data->lock, true);
+        spinlock_lock(data->lock);
         (*data->counter)++;
         spinlock_unlock(data->lock);
     }
-
-    return nullptr;
-}
-
-// Keep the lock locked for a while on purpose to trigger the lock detection branch
-struct test_spinlock_lock_possible_stuck_lock_detection_thread_func_data {
-    bool* start_flag;
-    bool* can_unlock_flag;
-    uint32_t thread_num;
-    pthread_t thread_id;
-    spinlock_lock_volatile_t *lock;
-};
-void* test_spinlock_lock_possible_stuck_lock_detection_thread_func(void* rawdata) {
-    struct test_spinlock_lock_possible_stuck_lock_detection_thread_func_data* data =
-            (struct test_spinlock_lock_possible_stuck_lock_detection_thread_func_data*)rawdata;
-
-    thread_current_set_affinity(data->thread_num);
-
-    test_spinlock_lock_thread_wait_on_flag(data->start_flag, true);
-
-    if (!spinlock_try_lock(data->lock)) {
-        // If the spinlock is already locked, this thread tries to lock it on purpose anyway to trigger the stuck lock
-        // detection branch
-        spinlock_lock(data->lock, true);
-    } else {
-        // If this thread is the holder of the lock, waits for an external signal to unlock it, the main test will
-        // monitor the logs to try to identify if the lock is stuck
-        test_spinlock_lock_thread_wait_on_flag(data->can_unlock_flag, true);
-    }
-
-    spinlock_unlock(data->lock);
 
     return nullptr;
 }
@@ -170,27 +138,13 @@ TEST_CASE("spinlock.c", "[spinlock]") {
     }
 
     SECTION("spinlock_lock") {
-        SECTION("lock") {
-            spinlock_lock_t lock = {0};
-            spinlock_init(&lock);
-
-            REQUIRE(spinlock_lock(&lock, false));
-
-#if DEBUG == 1
-            long thread_id = syscall(__NR_gettid);
-            REQUIRE(lock.lock == (uint32_t)thread_id);
-#else
-            REQUIRE(lock.lock == SPINLOCK_LOCKED);
-#endif
-        }
-
         SECTION("fail already locked") {
             spinlock_lock_t lock = {0};
             spinlock_init(&lock);
 
-            REQUIRE(spinlock_lock(&lock, false));
+            spinlock_lock(&lock);
 
-            REQUIRE(!spinlock_lock(&lock, false));
+            REQUIRE(!spinlock_try_lock(&lock));
 
 #if DEBUG == 1
             long thread_id = syscall(__NR_gettid);
@@ -200,8 +154,8 @@ TEST_CASE("spinlock.c", "[spinlock]") {
 #endif
         }
 
-        SECTION("lock with retry") {
-            int res, pthread_return_val, *pthread_return = 0;
+        SECTION("lock") {
+            int res, pthread_return_val, *pthread_return = nullptr;
             spinlock_lock_t lock = {0};
             pthread_t pthread;
             pthread_attr_t attr;
@@ -214,7 +168,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             }
 
             // Lock
-            REQUIRE(spinlock_lock(&lock, false));
+            REQUIRE(spinlock_try_lock(&lock));
 
 #if DEBUG == 1
             long thread_id = syscall(__NR_gettid);
@@ -242,7 +196,7 @@ TEST_CASE("spinlock.c", "[spinlock]") {
             //       not but the above sleep seems reasonable, the thread doesn't finish within 1 second the spinlock
             //       is buggy and stuck
             int pthread_tryjoin_np_res = pthread_tryjoin_np(pthread, (void**)&pthread_return);
-            pthread_return_val = (uint64_t)pthread_return;
+            pthread_return_val = (int)(uint64_t)pthread_return;
 
             REQUIRE(pthread_tryjoin_np_res == 0);
             REQUIRE(pthread_return_val == 2);
