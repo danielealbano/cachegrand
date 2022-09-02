@@ -19,6 +19,8 @@
 #include "clock.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -40,28 +42,24 @@
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETEX", "[redis][command][SETEX]") {
     SECTION("Missing parameters - key, seconds and value") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"SETEX"},
                 "-ERR wrong number of arguments for 'setex' command\r\n"));
     }
 
     SECTION("Missing parameters - value") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"SETEX", "a_key", "100"},
                 "-ERR wrong number of arguments for 'setex' command\r\n"));
     }
 
     SECTION("Too many parameters - one extra parameter") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"SETEX", "a_key", "100", "b_value", "extra parameter"},
                 "-ERR wrong number of arguments for 'setex' command\r\n"));
     }
 
     SECTION("Zero value as expire") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"SETEX", "a_key", "0", "b_value"},
                 "-ERR invalid expire time in 'setex' command\r\n"));
     }
@@ -72,12 +70,10 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETEX", "[re
         config_module_network_timeout.read_ms = 2000;
 
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"SETEX", key, "1", value},
                 "+OK\r\n"));
 
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"GET", key},
                 "$7\r\nb_value\r\n"));
 
@@ -85,7 +81,6 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETEX", "[re
         usleep((1000 + 100) * 1000);
 
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"GET", key},
                 "$-1\r\n"));
 

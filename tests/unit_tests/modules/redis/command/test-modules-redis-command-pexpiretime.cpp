@@ -16,6 +16,8 @@
 #include "clock.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -37,19 +39,16 @@
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PEXPIRETIME", "[redis][command][PEXPIRETIME]") {
     SECTION("No key") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"PEXPIRETIME", "a_key"},
                 ":-2\r\n"));
     }
 
     SECTION("Existing key - no expiration") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"PEXPIRETIME", "a_key"},
                 ":-1\r\n"));
     }
@@ -60,12 +59,10 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PEXPIRETIME"
         snprintf(buffer, sizeof(buffer), ":%ld\r\n", unixtime_ms_plus_5s);
 
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
                 "+OK\r\n"));
 
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"PEXPIRETIME", "a_key"},
                 buffer));
     }

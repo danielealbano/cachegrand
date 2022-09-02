@@ -16,6 +16,8 @@
 #include "clock.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -38,12 +40,10 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - STRLEN", "[r
     SECTION("Existing key") {
         SECTION("Short key") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"SET", "a_key", "b_value"},
                     "+OK\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"STRLEN", "a_key"},
                     ":7\r\n"));
         }
@@ -73,12 +73,10 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - STRLEN", "[r
                     long_value_length);
 
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"SET", "a_key", long_value},
                     "+OK\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"STRLEN", "a_key"},
                     expected));
         }
@@ -86,7 +84,6 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - STRLEN", "[r
 
     SECTION("Not-existing key") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"STRLEN", "a_key"},
                 ":0\r\n"));
     }

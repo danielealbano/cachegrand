@@ -16,6 +16,8 @@
 #include "clock.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -38,38 +40,32 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBY", "[r
     SECTION("Non-existing key") {
         SECTION("Increase 1 - once") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"INCRBY", "a_key", "1"},
                     ":1\r\n"));
         }
 
         SECTION("Increase 1 - twice") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"INCRBY", "a_key", "1"},
                     ":1\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"INCRBY", "a_key", "1"},
                     ":2\r\n"));
         }
 
         SECTION("Increase amount - once") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"INCRBY", "a_key", "5"},
                     ":5\r\n"));
         }
 
         SECTION("Increase amount - twice") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"INCRBY", "a_key", "5"},
                     ":5\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"INCRBY", "a_key", "6"},
                     ":11\r\n"));
         }
@@ -78,44 +74,37 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBY", "[r
     SECTION("Existing key") {
         SECTION("Simple positive number") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"SET", "a_key", "5"},
                     "+OK\r\n"));
 
             SECTION("Increase 1 - once") {
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "1"},
                         ":6\r\n"));
             }
 
             SECTION("Increase 1 - twice") {
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "1"},
                         ":6\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "1"},
                         ":7\r\n"));
             }
 
             SECTION("Increase amount - once") {
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "5"},
                         ":10\r\n"));
             }
 
             SECTION("Increase amount - twice") {
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "5"},
                         ":10\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "6"},
                         ":16\r\n"));
             }
@@ -123,44 +112,37 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBY", "[r
 
         SECTION("Simple negative number") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"SET", "a_key", "-5"},
                     "+OK\r\n"));
 
             SECTION("Increase 1 - once") {
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "1"},
                         ":-4\r\n"));
             }
 
             SECTION("Increase 1 - twice") {
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "1"},
                         ":-4\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "1"},
                         ":-3\r\n"));
             }
 
             SECTION("Increase amount - once") {
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "5"},
                         ":0\r\n"));
             }
 
             SECTION("Increase amount - twice") {
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "5"},
                         ":0\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "6"},
                         ":6\r\n"));
             }
@@ -169,12 +151,10 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBY", "[r
         SECTION("Increment INT64_MIN") {
             SECTION("One") {
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"SET", "a_key", "-9223372036854775808"},
                         "+OK\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "1"},
                         ":-9223372036854775807\r\n"));
             }
@@ -183,36 +163,30 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBY", "[r
         SECTION("Non numeric") {
             SECTION("String") {
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"SET", "a_key", "b_value"},
                         "+OK\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "1"},
                         "-ERR value is not an integer or out of range\r\n"));
             }
 
             SECTION("Greater than INT64_MAX") {
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"SET", "a_key", "9223372036854775808"},
                         "+OK\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "1"},
                         "-ERR value is not an integer or out of range\r\n"));
             }
 
             SECTION("Smaller than INT64_MIN") {
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"SET", "a_key", "-9223372036854775809"},
                         "+OK\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "1"},
                         "-ERR value is not an integer or out of range\r\n"));
             }
@@ -221,29 +195,24 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBY", "[r
         SECTION("Overflow number") {
             SECTION("One") {
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"SET", "a_key", "9223372036854775806"},
                         "+OK\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "1"},
                         ":9223372036854775807\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "1"},
                         "-ERR increment or decrement would overflow\r\n"));
             }
 
             SECTION("Amount") {
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"SET", "a_key", "9223372036854775806"},
                         "+OK\r\n"));
 
                 REQUIRE(send_recv_resp_command_text(
-                        client_fd,
                         std::vector<std::string>{"INCRBY", "a_key", "2"},
                         "-ERR increment or decrement would overflow\r\n"));
             }

@@ -16,6 +16,8 @@
 #include "clock.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -37,24 +39,20 @@
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - COPY", "[redis][command][COPY]") {
     SECTION("Non existent key") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"COPY", "a_key", "b_key"},
                 ":0\r\n"));
     }
 
     SECTION("Existent key") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"COPY", "a_key", "b_key"},
                 ":1\r\n"));
 
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"GET", "b_key"},
                 "$7\r\nb_value\r\n"));
     }
@@ -94,24 +92,20 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - COPY", "[red
                 long_value);
 
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"SET", "a_key", long_value},
                 "+OK\r\n"));
 
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"COPY", "a_key", "b_key"},
                 ":1\r\n"));
 
         REQUIRE(send_recv_resp_command_multi_recv(
-                client_fd,
                 std::vector<std::string>{"GET", "a_key"},
                 expected_response,
                 expected_response_length,
                 send_recv_resp_command_calculate_multi_recv(long_value_length)));
 
         REQUIRE(send_recv_resp_command_multi_recv(
-                client_fd,
                 std::vector<std::string>{"GET", "b_key"},
                 expected_response,
                 expected_response_length,
@@ -122,34 +116,28 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - COPY", "[red
 
     SECTION("Existent destination key - fail") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"MSET", "a_key", "b_value", "b_key", "value_z"},
                 "+OK\r\n"));
 
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"COPY", "a_key", "b_key"},
                 ":0\r\n"));
 
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"GET", "b_key"},
                 "$7\r\nvalue_z\r\n"));
     }
 
     SECTION("Existent destination key - Overwrite") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"MSET", "a_key", "b_value", "b_key", "value_z"},
                 "+OK\r\n"));
 
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"COPY", "a_key", "b_key", "REPLACE"},
                 ":1\r\n"));
 
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"GET", "b_key"},
                 "$7\r\nb_value\r\n"));
     }

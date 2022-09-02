@@ -18,6 +18,8 @@
 #include "clock.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -39,13 +41,11 @@
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GETEX", "[redis][command][GETEX]") {
     SECTION("Existing key") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
         SECTION("No expiration") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"GETEX", "a_key"},
                     "$7\r\nb_value\r\n"));
         }
@@ -54,12 +54,10 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GETEX", "[re
             config_module_network_timeout.read_ms = 1000;
 
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"GETEX", "a_key", "PX", "500"},
                     "$7\r\nb_value\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"GET", "a_key"},
                     "$7\r\nb_value\r\n"));
 
@@ -67,7 +65,6 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GETEX", "[re
             usleep((500 + 100) * 1000);
 
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"GET", "a_key"},
                     "$-1\r\n"));
 
@@ -79,12 +76,10 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GETEX", "[re
             config_module_network_timeout.read_ms = 2000;
 
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"GETEX", "a_key", "EX", "1"},
                     "$7\r\nb_value\r\n"));
 
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"GET", "a_key"},
                     "$7\r\nb_value\r\n"));
 
@@ -92,7 +87,6 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GETEX", "[re
             usleep((1000 + 100) * 1000);
 
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"GET", "a_key"},
                     "$-1\r\n"));
 
@@ -102,28 +96,24 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GETEX", "[re
 
         SECTION("Invalid EX") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"GETEX", "a_key", "EX", "0"},
                     "-ERR invalid expire time in 'getex' command\r\n"));
         }
 
         SECTION("Invalid PX") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"GETEX", "a_key", "PX", "0"},
                     "-ERR invalid expire time in 'getex' command\r\n"));
         }
 
         SECTION("Invalid EXAT") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"GETEX", "a_key", "EXAT", "0"},
                     "-ERR invalid expire time in 'getex' command\r\n"));
         }
 
         SECTION("Invalid PXAT") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"GETEX", "a_key", "PXAT", "0"},
                     "-ERR invalid expire time in 'getex' command\r\n"));
         }
@@ -132,35 +122,30 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GETEX", "[re
     SECTION("Non-existing key") {
         SECTION("No expiration") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"GETEX", "a_key"},
                     "$-1\r\n"));
         }
 
         SECTION("Invalid EX") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"GETEX", "a_key", "EX", "0"},
                     "$-1\r\n"));
         }
 
         SECTION("Invalid PX") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"GETEX", "a_key", "PX", "0"},
                     "$-1\r\n"));
         }
 
         SECTION("Invalid EXAT") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"GETEX", "a_key", "EXAT", "0"},
                     "$-1\r\n"));
         }
 
         SECTION("Invalid PXAT") {
             REQUIRE(send_recv_resp_command_text(
-                    client_fd,
                     std::vector<std::string>{"GETEX", "a_key", "PXAT", "0"},
                     "$-1\r\n"));
         }

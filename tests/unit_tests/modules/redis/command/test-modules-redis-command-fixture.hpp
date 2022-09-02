@@ -57,20 +57,17 @@ protected:
             size_t expected_length);
 
     bool send_recv_resp_command_multi_recv(
-            int client_fd,
             const std::vector<std::string>& arguments,
             char *expected,
             size_t expected_length,
             int max_recv_count);
 
     bool send_recv_resp_command(
-            int client_fd,
             const std::vector<std::string>& arguments,
             char *expected,
             size_t expected_length);
 
     bool send_recv_resp_command_text(
-            int client_fd,
             const std::vector<std::string>& arguments,
             char *expected);
 };

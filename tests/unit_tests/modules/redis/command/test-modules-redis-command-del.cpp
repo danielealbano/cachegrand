@@ -16,6 +16,8 @@
 #include "clock.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -37,38 +39,32 @@
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - DEL", "[redis][command][DEL]") {
     SECTION("Existing key") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"DEL", "a_key"},
                 ":1\r\n"));
     }
 
     SECTION("Multiple key") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"MSET", "a_key", "b_value", "b_key", "value_z", "c_key", "d_value"},
                 "+OK\r\n"));
 
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"DEL", "a_key", "b_key", "c_key"},
                 ":3\r\n"));
     }
 
     SECTION("Non-existing key") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"DEL", "a_key"},
                 ":0\r\n"));
     }
 
     SECTION("Missing parameters - key") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"DEL"},
                 "-ERR wrong number of arguments for 'del' command\r\n"));
     }

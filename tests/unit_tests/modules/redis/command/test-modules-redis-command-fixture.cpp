@@ -29,6 +29,8 @@
 #include "exttypes.h"
 #include "memory_fences.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -51,16 +53,6 @@
 #include "test-modules-redis-command-fixture.hpp"
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
-
-template<typename ... Args>
-std::string string_format( const std::string& format, Args ... args ) {
-    int size_s = std::snprintf( nullptr, 0, format.c_str(), args ... ) + 1;
-    if( size_s <= 0 ){ throw std::runtime_error( "Error during formatting." ); }
-    auto size = static_cast<size_t>( size_s );
-    std::unique_ptr<char[]> buf( new char[ size ] );
-    std::snprintf( buf.get(), size, format.c_str(), args ... );
-    return std::string( buf.get(), buf.get() + size - 1 );
-}
 
 TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
     terminate_event_loop = false;
@@ -269,7 +261,6 @@ size_t TestModulesRedisCommandFixture::send_recv_resp_command_calculate_multi_re
 }
 
 bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
-        int client_fd,
         const std::vector<std::string>& arguments,
         char *expected,
         size_t expected_length,
@@ -435,16 +426,14 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
 }
 
 bool TestModulesRedisCommandFixture::send_recv_resp_command(
-        int client_fd,
         const std::vector<std::string>& arguments,
         char *expected,
         size_t expected_length) {
-    return send_recv_resp_command_multi_recv(client_fd, arguments, expected, expected_length, 1);
+    return send_recv_resp_command_multi_recv(arguments, expected, expected_length, 1);
 }
 
 bool TestModulesRedisCommandFixture::send_recv_resp_command_text(
-        int client_fd,
         const std::vector<std::string>& arguments,
         char *expected) {
-    return send_recv_resp_command(client_fd, arguments, expected, strlen(expected));
+    return send_recv_resp_command(arguments, expected, strlen(expected));
 }

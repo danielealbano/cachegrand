@@ -16,6 +16,8 @@
 #include "clock.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -37,14 +39,12 @@
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PING", "[redis][command][PING]") {
     SECTION("Without value") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"PING"},
                 "+PONG\r\n"));
     }
 
     SECTION("With value") {
         REQUIRE(send_recv_resp_command_text(
-                client_fd,
                 std::vector<std::string>{"PING", "a test"},
                 "$6\r\na test\r\n"));
     }
