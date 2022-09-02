@@ -6,13 +6,14 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#include <catch2/catch.hpp>
+#include <cstdint>
+#include <cstring>
 #include <numa.h>
-
-#include <string.h>
 
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "misc.h"
 #include "log/log.h"
 
@@ -23,6 +24,8 @@
 
 #include "../../../support.h"
 #include "fixtures-hashtable-mpmc.h"
+
+#include <catch2/catch.hpp>
 
 TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashtable_mcmp_op_set]") {
     SECTION("hashtable_mcmp_op_set") {
@@ -97,7 +100,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         &prev_value));
 
                 // Check if the write lock has been released
-                REQUIRE(!spinlock_is_locked(&half_hashes_chunk->write_lock));
+                REQUIRE(!transaction_spinlock_is_locked(&half_hashes_chunk->write_lock));
 
                 // Check if the first slot of the chain ring contains the correct key/value
                 REQUIRE(half_hashes_chunk->metadata.changes_counter == 1);
@@ -484,7 +487,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                             NULL));
 
                     // Check if the write lock has been released
-                    REQUIRE(!spinlock_is_locked(&half_hashes_chunk->write_lock));
+                    REQUIRE(!transaction_spinlock_is_locked(&half_hashes_chunk->write_lock));
 
                     // Check if the first slot of the chain ring contains the correct key/value
                     REQUIRE(half_hashes_chunk->metadata.changes_counter == 1);
