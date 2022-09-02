@@ -18,6 +18,8 @@
 #include "memory_fences.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "log/log.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
@@ -31,6 +33,7 @@
 
 bool hashtable_mcmp_op_rmw_begin(
         hashtable_t *hashtable,
+        transaction_t *transaction,
         hashtable_mcmp_op_rmw_status_t *rmw_status,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
@@ -54,6 +57,7 @@ bool hashtable_mcmp_op_rmw_begin(
             key_size,
             hash,
             true,
+            transaction,
             &created_new,
             &chunk_index,
             &half_hashes_chunk,
@@ -76,6 +80,7 @@ bool hashtable_mcmp_op_rmw_begin(
     rmw_status->key_size = key_size;
     rmw_status->hash = hash;
     rmw_status->hashtable = hashtable;
+    rmw_status->transaction = transaction;
     rmw_status->half_hashes_chunk = half_hashes_chunk;
     rmw_status->chunk_index = chunk_index;
     rmw_status->chunk_slot_index = chunk_slot_index;
@@ -125,9 +130,6 @@ void hashtable_mcmp_op_rmw_commit_update(
         rmw_status->key_value->flags = flags;
     }
 
-    // Will perform the memory fence for us
-    spinlock_unlock(&rmw_status->half_hashes_chunk->write_lock);
-
     // Validate if the passed key can be freed because unused or because inlined
     if (!rmw_status->created_new || key_inlined) {
         slab_allocator_mem_free(rmw_status->key);
@@ -145,7 +147,9 @@ void hashtable_mcmp_op_rmw_commit_delete(
     MEMORY_FENCE_STORE();
 
     if (likely(!rmw_status->created_new)) {
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
         hashtable_key_value_flags_t key_value_flags = rmw_status->key_value->flags;
+#endif
         rmw_status->key_value->flags = HASHTABLE_KEY_VALUE_FLAG_DELETED;
 
         MEMORY_FENCE_STORE();
@@ -170,8 +174,6 @@ void hashtable_mcmp_op_rmw_commit_delete(
 #endif
     }
 
-    spinlock_unlock(&rmw_status->half_hashes_chunk->write_lock);
-
     // Decrement the size counter if deleted is true
     hashtable_mcmp_thread_counters_get_current_thread(rmw_status->hashtable)->size--;
 }
@@ -181,7 +183,4 @@ void hashtable_mcmp_op_rmw_abort(
     if (rmw_status->created_new) {
         rmw_status->half_hashes_chunk->half_hashes[rmw_status->chunk_slot_index].slot_id = 0;
     }
-
-    // Will perform the memory fence for us
-    spinlock_unlock(&rmw_status->half_hashes_chunk->write_lock);
 }

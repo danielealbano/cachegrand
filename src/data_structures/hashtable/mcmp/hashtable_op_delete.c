@@ -18,6 +18,8 @@
 #include "memory_fences.h"
 #include "log/log.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "slab_allocator.h"
@@ -40,6 +42,7 @@ bool hashtable_mcmp_op_delete(
     hashtable_chunk_slot_index_t chunk_slot_index = 0;
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
     hashtable_key_value_volatile_t* key_value;
+    transaction_t transaction = { 0 };
     bool deleted = false;
 
     // TODO: the deletion algorithm needs to be updated to compact the keys stored in further away slots relying on the
@@ -91,7 +94,10 @@ bool hashtable_mcmp_op_delete(
 
         half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
 
-        spinlock_lock(&half_hashes_chunk->write_lock, true);
+        transaction_acquire(&transaction);
+        if (unlikely(!transaction_spinlock_lock(&half_hashes_chunk->write_lock, &transaction))) {
+            return false;
+        }
 
         // The hashtable_mcmp_support_op_search_key operation is lockless, it's necessary to set the lock and validate
         // that the hash initially found it's the same to avoid a potential race condition.
@@ -134,7 +140,7 @@ bool hashtable_mcmp_op_delete(
             deleted = true;
         }
 
-        spinlock_unlock(&half_hashes_chunk->write_lock);
+        transaction_release(&transaction);
     }
 
     LOG_DI("deleted = %s", deleted ? "YES" : "NO");

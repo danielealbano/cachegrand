@@ -20,6 +20,7 @@ extern bool hashtable_mcmp_support_op_search_key_or_create_new(
         hashtable_key_size_t key_size,
         hashtable_hash_t hash,
         bool create_new_if_missing,
+        transaction_t *transaction,
         bool *created_new,
         hashtable_chunk_index_t *found_chunk_index,
         hashtable_half_hashes_chunk_volatile_t **found_half_hashes_chunk,

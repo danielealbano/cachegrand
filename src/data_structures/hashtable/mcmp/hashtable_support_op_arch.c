@@ -18,6 +18,8 @@
 #include "misc.h"
 #include "log/log.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 
 #include "hashtable.h"
 #include "hashtable_support_index.h"
@@ -68,7 +70,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
     LOG_DI("hashtable_data->chunks_count = %lu", hashtable_data->chunks_count);
     LOG_DI("hashtable_data->buckets_count = %lu", hashtable_data->buckets_count);
     LOG_DI("hashtable_data->buckets_count_real = %lu", hashtable_data->buckets_count_real);
-    LOG_DI("half_hashes_chunk->write_lock.lock = %d", half_hashes_chunk->write_lock.lock);
+    LOG_DI("half_hashes_chunk->write_lock.lock = %d", half_hashes_chunk->write_lock.transaction_id);
     LOG_DI("half_hashes_chunk->metadata.is_full = %lu", half_hashes_chunk->metadata.is_full);
     LOG_DI("half_hashes_chunk->metadata.changes_counter = %lu", half_hashes_chunk->metadata.changes_counter);
     LOG_DI("half_hashes_chunk->metadata.overflowed_chunks_counter = %lu", overflowed_chunks_counter);
@@ -208,6 +210,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
         hashtable_key_size_t key_size,
         hashtable_hash_t hash,
         bool create_new_if_missing,
+        transaction_t *transaction,
         bool *created_new,
         hashtable_chunk_index_t *found_chunk_index,
         hashtable_half_hashes_chunk_volatile_t **found_half_hashes_chunk,
@@ -247,14 +250,19 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
 
     half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index_start];
 
-    spinlock_lock(&half_hashes_chunk->write_lock, true);
+    if (likely(!transaction_spinlock_is_owned_by_transaction(&half_hashes_chunk->write_lock, transaction))) {
+        if (unlikely(!transaction_spinlock_lock(&half_hashes_chunk->write_lock, transaction))) {
+            return false;
+        }
+    }
+
     locked_up_to_chunk_index = chunk_index_start;
 
     LOG_DI("locked_up_to_chunk_index = %lu", locked_up_to_chunk_index);
 
     uint8_volatile_t overflowed_chunks_counter = half_hashes_chunk->metadata.overflowed_chunks_counter;
 
-    LOG_DI("half_hashes_chunk->write_lock.lock = %lu", half_hashes_chunk->write_lock.lock);
+    LOG_DI("half_hashes_chunk->write_lock.lock = %lu", half_hashes_chunk->write_lock.transaction_id);
     LOG_DI("half_hashes_chunk->metadata.is_full = %lu", half_hashes_chunk->metadata.is_full);
     LOG_DI("half_hashes_chunk->metadata.changes_counter = %lu", half_hashes_chunk->metadata.changes_counter);
     LOG_DI("half_hashes_chunk->metadata.overflowed_chunks_counter = %lu", overflowed_chunks_counter);
@@ -309,7 +317,11 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                 locked_up_to_chunk_index = chunk_index;
 
                 LOG_DI(">> locking chunk (with retry)");
-                spinlock_lock(&half_hashes_chunk->write_lock, true);
+                if (likely(!transaction_spinlock_is_owned_by_transaction(&half_hashes_chunk->write_lock, transaction))) {
+                    if (unlikely(!transaction_spinlock_lock(&half_hashes_chunk->write_lock, transaction))) {
+                        return false;
+                    }
+                }
             }
 
             if (searching_or_creating == 0) {
@@ -442,20 +454,21 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
         LOG_DI("chunk %lu will not be unlocked, it has to be returned to the caller", *found_chunk_index);
     }
 
-    // TODO: refactor the code to have a sliding locking window, if the algorithm is not finding free slots there are
-    //       no reasons to keep a chunk locked
-    LOG_DI("unlocking chunks from %lu to %lu", chunk_index_start_initial, locked_up_to_chunk_index);
-    for (chunk_index = chunk_index_start_initial; chunk_index <= locked_up_to_chunk_index; chunk_index++) {
-        LOG_DI("> processing chunk %lu", chunk_index);
-        if (found == true && chunk_index == *found_chunk_index) {
-            LOG_DI("> chunk to return to the caller, keeping it locked");
-            continue;
-        }
-        half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
-
-        LOG_DI("> unlocking chunk");
-        spinlock_unlock(&half_hashes_chunk->write_lock);
-    }
+//    // The unlocking is now done via the transaction logic when transaction_release is issued
+//    // TODO: refactor the code to have a sliding locking window, if the algorithm is not finding free slots there are
+//    //       no reasons to keep a chunk locked
+//    LOG_DI("unlocking chunks from %lu to %lu", chunk_index_start_initial, locked_up_to_chunk_index);
+//    for (chunk_index = chunk_index_start_initial; chunk_index <= locked_up_to_chunk_index; chunk_index++) {
+//        LOG_DI("> processing chunk %lu", chunk_index);
+//        if (found == true && chunk_index == *found_chunk_index) {
+//            LOG_DI("> chunk to return to the caller, keeping it locked");
+//            continue;
+//        }
+//        half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
+//
+//        LOG_DI("> unlocking chunk");
+//        transaction_spinlock_unlock(&half_hashes_chunk->write_lock, transaction);
+//    }
 
     LOG_DI("found_half_hashes_chunk = 0x%016x", *found_half_hashes_chunk);
     LOG_DI("found_key_value = 0x%016x", *found_key_value);
