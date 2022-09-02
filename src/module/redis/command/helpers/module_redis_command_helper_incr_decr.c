@@ -19,6 +19,8 @@
 #include "log/log.h"
 #include "clock.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "utils_string.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
@@ -48,7 +50,9 @@ bool module_redis_command_helper_incr_decr(
     char *current_string = NULL;
     bool return_res = false;
     bool abort_rmw = true;
+    bool release_transaction = true;
     bool allocated_new_buffer = false;
+    transaction_t transaction = { 0 };
     storage_db_op_rmw_status_t rmw_status = { 0 };
     storage_db_entry_index_t *current_entry_index = NULL;
     storage_db_chunk_sequence_t *chunk_sequence_new = NULL;
@@ -56,8 +60,11 @@ bool module_redis_command_helper_incr_decr(
     int64_t number = 0, new_number;
     storage_db_expiry_time_ms_t expiry_time_ms = STORAGE_DB_ENTRY_NO_EXPIRY;
 
+    transaction_acquire(&transaction);
+
     if (unlikely(!storage_db_op_rmw_begin(
             connection_context->db,
+            &transaction,
             *key,
             *key_length,
             &rmw_status,
@@ -138,6 +145,9 @@ bool module_redis_command_helper_incr_decr(
         goto end;
     }
 
+    transaction_release(&transaction);
+    release_transaction = false;
+
     *key = NULL;
     *key_length = 0;
     chunk_sequence_new = NULL;
@@ -161,6 +171,10 @@ end:
         storage_db_op_rmw_abort(connection_context->db, &rmw_status);
     }
 
+    if (unlikely(release_transaction)) {
+        transaction_release(&transaction);
+    }
+
     if (unlikely(chunk_sequence_new)) {
         storage_db_chunk_sequence_free(connection_context->db, chunk_sequence_new);
     }
@@ -179,8 +193,10 @@ bool module_redis_command_helper_incr_decr_float(
     bool new_number_allocated_buffer = false;
     char *current_string = NULL;
     bool return_res = false;
+    bool release_transaction = true;
     bool abort_rmw = true;
     bool allocated_new_buffer = false;
+    transaction_t transaction = { 0 };
     storage_db_op_rmw_status_t rmw_status = { 0 };
     storage_db_entry_index_t *current_entry_index = NULL;
     storage_db_chunk_sequence_t *chunk_sequence_new = NULL;
@@ -188,8 +204,11 @@ bool module_redis_command_helper_incr_decr_float(
     long double number = 0, new_number;
     storage_db_expiry_time_ms_t expiry_time_ms = STORAGE_DB_ENTRY_NO_EXPIRY;
 
+    transaction_acquire(&transaction);
+
     if (unlikely(!storage_db_op_rmw_begin(
             connection_context->db,
+            &transaction,
             *key,
             *key_length,
             &rmw_status,
@@ -320,6 +339,9 @@ bool module_redis_command_helper_incr_decr_float(
         goto end;
     }
 
+    transaction_release(&transaction);
+    release_transaction = false;
+
     *key = NULL;
     *key_length = 0;
     chunk_sequence_new = NULL;
@@ -346,6 +368,10 @@ end:
 
     if (unlikely(abort_rmw)) {
         storage_db_op_rmw_abort(connection_context->db, &rmw_status);
+    }
+
+    if (unlikely(release_transaction)) {
+        transaction_release(&transaction);
     }
 
     if (unlikely(chunk_sequence_new)) {

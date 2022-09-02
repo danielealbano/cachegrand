@@ -17,6 +17,8 @@
 #include "exttypes.h"
 #include "clock.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -39,6 +41,10 @@
 
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
     bool use_rmw = false;
+    bool abort_rmw = true;
+    transaction_t transaction = { 0 };
+    storage_db_op_rmw_status_t rmw_status = { 0 };
+    bool release_transaction = true;
     bool return_res = false;
     bool key_and_value_owned = false;
     bool previous_entry_index_prepped_for_read = false;
@@ -107,11 +113,11 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
         key_and_value_owned = true;
         return_res = module_redis_connection_send_ok(connection_context);
     } else {
-        bool abort_rmw = false;
-        storage_db_op_rmw_status_t rmw_status = { 0 };
+        transaction_acquire(&transaction);
 
         if (unlikely(!storage_db_op_rmw_begin(
                 connection_context->db,
+                &transaction,
                 context->key.value.key,
                 context->key.value.length,
                 &rmw_status,
@@ -162,6 +168,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
             key_and_value_owned = true;
         }
 
+        transaction_release(&transaction);
+        release_transaction = false;
+
         // previous_entry_index might have been set to null by the return value of
         // storage_db_get_entry_index_prep_for_read if it had been deleted or if it's expired, it's necessary to check
         // again
@@ -178,6 +187,10 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
     }
 
 end:
+
+    if (use_rmw && release_transaction) {
+        transaction_release(&transaction);
+    }
 
     if (unlikely(previous_entry_index && previous_entry_index_prepped_for_read)) {
         storage_db_entry_index_status_decrease_readers_counter(previous_entry_index, NULL);

@@ -17,6 +17,8 @@
 #include "exttypes.h"
 #include "clock.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -40,15 +42,21 @@
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setnx) {
     bool return_res = false;
     bool abort_rmw = false;
+    bool release_transaction = true;
     bool key_and_value_owned = false;
     bool previous_entry_index_prepped_for_read = false;
     storage_db_entry_index_t *previous_entry_index = NULL;
-    module_redis_command_setnx_context_t *context = connection_context->command.context;
-    storage_db_expiry_time_ms_t expiry_time_ms = STORAGE_DB_ENTRY_NO_EXPIRY;
+    transaction_t transaction = { 0 };
     storage_db_op_rmw_status_t rmw_status = { 0 };
+    storage_db_expiry_time_ms_t expiry_time_ms = STORAGE_DB_ENTRY_NO_EXPIRY;
+
+    module_redis_command_setnx_context_t *context = connection_context->command.context;
+
+    transaction_acquire(&transaction);
 
     if (unlikely(!storage_db_op_rmw_begin(
             connection_context->db,
+            &transaction,
             context->key.value.key,
             context->key.value.length,
             &rmw_status,
@@ -82,9 +90,16 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setnx) {
         key_and_value_owned = true;
     }
 
+    transaction_release(&transaction);
+    release_transaction = false;
+
     return_res = module_redis_connection_send_number(connection_context, unlikely(abort_rmw) ? 0 : 1);
 
 end:
+
+    if (release_transaction) {
+        transaction_release(&transaction);
+    }
 
     if (unlikely(previous_entry_index && previous_entry_index_prepped_for_read)) {
         storage_db_entry_index_status_decrease_readers_counter(previous_entry_index, NULL);

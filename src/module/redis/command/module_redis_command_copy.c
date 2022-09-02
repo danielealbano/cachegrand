@@ -19,6 +19,8 @@
 #include "log/log.h"
 #include "clock.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
@@ -45,6 +47,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
     bool return_res = false;
     bool error_found = false;
     bool value_copied = false;
+    bool abort_rmw = true;
+    bool release_transaction = true;
+    transaction_t transaction = { 0 };
     storage_db_op_rmw_status_t rmw_status = { 0 };
     storage_db_entry_index_t *entry_index_source = NULL;
     storage_db_entry_index_t *entry_index_destination_current = NULL;
@@ -63,8 +68,15 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
         goto end;
     }
 
+    // TODO: optimize setrange to use the get operation (which will not lock), create the new chunk sequence and then
+    //       only at the end start the transaction to update the destination key otherwise the execution of the setrange
+    //       command can impact the overall performances
+
+    transaction_acquire(&transaction);
+
     if (unlikely(!storage_db_op_rmw_begin(
             connection_context->db,
+            &transaction,
             context->destination.value.key,
             context->destination.value.length,
             &rmw_status,
@@ -77,7 +89,6 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
     }
 
     if (unlikely(!context->replace_replace.has_token && entry_index_destination_current != NULL)) {
-        storage_db_op_rmw_abort(connection_context->db, &rmw_status);
         return_res = true;
         goto end;
     }
@@ -180,6 +191,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
         goto end;
     }
 
+    transaction_release(&transaction);
+    release_transaction = false;
+    abort_rmw = false;
     value_copied = true;
     return_res = true;
 
@@ -189,6 +203,14 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
     chunk_sequence_destination = NULL;
 
 end:
+
+    if (unlikely(abort_rmw)) {
+        storage_db_op_rmw_abort(connection_context->db, &rmw_status);
+    }
+
+    if (unlikely(release_transaction)) {
+        transaction_release(&transaction);
+    }
 
     if (unlikely(allocated_new_buffer)) {
         slab_allocator_mem_free(source_chunk_data);
