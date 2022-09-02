@@ -66,8 +66,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(expiretime) {
     } else {
         expiry_time = current_entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY
                 ? -1
-                : current_entry_index->expiry_time_ms;
-
+                : (current_entry_index->expiry_time_ms / 1000);
     }
 
 end:
