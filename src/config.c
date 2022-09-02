@@ -19,6 +19,8 @@
 #include "exttypes.h"
 #include "misc.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "xalloc.h"
 #include "log/log.h"
 #include "fatal.h"

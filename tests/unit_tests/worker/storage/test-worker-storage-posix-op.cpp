@@ -20,6 +20,8 @@
 #include "misc.h"
 #include "exttypes.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "fiber.h"
 #include "fiber_scheduler.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"

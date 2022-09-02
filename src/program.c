@@ -33,6 +33,8 @@
 #include "log/sink/log_sink_console.h"
 #include "hugepages.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "config.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"

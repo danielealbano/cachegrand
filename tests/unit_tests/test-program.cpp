@@ -27,6 +27,8 @@
 #include "xalloc.h"
 #include "memory_fences.h"
 #include "spinlock.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
