@@ -39,7 +39,7 @@
 #include "hugepages.h"
 #include "hugepage_cache.h"
 
-#include "slab_allocator.h"
+#include "fast_fixed_memory_allocator.h"
 
 #if SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES == 1
 #include <stdio.h>

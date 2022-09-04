@@ -1,5 +1,5 @@
-#ifndef CACHEGRAND_SLAB_ALLOCATOR_H
-#define CACHEGRAND_SLAB_ALLOCATOR_H
+#ifndef CACHEGRAND_FAST_MEMORY_ALLOCATOR_H
+#define CACHEGRAND_FAST_MEMORY_ALLOCATOR_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,8 +39,8 @@ extern "C" {
 
 static const uint32_t slab_predefined_object_sizes[] = { SLAB_PREDEFINED_OBJECT_SIZES };
 
-typedef struct slab_allocator slab_allocator_t;
-struct slab_allocator {
+typedef struct fast_memory_allocator slab_allocator_t;
+struct fast_memory_allocator {
     // The slots and the slices are sorted per availability
     double_linked_list_t *slots;
     double_linked_list_t *slices;
@@ -220,4 +220,4 @@ void slab_allocator_mem_free(
 }
 #endif
 
-#endif //CACHEGRAND_SLAB_ALLOCATOR_H
+#endif //CACHEGRAND_FAST_MEMORY_ALLOCATOR_H
