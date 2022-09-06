@@ -21,10 +21,9 @@
 #include "misc.h"
 #include "log/log.h"
 #include "fatal.h"
+#include "mimalloc.h"
 
 #include "xalloc.h"
-
-// TODO: should use libnuma set_mempolicy the be able to use mmap and allocate interleaved memory across numa nodes
 
 #define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)   /* 2 MB hugepages */
 
@@ -35,6 +34,19 @@ void* xalloc_alloc(
     void* memptr;
 
     memptr = mi_malloc(size);
+
+    if (memptr == NULL) {
+        FATAL(TAG, "Unable to allocate the requested memory %lu", size);
+    }
+
+    return memptr;
+}
+
+void* xalloc_alloc_small(
+        size_t size) {
+    void* memptr;
+
+    memptr = mi_malloc_small(size);
 
     if (memptr == NULL) {
         FATAL(TAG, "Unable to allocate the requested memory %lu", size);
@@ -60,6 +72,18 @@ void* xalloc_alloc_zero(
     void* memptr;
 
     memptr = mi_zalloc(size);
+    if (memset(memptr, 0, size) != memptr) {
+        FATAL(TAG, "Unable to zero the requested memory %lu", size);
+    }
+
+    return memptr;
+}
+
+void* xalloc_alloc_zero_small(
+        size_t size) {
+    void* memptr;
+
+    memptr = mi_zalloc_small(size);
     if (memset(memptr, 0, size) != memptr) {
         FATAL(TAG, "Unable to zero the requested memory %lu", size);
     }
