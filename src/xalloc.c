@@ -34,7 +34,7 @@ void* xalloc_alloc(
         size_t size) {
     void* memptr;
 
-    memptr = malloc(size);
+    memptr = mi_malloc(size);
 
     if (memptr == NULL) {
         FATAL(TAG, "Unable to allocate the requested memory %lu", size);
@@ -46,7 +46,7 @@ void* xalloc_alloc(
 void* xalloc_realloc(
         void* memptr,
         size_t size) {
-    memptr = realloc(memptr, size);
+    memptr = mi_realloc(memptr, size);
 
     if (memptr == NULL) {
         FATAL(TAG, "Unable to allocate the requested memory %lu to resize the pointer 0x%p", size, memptr);
@@ -59,7 +59,7 @@ void* xalloc_alloc_zero(
         size_t size) {
     void* memptr;
 
-    memptr = xalloc_alloc(size);
+    memptr = mi_zalloc(size);
     if (memset(memptr, 0, size) != memptr) {
         FATAL(TAG, "Unable to zero the requested memory %lu", size);
     }
@@ -74,7 +74,7 @@ void* xalloc_alloc_aligned(
     bool failed = false;
 
 #if defined(__linux__)
-    memptr = aligned_alloc(alignment, size);
+    memptr = mi_malloc_aligned(size, alignment);
 
     if (memptr == NULL) {
         failed = true;
@@ -95,7 +95,7 @@ void* xalloc_alloc_aligned_zero(
         size_t size) {
     void* memptr;
 
-    memptr = xalloc_alloc_aligned(alignment, size);
+    memptr = mi_zalloc_aligned(size, alignment);
     if (memset(memptr, 0, size) != memptr) {
         FATAL(TAG, "Unable to zero the requested memory %lu", size);
     }
@@ -105,7 +105,7 @@ void* xalloc_alloc_aligned_zero(
 
 void xalloc_free(
         void *memptr) {
-    free(memptr);
+    mi_free(memptr);
 }
 
 size_t xalloc_get_page_size() {
