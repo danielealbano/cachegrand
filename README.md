@@ -16,8 +16,8 @@
 ### 1000% faster without spending one extra cent!
 
 Are you running a large Redis cluster because you need better performance? **Why pay more for less?**
-cachegrand can help dramatically to squeeze all the value your existing infrastructure is already offering! On top end
-machines is able to deliver **40X** better performances handling **64X** more load!
+cachegrand can help to squeeze all the value of your existing infrastructure is already offering!
+On a 64 core machine (AMD EPYC 7502P) is even able to deliver **40X** better performances handling **64X** more load!
 
 That's not all! Not only we are working hard to expand the Redis API support but cachegrand comes with a tiered
 storage - currently work in progress - will let you leverage flash disks and **reduce the TCO (Total Cost of Ownership) 
