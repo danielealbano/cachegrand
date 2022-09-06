@@ -24,7 +24,7 @@
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/fast_fixed_memory_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_get.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
@@ -160,7 +160,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(append) {
             } while(buffer_length > 0);
 
             if (unlikely(allocated_new_buffer)) {
-                fast_fixed_memory_allocator_mem_free(source_buffer);
+                ffma_mem_free(source_buffer);
                 source_buffer = NULL;
                 allocated_new_buffer = false;
             }
@@ -193,7 +193,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(append) {
 end:
 
     if (unlikely(allocated_new_buffer)) {
-        fast_fixed_memory_allocator_mem_free(source_buffer);
+        ffma_mem_free(source_buffer);
         source_buffer = NULL;
         allocated_new_buffer = false;
     }

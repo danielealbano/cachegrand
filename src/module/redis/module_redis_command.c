@@ -31,7 +31,7 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/fast_fixed_memory_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "protocol/redis/protocol_redis_writer.h"
@@ -54,7 +54,7 @@ bool module_redis_command_process_begin(
     module_redis_command_parser_context_t *command_parser_context = &connection_context->command.parser_context;
 
     if (connection_context->command.info->context_size > 0) {
-        if ((connection_context->command.context = fast_fixed_memory_allocator_mem_alloc_zero(
+        if ((connection_context->command.context = ffma_mem_alloc_zero(
                 connection_context->command.info->context_size)) == NULL) {
             LOG_D(TAG, "Unable to allocate the command context, terminating connection");
             return false;
@@ -144,10 +144,10 @@ void *module_redis_command_context_list_expand_and_get_new_entry(
 
     // If the list_count is zero it's not necessary to get the current pointer
     if (list_count == 0) {
-        list = fast_fixed_memory_allocator_mem_alloc_zero(list_count_new * argument->argument_context_member_size);
+        list = ffma_mem_alloc_zero(list_count_new * argument->argument_context_member_size);
     } else {
         list = module_redis_command_context_list_get_list(argument, base_addr);
-        list = fast_fixed_memory_allocator_mem_realloc(
+        list = ffma_mem_realloc(
                 list,
                 list_count * argument->argument_context_member_size,
                 list_count_new * argument->argument_context_member_size,
@@ -608,7 +608,7 @@ bool module_redis_command_process_argument_full(
                        guessed_argument->name);
             }
 
-            string_value = fast_fixed_memory_allocator_mem_alloc(chunk_length);
+            string_value = ffma_mem_alloc(chunk_length);
 
             if (!string_value) {
                 LOG_E(TAG, "Failed to allocate memory for the incoming data");
@@ -908,7 +908,7 @@ bool module_redis_command_stream_entry_range_with_multiple_chunks(
                     buffer_to_send + sent_data,
                     data_to_send_length) != NETWORK_OP_RESULT_OK) {
                 if (allocated_new_buffer) {
-                    fast_fixed_memory_allocator_mem_free(buffer_to_send);
+                    ffma_mem_free(buffer_to_send);
                 }
 
                 return false;
@@ -921,7 +921,7 @@ bool module_redis_command_stream_entry_range_with_multiple_chunks(
         assert(sent_data == chunk_length_to_send);
 
         if (allocated_new_buffer) {
-            fast_fixed_memory_allocator_mem_free(buffer_to_send);
+            ffma_mem_free(buffer_to_send);
         }
 
         // Resets sent data at the end of the loop

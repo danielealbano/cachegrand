@@ -40,49 +40,49 @@ all the hugepages are fetched from the numa-domain executing the core.
 
 ```mermaid
 classDiagram
-  class fast_fixed_memory_allocator_t {
+  class ffma_t {
     double_linked_list_t *slots;
     double_linked_list_t *slices;
-    queue_mpmc_t *free_fast_fixed_memory_allocator_slots_queue_from_other_threads;
-    bool_volatile_t fast_fixed_memory_allocator_freed;
+    queue_mpmc_t *free_ffma_slots_queue_from_other_threads;
+    bool_volatile_t ffma_freed;
     uint32_t object_size;
     uint16_t metrics.slices_inuse_count;
     uint32_volatile_t metrics.objects_inuse_count;
   }
   
-  class fast_fixed_memory_allocator_slice_t {
+  class ffma_slice_t {
     double_linked_list_item_t double_linked_list_item
     void *data.padding[2]
-    fast_fixed_memory_allocator_t *data.fast_fixed_memory_allocator
+    ffma_t *data.ffma
     void *data.page_addr
     uintptr_t data.data_addr
     bool data.available
     uint32_t data.metrics.objects_total_count
     uint32_t data.metrics.objects_inuse_count
-    fast_fixed_memory_allocator_slot_t data.slots[]
+    ffma_slot_t data.slots[]
   }
   
-  class fast_fixed_memory_allocator_slot_t {
+  class ffma_slot_t {
     double_linked_list_item_t double_linked_list_item
     void data.padding[2]
     void* data.memptr
     bool data.available
   }
   
-  fast_fixed_memory_allocator_t "1" <--> "many" fast_fixed_memory_allocator_slice_t
-  fast_fixed_memory_allocator_t "1" --> "many" fast_fixed_memory_allocator_slot_t
-  fast_fixed_memory_allocator_slice_t "1" --> "many" fast_fixed_memory_allocator_slot_t
+  ffma_t "1" <--> "many" ffma_slice_t
+  ffma_t "1" --> "many" ffma_slot_t
+  ffma_slice_t "1" --> "many" ffma_slot_t
 ```
 
-#### struct fast_fixed_memory_allocator (fast_fixed_memory_allocator_t)
+#### struct ffma (ffma_t)
 
 ```c
-typedef struct fast_fixed_memory_allocator fast_fixed_memory_allocator_t;
-struct fast_fixed_memory_allocator {
+typedef struct ffma ffma_t;
+struct ffma {
     double_linked_list_t *slots;
     double_linked_list_t *slices;
-    queue_mpmc_t *free_fast_fixed_memory_allocator_slots_queue_from_other_threads;
-    bool_volatile_t fast_fixed_memory_allocator_freed;
+    queue_mpmc_t *free_ffma_slots_queue_from_other_threads;
+    bool_volatile_t ffma_freed;
     uint32_t object_size;
     struct {
         uint16_t slices_inuse_count;
@@ -104,10 +104,10 @@ If no slots are available, the slab allocator requests to the component that han
 a new one, once received the slab allocator initializes a slab slice out of the hugepage and update the list of
 available slots.
 A hugepage can easily contain tens of thousands of 16 bytes objects, so the price is very well amortized for the small
-objects, more explanation on the calculations are provided in the [fast_fixed_memory_allocator_slice_t](#struct-fast_fixed_memory_allocator_slice-fast_fixed_memory_allocator_slice_t)
+objects, more explanation on the calculations are provided in the [ffma_slice_t](#struct-ffma_slice-ffma_slice_t)
 section.
 
-A queue called `free_fast_fixed_memory_allocator_slots_queue_from_other_threads` exists in case memory allocated by one thread gets freed by
+A queue called `free_ffma_slots_queue_from_other_threads` exists in case memory allocated by one thread gets freed by
 another, the thread that doesn't own the memory passes it to the thread that ones it via a mpmc queue that uses atomic
 operations to maintain a correct state.
 In case the slab allocator has to fetch a slot but no more pre-allocated slots are available, then the queue is checked
@@ -120,14 +120,14 @@ in a slice and this is returned to the hugepages cache to be reused.
 This approach provides cache-locality and O(1) access in the best and average case - e.g. if there are pre-allocated
 slots available.
 
-#### struct fast_fixed_memory_allocator_slice (fast_fixed_memory_allocator_slice_t)
+#### struct ffma_slice (ffma_slice_t)
 
 ```c
 typedef union {
     double_linked_list_item_t double_linked_list_item;
     struct {
         void* padding[2];
-        fast_fixed_memory_allocator_t* fast_fixed_memory_allocator;
+        ffma_t* ffma;
         void* page_addr;
         uintptr_t data_addr;
         bool available;
@@ -135,55 +135,55 @@ typedef union {
             uint32_t objects_total_count;
             uint32_t objects_inuse_count;
         } metrics;
-        fast_fixed_memory_allocator_slot_t slots[];
+        ffma_slot_t slots[];
     } __attribute__((aligned(64))) data;
-} fast_fixed_memory_allocator_slice_t;
+} ffma_slice_t;
 ```
 
 A slab slice is a hugepage, the data of the structure is contained at the very beginning of it.
 
 A union is used to reduce memory waste, double_linked_list_item_t has a `data` field that would be wasted in this case
-because the pointer to the `double_linked_list_item` can be cast back to `fast_fixed_memory_allocator_slice_t`.
+because the pointer to the `double_linked_list_item` can be cast back to `ffma_slice_t`.
 
 The field `page_addr` points to the beginning of the slice and although it's a duplication, because
 `double_linked_list_item` it's the beginning of the slice itself, there is currently enough space for it and to improve
 the code readability it's better to have it. This field is mostly used in the pointer math used to calculate the slot /
-object memory address in `fast_fixed_memory_allocator_mem_free`.
+object memory address in `ffma_mem_free`.
 
 The field `data_addr` points instead to the beginning of the slots, to `slots[0]`, and it's used as well in the pointer
-math to calculate the slot / object index in `fast_fixed_memory_allocator_mem_free`. It's also worth to note that `data_addr`, for
+math to calculate the slot / object index in `ffma_mem_free`. It's also worth to note that `data_addr`, for
 performance reasons, is kept **always** page aligned.
 
 The field `metrics.objects_total_count` is calculated using the following code
 ```c
 size_t page_size = HUGEPAGE_SIZE_2MB;
-size_t usable_page_size = page_size - os_page_size - sizeof(fast_fixed_memory_allocator_slice_t);
-size_t fast_fixed_memory_allocator_slot_size = sizeof(fast_fixed_memory_allocator_slot_t);
-uint32_t item_size = fast_fixed_memory_allocator->object_size + fast_fixed_memory_allocator_slot_size;
+size_t usable_page_size = page_size - os_page_size - sizeof(ffma_slice_t);
+size_t ffma_slot_size = sizeof(ffma_slot_t);
+uint32_t item_size = ffma->object_size + ffma_slot_size;
 uint32_t slots_count = (int)(usable_page_size / item_size);
 ```
 
 that can be simplified to
 ```
-(2MB - page size - sizeof(fast_fixed_memory_allocator_slice_t)) / (object size + sizeof(fast_fixed_memory_allocator_slot_t))
+(2MB - page size - sizeof(ffma_slice_t)) / (object size + sizeof(ffma_slot_t))
 ```
 
-Where `page size` is the size of page, usually 4kb, then `sizeof(fast_fixed_memory_allocator_slice_t)` is `64` bytes on 64bit architectures and
-`sizeof(fast_fixed_memory_allocator_slot_t)` is `32` bytes. These last two structs are checked in the tests to ensure that the size matches the
+Where `page size` is the size of page, usually 4kb, then `sizeof(ffma_slice_t)` is `64` bytes on 64bit architectures and
+`sizeof(ffma_slot_t)` is `32` bytes. These last two structs are checked in the tests to ensure that the size matches the
 expectation.
 
 For `128` bytes objects a slice using the formula above `(2MB - 4Kb - 64) / (128 + 32)` can contain `13081` objects.
 
-The `double_linked_list_item` is an item of the `fast_fixed_memory_allocator->slices` double linked list. As explained above, the
+The `double_linked_list_item` is an item of the `ffma->slices` double linked list. As explained above, the
 available slices are kept at the head meanwhile the in use ones at the tail.
 
 Here an example of the memory layout of a slice
 
-![SLAB Allocator - Memory layout](../images/fast_fixed_memory_allocator_2.png)
+![SLAB Allocator - Memory layout](../images/ffma_2.png)
 
 *(the schema hasn't been updated after renaming the memory allocator)*
 
-#### struct fast_fixed_memory_allocator_slot (fast_fixed_memory_allocator_slot_t)
+#### struct ffma_slot (ffma_slot_t)
 
 ```c
 typedef union {
@@ -199,25 +199,25 @@ typedef union {
         bool available;
 #endif
     } data;
-} fast_fixed_memory_allocator_slot_t;
+} ffma_slot_t;
 ```
 
 This is the actual slot, a union with the struct representing the item of the double linked list at the beginning.
 
 The field `memptr` contains the pointer to the memory, in the slice, assigned to this slot calculated as follows
 ```c
-fast_fixed_memory_allocator_slot->data.memptr = (void*)(fast_fixed_memory_allocator_slice->data.data_addr + (index * fast_fixed_memory_allocator->object_size));
+ffma_slot->data.memptr = (void*)(ffma_slice->data.data_addr + (index * ffma->object_size));
 ```
 
 The field `available` is marked true on creation and gets marked false when allocated or back to true when freed.
 
-The `double_linked_list_item` is an item of the `fast_fixed_memory_allocator->thread_metadata[i]->slots` double linked list. As
+The `double_linked_list_item` is an item of the `ffma->thread_metadata[i]->slots` double linked list. As
 explained above, the available slices are kept at the head meanwhile the in use ones at the tail.
 
 ### Benchmarks
 
 *The benchmarks below are very obsolete and need to be regenerated from the benchmark in the benches' folder.*
 
-![SLAB Allocator - Benchmarks](../images/fast_fixed_memory_allocator_3.png)
+![SLAB Allocator - Benchmarks](../images/ffma_3.png)
 
 [1]: https://en.wikipedia.org/wiki/Slab_allocation

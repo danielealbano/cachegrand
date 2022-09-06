@@ -16,7 +16,7 @@
 #include "spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/fast_fixed_memory_allocator.h"
+#include "memory_allocator/ffma.h"
 
 #include "small_circular_queue.h"
 
@@ -25,19 +25,19 @@ small_circular_queue_t* small_circular_queue_init(
     // The fast fixed memory allocator doesn't have the ability to allocate more than the maximum object size therefore
     // the size of the circular queue can't be greater than the maximum size the memory allocator can allocate divided
     // by the size of the small_circular_queue struct. On 64 bit systems this should be equal to 4096.
-    assert(length < (FAST_FIXED_MEMORY_ALLOCATOR_OBJECT_SIZE_MAX / sizeof(small_circular_queue_t)));
+    assert(length < (FFMA_OBJECT_SIZE_MAX / sizeof(small_circular_queue_t)));
 
     small_circular_queue_t *scq = NULL;
-    scq = (small_circular_queue_t*)fast_fixed_memory_allocator_mem_alloc(sizeof(small_circular_queue_t));
+    scq = (small_circular_queue_t*)ffma_mem_alloc(sizeof(small_circular_queue_t));
 
     if (!scq) {
         return NULL;
     }
 
-    scq->items = (void**)fast_fixed_memory_allocator_mem_alloc(length * sizeof(void*));
+    scq->items = (void**)ffma_mem_alloc(length * sizeof(void*));
 
     if (!scq->items) {
-        fast_fixed_memory_allocator_mem_free(scq);
+        ffma_mem_free(scq);
         return NULL;
     }
 
@@ -51,8 +51,8 @@ small_circular_queue_t* small_circular_queue_init(
 
 void small_circular_queue_free(
         small_circular_queue_t *scq) {
-    fast_fixed_memory_allocator_mem_free(scq->items);
-    fast_fixed_memory_allocator_mem_free(scq);
+    ffma_mem_free(scq->items);
+    ffma_mem_free(scq);
 }
 
 int16_t small_circular_queue_count(

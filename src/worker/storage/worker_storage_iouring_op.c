@@ -24,7 +24,7 @@
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/fast_fixed_memory_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "support/io_uring/io_uring_support.h"
 #include "config.h"
 #include "storage/io/storage_io_common.h"

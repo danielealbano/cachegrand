@@ -22,7 +22,7 @@
 #include "transaction_spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/fast_fixed_memory_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_data.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_get_key.h"

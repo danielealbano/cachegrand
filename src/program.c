@@ -55,7 +55,7 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "thread.h"
 #include "hugepage_cache.h"
-#include "memory_allocator/fast_fixed_memory_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "support/sentry/sentry_support.h"
 #include "signal_handler_thread.h"
 
@@ -451,7 +451,7 @@ bool program_use_huge_pages(
         hugepage_cache_init();
     }
 
-    fast_fixed_memory_allocator_enable(use_huge_pages);
+    ffma_enable(use_huge_pages);
 
     program_context->use_huge_pages = use_huge_pages;
 
@@ -750,8 +750,8 @@ end:
 
     program_cleanup(program_context);
 
-#if FAST_FIXED_MEMORY_ALLOCATOR_DEBUG_ALLOCS_FREES == 1
-    fast_fixed_memory_allocator_debug_allocs_frees_end();
+#if FFMA_DEBUG_ALLOCS_FREES == 1
+    ffma_debug_allocs_frees_end();
 #endif
 
     return return_res;

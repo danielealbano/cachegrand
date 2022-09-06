@@ -120,7 +120,7 @@ static void hashtable_op_get_single_key_external(benchmark::State& state) {
         bucket_index = test_key_1_hash % hashtable->ht_current->buckets_count;
         chunk_index = HASHTABLE_TO_CHUNK_INDEX(bucket_index);
         chunk_slot_index = 0;
-        char *test_key_1_clone = (char*)fast_fixed_memory_allocator_mem_alloc_zero(test_key_1_len + 1);
+        char *test_key_1_clone = (char*)ffma_mem_alloc_zero(test_key_1_len + 1);
         strncpy(test_key_1_clone, test_key_1, test_key_1_len);
 
         HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(

@@ -23,7 +23,7 @@
 #include "log/log.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/fast_fixed_memory_allocator.h"
+#include "memory_allocator/ffma.h"
 
 #include "hashtable.h"
 #include "hashtable_op_rmw.h"
@@ -134,7 +134,7 @@ void hashtable_mcmp_op_rmw_commit_update(
 
     // Validate if the passed key can be freed because unused or because inlined
     if (!rmw_status->created_new || key_inlined) {
-        fast_fixed_memory_allocator_mem_free(rmw_status->key);
+        ffma_mem_free(rmw_status->key);
     }
 
     // Decrement the size counter if deleted is true
@@ -159,7 +159,7 @@ void hashtable_mcmp_op_rmw_commit_delete(
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
         if (!HASHTABLE_KEY_VALUE_HAS_FLAG(key_value_flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
 #endif
-        fast_fixed_memory_allocator_mem_free(rmw_status->key_value->external_key.data);
+        ffma_mem_free(rmw_status->key_value->external_key.data);
         rmw_status->key_value->external_key.data = NULL;
         rmw_status->key_value->external_key.size = 0;
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1

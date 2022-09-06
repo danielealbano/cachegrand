@@ -18,7 +18,7 @@
 #include "thread.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/fast_fixed_memory_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "fiber.h"
 #include "fiber_scheduler.h"
 #include "clock.h"
@@ -44,7 +44,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         transaction.locks.count = 0;
         transaction.locks.size = 8;
 
-        transaction_spinlock_lock_volatile_t** initial_list = (transaction_spinlock_lock_volatile_t**)fast_fixed_memory_allocator_mem_alloc(
+        transaction_spinlock_lock_volatile_t** initial_list = (transaction_spinlock_lock_volatile_t**)ffma_mem_alloc(
                 sizeof(void*) * transaction.locks.size);
         transaction.locks.list = initial_list;
 
@@ -67,7 +67,7 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(transaction.locks.list != interim_list);
         }
 
-        fast_fixed_memory_allocator_mem_free(transaction.locks.list);
+        ffma_mem_free(transaction.locks.list);
     }
 
     SECTION("transaction_needs_expand_locks_list") {
@@ -92,7 +92,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         transaction_t transaction = { };
         transaction.locks.count = 0;
         transaction.locks.size = 8;
-        transaction.locks.list = (transaction_spinlock_lock_volatile_t**)fast_fixed_memory_allocator_mem_alloc(
+        transaction.locks.list = (transaction_spinlock_lock_volatile_t**)ffma_mem_alloc(
                 sizeof(void*) * transaction.locks.size);
 
         SECTION("Add one lock") {
@@ -129,7 +129,7 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(transaction.locks.list[ARRAY_SIZE(lock) - 1] == &lock[ARRAY_SIZE(lock) - 1]);
         }
 
-        fast_fixed_memory_allocator_mem_free(transaction.locks.list);
+        ffma_mem_free(transaction.locks.list);
     }
 
     SECTION("transaction_acquire") {
@@ -147,7 +147,7 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(transaction.locks.size == 8);
             REQUIRE(transaction.locks.list != nullptr);
 
-            fast_fixed_memory_allocator_mem_free(transaction.locks.list);
+            ffma_mem_free(transaction.locks.list);
         }
 
         SECTION("Acquire two") {
@@ -162,8 +162,8 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(transaction2.transaction_id.worker_index == UINT16_MAX);
             REQUIRE(transaction2.transaction_id.transaction_index == current_transaction_index + 2);
 
-            fast_fixed_memory_allocator_mem_free(transaction1.locks.list);
-            fast_fixed_memory_allocator_mem_free(transaction2.locks.list);
+            ffma_mem_free(transaction1.locks.list);
+            ffma_mem_free(transaction2.locks.list);
         }
     }
 
