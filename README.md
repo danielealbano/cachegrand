@@ -4,8 +4,10 @@
 ![Lines of code](https://sloc.xyz/github/danielealbano/cachegrand)
 [![COCOMO](https://sloc.xyz/github/danielealbano/cachegrand?category=cocomo)](https://en.wikipedia.org/wiki/COCOMO)
 
-cachegrand
-==========
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/images/logo-dark.png">
+  <img alt="cachegrand logo" src="https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/images/logo-light.png">
+</picture>
 
 cachegrand is an open-source fast, scalable and modular Key-Value store designed from the ground up to take advantage of
 modern hardware, able to provide better performance when compared to similar projects but also capable to provide a
