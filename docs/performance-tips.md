@@ -1,10 +1,21 @@
 Performance Tips
 ================
 
-## SLAB Allocator
+## HugePages
 
-The SLAB Allocator provides a ~10% boost, in some cases even more, to cachegrand therefore it's usage is strongly
-advised.
+cachegrand has the ability to leverage the hugepages for several optimizations and although the usage is not mandatory
+it's expected to be run in production with them enabled.
+
+### Fast Fixed Memory Allocator
+
+When the hugepages are enable it's possible to use the Fast Fixed Memory Allocator (FFMA) which is capable of providing
+a ~10% boost, in some cases even more, to cachegrand thanks to the advanced techniques put in place to allocate and free
+memory of specific fixed sizes.
+
+### Executable running from hugepages
+
+cachegrand can also leverage the hugepages to run its own code from them, this dramatically reduces the TLB cache
+misses and provides up to a 5% speed bump.
 
 ## Network Settings
 

@@ -22,7 +22,7 @@
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/fast_fixed_memory_allocator.h"
 
 #include "transaction.h"
 #include "transaction_spinlock.h"
@@ -48,7 +48,7 @@ bool transaction_expand_locks_list(
     size_t current_mem_size = sizeof(transaction_spinlock_lock_volatile_t*) * transaction->locks.size;
 
     transaction->locks.size = transaction->locks.size * 2;
-    transaction->locks.list = slab_allocator_mem_realloc(
+    transaction->locks.list = fast_fixed_memory_allocator_mem_realloc(
             transaction->locks.list,
             current_mem_size,
             sizeof(transaction_spinlock_lock_volatile_t*) * transaction->locks.size,
@@ -77,7 +77,7 @@ bool transaction_acquire(
 
     transaction->locks.count = 0;
     transaction->locks.size = 8;
-    transaction->locks.list = slab_allocator_mem_alloc(
+    transaction->locks.list = fast_fixed_memory_allocator_mem_alloc(
             sizeof(transaction_spinlock_lock_volatile_t*) * transaction->locks.size);
 
     if (transaction->locks.list == NULL) {
@@ -99,7 +99,7 @@ void transaction_release(
 #endif
     }
 
-    slab_allocator_mem_free(transaction->locks.list);
+    fast_fixed_memory_allocator_mem_free(transaction->locks.list);
 
     transaction->locks.list = NULL;
     transaction->transaction_id.id = TRANSACTION_ID_NOT_ACQUIRED;

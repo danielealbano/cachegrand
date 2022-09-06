@@ -6,7 +6,7 @@
 
 option(BUILD_TESTS "Build Tests" 0)
 option(BUILD_INTERNAL_BENCHES "Build Internal Benches" 0)
-option(SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES "Enable the slab allocator allocs/frees debugging" 0)
+option(FAST_FIXED_MEMORY_ALLOCATOR_DEBUG_ALLOCS_FREES "Enable the fast fixed memory allocator allocs/frees debugging" 0)
 
 option(USE_HASH_ALGORITHM_XXH3 "Use xxh3 (xxHash) as hash algorithm for the hashtable" 0)
 option(USE_HASH_ALGORITHM_T1HA2 "Use t1ha2 as hash algorithm for the hashtable" 0)

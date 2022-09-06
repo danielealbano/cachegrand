@@ -7,8 +7,8 @@ extern "C" {
 
 typedef struct program_context program_context_t;
 struct program_context {
-    bool use_slab_allocator;
-    bool slab_allocator_inited;
+    bool use_huge_pages;
+    bool fast_memory_allocator_initialized;
     config_t *config;
     uint16_t *selected_cpus;
     uint16_t selected_cpus_count;

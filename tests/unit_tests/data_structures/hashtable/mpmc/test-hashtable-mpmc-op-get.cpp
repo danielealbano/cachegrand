@@ -19,7 +19,7 @@
 #include "xalloc.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/fast_fixed_memory_allocator.h"
 
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
@@ -72,7 +72,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
         SECTION("found - key external") {
             HASHTABLE(0x7FFF, false, {
                 // Not necessary to free, the key is owned by the hashtable
-                char *test_key_1_copy = (char*)slab_allocator_mem_alloc(test_key_1_len + 1);
+                char *test_key_1_copy = (char*)fast_fixed_memory_allocator_mem_alloc(test_key_1_len + 1);
                 strcpy(test_key_1_copy, test_key_1);
 
                 hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
@@ -100,8 +100,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
         SECTION("found - multiple chunks first slot") {
             HASHTABLE(0x7FFF, false, {
                 // Not necessary to free, the key(s) is owned by the hashtable
-                char *test_key_1_copy = (char*)slab_allocator_mem_alloc(test_key_1_len + 1);
-                char *test_key_2_copy = (char*)slab_allocator_mem_alloc(test_key_1_len + 1);
+                char *test_key_1_copy = (char*)fast_fixed_memory_allocator_mem_alloc(test_key_1_len + 1);
+                char *test_key_2_copy = (char*)fast_fixed_memory_allocator_mem_alloc(test_key_1_len + 1);
                 strcpy(test_key_1_copy, test_key_1);
                 strcpy(test_key_2_copy, test_key_2);
 
@@ -149,7 +149,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
         SECTION("found - single chunk with first slot empty") {
             HASHTABLE(0x7FFF, false, {
                 // Not necessary to free, the key(s) is owned by the hashtable
-                char *test_key_1_copy = (char*)slab_allocator_mem_alloc(test_key_1_len + 1);
+                char *test_key_1_copy = (char*)fast_fixed_memory_allocator_mem_alloc(test_key_1_len + 1);
                 strcpy(test_key_1_copy, test_key_1);
 
                 hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
@@ -276,7 +276,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
         SECTION("not found - deleted flag") {
             HASHTABLE(0x7FFF, false, {
                 // Not necessary to free, the key(s) is owned by the hashtable
-                char *test_key_1_copy = (char*)slab_allocator_mem_alloc(test_key_1_len + 1);
+                char *test_key_1_copy = (char*)fast_fixed_memory_allocator_mem_alloc(test_key_1_len + 1);
                 strcpy(test_key_1_copy, test_key_1);
 
                 HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(
@@ -301,7 +301,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
         SECTION("not found - hash set but key_value not (edge case because of parallelism)") {
             HASHTABLE(0x7FFF, false, {
                 // Not necessary to free, the key(s) is owned by the hashtable
-                char *test_key_1_copy = (char*)slab_allocator_mem_alloc(test_key_1_len + 1);
+                char *test_key_1_copy = (char*)fast_fixed_memory_allocator_mem_alloc(test_key_1_len + 1);
                 strcpy(test_key_1_copy, test_key_1);
 
                 hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
@@ -332,8 +332,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
         SECTION("found - single bucket - get key after delete with hash still in hash_half (edge case because of parallelism)") {
             HASHTABLE(0x7FFF, false, {
                 // Not necessary to free, the key(s) is owned by the hashtable
-                char *test_key_1_copy = (char*)slab_allocator_mem_alloc(test_key_1_len + 1);
-                char *test_key_2_copy = (char*)slab_allocator_mem_alloc(test_key_1_len + 1);
+                char *test_key_1_copy = (char*)fast_fixed_memory_allocator_mem_alloc(test_key_1_len + 1);
+                char *test_key_2_copy = (char*)fast_fixed_memory_allocator_mem_alloc(test_key_1_len + 1);
                 strcpy(test_key_1_copy, test_key_1);
                 strcpy(test_key_2_copy, test_key_1);
 

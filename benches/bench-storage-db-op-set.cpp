@@ -23,7 +23,7 @@
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/fast_fixed_memory_allocator.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
@@ -198,7 +198,7 @@ BENCHMARK_DEFINE_F(StorageDbOpSetInsertFixture, storage_db_op_set_insert)(benchm
     // they can be recycled or re-created.
     if ((worker_context = worker_context_get()) == nullptr) {
         // This assigned memory will be lost but this is a benchmark and we don't care
-        worker_context = (worker_context_t *)slab_allocator_mem_alloc(sizeof(worker_context_t));
+        worker_context = (worker_context_t *)fast_fixed_memory_allocator_mem_alloc(sizeof(worker_context_t));
         worker_context_set(worker_context);
     }
 

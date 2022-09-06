@@ -19,7 +19,7 @@
 #include "xalloc.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/fast_fixed_memory_allocator.h"
 
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
@@ -45,7 +45,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_iter.c", "[hashtable][hashtable_op][hasht
 
             HASHTABLE(0x7FFF, false, {
                 // Not necessary to free, the key(s) is owned by the hashtable
-                char *test_key_1_copy = (char*)slab_allocator_mem_alloc(test_key_1_len + 1);
+                char *test_key_1_copy = (char*)fast_fixed_memory_allocator_mem_alloc(test_key_1_len + 1);
                 strcpy(test_key_1_copy, test_key_1);
 
                 hashtable_chunk_index_t chunk_index1 = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(

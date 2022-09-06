@@ -25,7 +25,7 @@
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/fast_fixed_memory_allocator.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "protocol/redis/protocol_redis.h"
@@ -164,7 +164,7 @@ bool module_redis_command_helper_incr_decr(
 end:
 
     if (allocated_new_buffer) {
-        slab_allocator_mem_free(current_string);
+        fast_fixed_memory_allocator_mem_free(current_string);
     }
 
     if (unlikely(abort_rmw)) {
@@ -269,7 +269,7 @@ bool module_redis_command_helper_incr_decr_float(
 
         new_number_buffer_length = snprintf(NULL, 0, "%.17Lf", new_number);
         if (unlikely(new_number_buffer_length > sizeof(new_number_buffer_static))) {
-            new_number_buffer = slab_allocator_mem_alloc(new_number_buffer_length + 1);
+            new_number_buffer = fast_fixed_memory_allocator_mem_alloc(new_number_buffer_length + 1);
             new_number_allocated_buffer = true;
         } else {
             new_number_buffer = (char*)new_number_buffer_static;
@@ -359,11 +359,11 @@ bool module_redis_command_helper_incr_decr_float(
 end:
 
     if (new_number_allocated_buffer) {
-        slab_allocator_mem_free(new_number_buffer);
+        fast_fixed_memory_allocator_mem_free(new_number_buffer);
     }
 
     if (allocated_new_buffer) {
-        slab_allocator_mem_free(current_string);
+        fast_fixed_memory_allocator_mem_free(current_string);
     }
 
     if (unlikely(abort_rmw)) {

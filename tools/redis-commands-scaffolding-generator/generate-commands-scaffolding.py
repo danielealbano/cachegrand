@@ -481,9 +481,9 @@ class Program:
             "#include \"transaction_spinlock.h\"",
             "#include \"data_structures/small_circular_queue/small_circular_queue.h\"",
             "#include \"data_structures/double_linked_list/double_linked_list.h\"",
+            "#include \"memory_allocator/fast_fixed_memory_allocator.h\"",
             "#include \"data_structures/hashtable/spsc/hashtable_spsc.h\"",
             "#include \"data_structures/queue_mpmc/queue_mpmc.h\"",
-            "#include \"slab_allocator.h\"",
             "#include \"data_structures/hashtable/mcmp/hashtable.h\"",
             "#include \"protocol/redis/protocol_redis.h\"",
             "#include \"protocol/redis/protocol_redis_reader.h\"",
@@ -630,7 +630,7 @@ class Program:
         for argument_index, argument in enumerate(arguments):
             lines = []
             field_name = None
-            free_memory_func = "slab_allocator_mem_free"
+            free_memory_func = "fast_fixed_memory_allocator_mem_free"
 
             if first_processed:
                 lines.append("")
@@ -654,7 +654,7 @@ class Program:
                     lines.append("    for(int i = 0; i < context->{argument_name}.count; i++) {{")
                     lines.append("        {free_memory_func}(db, &context->{argument_name}.list[i]);")
                     lines.append("    }}")
-                    lines.append("    slab_allocator_mem_free(context->{argument_name}.list);")
+                    lines.append("    fast_fixed_memory_allocator_mem_free(context->{argument_name}.list);")
                     lines.append("}}")
                 else:
                     lines.append("{free_memory_func}(db, &context->{argument_name}.value);")
@@ -669,7 +669,7 @@ class Program:
                     lines.append("            storage_db_chunk_sequence_free(db, context->{argument_name}.list[i].chunk_sequence);")
                     lines.append("        }}")
                     lines.append("    }}")
-                    lines.append("    slab_allocator_mem_free(context->{argument_name}.list);")
+                    lines.append("    fast_fixed_memory_allocator_mem_free(context->{argument_name}.list);")
                     lines.append("}}")
                 else:
                     lines.append("if (context->{argument_name}.value.chunk_sequence) {{")
@@ -688,14 +688,14 @@ class Program:
                     lines.append("if (context->{argument_name}.list) {{")
                     lines.append("    for(int i = 0; i < context->{argument_name}.count; i++) {{")
                     lines.append("        if (context->{argument_name}.list[i].{field_name}) {{")
-                    lines.append("            slab_allocator_mem_free(context->{argument_name}.list[i].{field_name});")
+                    lines.append("            fast_fixed_memory_allocator_mem_free(context->{argument_name}.list[i].{field_name});")
                     lines.append("        }}")
                     lines.append("    }}")
-                    lines.append("    slab_allocator_mem_free(context->{argument_name}.list);")
+                    lines.append("    fast_fixed_memory_allocator_mem_free(context->{argument_name}.list);")
                     lines.append("}}")
                 else:
                     lines.append("if (context->{argument_name}.value.{field_name}) {{")
-                    lines.append("    slab_allocator_mem_free(context->{argument_name}.value.{field_name});")
+                    lines.append("    fast_fixed_memory_allocator_mem_free(context->{argument_name}.value.{field_name});")
                     lines.append("}}")
             else:
                 continue

@@ -117,7 +117,7 @@ cpus:
 workers_per_cpus: 2
 run_in_foreground: false
 pidfile_path: /var/run/cachegrand.pid
-use_slab_allocator: false
+use_huge_pages: false
 network:
   backend: io_uring
   max_clients: 10000
@@ -174,7 +174,7 @@ cpus:
 workers_per_cpus: 2
 run_in_foreground: false
 pidfile_path: /var/run/cachegrand.pid
-use_slab_allocator: false
+use_huge_pages: false
 network:
   backend: io_uring
   max_clients: 10000
@@ -300,8 +300,8 @@ TEST_CASE("config.c", "[config]") {
             REQUIRE(config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING);
             REQUIRE(config->modules_count == 1);
             REQUIRE(config->cpus_count == 1);
-            REQUIRE(config->use_slab_allocator != nullptr);
-            REQUIRE(*config->use_slab_allocator == false);
+            REQUIRE(config->use_huge_pages != nullptr);
+            REQUIRE(*config->use_huge_pages == false);
             REQUIRE(config->logs_count == 2);
             REQUIRE(cyaml_logger_context.data == nullptr);
             REQUIRE(cyaml_logger_context.data_length == 0);
@@ -383,7 +383,7 @@ TEST_CASE("config.c", "[config]") {
             REQUIRE(config_validate_after_load(config) == true);
         }
 
-        SECTION("broken - network redis max_key_length > slab object size max") {
+        SECTION("broken - network redis max_key_length > object size max") {
             config->modules[0].redis->max_key_length = 64 * 1024 + 1;
             REQUIRE(config_validate_after_load(config) == false);
         }

@@ -23,7 +23,7 @@
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/fast_fixed_memory_allocator.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_get.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
@@ -174,7 +174,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
             if (unlikely(current_chunk_info == NULL)) {
                 // When the source is null, an empty chunk of memory has to be written
                 if (unlikely(padding_memory_zeroed == NULL)) {
-                    padding_memory_zeroed = slab_allocator_mem_alloc_zero(STORAGE_DB_CHUNK_MAX_SIZE);
+                    padding_memory_zeroed = fast_fixed_memory_allocator_mem_alloc_zero(STORAGE_DB_CHUNK_MAX_SIZE);
                 }
 
                 // Calculate how much has to be written, if current_chunk_info is NULL there will be nothing to write
@@ -219,7 +219,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
                 data_to_write_buffer,
                 data_to_write_length))) {
             if (unlikely(allocated_new_buffer)) {
-                slab_allocator_mem_free(allocated_buffer);
+                fast_fixed_memory_allocator_mem_free(allocated_buffer);
                 allocated_buffer = NULL;
                 allocated_new_buffer = false;
             }
@@ -231,7 +231,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
         }
 
         if (unlikely(allocated_new_buffer)) {
-            slab_allocator_mem_free(allocated_buffer);
+            fast_fixed_memory_allocator_mem_free(allocated_buffer);
             allocated_buffer = NULL;
             allocated_new_buffer = false;
         }

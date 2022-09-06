@@ -41,7 +41,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_op_get_random_key.h"
 #include "data_structures/hashtable/mcmp/hashtable_thread_counters.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/fast_fixed_memory_allocator.h"
 #include "fiber.h"
 #include "fiber_scheduler.h"
 #include "log/log.h"
@@ -75,7 +75,7 @@ char *storage_db_shard_build_path(
             basedir_path_len,
             basedir_path,
             shard_index);
-    path = slab_allocator_mem_alloc(required_length + 1);
+    path = fast_fixed_memory_allocator_mem_alloc(required_length + 1);
 
     snprintf(
             path,
@@ -89,12 +89,12 @@ char *storage_db_shard_build_path(
 }
 
 storage_db_config_t* storage_db_config_new() {
-    return slab_allocator_mem_alloc_zero(sizeof(storage_db_config_t));
+    return fast_fixed_memory_allocator_mem_alloc_zero(sizeof(storage_db_config_t));
 }
 
 void storage_db_config_free(
         storage_db_config_t* config) {
-    slab_allocator_mem_free(config);
+    fast_fixed_memory_allocator_mem_free(config);
 }
 
 storage_db_t* storage_db_new(
@@ -122,7 +122,7 @@ storage_db_t* storage_db_new(
     }
 
     // Initialize the per-worker set of information
-    workers = slab_allocator_mem_alloc_zero(sizeof(storage_db_worker_t) * workers_count);
+    workers = fast_fixed_memory_allocator_mem_alloc_zero(sizeof(storage_db_worker_t) * workers_count);
     if (!workers) {
         LOG_E(TAG, "Unable to allocate memory for the per worker configurations");
         goto fail;
@@ -151,7 +151,7 @@ storage_db_t* storage_db_new(
     }
 
     // Initialize the db wrapper structure
-    db = slab_allocator_mem_alloc_zero(sizeof(storage_db_t));
+    db = fast_fixed_memory_allocator_mem_alloc_zero(sizeof(storage_db_t));
     if (!db) {
         LOG_E(TAG, "Unable to allocate memory for the storage db");
         goto fail;
@@ -196,7 +196,7 @@ fail:
             }
         }
 
-        slab_allocator_mem_free(workers);
+        fast_fixed_memory_allocator_mem_free(workers);
     }
 
     if (db) {
@@ -206,7 +206,7 @@ fail:
             double_linked_list_free(db->shards.opened_shards);
         }
 
-        slab_allocator_mem_free(db);
+        fast_fixed_memory_allocator_mem_free(db);
     }
 
     return NULL;
@@ -266,7 +266,7 @@ bool storage_db_chunk_data_pre_allocate(
     chunk_info->chunk_length = chunk_length;
 
     if (db->config->backend_type == STORAGE_DB_BACKEND_TYPE_MEMORY) {
-        chunk_info->memory.chunk_data = slab_allocator_mem_alloc(chunk_length);
+        chunk_info->memory.chunk_data = fast_fixed_memory_allocator_mem_alloc(chunk_length);
         if (!chunk_info->memory.chunk_data) {
             LOG_E(
                     TAG,
@@ -321,7 +321,7 @@ void storage_db_chunk_data_free(
         storage_db_t *db,
         storage_db_chunk_info_t *chunk_info) {
     if (db->config->backend_type == STORAGE_DB_BACKEND_TYPE_MEMORY) {
-        slab_allocator_mem_free(chunk_info->memory.chunk_data);
+        fast_fixed_memory_allocator_mem_free(chunk_info->memory.chunk_data);
     } else {
         // TODO: currently not implemented, the data on the disk should be collected by a garbage collector
     }
@@ -353,7 +353,7 @@ storage_db_shard_t* storage_db_shard_new(
         return NULL;
     }
 
-    storage_db_shard_t *shard = slab_allocator_mem_alloc_zero(sizeof(storage_db_shard_t));
+    storage_db_shard_t *shard = fast_fixed_memory_allocator_mem_alloc_zero(sizeof(storage_db_shard_t));
 
     shard->storage_channel = storage_channel;
     shard->index = index;
@@ -411,7 +411,7 @@ void storage_db_shard_free(
     // TODO: should also ensure that all the in-flight data being written are actually written
     // TODO: should close the shards properly writing the footer to be able to carry out a quick read
     storage_close(shard->storage_channel);
-    slab_allocator_mem_free(shard);
+    fast_fixed_memory_allocator_mem_free(shard);
 }
 
 storage_db_shard_t *storage_db_new_active_shard_per_current_worker(
@@ -500,8 +500,8 @@ void storage_db_free(
 
     hashtable_mcmp_free(db->hashtable);
     storage_db_config_free(db->config);
-    slab_allocator_mem_free(db->workers);
-    slab_allocator_mem_free(db);
+    fast_fixed_memory_allocator_mem_free(db->workers);
+    fast_fixed_memory_allocator_mem_free(db);
 }
 
 storage_db_entry_index_t *storage_db_entry_index_ring_buffer_new(
@@ -554,7 +554,7 @@ void storage_db_entry_index_ring_buffer_free(
 }
 
 storage_db_entry_index_t *storage_db_entry_index_new() {
-    return slab_allocator_mem_alloc_zero(sizeof(storage_db_entry_index_t));
+    return fast_fixed_memory_allocator_mem_alloc_zero(sizeof(storage_db_entry_index_t));
 }
 
 size_t storage_db_chunk_sequence_calculate_chunk_count(
@@ -563,7 +563,7 @@ size_t storage_db_chunk_sequence_calculate_chunk_count(
 }
 
 size_t storage_db_chunk_sequence_allowed_max_size() {
-    return ((int)(SLAB_OBJECT_SIZE_MAX / sizeof(storage_db_chunk_info_t))) * STORAGE_DB_CHUNK_MAX_SIZE;
+    return ((int)(FAST_FIXED_MEMORY_ALLOCATOR_OBJECT_SIZE_MAX / sizeof(storage_db_chunk_info_t))) * STORAGE_DB_CHUNK_MAX_SIZE;
 }
 
 bool storage_db_chunk_sequence_is_size_allowed(
@@ -571,7 +571,7 @@ bool storage_db_chunk_sequence_is_size_allowed(
     bool error = false;
 
     // TODO: should check if the other limits (e.g. number of chunks allowed) are broken
-    if (slab_allocator_is_enabled()) {
+    if (fast_fixed_memory_allocator_is_enabled()) {
         error |= size > storage_db_chunk_sequence_allowed_max_size();
     }
 
@@ -586,7 +586,7 @@ storage_db_chunk_sequence_t *storage_db_chunk_sequence_allocate(
     uint32_t chunk_count = storage_db_chunk_sequence_calculate_chunk_count(size);
     size_t remaining_length = size;
 
-    storage_db_chunk_sequence_t *chunk_sequence = slab_allocator_mem_alloc(sizeof(storage_db_chunk_sequence_t));
+    storage_db_chunk_sequence_t *chunk_sequence = fast_fixed_memory_allocator_mem_alloc(sizeof(storage_db_chunk_sequence_t));
 
     if (unlikely(!chunk_sequence)) {
         LOG_E(
@@ -599,7 +599,7 @@ storage_db_chunk_sequence_t *storage_db_chunk_sequence_allocate(
     chunk_sequence->count = chunk_count;
 
     if (likely(size > 0)) {
-        chunk_sequence->sequence = slab_allocator_mem_alloc(sizeof(storage_db_chunk_info_t) * chunk_count);
+        chunk_sequence->sequence = fast_fixed_memory_allocator_mem_alloc(sizeof(storage_db_chunk_info_t) * chunk_count);
 
         if (unlikely(!chunk_sequence->sequence)) {
             goto end;
@@ -631,10 +631,10 @@ end:
                 for(storage_db_chunk_index_t chunk_index = 0; chunk_index < allocated_chunks_count; chunk_index++) {
                     storage_db_chunk_data_free(db, storage_db_chunk_sequence_get(chunk_sequence, chunk_index));
                 }
-                slab_allocator_mem_free(chunk_sequence->sequence);
+                fast_fixed_memory_allocator_mem_free(chunk_sequence->sequence);
             }
 
-            slab_allocator_mem_free(chunk_sequence);
+            fast_fixed_memory_allocator_mem_free(chunk_sequence);
             chunk_sequence = NULL;
         }
     }
@@ -653,7 +653,7 @@ void storage_db_chunk_sequence_free(
         storage_db_chunk_data_free(db, chunk_info);
     }
 
-    slab_allocator_mem_free(sequence->sequence);
+    fast_fixed_memory_allocator_mem_free(sequence->sequence);
     sequence->count = 0;
     sequence->sequence = NULL;
 }
@@ -679,7 +679,7 @@ void storage_db_entry_index_free(
         storage_db_entry_index_t *entry_index) {
     storage_db_entry_index_chunks_free(db, entry_index);
 
-    slab_allocator_mem_free(entry_index);
+    fast_fixed_memory_allocator_mem_free(entry_index);
 }
 
 bool storage_db_entry_chunk_can_read_from_memory(
@@ -795,7 +795,7 @@ char *storage_db_get_chunk_data(
                 chunk_info);
     } else {
         *allocated_new_buffer = true;
-        buffer = slab_allocator_mem_alloc(chunk_info->chunk_length);
+        buffer = fast_fixed_memory_allocator_mem_alloc(chunk_info->chunk_length);
 
         if (unlikely(!storage_db_chunk_read(
                 db,
@@ -1379,7 +1379,7 @@ bool storage_db_op_flush_sync(
             // The bucket might have been deleted in the meantime so get_key has to return true
             if (hashtable_mcmp_op_get_key(db->hashtable, bucket_index, &key, &key_size)) {
                 storage_db_op_delete(db, key, key_size);
-                slab_allocator_mem_free(key);
+                fast_fixed_memory_allocator_mem_free(key);
             }
         }
     }
@@ -1445,7 +1445,7 @@ storage_db_key_and_key_length_t *storage_db_op_get_keys(
 
         if (likely(pattern_length > 0)) {
             if (!utils_string_glob_match(key, key_size, pattern, pattern_length)) {
-                slab_allocator_mem_free(key);
+                fast_fixed_memory_allocator_mem_free(key);
                 continue;
             }
         }
@@ -1471,7 +1471,7 @@ void storage_db_free_key_and_key_length_list(
         storage_db_key_and_key_length_t *keys,
         uint64_t keys_count) {
     for(uint64_t index = 0; index < keys_count; index++) {
-        slab_allocator_mem_free(keys[index].key);
+        fast_fixed_memory_allocator_mem_free(keys[index].key);
     }
     xalloc_free(keys);
 }

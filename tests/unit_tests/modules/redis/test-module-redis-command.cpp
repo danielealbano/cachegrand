@@ -24,7 +24,7 @@
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/fast_fixed_memory_allocator.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
@@ -89,6 +89,6 @@ TEST_CASE("module/redis/module_redis_command.c", "[module][redis][module_redis_c
 //        module_redis_command_context_t *command_context = module_redis_command_process_begin(
 //                &test_module_redis_command_sort_command_info);
 //
-//        slab_allocator_mem_free(command_context);
+//        fast_fixed_memory_allocator_mem_free(command_context);
 //    }
 }

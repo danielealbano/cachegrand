@@ -23,7 +23,7 @@
 #include "log/log.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/fast_fixed_memory_allocator.h"
 
 #include "hashtable.h"
 #include "hashtable_op_set.h"
@@ -140,7 +140,7 @@ bool hashtable_mcmp_op_set(
 
     // Validate if the passed key can be freed because unused or because inlined
     if (!created_new || key_inlined) {
-        slab_allocator_mem_free(key);
+        fast_fixed_memory_allocator_mem_free(key);
     }
 
     // Increment the size counter

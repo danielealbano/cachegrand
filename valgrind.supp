@@ -5,9 +5,9 @@
    match-leak-kinds: definite
    fun:malloc
    fun:xalloc_alloc
-   fun:slab_allocator_mem_alloc_xalloc
-   fun:slab_allocator_mem_alloc
-   fun:slab_allocator_mem_alloc_zero
+   fun:fast_fixed_memory_allocator_mem_alloc_xalloc
+   fun:fast_fixed_memory_allocator_mem_alloc
+   fun:fast_fixed_memory_allocator_mem_alloc_zero
    fun:network_channel_iouring_new
    fun:worker_network_iouring_op_network_accept
    fun:worker_network_listeners_fiber_entrypoint
@@ -20,9 +20,9 @@
    match-leak-kinds: definite
    fun:malloc
    fun:xalloc_alloc
-   fun:slab_allocator_mem_alloc_xalloc
-   fun:slab_allocator_mem_alloc
-   fun:slab_allocator_mem_alloc_zero
+   fun:fast_fixed_memory_allocator_mem_alloc_xalloc
+   fun:fast_fixed_memory_allocator_mem_alloc
+   fun:fast_fixed_memory_allocator_mem_alloc_zero
    fun:network_channel_iouring_new
    fun:worker_network_iouring_op_network_accept
    fun:worker_network_listeners_fiber_entrypoint

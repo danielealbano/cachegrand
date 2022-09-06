@@ -144,11 +144,11 @@ target_compile_options(
         PUBLIC
         -include cmake_config.h)
 
-if (SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES)
+if (FAST_FIXED_MEMORY_ALLOCATOR_DEBUG_ALLOCS_FREES)
     target_compile_options(
             cachegrand-internal
             PUBLIC
-            -DSLAB_ALLOCATOR_DEBUG_ALLOCS_FREES=1)
+            -DFAST_FIXED_MEMORY_ALLOCATOR_DEBUG_ALLOCS_FREES=1)
 endif()
 
 target_link_directories(

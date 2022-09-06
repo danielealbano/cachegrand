@@ -27,7 +27,7 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/fast_fixed_memory_allocator.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "protocol/redis/protocol_redis_writer.h"
@@ -89,7 +89,7 @@ uint32_t *lcsmap_build(
         value_1_chunk_offset++;
         if (unlikely(value_1_chunk_index == -1 || value_1_chunk_offset >= value_1_chunk_info->chunk_length)) {
             if (unlikely(value_1_chunk_data_allocated_new)) {
-                slab_allocator_mem_free(value_1_chunk_data);
+                fast_fixed_memory_allocator_mem_free(value_1_chunk_data);
                 value_1_chunk_data_allocated_new = false;
             }
 
@@ -113,7 +113,7 @@ uint32_t *lcsmap_build(
             value_2_chunk_offset++;
             if (unlikely(value_2_chunk_index == -1 || value_2_chunk_offset >= value_2_chunk_info->chunk_length)) {
                 if (unlikely(value_2_chunk_data_allocated_new)) {
-                    slab_allocator_mem_free(value_2_chunk_data);
+                    fast_fixed_memory_allocator_mem_free(value_2_chunk_data);
                     value_2_chunk_data_allocated_new = false;
                 }
 
@@ -167,14 +167,14 @@ uint32_t *lcsmap_build(
 
     // Cleanup after building the tree
     if (unlikely(value_1_chunk_data_allocated_new)) {
-        slab_allocator_mem_free(value_1_chunk_data);
+        fast_fixed_memory_allocator_mem_free(value_1_chunk_data);
         value_1_chunk_data_allocated_new = false;
     }
     value_1_chunk_data = NULL;
     value_1_chunk_info = NULL;
 
     if (unlikely(value_2_chunk_data_allocated_new)) {
-        slab_allocator_mem_free(value_2_chunk_data);
+        fast_fixed_memory_allocator_mem_free(value_2_chunk_data);
         value_2_chunk_data_allocated_new = false;
     }
     value_2_chunk_data = NULL;
@@ -328,11 +328,11 @@ end:
     }
 
     if (value_1_chunk_data_allocated_new) {
-        slab_allocator_mem_free(value_2_chunk_data);
+        fast_fixed_memory_allocator_mem_free(value_2_chunk_data);
     }
 
     if (value_2_chunk_data_allocated_new) {
-        slab_allocator_mem_free(value_2_chunk_data);
+        fast_fixed_memory_allocator_mem_free(value_2_chunk_data);
     }
 
     if (entry_index_1) {
