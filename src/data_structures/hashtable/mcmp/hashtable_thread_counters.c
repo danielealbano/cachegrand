@@ -74,10 +74,11 @@ void hashtable_mcmp_thread_counters_expand_to(
         uint32_t new_size) {
     assert(hashtable_data->thread_counters.size < UINT32_MAX);
 
+    // The function is invoked only if the resize is needed, so no need to check outside the spinlock
     spinlock_lock(&hashtable_data->thread_counters.lock);
 
     // Ensure that the resize is actually needed under lock
-    if (new_size <= hashtable_data->thread_counters.size) {
+    if (likely(new_size <= hashtable_data->thread_counters.size)) {
         spinlock_unlock(&hashtable_data->thread_counters.lock);
         return;
     }
