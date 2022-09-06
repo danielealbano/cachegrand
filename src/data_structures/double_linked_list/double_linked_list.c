@@ -16,7 +16,7 @@
 #include "double_linked_list.h"
 
 double_linked_list_item_t* double_linked_list_item_init() {
-    return (double_linked_list_item_t*)xalloc_alloc_zero_small(sizeof(double_linked_list_item_t));
+    return (double_linked_list_item_t*)xalloc_alloc_zero(sizeof(double_linked_list_item_t));
 }
 
 void double_linked_list_item_free(
@@ -25,7 +25,7 @@ void double_linked_list_item_free(
 }
 
 double_linked_list_t* double_linked_list_init() {
-    return (double_linked_list_t*)xalloc_alloc_zero_small(sizeof(double_linked_list_t));
+    return (double_linked_list_t*)xalloc_alloc_zero(sizeof(double_linked_list_t));
 }
 
 void double_linked_list_free(

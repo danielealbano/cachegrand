@@ -9,20 +9,12 @@ __attribute__((malloc))
 void* xalloc_alloc(
         size_t size);
 
-__attribute__((malloc))
-void* xalloc_alloc_small(
-        size_t size);
-
 void* xalloc_realloc(
         void* memptr,
         size_t size);
 
 __attribute__((malloc))
 void* xalloc_alloc_zero(
-        size_t size);
-
-__attribute__((malloc))
-void* xalloc_alloc_zero_small(
         size_t size);
 
 __attribute__((malloc))

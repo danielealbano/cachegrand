@@ -42,19 +42,6 @@ void* xalloc_alloc(
     return memptr;
 }
 
-void* xalloc_alloc_small(
-        size_t size) {
-    void* memptr;
-
-    memptr = mi_malloc_small(size);
-
-    if (memptr == NULL) {
-        FATAL(TAG, "Unable to allocate the requested memory %lu", size);
-    }
-
-    return memptr;
-}
-
 void* xalloc_realloc(
         void* memptr,
         size_t size) {
@@ -72,18 +59,6 @@ void* xalloc_alloc_zero(
     void* memptr;
 
     memptr = mi_zalloc(size);
-    if (memset(memptr, 0, size) != memptr) {
-        FATAL(TAG, "Unable to zero the requested memory %lu", size);
-    }
-
-    return memptr;
-}
-
-void* xalloc_alloc_zero_small(
-        size_t size) {
-    void* memptr;
-
-    memptr = mi_zalloc_small(size);
     if (memset(memptr, 0, size) != memptr) {
         FATAL(TAG, "Unable to zero the requested memory %lu", size);
     }
