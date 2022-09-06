@@ -18,6 +18,7 @@
 
 #include "misc.h"
 #include "xalloc.h"
+#include "mimalloc.h"
 
 #include "log.h"
 #include "log/sink/log_sink.h"
@@ -200,6 +201,9 @@ char* log_buffer_static_or_alloc_new(
     if (data_size < static_buffer_size) {
         buffer = static_buffer;
         *static_buffer_selected = true;
+    } if (data_size + 1 < MI_SMALL_SIZE_MAX) {
+        buffer = xalloc_alloc_small(data_size + 1);
+        *static_buffer_selected = false;
     } else {
         buffer = xalloc_alloc(data_size + 1);
         *static_buffer_selected = false;

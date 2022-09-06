@@ -58,7 +58,7 @@ fiber_t *fiber_new(
         return NULL;
     }
 
-    fiber_t *fiber = xalloc_alloc_zero(sizeof(fiber_t));
+    fiber_t *fiber = xalloc_alloc_zero_small(sizeof(fiber_t));
     void *stack_base = xalloc_alloc_aligned_zero(page_size, stack_size);
 
     // Align the stack_pointer to 16 bytes and leave the 128 bytes red zone free as per ABI requirements
@@ -82,7 +82,7 @@ fiber_t *fiber_new(
 
     // Set the fiber additional parameters
     fiber->terminate = false;
-    fiber->name = (char*)xalloc_alloc_zero(name_len + 1);
+    fiber->name = (char*)xalloc_alloc_zero_small(name_len + 1);
     strncpy(fiber->name, name, name_len);
 
     // Set the initial fp and rsp of the fiber

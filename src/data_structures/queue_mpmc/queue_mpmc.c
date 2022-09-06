@@ -19,7 +19,7 @@
 
 queue_mpmc_t *queue_mpmc_init() {
     // This queue is used by the fast fixed memory allocator, therefore the memory can't be allocated with it
-    return xalloc_alloc_zero(sizeof(queue_mpmc_t));
+    return xalloc_alloc_zero_small(sizeof(queue_mpmc_t));
 }
 
 void queue_mpmc_free_nodes(queue_mpmc_t *queue_mpmc) {
@@ -46,7 +46,7 @@ bool queue_mpmc_push(
         void *data) {
     assert(data != NULL);
 
-    queue_mpmc_node_t *node = xalloc_alloc(sizeof(queue_mpmc_node_t));
+    queue_mpmc_node_t *node = xalloc_alloc_small(sizeof(queue_mpmc_node_t));
     if (!node) {
         return false;
     }
