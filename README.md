@@ -13,11 +13,21 @@
   </a>
 </p>
 
+## 1000% faster without spending one extra cent!
+
+Are you running a large Redis cluster because you need better performance? **Why pay more for less?**
+cachegrand can help dramatically to squeeze all the value your existing infrastructure is already offering! On top end
+machines is able to deliver **40X** better performances handling **64X** more load!
+
+That's not all! Not only we are working hard to expand the Redis API support but cachegrand comes with a tiered
+storage - currently work in progress - will let you leverage flash disks and **reduce the TCO (Total Cost of Ownership) 
+up to 5 times**!
+
+### What is cachegrand?
+
 cachegrand is an open-source fast, scalable and modular Key-Value store designed from the ground up to take advantage of
 modern hardware, able to provide better performance when compared to similar projects but also capable to provide a
 great flexibility in terms of management and developer experience.
-
-Although it's pretty young, it's able to perform **40X** faster than Redis while handling **64X** more load.
 
 The benchmarks below have been carried out on an AMD EPYC 7502P with 2 x 25Gbit network links using Ubuntu 22.04, with
 the default configuration (no network optimizations) and using memtier_benchmark with 10M different keys, 64 bytes of
