@@ -10,3 +10,6 @@
 [submodule "3rdparty/nodejs-http-parser"]
 	path = 3rdparty/nodejs-http-parser
 	url = https://github.com/nodejs/http-parser
+[submodule "3rdparty/mimalloc"]
+	path = 3rdparty/mimalloc
+	url = https://github.com/microsoft/mimalloc.git
