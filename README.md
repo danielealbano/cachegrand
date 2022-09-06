@@ -13,7 +13,7 @@
   </a>
 </p>
 
-## 1000% faster without spending one extra cent!
+### 1000% faster without spending one extra cent!
 
 Are you running a large Redis cluster because you need better performance? **Why pay more for less?**
 cachegrand can help dramatically to squeeze all the value your existing infrastructure is already offering! On top end
