@@ -22,7 +22,7 @@
 #include "hugepages.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "xalloc.h"
 
 #include "benchmark-program.hpp"
@@ -40,7 +40,7 @@
 #define TEST_THREADS_RANGE_BEGIN (1)
 #define TEST_THREADS_RANGE_END (utils_cpu_count())
 
-static void memory_allocation_slab_allocator_hugepages_warmup_cache(benchmark::State& state) {
+static void memory_allocation_ffma_hugepages_warmup_cache(benchmark::State& state) {
     size_t os_page_size = xalloc_get_page_size();
     for(int hugepage_index = 0; hugepage_index < TEST_WARMPUP_HUGEPAGES_CACHE_COUNT; hugepage_index++) {
         char *addr;
@@ -64,7 +64,7 @@ static void memory_allocation_slab_allocator_hugepages_warmup_cache(benchmark::S
     state.SkipWithError("Not a test");
 }
 
-static void memory_allocation_slab_allocator_only_alloc(benchmark::State& state) {
+static void memory_allocation_ffma_only_alloc(benchmark::State& state) {
     size_t object_size = state.range(0);
     uint32_t objects_count = state.range(1);
 
@@ -74,16 +74,16 @@ static void memory_allocation_slab_allocator_only_alloc(benchmark::State& state)
 
     for (auto _ : state) {
         for(long int i = 0; i < objects_count; i++) {
-            benchmark::DoNotOptimize((memptrs[i] = slab_allocator_mem_alloc(object_size)));
+            benchmark::DoNotOptimize((memptrs[i] = ffma_mem_alloc(object_size)));
         }
     }
 
     for(long int i = 0; i < objects_count; i++) {
-        slab_allocator_mem_free(memptrs[i]);
+        ffma_mem_free(memptrs[i]);
     }
 }
 
-static void memory_allocation_slab_allocator_alloc_and_free(benchmark::State& state) {
+static void memory_allocation_ffma_alloc_and_free(benchmark::State& state) {
     size_t object_size = state.range(0);
     uint32_t objects_count = state.range(1);
 
@@ -93,16 +93,16 @@ static void memory_allocation_slab_allocator_alloc_and_free(benchmark::State& st
 
     for (auto _ : state) {
         for(long int i = 0; i < objects_count; i++) {
-            benchmark::DoNotOptimize((memptrs[i] = slab_allocator_mem_alloc(object_size)));
+            benchmark::DoNotOptimize((memptrs[i] = ffma_mem_alloc(object_size)));
         }
 
         for(long int i = 0; i < objects_count; i++) {
-            slab_allocator_mem_free(memptrs[i]);
+            ffma_mem_free(memptrs[i]);
         }
     }
 }
 
-static void memory_allocation_slab_allocator_fragment_memory(benchmark::State& state) {
+static void memory_allocation_ffma_fragment_memory(benchmark::State& state) {
     size_t object_size = state.range(0);
     uint32_t objects_count = state.range(1);
     uint32_t objects_count_1_of_4 = objects_count >> 2;
@@ -116,7 +116,7 @@ static void memory_allocation_slab_allocator_fragment_memory(benchmark::State& s
     // The code below willingly causes memory fragmentation
     for (auto _ : state) {
         for(long int i = 0; i < objects_count; i++) {
-            benchmark::DoNotOptimize((memptrs[i] = slab_allocator_mem_alloc(object_size)));
+            benchmark::DoNotOptimize((memptrs[i] = ffma_mem_alloc(object_size)));
         }
 
         state.PauseTiming();
@@ -126,54 +126,54 @@ static void memory_allocation_slab_allocator_fragment_memory(benchmark::State& s
         // Free and re-allocate the first quarter
         // 1E  2   3   4
         for(long int i = 0; i < objects_count_1_of_4 * 1; i++) {
-            slab_allocator_mem_free(memptrs[i]);
+            ffma_mem_free(memptrs[i]);
         }
         // 1EF 2F  3F  4F
         for(long int i = 0; i < objects_count_1_of_4 * 1; i++) {
-            benchmark::DoNotOptimize((memptrs[i] = slab_allocator_mem_alloc(object_size)));
+            benchmark::DoNotOptimize((memptrs[i] = ffma_mem_alloc(object_size)));
         }
 
         // Free the second and third quarter
         // 1EF 2E  3E  4
         for(long int i = objects_count_1_of_4 * 1; i < objects_count_1_of_4 * 3; i++) {
-            slab_allocator_mem_free(memptrs[i]);
+            ffma_mem_free(memptrs[i]);
         }
 
         // Reallocate the third quarter
         // 1EF 2E  3EF 4
         for(long int i = objects_count_1_of_4 * 2; i < objects_count_1_of_4 * 3; i++) {
-            benchmark::DoNotOptimize((memptrs[i] = slab_allocator_mem_alloc(object_size)));
+            benchmark::DoNotOptimize((memptrs[i] = ffma_mem_alloc(object_size)));
         }
 
         // Free the last quarter
         // 1EF 2E  3EF 4E
         for(long int i = objects_count_1_of_4 * 3; i < objects_count_1_of_4 * 4; i++) {
-            slab_allocator_mem_free(memptrs[i]);
+            ffma_mem_free(memptrs[i]);
         }
 
         // Reallocate the second quarter
         // 1EF 2EF 3EF 4E
         for(long int i = objects_count_1_of_4 * 1; i < objects_count_1_of_4 * 2; i++) {
-            benchmark::DoNotOptimize((memptrs[i] = slab_allocator_mem_alloc(object_size)));
+            benchmark::DoNotOptimize((memptrs[i] = ffma_mem_alloc(object_size)));
         }
 
         // Reallocate the last quarter
         // 1EF 2EF 3EF 4EF
         for(long int i = objects_count_1_of_4 * 3; i < objects_count_1_of_4 * 4; i++) {
-            benchmark::DoNotOptimize((memptrs[i] = slab_allocator_mem_alloc(object_size)));
+            benchmark::DoNotOptimize((memptrs[i] = ffma_mem_alloc(object_size)));
         }
 
         // Free everything
         for(long int i = 0; i < objects_count; i++) {
-            slab_allocator_mem_free(memptrs[i]);
+            ffma_mem_free(memptrs[i]);
         }
 
         // Re-allocate and free everything
         for(long int i = 0; i < objects_count; i++) {
-            benchmark::DoNotOptimize((memptrs[i] = slab_allocator_mem_alloc(object_size)));
+            benchmark::DoNotOptimize((memptrs[i] = ffma_mem_alloc(object_size)));
         }
         for(long int i = 0; i < objects_count; i++) {
-            slab_allocator_mem_free(memptrs[i]);
+            ffma_mem_free(memptrs[i]);
         }
     }
 }
@@ -297,9 +297,9 @@ static void memory_allocation_os_malloc_fragment_memory(benchmark::State& state)
 static void BenchArguments(benchmark::internal::Benchmark* b) {
     b
             ->ArgsProduct({
-                { SLAB_OBJECT_SIZE_16, SLAB_OBJECT_SIZE_32, SLAB_OBJECT_SIZE_64, SLAB_OBJECT_SIZE_128, SLAB_OBJECT_SIZE_256,
-                  SLAB_OBJECT_SIZE_512, SLAB_OBJECT_SIZE_1024, SLAB_OBJECT_SIZE_2048, SLAB_OBJECT_SIZE_4096,
-                  SLAB_OBJECT_SIZE_8192, SLAB_OBJECT_SIZE_16384, SLAB_OBJECT_SIZE_32768, SLAB_OBJECT_SIZE_65536 },
+                { FFMA_OBJECT_SIZE_16, FFMA_OBJECT_SIZE_32, FFMA_OBJECT_SIZE_64, FFMA_OBJECT_SIZE_128, FFMA_OBJECT_SIZE_256,
+                  FFMA_OBJECT_SIZE_512, FFMA_OBJECT_SIZE_1024, FFMA_OBJECT_SIZE_2048, FFMA_OBJECT_SIZE_4096,
+                  FFMA_OBJECT_SIZE_8192, FFMA_OBJECT_SIZE_16384, FFMA_OBJECT_SIZE_32768, FFMA_OBJECT_SIZE_65536 },
                 { TEST_ALLOCATIONS_COUNT_PER_THREAD }
             })
             ->ThreadRange(TEST_THREADS_RANGE_BEGIN, TEST_THREADS_RANGE_END)
@@ -309,15 +309,15 @@ static void BenchArguments(benchmark::internal::Benchmark* b) {
 }
 
 // Warmup the hugepages cache, has to be done only once, forces iterations and repetitions to 1 to do not waste time
-BENCHMARK(memory_allocation_slab_allocator_hugepages_warmup_cache)
+BENCHMARK(memory_allocation_ffma_hugepages_warmup_cache)
         ->Iterations(1)
         ->Repetitions(1);
 
-BENCHMARK(memory_allocation_slab_allocator_only_alloc)
+BENCHMARK(memory_allocation_ffma_only_alloc)
         ->Apply(BenchArguments);
-BENCHMARK(memory_allocation_slab_allocator_alloc_and_free)
+BENCHMARK(memory_allocation_ffma_alloc_and_free)
         ->Apply(BenchArguments);
-BENCHMARK(memory_allocation_slab_allocator_fragment_memory)
+BENCHMARK(memory_allocation_ffma_fragment_memory)
         ->Apply(BenchArguments);
 
 BENCHMARK(memory_allocation_os_malloc_only_alloc)

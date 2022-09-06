@@ -33,7 +33,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "config.h"
 #include "log/log.h"
 #include "fiber.h"
@@ -47,7 +47,7 @@
 #include "worker/worker_context.h"
 #include "worker/worker.h"
 #include "worker/worker_op.h"
-#include "slab_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "support/simple_file_io.h"
 #include "fiber_scheduler.h"
 #include "network/network.h"
@@ -80,7 +80,7 @@ worker_module_context_t *worker_module_contexts_initialize(
     worker_module_context_t *worker_module_context = NULL;
 
     worker_module_context =
-            slab_allocator_mem_alloc_zero(sizeof(worker_module_context_t) * config->modules_count);
+            ffma_mem_alloc_zero(sizeof(worker_module_context_t) * config->modules_count);
     if (!worker_module_context) {
         goto end;
     }
@@ -107,7 +107,7 @@ worker_module_context_t *worker_module_contexts_initialize(
                 cipher_suites_ids_size);
 
         if (cipher_suites) {
-            slab_allocator_mem_free(cipher_suites);
+            ffma_mem_free(cipher_suites);
         }
 
         if (!network_tls_config) {
@@ -129,7 +129,7 @@ end:
             network_tls_config_free(worker_module_context[module_index].network_tls_config);
         }
 
-        slab_allocator_mem_free(worker_module_context);
+        ffma_mem_free(worker_module_context);
         worker_module_context = NULL;
     }
 
@@ -146,7 +146,7 @@ void worker_module_context_free(
         network_tls_config_free(worker_module_context[module_index].network_tls_config);
     }
 
-    slab_allocator_mem_free(worker_module_context);
+    ffma_mem_free(worker_module_context);
 }
 
 // TODO: the listener and accept operations should be refactored to split them in an user frontend operation and in an

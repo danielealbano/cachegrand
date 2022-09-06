@@ -55,7 +55,7 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "thread.h"
 #include "hugepage_cache.h"
-#include "slab_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "support/sentry/sentry_support.h"
 #include "signal_handler_thread.h"
 
@@ -423,39 +423,39 @@ config_t* program_parse_arguments_and_load_config(
     return config;
 }
 
-bool program_use_slab_allocator(
+bool program_use_huge_pages(
         program_context_t* program_context) {
     // TODO: estimate how much 2mb hugepages should be available to properly work with the current settings, just
     //       having 2mb hugepages is not enough to guarantee that memory will be available during the execution, it
     //       should be reserved
     int requested_hugepages = 0;
-    bool use_slab_allocator;
+    bool use_huge_pages;
 
-    // use_slab_allocator is optional
-    if (program_context->config->use_slab_allocator == NULL) {
-        use_slab_allocator = true;
+    // use_huge_pages is optional
+    if (program_context->config->use_huge_pages == NULL) {
+        use_huge_pages = true;
     } else {
-        use_slab_allocator = *program_context->config->use_slab_allocator;
+        use_huge_pages = *program_context->config->use_huge_pages;
     }
 
-    if (use_slab_allocator) {
+    if (use_huge_pages) {
         if (!hugepages_2mb_is_available(requested_hugepages)) {
-            LOG_W(TAG, "Not enough 2mb hugepages, disabling slab allocator, performances will be degraded");
-            use_slab_allocator = false;
+            LOG_W(TAG, "Not enough 2mb hugepages, disabling fast fixed memory allocator, performances will be degraded");
+            use_huge_pages = false;
         }
     } else {
-        LOG_W(TAG, "slab allocator disabled in config, performances will be degraded");
+        LOG_W(TAG, "Fast fixed memory allocator disabled in config, performances will be degraded");
     }
 
-    if (use_slab_allocator) {
+    if (use_huge_pages) {
         hugepage_cache_init();
     }
 
-    slab_allocator_enable(use_slab_allocator);
+    ffma_enable(use_huge_pages);
 
-    program_context->use_slab_allocator = use_slab_allocator;
+    program_context->use_huge_pages = use_huge_pages;
 
-    return use_slab_allocator;
+    return use_huge_pages;
 }
 
 void program_setup_initial_log_sink_console() {
@@ -602,7 +602,7 @@ void program_cleanup(
         storage_db_free(program_context->db, program_context->workers_count);
     }
 
-    if (program_context->slab_allocator_inited) {
+    if (program_context->fast_memory_allocator_initialized) {
         hugepage_cache_free();
     }
 
@@ -698,14 +698,15 @@ int program_main(
     // Signal handling
     signal(SIGCHLD, SIG_IGN);
 
-    // Enable, if allowed in the config and if the hugepages are available, the slab allocator
-    program_use_slab_allocator(program_context);
+    // If enabled in the config and if the hugepages are available enables the usage of hugepages to take advantage, for
+    // example, of the fast fixed memory allocator and to run the code from the hugepages after relocating it there
+    program_use_huge_pages(program_context);
 
     // Calculate workers count
     program_workers_initialize_count(program_context);
 
-    if (program_context->use_slab_allocator) {
-        program_context->slab_allocator_inited = true;
+    if (program_context->use_huge_pages) {
+        program_context->fast_memory_allocator_initialized = true;
     }
 
     if (program_config_setup_storage_db(program_context) == false) {
@@ -749,8 +750,8 @@ end:
 
     program_cleanup(program_context);
 
-#if SLAB_ALLOCATOR_DEBUG_ALLOCS_FREES == 1
-    slab_allocator_debug_allocs_frees_end();
+#if FFMA_DEBUG_ALLOCS_FREES == 1
+    ffma_debug_allocs_frees_end();
 #endif
 
     return return_res;

@@ -26,7 +26,7 @@
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "protocol/redis/protocol_redis.h"
@@ -91,7 +91,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
 
         if (context->setname_clientname.has_token) {
             connection_context->client_name =
-                    slab_allocator_mem_alloc(context->setname_clientname.value.length + 1);
+                    ffma_mem_alloc(context->setname_clientname.value.length + 1);
             strncpy(
                     context->setname_clientname.value.short_string,
                     connection_context->client_name,

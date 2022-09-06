@@ -18,7 +18,7 @@
 #include "queue_mpmc.h"
 
 queue_mpmc_t *queue_mpmc_init() {
-    // This queue is used by the slab allocator, therefore the memory can't be allocated with it
+    // This queue is used by the fast fixed memory allocator, therefore the memory can't be allocated with it
     return xalloc_alloc_zero(sizeof(queue_mpmc_t));
 }
 

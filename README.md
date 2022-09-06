@@ -38,7 +38,7 @@ Key features:
 - [Hashtable](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/hashtable.md) GET Lock-free and Wait-free operations, SET and DELETE use
   localized spinlocks, the implementation is capable to digest 2.1 billion records per second on a 1x AMD EPYC 7502 (see
   [benches](https://github.com/danielealbano/cachegrand/blob/main/docs/benchmarks/hashtable.md));
-- An ad-hoc [SLAB Allocator](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/slab-allocator.md) (memory allocator) capable of allocating and free memory in O(1);
+- An ad-hoc memory allocator for fixed memory allocation, [Fast Fixed Memory Allocator (or FFMA)](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/fast-fixed-memory-allocator.md) (memory allocator) capable of allocating and free memory in O(1);
 - Linear vertical scalability when using the in-memory database, 2x cpus means 2x requests (see
   [benches](https://github.com/danielealbano/cachegrand/blob/main/docs/benchmarks/linear-vertical-scalability.md));
 

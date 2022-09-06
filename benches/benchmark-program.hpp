@@ -20,7 +20,7 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "thread.h"
 #include "hugepage_cache.h"
-#include "slab_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "log/log.h"
 #include "log/sink/log_sink.h"
 #include "log/sink/log_sink_console.h"
@@ -47,7 +47,7 @@ public:
 
         // Enable the hugepage cache and the slab allocator
         hugepage_cache_init();
-        slab_allocator_enable(true);
+        ffma_enable(true);
 
         // Setup the log sink
         BenchmarkProgram::setup_initial_log_sink_console();

@@ -12,8 +12,11 @@ run_in_foreground: false
 
 pidfile_path: /var/run/cachegrand/cachegrand.pid
 
-# The slab allocator requires hugepages
-use_slab_allocator: false
+# When use_huge_pages is set to true, cachegrand will use them e.g. to reduce TBL misses and use a specialized memory
+# allocator. The various improvements provided help to improve the performance up to 10%.
+# The huge pages in the OS need to be enabled in order to use this functionality, please for more information refer to
+# https://github.com/danielealbano/cachegrand/blob/main/docs/hugepages.md
+use_huge_pages: false
 
 network:
   backend: io_uring

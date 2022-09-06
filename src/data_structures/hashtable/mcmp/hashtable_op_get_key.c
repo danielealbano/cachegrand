@@ -23,7 +23,7 @@
 #include "transaction_spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/ffma.h"
 
 #include "hashtable.h"
 
@@ -65,7 +65,7 @@ bool hashtable_mcmp_op_get_key(
     assert(source_key != NULL);
     assert(source_key_size > 0);
 
-    *key = slab_allocator_mem_alloc(source_key_size);
+    *key = ffma_mem_alloc(source_key_size);
     memcpy(*key, source_key, source_key_size);
     *key_size = source_key_size;
 
@@ -99,7 +99,7 @@ bool hashtable_mcmp_op_get_key(
 #endif
 
     if (unlikely(key_deleted_or_different)) {
-        slab_allocator_mem_free(key);
+        ffma_mem_free(key);
         *key = NULL;
         *key_size = 0;
     }

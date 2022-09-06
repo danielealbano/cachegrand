@@ -27,7 +27,7 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "module/module.h"
@@ -54,16 +54,16 @@ void module_redis_connection_context_init(
     connection_context->resp_version = PROTOCOL_REDIS_RESP_VERSION_2,
     connection_context->db = db;
     connection_context->network_channel = network_channel;
-    connection_context->read_buffer.data = (char *)slab_allocator_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
+    connection_context->read_buffer.data = (char *)ffma_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
     connection_context->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE;
 }
 
 void module_redis_connection_context_cleanup(
         module_redis_connection_context_t *connection_context) {
     if (connection_context->client_name) {
-        slab_allocator_mem_free(connection_context->client_name);
+        ffma_mem_free(connection_context->client_name);
     }
-    slab_allocator_mem_free(connection_context->read_buffer.data);
+    ffma_mem_free(connection_context->read_buffer.data);
 }
 
 void module_redis_connection_context_reset(
@@ -79,7 +79,7 @@ void module_redis_connection_context_reset(
     memset(&connection_context->command.parser_context, 0, sizeof(module_redis_command_parser_context_t));
 
     if (connection_context->error.message != NULL) {
-        slab_allocator_mem_free(connection_context->error.message);
+        ffma_mem_free(connection_context->error.message);
         connection_context->error.message = NULL;
     }
 
@@ -117,7 +117,7 @@ bool module_redis_connection_error_message_vprintf_internal(
     }
 
     if (connection_context->error.message != NULL) {
-        slab_allocator_mem_free(connection_context->error.message);
+        ffma_mem_free(connection_context->error.message);
     }
 
     // Calculate the total amount of memory needed
@@ -130,7 +130,7 @@ bool module_redis_connection_error_message_vprintf_internal(
     assert(error_message_with_args_length > 0);
 
     // Allocate the memory and run vsnprintf
-    char *error_message_with_args = slab_allocator_mem_alloc(error_message_with_args_length + 1);
+    char *error_message_with_args = ffma_mem_alloc(error_message_with_args_length + 1);
 
     if (error_message_with_args == NULL) {
         LOG_E(TAG, "Unable to allocate <%lu> bytes for the command error message", error_message_with_args_length + 1);
@@ -338,7 +338,7 @@ bool module_redis_connection_send_error(
 
     // Free up the error message and set it to null to avoid sending the same error message multiple times
     // while the command is still being parsed if the connection is not closed
-    slab_allocator_mem_free(connection_context->error.message);
+    ffma_mem_free(connection_context->error.message);
     connection_context->error.message = NULL;
 
     if (send_buffer_start == NULL) {
