@@ -88,10 +88,10 @@ void hashtable_mcmp_thread_counters_expand_to(
     hashtable_counters_volatile_t **counters = xalloc_alloc(sizeof(hashtable_counters_t*) * new_size);
 
     // Copy the previous set of pointers
-    if (hashtable_data->thread_counters.list) {
+    if (likely(hashtable_data->thread_counters.list)) {
         memcpy(
-                (hashtable_counters_t*)*counters,
-                (hashtable_counters_t*)*hashtable_data->thread_counters.list,
+                counters,
+                hashtable_data->thread_counters.list,
                 sizeof(hashtable_counters_t*) * hashtable_data->thread_counters.size);
     }
 
