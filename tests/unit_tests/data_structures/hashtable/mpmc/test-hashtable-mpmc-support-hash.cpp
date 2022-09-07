@@ -13,6 +13,14 @@
 #include "spinlock.h"
 #include "transaction.h"
 #include "transaction_spinlock.h"
+#include "fiber.h"
+#include "fiber_scheduler.h"
+#include "clock.h"
+#include "config.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
+#include "worker/worker.h"
 
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_support_hash.h"
@@ -20,6 +28,11 @@
 #include "fixtures-hashtable-mpmc.h"
 
 TEST_CASE("hashtable/hashtable_support_hash.c", "[hashtable][hashtable_support][hashtable_support_hash]") {
+    worker_context_t worker_context = { 0 };
+    worker_context.worker_index = UINT16_MAX;
+    worker_context_set(&worker_context);
+    transaction_set_worker_index(worker_context.worker_index);
+
     SECTION("hashtable_mcmp_support_hash_calculate") {
         SECTION("hash calculation") {
             REQUIRE(hashtable_mcmp_support_hash_calculate(
