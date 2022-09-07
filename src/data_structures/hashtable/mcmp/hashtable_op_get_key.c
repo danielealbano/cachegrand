@@ -16,6 +16,7 @@
 
 #include "misc.h"
 #include "exttypes.h"
+#include "xalloc.h"
 #include "log/log.h"
 #include "memory_fences.h"
 #include "spinlock.h"
@@ -65,7 +66,7 @@ bool hashtable_mcmp_op_get_key(
     assert(source_key != NULL);
     assert(source_key_size > 0);
 
-    *key = ffma_mem_alloc(source_key_size);
+    *key = xalloc_alloc(source_key_size);
     memcpy(*key, source_key, source_key_size);
     *key_size = source_key_size;
 
@@ -99,7 +100,7 @@ bool hashtable_mcmp_op_get_key(
 #endif
 
     if (unlikely(key_deleted_or_different)) {
-        ffma_mem_free(key);
+        xalloc_free(key);
         *key = NULL;
         *key_size = 0;
     }

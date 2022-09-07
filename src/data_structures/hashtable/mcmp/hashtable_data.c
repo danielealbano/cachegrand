@@ -113,7 +113,7 @@ void hashtable_mcmp_data_keys_free(
             continue;
         }
 
-        ffma_mem_free(key_value->external_key.data);
+        xalloc_free(key_value->external_key.data);
     }
 }
 

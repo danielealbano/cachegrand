@@ -6,7 +6,6 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdatomic.h>
@@ -14,16 +13,12 @@
 #include <assert.h>
 #include <numa.h>
 
-#include "misc.h"
 #include "memory_fences.h"
-#include "exttypes.h"
+#include "xalloc.h"
 #include "spinlock.h"
 #include "transaction.h"
 #include "transaction_spinlock.h"
 #include "log/log.h"
-#include "data_structures/double_linked_list/double_linked_list.h"
-#include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
 
 #include "hashtable.h"
 #include "hashtable_op_set.h"
@@ -140,7 +135,7 @@ bool hashtable_mcmp_op_set(
 
     // Validate if the passed key can be freed because unused or because inlined
     if (!created_new || key_inlined) {
-        ffma_mem_free(key);
+        xalloc_free(key);
     }
 
     // Increment the size counter

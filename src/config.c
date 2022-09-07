@@ -76,7 +76,7 @@ void config_internal_cyaml_log(
 
     // If any, clone the message to skip them
     if (fmt_has_newline) {
-        fmt_to_print = malloc(fmt_len + 1);
+        fmt_to_print = xalloc_alloc(fmt_len + 1);
         strncpy(fmt_to_print, fmt, fmt_len);
         fmt_to_print[fmt_len] = 0;
     }

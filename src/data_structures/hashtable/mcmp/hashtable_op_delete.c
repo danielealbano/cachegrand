@@ -6,7 +6,6 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdatomic.h>
@@ -16,13 +15,11 @@
 #include "misc.h"
 #include "exttypes.h"
 #include "memory_fences.h"
+#include "xalloc.h"
 #include "log/log.h"
 #include "spinlock.h"
 #include "transaction.h"
 #include "transaction_spinlock.h"
-#include "data_structures/double_linked_list/double_linked_list.h"
-#include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
 
 #include "hashtable.h"
 #include "hashtable_support_index.h"
@@ -121,7 +118,7 @@ bool hashtable_mcmp_op_delete(
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
             if (!HASHTABLE_KEY_VALUE_HAS_FLAG(key_value_flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
 #endif
-                ffma_mem_free(key_value->external_key.data);
+                xalloc_free(key_value->external_key.data);
                 key_value->external_key.data = NULL;
                 key_value->external_key.size = 0;
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1

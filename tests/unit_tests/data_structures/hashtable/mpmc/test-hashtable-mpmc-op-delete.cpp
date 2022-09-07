@@ -13,9 +13,18 @@
 
 #include "exttypes.h"
 #include "spinlock.h"
+#include "xalloc.h"
 #include "transaction.h"
 #include "transaction_spinlock.h"
 #include "random.h"
+#include "fiber.h"
+#include "fiber_scheduler.h"
+#include "clock.h"
+#include "config.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
+#include "worker/worker.h"
 
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
@@ -27,6 +36,11 @@
 #include "fixtures-hashtable-mpmc.h"
 
 TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][hashtable_mcmp_op_delete]") {
+    worker_context_t worker_context = { 0 };
+    worker_context.worker_index = UINT16_MAX;
+    worker_context_set(&worker_context);
+    transaction_set_worker_index(worker_context.worker_index);
+
     SECTION("hashtable_mcmp_op_delete") {
         SECTION("delete non-existing") {
             HASHTABLE(0x7FFF, false, {
@@ -51,7 +65,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 hashtable_key_value_volatile_t *key_value =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
 
-                char *test_key_1_alloc = (char*)malloc(test_key_1_len + 1);
+                char *test_key_1_alloc = (char*)xalloc_alloc(test_key_1_len + 1);
                 strncpy(test_key_1_alloc, test_key_1, test_key_1_len + 1);
 
                 REQUIRE(hashtable_mcmp_op_set(
@@ -88,7 +102,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 hashtable_key_value_volatile_t *key_value =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
 
-                char *test_key_1_alloc = (char*)malloc(test_key_1_len + 1);
+                char *test_key_1_alloc = (char*)xalloc_alloc(test_key_1_len + 1);
                 strncpy(test_key_1_alloc, test_key_1, test_key_1_len + 1);
 
                 REQUIRE(hashtable_mcmp_op_set(
@@ -125,7 +139,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 hashtable_key_value_volatile_t *key_value =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)];
 
-                char *test_key_1_alloc = (char*)malloc(test_key_1_len + 1);
+                char *test_key_1_alloc = (char*)xalloc_alloc(test_key_1_len + 1);
                 strncpy(test_key_1_alloc, test_key_1, test_key_1_len + 1);
 
                 REQUIRE(hashtable_mcmp_op_set(
@@ -147,7 +161,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
 
-                test_key_1_alloc = (char*)malloc(test_key_1_len + 1);
+                test_key_1_alloc = (char*)xalloc_alloc(test_key_1_len + 1);
                 strncpy(test_key_1_alloc, test_key_1, test_key_1_len + 1);
 
                 REQUIRE(hashtable_mcmp_op_set(
@@ -182,7 +196,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         slots_to_fill);
 
                 for(hashtable_chunk_index_t i = 0; i < slots_to_fill; i++) {
-                    char *test_key_same_bucket_alloc = (char*)malloc(test_key_same_bucket[i].key_len + 1);
+                    char *test_key_same_bucket_alloc = (char*)xalloc_alloc(test_key_same_bucket[i].key_len + 1);
                     strncpy(test_key_same_bucket_alloc, test_key_same_bucket[i].key, test_key_same_bucket[i].key_len + 1);
 
                     REQUIRE(hashtable_mcmp_op_set(
@@ -228,7 +242,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         slots_to_fill);
 
                 for(hashtable_chunk_index_t i = 0; i < slots_to_fill - 1; i++) {
-                    char *test_key_same_bucket_alloc = (char*)malloc(test_key_same_bucket[i].key_len + 1);
+                    char *test_key_same_bucket_alloc = (char*)xalloc_alloc(test_key_same_bucket[i].key_len + 1);
                     strncpy(test_key_same_bucket_alloc, test_key_same_bucket[i].key, test_key_same_bucket[i].key_len + 1);
 
                     REQUIRE(hashtable_mcmp_op_set(
@@ -260,7 +274,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
                 REQUIRE(key_value->data == test_value_1 + random_slot_index);
 
-                char *test_key_same_bucket_alloc = (char*)malloc(test_key_same_bucket[slots_to_fill - 1].key_len + 1);
+                char *test_key_same_bucket_alloc = (char*)xalloc_alloc(test_key_same_bucket[slots_to_fill - 1].key_len + 1);
                 strncpy(test_key_same_bucket_alloc, test_key_same_bucket[slots_to_fill - 1].key, test_key_same_bucket[slots_to_fill - 1].key_len + 1);
 
                 REQUIRE(hashtable_mcmp_op_set(

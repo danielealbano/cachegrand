@@ -475,6 +475,7 @@ class Program:
             "#include \"misc.h\"",
             "#include \"exttypes.h\"",
             "#include \"log/log.h\"",
+            "#include \"xalloc.h\"",
             "#include \"clock.h\"",
             "#include \"spinlock.h\"",
             "#include \"transaction.h\"",
@@ -630,7 +631,6 @@ class Program:
         for argument_index, argument in enumerate(arguments):
             lines = []
             field_name = None
-            free_memory_func = "ffma_mem_free"
 
             if first_processed:
                 lines.append("")
@@ -666,7 +666,7 @@ class Program:
                     lines.append("if (context->{argument_name}.list) {{")
                     lines.append("    for(int i = 0; i < context->{argument_name}.count; i++) {{")
                     lines.append("        if (context->{argument_name}.list[i].chunk_sequence) {{")
-                    lines.append("            storage_db_chunk_sequence_free(db, context->{argument_name}.list[i].chunk_sequence);")
+                    lines.append("            {free_memory_func}(db, context->{argument_name}.list[i].chunk_sequence);")
                     lines.append("        }}")
                     lines.append("    }}")
                     lines.append("    ffma_mem_free(context->{argument_name}.list);")
@@ -677,6 +677,8 @@ class Program:
                     lines.append("}}")
 
             elif argument["type"] in ["key", "pattern", "short_string"]:
+                free_memory_func = "xalloc_free"
+
                 if argument["type"] == "key":
                     field_name = "key"
                 elif argument["type"] == "pattern":
@@ -688,14 +690,14 @@ class Program:
                     lines.append("if (context->{argument_name}.list) {{")
                     lines.append("    for(int i = 0; i < context->{argument_name}.count; i++) {{")
                     lines.append("        if (context->{argument_name}.list[i].{field_name}) {{")
-                    lines.append("            ffma_mem_free(context->{argument_name}.list[i].{field_name});")
+                    lines.append("            {free_memory_func}(context->{argument_name}.list[i].{field_name});")
                     lines.append("        }}")
                     lines.append("    }}")
                     lines.append("    ffma_mem_free(context->{argument_name}.list);")
                     lines.append("}}")
                 else:
                     lines.append("if (context->{argument_name}.value.{field_name}) {{")
-                    lines.append("    ffma_mem_free(context->{argument_name}.value.{field_name});")
+                    lines.append("    {free_memory_func}(context->{argument_name}.value.{field_name});")
                     lines.append("}}")
             else:
                 continue

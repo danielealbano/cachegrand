@@ -37,7 +37,6 @@
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PTTL", "[redis][command][PTTL]") {
-
     SECTION("Non-existing key") {
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"PTTL", "a_key"},
@@ -55,13 +54,25 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PTTL", "[red
     }
 
     SECTION("Key with 5 second expire") {
+        char buffer[32] = { 0 };
+        size_t out_buffer_length = 0;
+        int64_t unixtime_response;
+        size_t expected_length = snprintf(nullptr, 0, ":%d\r\n", 5000);
+
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
                 "+OK\r\n"));
 
-        // Potentially flaky test
-        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+        REQUIRE(send_recv_resp_command_multi_recv(
                 std::vector<std::string>{"PTTL", "a_key"},
-                ":5000\r\n"));
+                buffer,
+                sizeof(buffer),
+                &out_buffer_length,
+                expected_length,
+                send_recv_resp_command_calculate_multi_recv(expected_length)));
+
+        unixtime_response = strtoll(buffer + 1, nullptr, 10);
+
+        REQUIRE((unixtime_response >= 5000 - 5 && unixtime_response <= 5000));
     }
 }

@@ -1379,7 +1379,7 @@ bool storage_db_op_flush_sync(
             // The bucket might have been deleted in the meantime so get_key has to return true
             if (hashtable_mcmp_op_get_key(db->hashtable, bucket_index, &key, &key_size)) {
                 storage_db_op_delete(db, key, key_size);
-                ffma_mem_free(key);
+                xalloc_free(key);
             }
         }
     }
@@ -1445,7 +1445,7 @@ storage_db_key_and_key_length_t *storage_db_op_get_keys(
 
         if (likely(pattern_length > 0)) {
             if (!utils_string_glob_match(key, key_size, pattern, pattern_length)) {
-                ffma_mem_free(key);
+                xalloc_free(key);
                 continue;
             }
         }
@@ -1471,7 +1471,7 @@ void storage_db_free_key_and_key_length_list(
         storage_db_key_and_key_length_t *keys,
         uint64_t keys_count) {
     for(uint64_t index = 0; index < keys_count; index++) {
-        ffma_mem_free(keys[index].key);
+        xalloc_free(keys[index].key);
     }
     xalloc_free(keys);
 }

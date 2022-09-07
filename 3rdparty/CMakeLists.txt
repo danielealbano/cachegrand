@@ -9,6 +9,7 @@ include("libnuma")
 include("libcurl")
 
 # Dependencies built as part of the build process
+include("mimalloc")
 include("liburing")
 include("libcyaml")
 include("sentry")

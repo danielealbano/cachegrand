@@ -20,6 +20,14 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "memory_allocator/ffma.h"
+#include "fiber.h"
+#include "fiber_scheduler.h"
+#include "clock.h"
+#include "config.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
+#include "worker/worker.h"
 
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
@@ -30,6 +38,11 @@
 #include "fixtures-hashtable-mpmc.h"
 
 TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashtable_mcmp_op_get]") {
+    worker_context_t worker_context = { 0 };
+    worker_context.worker_index = UINT16_MAX;
+    worker_context_set(&worker_context);
+    transaction_set_worker_index(worker_context.worker_index);
+
     SECTION("hashtable_mcmp_op_get") {
         hashtable_value_data_t value = 0;
 
@@ -186,7 +199,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
 
                 for(hashtable_chunk_slot_index_t i = 0; i < HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT; i++) {
                     // Not necessary to free, the key(s) is owned by the hashtable
-                    char *test_key_same_bucket_current_copy = (char*)malloc(test_key_same_bucket[i].key_len + 1);
+                    char *test_key_same_bucket_current_copy = (char*)xalloc_alloc(test_key_same_bucket[i].key_len + 1);
                     strncpy(
                             test_key_same_bucket_current_copy,
                             test_key_same_bucket[i].key,
@@ -233,7 +246,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
 
                 for(hashtable_chunk_slot_index_t i = 0; i < slots_to_fill; i++) {
                     // Not necessary to free, the key(s) is owned by the hashtable
-                    char *test_key_same_bucket_current_copy = (char*)malloc(test_key_same_bucket[i].key_len + 1);
+                    char *test_key_same_bucket_current_copy = (char*)xalloc_alloc(test_key_same_bucket[i].key_len + 1);
                     strncpy(
                             test_key_same_bucket_current_copy,
                             test_key_same_bucket[i].key,

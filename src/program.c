@@ -20,6 +20,7 @@
 #include <sys/resource.h>
 #include <string.h>
 #include <stdlib.h>
+#include <mimalloc.h>
 
 #include "misc.h"
 #include "pow2.h"
@@ -433,7 +434,7 @@ bool program_use_huge_pages(
 
     // use_huge_pages is optional
     if (program_context->config->use_huge_pages == NULL) {
-        use_huge_pages = true;
+        use_huge_pages = false;
     } else {
         use_huge_pages = *program_context->config->use_huge_pages;
     }
@@ -449,9 +450,10 @@ bool program_use_huge_pages(
 
     if (use_huge_pages) {
         hugepage_cache_init();
+        ffma_enable(use_huge_pages);
+    } else {
+        ffma_enable(false);
     }
-
-    ffma_enable(use_huge_pages);
 
     program_context->use_huge_pages = use_huge_pages;
 
