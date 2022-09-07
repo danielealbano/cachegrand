@@ -15,6 +15,7 @@
 
 #include "misc.h"
 #include "exttypes.h"
+#include "xalloc.h"
 #include "clock.h"
 #include "spinlock.h"
 #include "transaction.h"
@@ -48,7 +49,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(randomkey) {
 
     if (likely(key)) {
         return_res = module_redis_connection_send_blob_string(connection_context, key, key_size);
-        ffma_mem_free(key);
+        xalloc_free(key);
     } else {
         return_res = module_redis_connection_send_string_null(connection_context);
     }

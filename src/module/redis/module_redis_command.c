@@ -20,6 +20,7 @@
 
 #include "misc.h"
 #include "exttypes.h"
+#include "xalloc.h"
 #include "log/log.h"
 #include "spinlock.h"
 #include "transaction.h"
@@ -608,7 +609,7 @@ bool module_redis_command_process_argument_full(
                        guessed_argument->name);
             }
 
-            string_value = ffma_mem_alloc(chunk_length);
+            string_value = xalloc_alloc(chunk_length);
 
             if (!string_value) {
                 LOG_E(TAG, "Failed to allocate memory for the incoming data");
