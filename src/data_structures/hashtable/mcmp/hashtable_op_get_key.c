@@ -100,7 +100,7 @@ bool hashtable_mcmp_op_get_key(
 #endif
 
     if (unlikely(key_deleted_or_different)) {
-        ffma_mem_free(key);
+        xalloc_free(key);
         *key = NULL;
         *key_size = 0;
     }
