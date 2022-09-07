@@ -451,10 +451,8 @@ bool program_use_huge_pages(
     if (use_huge_pages) {
         hugepage_cache_init();
         ffma_enable(use_huge_pages);
-        mi_option_enable(mi_option_large_os_pages);
     } else {
         ffma_enable(false);
-        mi_option_disable(mi_option_large_os_pages);
     }
 
     program_context->use_huge_pages = use_huge_pages;
