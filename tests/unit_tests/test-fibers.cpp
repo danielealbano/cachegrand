@@ -13,6 +13,7 @@
 #include <signal.h>
 #include <setjmp.h>
 
+#include "xalloc.h"
 #include "signals_support.h"
 #include "fiber.h"
 
@@ -165,8 +166,8 @@ TEST_CASE("fiber.c", "[fiber]") {
 
             // The fiber memory is protected, the memory protection has to be disabled before freeing the memory
             mprotect(fiber->stack_base, page_size, PROT_READ | PROT_WRITE);
-            free(fiber->stack_base);
-            free(fiber);
+            xalloc_free(fiber->stack_base);
+            xalloc_free(fiber);
         }
 
         SECTION("fail to allocate a new fiber without an entrypoint") {
