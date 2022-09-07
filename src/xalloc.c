@@ -59,6 +59,11 @@ void* xalloc_alloc_zero(
     void* memptr;
 
     memptr = mi_zalloc(size);
+
+    if (memptr == NULL) {
+        FATAL(TAG, "Unable to allocate the requested memory %lu", size);
+    }
+
     if (memset(memptr, 0, size) != memptr) {
         FATAL(TAG, "Unable to zero the requested memory %lu", size);
     }
@@ -95,6 +100,11 @@ void* xalloc_alloc_aligned_zero(
     void* memptr;
 
     memptr = mi_zalloc_aligned(size, alignment);
+
+    if (memptr == NULL) {
+        FATAL(TAG, "Unable to allocate the requested memory %lu", size);
+    }
+
     if (memset(memptr, 0, size) != memptr) {
         FATAL(TAG, "Unable to zero the requested memory %lu", size);
     }
