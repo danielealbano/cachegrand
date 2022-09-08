@@ -1,5 +1,7 @@
-SLAB Allocator
-==============
+FFMA (or Fast Fixed Memory Allocator)
+=====================================
+
+FFMA is SLAB memory allocator, from below a paragraph from Wikipedia:
 
 > Slab allocation is a memory management mechanism intended for the efficient memory allocation of objects. Compared to
 > earlier mechanisms, it reduces fragmentation caused by allocations and deallocations. The technique is used to retain
@@ -29,11 +31,11 @@ The terminology in place is slightly different from what can be commonly found o
 - a slab slice is a slab, for this implementation it matches a hugepage
 - a slab slot is an object managed by the object cache
 
-To be able to provide a `O(1)` for the alloc/free operations the SLAB allocator relies on the hugepages of 2MB, that are
+To be able to provide a `O(1)` for the alloc/free operations FFMA relies on the hugepages of 2MB, that are
 the slab slices, and a double linked list used to track the available objects, kept at the beginning, and the used
 objects kept at the end.
 
-The SLAB allocator is lock-less in the hot-path and uses atomic operations in the slow-path, it's also numa-aware as
+FFMA is lock-less in the hot-path and uses atomic operations in the slow-path, it's also numa-aware as
 all the hugepages are fetched from the numa-domain executing the core.
 
 ### Data Structures
@@ -94,23 +96,22 @@ struct ffma {
 The slab allocator is a container for the slab slices and can be used only by a specific thread for a specific object
 size.
 
-Because the slab allocator is per thread, the hugepages will be allocated in the numa domain of the thread, therefore
+Because FFMA uses per-thread separation, the hugepages will be allocated in the numa domain of the thread, therefore
 it's better, although not required, to bound the thread to a core of the cpu to get better performances.
 
 The structure contains a double linked list of slots, sorted per availability where the available slots are
 kept at the head and the in use slots are kept at the tail.
 In this way, when it's necessary to fetch a slot it's possible to fetch it directly from the head if available.
-If no slots are available, the slab allocator requests to the component that handles the cache of hugepages to provide
-a new one, once received the slab allocator initializes a slab slice out of the hugepage and update the list of
-available slots.
+If no slots are available, FFMA requests to the component that handles the cache of hugepages to provide a new one, once
+received it initializes a slab slice out of the hugepage and update the list of available slots.
 A hugepage can easily contain tens of thousands of 16 bytes objects, so the price is very well amortized for the small
 objects, more explanation on the calculations are provided in the [ffma_slice_t](#struct-ffma_slice-ffma_slice_t)
 section.
 
 A queue called `free_ffma_slots_queue_from_other_threads` exists in case memory allocated by one thread gets freed by
 another, the thread that doesn't own the memory passes it to the thread that ones it via a mpmc queue that uses atomic
-operations to maintain a correct state.
-In case the slab allocator has to fetch a slot but no more pre-allocated slots are available, then the queue is checked
+operations to maintain a correct state without relying on more expensive locking operations.
+In case FFMA has to fetch a slot but no more pre-allocated slots are available, then the queue is checked
 to see if a thread any other thread has returned any object and, in case, it uses it. The object fetched from the queue
 require fewer operations to be used.
 
@@ -179,7 +180,7 @@ available slices are kept at the head meanwhile the in use ones at the tail.
 
 Here an example of the memory layout of a slice
 
-![SLAB Allocator - Memory layout](../images/ffma_2.png)
+![FFMA - Memory layout](../images/ffma_2.png)
 
 *(the schema hasn't been updated after renaming the memory allocator)*
 
@@ -218,6 +219,6 @@ explained above, the available slices are kept at the head meanwhile the in use 
 
 *The benchmarks below are very obsolete and need to be regenerated from the benchmark in the benches' folder.*
 
-![SLAB Allocator - Benchmarks](../images/ffma_3.png)
+![FFMA - Benchmarks](../images/ffma_3.png)
 
 [1]: https://en.wikipedia.org/wiki/Slab_allocation
