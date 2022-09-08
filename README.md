@@ -42,37 +42,42 @@ doesn't really have too much room to handle the network traffic.
 ![Latency with 64 threads and 6400 clients](https://raw.githubusercontent.com/danielealbano/cachegrand/main/docs/benchmarks/cachegrand-amd-epyc-7502p-latencies-t64.jpg)
 
 Key features:
-- [Modular](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules.md) architecture to support widely used protocols, e.g.
+- [Modular](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules.md) architecture to support
+  widely used protocols, e.g.
   [Redis](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/redis.md),
   [Prometheus](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/prometheus.md), etc.
-- [Time-series database](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/timeseries-db.md) for fast data writes and retrieval with
-  primitives built to handle different data types (e.g. small strings, large blobs, jsons, etc.) - WIP;
-- [Hashtable](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/hashtable.md) GET Lock-free and Wait-free operations, SET and DELETE use
-  localized spinlocks, the implementation is capable to digest 2.1 billion records per second on a 1x AMD EPYC 7502 (see
+- [Time-series database](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/timeseries-db.md) for
+  fast data writes and retrieval with primitives built to handle different data types (e.g. small strings, large blobs,
+  jsons, etc.) - work in progress;
+- [Hashtable](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/hashtable.md) GET Lock-free and
+  Wait-free operations, SET and DELETE use localized spinlocks, the implementation is capable to digest 2.1 billion
+  records per second on a 1x AMD EPYC 7502 (see
   [benches](https://github.com/danielealbano/cachegrand/blob/main/docs/benchmarks/hashtable.md));
 - An extremely fast ad-hoc memory allocator for fixed size allocations, [Fast Fixed Memory Allocator (or FFMA)](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/fast-fixed-memory-allocator.md)
   capable of allocating and freeing memory in O(1);
 - Linear vertical scalability when using the in-memory database, 2x cpus means 2x requests (see
   [benches](https://github.com/danielealbano/cachegrand/blob/main/docs/benchmarks/linear-vertical-scalability.md));
+- [Built for flash memories](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/timeseries-db.md#flash-memories) 
+  to be able to efficiently saturate the available IOPS in modern DC NVMEs and SSDs - proof of concept support;
 
 Planned Key Features:
 - More modules for additional platforms compatibility, e.g. [Memcache](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/memcache.md), AWS S3,
   etc., or to add support for monitoring, e.g. [DataDog](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/datadog.md),
 - etc.;
 - Ad ad-hoc network stack based on DPDK / Linux XDP (eXpress Data Path) and the FreeBSD network stack;
-- [Built for flash memories](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/timeseries-db.md#flash-memories) to be able to efficiently saturate the
-  available IOPS in modern DC NVMEs and SSDs - WIP;
-- [WebAssembly](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/webassembly.md) to provide AOT-compiled
+- [WebAssembly](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/webassembly.md) to provide
+  AOT-compiled
   [User Defined Functions](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/webassembly/user-defined-functions.md),
-  [event hooks](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/webassembly/event-hooks.md), implement
-  [modules](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/webassembly.md#modules), you can use your preferred language to perform operations
-  server side;
-- [Replication groups](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/clustering-and-replication.md#replication-groups) and
-  [replica tags](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/clustering-and-replication.md#replica-tags), tag data client side or use
-  server side events to tag the data and determine how they will be replicated;
+  [event hooks](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/webassembly/event-hooks.md),
+  implement [modules](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/webassembly.md#modules),
+  you can use your preferred language to perform operations server side;
+- [Replication groups](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/clustering-and-replication.md#replication-groups)
+  and [replica tags](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/clustering-and-replication.md#replica-tags),
+  tag data client side or use server side events to tag the data and determine how they will be replicated;
 - [Active-Active](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/clustering-and-replication.md#active-active)
-  [last-write-wins](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/clustering-and-replication.md#last-write-wins) data replication, it's a
-  cache, write to any node of a replication group to which the replication tags are assigned, no need to think worry it;
+  [last-write-wins](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/clustering-and-replication.md#last-write-wins)
+  data replication, it's a cache, write to any node of a replication group to which the replication tags are assigned,
+  no need to worry it;
 
 It's possible to find more information in the [docs'](https://github.com/danielealbano/cachegrand/blob/main/docs/)
 folder.
