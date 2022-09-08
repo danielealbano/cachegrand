@@ -13,19 +13,6 @@
   </a>
 </p>
 
-### Faster without spending one extra cent!
-
-Are you running a large Redis cluster because you need better performance? **Why pay more for less?**
-cachegrand can help to squeeze all the value of your existing infrastructure is already offering!
-For example on a 8-core Virtual Machine, cachegrand can offer up to **40X** better performances, either handling much
-more clients or lower latencies, on a 64 core machine (AMD EPYC 7502P) is even able to deliver **2560X** better, the
-tests have shown that with **64X** more load than a single core Redis instance cachegrand was still able to go **40X**
-faster than a single Redis instance!
-
-Not only we are working hard to expand the Redis API support, but cachegrand comes with a tiered
-storage - currently work in progress - which will let you leverage hot, warm and cold disks **reducing the TCO (Total
-Cost of Ownership) up to 5 times**!
-
 ### What is cachegrand?
 
 cachegrand is an open-source fast, scalable and modular Key-Value store designed from the ground up to take advantage of
@@ -59,7 +46,7 @@ Key features:
   [Redis](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/redis.md),
   [Prometheus](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/prometheus.md), etc.
 - [Time-series database](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/timeseries-db.md) for fast data writes and retrieval with
-  primitives built to handle different data types (e.g. small strings, large blobs, jsons, etc.);
+  primitives built to handle different data types (e.g. small strings, large blobs, jsons, etc.) - WIP;
 - [Hashtable](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/hashtable.md) GET Lock-free and Wait-free operations, SET and DELETE use
   localized spinlocks, the implementation is capable to digest 2.1 billion records per second on a 1x AMD EPYC 7502 (see
   [benches](https://github.com/danielealbano/cachegrand/blob/main/docs/benchmarks/hashtable.md));
@@ -74,7 +61,7 @@ Planned Key Features:
 - etc.;
 - Ad ad-hoc network stack based on DPDK / Linux XDP (eXpress Data Path) and the FreeBSD network stack;
 - [Built for flash memories](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/timeseries-db.md#flash-memories) to be able to efficiently saturate the
-  available IOPS in modern DC NVMEs and SSDs;
+  available IOPS in modern DC NVMEs and SSDs - WIP;
 - [WebAssembly](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/webassembly.md) to provide AOT-compiled
   [User Defined Functions](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/webassembly/user-defined-functions.md),
   [event hooks](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/webassembly/event-hooks.md), implement
