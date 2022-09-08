@@ -10,10 +10,53 @@ scalability.
 ### Basic commands
 
 Only a subset of basic commands are supported:
-- HELLO
-- PING
-- QUIT
-- SHUTDOWN
-- GET
-- SET
-- DEL
+
+| Command       | Notes                                                |
+| ------------- |------------------------------------------------------|
+| ✔ APPEND      |                                                      |
+| ✔ COPY        | Missing DB parameter                                 |
+| ✔ DBSIZE      |                                                      |
+| ✔ DECR        |                                                      |
+| ✔ DECRBY      |                                                      |
+| ✔ DEL         |                                                      |
+| ✔ EXISTS      |                                                      |
+| ✔ EXPIRE      |                                                      |
+| ✔ EXPIREAT    |                                                      |
+| ✔ EXPIRETIME  |                                                      |
+| ✔ FLUSHDB     | Missing ASYNC parameter                              |
+| ✔ GET         |                                                      |
+| ✔ GETDEL      |                                                      |
+| ✔ GETEX       |                                                      |
+| ✔ GETRANGE    |                                                      |
+| ✔ GETSET      |                                                      |
+| ✔ HELLO       | Missing AUTH and SETNAME parameters                  |
+| ✔ INCR        |                                                      |
+| ✔ INCRBY      |                                                      |
+| ✔ INCRBYFLOAT |                                                      |
+| ✔ KEYS        |                                                      |
+| ✔ LCS         | Missing IDX, MINMATCHLEN and WITHMATCHLEN parameters |
+| ✔ MGET        |                                                      |
+| ✔ MSET        |                                                      |
+| ✔ MSETNX      |                                                      |
+| ✔ PERSIST     |                                                      |
+| ✔ PEXPIRE     |                                                      |
+| ✔ PEXPIREAT   |                                                      |
+| ✔ PEXPIRETIME |                                                      |
+| ✔ PING        |                                                      |
+| ✔ PSETEX      |                                                      |
+| ✔ PTTL        |                                                      |
+| ✔ QUIT        |                                                      |
+| ✔ RANDOMKEY   |                                                      |
+| ✔ RENAME      |                                                      |
+| ✔ RENAMENX    |                                                      |
+| ✔ SCAN        | Missing TYPE parameter                               |
+| ✔ SET         |                                                      |
+| ✔ SETEX       |                                                      |
+| ✔ SETNX       |                                                      |
+| ✔ SETRANGE    |                                                      |
+| ✔ SHUTDOWN    |                                                      |
+| ✔ STRLEN      |                                                      |
+| ✔ SUBSTR      |                                                      |
+| ✔ TOUCH       |                                                      |
+| ✔ TTL         |                                                      |
+| ✔ UNLINK      |                                                      |
