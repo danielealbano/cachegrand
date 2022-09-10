@@ -7,7 +7,7 @@ list(REMOVE_ITEM SRC_FILES_ANALYZER analyzer.c)
 add_executable(
         redis-commands-analyzer
         analyzer.c
-        ${SRC_FILES_ANALYZER} analyzer.h)
+        ${SRC_FILES_ANALYZER})
 
 set_target_properties(
         redis-commands-analyzer
