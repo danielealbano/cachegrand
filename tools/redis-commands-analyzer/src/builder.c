@@ -21,11 +21,12 @@ section_t* new_section_p() {
 
 bool section_append_command(
         section_t *section,
-        int n_command,
+        int n_commands,
         command_t *command) {
-    section->commands = realloc(section->commands, n_command+1 * sizeof(section_t));
-    section->commands[n_command] = command;
-    if (section->commands[n_command] != NULL) {
+    section->n_commands = n_commands+1;
+    section->commands = realloc(section->commands, n_commands+1 * sizeof(section_t));
+    section->commands[n_commands] = command;
+    if (section->commands[n_commands] != NULL) {
         return true;
     }
 
@@ -42,11 +43,12 @@ test_t* new_test_p() {
 
 bool test_append_section(
         test_t *test,
-        int n_section,
+        int n_sections,
         section_t *section) {
-    test->sections = realloc(test->sections, n_section+1 * sizeof(section_t));
-    test->sections[n_section] = section;
-    if (test->sections[n_section] != NULL) {
+    test->n_sections = n_sections+1;
+    test->sections = realloc(test->sections, n_sections+1 * sizeof(section_t));
+    test->sections[n_sections] = section;
+    if (test->sections[n_sections] != NULL) {
         return true;
     }
 
@@ -59,4 +61,25 @@ void test_free_sections(
     for (int i = 0; i < n_section; ++i) {
         free(test->sections[i]);
     }
+}
+
+tests_t* new_tests_p() {
+    tests_t *tests;
+    tests = (tests_t*) malloc(1 * sizeof(tests_t));
+    tests->tests = (test_t**) malloc(1 * sizeof(test_t));
+    return tests;
+}
+
+bool tests_append_test(
+        tests_t *tests,
+        int n_tests,
+        test_t *test) {
+    tests->n_tests = n_tests+1;
+    tests->tests[n_tests] = realloc(tests->tests[n_tests], n_tests+1 * sizeof(test_t));
+    tests->tests[n_tests] = test;
+    if (tests->tests[n_tests] != NULL) {
+        return true;
+    }
+
+    return false;
 }

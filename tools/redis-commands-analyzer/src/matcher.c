@@ -69,7 +69,6 @@ char* get_testcase_name(
 
     res = pattern_matcher(pattern, nmatch, line);
     if (res) {
-        printf("Test name: %s\n\n", res[nmatch-1]);
         return res[nmatch-1];
     }
 
@@ -84,7 +83,6 @@ char* get_section_name(
 
     res = pattern_matcher(pattern, nmatch, line);
     if (res) {
-        printf("Section name: %s\n", res[nmatch-1]);
         return res[nmatch-1];
     }
 
@@ -133,6 +131,5 @@ char* get_command(
     command = replace_char(command, '"', ' ');
     command = replace_char(command, ',', ' ');
 
-    printf("Command: %s\n", command);
     return command;
 }

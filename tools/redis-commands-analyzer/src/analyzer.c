@@ -14,31 +14,31 @@ char *tests_lists[] ={
 };
 
 FILE *current_file;
+tests_t *tests;
+int n_tests;
 
-
-void open_file() {
-
-}
-
-void read_content() {
-    FILE *file;
-    char line[500];
-
-//    file = fopen("../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-append.cpp", "r");
-    file = fopen("../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-del.cpp", "r");
-    if (NULL == file) {
+bool open_file(char *file_path) {
+    current_file = fopen(file_path, "r");
+    if (NULL == current_file) {
         printf("file can't be opened \n");
+        return false;
     }
 
-    test_t **tests;
-    tests = (test_t**) malloc(1 * sizeof(test_t));
+    return true;
+}
 
+void close_file() {
+    fclose(current_file);
+}
 
+void read_file_content() {
+    char line[500];
     int n_sections = 0;
     int n_commands = 0;
-    section_t *current_section = new_section_p();
-    test_t *current_test;
-    while (fgets(line, 500, file) != NULL) {
+    section_t *current_section = NULL;
+    test_t *current_test = NULL;
+
+    while (fgets(line, 500, current_file) != NULL) {
         // Check if is a new test case
         if (is_testcase(line)) {
             current_test = new_test_p();
@@ -55,29 +55,28 @@ void read_content() {
             // Reset number commands
             n_commands = 0;
 
-            printf("---- NEW SECTION ---- \n");
             // Get Section Name
             char *section_name;
             section_name = get_section_name(line);
 
             // Check if section is differnte than previous
-            if (section_name != current_section->name && current_section->name) {
-                if (!test_append_section(
-                        current_test,
-                        n_sections,
-                        current_section)) {
-                    printf("memory error appending sections");
-                    exit(EXIT_FAILURE);
+            if (current_section) {
+                if (section_name != current_section->name) {
+                    if (!test_append_section(
+                            current_test,
+                            n_sections,
+                            current_section)) {
+                        printf("memory error appending sections");
+                        exit(EXIT_FAILURE);
+                    }
+
+                    // TODO: if not present any test in this section probabily is a child
+                    ++n_sections;
                 }
-
-                // TODO: if not present any test in this section probabily is a child
-
-                // Init new section
-                current_section = new_section_p();
-                ++n_sections;
             }
 
             // Save section information
+            current_section = new_section_p();
             current_section->name = section_name;
         }
 
@@ -102,7 +101,7 @@ void read_content() {
         }
     }
 
-    // Append last section and free pointer
+    // Append last data and free pointer
     if (!test_append_section(
             current_test,
             n_sections,
@@ -111,28 +110,44 @@ void read_content() {
         exit(EXIT_FAILURE);
     }
 
-    fclose(file);
-    tests[0] = current_test;
-
-    for (int i = 0; i <= n_sections; ++i) {
-        printf("QUIIIi %s", tests[0]->sections[i]->name);
+    // Append single test to tests
+    if (!tests_append_test(
+            tests,
+           n_tests,
+            current_test)) {
+        printf("memory error appending test to tests");
+        exit(EXIT_FAILURE);
     }
 
-    test_free_sections(current_test, n_sections);
-    free(tests);
+//    test_free_sections(current_test, n_sections);
+//    free(tests);
 }
 
 int main() {
     printf("Start main \n");
 
-    read_content();
+    // Init tests
+    tests = new_tests_p();
 
-//    printf("SECTIONS FOUD: %u \n", foundedSection);
-//    for (int i = 0; i < foundedSection; ++i) {
-//        printf("%s", sections[i]);
-//
-//        free(sections[i]);
-//    }
+    size_t n = sizeof(tests_lists) / sizeof(char*);
+    for (int i = 0; i < n; ++i) {
+        if (open_file(tests_lists[i])) {
+            read_file_content();
+            close_file();
+
+            ++n_tests;
+        }
+    }
+
+    for (int i = 0; i < tests->n_tests; ++i) {
+        printf("Test Founded: %s \n", tests->tests[i]->name);
+        for (int j = 0; j < tests->tests[i]->n_sections; ++j) {
+            printf("Section Fouded: %s \n", tests->tests[i]->sections[j]->name);
+            for (int k = 0; k < tests->tests[i]->sections[j]->n_commands; ++k) {
+                printf("Command Fouded: %s \n", tests->tests[i]->sections[j]->commands[k]->command);
+            }
+        }
+    }
 
     return EXIT_SUCCESS;
 }
