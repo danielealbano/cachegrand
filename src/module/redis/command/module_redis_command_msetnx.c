@@ -95,6 +95,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(msetnx) {
             if (unlikely(!storage_db_op_rmw_commit_update(
                     connection_context->db,
                     &rmw_statuses[index],
+                    STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
                     key_value->value.value.chunk_sequence,
                     STORAGE_DB_ENTRY_NO_EXPIRY))) {
                 return_res = module_redis_connection_error_message_printf_noncritical(

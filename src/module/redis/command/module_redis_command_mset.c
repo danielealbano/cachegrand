@@ -48,6 +48,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(mset) {
                 connection_context->db,
                 key_value->key.value.key,
                 key_value->key.value.length,
+                STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
                 key_value->value.value.chunk_sequence,
                 STORAGE_DB_ENTRY_NO_EXPIRY)) {
             return module_redis_connection_error_message_printf_noncritical(connection_context, "ERR mset failed");

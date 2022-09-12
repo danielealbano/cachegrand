@@ -102,6 +102,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
                 connection_context->db,
                 context->key.value.key,
                 context->key.value.length,
+                STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
                 context->value.value.chunk_sequence,
                 expiry_time_ms))) {
             return_res = module_redis_connection_error_message_printf_noncritical(
@@ -156,6 +157,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
             if (unlikely(!storage_db_op_rmw_commit_update(
                     connection_context->db,
                     &rmw_status,
+                    STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
                     context->value.value.chunk_sequence,
                     expiry_time_ms))) {
                 return_res = module_redis_connection_error_message_printf_noncritical(
