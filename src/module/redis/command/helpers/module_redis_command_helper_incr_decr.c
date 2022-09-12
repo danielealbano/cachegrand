@@ -136,6 +136,7 @@ bool module_redis_command_helper_incr_decr(
     if (!storage_db_op_rmw_commit_update(
             connection_context->db,
             &rmw_status,
+            STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
             chunk_sequence_new,
             expiry_time_ms)) {
         return_res = module_redis_connection_error_message_printf_noncritical(
@@ -330,6 +331,7 @@ bool module_redis_command_helper_incr_decr_float(
     if (!storage_db_op_rmw_commit_update(
             connection_context->db,
             &rmw_status,
+            STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
             chunk_sequence_new,
             expiry_time_ms)) {
         return_res = module_redis_connection_error_message_printf_noncritical(

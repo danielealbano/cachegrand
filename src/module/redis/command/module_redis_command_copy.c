@@ -180,6 +180,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
     if (unlikely(!storage_db_op_rmw_commit_update(
             connection_context->db,
             &rmw_status,
+            entry_index_source->value_type,
             chunk_sequence_destination,
             STORAGE_DB_ENTRY_NO_EXPIRY))) {
         // entry_index_destination_new is freed by storage_db_op_rmw_commit_update if the operation fails
