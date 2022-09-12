@@ -33,6 +33,15 @@ enum storage_db_backend_type {
 };
 typedef enum storage_db_backend_type storage_db_backend_type_t;
 
+enum storage_db_entry_index_value_type {
+    STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_UNKNOWN = 1,
+    STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING = 2,
+    STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_LIST = 3,
+    STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_HASHSET = 4,
+    STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_SORTEDSET = 5
+};
+typedef enum storage_db_entry_index_value_type storage_db_entry_index_value_type_t;
+
 // general config parameters to initialize and use the internal storage db (e.g. storage backend, amount of memory for
 // the hashtable, other optional stuff)
 typedef struct storage_db_config storage_db_config_t;
@@ -113,6 +122,7 @@ struct storage_db_chunk_sequence {
 typedef struct storage_db_entry_index storage_db_entry_index_t;
 struct storage_db_entry_index {
     storage_db_entry_index_status_t status;
+    storage_db_entry_index_value_type_t value_type:8;
     storage_db_create_time_ms_t created_time_ms;
     storage_db_expiry_time_ms_t expiry_time_ms;
     storage_db_last_access_time_ms_t last_access_time_ms;
@@ -310,6 +320,7 @@ bool storage_db_op_set(
         storage_db_t *db,
         char *key,
         size_t key_length,
+        storage_db_entry_index_value_type_t value_type,
         storage_db_chunk_sequence_t *value_chunk_sequence,
         storage_db_expiry_time_ms_t expiry_time_ms);
 
@@ -333,6 +344,7 @@ bool storage_db_op_rmw_commit_metadata(
 bool storage_db_op_rmw_commit_update(
         storage_db_t *db,
         storage_db_op_rmw_status_t *rmw_status,
+        storage_db_entry_index_value_type_t value_type,
         storage_db_chunk_sequence_t *value_chunk_sequence,
         storage_db_expiry_time_ms_t expiry_time_ms);
 

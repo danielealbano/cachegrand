@@ -1080,6 +1080,7 @@ bool storage_db_op_set(
         storage_db_t *db,
         char *key,
         size_t key_length,
+        storage_db_entry_index_value_type_t value_type,
         storage_db_chunk_sequence_t *value_chunk_sequence,
         storage_db_expiry_time_ms_t expiry_time_ms) {
     bool result_res = false;
@@ -1208,6 +1209,7 @@ bool storage_db_op_rmw_commit_metadata(
 bool storage_db_op_rmw_commit_update(
         storage_db_t *db,
         storage_db_op_rmw_status_t *rmw_status,
+        storage_db_entry_index_value_type_t value_type,
         storage_db_chunk_sequence_t *value_chunk_sequence,
         storage_db_expiry_time_ms_t expiry_time_ms) {
     bool result_res = false;
