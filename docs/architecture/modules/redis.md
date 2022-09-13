@@ -9,7 +9,7 @@ scalability.
 
 ### Basic commands
 
-Only a subset of basic commands are supported:
+Only a subset of commands are supported, mostly string and keyspace related ones:
 
 | Command       | Notes                                                |
 | ------------- |------------------------------------------------------|
