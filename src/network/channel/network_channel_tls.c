@@ -136,7 +136,7 @@ bool network_channel_tls_handshake(
                 break;
 
             case 0:
-                // TODO: network_flush currently does nothing but shorlty data buffering for the sends will be
+                // TODO: network_flush currently does nothing but shortly data buffering for the sends will be
                 //       implemented and to avoid performance penalties or ssl handshake problems it will be necessary
                 //       to flush the buffer here therefore a network_flush has been added even if it does nothing
                 network_flush_send_buffer(network_channel); // lgtm [cpp/useless-expression]
