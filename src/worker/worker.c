@@ -432,7 +432,7 @@ void* worker_thread_func(
     //       they have to terminate the execution ASAP and therefore any network communication should be halted on the
     //       spot but any pending / in progress I/O operation should be safely completed.
     //       In case the fibers are not terminating, even if it can lead to corruption, them should be terminated within
-    //       a maximum timeout or X seconds and an error message should be reported pointing out what a fiber is doinng
+    //       a maximum timeout or X seconds and an error message should be reported pointing out what a fiber is doing
     //       and where.
     do {
         if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
