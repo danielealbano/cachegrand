@@ -137,7 +137,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_INTERNA
 make -j8
 ```
 
-The cachegrand-server binary will be available in `cmake-build-release/src` meanwhile for the benchmarls a binary will
+The cachegrand-server binary will be available in `cmake-build-release/src` meanwhile for the benchmarks a binary will
 be produced for each one and they will be available in `cmake-build-release/benches` folder.
 
 *Please be aware that the benchmark suite is built for developers and require code modifications to be properly
