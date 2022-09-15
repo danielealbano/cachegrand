@@ -125,7 +125,7 @@ public:
             BenchmarkSupport::CollectHashtableStatsAndUpdateState(
                     (benchmark::State&)state, this->_hashtable);
 
-            // Free the stoarge
+            // Free the storage
             hashtable_mcmp_free(this->_hashtable);
         }
 
@@ -316,7 +316,7 @@ public:
             BenchmarkSupport::CollectHashtableStatsAndUpdateState(
                     (benchmark::State&)state, this->_hashtable);
 
-            // Free the stoarge
+            // Free the storage
             hashtable_mcmp_free(this->_hashtable);
         }
 
