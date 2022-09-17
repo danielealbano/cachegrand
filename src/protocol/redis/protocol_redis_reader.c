@@ -113,7 +113,7 @@ int32_t protocol_redis_reader_read(
 
     // The INLINE protocol parser has been disabled, supporting this variant of the protocol is not a priority as it is
     // unused in production systems and it's barely used for manual development / testing purposes (as it's just easier
-    // to use redis-cli which proeprly supports RESP3)
+    // to use redis-cli which properly supports RESP3)
 //    // PROTOCOL_REDIS_READER_STATE_INLINE_WAITING_ARGUMENT is inline protocol only
 //    // Set this as unlikely to give priority to the other code paths
 //    if (unlikely(context->state == PROTOCOL_REDIS_READER_STATE_INLINE_WAITING_ARGUMENT)) {

@@ -163,7 +163,7 @@ public:
             BenchmarkSupport::CollectHashtableStatsAndUpdateState(
                     (benchmark::State&)state, this->_db->hashtable);
 
-            // Free the stoarge
+            // Free the storage
             storage_db_free(this->_db, this->_workers_count);
         }
 
