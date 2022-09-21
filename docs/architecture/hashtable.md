@@ -7,9 +7,11 @@ This document focuses on the multi-producer multi-consumer hashtable which imple
 
 ## Why a new hashtable?
 
-One of the biggest challenges designing a platform capable of scaling up vertically to leverage all the resources available is avoiding contending these resources when managing them.
+One of the biggest challenges designing a platform capable of scaling up vertically is avoiding contending these resources when managing them.
 
-Although there are exceptions, threads synchronize and, if necessary, wait each other, to perform operations on the same resources, avoiding contention avoid forcing the threads to wait, wasting useful resources and/or increasing the time required to carry out the operations end-to-end.
+To leverage multiple cores and scale up vertically is necessary to use multiple threads and to coordinate the access to the data, which often means that these threads when performing operations on the same resources will have to wait, even if for a brief amount of time, each other.
+
+The contention has a number of different side effects, in general it will waste resources and/or increasing the time required to carry out operations.
 
 When it comes to hashtables some platforms prefer to put a big lock around the it others prefer a share-nothing architecture, quite common in the Scala world.
 
