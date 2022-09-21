@@ -73,7 +73,7 @@ Key features:
 Planned Key Features:
 - More modules for additional platforms compatibility, e.g. [Memcache](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/memcache.md), AWS S3,
   etc., or to add support for monitoring, e.g. [DataDog](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/datadog.md),
-- etc.;
+  etc.;
 - Ad ad-hoc network stack based on DPDK / Linux XDP (eXpress Data Path) and the FreeBSD network stack;
 - [WebAssembly](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/webassembly.md) to provide
   AOT-compiled
