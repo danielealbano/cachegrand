@@ -13,10 +13,10 @@ Although there are exceptions, threads synchronize and, if necessary, wait each 
 
 When it comes to hashtables some platforms prefer to put a big lock around the it others prefer a share-nothing architecture, quite common in the Scala world.
 
-While the last approach provides really good performances while keeping things simple, the share-nothing architecture requires requires partitioning the data and threating these partition as separated entities managed via one specific thread.
+While the last approach provides really good performances while keeping things simple, the share-nothing architecture requires partitioning the data and threating these partition as separated entities managed via one specific thread.
 With this kind of architecture, all the contention is shifted on the components used to communicate between these nodes, which usually are queues: all the operations on the queues will be "gated" by locks or atomic operations, which are very low-level locks, therefore 16 threads translates to spreading the contention on 16 possible queues.
 
-With cachegrand we took the challenge heads-on and developed a new approach - after 1 year of research and development - capable of spreading the contention all over the hashtable, proportionally to the size of it, de-facto dramatically reduce the gate effect!
+With cachegrand we took the challenge heads-on and developed a new approach - after 1 year of research and development - capable of spreading the contention all over the hashtable, proportionally to the size of it, dramatically reducing the gating effect!
 The hashtable in cachegrand is split in "chunks" of 14 elements: 10000 buckets will be gated by 714 locks, 100000 will be gated by 7142 locks with these numbers growing even further minimizing the risk of contention.
 
 ## How is the contention spread?
