@@ -6,4 +6,7 @@ char* replace_char(
         char find,
         char replace);
 
+char* read_file(
+        char *filename);
+
 #endif //ANALYZER_SUPPORT_H

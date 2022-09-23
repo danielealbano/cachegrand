@@ -4,7 +4,4 @@
 #ifndef ANALYZER_ANALYZER_H
 #define ANALYZER_ANALYZER_H
 
-
-
-
 #endif //ANALYZER_ANALYZER_H

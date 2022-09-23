@@ -11,125 +11,167 @@
 #include "support.h"
 
 #include "matcher.h"
+#include <pcre2.h>
 
-char** pattern_matcher(
-        char *pattern,
-        int nmatch,
-        char *line) {
-    char **result;
-    char *str;
-    regex_t regex;
-    regmatch_t *match;
 
-    if (0 != (regcomp(&regex, pattern, REG_EXTENDED))) {
-        printf("regcomp() failed, returning nonzero (%s)\n", pattern);
-        exit(EXIT_FAILURE);
+int match(const char *content, const char *regex) {
+    pcre2_code *re;
+    PCRE2_SPTR pattern;
+    PCRE2_SPTR subject;
+
+    int crlf_is_newline;
+    int errornumber;
+    int i;
+    int rc;
+    int utf8;
+
+    uint32_t option_bits;
+    uint32_t newline;
+
+    PCRE2_SIZE erroroffset;
+    PCRE2_SIZE *ovector;
+
+    size_t subject_length;
+    pcre2_match_data *match_data;
+
+    pattern = (PCRE2_SPTR)regex;
+    subject = (PCRE2_SPTR)content;
+    subject_length = strlen((char *)subject);
+
+    /***********************
+    * COMPILE PATTERN
+    ************************/
+    re = pcre2_compile(
+            pattern,               /* the pattern */
+            PCRE2_ZERO_TERMINATED, /* indicates pattern is zero-terminated */
+            PCRE2_MULTILINE,       /* default options */
+            &errornumber,          /* for error number */
+            &erroroffset,          /* for error offset */
+            NULL);                 /* use default compile context */
+
+    if (re == NULL) {
+        PCRE2_UCHAR buffer[256];
+        pcre2_get_error_message(errornumber, buffer, sizeof(buffer));
+        printf("PCRE2 compilation failed at offset %d: %s\n", (int) erroroffset, buffer);
+        return 1;
     }
 
-    str = strdup(line);
-    match = malloc(nmatch * sizeof(*match));
-    if (0 != (regexec(&regex,str, nmatch,match,0))) {
-        return NULL;
-    }
+    /***********************
+    * MATCH DATA
+    ************************/
+    match_data = pcre2_match_data_create_from_pattern(re, NULL);
 
-    result = malloc(sizeof(*result));
-    if (!result) {
-        fprintf(stderr, "Out of memory !");
-        return NULL;
-    }
+    rc = pcre2_match(
+            re,                   /* the compiled pattern */
+            subject,              /* the subject string */
+            subject_length,       /* the length of the subject */
+            0,                    /* start at offset 0 in the subject */
+            0,                    /* default options */
+            match_data,           /* block for storing the result */
+            NULL);                /* use default match context */
 
-    for (int i = 0; i < nmatch; ++i) {
-        ((char**) result)[i] = "";
-        if (match[i].rm_so >= 0) {
-            str[match[i].rm_eo] = 0;
-            ((char**)result)[i] = str + match[i].rm_so;
-            // printf("%s\n", string + match[i].rm_so);
+    // Catch error
+    if (rc < 0) {
+        switch(rc) {
+            case PCRE2_ERROR_NOMATCH: printf("No match\n"); break;
+            default: printf("Matching error %d\n", rc); break;
         }
+
+        pcre2_match_data_free(match_data);
+        pcre2_code_free(re);
+        return 1;
     }
 
-    return result;
-}
+    // Match succeded
+    ovector = pcre2_get_ovector_pointer(match_data);
+    printf("--------------------------------------------------------------------------\n");
+    printf("Match succeeded at offset %d\n", (int)ovector[0]);
 
-bool is_testcase(
-        char *line) {
-    char **res;
-    char *pattern = "TEST_CASE_METHOD";
-    int  nmatch   = 1;
-
-    res = pattern_matcher(pattern, nmatch, line);
-
-    return res ? true : false;
-}
-
-char* get_testcase_name(
-        char *line) {
-    char **res;
-    char *pattern = "\"([^\"]*)\"";
-    int  nmatch   = 2;
-
-    res = pattern_matcher(pattern, nmatch, line);
-    if (res) {
-        return res[nmatch-1];
+    // Show substrings stored in the output vector by number.
+    for (i = 0; i < rc; i++) {
+        PCRE2_SPTR substring_start = subject + ovector[2*i];
+        size_t substring_length = ovector[2*i+1] - ovector[2*i];
+        printf("%2d: %.*s\n", i, (int)substring_length, (char *)substring_start);
     }
 
-    return NULL;
-}
+    /* Before running the loop, check for UTF-8 and whether CRLF is a valid newline
+    sequence. First, find the options with which the regex was compiled and extract
+    the UTF state. */
+    (void)pcre2_pattern_info(re, PCRE2_INFO_ALLOPTIONS, &option_bits);
+    utf8 = (option_bits & PCRE2_UTF) != 0;
 
-char* get_section_name(
-        char *line) {
-    char **res;
-    char *pattern = "\"([^\"]*)\"";
-    int  nmatch   = 2;
+    /* Now find the newline convention and see whether CRLF is a valid newline sequence. */
+    (void)pcre2_pattern_info(re, PCRE2_INFO_NEWLINE, &newline);
+    crlf_is_newline = newline == PCRE2_NEWLINE_ANY ||
+                      newline == PCRE2_NEWLINE_CRLF ||
+                      newline == PCRE2_NEWLINE_ANYCRLF;
 
-    res = pattern_matcher(pattern, nmatch, line);
-    if (res) {
-        return res[nmatch-1];
-    }
+    /* Loop for second and subsequent matches */
+    for (;;) {
+        uint32_t options = 0;                    /* Normally no options */
+        PCRE2_SIZE start_offset = ovector[1];    /* Start at end of previous match */
 
-    return NULL;
-}
-
-bool is_section(
-        char *line) {
-    char **res;
-    char *pattern = "SECTION";
-    int  nmatch   = 1;
-
-    res = pattern_matcher(pattern, nmatch, line);
-
-    return res ? true : false;
-}
-
-bool is_command(
-        char *line) {
-    char **res;
-    char *pattern = "std::vector<std::string>";
-    int  nmatch   = 1;
-
-    res = pattern_matcher(pattern, nmatch, line);
-
-    return res ? true : false;
-}
-
-char* get_command(
-        char *line) {
-    char **res;
-    char *pattern = "\"(.*?)\"";
-    int  nmatch   = 1;
-
-    res = pattern_matcher(pattern, nmatch, line);
-
-    char *command = NULL;
-    command = malloc(500);
-    if (res) {
-        for (int i = 0; i < nmatch; ++i) {
-            strcat(command,res[i]);
+        /* If the previous match was for an empty string, we are finished if we are
+        at the end of the subject. Otherwise, arrange to run another match at the
+        same point to see if a non-empty match can be found. */
+        if (ovector[0] == ovector[1]) {
+            if (ovector[0] == subject_length) break;
+            options = PCRE2_NOTEMPTY_ATSTART | PCRE2_ANCHORED;
         }
-    }
 
-    //TODO: make it better
-    command = replace_char(command, '"', ' ');
-    command = replace_char(command, ',', ' ');
+        /* Run the next matching operation */
+        rc = pcre2_match(
+                re,                   /* the compiled pattern */
+                subject,              /* the subject string */
+                subject_length,       /* the length of the subject */
+                start_offset,         /* starting offset in the subject */
+                options,              /* options */
+                match_data,           /* block for storing the result */
+                NULL);                /* use default match context */
 
-    return command;
+        if (rc == PCRE2_ERROR_NOMATCH) {
+            if (options == 0) break;                    /* All matches found */
+            ovector[1] = start_offset + 1;              /* Advance one code unit */
+
+            if (crlf_is_newline &&                      /* If CRLF is newline & */
+                start_offset < subject_length - 1 &&    /* we are at CRLF, */
+                subject[start_offset] == '\r' &&
+                subject[start_offset + 1] == '\n') {
+
+                ovector[1] += 1;                          /* Advance by one more. */
+            } else if (utf8) {                                         /* advance a whole UTF-8 */
+                while (ovector[1] < subject_length) {
+                    if ((subject[ovector[1]] & 0xc0) != 0x80) break;
+                    ovector[1] += 1;
+                }
+            }
+
+            continue;    /* Go round the loop again */
+        }
+
+        /* Other matching errors are not recoverable. */
+        if (rc < 0) {
+            printf("Matching error %d\n", rc);
+            pcre2_match_data_free(match_data);
+            pcre2_code_free(re);
+            return 1;
+        }
+
+        /* Match succeded */
+        printf("--------------------------------------------------------------------------\n");
+        printf("Match succeeded 2 again at offset %d\n", (int)ovector[0]);
+
+        /* As before, show substrings stored in the output vector by number, and then
+        also any named substrings. */
+        for (i = 0; i < rc; i++) {
+            PCRE2_SPTR substring_start = subject + ovector[2*i];
+            size_t substring_length = ovector[2*i+1] - ovector[2*i];
+            printf("%2d: %.*s\n", i, (int)substring_length, (char *)substring_start);
+        }
+    }      /* End of loop to find second and subsequent matches */
+
+    printf("\n");
+    pcre2_match_data_free(match_data);
+    pcre2_code_free(re);
+    return 0;
 }

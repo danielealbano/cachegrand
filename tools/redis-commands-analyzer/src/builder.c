@@ -16,7 +16,22 @@ command_t* new_command_p() {
 section_t* new_section_p() {
     section_t *section;
     section = malloc(sizeof(section_t));
+    section->subsections = malloc(sizeof(section_t));
     return section;
+}
+
+bool section_append_subsection(
+        section_t *section,
+        int n_subsections,
+        section_t *subsections) {
+    section->n_subsections = n_subsections+1;
+    section->subsections = realloc(section->subsections, n_subsections+1 * sizeof(section_t));
+    section->subsections[n_subsections] = subsections;
+    if (section->subsections[n_subsections] != NULL) {
+        return true;
+    }
+
+    return false;
 }
 
 bool section_append_command(
