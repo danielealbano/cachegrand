@@ -19,10 +19,20 @@ char    *tests_lists[] ={
 
 void read_content() {
     char *string = read_file("../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-append.cpp");
-    char *regex = "^\\s{4}SECTION\\(\".*\"\\)\\s{\\n([\\s\\S]*?^\\s{4}\\}\\n)$";
+//    char *string = read_file("../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-copy.cpp");
+
+//    char *regex = "^\\s{4}SECTION\\(\".*\"\\)\\s{\\n([\\s\\S]*?^\\s{4}\\}\\n)$";
+    char *regex = "^\\s{4}SECTION\\(\".*\"\\)\\s{\\n";
 
     if (string) {
-        match(string, regex);
+        matcher_t *match_results;
+        match_results = match(string, regex);
+
+        for (int i = 0; i < match_results->n_matches; ++i) {
+            printf("-------------------------------------------------------------\n");
+            printf("%s \n", match_results->matches[i]);
+            printf("-------------------------------------------------------------\n");
+        }
     }
 
 }
