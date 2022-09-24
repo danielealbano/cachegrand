@@ -3,7 +3,7 @@ Hashtable
 
 cachegrand provides internally two different types of hashtables, a simple single-producer and single consumer one, and a multi-producer multi-consumer one, which is e.g. used to handle the indexes of the internal database.
 
-This document focuses on the multi-producer multi-consumer hashtable which implements some state-of-the-art design patterns and approaches to be able to provide a lock-free and wait-free access to the data and it is capable of achieve up to **112 million GET ops/s** and up to **85 million UPSERT ops/s** on a 1 x AMD EPYC 7502P with 32 core and 64 hardware threads.
+This document focuses on the multi-producer multi-consumer hashtable which implements some state-of-the-art design patterns and approaches to be able to provide a lock-free and wait-free access to the data, it is capable of achieve up to **112 million GET ops/s** and up to **85 million UPSERT ops/s** on a 1 x AMD EPYC 7502P with 32 core and 64 hardware threads.
 
 ## Why a new hashtable?
 
@@ -13,9 +13,9 @@ To leverage multiple cores and scale up vertically is necessary to use multiple 
 
 The contention has a number of different side effects, in general it will waste resources and/or increasing the time required to carry out operations.
 
-When it comes to hashtables some platforms prefer to put a big lock around the it others prefer a share-nothing architecture, quite common in the Scala world.
+When it comes to hashtables some platforms prefer to put a big lock around it others prefer a share-nothing architecture, quite common in the Scala world.
 
-While the last approach provides really good performances while keeping things simple, the share-nothing architecture requires partitioning the data and threating these partition as separated entities managed via one specific thread.
+While the last approach provides excellent performances while keeping things simple, the share-nothing architecture requires partitioning the data and treating these partition as separated entities managed via one specific thread.
 With this kind of architecture, all the contention is shifted on the components used to communicate between these nodes, which usually are queues: all the operations on the queues will be "gated" by locks or atomic operations, which are very low-level locks, therefore 16 threads translates to spreading the contention on 16 possible queues.
 
 With cachegrand we took the challenge heads-on and developed a new approach - after 1 year of research and development - capable of spreading the contention all over the hashtable, proportionally to the size of it, dramatically reducing the gating effect!
@@ -48,7 +48,7 @@ There are exception to this rule though, in context where performances are neede
 CPUs work in a very different way, when multiple data are bundled together the CPU has to load everything, even if only one property is being inspected!
 
 Let's imagine a game engine trying to decide what has to be rendered on screen and what, instead, is outside the screen view and, for the sake of keeping things simple, let's say it can be decided checking just 1 boolean property which is re-computed on demand when the view changes.
-If the game engine is handling 10000 objects and it relies on a loop to check this boolean property, these objects will have to be loaded from the memory and inspected, which is a fairly slow operation. Modern CPUs have a lot of cache, but often they get polluted by other operations running so, for the sake of simplicity, let's ignore them for a moment.
+If the game engine is handling 10000 objects, it relies on a loop to check this boolean property, these objects will have to be loaded from the memory and inspected, which is a fairly slow operation. Modern CPUs have a lot of cache, but often they get polluted by other operations running so, for the sake of simplicity, let's ignore them for a moment.
 If these objects are 250 bytes large, which is a fairly small amount, the CPU will have to load and iterate over 2.38MB of memory.
 
 When loading or storing data to or from the memory, the CPU reasons in terms of "cache-lines" which are sequence long 64 bytes, for most of the architectures, so loading 2.38MB would require loading at least 39063 cache-lines which is a **massive** amount.
@@ -62,7 +62,7 @@ This very simple exercise helps to see how data can be optimized to be loaded fa
 The hashtable in cachegrand leverage the same approach and keeps the hashes and the key-values split in two different arrays, the most frequent operation is searching and comparing hashes, having them all sequentially really helps to improve the performances.
 The hashtable also reasons in terms of cache-lines and keeps 14 hashes in one single cache-line, reserving some space for some metadata that help with the GETs and with the UPSERTs ops.
 
-With the data organized in this way cachegrand get up to a 400% speed bump when searching for an hash!
+With the data organized in this way cachegrand get up to a 400% speed bump when searching for a hash!
 
 ![Data-Oriented Design Linear Search](../images/architecture-hashtable-dod-linear-search.png)
 
@@ -74,7 +74,7 @@ Although comparing numbers can be really fast, comparing up to 448 numbers hundr
 
 Luckily, SIMD is our friend, especially when it comes to process sequences of data in memory like a list of hashes!
 
-With SIMD, using the AVX2 instruction set, supported nowadays by every Intel or AMD cpu, one single instruction can compare up to 8 hashes! The hashtable in cachegrand leverages them to compare the 14 hashes with just 2 instructions, searching an hash in 32 cache-lines doesn't mean running 448 comparison instructions but only 64!
+With SIMD, using the AVX2 instruction set, supported nowadays by every Intel or AMD cpu, one single instruction can compare up to 8 hashes! The hashtable in cachegrand leverages them to compare the 14 hashes with just 2 instructions, searching a hash in 32 cache-lines doesn't mean running 448 comparison instructions but only 64!
 
 Leveraging SIMD cachegrand can get up to 250% performance improvements in the worst case scenario.
 
@@ -95,5 +95,5 @@ This doesn't take into account the extra memory required by the internal databas
 ## Future optimizations
 
 A few optimizations are already planned out and under development:
-- the higher-level components can take advantage of knowing that the hashtable spinlock is being locked for too lock and it's worth to yield the fiber and respond to other requests, this is also what the kernel does with the mutexes and futexes but doing it in user-space and in a controlled environment avoid switching to the kernel space as well as stalling all the requests being handled by the thread;
+- the higher-level components can take advantage of knowing that the hashtable spinlock is being held locked for too long and it's worth to yield the fiber and respond to other requests, this is also what the kernel does with the mutexes and futexes but doing it in user-space and in a controlled environment avoid switching to the kernel space as well as stalling all the requests being handled by the thread;
 - currently the hashtable performs the UPSERT and the Read-Modify-Write operations in a way which requires a lot of memory fences, these can be optimized inverting the sequence of certain operations which would allow to reduce the amount of fences required to store or load the data;
