@@ -79,10 +79,13 @@ jobs:
           gcov_path: /usr/bin/gcov-9
           remove_patterns: 3rdparty,tests
 
-      - name: Code Coverage - Upload to codecov.io
-        shell: bash
-        working-directory: ${{github.workspace}}
-        run: bash <(curl -s https://codecov.io/bash) -X gcov -Z -f coverage.info
+      - uses: codecov/codecov-action@v3
+        with:
+          files: ${{github.workspace}}/coverage.info
+          flags: unittests # optional
+          name: cachegrand-server
+          fail_ci_if_error: false
+          verbose: false
 
       - name: Tests - Integration Tests - Redis Server
         working-directory: ${{github.workspace}}/build
