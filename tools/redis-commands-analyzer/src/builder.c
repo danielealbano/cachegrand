@@ -16,18 +16,19 @@ command_t* new_command_p() {
 section_t* new_section_p() {
     section_t *section;
     section = malloc(sizeof(section_t));
+    section->n_subsections = 0;
+    section->n_commands = 0;
     section->subsections = malloc(sizeof(section_t));
     return section;
 }
 
 bool section_append_subsection(
         section_t *section,
-        int n_subsections,
         section_t *subsections) {
-    section->n_subsections = n_subsections+1;
-    section->subsections = realloc(section->subsections, n_subsections+1 * sizeof(section_t));
-    section->subsections[n_subsections] = subsections;
-    if (section->subsections[n_subsections] != NULL) {
+    section->subsections = realloc(section->subsections, section->n_subsections+1 * sizeof(section_t));
+    section->subsections[section->n_subsections] = subsections;
+    if (section->subsections[section->n_subsections] != NULL) {
+        section->n_subsections = section->n_subsections+1;
         return true;
     }
 
@@ -36,12 +37,11 @@ bool section_append_subsection(
 
 bool section_append_command(
         section_t *section,
-        int n_commands,
         command_t *command) {
-    section->n_commands = n_commands+1;
-    section->commands = realloc(section->commands, n_commands+1 * sizeof(section_t));
-    section->commands[n_commands] = command;
-    if (section->commands[n_commands] != NULL) {
+    section->n_commands = section->n_commands+1;
+    section->commands = realloc(section->commands, section->n_commands+1 * sizeof(section_t));
+    section->commands[section->n_commands] = command;
+    if (section->commands[section->n_commands] != NULL) {
         return true;
     }
 
@@ -53,17 +53,17 @@ test_t* new_test_p() {
     test_t *test;
     test = malloc(sizeof(test_t));
     test->sections = (section_t**) malloc(1 * sizeof(section_t));
+    test->n_sections = 0;
     return test;
 }
 
 bool test_append_section(
         test_t *test,
-        int n_sections,
         section_t *section) {
-    test->n_sections = n_sections+1;
-    test->sections = realloc(test->sections, n_sections+1 * sizeof(section_t));
-    test->sections[n_sections] = section;
-    if (test->sections[n_sections] != NULL) {
+    test->sections = realloc(test->sections, test->n_sections+1 * sizeof(section_t));
+    test->sections[test->n_sections] = section;
+    if (test->sections[test->n_sections] != NULL) {
+        test->n_sections = test->n_sections+1;
         return true;
     }
 

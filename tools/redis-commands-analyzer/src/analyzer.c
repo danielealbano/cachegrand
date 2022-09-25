@@ -12,6 +12,7 @@
 char    *tests_lists[] ={
 //        "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-del.cpp",
 //        "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-decrby.cpp",
+//        "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-del.cpp"
         "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-append.cpp"
 };
 
@@ -21,15 +22,16 @@ void read_content(char *file_path) {
     puts("NEW FILE");
     puts("##############################");
     char *string = read_file(file_path);
-//    char *string = read_file();
-//    char *string = read_file("../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-copy.cpp");
+
+    test_t *current_test;
+    current_test = new_test_p();
 
     // Testing recursive
     int starting_padding = 4;
-    recursive_match(string, starting_padding);
+    recursive_match(string, starting_padding, current_test, NULL);
 }
 
-int recursive_match(const char *body, int padding) {
+int recursive_match(const char *body, int padding, test_t *current_test, section_t *father_section) {
     // Match SECTIONS
     matcher_t *match_results = get_sections(body, padding);
     if (match_results->n_matches <= 0) {
@@ -40,6 +42,9 @@ int recursive_match(const char *body, int padding) {
 
     printf("%d Sections found!\n", match_results->n_matches);
     for (int i = 0; i < match_results->n_matches; ++i) {
+        section_t *new_current_section_p;
+        new_current_section_p = new_section_p();
+
         puts("---------------------------------------------------");
         // Match SECTION name
         char *section_name;
@@ -48,27 +53,40 @@ int recursive_match(const char *body, int padding) {
             printf("[!] section name not found.. skip");
             continue;
         }
+
+        new_current_section_p->name = section_name;
         printf("SECTION: %s\n", section_name);
 
         // Match REQUIRE section
-        matcher_t *section_requires = get_requires_section(match_results->matches[i], padding);
-        if (section_requires->n_matches > 0) {
-            printf("\t%d REQUIRE found: \n", section_requires->n_matches);
-            for (int j = 0; j < section_requires->n_matches; ++j) {
-                // Match COMMAND
-                char *command = get_require_command(section_requires->matches[j]);
-                if (NULL == command) {
-                    printf("[!] command not found.. skip");
-                    continue;
-                }
-                printf("\t\tCOMMAND: %s\n", command);
-            }
-        } else {
-            printf("No require found for this section\n");
-        }
-        free(section_requires);
+//        matcher_t *section_requires = get_requires_section(match_results->matches[i], padding);
+//        if (section_requires->n_matches > 0) {
+//            printf("\t%d REQUIRE found: \n", section_requires->n_matches);
+//            for (int j = 0; j < section_requires->n_matches; ++j) {
+//                // Match COMMAND
+//                char *command = get_require_command(section_requires->matches[j]);
+//                if (NULL == command) {
+//                    printf("[!] command not found.. skip");
+//                    continue;
+//                }
+//                printf("\t\tCOMMAND: %s\n", command);
+//            }
+//        } else {
+//            printf("No require found for this section\n");
+//        }
+//        free(section_requires);
 
-        recursive_match(match_results->matches[i], padding*2);
+
+        if (NULL != father_section) {
+            section_append_subsection(father_section, new_current_section_p);
+        } else {
+            test_append_section(current_test, new_current_section_p);
+        }
+
+        recursive_match(
+                match_results->matches[i],
+                padding*2,
+                current_test,
+                new_current_section_p);
     }
 
     puts("End");

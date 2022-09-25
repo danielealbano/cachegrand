@@ -169,7 +169,7 @@ matcher_t* match(const char *content, const char *regex) {
 
 matcher_t* get_sections(const char *content, int padding) {
     char section_pattern[100];
-    sprintf(section_pattern,"^\\s{%d}SECTION\\(\".*\"\\)\\s{\\n(?:[\\s\\S]*?^\\s{%d}\\}\\n)$", padding, padding);
+    sprintf(section_pattern,"^\\s{%d}SECTION\\(\".*\"\\)\\s{\\n(?:[\\s\\S]*?^\\s{%d}\\}\\n)", padding, padding);
 
     return match(content, section_pattern);
 }
