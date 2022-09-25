@@ -13,7 +13,6 @@
 #include "matcher.h"
 #include <pcre2.h>
 
-
 matcher_t* match(const char *content, const char *regex) {
     pcre2_code *re;
     PCRE2_SPTR pattern;
@@ -166,4 +165,46 @@ matcher_t* match(const char *content, const char *regex) {
     pcre2_match_data_free(match_data);
     pcre2_code_free(re);
     return final_matches;
+}
+
+matcher_t* get_sections(const char *content, int padding) {
+    char section_pattern[100];
+    sprintf(section_pattern,"^\\s{%d}SECTION\\(\".*\"\\)\\s{\\n(?:[\\s\\S]*?^\\s{%d}\\}\\n)$", padding, padding);
+
+    return match(content, section_pattern);
+}
+
+char* get_section_name(const char *section) {
+    char *result = NULL;
+    char *section_name_pattern = "\\\".*\\\"";
+
+    matcher_t *section_name;
+    section_name = match(section, section_name_pattern);
+    if (section_name->n_matches > 0) {
+        result = strdup(section_name->matches[0]);
+    }
+
+    free(section_name);
+    return result;
+}
+
+matcher_t* get_requires_section(const char *section, int padding) {
+    char require_pattern[100];
+    sprintf(require_pattern, "^\\s{%d}REQUIRE\\([\\s\\S]*?\\);", padding+4);
+
+    return match(section, require_pattern);
+}
+
+char* get_require_command(const char *require) {
+    char *result = NULL;
+    char *command_pattern = "(?<=std::vector<std::string>{)[^}]*";
+
+    matcher_t *section_commands;
+    section_commands = match(require, command_pattern);
+    if (section_commands->n_matches > 0) {
+        result = strdup(section_commands->matches[0]);
+    }
+
+    free(section_commands);
+    return result;
 }

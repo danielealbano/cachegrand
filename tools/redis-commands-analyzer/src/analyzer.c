@@ -18,27 +18,9 @@ char    *tests_lists[] ={
 
 
 void read_content() {
-//    char *string = read_file("../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-append.cpp");
-    char *string = read_file("../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-copy.cpp");
-
-//    char *regex = "^\\s{4}SECTION\\(\".*\"\\)\\s{\\n([\\s\\S]*?^\\s{4}\\}\\n)$";
-//    char *regex = "^\\s{4}SECTION\\(\".*\"\\)\\s{\\n";
-//    char *regex = "\"([^\"]*)\"";
-//    char *regex = "\\\".*\\\"";
-
-
-
-//    if (string) {
-//        matcher_t *match_results;
-//        match_results = match(string, regex);
-//
-//        for (int i = 0; i < match_results->n_matches; ++i) {
-//            printf("-------------------------------------------------------------\n");
-//            printf("%s \n", match_results->matches[i]);
-//            printf("-------------------------------------------------------------\n");
-//        }
-//    }
-
+    char *string = read_file("../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-append.cpp");
+//    char *string = read_file("../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-decrby.cpp");
+//    char *string = read_file("../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-copy.cpp");
 
     // Testing recursive
     int starting_padding = 4;
@@ -46,75 +28,48 @@ void read_content() {
 }
 
 int recursive_match(const char *body, int padding) {
-    // Setup regex
-    char regex[100];
-
-//    sprintf(regex,"^\\s{%d}SECTION\\(\".*\"\\)\\s{\\n", starting_padding);
-//    sprintf(regex,"^\\s{%d}SECTION\\(\".*\"\\)\\s{\\n([\\s\\S]*?^\\s{%d}\\}\\n)$", padding, padding);
-    sprintf(regex,"^\\s{%d}SECTION\\(\".*\"\\)\\s{\\n(?:[\\s\\S]*?^\\s{%d}\\}\\n)$", padding, padding);
-
-    // Try to match results
-    matcher_t *match_results;
-//    match_results = malloc(sizeof(matcher_t));
-    match_results = match(body, regex);
-
+    // Match SECTIONS
+    matcher_t *match_results = get_sections(body, padding);
     if (match_results->n_matches <= 0) {
-        printf("------------------------\n");
-        printf("NO OTHERS CHILD FOUND\n");
-        printf("------------------------\n");
+        printf("NO SUB-SECTIONS FOUND\n");
         free(match_results);
         return 0;
     }
 
-    printf("#############################################\n");
     printf("%d Sections found!\n", match_results->n_matches);
-    printf("#############################################\n");
     for (int i = 0; i < match_results->n_matches; ++i) {
-        //printf("%s", match_results->matches[i]);
-
-        // Extract section name
-        char *pattern_section_name = "\\\".*\\\"";
-        matcher_t *section_name;
-        section_name = match(match_results->matches[i], pattern_section_name);
-        if (section_name->n_matches > 0) {
-            printf("%s\n", section_name->matches[0]);
-        } else {
-            printf("WHHHHHHHATTAAA HELL?!?!?!?\n");
+        puts("---------------------------------------------------");
+        // Match SECTION name
+        char *section_name;
+        section_name = get_section_name(match_results->matches[i]);
+        if (NULL == section_name) {
+            printf("[!] section name not found.. skip");
+            continue;
         }
-        free(section_name);
+        printf("SECTION: %s\n", section_name);
 
-        // TODO search commands
-        char pattern_require[100];
-        sprintf(pattern_require, "^\\s{%d}REQUIRE\\([\\s\\S]*?\\);", padding+4);
-        matcher_t *section_requires;
-        section_requires = match(match_results->matches[i], pattern_require);
+        // Match REQUIRE section
+        matcher_t *section_requires = get_requires_section(match_results->matches[i], padding);
         if (section_requires->n_matches > 0) {
-            printf("%d REQUIRE found: \n", section_requires->n_matches);
+            printf("\t%d REQUIRE found: \n", section_requires->n_matches);
             for (int j = 0; j < section_requires->n_matches; ++j) {
-                //printf("%s\n\n", section_requires->matches[j]);
-
-                // Extract command from require
-                char *pattern_command = "(?<=std::vector<std::string>{)[^}]*";
-                matcher_t *section_commands;
-                section_commands = match(section_requires->matches[j], pattern_command);
-                if (section_commands->n_matches > 0) {
-                    printf("%d COMMAND found: \n", section_commands->n_matches);
-                    for (int k = 0; k < section_commands->n_matches; ++k) {
-                        printf("%s\n\n", section_commands->matches[k]);
-                    }
+                // Match COMMAND
+                char *command = get_require_command(section_requires->matches[j]);
+                if (NULL == command) {
+                    printf("[!] command not found.. skip");
+                    continue;
                 }
-                free(section_commands);
-
+                printf("\t\tCOMMAND: %s\n", command);
             }
         } else {
             printf("No require found for this section\n");
         }
         free(section_requires);
 
-
         recursive_match(match_results->matches[i], padding*2);
     }
 
+    puts("End");
     free(match_results);
 }
 

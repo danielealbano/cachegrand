@@ -1,7 +1,3 @@
-//
-// Created by Vito Castellano on 11/09/22.
-//
-
 #ifndef ANALYZER_MATCHER_H
 #define ANALYZER_MATCHER_H
 
@@ -20,5 +16,18 @@ matcher_t* match(
         const char *content,
         const char *regex);
 
+matcher_t* get_sections(
+        const char *content,
+        int padding);
+
+char* get_section_name(
+        const char *section);
+
+matcher_t* get_requires_section(
+        const char *section,
+        int padding);
+
+char* get_require_command(
+        const char *require);
 
 #endif //ANALYZER_MATCHER_H
