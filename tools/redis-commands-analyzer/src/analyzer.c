@@ -9,17 +9,19 @@
 
 #include "analyzer.h"
 
-FILE    *current_file;
-tests_t *tests;
 char    *tests_lists[] ={
 //        "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-del.cpp",
+//        "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-decrby.cpp",
         "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-append.cpp"
 };
 
 
-void read_content() {
-    char *string = read_file("../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-append.cpp");
-//    char *string = read_file("../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-decrby.cpp");
+void read_content(char *file_path) {
+    puts("##############################");
+    puts("NEW FILE");
+    puts("##############################");
+    char *string = read_file(file_path);
+//    char *string = read_file();
 //    char *string = read_file("../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-copy.cpp");
 
     // Testing recursive
@@ -76,21 +78,9 @@ int recursive_match(const char *body, int padding) {
 int main() {
     printf("Start main \n");
 
-    // Init tests
-    tests = new_tests_p();
-
     size_t n_tests = sizeof(tests_lists) / sizeof(char*);
     for (int i = 0; i < n_tests; ++i) {
-        // Open file to elaborate
-        current_file = fopen(tests_lists[i], "rb");
-        if (NULL == current_file) {
-            printf("file can't be opened \n");
-            continue;
-        }
-
-        read_content();
-
-        fclose(current_file);
+        read_content(tests_lists[i]);
     }
 
 //    for (int i = 0; i < tests->n_tests; ++i) {
