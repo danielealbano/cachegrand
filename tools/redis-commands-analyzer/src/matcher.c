@@ -134,8 +134,7 @@ matcher_t* match(const char *content, const char *regex) {
         }
 
         /* Match succeded */
-        char *single_match_buffer;
-        single_match_buffer = malloc(sizeof(char*));
+        char *single_match_buffer = NULL;
         size_t single_match_buffer_lenght = 0;
         for (i = 0; i < rc; i++) {
             PCRE2_SPTR substring_start = subject + ovector[2*i];
@@ -147,13 +146,19 @@ matcher_t* match(const char *content, const char *regex) {
             substring_buffer = malloc(substring_length * sizeof(char*));
             sprintf(substring_buffer, "%.*s", (int)substring_length, (char*)substring_start);
 
-            single_match_buffer = realloc(single_match_buffer, single_match_buffer_lenght * sizeof(char*));
-            strcat(single_match_buffer, substring_buffer);
+            if (single_match_buffer == NULL) {
+                single_match_buffer = malloc(single_match_buffer_lenght * sizeof(char*));
+                strcpy(single_match_buffer, substring_buffer);
+            } else {
+                single_match_buffer = realloc(single_match_buffer, single_match_buffer_lenght * sizeof(char*));
+                strcat(single_match_buffer, substring_buffer);
+            }
+
             free(substring_buffer);
         }
 //        printf("%s", single_match_buffer);
 
-        final_matches->matches = realloc(final_matches->matches, final_matches->n_matches+1 * sizeof(char*));
+        final_matches->matches = realloc(final_matches->matches, (final_matches->n_matches + 1) * sizeof(char*));
         final_matches->matches[final_matches->n_matches] = single_match_buffer;
         final_matches->n_matches++;
     }
