@@ -1,3 +1,11 @@
+/**
+ * Copyright (C) 2018-2022 Vito Castellano
+ * All rights reserved.
+ *
+ * This software may be modified and distributed under the terms
+ * of the BSD license.  See the LICENSE file for details.
+ **/
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -9,32 +17,32 @@
 
 #include "analyzer.h"
 
-char    *tests_lists[] = {
-        "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-del.cpp",
-        "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-decrby.cpp",
-        "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-del.cpp",
-        "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-append.cpp",
+char *tests_lists[] = {
+    "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-del.cpp",
+    "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-decrby.cpp",
+    "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-del.cpp",
+    "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-append.cpp",
 };
 
+test_t* analyze(
+        char *file_path) {
+    char *body = read_file(file_path);
+    test_t *test = new_test_p();
 
-test_t* read_content(char *file_path) {
-    char *string = read_file(file_path);
+    recursive_match(
+            body,
+            START_PADDING,
+            test,
+            NULL);
 
-    test_t *current_test;
-    current_test = new_test_p();
-
-    // Testing recursive
-    int starting_padding = 4;
-    recursive_match(string, starting_padding, current_test, NULL);
-
-    return current_test;
+    return test;
 }
 
-void recursive_print(section_t **sections, size_t n_sections) {
+void recursive_print(
+        section_t **sections,
+        size_t n_sections) {
         for (int i = 0; i < n_sections; ++i) {
-            section_t *section;
-            section = sections[i];
-
+            section_t *section = sections[i];
             printf("SECTION: %s\n", section->name);
             if (section->n_commands > 0) {
                 for (int j = 0; j < section->n_commands; ++j) {
@@ -43,7 +51,9 @@ void recursive_print(section_t **sections, size_t n_sections) {
             }
 
             if (section->n_subsections > 0) {
-                recursive_print(section->subsections, section->n_subsections);
+                recursive_print(
+                        section->subsections,
+                        section->n_subsections);
             }
         }
 
@@ -51,7 +61,11 @@ void recursive_print(section_t **sections, size_t n_sections) {
         printf("\n");
 }
 
-int recursive_match(const char *body, int padding, test_t *current_test, section_t *father_section) {
+int recursive_match(
+        const char *body,
+        int padding,
+        test_t *current_test,
+        section_t *father_section) {
     // Match SECTIONS
     matcher_t *match_results = get_sections(body, padding);
     if (match_results->n_matches <= 0) {
@@ -60,14 +74,10 @@ int recursive_match(const char *body, int padding, test_t *current_test, section
     }
 
     for (int i = 0; i < match_results->n_matches; ++i) {
-        section_t *new_current_section_p;
-        new_current_section_p = new_section_p();
-
+        section_t *new_current_section_p = new_section_p();
         // Match SECTION name
-        char *section_name;
-        section_name = get_section_name(match_results->matches[i]);
+        char *section_name = get_section_name(match_results->matches[i]);
         if (NULL == section_name) continue;
-
         new_current_section_p->name = section_name;
 
         // Match REQUIRE section
@@ -77,16 +87,20 @@ int recursive_match(const char *body, int padding, test_t *current_test, section
                 // Match COMMAND
                 char *command = get_require_command(section_requires->matches[j]);
                 if (NULL == command) continue;
-
-                section_append_command(new_current_section_p, command);
+                section_append_command(
+                        new_current_section_p, command);
             }
         }
         free(section_requires);
 
         if (NULL != father_section) {
-            section_append_subsection(father_section, new_current_section_p);
+            section_append_subsection(
+                    father_section,
+                    new_current_section_p);
         } else {
-            test_append_section(current_test, new_current_section_p);
+            test_append_section(
+                    current_test,
+                    new_current_section_p);
         }
 
         recursive_match(
@@ -100,24 +114,21 @@ int recursive_match(const char *body, int padding, test_t *current_test, section
 }
 
 int main() {
-    printf("Start main \n");
-
-    tests_t *new_tests;
-    new_tests = new_tests_p();
+    tests_t *test_collections = new_tests_p();
 
     size_t n_tests = sizeof(tests_lists) / sizeof(char*);
     for (int i = 0; i < n_tests; ++i) {
-        test_t* test;
-        test = read_content(tests_lists[i]);
+        test_t* test = analyze(
+                tests_lists[i]);
 
-        tests_append_test(new_tests, test);
+        tests_append_test(test_collections, test);
     }
 
-    // Print results
-    for (int i = 0; i < new_tests->n_tests; ++i) {
-        test_t *current_test;
-        current_test = new_tests->tests[i];
-        recursive_print(current_test->sections, current_test->n_sections);
+    for (int i = 0; i < test_collections->n_tests; ++i) {
+        test_t *current_test = test_collections->tests[i];
+        recursive_print(
+                current_test->sections,
+                current_test->n_sections);
         puts("##############################################");
     }
 

@@ -1,12 +1,15 @@
-//
-// Created by Vito Castellano on 11/09/22.
-//
+/**
+ * Copyright (C) 2018-2022 Vito Castellano
+ * All rights reserved.
+ *
+ * This software may be modified and distributed under the terms
+ * of the BSD license.  See the LICENSE file for details.
+ **/
 
 #include <stdlib.h>
 #include <stdbool.h>
 
 #include "builder.h"
-
 
 section_t* new_section_p() {
     section_t *section;
@@ -21,7 +24,10 @@ section_t* new_section_p() {
 bool section_append_subsection(
         section_t *section,
         section_t *subsections) {
-    section->subsections = realloc(section->subsections, (section->n_subsections+1) * sizeof(section_t));
+    section->subsections = realloc(
+            section->subsections,
+            (section->n_subsections+1) * sizeof(section_t));
+
     section->subsections[section->n_subsections] = subsections;
     if (section->subsections[section->n_subsections] != NULL) {
         section->n_subsections = section->n_subsections+1;
@@ -34,7 +40,10 @@ bool section_append_subsection(
 bool section_append_command(
         section_t *section,
         char *command) {
-    section->commands = realloc(section->commands, (section->n_commands+1) * sizeof(char*));
+    section->commands = realloc(
+            section->commands,
+            (section->n_commands+1) * sizeof(char*));
+
     section->commands[section->n_commands] = command;
     if (section->commands[section->n_commands] != NULL) {
         section->n_commands = section->n_commands+1;
@@ -56,7 +65,10 @@ test_t* new_test_p() {
 bool test_append_section(
         test_t *test,
         section_t *section) {
-    test->sections = realloc(test->sections, (test->n_sections+1) * sizeof(section_t));
+    test->sections = realloc(
+            test->sections,
+            (test->n_sections+1) * sizeof(section_t));
+
     test->sections[test->n_sections] = section;
     if (test->sections[test->n_sections] != NULL) {
         test->n_sections = test->n_sections+1;
@@ -64,14 +76,6 @@ bool test_append_section(
     }
 
     return false;
-}
-
-void test_free_sections(
-        test_t *test,
-        int n_section) {
-    for (int i = 0; i < n_section; ++i) {
-        free(test->sections[i]);
-    }
 }
 
 tests_t* new_tests_p() {
@@ -85,7 +89,10 @@ tests_t* new_tests_p() {
 bool tests_append_test(
         tests_t *tests,
         test_t *test) {
-    tests->tests = realloc(tests->tests, (tests->n_tests+1) * sizeof(test_t));
+    tests->tests = realloc(
+            tests->tests,
+            (tests->n_tests+1) * sizeof(test_t));
+
     tests->tests[tests->n_tests] = test;
     if (tests->tests[tests->n_tests] != NULL) {
         tests->n_tests = tests->n_tests+1;

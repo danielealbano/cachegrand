@@ -1,19 +1,26 @@
-//
-// Created by Vito Castellano on 11/09/22.
-//
+/**
+ * Copyright (C) 2018-2022 Vito Castellano
+ * All rights reserved.
+ *
+ * This software may be modified and distributed under the terms
+ * of the BSD license.  See the LICENSE file for details.
+ **/
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
-#include <regex.h>
-
-#include "support.h"
 
 #include "matcher.h"
 #include <pcre2.h>
 
-matcher_t* match(const char *content, const char *regex) {
+const char* MATCH_SECTION_PATTERN = "^\\s{%d}SECTION\\(\".*\"\\)\\s{\\n(?:[\\s\\S]*?^\\s{%d}\\}\\n)";
+const char* MATCH_SECTION_NAME_PATTERN = "\\\".*\\\"";
+const char* MATCH_SECTION_REQUIRE_PATTERN = "^\\s{%d}REQUIRE\\([\\s\\S]*?\\);";
+const char* MATCH_COMMAND_PATTERN = "(?<=std::vector<std::string>{)[^}]*";
+
+matcher_t* match(
+        const char *content,
+        const char *regex) {
     pcre2_code *re;
     PCRE2_SPTR pattern;
     PCRE2_SPTR subject;
@@ -121,10 +128,10 @@ matcher_t* match(const char *content, const char *regex) {
                 }
             }
 
-            continue;    /* Go round the loop again */
+            continue;
         }
 
-        /* Other matching errors are not recoverable. */
+        // Other matching errors are not recoverable.
         if (rc < 0) {
             printf("Matching error %d\n", rc);
             pcre2_match_data_free(match_data);
@@ -132,14 +139,13 @@ matcher_t* match(const char *content, const char *regex) {
             return NULL;
         }
 
-        /* Match succeded */
+        // Match succeded
         char *single_match_buffer = NULL;
         size_t single_match_buffer_lenght = 0;
         for (i = 0; i < rc; i++) {
             PCRE2_SPTR substring_start = subject + ovector[2*i];
             size_t substring_length = ovector[2*i+1] - ovector[2*i];
             single_match_buffer_lenght += substring_length;
-    //        printf("%2d: %.*s\n", i, (int)substring_length, (char *)substring_start);
 
             char *substring_buffer;
             substring_buffer = malloc(substring_length * sizeof(char*));
@@ -149,15 +155,18 @@ matcher_t* match(const char *content, const char *regex) {
                 single_match_buffer = malloc(single_match_buffer_lenght * sizeof(char*));
                 strcpy(single_match_buffer, substring_buffer);
             } else {
-                single_match_buffer = realloc(single_match_buffer, single_match_buffer_lenght * sizeof(char*));
+                single_match_buffer = realloc(
+                        single_match_buffer,
+                        single_match_buffer_lenght * sizeof(char*));
                 strcat(single_match_buffer, substring_buffer);
             }
 
             free(substring_buffer);
         }
-//        printf("%s", single_match_buffer);
 
-        final_matches->matches = realloc(final_matches->matches, (final_matches->n_matches + 1) * sizeof(char*));
+        final_matches->matches = realloc(
+                final_matches->matches,
+                (final_matches->n_matches + 1) * sizeof(char*));
         final_matches->matches[final_matches->n_matches] = single_match_buffer;
         final_matches->n_matches++;
     }
@@ -167,19 +176,22 @@ matcher_t* match(const char *content, const char *regex) {
     return final_matches;
 }
 
-matcher_t* get_sections(const char *content, int padding) {
+matcher_t* get_sections(
+        const char *content,
+        int padding) {
     char section_pattern[100];
-    sprintf(section_pattern,"^\\s{%d}SECTION\\(\".*\"\\)\\s{\\n(?:[\\s\\S]*?^\\s{%d}\\}\\n)", padding, padding);
+    sprintf(section_pattern,
+            MATCH_SECTION_PATTERN,
+            padding, padding);
 
     return match(content, section_pattern);
 }
 
-char* get_section_name(const char *section) {
+char* get_section_name(
+        const char *section) {
     char *result = NULL;
-    char *section_name_pattern = "\\\".*\\\"";
-
     matcher_t *section_name;
-    section_name = match(section, section_name_pattern);
+    section_name = match(section, MATCH_SECTION_NAME_PATTERN);
     if (section_name->n_matches > 0) {
         result = strdup(section_name->matches[0]);
     }
@@ -190,17 +202,17 @@ char* get_section_name(const char *section) {
 
 matcher_t* get_requires_section(const char *section, int padding) {
     char require_pattern[100];
-    sprintf(require_pattern, "^\\s{%d}REQUIRE\\([\\s\\S]*?\\);", padding+4);
+    sprintf(require_pattern,
+            MATCH_SECTION_REQUIRE_PATTERN,
+            padding+4);
 
     return match(section, require_pattern);
 }
 
 char* get_require_command(const char *require) {
     char *result = NULL;
-    char *command_pattern = "(?<=std::vector<std::string>{)[^}]*";
-
     matcher_t *section_commands;
-    section_commands = match(require, command_pattern);
+    section_commands = match(require, MATCH_COMMAND_PATTERN);
     if (section_commands->n_matches > 0) {
         result = strdup(section_commands->matches[0]);
     }

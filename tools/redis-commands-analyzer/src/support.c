@@ -1,6 +1,10 @@
-//
-// Created by Vito Castellano on 10/09/22.
-//
+/**
+ * Copyright (C) 2018-2022 Vito Castellano
+ * All rights reserved.
+ *
+ * This software may be modified and distributed under the terms
+ * of the BSD license.  See the LICENSE file for details.
+ **/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,7 +26,8 @@ char* replace_char(
     return str;
 }
 
-char* read_file(char *filename) {
+char* read_file(
+        char *filename) {
     char *buffer = NULL;
     int string_size, read_size;
     FILE *handler = fopen(filename, "r");
