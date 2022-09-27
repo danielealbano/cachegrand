@@ -12,7 +12,7 @@
 
 #include "support.h"
 
-char* replace_char(
+char* support_replace_char(
         char* str,
         char find,
         char replace) {
@@ -26,7 +26,7 @@ char* replace_char(
     return str;
 }
 
-char* read_file(
+char* support_read_file(
         char *filename) {
     char *buffer = NULL;
     int string_size, read_size;

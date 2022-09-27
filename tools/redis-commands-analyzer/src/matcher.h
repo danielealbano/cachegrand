@@ -12,22 +12,22 @@ struct matches {
     char **matches;
 };
 
-matcher_t* match(
+matcher_t* matcher_match(
         const char *content,
         const char *regex);
 
-matcher_t* get_sections(
+matcher_t* matcher_get_sections(
         const char *content,
         int padding);
 
-char* get_section_name(
+char* matcher_get_section_name(
         const char *section);
 
-matcher_t* get_requires_section(
+matcher_t* matcher_get_requires_section(
         const char *section,
         int padding);
 
-char* get_require_command(
+char* matcher_get_require_command(
         const char *require);
 
 #endif //ANALYZER_MATCHER_H

@@ -23,25 +23,25 @@ struct tests {
     test_t **tests;
 };
 
-section_t* new_section_p();
+section_t* builder_new_section_p();
 
-test_t* new_test_p();
+test_t* builder_new_test_p();
 
-tests_t* new_tests_p();
+tests_t* builder_new_tests_p();
 
-bool section_append_subsection(
+bool builder_section_append_subsection(
         section_t *section,
         section_t *subsections);
 
-bool section_append_command(
+bool builder_section_append_command(
         section_t *section,
         char *command);
 
-bool test_append_section(
+bool builder_test_append_section(
         test_t *test,
         section_t *section);
 
-bool tests_append_test(
+bool builder_tests_append_test(
         tests_t *tests,
         test_t *test);
 

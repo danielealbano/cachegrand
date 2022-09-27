@@ -18,7 +18,7 @@ const char* MATCH_SECTION_NAME_PATTERN = "\\\".*\\\"";
 const char* MATCH_SECTION_REQUIRE_PATTERN = "^\\s{%d}REQUIRE\\([\\s\\S]*?\\);";
 const char* MATCH_COMMAND_PATTERN = "(?<=std::vector<std::string>{)[^}]*";
 
-matcher_t* match(
+matcher_t* matcher_match(
         const char *content,
         const char *regex) {
     pcre2_code *re;
@@ -176,7 +176,7 @@ matcher_t* match(
     return final_matches;
 }
 
-matcher_t* get_sections(
+matcher_t* matcher_get_sections(
         const char *content,
         int padding) {
     char section_pattern[100];
@@ -184,14 +184,14 @@ matcher_t* get_sections(
             MATCH_SECTION_PATTERN,
             padding, padding);
 
-    return match(content, section_pattern);
+    return matcher_match(content, section_pattern);
 }
 
-char* get_section_name(
+char* matcher_get_section_name(
         const char *section) {
     char *result = NULL;
     matcher_t *section_name;
-    section_name = match(section, MATCH_SECTION_NAME_PATTERN);
+    section_name = matcher_match(section, MATCH_SECTION_NAME_PATTERN);
     if (section_name->n_matches > 0) {
         result = strdup(section_name->matches[0]);
     }
@@ -200,19 +200,19 @@ char* get_section_name(
     return result;
 }
 
-matcher_t* get_requires_section(const char *section, int padding) {
+matcher_t* matcher_get_requires_section(const char *section, int padding) {
     char require_pattern[100];
     sprintf(require_pattern,
             MATCH_SECTION_REQUIRE_PATTERN,
             padding+4);
 
-    return match(section, require_pattern);
+    return matcher_match(section, require_pattern);
 }
 
-char* get_require_command(const char *require) {
+char* matcher_get_require_command(const char *require) {
     char *result = NULL;
     matcher_t *section_commands;
-    section_commands = match(require, MATCH_COMMAND_PATTERN);
+    section_commands = matcher_match(require, MATCH_COMMAND_PATTERN);
     if (section_commands->n_matches > 0) {
         result = strdup(section_commands->matches[0]);
     }

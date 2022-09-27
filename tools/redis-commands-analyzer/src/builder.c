@@ -11,7 +11,7 @@
 
 #include "builder.h"
 
-section_t* new_section_p() {
+section_t* builder_new_section_p() {
     section_t *section;
     section = malloc(sizeof(section_t));
     section->subsections = malloc(sizeof(section_t));
@@ -21,7 +21,7 @@ section_t* new_section_p() {
     return section;
 }
 
-bool section_append_subsection(
+bool builder_section_append_subsection(
         section_t *section,
         section_t *subsections) {
     section->subsections = realloc(
@@ -37,7 +37,7 @@ bool section_append_subsection(
     return false;
 }
 
-bool section_append_command(
+bool builder_section_append_command(
         section_t *section,
         char *command) {
     section->commands = realloc(
@@ -54,7 +54,7 @@ bool section_append_command(
 }
 
 
-test_t* new_test_p() {
+test_t* builder_new_test_p() {
     test_t *test;
     test = malloc(sizeof(test_t));
     test->sections = (section_t**) malloc(1 * sizeof(section_t));
@@ -62,7 +62,7 @@ test_t* new_test_p() {
     return test;
 }
 
-bool test_append_section(
+bool builder_test_append_section(
         test_t *test,
         section_t *section) {
     test->sections = realloc(
@@ -78,7 +78,7 @@ bool test_append_section(
     return false;
 }
 
-tests_t* new_tests_p() {
+tests_t* builder_new_tests_p() {
     tests_t *tests;
     tests = malloc(sizeof(tests_t));
     tests->tests = malloc(1 * sizeof(test_t));
@@ -86,7 +86,7 @@ tests_t* new_tests_p() {
     return tests;
 }
 
-bool tests_append_test(
+bool builder_tests_append_test(
         tests_t *tests,
         test_t *test) {
     tests->tests = realloc(
