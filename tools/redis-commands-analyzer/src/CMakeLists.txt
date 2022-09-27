@@ -4,6 +4,8 @@ file(GLOB_RECURSE SRC_FILES_ANALYZER "*.c")
 include(FindPkgConfig)
 
 pkg_check_modules(LIBPCRE2 REQUIRED libpcre2-8)
+pkg_check_modules(LIBJSONC REQUIRED json-c) # apt install libjson-c-dev
+
 #################################################################
 
 ##################################################
@@ -22,14 +24,14 @@ set_target_properties(
 target_link_libraries(
         redis-commands-analyzer
         PUBLIC
-        ${LIBPCRE2_LIBRARIES} -lpcre2-8)
+        ${LIBPCRE2_LIBRARIES} ${LIBJSONC_LIBRARIES})
 
 target_link_directories(
         redis-commands-analyzer
         PUBLIC
-        ${LIBPCRE2_LIBRARY_DIRS})
+        ${LIBPCRE2_LIBRARY_DIRS} ${LIBJSONC_LIBRARY_DIRS})
 
 target_include_directories(
         redis-commands-analyzer
         PUBLIC
-        ${LIBPCRE2_INCLUDE_DIRS})
+        ${LIBPCRE2_INCLUDE_DIRS} ${LIBJSONC_INCLUDE_DIRS})
