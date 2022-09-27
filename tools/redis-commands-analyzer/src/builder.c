@@ -76,8 +76,8 @@ void test_free_sections(
 
 tests_t* new_tests_p() {
     tests_t *tests;
-    tests = (tests_t*) malloc(1 * sizeof(tests_t));
-    tests->tests = (test_t**) malloc(1 * sizeof(test_t));
+    tests = malloc(sizeof(tests_t));
+    tests->tests = malloc(1 * sizeof(test_t));
     tests->n_tests = 0;
     return tests;
 }
