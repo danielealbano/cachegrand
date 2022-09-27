@@ -17,12 +17,12 @@
 
 #include "analyzer.h"
 
-test_t* anlyzer_analyze(
+test_t* analyzer_analyze(
         char *file_path) {
     char *body = support_read_file(file_path);
     test_t *test = builder_new_test_p();
 
-    anlyzer_recursive_match(
+    analyzer_recursive_match(
             body,
             START_PADDING,
             test,
@@ -31,7 +31,7 @@ test_t* anlyzer_analyze(
     return test;
 }
 
-void anlyzer_recursive_print(
+void analyzer_recursive_print(
         section_t **sections,
         size_t n_sections) {
         for (int i = 0; i < n_sections; ++i) {
@@ -44,7 +44,7 @@ void anlyzer_recursive_print(
             }
 
             if (section->n_subsections > 0) {
-                anlyzer_recursive_print(
+                analyzer_recursive_print(
                         section->subsections,
                         section->n_subsections);
             }
@@ -54,7 +54,7 @@ void anlyzer_recursive_print(
         printf("\n");
 }
 
-int anlyzer_recursive_match(
+int analyzer_recursive_match(
         const char *body,
         int padding,
         test_t *current_test,
@@ -96,7 +96,7 @@ int anlyzer_recursive_match(
                     new_current_section_p);
         }
 
-        anlyzer_recursive_match(
+        analyzer_recursive_match(
                 match_results->matches[i],
                 padding*2,
                 current_test,

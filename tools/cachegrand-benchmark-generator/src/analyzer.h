@@ -3,14 +3,14 @@
 
 #define START_PADDING 4
 
-void anlyzer_recursive_print(
+void analyzer_recursive_print(
         section_t **sections,
         size_t n_sections);
 
-test_t* anlyzer_analyze(
+test_t* analyzer_analyze(
         char *file_path);
 
-int anlyzer_recursive_match(
+int analyzer_recursive_match(
         const char *body,
         int padding,
         test_t *current_test,

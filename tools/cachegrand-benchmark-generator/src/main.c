@@ -28,7 +28,7 @@ int main() {
 
     size_t n_tests = sizeof(tests_lists) / sizeof(char*);
     for (int i = 0; i < n_tests; ++i) {
-        test_t* test = anlyzer_analyze(
+        test_t* test = analyzer_analyze(
                 tests_lists[i]);
 
         builder_tests_append_test(test_collections, test);
@@ -36,7 +36,7 @@ int main() {
 
     for (int i = 0; i < test_collections->n_tests; ++i) {
         test_t *current_test = test_collections->tests[i];
-        anlyzer_recursive_print(
+        analyzer_recursive_print(
                 current_test->sections,
                 current_test->n_sections);
         puts("##############################################");

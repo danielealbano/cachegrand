@@ -4,4 +4,4 @@ cmake-build-*/*
 /etc/cachegrand.yaml
 /src/cmake_config.c
 
-tools/redis-commands-analyzer/cmake-build-debug
+tools/cachegrand-benchmark-generator/cmake-build-debug
