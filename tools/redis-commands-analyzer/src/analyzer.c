@@ -17,13 +17,6 @@
 
 #include "analyzer.h"
 
-char *tests_lists[] = {
-    "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-del.cpp",
-    "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-decrby.cpp",
-    "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-del.cpp",
-    "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-append.cpp",
-};
-
 test_t* anlyzer_analyze(
         char *file_path) {
     char *body = support_read_file(file_path);
@@ -112,26 +105,3 @@ int anlyzer_recursive_match(
 
     free(match_results);
 }
-
-int main() {
-    tests_t *test_collections = builder_new_tests_p();
-
-    size_t n_tests = sizeof(tests_lists) / sizeof(char*);
-    for (int i = 0; i < n_tests; ++i) {
-        test_t* test = anlyzer_analyze(
-                tests_lists[i]);
-
-        builder_tests_append_test(test_collections, test);
-    }
-
-    for (int i = 0; i < test_collections->n_tests; ++i) {
-        test_t *current_test = test_collections->tests[i];
-        anlyzer_recursive_print(
-                current_test->sections,
-                current_test->n_sections);
-        puts("##############################################");
-    }
-
-    return EXIT_SUCCESS;
-}
-
