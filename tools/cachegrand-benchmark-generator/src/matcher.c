@@ -10,13 +10,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "support.h"
 #include "matcher.h"
 #include <pcre2.h>
 
 const char* MATCH_SECTION_PATTERN = "^\\s{%d}SECTION\\(\".*\"\\)\\s{\\n(?:[\\s\\S]*?^\\s{%d}\\}\\n)";
-const char* MATCH_SECTION_NAME_PATTERN = "\\\".*\\\"";
+const char* MATCH_SECTION_NAME_PATTERN = "(?<=SECTION\\(\\\")[^\"]*";
 const char* MATCH_SECTION_REQUIRE_PATTERN = "^\\s{%d}REQUIRE\\([\\s\\S]*?\\);";
-const char* MATCH_COMMAND_PATTERN = "(?<=std::vector<std::string>{)[^}]*";
+const char* MATCH_SECTION_COMMAND_PATTERN = "(?<=std::vector<std::string>{)[^}]*";
+const char* MATCH_COMMAND_PATTERN = "[^\"\\\\,]+";
 const char* MATCH_TEST_NAME = "(?<=TEST_CASE_METHOD\\(TestModulesRedisCommandFixture,\\s\\\")[^\"]*";
 
 matcher_t* matcher_match(
@@ -213,9 +215,23 @@ matcher_t* matcher_get_requires_section(const char *section, int padding) {
 char* matcher_get_require_command(const char *require) {
     char *result = NULL;
     matcher_t *section_commands;
-    section_commands = matcher_match(require, MATCH_COMMAND_PATTERN);
+    section_commands = matcher_match(require, MATCH_SECTION_COMMAND_PATTERN);
     if (section_commands->n_matches > 0) {
-        result = strdup(section_commands->matches[0]);
+        matcher_t *command;
+        command = matcher_match(section_commands->matches[0], MATCH_COMMAND_PATTERN);
+        if (command->n_matches > 0) {
+            for (int i = 0; i < command->n_matches; ++i) {
+                if (result == NULL) {
+                    result = malloc(strlen(command->matches[i]) * sizeof(char*));
+                    strcpy(result, command->matches[i]);
+                } else {
+                    result = realloc(
+                            result,
+                            (strlen(result) + strlen(command->matches[i])) * sizeof(char*));
+                    strcat(result, command->matches[i]);
+                }
+            }
+        }
     }
 
     free(section_commands);
