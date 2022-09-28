@@ -1,11 +1,11 @@
 file(GLOB_RECURSE SRC_FILES_ANALYZER "*.c")
+file(GLOB_RECURSE CACHEGRAND_TESTS "../../../../tests/unit_tests/modules/redis/command/test-*.cpp")
 
 #################################################################
 include(FindPkgConfig)
 
-pkg_check_modules(LIBPCRE2 REQUIRED libpcre2-8)
+pkg_check_modules(LIBPCRE2 REQUIRED libpcre2-8) # apt install libpcre2-8 libpcre2-8-dev
 pkg_check_modules(LIBJSONC REQUIRED json-c) # apt install libjson-c-dev
-
 #################################################################
 
 ##################################################
