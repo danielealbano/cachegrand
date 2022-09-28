@@ -81,7 +81,7 @@ int analyzer_recursive_match(
 
         analyzer_recursive_match(
                 sections->matches[i],
-                padding*2,
+                padding+4,
                 current_test,
                 current_section);
     }

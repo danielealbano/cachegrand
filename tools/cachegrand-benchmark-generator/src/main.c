@@ -32,6 +32,7 @@ int main() {
     for (int i = 0; i < n_tests; ++i) {
         test_t* test = analyzer_analyze(test_lists[i]);
         builder_tests_append_test(test_collections, test);
+//        output_stdout_print(test->sections, test->n_sections);
     }
 
     output_json_print(test_collections);
