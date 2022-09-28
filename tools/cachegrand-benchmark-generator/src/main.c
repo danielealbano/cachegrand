@@ -10,13 +10,15 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <json.h>
 
 #include "matcher.h"
 #include "builder.h"
 #include "analyzer.h"
 #include "support.h"
+#include "output.h"
 
-char *tests_lists[] = {
+char *test_lists[] = {
         "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-del.cpp",
         "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-decrby.cpp",
         "../../../../tests/unit_tests/modules/redis/command/test-modules-redis-command-del.cpp",
@@ -26,21 +28,13 @@ char *tests_lists[] = {
 int main() {
     tests_t *test_collections = builder_new_tests_p();
 
-    size_t n_tests = sizeof(tests_lists) / sizeof(char*);
+    size_t n_tests = sizeof(test_lists) / sizeof(char*);
     for (int i = 0; i < n_tests; ++i) {
-        test_t* test = analyzer_analyze(
-                tests_lists[i]);
-
+        test_t* test = analyzer_analyze(test_lists[i]);
         builder_tests_append_test(test_collections, test);
     }
 
-    for (int i = 0; i < test_collections->n_tests; ++i) {
-        test_t *current_test = test_collections->tests[i];
-        analyzer_recursive_print(
-                current_test->sections,
-                current_test->n_sections);
-        puts("##############################################");
-    }
+    output_json_print(test_collections);
 
     return EXIT_SUCCESS;
 }

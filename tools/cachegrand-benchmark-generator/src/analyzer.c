@@ -10,12 +10,14 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <json.h>
 
 #include "matcher.h"
 #include "builder.h"
 #include "support.h"
 
 #include "analyzer.h"
+
 
 test_t* analyzer_analyze(
         char *file_path) {
@@ -81,26 +83,4 @@ int analyzer_recursive_match(
     }
 
     free(sections);
-}
-
-void analyzer_recursive_print(
-        section_t **sections,
-        size_t n_sections) {
-    for (int i = 0; i < n_sections; ++i) {
-        section_t *section = sections[i];
-        printf("SECTION: %s\n", section->name);
-        if (section->n_commands > 0) {
-            for (int j = 0; j < section->n_commands; ++j) {
-                printf("\tCOMMAND: %s\n", section->commands[j]);
-            }
-        }
-
-        if (section->n_subsections > 0) {
-            analyzer_recursive_print(
-                    section->subsections,
-                    section->n_subsections);
-        }
-    }
-
-    printf("\n");
 }

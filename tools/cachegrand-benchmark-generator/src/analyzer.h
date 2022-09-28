@@ -3,10 +3,6 @@
 
 #define START_PADDING 4
 
-void analyzer_recursive_print(
-        section_t **sections,
-        size_t n_sections);
-
 test_t* analyzer_analyze(
         char *file_path);
 
