@@ -106,5 +106,12 @@ void output_json_print(
     }
 
     json_object_object_add(obj_final, "tests", tests_array);
-    printf("---\n%s\n---\n", json_object_to_json_string(obj_final));
+//    printf("---\n%s\n---\n", json_object_to_json_string(obj_final));
+
+    char *serialized_json;
+    serialized_json = strdup(json_object_to_json_string_ext(
+                obj_final,
+                JSON_C_TO_STRING_PRETTY));
+
+    support_write_file(serialized_json);
 }
