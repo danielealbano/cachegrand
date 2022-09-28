@@ -83,16 +83,12 @@ void output_json_builder(
 
 void output_json_print(
         tests_t *test_collections) {
-    struct json_object *objFinal, *tests_array;
-    objFinal = json_object_new_object();
+    struct json_object *obj_final, *tests_array;
+    obj_final = json_object_new_object();
     tests_array = json_object_new_array();
 
     for (int i = 0; i < test_collections->n_tests; ++i) {
         test_t *current_test = test_collections->tests[i];
-
-        //TODO: recupero nome del test
-        char test_name[100];
-        sprintf(test_name, "test-%i", i);
 
         struct json_object *j_current_test;
         j_current_test = json_object_new_object();
@@ -105,10 +101,10 @@ void output_json_print(
                 current_test->n_sections,
                 j_sections_array);
 
-        json_object_object_add(j_current_test, test_name, j_sections_array);
+        json_object_object_add(j_current_test, current_test->name, j_sections_array);
         json_object_array_add(tests_array, j_current_test);
     }
 
-    json_object_object_add(objFinal, "tests", tests_array);
-    printf("---\n%s\n---\n", json_object_to_json_string(objFinal));
+    json_object_object_add(obj_final, "tests", tests_array);
+    printf("---\n%s\n---\n", json_object_to_json_string(obj_final));
 }

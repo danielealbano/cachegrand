@@ -30,4 +30,7 @@ matcher_t* matcher_get_requires_section(
 char* matcher_get_require_command(
         const char *require);
 
+char* matcher_get_test_name(
+        const char *test);
+
 #endif //ANALYZER_MATCHER_H

@@ -17,6 +17,7 @@ const char* MATCH_SECTION_PATTERN = "^\\s{%d}SECTION\\(\".*\"\\)\\s{\\n(?:[\\s\\
 const char* MATCH_SECTION_NAME_PATTERN = "\\\".*\\\"";
 const char* MATCH_SECTION_REQUIRE_PATTERN = "^\\s{%d}REQUIRE\\([\\s\\S]*?\\);";
 const char* MATCH_COMMAND_PATTERN = "(?<=std::vector<std::string>{)[^}]*";
+const char* MATCH_TEST_NAME = "(?<=TEST_CASE_METHOD\\(TestModulesRedisCommandFixture,\\s\\\")[^\"]*";
 
 matcher_t* matcher_match(
         const char *content,
@@ -218,5 +219,18 @@ char* matcher_get_require_command(const char *require) {
     }
 
     free(section_commands);
+    return result;
+}
+
+char* matcher_get_test_name(
+        const char *test) {
+    char *result = NULL;
+    matcher_t *test_name;
+    test_name = matcher_match(test, MATCH_TEST_NAME);
+    if (test_name->n_matches > 0) {
+        result = strdup(test_name->matches[0]);
+    }
+
+    free(test_name);
     return result;
 }

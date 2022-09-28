@@ -22,7 +22,11 @@
 test_t* analyzer_analyze(
         char *file_path) {
     char *body = support_read_file(file_path);
+    char *test_name = matcher_get_test_name(body);
+    if (NULL == test_name) return NULL;
+
     test_t *test = builder_new_test_p();
+    test->name = strdup(test_name);
 
     analyzer_recursive_match(
             body,
