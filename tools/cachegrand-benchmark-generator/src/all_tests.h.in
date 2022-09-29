@@ -1,0 +1,8 @@
+#ifndef ANALYZER_ALL_TESTS
+#define ANALYZER_ALL_TESTS
+
+const char* all_tests[] = {
+@ALL_TESTS@
+};
+
+#endif //ANALYZER_ALL_TESTS

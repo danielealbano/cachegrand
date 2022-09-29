@@ -1,16 +1,21 @@
-file(GLOB_RECURSE SRC_FILES_ANALYZER "*.c")
-file(GLOB_RECURSE CACHEGRAND_TESTS "../../../../tests/unit_tests/modules/redis/command/test-*.cpp")
-
-#################################################################
 include(FindPkgConfig)
 
 pkg_check_modules(LIBPCRE2 REQUIRED libpcre2-8) # apt install libpcre2-8 libpcre2-8-dev
 pkg_check_modules(LIBJSONC REQUIRED json-c) # apt install libjson-c-dev
 #################################################################
 
+file(GLOB_RECURSE CACHEGRAND_TESTS "../../../tests/unit_tests/modules/redis/command/*.cpp")
+foreach(t ${CACHEGRAND_TESTS})
+    set(ALL_TESTS "${ALL_TESTS}   \"${t}\",\n")
+endforeach()
+
+configure_file(all_tests.h.in all_tests.h)
+
 ##################################################
 # Build the executable
 ##################################################
+file(GLOB_RECURSE SRC_FILES_ANALYZER "*.c")
+
 add_executable(
         cachegrand-benchmark-generator
         analyzer.c
@@ -29,9 +34,9 @@ target_link_libraries(
 target_link_directories(
         cachegrand-benchmark-generator
         PUBLIC
-        ${LIBPCRE2_LIBRARY_DIRS} ${LIBJSONC_LIBRARY_DIRS})
+        ${LIBPCRE2_LIBRARY_DIRS} ${LIBJSONC_LIBRARY_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
 
 target_include_directories(
         cachegrand-benchmark-generator
         PUBLIC
-        ${LIBPCRE2_INCLUDE_DIRS} ${LIBJSONC_INCLUDE_DIRS})
+        ${LIBPCRE2_INCLUDE_DIRS} ${LIBJSONC_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
