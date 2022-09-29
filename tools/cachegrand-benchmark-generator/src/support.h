@@ -1,5 +1,5 @@
-#ifndef ANALYZER_SUPPORT_H
-#define ANALYZER_SUPPORT_H
+#ifndef CACHEGRAND_BENCHMARK_GENERATOR_SUPPORT_H
+#define CACHEGRAND_BENCHMARK_GENERATOR_SUPPORT_H
 
 char* support_read_file(
         char *filename);
@@ -7,4 +7,4 @@ char* support_read_file(
 void support_write_file(
         char* data);
 
-#endif //ANALYZER_SUPPORT_H
+#endif //CACHEGRAND_BENCHMARK_GENERATOR_SUPPORT_H

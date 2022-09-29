@@ -1,5 +1,5 @@
-#ifndef ANALYZER_MATCHER_H
-#define ANALYZER_MATCHER_H
+#ifndef CACHEGRAND_BENCHMARK_GENERATOR_MATCHER_H
+#define CACHEGRAND_BENCHMARK_GENERATOR_MATCHER_H
 
 /* The PCRE2_CODE_UNIT_WIDTH macro must be defined before including pcre2.h.
 For a program that uses only one code unit width, setting it to 8, 16, or 32
@@ -33,4 +33,4 @@ char* matcher_get_require_command(
 char* matcher_get_test_name(
         const char *test);
 
-#endif //ANALYZER_MATCHER_H
+#endif //CACHEGRAND_BENCHMARK_GENERATOR_MATCHER_H

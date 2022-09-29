@@ -1,5 +1,5 @@
-#ifndef ANALYZER_BUILDER_H
-#define ANALYZER_BUILDER_H
+#ifndef CACHEGRAND_BENCHMARK_GENERATOR_BUILDER_H
+#define CACHEGRAND_BENCHMARK_GENERATOR_BUILDER_H
 
 typedef struct section section_t;
 struct section {
@@ -45,4 +45,4 @@ bool builder_tests_append_test(
         tests_t *tests,
         test_t *test);
 
-#endif //ANALYZER_BUILDER_H
+#endif //CACHEGRAND_BENCHMARK_GENERATOR_BUILDER_H
