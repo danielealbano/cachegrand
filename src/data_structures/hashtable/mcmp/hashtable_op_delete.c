@@ -6,7 +6,6 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdatomic.h>
@@ -16,13 +15,11 @@
 #include "misc.h"
 #include "exttypes.h"
 #include "memory_fences.h"
+#include "xalloc.h"
 #include "log/log.h"
 #include "spinlock.h"
 #include "transaction.h"
 #include "transaction_spinlock.h"
-#include "data_structures/double_linked_list/double_linked_list.h"
-#include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
 
 #include "hashtable.h"
 #include "hashtable_support_index.h"
@@ -121,16 +118,7 @@ bool hashtable_mcmp_op_delete(
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
             if (!HASHTABLE_KEY_VALUE_HAS_FLAG(key_value_flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
 #endif
-                // The get operation might be comparing the key while it gets freed because it doesn't use the lock, the
-                // scenario in which it might happen is that the code in the get operation has already checked the flags
-                // and therefore is now comparing the key.
-                // Under very heavy load (64 cores, 128 hw threads, 2048 threads operating on the hashtable) it has never
-                // caused any problem though.
-                // When the custom memory allocator is enabled (as it should) it's not a concern though, the slot in the
-                // slab allocator will just get marked as reusable and the worst case scenario is that it will be picked
-                // up and filled or zero-ed immediately and the key comparison being carried out in get will fail, the
-                // scenario because the bucket is being deleted.
-                slab_allocator_mem_free(key_value->external_key.data);
+                xalloc_free(key_value->external_key.data);
                 key_value->external_key.data = NULL;
                 key_value->external_key.size = 0;
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1

@@ -168,6 +168,6 @@ TEST_CASE("hugepage_cache.c", "[hugepage_cache]") {
             hugepage_cache_free();
         }
     } else {
-        WARN("Can't test slab allocator, hugepages not enabled or not enough hugepages for testing, at least 128 2mb hugepages are required");
+        WARN("Can't test fast fixed memory allocator, hugepages not enabled or not enough hugepages for testing, at least 128 2mb hugepages are required");
     }
 }

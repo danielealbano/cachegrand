@@ -22,7 +22,7 @@
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
@@ -52,7 +52,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(msetnx) {
     uint32_t rmw_statuses_processed_up_to = 0;
     module_redis_command_msetnx_context_t *context = connection_context->command.context;
 
-    rmw_statuses = slab_allocator_mem_alloc_zero(sizeof(storage_db_op_rmw_status_t) * context->key_value.count);
+    rmw_statuses = ffma_mem_alloc_zero(sizeof(storage_db_op_rmw_status_t) * context->key_value.count);
 
     transaction_acquire(&transaction);
 
@@ -95,6 +95,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(msetnx) {
             if (unlikely(!storage_db_op_rmw_commit_update(
                     connection_context->db,
                     &rmw_statuses[index],
+                    STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
                     key_value->value.value.chunk_sequence,
                     STORAGE_DB_ENTRY_NO_EXPIRY))) {
                 return_res = module_redis_connection_error_message_printf_noncritical(

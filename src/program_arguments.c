@@ -89,7 +89,7 @@ error_t program_arguments_argp_parser(
         case ARGP_KEY_ARG:
             argp_usage(state);
 
-            // arpg_usage normally exits but for the testing we set ARGP_SILENT that sets ARGP_NO_EXIT, among other
+            // argp_usage normally exits but for the testing we set ARGP_SILENT that sets ARGP_NO_EXIT, among other
             // flags, and therefore we need a return with ARGP_ERR_UNKNOWN to stop argp from further parsing.
             return ARGP_ERR_UNKNOWN;
 

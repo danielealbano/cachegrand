@@ -24,7 +24,7 @@
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
@@ -172,7 +172,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
         } while(source_chunk_written_data < source_chunk_info->chunk_length);
 
         if (unlikely(allocated_new_buffer)) {
-            slab_allocator_mem_free(source_chunk_data);
+            ffma_mem_free(source_chunk_data);
             allocated_new_buffer = false;
         }
     }
@@ -180,6 +180,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
     if (unlikely(!storage_db_op_rmw_commit_update(
             connection_context->db,
             &rmw_status,
+            entry_index_source->value_type,
             chunk_sequence_destination,
             STORAGE_DB_ENTRY_NO_EXPIRY))) {
         // entry_index_destination_new is freed by storage_db_op_rmw_commit_update if the operation fails
@@ -213,7 +214,7 @@ end:
     }
 
     if (unlikely(allocated_new_buffer)) {
-        slab_allocator_mem_free(source_chunk_data);
+        ffma_mem_free(source_chunk_data);
         allocated_new_buffer = false;
     }
 

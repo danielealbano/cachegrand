@@ -108,11 +108,11 @@ void *test_queue_mpmc_fuzzy_multi_thread_thread_func(
             uint64_t hash_data_y = test_queue_mpmc_calc_hash_y(data->ops_counter_push);
 
             if (data->hash_data_x != hash_data_x) {
-                FATAL("test-slab-allocator", "Incorrect hash x");
+                FATAL("test-queue-mpmc", "Incorrect hash x");
             }
 
             if (data->hash_data_y != hash_data_y) {
-                FATAL("test-slab-allocator", "Incorrect hash y");
+                FATAL("test-queue-mpmc", "Incorrect hash y");
             }
 
             free(data);

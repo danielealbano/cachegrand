@@ -160,7 +160,7 @@ TEST_CASE("module/redis/module_redis_commands.c", "[module][redis][module_redis_
             REQUIRE(token_entry->one_of_token_count == 1);
         }
 
-        free(token_entry);
+        xalloc_free(token_entry);
     }
 
     SECTION("module_redis_commands_build_command_arguments_token_entries_hashtable") {

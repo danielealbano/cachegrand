@@ -66,7 +66,7 @@
 #include "worker/network/worker_network_iouring_op.h"
 #include "worker/storage/worker_storage_iouring_op.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "worker.h"
 
 #define TAG "worker"
@@ -248,7 +248,7 @@ void worker_cleanup_general(
     }
 
     if (worker_context->fibers.listeners_fibers) {
-        slab_allocator_mem_free(worker_context->fibers.listeners_fibers);
+        ffma_mem_free(worker_context->fibers.listeners_fibers);
     }
 }
 
@@ -415,7 +415,7 @@ void* worker_thread_func(
             listeners_count);
 
     // TODO: cleanup implementation
-    worker_context->fibers.listeners_fibers = slab_allocator_mem_alloc(sizeof(fiber_t*) * listeners_count);
+    worker_context->fibers.listeners_fibers = ffma_mem_alloc(sizeof(fiber_t*) * listeners_count);
     worker_network_listeners_listen(
             worker_context->fibers.listeners_fibers,
             listeners,
@@ -432,7 +432,7 @@ void* worker_thread_func(
     //       they have to terminate the execution ASAP and therefore any network communication should be halted on the
     //       spot but any pending / in progress I/O operation should be safely completed.
     //       In case the fibers are not terminating, even if it can lead to corruption, them should be terminated within
-    //       a maximum timeout or X seconds and an error message should be reported pointing out what a fiber is doinng
+    //       a maximum timeout or X seconds and an error message should be reported pointing out what a fiber is doing
     //       and where.
     do {
         if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||

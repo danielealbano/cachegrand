@@ -26,7 +26,7 @@
 #include "spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "config.h"
 #include "fiber.h"
 #include "log/log.h"
@@ -88,7 +88,7 @@ bool network_channel_tls_init(
         network_channel_t *network_channel) {
     bool result_res = false;
 
-    network_channel->tls.context = slab_allocator_mem_alloc(sizeof(mbedtls_ssl_context));
+    network_channel->tls.context = ffma_mem_alloc(sizeof(mbedtls_ssl_context));
     mbedtls_ssl_init(network_channel->tls.context);
 
     if (mbedtls_ssl_setup(
@@ -112,7 +112,7 @@ end:
 
     if (!result_res && network_channel->tls.context) {
         mbedtls_ssl_free(network_channel->tls.context);
-        slab_allocator_mem_free(network_channel->tls.context);
+        ffma_mem_free(network_channel->tls.context);
 
         network_channel->tls.context = NULL;
     }
@@ -136,7 +136,7 @@ bool network_channel_tls_handshake(
                 break;
 
             case 0:
-                // TODO: network_flush currently does nothing but shorlty data buffering for the sends will be
+                // TODO: network_flush currently does nothing but shortly data buffering for the sends will be
                 //       implemented and to avoid performance penalties or ssl handshake problems it will be necessary
                 //       to flush the buffer here therefore a network_flush has been added even if it does nothing
                 network_flush_send_buffer(network_channel); // lgtm [cpp/useless-expression]
@@ -365,7 +365,7 @@ void network_channel_tls_free(
     }
 
     mbedtls_ssl_free(network_channel->tls.context);
-    slab_allocator_mem_free(network_channel->tls.context);
+    ffma_mem_free(network_channel->tls.context);
 
     network_channel->tls.context = NULL;
 }

@@ -13,6 +13,14 @@
 #include "spinlock.h"
 #include "transaction.h"
 #include "transaction_spinlock.h"
+#include "fiber.h"
+#include "fiber_scheduler.h"
+#include "clock.h"
+#include "config.h"
+#include "data_structures/hashtable/mcmp/hashtable.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
+#include "worker/worker.h"
 
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_support_index.h"
@@ -36,6 +44,11 @@ hashtable_bucket_index_t test_key_1_hash_buckets_0x80000000 = 0;
 #endif
 
 TEST_CASE("hashtable/hashtable_support_index.c", "[hashtable][hashtable_support][hashtable_support_index]") {
+    worker_context_t worker_context = { 0 };
+    worker_context.worker_index = UINT16_MAX;
+    worker_context_set(&worker_context);
+    transaction_set_worker_index(worker_context.worker_index);
+
     SECTION("hashtable_mcmp_support_index_from_hash") {
         SECTION("buckets_count - 0x80u") {
             REQUIRE(hashtable_mcmp_support_index_from_hash(

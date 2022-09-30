@@ -27,7 +27,7 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "config.h"
 #include "fiber.h"
 #include "protocol/redis/protocol_redis.h"

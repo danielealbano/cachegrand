@@ -29,7 +29,7 @@ void signals_support_handler_sigsegv_fatal(
     char *signal_name = SIGNALS_SUPPORT_NAME_WRAPPER(signal_number);
     FATAL(
             TAG,
-            "Recived segmentation fault signal (%s %d):\n",
+            "Received segmentation fault signal (%s %d):\n",
             signal_name,
             signal_number);
 }

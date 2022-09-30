@@ -26,7 +26,7 @@
 #include "fatal.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "slab_allocator.h"
+#include "memory_allocator/ffma.h"
 #include "support/simple_file_io.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
@@ -76,7 +76,7 @@ void config_internal_cyaml_log(
 
     // If any, clone the message to skip them
     if (fmt_has_newline) {
-        fmt_to_print = malloc(fmt_len + 1);
+        fmt_to_print = xalloc_alloc(fmt_len + 1);
         strncpy(fmt_to_print, fmt, fmt_len);
         fmt_to_print[fmt_len] = 0;
     }
@@ -138,8 +138,8 @@ bool config_validate_after_load(
 
         // Validate ad-hoc protocol settings (redis)
         if (module.type == CONFIG_MODULE_TYPE_REDIS) {
-            if (module.redis->max_key_length > SLAB_OBJECT_SIZE_MAX - 1) {
-                LOG_E(TAG, "The allowed maximum value of max_key_length is <%u>", SLAB_OBJECT_SIZE_MAX - 1);
+            if (module.redis->max_key_length > FFMA_OBJECT_SIZE_MAX - 1) {
+                LOG_E(TAG, "The allowed maximum value of max_key_length is <%u>", FFMA_OBJECT_SIZE_MAX - 1);
                 return_result = false;
             }
         }

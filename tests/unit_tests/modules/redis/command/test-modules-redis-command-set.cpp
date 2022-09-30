@@ -451,7 +451,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"GET", "a_key"},
                 expected_response,
                 expected_response_length,
-                send_recv_resp_command_calculate_multi_recv(expected_response_length) + 10));
+                send_recv_resp_command_calculate_multi_recv(expected_response_length) + 15));
 
         free(expected_response);
     }
