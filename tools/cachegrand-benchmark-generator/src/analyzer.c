@@ -18,9 +18,8 @@
 
 #include "analyzer.h"
 
-
 test_t* analyzer_analyze(
-        char *file_path) {
+        const char *file_path) {
     char *body = support_read_file(file_path);
     char *test_name = matcher_get_test_name(body);
     if (NULL == test_name) return NULL;
@@ -30,7 +29,7 @@ test_t* analyzer_analyze(
 
     analyzer_recursive_match(
             body,
-            START_PADDING,
+            ANALYZER_START_PADDING,
             test,
             NULL);
 
@@ -51,6 +50,7 @@ int analyzer_recursive_match(
 
     for (int i = 0; i < sections->n_matches; ++i) {
         section_t *current_section = builder_new_section_p();
+
         // Match SECTION name
         char *section_name = matcher_get_section_name(sections->matches[i]);
         if (NULL == section_name) continue;

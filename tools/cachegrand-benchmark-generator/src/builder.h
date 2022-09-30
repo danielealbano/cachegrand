@@ -12,7 +12,7 @@ struct section {
 
 typedef struct test test_t;
 struct test {
-    char    *name;
+    char *name;
     int n_sections;
     section_t **sections;
 };

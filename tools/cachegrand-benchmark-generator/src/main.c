@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <json.h>
+#include <unistd.h>
 
 #include "all_tests.h"
 #include "matcher.h"
@@ -21,42 +22,38 @@
 
 int main(int argc, char **argv) {
     printf("### Cachegrand Benchmark Generator ###\n");
-    char **test_lists = (char **) all_tests;
-    size_t n_tests = sizeof(all_tests) / sizeof(char*);
 
-    if (argc > 1) {
-        test_lists = NULL;
-        n_tests = 0;
-
-        test_lists = malloc(sizeof(char*));
-        for (int i = 1; i < argc; ++i) {
-            test_lists = realloc(test_lists, i*sizeof(char*));
-            test_lists[i-1] = argv[i];
-            ++n_tests;
+    int opt;
+    char* output_file_path = NULL;
+    while ((opt = getopt(argc, argv, "o:")) != -1) {
+        switch (opt) {
+            case 'o': output_file_path = optarg; break;
+            default:
+                fprintf(stderr, "Usage: %s [-o] [./output-file-path.json]\n\n", argv[0]);
         }
     }
 
-    if (n_tests > 0) {
+    size_t n_tests = sizeof(all_tests) / sizeof(char*);
+    if ((int) n_tests > 0) {
         printf("[%zu] Total tests!\n", n_tests);
         tests_t *test_collections = builder_new_tests_p();
         for (int i = 0; i < n_tests; ++i) {
             printf("[%i/%zu]", i+1, n_tests);
-            test_t* test = analyzer_analyze(test_lists[i]);
+            test_t* test = analyzer_analyze(all_tests[i]);
             if (NULL == test) {
-                printf(" Not a valid test ...SKIP -> %s\n", test_lists[i]);
+                printf(" Not a valid test ...SKIP -> %s\n", all_tests[i]);
                 continue;
             }
             printf(" \"%s\" ", test->name);
             builder_tests_append_test(test_collections, test);
             printf("...OK\n");
-            //output_stdout_print(test->sections, test->n_sections);
         }
 
-        output_json_print(test_collections);
-        printf("Generation done. Bye.");
+        output_json(test_collections, output_file_path);
+        printf("Generation done. Bye.\n");
         return EXIT_SUCCESS;
     }
 
-    printf("No tests loaded. Bye.");
+    printf("No tests loaded. Bye.\n");
     return EXIT_FAILURE;
 }

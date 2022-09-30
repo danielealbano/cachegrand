@@ -50,7 +50,7 @@ matcher_t* matcher_match(
     matcher_t *final_matches;
     final_matches = malloc(sizeof(matcher_t));
     final_matches->n_matches = 0;
-    final_matches->matches = malloc(sizeof(char*));
+    final_matches->matches = NULL;
 
     /***********************
     * COMPILE PATTERN

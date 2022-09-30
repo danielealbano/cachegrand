@@ -13,9 +13,9 @@
 #include "support.h"
 
 char* support_read_file(
-        char *filename) {
+        const char *filename) {
     char *buffer = NULL;
-    int string_size, read_size;
+    size_t string_size, read_size = 0;
     FILE *handler = fopen(filename, "r");
 
     if (handler) {
@@ -23,14 +23,17 @@ char* support_read_file(
         string_size = ftell(handler);
         rewind(handler);
 
-        buffer = (char*) malloc(sizeof(char) * (string_size + 1) );
-        read_size = fread(buffer, sizeof(char), string_size, handler);
+        buffer = (char*) malloc(sizeof(char) * (string_size + 1));
+        do {
+            size_t read_size_temp = fread(buffer, sizeof(char), string_size, handler);
+            if (read_size_temp <= 0) {
+                free(buffer);
+                buffer = NULL;
+                perror("failed to read file");
+            }
+            read_size += read_size_temp;
+        } while(read_size < string_size);
         buffer[string_size] = '\0';
-
-        if (string_size != read_size) {
-            free(buffer);
-            buffer = NULL;
-        }
 
         fclose(handler);
     }
@@ -39,10 +42,13 @@ char* support_read_file(
 }
 
 void support_write_file(
-        char* data) {
-    char *out_filename = "./cachegrand-benchmark-generator.json";
-    FILE *end_file = fopen(out_filename, "w");
-    if(end_file == NULL) {
+        char* data,
+        char* file_path) {
+    if (NULL == file_path) {
+        file_path = "./cachegrand-benchmark-generator.json";
+    }
+    FILE *end_file = fopen(file_path, "w");
+    if(NULL == end_file) {
         printf("Unable to create file.\n");
         exit(EXIT_FAILURE);
     }
@@ -50,5 +56,5 @@ void support_write_file(
     fputs(data, end_file);
     fclose(end_file);
 
-    printf("File \"%s\" generated.\n", out_filename);
+    printf("File \"%s\" generated.\n", file_path);
 }

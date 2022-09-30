@@ -19,6 +19,7 @@
 
 #include "output.h"
 
+#if DEBUG == 1
 void output_stdout_print(
         section_t **sections,
         size_t n_sections) {
@@ -40,6 +41,7 @@ void output_stdout_print(
 
     printf("\n");
 }
+#endif
 
 void output_json_builder(
         section_t **sections,
@@ -81,8 +83,9 @@ void output_json_builder(
     }
 }
 
-void output_json_print(
-        tests_t *test_collections) {
+void output_json(
+        tests_t *test_collections,
+        char* file_path) {
     struct json_object *obj_final, *tests_array;
     obj_final = json_object_new_object();
     tests_array = json_object_new_array();
@@ -113,5 +116,5 @@ void output_json_print(
                 obj_final,
                 JSON_C_TO_STRING_PRETTY));
 
-    support_write_file(serialized_json);
+    support_write_file(serialized_json, file_path);
 }

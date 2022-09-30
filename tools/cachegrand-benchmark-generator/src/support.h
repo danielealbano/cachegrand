@@ -2,9 +2,10 @@
 #define CACHEGRAND_BENCHMARK_GENERATOR_SUPPORT_H
 
 char* support_read_file(
-        char *filename);
+        const char *filename);
 
 void support_write_file(
-        char* data);
+        char* data,
+        char* file_path);
 
 #endif //CACHEGRAND_BENCHMARK_GENERATOR_SUPPORT_H

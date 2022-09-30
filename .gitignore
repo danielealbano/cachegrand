@@ -3,5 +3,3 @@ cmake-build-*/*
 
 /etc/cachegrand.yaml
 /src/cmake_config.c
-
-tools/cachegrand-benchmark-generator/cmake-build-debug
