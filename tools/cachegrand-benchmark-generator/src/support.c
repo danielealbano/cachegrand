@@ -28,8 +28,8 @@ char* support_read_file(
             size_t read_size_temp = fread(buffer, sizeof(char), string_size, handler);
             if (read_size_temp <= 0) {
                 free(buffer);
-                buffer = NULL;
                 perror("failed to read file");
+                exit(EXIT_FAILURE);
             }
             read_size += read_size_temp;
         } while(read_size < string_size);
