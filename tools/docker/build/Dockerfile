@@ -42,6 +42,7 @@ RUN apt-get update -y \
         libyaml-0-2 libyaml-dev \
         libmbedtls-dev libmbedtls14 \
         libpcre2-8-0 libpcre2-dev \
+        libjson-c-dev \
         lcov gcovr \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
