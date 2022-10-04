@@ -10,6 +10,7 @@ project(cachegrand LANGUAGES C CXX ASM)
 include(tools/cmake/main.cmake)
 
 add_subdirectory(3rdparty)
+add_subdirectory(tools)
 add_subdirectory(src)
 
 if (BUILD_TESTS)

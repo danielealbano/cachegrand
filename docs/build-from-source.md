@@ -15,15 +15,17 @@ Example output
 
 ## Required packages
 
-| Package    | Min. Version |               |
-|------------|--------------|---------------|
-| pkg-config |              | **mandatory** |
-| libnuma    | \>= 1.1      | **mandatory** |
-| libyaml    | \>= 1.1      | **mandatory** |
-| libmbedtls | \>= 2.28     | **mandatory** |
-| libatomic1 |              | **mandatory** |
-| openssl    | \>= 2.0      | **mandatory** |
-| curl       | \>= 7.0      | **mandatory** |
+| Package       | Min. Version |               |
+|---------------|--------------|---------------|
+| pkg-config    |              | **mandatory** |
+| libnuma       | \>= 1.1      | **mandatory** |
+| libyaml       | \>= 1.1      | **mandatory** |
+| libmbedtls    | \>= 2.28     | **mandatory** |
+| libatomic1    |              | **mandatory** |
+| openssl       | \>= 2.0      | **mandatory** |
+| curl          | \>= 7.0      | **mandatory** |
+| libpcre2      |              | **mandatory** |
+| libjson-c-dev |              | **mandatory** |
 
 ## Install the required packages
 
@@ -38,7 +40,9 @@ sudo apt install \
     libnuma1 libnuma-dev \
     libcurl4-openssl-dev libcurl4 \
     libyaml-0-2 libyaml-dev \
-    libmbedtls-dev libmbedtls14
+    libmbedtls-dev libmbedtls14 \
+    libpcre2-8-0 libpcre2-dev \
+    libjson-c-dev
 ```
 
 ### Ubuntu 20.04
@@ -52,7 +56,9 @@ sudo apt install \
     libnuma1 libnuma-dev \
     libcurl4-openssl-dev libcurl4 \
     libyaml-0-2 libyaml-dev \
-    libmbedtls-dev libmbedtls12
+    libmbedtls-dev libmbedtls12 \
+    libpcre2-8-0 libpcre2-dev \
+    libjson-c-dev
 ```
 
 ### Debian 11
