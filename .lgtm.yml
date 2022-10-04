@@ -16,6 +16,9 @@ extraction:
         - "libyaml-dev"
         - "libcurl4-openssl-dev"
         - "libcurl4"
+        - "libpcre2-8-0"
+        - "libpcre2-dev"
+        - "libjson-c-dev"
         - "lcov"
         - "gcovr"
     configure:
