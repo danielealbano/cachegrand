@@ -48,7 +48,7 @@ jobs:
           fetch-depth: 2
 
       - name: Install required dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config git libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev libmbedtls-dev valgrind
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config git libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev libmbedtls-dev libpcre2-8-0 libpcre2-dev libjson-c-dev valgrind
 
       - name: Create Build Environment
         run: cmake -E make_directory ${{github.workspace}}/build
