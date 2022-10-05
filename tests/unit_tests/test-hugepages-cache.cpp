@@ -29,8 +29,6 @@ TEST_CASE("hugepage_cache.c", "[hugepage_cache]") {
             for(int i = 0; i < numa_node_count; i++) {
                 REQUIRE(hugepage_cache_per_numa_node[i].free_queue != nullptr);
                 REQUIRE(hugepage_cache_per_numa_node[i].numa_node_index == i);
-                REQUIRE(hugepage_cache_per_numa_node[i].stats.in_use == 0);
-                REQUIRE(hugepage_cache_per_numa_node[i].stats.total == 0);
             }
 
             hugepage_cache_free();
@@ -49,8 +47,6 @@ TEST_CASE("hugepage_cache.c", "[hugepage_cache]") {
                 REQUIRE(queue_mpmc_peek(hugepage_cache_per_numa_node[numa_node_index].free_queue) ==
                     nullptr);
                 REQUIRE(hugepage_cache_per_numa_node[numa_node_index].numa_node_index == numa_node_index);
-                REQUIRE(hugepage_cache_per_numa_node[numa_node_index].stats.in_use == 1);
-                REQUIRE(hugepage_cache_per_numa_node[numa_node_index].stats.total == 1);
 
                 xalloc_hugepage_free(hugepage_addr1, HUGEPAGE_SIZE_2MB);
             }
@@ -65,8 +61,6 @@ TEST_CASE("hugepage_cache.c", "[hugepage_cache]") {
                 REQUIRE(queue_mpmc_peek(hugepage_cache_per_numa_node[numa_node_index].free_queue) ==
                     nullptr);
                 REQUIRE(hugepage_cache_per_numa_node[numa_node_index].numa_node_index == numa_node_index);
-                REQUIRE(hugepage_cache_per_numa_node[numa_node_index].stats.in_use == 2);
-                REQUIRE(hugepage_cache_per_numa_node[numa_node_index].stats.total == 2);
 
                 xalloc_hugepage_free(hugepage_addr1, HUGEPAGE_SIZE_2MB);
                 xalloc_hugepage_free(hugepage_addr2, HUGEPAGE_SIZE_2MB);
@@ -83,8 +77,6 @@ TEST_CASE("hugepage_cache.c", "[hugepage_cache]") {
                 REQUIRE(queue_mpmc_peek(hugepage_cache_per_numa_node[numa_node_index].free_queue) ==
                     nullptr);
                 REQUIRE(hugepage_cache_per_numa_node[numa_node_index].numa_node_index == numa_node_index);
-                REQUIRE(hugepage_cache_per_numa_node[numa_node_index].stats.in_use == 3);
-                REQUIRE(hugepage_cache_per_numa_node[numa_node_index].stats.total == 3);
 
                 xalloc_hugepage_free(hugepage_addr1, HUGEPAGE_SIZE_2MB);
                 xalloc_hugepage_free(hugepage_addr2, HUGEPAGE_SIZE_2MB);
@@ -108,8 +100,6 @@ TEST_CASE("hugepage_cache.c", "[hugepage_cache]") {
                 REQUIRE(queue_mpmc_peek(hugepage_cache_per_numa_node[numa_node_index].free_queue) ==
                     hugepage_addr);
                 REQUIRE(hugepage_cache_per_numa_node[numa_node_index].numa_node_index == numa_node_index);
-                REQUIRE(hugepage_cache_per_numa_node[numa_node_index].stats.in_use == 0);
-                REQUIRE(hugepage_cache_per_numa_node[numa_node_index].stats.total == 1);
             }
 
             SECTION("pop and push two hugepage from cache") {
@@ -124,8 +114,6 @@ TEST_CASE("hugepage_cache.c", "[hugepage_cache]") {
                 REQUIRE(queue_mpmc_peek(hugepage_cache_per_numa_node[numa_node_index].free_queue) ==
                     hugepage_addr2);
                 REQUIRE(hugepage_cache_per_numa_node[numa_node_index].numa_node_index == numa_node_index);
-                REQUIRE(hugepage_cache_per_numa_node[numa_node_index].stats.in_use == 0);
-                REQUIRE(hugepage_cache_per_numa_node[numa_node_index].stats.total == 2);
             }
 
             SECTION("pop and push three hugepage from cache") {
@@ -142,8 +130,6 @@ TEST_CASE("hugepage_cache.c", "[hugepage_cache]") {
                 REQUIRE(queue_mpmc_peek(hugepage_cache_per_numa_node[numa_node_index].free_queue) ==
                     hugepage_addr3);
                 REQUIRE(hugepage_cache_per_numa_node[numa_node_index].numa_node_index == numa_node_index);
-                REQUIRE(hugepage_cache_per_numa_node[numa_node_index].stats.in_use == 0);
-                REQUIRE(hugepage_cache_per_numa_node[numa_node_index].stats.total == 3);
             }
 
             SECTION("pop three and push two hugepage from/to cache") {
@@ -159,8 +145,6 @@ TEST_CASE("hugepage_cache.c", "[hugepage_cache]") {
                 REQUIRE(queue_mpmc_peek(hugepage_cache_per_numa_node[numa_node_index].free_queue) ==
                     hugepage_addr2);
                 REQUIRE(hugepage_cache_per_numa_node[numa_node_index].numa_node_index == numa_node_index);
-                REQUIRE(hugepage_cache_per_numa_node[numa_node_index].stats.in_use == 1);
-                REQUIRE(hugepage_cache_per_numa_node[numa_node_index].stats.total == 3);
 
                 xalloc_hugepage_free(hugepage_addr3, HUGEPAGE_SIZE_2MB);
             }
