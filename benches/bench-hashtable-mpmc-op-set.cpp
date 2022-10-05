@@ -11,16 +11,33 @@
 
 #include <benchmark/benchmark.h>
 
+#include "misc.h"
 #include "exttypes.h"
+#include "clock.h"
+#include "config.h"
+#include "thread.h"
+#include "memory_fences.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "spinlock.h"
 #include "log/log.h"
 #include "memory_fences.h"
 #include "utils_cpu.h"
+#include "fiber.h"
+#include "fiber_scheduler.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
+#include "memory_allocator/ffma.h"
 
 #include "data_structures/hashtable/mcmp/hashtable.h"
-#include "data_structures/hashtable/mcmp/hashtable_op_set.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
+#include "worker/worker.h"
 
-#include "../tests/support.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_set.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_get.h"
+
+#include "../tests/unit_tests/support.h"
 
 #include "benchmark-program.hpp"
 #include "benchmark-support.hpp"
@@ -63,6 +80,11 @@ public:
 
     void SetUp(const ::benchmark::State& state) override {
         char error_message[150] = {0};
+        worker_context_t worker_context = { 0 };
+
+        worker_context.worker_index = state.thread_index();
+        worker_context_set(&worker_context);
+        transaction_set_worker_index(worker_context.worker_index);
 
         test_support_set_thread_affinity(state.thread_index());
 
@@ -204,6 +226,11 @@ public:
 
     void SetUp(const ::benchmark::State& state) override {
         char error_message[150] = {0};
+        worker_context_t worker_context = { 0 };
+
+        worker_context.worker_index = state.thread_index();
+        worker_context_set(&worker_context);
+        transaction_set_worker_index(worker_context.worker_index);
 
         test_support_set_thread_affinity(state.thread_index());
 
