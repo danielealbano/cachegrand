@@ -42,6 +42,8 @@
 #include "benchmark-program.hpp"
 #include "benchmark-support.hpp"
 
+#define TEST_VALIDATE_KEYS 0
+
 // Set the generator to use
 #define KEYSET_GENERATOR_METHOD     TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_MAX_LENGTH
 
@@ -76,6 +78,20 @@ public:
 
     [[nodiscard]] uint64_t GetRequestedKeysetSize() const {
         return this->_requested_keyset_size;
+    }
+
+    void RunningThreadsIncrement() {
+        running_threads.fetch_add(1);
+    }
+
+    void RunningThreadsDecrement() {
+        running_threads.fetch_sub(1);
+    }
+
+    void RunningThreadsWait() {
+        while(running_threads.load() > 0) {
+            usleep(100000);
+        }
     }
 
     void SetUp(const ::benchmark::State& state) override {
@@ -136,9 +152,14 @@ public:
 
         this->_hashtable = (hashtable_t *)static_hashtable;
         this->_keyset_slots = (test_support_keyset_slot_t *)static_keyset_slots;
+
+        this->RunningThreadsIncrement();
     }
 
     void TearDown(const ::benchmark::State& state) override {
+        this->RunningThreadsDecrement();
+        this->RunningThreadsWait();
+
         if (state.thread_index() != 0) {
             return;
         }
@@ -163,7 +184,11 @@ public:
         static_hashtable = nullptr;
         static_keyset_slots = nullptr;
     }
+
+    static std::atomic<int> running_threads;
 };
+
+std::atomic<int> HashtableOpSetInsertFixture::running_threads(0);
 
 BENCHMARK_DEFINE_F(HashtableOpSetInsertFixture, hashtable_op_set_insert)(benchmark::State& state) {
     bool result;
@@ -203,6 +228,46 @@ BENCHMARK_DEFINE_F(HashtableOpSetInsertFixture, hashtable_op_set_insert)(benchma
             }
         }
     }
+
+#if TEST_VALIDATE_KEYS == 1
+    for(
+            uint64_t key_index = state.thread_index();
+            key_index < requested_keyset_size;
+            key_index += state.threads()) {
+        hashtable_value_data_t data = 0;
+
+        result = hashtable_mcmp_op_get(
+                hashtable,
+                keyset_slots[key_index].key,
+                keyset_slots[key_index].key_length,
+                &data);
+
+        if (!result) {
+            sprintf(
+                    error_message,
+                    "Unable to find the key <%s (%d)> with index <%ld> for the thread <%d>",
+                    keyset_slots[key_index].key,
+                    keyset_slots[key_index].key_length,
+                    key_index,
+                    state.thread_index());
+            state.SkipWithError(error_message);
+            break;
+        }
+
+        if (data != key_index) {
+            sprintf(
+                    error_message,
+                    "The key <%s> with index <%ld> for the thread <%d> holds the value <%ld> but the expected one is <%ld>",
+                    keyset_slots[key_index].key,
+                    key_index,
+                    state.thread_index(),
+                    data,
+                    key_index);
+            state.SkipWithError(error_message);
+            break;
+        }
+    }
+#endif
 }
 
 class HashtableOpSetUpdateFixture : public benchmark::Fixture {
@@ -212,6 +277,8 @@ private:
     uint64_t _requested_keyset_size = 0;
 
 public:
+    static std::atomic<int> running_threads;
+
     hashtable_t *GetHashtable() {
         return this->_hashtable;
     }
@@ -222,6 +289,20 @@ public:
 
     [[nodiscard]] uint64_t GetRequestedKeysetSize() const {
         return this->_requested_keyset_size;
+    }
+
+    void RunningThreadsIncrement() {
+        running_threads.fetch_add(1);
+    }
+
+    void RunningThreadsDecrement() {
+        running_threads.fetch_sub(1);
+    }
+
+    void RunningThreadsWait() {
+        while(running_threads.load() > 0) {
+            usleep(100000);
+        }
     }
 
     void SetUp(const ::benchmark::State& state) override {
@@ -332,9 +413,14 @@ public:
 
         this->_hashtable = (hashtable_t *)static_hashtable;
         this->_keyset_slots = (test_support_keyset_slot_t *)static_keyset_slots;
+
+        this->RunningThreadsIncrement();
     }
 
     void TearDown(const ::benchmark::State& state) override {
+        this->RunningThreadsDecrement();
+        this->RunningThreadsWait();
+
         if (state.thread_index() != 0) {
             return;
         }
@@ -361,6 +447,8 @@ public:
         static_storage_db_populated = false;
     }
 };
+
+std::atomic<int> HashtableOpSetUpdateFixture::running_threads(0);
 
 BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_op_set_update)(benchmark::State& state) {
     bool result;
@@ -400,13 +488,53 @@ BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_op_set_update)(benchma
             }
         }
     }
+
+
+#if TEST_VALIDATE_KEYS == 1
+    for(
+            uint64_t key_index = state.thread_index();
+            key_index < requested_keyset_size;
+            key_index += state.threads()) {
+        hashtable_value_data_t data = 0;
+
+        result = hashtable_mcmp_op_get(
+                hashtable,
+                keyset_slots[key_index].key,
+                keyset_slots[key_index].key_length,
+                &data);
+
+        if (!result) {
+            sprintf(
+                    error_message,
+                    "Unable to find the key <%s (%d)> with index <%ld> for the thread <%d>",
+                    keyset_slots[key_index].key,
+                    keyset_slots[key_index].key_length,
+                    key_index,
+                    state.thread_index());
+            state.SkipWithError(error_message);
+            break;
+        }
+
+        if (data != key_index) {
+            sprintf(
+                    error_message,
+                    "The key <%s> with index <%ld> for the thread <%d> holds the value <%ld> but the expected one is <%ld>",
+                    keyset_slots[key_index].key,
+                    key_index,
+                    state.thread_index(),
+                    data,
+                    key_index);
+            state.SkipWithError(error_message);
+            break;
+        }
+    }
+#endif
 }
 
 static void BenchArguments(benchmark::internal::Benchmark* b) {
     b
             ->ArgsProduct({
-                                  { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu, 0x00FFFFFFu, 0x01FFFFFFu, 0x07FFFFFFu,
-                                          0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu },
+                                  { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu },
                                   { 50, 75 },
                           })
             ->ThreadRange(TEST_THREADS_RANGE_BEGIN, TEST_THREADS_RANGE_END)
@@ -414,7 +542,6 @@ static void BenchArguments(benchmark::internal::Benchmark* b) {
             ->Repetitions(25)
             ->DisplayAggregatesOnly(false);
 }
-
 
 BENCHMARK_REGISTER_F(HashtableOpSetInsertFixture, hashtable_op_set_insert)
         ->Apply(BenchArguments);
