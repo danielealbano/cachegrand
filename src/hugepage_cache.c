@@ -70,10 +70,6 @@ void hugepage_cache_push(void* hugepage_addr) {
     hugepage_cache = &hugepage_cache_per_numa_node[numa_node_index];
 
     queue_mpmc_push(hugepage_cache->free_queue, hugepage_addr);
-
-    hugepage_cache->stats.in_use--;
-
-    assert(hugepage_cache->stats.in_use != UINT32_MAX);
 }
 
 void* hugepage_cache_pop() {
@@ -92,10 +88,7 @@ void* hugepage_cache_pop() {
         if (hugepage_addr == NULL) {
             return NULL;
         }
-        hugepage_cache->stats.total++;
     }
-
-    hugepage_cache->stats.in_use++;
 
     return hugepage_addr;
 }
