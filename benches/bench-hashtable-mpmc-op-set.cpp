@@ -48,8 +48,8 @@
 #define KEYSET_GENERATOR_METHOD     TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_MAX_LENGTH
 
 // It is possible to control the amount of threads used for the test tuning the two defines below
-#define TEST_THREADS_RANGE_BEGIN (4)
-#define TEST_THREADS_RANGE_END (4)
+#define TEST_THREADS_RANGE_BEGIN (1)
+#define TEST_THREADS_RANGE_END (utils_cpu_count())
 
 // These two are kept static and external because
 // - Google Benchmark invokes the setup multiple times, once per thread, but it doesn't have an entry point invoked
