@@ -80,6 +80,11 @@ public:
 
     void SetUp(const ::benchmark::State& state) override {
         char error_message[150] = {0};
+        worker_context_t worker_context = { 0 };
+
+        worker_context.worker_index = state.thread_index();
+        worker_context_set(&worker_context);
+        transaction_set_worker_index(worker_context.worker_index);
 
         test_support_set_thread_affinity(state.thread_index());
 
@@ -221,6 +226,11 @@ public:
 
     void SetUp(const ::benchmark::State& state) override {
         char error_message[150] = {0};
+        worker_context_t worker_context = { 0 };
+
+        worker_context.worker_index = state.thread_index();
+        worker_context_set(&worker_context);
+        transaction_set_worker_index(worker_context.worker_index);
 
         test_support_set_thread_affinity(state.thread_index());
 
