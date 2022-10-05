@@ -88,7 +88,7 @@ public:
         running_threads.fetch_sub(1);
     }
 
-    void RunningThreadsWait(int thread_index) {
+    void RunningThreadsWait() {
         while(running_threads.load() > 0) {
             usleep(100000);
         }
@@ -158,7 +158,7 @@ public:
 
     void TearDown(const ::benchmark::State& state) override {
         this->RunningThreadsDecrement();
-        this->RunningThreadsWait(state.thread_index());
+        this->RunningThreadsWait();
 
         if (state.thread_index() != 0) {
             return;
