@@ -80,6 +80,20 @@ public:
         return this->_requested_keyset_size;
     }
 
+    void RunningThreadsIncrement() {
+        running_threads.fetch_add(1);
+    }
+
+    void RunningThreadsDecrement() {
+        running_threads.fetch_sub(1);
+    }
+
+    void RunningThreadsWait(int thread_index) {
+        while(running_threads.load() > 0) {
+            usleep(100000);
+        }
+    }
+
     void SetUp(const ::benchmark::State& state) override {
         char error_message[150] = {0};
         worker_context_t worker_context = { 0 };
@@ -138,9 +152,14 @@ public:
 
         this->_hashtable = (hashtable_t *)static_hashtable;
         this->_keyset_slots = (test_support_keyset_slot_t *)static_keyset_slots;
+
+        this->RunningThreadsIncrement();
     }
 
     void TearDown(const ::benchmark::State& state) override {
+        this->RunningThreadsDecrement();
+        this->RunningThreadsWait(state.thread_index());
+
         if (state.thread_index() != 0) {
             return;
         }
@@ -165,7 +184,11 @@ public:
         static_hashtable = nullptr;
         static_keyset_slots = nullptr;
     }
+
+    static std::atomic<int> running_threads;
 };
+
+std::atomic<int> HashtableOpSetInsertFixture::running_threads(0);
 
 BENCHMARK_DEFINE_F(HashtableOpSetInsertFixture, hashtable_op_set_insert)(benchmark::State& state) {
     bool result;
@@ -254,6 +277,8 @@ private:
     uint64_t _requested_keyset_size = 0;
 
 public:
+    static std::atomic<int> running_threads;
+
     hashtable_t *GetHashtable() {
         return this->_hashtable;
     }
@@ -264,6 +289,20 @@ public:
 
     [[nodiscard]] uint64_t GetRequestedKeysetSize() const {
         return this->_requested_keyset_size;
+    }
+
+    void RunningThreadsIncrement() {
+        running_threads.fetch_add(1);
+    }
+
+    void RunningThreadsDecrement() {
+        running_threads.fetch_sub(1);
+    }
+
+    void RunningThreadsWait() {
+        while(running_threads.load() > 0) {
+            usleep(100000);
+        }
     }
 
     void SetUp(const ::benchmark::State& state) override {
@@ -374,9 +413,14 @@ public:
 
         this->_hashtable = (hashtable_t *)static_hashtable;
         this->_keyset_slots = (test_support_keyset_slot_t *)static_keyset_slots;
+
+        this->RunningThreadsIncrement();
     }
 
     void TearDown(const ::benchmark::State& state) override {
+        this->RunningThreadsDecrement();
+        this->RunningThreadsWait();
+
         if (state.thread_index() != 0) {
             return;
         }
@@ -403,6 +447,8 @@ public:
         static_storage_db_populated = false;
     }
 };
+
+std::atomic<int> HashtableOpSetUpdateFixture::running_threads(0);
 
 BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_op_set_update)(benchmark::State& state) {
     bool result;
@@ -496,7 +542,6 @@ static void BenchArguments(benchmark::internal::Benchmark* b) {
             ->Repetitions(25)
             ->DisplayAggregatesOnly(false);
 }
-
 
 BENCHMARK_REGISTER_F(HashtableOpSetInsertFixture, hashtable_op_set_insert)
         ->Apply(BenchArguments);
