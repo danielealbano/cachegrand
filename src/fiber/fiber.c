@@ -21,6 +21,12 @@
 #include "log/log.h"
 #include "fatal.h"
 
+#if defined(__x86_64__)
+#include <fiber/arch/x86-64/fiber_context.h>
+#else
+#include <fiber/arch/aarch64/fiber_context.h>
+#endif
+
 #include "fiber.h"
 
 #define TAG "fiber"
@@ -85,9 +91,15 @@ fiber_t *fiber_new(
     fiber->name = (char*)xalloc_alloc_zero(name_len + 1);
     strncpy(fiber->name, name, name_len);
 
+    // Set Stack Pointer
+#if defined(__x86_64__)
     // Set the initial fp and rsp of the fiber
     fiber->context.rip = fiber->start_fp; // this or the stack_base? who knows :|
     fiber->context.rsp = fiber->stack_pointer;
+#else
+    // Set the initial fp and rsp of the fiber
+    fiber->context.sp = fiber->stack_pointer;
+#endif
 
     fiber_stack_protection(fiber, true);
 

@@ -22,7 +22,7 @@
 #include "spinlock.h"
 #include "transaction.h"
 #include "transaction_spinlock.h"
-#include "fiber.h"
+#include "fiber/fiber.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
@@ -32,7 +32,7 @@
 #include "storage/db/storage_db.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
-#include "fiber_scheduler.h"
+#include "fiber/fiber_scheduler.h"
 #include "worker/storage/worker_storage_op.h"
 #include "worker/storage/worker_storage_posix_op.h"
 

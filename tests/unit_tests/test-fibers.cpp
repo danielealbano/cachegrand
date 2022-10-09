@@ -15,7 +15,7 @@
 
 #include "xalloc.h"
 #include "signals_support.h"
-#include "fiber.h"
+#include "fiber/fiber.h"
 
 char test_fiber_name[] = "test-fiber";
 size_t test_fiber_name_len = sizeof(test_fiber_name);

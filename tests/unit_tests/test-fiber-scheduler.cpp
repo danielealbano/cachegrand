@@ -15,8 +15,8 @@
 #include <setjmp.h>
 
 #include "signals_support.h"
-#include "fiber.h"
-#include "fiber_scheduler.h"
+#include "fiber/fiber.h"
+#include "fiber/fiber_scheduler.h"
 
 char test_fiber_scheduler_fixture_fiber_name[] = "test-fiber";
 size_t test_fiber_scheduler_fixture_fiber_name_leb = sizeof(test_fiber_scheduler_fixture_fiber_name);

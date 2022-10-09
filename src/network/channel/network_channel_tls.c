@@ -28,7 +28,7 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "memory_allocator/ffma.h"
 #include "config.h"
-#include "fiber.h"
+#include "fiber/fiber.h"
 #include "log/log.h"
 #include "support/simple_file_io.h"
 #include "module/module.h"

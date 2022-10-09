@@ -30,7 +30,7 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "memory_allocator/ffma.h"
 #include "config.h"
-#include "fiber.h"
+#include "fiber/fiber.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"

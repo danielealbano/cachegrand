@@ -68,7 +68,7 @@ elseif(HASH_ALGORITHM_SELECTED_COUNTER EQUAL 0)
 endif()
 
 # Build the base cachegrand library
-file(GLOB_RECURSE SRC_FILES_CACHEGRAND "*.c" "*.s")
+file(GLOB_RECURSE SRC_FILES_CACHEGRAND "*.c")
 list(APPEND SRC_FILES_CACHEGRAND "${CACHEGRAND_CMAKE_CONFIG_C_SRC}")
 list(REMOVE_ITEM SRC_FILES_CACHEGRAND ${CMAKE_CURRENT_SOURCE_DIR}/main.c)
 
@@ -79,6 +79,11 @@ list(REMOVE_ITEM SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hash/hash_crc
 list(FILTER SRC_FILES_CACHEGRAND EXCLUDE REGEX ".*hashtable_support_op_arch.c$")
 
 if(ARCH_IS_X86_64)
+    # Fiber context directive
+    message(STATUS "Append fiber x86-64 context directive")
+    list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/fiber/arch/x86-64/fiber_context.s")
+    list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/fiber/arch/x86-64/fiber_context.h")
+
     message(STATUS "Enabling accelerated string functions")
 
     # utils_string_avx2.c
@@ -115,6 +120,12 @@ if(ARCH_IS_X86_64)
 
 elseif(ARCH_IS_AARCH64)
     message(STATUS "No accelerated implementations for AARCH64, using portable")
+
+    # Fiber context directive
+    message(STATUS "Append fiber aarch64 context directive")
+    list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/fiber/arch/aarch64/fiber_context.s")
+    list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/fiber/arch/aarch64/fiber_context.h")
+
 else()
     message(FATAL_ERROR "Unsupported architecture")
 endif()
