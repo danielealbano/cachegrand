@@ -10,7 +10,7 @@
 #docker buildx build --pull --push --platform linux/amd64,linux/arm64/v8 --tag gitlab.cachegrand.dev:5050/cachegrand/cachegrand-server/ubuntu-2004-gcc:latest .
 #docker buildx rm --name cachegrand-builder
 
-FROM ubuntu:22.04
+FROM gcr.io/distroless/cc:latest-amd64
 LABEL maintainer="d.albano@cachegrand.io"
 
 # General dpkg and packages settings
