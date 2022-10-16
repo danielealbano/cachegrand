@@ -21,11 +21,13 @@
 #include "utils_string.h"
 
 IFUNC_WRAPPER_RESOLVE(UTILS_STRING_NAME_IFUNC(cmp_eq_32)) {
-    __builtin_cpu_init();
 #if defined(__x86_64__)
+    __builtin_cpu_init();
     if (__builtin_cpu_supports("avx2")) {
         return UTILS_STRING_NAME_IMPL(cmp_eq_32, avx2);
     }
+#else
+#warning "missing optimized string function for the current architecture"
 #endif
 
     return UTILS_STRING_NAME_IMPL(cmp_eq_32, sw);
@@ -36,11 +38,13 @@ bool IFUNC_WRAPPER(UTILS_STRING_NAME_IFUNC(cmp_eq_32),
 
 
 IFUNC_WRAPPER_RESOLVE(UTILS_STRING_NAME_IFUNC(casecmp_eq_32)) {
-    __builtin_cpu_init();
 #if defined(__x86_64__)
+    __builtin_cpu_init();
     if (__builtin_cpu_supports("avx2")) {
         return UTILS_STRING_NAME_IMPL(casecmp_eq_32, avx2);
     }
+#else
+#warning "missing optimized string function for the current architecture"
 #endif
 
     return UTILS_STRING_NAME_IMPL(casecmp_eq_32, sw);
