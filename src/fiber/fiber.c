@@ -21,12 +21,6 @@
 #include "log/log.h"
 #include "fatal.h"
 
-#if defined(__x86_64__)
-#include <fiber/arch/x86-64/fiber_context.h>
-#else
-#include <fiber/arch/aarch64/fiber_context.h>
-#endif
-
 #include "fiber.h"
 
 #define TAG "fiber"
@@ -72,6 +66,8 @@ fiber_t *fiber_new(
 
     // Need room on the stack as we push/pop a return address to jump to our function
     stack_pointer -= sizeof(void*) * 1;
+    *(uintptr_t*)stack_pointer = 0;
+    stack_pointer -= sizeof(void*) * 1;
 
     LOG_D(
             TAG,
@@ -94,11 +90,13 @@ fiber_t *fiber_new(
     // Set Stack Pointer
 #if defined(__x86_64__)
     // Set the initial fp and rsp of the fiber
-    fiber->context.rip = fiber->start_fp; // this or the stack_base? who knows :|
+    fiber->context.rip = fiber->start_fp;
     fiber->context.rsp = fiber->stack_pointer;
-#else
-    // Set the initial fp and rsp of the fiber
+#elif defined(__aarch64__)
+    *((uintptr_t*)(fiber->context.ragisters + 0xa0)) = (uintptr_t)fiber->start_fp;
     fiber->context.sp = fiber->stack_pointer;
+#else
+#error "unsupported architecture"
 #endif
 
     fiber_stack_protection(fiber, true);
