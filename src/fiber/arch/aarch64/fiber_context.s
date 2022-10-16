@@ -9,79 +9,88 @@
 .type fiber_context_get, @function
 .global fiber_context_get
 fiber_context_get:
-    // Store Pair of Registers
-    // Calculates an address from a base register value and an immediate offset
-    // and store the calculated address, from two registers.
-    stp     d15, d14, [sp, #-20*8]!    // Pre-Index
-    stp     d13, d12, [sp, #2*8]
-    stp     d11, d10, [sp, #4*8]
-    stp     d9, d8,   [sp, #6*8]
+    ldp d8,  d9,  [x0, #0x00]
+    ldp d10, d11, [x0, #0x10]
+    ldp d12, d13, [x0, #0x20]
+    ldp d14, d15, [x0, #0x30]
+    ldp x19, x20, [x0, #0x40]
+    ldp x21, x22, [x0, #0x50]
+    ldp x23, x24, [x0, #0x60]
+    ldp x25, x26, [x0, #0x70]
+    ldp x27, x28, [x0, #0x80]
+    ldp x29, x30, [x0, #0x90]
 
-    stp     x30, x29, [sp, #8*8]    // lr, fp
-    stp     x28, x27, [sp, #10*8]
-    stp     x26, x25, [sp, #12*8]
-    stp     x24, x23, [sp, #14*8]
-    stp     x22, x21, [sp, #16*8]
-    stp     x20, x19, [sp, #18*8]
+    ldr x4, [x0, #0xa0]
 
-    // Adds a register value and an optionally-shifted register value,
-    // and writes the result to the destination register.
-    add     x19, sp, #9*8
-    ret
+    ldr x3, [x0, #0xb0]
+    mov sp, x3
+
+    ret x4
 
 .type fiber_context_set, @function
 .global fiber_context_set
 fiber_context_set:
-    // Store Register (immediate)
-    // Stores a word or a doubleword from a register to memory.
-    str     x19, [x0]   // *old pointer stack
+    stp d8,  d9,  [x0, #0x00]
+    stp d10, d11, [x0, #0x10]
+    stp d12, d13, [x0, #0x20]
+    stp d14, d15, [x0, #0x30]
 
-    // Subtract (shifted register)
-    // Subtracts an optionally-shifted immediate value from a register value,
-    // and writes the result to the destination register.
-    sub     sp, x1, #9*8    // switch to newp sp
+    stp x19, x20, [x0, #0x40]
+    stp x21, x22, [x0, #0x50]
+    stp x23, x24, [x0, #0x60]
+    stp x25, x26, [x0, #0x70]
+    stp x27, x28, [x0, #0x80]
+    stp x29, x30, [x0, #0x90]
 
-    // Load Pair of Registers
-    // Calculates an address from a base register value and an immediate offset,
-    // loads from memory, and writes them to two registers.
-    ldp     x20, x19, [sp, #18*8]
-    ldp     x22, x21, [sp, #16*8]
-    ldp     x24, x23, [sp, #14*8]
-    ldp     x26, x25, [sp, #12*8]
-    ldp     x28, x27, [sp, #10*8]
-    ldp     x30, x29, [sp, #8*8]    // lr, fp
-    ldp     d9, d8,   [sp, #6*8]
-    ldp     d11, d10, [sp, #4*8]
-    ldp     d13, d12, [sp, #2*8]
-    ldp     d15, d14, [sp], #20*8
+    str x30, [x0, #0xa0]
+
+    mov x4, sp
+    str x4, [x0, #0xb0]
+
     ret
 
 .type fiber_context_swap, @function
 .global fiber_context_swap
 fiber_context_swap:
-    stp     d15, d14, [sp, #-20*8]!
-    stp     d13, d12, [sp, #2*8]
-    stp     d11, d10, [sp, #4*8]
-    stp     d9, d8,   [sp, #6*8]
-    stp     x30, x29, [sp, #8*8]    // lr, fp
-    stp     x28, x27, [sp, #10*8]
-    stp     x26, x25, [sp, #12*8]
-    stp     x24, x23, [sp, #14*8]
-    stp     x22, x21, [sp, #16*8]
-    stp     x20, x19, [sp, #18*8]
+    // str - Store Register (immediate) stores a word or a doubleword from a register to memory.
+    // stp - Store Pair of Registers calculates an address from a base register value and an immediate offset, and stores two 32-bit words or two 64-bit doublewords to the calculated address, from two registers.
+    // mov - Move between register and stack pointer
+    // ldr - Load Register (immediate) loads a word or doubleword from memory and writes it to a register. The address that is used for the load is calculated from a base register and an immediate offset. For information about memory accesses, see Load/Store addressing modes.
+    // ldp - Load Pair of Registers calculates an address from a base register value and an immediate offset, loads two 32-bit words or two 64-bit doublewords from memory, and writes them to two registers.
+    // sub - Subtract (immediate) subtracts an optionally-shifted immediate value from a register value, and writes the result to the destination register.
+    // br - Branch to Register branches unconditionally to an address in a register, with a hint that this is not a subroutine return.
 
-    add     x19, sp, #9*8
-    str     x19, [x0]
-    sub     sp, x1, #9*8
+    stp d8,  d9,  [x0, #0x00]
+    stp d10, d11, [x0, #0x10]
+    stp d12, d13, [x0, #0x20]
+    stp d14, d15, [x0, #0x30]
 
-    ldp     x20, x19, [sp, #18*8]
-    ldp     x22, x21, [sp, #16*8]
-    ldp     x24, x23, [sp, #14*8]
-    ldp     x26, x25, [sp, #12*8]
-    ldp     x28, x27, [sp, #10*8]
-    ldp     x30, x29, [sp, #8*8]    // lr, fp
-    ldp     d9, d8,   [sp, #6*8]
-    ldp     d11, d10, [sp, #4*8]
-    ldp     d13, d12, [sp, #2*8]
-    ldp     d15, d14, [sp], #20*8
-    ret
+    stp x19, x20, [x0, #0x40]
+    stp x21, x22, [x0, #0x50]
+    stp x23, x24, [x0, #0x60]
+    stp x25, x26, [x0, #0x70]
+    stp x27, x28, [x0, #0x80]
+    stp x29, x30, [x0, #0x90]
+
+    str x30, [x0, #0xa0]
+
+    mov x4, sp
+    str x4, [x0, #0xb0]
+
+    ldp d8,  d9,  [x1, #0x00]
+    ldp d10, d11, [x1, #0x10]
+    ldp d12, d13, [x1, #0x20]
+    ldp d14, d15, [x1, #0x30]
+    ldp x19, x20, [x1, #0x40]
+    ldp x21, x22, [x1, #0x50]
+    ldp x23, x24, [x1, #0x60]
+    ldp x25, x26, [x1, #0x70]
+    ldp x27, x28, [x1, #0x80]
+    ldp x29, x30, [x1, #0x90]
+
+    ldr x4, [x1, #0xa0]
+
+    ldr x3, [x1, #0xb0]
+    mov sp, x3
+
+    ret x4
