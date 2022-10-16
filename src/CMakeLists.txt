@@ -79,10 +79,9 @@ list(REMOVE_ITEM SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hash/hash_crc
 list(FILTER SRC_FILES_CACHEGRAND EXCLUDE REGEX ".*hashtable_support_op_arch.c$")
 
 if(ARCH_IS_X86_64)
-    # Fiber context directive
-    message(STATUS "Append fiber x86-64 context directive")
+    # Fiber context
+    message(STATUS "Enabling Fiber context arch x86-64")
     list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/fiber/arch/x86-64/fiber_context.s")
-    list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/fiber/arch/x86-64/fiber_context.h")
 
     message(STATUS "Enabling accelerated string functions")
 
@@ -121,10 +120,11 @@ if(ARCH_IS_X86_64)
 elseif(ARCH_IS_AARCH64)
     message(STATUS "No accelerated implementations for AARCH64, using portable")
 
-    # Fiber context directive
-    message(STATUS "Append fiber aarch64 context directive")
+    # Fiber context
+    message(STATUS "Enabling Fiber context arch aarch64")
     list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/fiber/arch/aarch64/fiber_context.s")
-    list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/fiber/arch/aarch64/fiber_context.h")
+
+    CACHEGRAND_BUILD_ADHOC_HASHTABLE_MCMP_SUPPORT_OP_ARCH("loop")
 
 else()
     message(FATAL_ERROR "Unsupported architecture")
