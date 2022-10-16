@@ -236,7 +236,7 @@ bool network_channel_tls_setup_ktls_tx_rx(
         case MBEDTLS_CIPHER_CHACHA20_POLY1305:
             // Fetch the iv from the state (8 uint32, 32 bytes)
             for(int index = 0; index < 8; index++) {
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(__aarch64__)
                 chacha20_u32_to_bytes_le(
                         chacha20_context->state[index + 4],
                         (uint8_t *)chacha20_key + (index * sizeof(uint32_t)));
@@ -247,7 +247,7 @@ bool network_channel_tls_setup_ktls_tx_rx(
 
             // Fetch the iv from the state (3 uint32, 12 bytes)
             for(int index = 0; index < 3; index++) {
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(__aarch64__)
                 chacha20_u32_to_bytes_le(
                         chacha20_context->state[index + 13],
                         (uint8_t *)chacha20_nonce + (index * sizeof(uint32_t)));
