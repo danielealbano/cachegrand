@@ -1,14 +1,16 @@
 #ifndef CACHEGRAND_FIBER_H
 #define CACHEGRAND_FIBER_H
 
-#if defined(__x86_64__)
-#include <fiber/arch/x86-64/fiber_context.h>
-#else
-#include <fiber/arch/aarch64/fiber_context.h>
-#endif
-
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#if defined(__x86_64__)
+#include <fiber/arch/x86-64/fiber_context.h>
+#elif defined(__aarch64__)
+#include <fiber/arch/aarch64/fiber_context.h>
+#else
+#error "unsupported architecture"
 #endif
 
 typedef struct fiber fiber_t;
