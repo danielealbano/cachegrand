@@ -76,6 +76,9 @@ file(GLOB_RECURSE SRC_FILES_CACHEGRAND "*.c")
 list(APPEND SRC_FILES_CACHEGRAND "${CACHEGRAND_CMAKE_CONFIG_C_SRC}")
 list(REMOVE_ITEM SRC_FILES_CACHEGRAND ${CMAKE_CURRENT_SOURCE_DIR}/main.c)
 
+# Remove all the architecure dependant impmentation of the string functions -- avx2
+list(REMOVE_ITEM SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/utils_string_avx2.c")
+
 # Remove all the architecture dependant implementation of the hash crc32 algorithm
 list(REMOVE_ITEM SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hash/hash_crc32c_sse42.c")
 
