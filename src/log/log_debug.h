@@ -40,6 +40,8 @@ extern "C" {
         "hashtable_mcmp_support_op_search_key_or_create_new_genericx86", \
         "hashtable_mcmp_support_op_search_key_defaultopt", \
         "hashtable_mcmp_support_op_search_key_or_create_new_defaultopt", \
+        "hashtable_mcmp_support_op_search_key_loop", \
+        "hashtable_mcmp_support_op_search_key_or_create_new_loop", \
         "hash_crc32c_resolve", \
         "hashtable_mcmp_support_hash_search_resolve", \
         "hashtable_mcmp_support_op_search_key_or_create_new_resolve", \
