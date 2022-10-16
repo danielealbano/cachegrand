@@ -49,6 +49,11 @@
         \
         return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, loop); \
     }
+#elif defined(__aarch64__)
+#define HASHTABLE_MCMP_SUPPORT_OP_FUNC_RESOLVER(FUNC) \
+    static void* FUNC##_resolve(void) { \
+        return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, loop); \
+    }
 #else
 #define HASHTABLE_MCMP_SUPPORT_OP_FUNC_RESOLVER(FUNC) \
     static void* FUNC##_resolve(void) { \
