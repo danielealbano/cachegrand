@@ -317,7 +317,6 @@ static void* test_support_build_keys_random_max_length_thread_func(
         sched_yield();
     } while (*ti->start_flag == 0);
 
-
     uint32_t key_length = TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH;
     for (uint64_t i = ti->start; i < ti->end; i++) {
         char *key_current_char, *key;
@@ -326,7 +325,7 @@ static void* test_support_build_keys_random_max_length_thread_func(
         // Allocate enough memory for the accelerate string comparison to work properly
         size_t key_mem_alloc =
                 TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL - (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL % 32) + 32;
-        key_current_char = key = ffma_mem_alloc(key_mem_alloc);
+        key_current_char = key = xalloc_alloc(key_mem_alloc);
 
         for (uint32_t i2 = 0; i2 < key_length; i2++) {
             *key_current_char = ti->charset_list[random_generate() % ti->charset_size];
@@ -368,7 +367,7 @@ static void* test_support_build_keys_random_random_length_thread_func(
         // Allocate enough memory for the accelerate string comparison to work properly
         size_t key_mem_alloc =
                 (key_length + 1) - ((key_length + 1) % 32) + 32;
-        key_current_char = key = ffma_mem_alloc(key_mem_alloc);
+        key_current_char = key = xalloc_alloc(key_mem_alloc);
 
         for (uint8_t i2 = 0; i2 < key_length; i2++) {
             *key_current_char = ti->charset_list[random_generate() % ti->charset_size];

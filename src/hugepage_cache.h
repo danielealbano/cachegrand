@@ -9,10 +9,6 @@ typedef struct hugepage_cache hugepage_cache_t;
 struct hugepage_cache {
     int numa_node_index;
     queue_mpmc_t *free_queue;
-    struct {
-        uint32_t total;
-        uint32_t in_use;
-    } stats;
 };
 
 hugepage_cache_t* hugepage_cache_init();
