@@ -92,7 +92,7 @@ bool hashtable_mcmp_support_op_search_key(
         hashtable_chunk_index_t *found_chunk_index,
         hashtable_chunk_slot_index_t *found_chunk_slot_index,
         hashtable_key_value_volatile_t **found_key_value) {
-    return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(hashtable_mcmp_support_op_search_key_or_create_new, armv8a_neon)(
+    return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(hashtable_mcmp_support_op_search_key, armv8a_neon)(
             hashtable_data,
             key,
             key_size,
