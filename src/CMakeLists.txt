@@ -133,7 +133,8 @@ elseif(ARCH_IS_AARCH64)
     list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/fiber/arch/aarch64/fiber_context.s")
 
     foreach(HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX
-            armv8a_neon)
+            armv8a_neon
+            loop)
         CACHEGRAND_BUILD_ADHOC_HASHTABLE_MCMP_SUPPORT_OP_ARCH(
                 ${HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX})
     endforeach()
