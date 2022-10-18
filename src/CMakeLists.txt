@@ -13,6 +13,7 @@ macro(CACHEGRAND_BUILD_ADHOC_HASHTABLE_MCMP_SUPPORT_OP_ARCH ARCH)
         set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx -mno-avx512f -mno-avx2 -mno-avx256-split-unaligned-load -mavx -mbmi -mbmi2)
         set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_loop -mno-avx512f -mno-avx2 -mno-avx)
     elseif(ARCH_IS_AARCH64)
+        set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_armv8a_neon -march=armv8-a)
         set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_loop "")
     endif()
 
@@ -131,8 +132,11 @@ elseif(ARCH_IS_AARCH64)
     message(STATUS "Enabling Fiber context arch aarch64")
     list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/fiber/arch/aarch64/fiber_context.s")
 
-    CACHEGRAND_BUILD_ADHOC_HASHTABLE_MCMP_SUPPORT_OP_ARCH("loop")
-
+    foreach(HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX
+            armv8a_neon)
+        CACHEGRAND_BUILD_ADHOC_HASHTABLE_MCMP_SUPPORT_OP_ARCH(
+                ${HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX})
+    endforeach()
 else()
     message(FATAL_ERROR "Unsupported architecture")
 endif()

@@ -19,7 +19,7 @@ extern "C" {
             hashtable_key_value_volatile_t **found_key_value); \
      \
     bool HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(hashtable_mcmp_support_op_search_key_or_create_new, SUFFIX)( \
-            hashtable_data_t *hashtable_data, \
+            hashtable_data_volatile_t *hashtable_data, \
             hashtable_key_data_t *key, \
             hashtable_key_size_t key_size, \
             hashtable_hash_t hash, \
