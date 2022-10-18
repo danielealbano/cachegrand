@@ -13,6 +13,7 @@
 
 #include "misc.h"
 #include "exttypes.h"
+#include "xalloc.h"
 #include "clock.h"
 #include "config.h"
 #include "thread.h"
@@ -154,7 +155,7 @@ static void hashtable_op_get_single_key_external(benchmark::State& state) {
         bucket_index = test_key_1_hash % hashtable->ht_current->buckets_count;
         chunk_index = HASHTABLE_TO_CHUNK_INDEX(bucket_index);
         chunk_slot_index = 0;
-        char *test_key_1_clone = (char*)ffma_mem_alloc_zero(test_key_1_len + 1);
+        char *test_key_1_clone = (char*)xalloc_alloc(test_key_1_len + 1);
         strncpy(test_key_1_clone, test_key_1, test_key_1_len);
 
         HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(
@@ -198,7 +199,7 @@ static void BenchArguments(benchmark::internal::Benchmark* b) {
     b
             ->Arg(256)
             ->ThreadRange(TEST_THREADS_RANGE_BEGIN, TEST_THREADS_RANGE_END)
-            ->Iterations(10000000)
+            ->Iterations(10000)
             ->DisplayAggregatesOnly(false);
 }
 
