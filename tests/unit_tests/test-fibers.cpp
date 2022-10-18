@@ -143,7 +143,7 @@ TEST_CASE("fiber.c", "[fiber]") {
         SECTION("allocate a new fiber") {
             int user_data = 0;
 
-            fiber_t * fiber = fiber_new(
+            fiber_t *fiber = fiber_new(
                     test_fiber_name,
                     test_fiber_name_len,
                     stack_size,
