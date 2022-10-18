@@ -9,27 +9,6 @@
 .type fiber_context_get, @function
 .global fiber_context_get
 fiber_context_get:
-    ldp d8,  d9,  [x0, #0x00]
-    ldp d10, d11, [x0, #0x10]
-    ldp d12, d13, [x0, #0x20]
-    ldp d14, d15, [x0, #0x30]
-    ldp x19, x20, [x0, #0x40]
-    ldp x21, x22, [x0, #0x50]
-    ldp x23, x24, [x0, #0x60]
-    ldp x25, x26, [x0, #0x70]
-    ldp x27, x28, [x0, #0x80]
-    ldp x29, x30, [x0, #0x90]
-
-    ldr x4, [x0, #0xa0]
-
-    ldr x3, [x0, #0xb0]
-    mov sp, x3
-
-    ret x4
-
-.type fiber_context_set, @function
-.global fiber_context_set
-fiber_context_set:
     stp d8,  d9,  [x0, #0x00]
     stp d10, d11, [x0, #0x10]
     stp d12, d13, [x0, #0x20]
@@ -48,6 +27,27 @@ fiber_context_set:
     str x4, [x0, #0xb0]
 
     ret
+
+.type fiber_context_set, @function
+.global fiber_context_set
+fiber_context_set:
+    ldp d8,  d9,  [x0, #0x00]
+    ldp d10, d11, [x0, #0x10]
+    ldp d12, d13, [x0, #0x20]
+    ldp d14, d15, [x0, #0x30]
+    ldp x19, x20, [x0, #0x40]
+    ldp x21, x22, [x0, #0x50]
+    ldp x23, x24, [x0, #0x60]
+    ldp x25, x26, [x0, #0x70]
+    ldp x27, x28, [x0, #0x80]
+    ldp x29, x30, [x0, #0x90]
+
+    ldr x4, [x0, #0xa0]
+
+    ldr x3, [x0, #0xb0]
+    mov sp, x3
+
+    ret x4
 
 .type fiber_context_swap, @function
 .global fiber_context_swap
