@@ -101,7 +101,7 @@ TEST_CASE("fiber.c", "[fiber]") {
     SECTION("fiber_stack_protection") {
         SECTION("test enabling the memory protection") {
             int protection_flags = -1;
-            fiber_t fiber = { NULL };
+            fiber_t fiber = { 0 };
             fiber.stack_base = aligned_alloc(page_size, page_size);
 
             // Enable stack fiber protection
@@ -119,7 +119,7 @@ TEST_CASE("fiber.c", "[fiber]") {
 
         SECTION("test disabling the memory protection") {
             int protection_flags = -1;
-            fiber_t fiber = { NULL };
+            fiber_t fiber = { 0 };
             fiber.stack_base = aligned_alloc(page_size, page_size);
 
             // Enable and disable the stack protection
