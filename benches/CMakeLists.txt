@@ -54,7 +54,7 @@ foreach(SRC_CACHEGRAND_BENCH ${SRC_CACHEGRAND_BENCHES})
     target_compile_options(
             ${CACHEGRAND_BENCH_EXEC_NAME}
             PRIVATE
-            -mclflushopt -march=native -O3)
+            -march=native -O3)
 
     set_target_properties(
             ${CACHEGRAND_BENCH_EXEC_NAME}
