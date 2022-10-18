@@ -157,6 +157,8 @@ TEST_CASE("fiber.c", "[fiber]") {
 
             // Add room for the first push/pop
             stack_pointer -= sizeof(void*) * 1;
+            *(uintptr_t*)stack_pointer = 0;
+            stack_pointer -= sizeof(void*) * 1;
 
             REQUIRE(fiber);
             REQUIRE(fiber->stack_size == stack_size);
