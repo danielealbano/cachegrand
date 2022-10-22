@@ -371,14 +371,14 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv_and_valid
                 buffer_send_internal, buffer_send_length > 64 ? 64 : buffer_send_length,
                 temp_buffer_1, sizeof(temp_buffer_1),
                 2,
-                "\r\n", 2, "\\r\\n", 4,
-                "\0", 1, "\\0", 2);
+                "\r\n", (size_t) 2, "\\r\\n", (size_t) 4,
+                "\0", (size_t) 1, "\\0", (size_t) 2);
         string_replace(
                 buffer_send_internal + buffer_send_length - (64 > buffer_send_length ? buffer_send_length : 64), 64 > buffer_send_length ? buffer_send_length : 64,
                 temp_buffer_2, sizeof(temp_buffer_2),
                 2,
-                "\r\n", 2, "\\r\\n", 4,
-                "\0", 1, "\\0", 2);
+                "\r\n", (size_t) 2, "\\r\\n", (size_t) 4,
+                "\0", (size_t) 1, "\\0", (size_t) 2);
 
         fprintf(
                 stderr,
