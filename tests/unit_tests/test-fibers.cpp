@@ -153,12 +153,12 @@ TEST_CASE("fiber.c", "[fiber]") {
             // Calculate the end of the stack to be 16 bytes aligned and with 128 bytes free for the red zone
             uintptr_t stack_pointer = (uintptr_t)fiber->stack_base + stack_size;
             stack_pointer &= -16L;
-            stack_pointer -= 128;
 
             // Add room for the first push/pop
             stack_pointer -= sizeof(void*) * 1;
-            *(uintptr_t*)stack_pointer = 0;
+#if defined(__aarch64__)
             stack_pointer -= sizeof(void*) * 1;
+#endif
 
             REQUIRE(fiber);
             REQUIRE(fiber->stack_size == stack_size);
