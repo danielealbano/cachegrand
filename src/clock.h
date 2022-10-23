@@ -35,7 +35,7 @@ static inline __attribute__((always_inline)) int64_t clock_timespec_to_int64_ms(
 
 static inline __attribute__((always_inline)) void clock_monotonic(
         timespec_t *timespec) {
-    if (clock_gettime(CLOCK_MONOTONIC, timespec) < 0) {
+    if (unlikely(clock_gettime(CLOCK_MONOTONIC, timespec) < 0)) {
         FATAL("clock", "Unable to fetch the time");
     }
 }
@@ -48,7 +48,7 @@ static inline __attribute__((always_inline)) int64_t clock_monotonic_int64_ms() 
 
 static inline __attribute__((always_inline)) void clock_monotonic_coarse(
         timespec_t *timespec) {
-    if (clock_gettime(CLOCK_MONOTONIC_COARSE, timespec) < 0) {
+    if (unlikely(clock_gettime(CLOCK_MONOTONIC_COARSE, timespec) < 0)) {
         FATAL("clock", "Unable to fetch the time");
     }
 }
@@ -61,7 +61,7 @@ static inline __attribute__((always_inline)) int64_t clock_monotonic_coarse_int6
 
 static inline __attribute__((always_inline)) void clock_realtime(
         timespec_t *timespec) {
-    if (clock_gettime(CLOCK_REALTIME, timespec) < 0) {
+    if (unlikely(clock_gettime(CLOCK_REALTIME, timespec) < 0)) {
         FATAL("clock", "Unable to fetch the time");
     }
 }
@@ -74,7 +74,7 @@ static inline __attribute__((always_inline)) int64_t clock_realtime_int64_ms() {
 
 static inline __attribute__((always_inline)) void clock_realtime_coarse(
         timespec_t *timespec) {
-    if (clock_gettime(CLOCK_REALTIME_COARSE, timespec) < 0) {
+    if (unlikely(clock_gettime(CLOCK_REALTIME_COARSE, timespec) < 0)) {
         FATAL("clock", "Unable to fetch the time");
     }
 }
@@ -98,7 +98,7 @@ static inline __attribute__((always_inline)) void clock_diff(
     } else {
         tv_nsec = a->tv_nsec - b->tv_nsec;
     }
-
+    
     if (unlikely(tv_nsec < 0)) {
         tv_sec--;
         tv_nsec += (int64_t)1000000000;
