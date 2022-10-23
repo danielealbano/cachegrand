@@ -89,12 +89,23 @@ static inline __attribute__((always_inline)) void clock_diff(
         timespec_t *a,
         timespec_t *b,
         timespec_t *result) {
-    result->tv_sec = a->tv_sec - b->tv_sec;
-    result->tv_nsec = a->tv_nsec - b->tv_nsec;
-    if (unlikely(result->tv_nsec < 0)) {
-        result->tv_sec--;
-        result->tv_nsec += 1000000000L;
+    int64_t tv_nsec;
+    int64_t tv_sec = a->tv_sec - b->tv_sec;
+
+    if (unlikely(tv_sec < 0)) {
+        tv_sec = tv_sec * -1;
+        tv_nsec = b->tv_nsec - a->tv_nsec;
+    } else {
+        tv_nsec = a->tv_nsec - b->tv_nsec;
     }
+
+    if (unlikely(tv_nsec < 0)) {
+        tv_sec--;
+        tv_nsec += (int64_t)1000000000;
+    }
+
+    result->tv_sec = tv_sec;
+    result->tv_nsec = tv_nsec;
 }
 
 #ifdef __cplusplus

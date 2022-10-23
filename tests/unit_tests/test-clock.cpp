@@ -164,7 +164,7 @@ TEST_CASE("clock.c", "[clock]") {
         SECTION("a > b") {
             clock_diff(&a, &b, &diff);
 
-            REQUIRE(diff.tv_sec == -3088);
+            REQUIRE(diff.tv_sec == 3087);
             REQUIRE(diff.tv_nsec == 999994445);
         }
         SECTION("a == b") {
