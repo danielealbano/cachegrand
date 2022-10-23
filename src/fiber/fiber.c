@@ -61,13 +61,13 @@ fiber_t *fiber_new(
     fiber_t *fiber = xalloc_alloc_zero(sizeof(fiber_t));
     void *stack_base = xalloc_alloc_aligned_zero(page_size, stack_size);
 
-    // Align the stack_pointer to 16 bytes and leave the 128 bytes red zone free as per ABI requirements
-    void* stack_pointer = (void*)((uintptr_t)(stack_base + stack_size) & -16L) - 128;
-
-    // Need room on the stack as we push/pop a return address to jump to our function
+    // Align the stack_pointer to 16 bytes and add some padding as required by the ABI
+    void* stack_pointer = (void*)((uintptr_t)(stack_base + stack_size) & -16L);
+    
     stack_pointer -= sizeof(void*) * 1;
-    *(uintptr_t*)stack_pointer = 0;
+#if defined(__aarch64__)
     stack_pointer -= sizeof(void*) * 1;
+#endif
 
     LOG_D(
             TAG,
@@ -93,13 +93,14 @@ fiber_t *fiber_new(
     fiber->context.rip = fiber->start_fp;
     fiber->context.rsp = fiber->stack_pointer;
 #elif defined(__aarch64__)
+    // 0xa0 in register matches the location of the registry X30 used as program counter
     *((uintptr_t*)(fiber->context.ragisters + 0xa0)) = (uintptr_t)fiber->start_fp;
     fiber->context.sp = fiber->stack_pointer;
 #else
 #error "unsupported architecture"
 #endif
 
-    fiber_stack_protection(fiber, true);
+//    fiber_stack_protection(fiber, true);
 
     return fiber;
 }
