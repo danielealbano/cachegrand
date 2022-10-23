@@ -150,34 +150,68 @@ TEST_CASE("clock.c", "[clock]") {
     }
 
     SECTION("clock_diff") {
-        timespec_t diff;
-        timespec_t a = {
-                .tv_sec = 1234,
-                .tv_nsec = 4321,
-        };
+        SECTION("nanoseconds diff positive") {
+            timespec_t diff;
+            timespec_t a = {
+                    .tv_sec = 1234,
+                    .tv_nsec = 4321,
+            };
 
-        timespec_t b = {
-                .tv_sec = 4321,
-                .tv_nsec = 9876,
-        };
+            timespec_t b = {
+                    .tv_sec = 4321,
+                    .tv_nsec = 9876,
+            };
 
-        SECTION("a > b") {
-            clock_diff(&a, &b, &diff);
+            SECTION("a > b") {
+                clock_diff(&a, &b, &diff);
 
-            REQUIRE(diff.tv_sec == 3087);
-            REQUIRE(diff.tv_nsec == 999994445);
+                REQUIRE(diff.tv_sec == 3087);
+                REQUIRE(diff.tv_nsec == 5555);
+            }
+            SECTION("a == b") {
+                clock_diff(&a, &a, &diff);
+
+                REQUIRE(diff.tv_sec == 0);
+                REQUIRE(diff.tv_nsec == 0);
+            }
+            SECTION("a < b") {
+                clock_diff(&b, &a, &diff);
+
+                REQUIRE(diff.tv_sec == 3087);
+                REQUIRE(diff.tv_nsec == 5555);
+            }
         }
-        SECTION("a == b") {
-            clock_diff(&a, &a, &diff);
 
-            REQUIRE(diff.tv_sec == 0);
-            REQUIRE(diff.tv_nsec == 0);
-        }
-        SECTION("a < b") {
-            clock_diff(&b, &a, &diff);
+        SECTION("nanoseconds diff negative") {
+            timespec_t diff;
+            timespec_t a = {
+                    .tv_sec = 1234,
+                    .tv_nsec = 9876,
+            };
 
-            REQUIRE(diff.tv_sec == 3087);
-            REQUIRE(diff.tv_nsec == 5555);
+            timespec_t b = {
+                    .tv_sec = 4321,
+                    .tv_nsec = 4321,
+            };
+
+            SECTION("a > b") {
+                clock_diff(&a, &b, &diff);
+
+                REQUIRE(diff.tv_sec == 3086);
+                REQUIRE(diff.tv_nsec == 999994445);
+            }
+            SECTION("a == b") {
+                clock_diff(&a, &a, &diff);
+
+                REQUIRE(diff.tv_sec == 0);
+                REQUIRE(diff.tv_nsec == 0);
+            }
+            SECTION("a < b") {
+                clock_diff(&b, &a, &diff);
+
+                REQUIRE(diff.tv_sec == 3086);
+                REQUIRE(diff.tv_nsec == 999994445);
+            }
         }
     }
 }
