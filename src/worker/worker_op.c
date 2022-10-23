@@ -13,7 +13,7 @@
 #include "exttypes.h"
 #include "misc.h"
 #include "clock.h"
-#include "fiber.h"
+#include "fiber/fiber.h"
 #include "log/log.h"
 #include "spinlock.h"
 #include "transaction.h"
@@ -30,7 +30,7 @@
 #include "storage/db/storage_db.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
-#include "fiber_scheduler.h"
+#include "fiber/fiber_scheduler.h"
 #include "worker/worker_op.h"
 
 #define TAG "worker_op"

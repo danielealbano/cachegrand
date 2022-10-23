@@ -24,7 +24,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
-#include "fiber.h"
+#include "fiber/fiber.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "signal_handler_thread.h"
@@ -276,7 +276,11 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBYFLOAT"
             SECTION("Decimal") {
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"INCRBYFLOAT", "a_key", "1.6"},
-                        "$22\r\n-9223372036854775806.5\r\n"));
+#if defined(__x86_64__)
+                                "$22\r\n-9223372036854775806.5\r\n"));
+#elif defined(__aarch64__)
+                                "$38\r\n-9223372036854775806.40000000000000036\r\n"));
+#endif
             }
         }
 
@@ -294,7 +298,12 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - INCRBYFLOAT"
             SECTION("Decimal") {
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"INCRBYFLOAT", "a_key", "-1.6"},
-                        "$21\r\n9223372036854775805.5\r\n"));
+#if defined(__x86_64__)
+                                "$21\r\n9223372036854775805.5\r\n"));
+#elif defined(__aarch64__)
+                                "$37\r\n9223372036854775805.40000000000000036\r\n"));
+#endif
+
             }
         }
 

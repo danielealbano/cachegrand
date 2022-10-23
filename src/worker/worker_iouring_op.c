@@ -21,7 +21,7 @@
 #include "transaction.h"
 #include "transaction_spinlock.h"
 #include "config.h"
-#include "fiber.h"
+#include "fiber/fiber.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/small_circular_queue/small_circular_queue.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
@@ -41,7 +41,7 @@
 #include "worker/worker_context.h"
 #include "worker/worker_iouring.h"
 #include "worker/worker_op.h"
-#include "fiber_scheduler.h"
+#include "fiber/fiber_scheduler.h"
 #include "worker_iouring_op.h"
 
 #define TAG "worker_iouring_op"

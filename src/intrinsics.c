@@ -10,14 +10,21 @@
 
 #include "intrinsics.h"
 
-// TODO: this should be refactored as intrinsics are different per platform, instead of invoking directly
-//       intrinsic_rdtscp a performance counters component should be implemented to fetch these information to be
-//       able to provide a platform-agnostic set of them.
-
-uint64_t intrinsic_rdtscp(uint32_t *aux) {
+uint64_t intrinsic_tsc() {
+#if defined(__x86_64__)
+    uint32_t aux;
     uint64_t rax, rdx;
     asm volatile (
             "rdtscp\n"
             : "=a" (rax), "=d" (rdx), "=c" (aux) : : );
     return (rdx << 32) + rax;
+#elif defined(__aarch64__)
+    int64_t tsc;
+    asm volatile (
+            "mrs %0, cntvct_el0"
+            : "=r"(tsc));
+    return (uint64_t) tsc;
+#else
+#error "unsupported platform"
+#endif
 }

@@ -119,8 +119,10 @@ void xalloc_free(
 
 size_t xalloc_get_page_size() {
     static size_t page_size;
-    if (page_size > 0)
+
+    if (page_size > 0) {
         return page_size;
+    }
 
 #if defined(__linux__)
     page_size = getpagesize();

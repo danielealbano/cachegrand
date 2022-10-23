@@ -78,12 +78,10 @@ bool queue_mpmc_push(
 
 void *queue_mpmc_pop(
         queue_mpmc_t *queue_mpmc) {
+    queue_mpmc_versioned_head_t head_expected, head_new;
     void *data = NULL;
 
-    queue_mpmc_versioned_head_t head_expected = {
-            ._packed = queue_mpmc->head._packed
-    };
-    queue_mpmc_versioned_head_t head_new;
+    head_expected._packed = queue_mpmc->head._packed;
 
     while (head_expected.data.node != NULL) {
         head_new.data.node = head_expected.data.node->next;

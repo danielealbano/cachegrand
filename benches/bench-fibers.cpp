@@ -18,7 +18,7 @@
 #include "benchmark-program.hpp"
 #include "benchmark-support.hpp"
 
-#include "fiber.h"
+#include "fiber/fiber.h"
 
 #define FIBER_NAME "fiber-test"
 #define FIBER_NAME_LEN (strlen(FIBER_NAME))

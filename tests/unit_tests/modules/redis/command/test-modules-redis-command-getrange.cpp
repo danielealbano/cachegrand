@@ -24,7 +24,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
-#include "fiber.h"
+#include "fiber/fiber.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "signal_handler_thread.h"

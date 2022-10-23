@@ -6,7 +6,6 @@ list(APPEND DEPS_LIST_LIBRARIES "pthread")
 include("libyaml")
 include("mbedtls")
 include("libnuma")
-include("libcurl")
 
 # Dependencies built as part of the build process
 include("mimalloc")

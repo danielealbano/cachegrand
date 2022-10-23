@@ -23,6 +23,7 @@
 #include "hashtable_support_op.h"
 #include "hashtable_support_op_arch.h"
 
+#if !defined(__aarch64__)
 #if defined(__x86_64__)
 #define HASHTABLE_MCMP_SUPPORT_OP_FUNC_RESOLVER(FUNC) \
     static void* FUNC##_resolve(void) { \
@@ -52,12 +53,12 @@
 #else
 #define HASHTABLE_MCMP_SUPPORT_OP_FUNC_RESOLVER(FUNC) \
     static void* FUNC##_resolve(void) { \
-        return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, defaultopt); \
+        return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(FUNC, loop); \
     }
 #endif
 
 bool hashtable_mcmp_support_op_search_key(
-        volatile hashtable_data_t *hashtable_data,
+        hashtable_data_volatile_t *hashtable_data,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_hash_t hash,
@@ -68,7 +69,7 @@ __attribute__ ((ifunc ("hashtable_mcmp_support_op_search_key_resolve")));
 HASHTABLE_MCMP_SUPPORT_OP_FUNC_RESOLVER(hashtable_mcmp_support_op_search_key)
 
 bool hashtable_mcmp_support_op_search_key_or_create_new(
-        volatile hashtable_data_t *hashtable_data,
+        hashtable_data_volatile_t *hashtable_data,
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_hash_t hash,
@@ -81,3 +82,50 @@ bool hashtable_mcmp_support_op_search_key_or_create_new(
         hashtable_key_value_volatile_t **found_key_value)
 __attribute__ ((ifunc ("hashtable_mcmp_support_op_search_key_or_create_new_resolve")));
 HASHTABLE_MCMP_SUPPORT_OP_FUNC_RESOLVER(hashtable_mcmp_support_op_search_key_or_create_new)
+#else
+
+bool hashtable_mcmp_support_op_search_key(
+        hashtable_data_volatile_t *hashtable_data,
+        hashtable_key_data_t *key,
+        hashtable_key_size_t key_size,
+        hashtable_hash_t hash,
+        hashtable_chunk_index_t *found_chunk_index,
+        hashtable_chunk_slot_index_t *found_chunk_slot_index,
+        hashtable_key_value_volatile_t **found_key_value) {
+    return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(hashtable_mcmp_support_op_search_key, loop)(
+            hashtable_data,
+            key,
+            key_size,
+            hash,
+            found_chunk_index,
+            found_chunk_slot_index,
+            found_key_value
+    );
+}
+
+bool hashtable_mcmp_support_op_search_key_or_create_new(
+        hashtable_data_volatile_t *hashtable_data,
+        hashtable_key_data_t *key,
+        hashtable_key_size_t key_size,
+        hashtable_hash_t hash,
+        bool create_new_if_missing,
+        transaction_t *transaction,
+        bool *created_new,
+        hashtable_chunk_index_t *found_chunk_index,
+        hashtable_half_hashes_chunk_volatile_t **found_half_hashes_chunk,
+        hashtable_chunk_slot_index_t *found_chunk_slot_index,
+        hashtable_key_value_volatile_t **found_key_value) {
+    return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(hashtable_mcmp_support_op_search_key_or_create_new, loop)(
+        hashtable_data,
+        key,
+        key_size,
+        hash,
+        create_new_if_missing,
+        transaction,
+        created_new,
+        found_chunk_index,
+        found_half_hashes_chunk,
+        found_chunk_slot_index,
+        found_key_value);
+}
+#endif

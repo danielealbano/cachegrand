@@ -32,7 +32,7 @@
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "config.h"
-#include "fiber.h"
+#include "fiber/fiber.h"
 #include "network/channel/network_channel.h"
 #include "storage/db/storage_db.h"
 #include "worker/worker_stats.h"

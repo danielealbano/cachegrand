@@ -492,7 +492,7 @@ class Program:
             "#include \"module/module.h\"",
             "#include \"network/io/network_io_common.h\"",
             "#include \"config.h\"",
-            "#include \"fiber.h\"",
+            "#include \"fiber/fiber.h\"",
             "#include \"network/channel/network_channel.h\"",
             "#include \"storage/io/storage_io_common.h\"",
             "#include \"storage/channel/storage_channel.h\"",

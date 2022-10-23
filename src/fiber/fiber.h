@@ -5,6 +5,14 @@
 extern "C" {
 #endif
 
+#if defined(__x86_64__)
+#include <fiber/arch/x86-64/fiber_context.h>
+#elif defined(__aarch64__)
+#include <fiber/arch/aarch64/fiber_context.h>
+#else
+#error "unsupported architecture"
+#endif
+
 typedef struct fiber fiber_t;
 typedef void (fiber_start_fp_t)(fiber_t* fiber_from, fiber_t* fiber_to);
 
@@ -20,10 +28,7 @@ struct fiber {
     // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/arm/kernel/asm-offsets.c
     // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/linux/kbuild.h
     // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Kbuild
-    struct {
-        void *rip, *rsp;
-        void *rbx, *rbp, *r12, *r13, *r14, *r15;
-    } context;
+    fiber_context_t context;
     void* stack_pointer;
     void* stack_base;
     size_t stack_size;

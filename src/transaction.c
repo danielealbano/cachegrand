@@ -15,7 +15,7 @@
 #include "exttypes.h"
 #include "clock.h"
 #include "config.h"
-#include "fiber.h"
+#include "fiber/fiber.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "worker/worker.h"

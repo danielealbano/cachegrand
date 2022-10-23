@@ -40,7 +40,7 @@
 #include "network/io/network_io_common.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
-#include "fiber.h"
+#include "fiber/fiber.h"
 #include "network/channel/network_channel.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"

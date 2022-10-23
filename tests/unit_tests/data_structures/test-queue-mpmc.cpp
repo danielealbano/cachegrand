@@ -170,7 +170,7 @@ void test_queue_mpmc_fuzzy_multi_thread(
         clock_monotonic(&current_time);
         sched_yield();
 
-        clock_diff(&diff_time, &current_time, &start_time);
+        clock_diff(&start_time, &current_time, &diff_time);
     } while(diff_time.tv_sec < duration);
 
     stop = true;
@@ -244,7 +244,7 @@ void test_queue_mpmc_fuzzy_single_thread(
             free(data);
         }
 
-        clock_diff(&diff_time, &current_time, &start_time);
+        clock_diff(&start_time, &current_time, &diff_time);
     } while(diff_time.tv_sec < duration);
 
     void *data;

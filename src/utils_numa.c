@@ -13,7 +13,11 @@
 #include <numa.h>
 #include <sched.h>
 
+#include "misc.h"
 #include "utils_numa.h"
+
+static int numa_node_configured_count = INT32_MAX;
+static int numa_cpu_configured_count = INT32_MAX;
 
 bool utils_numa_is_available() {
 #if defined(__linux__)
@@ -24,11 +28,20 @@ bool utils_numa_is_available() {
 }
 
 int utils_numa_node_configured_count() {
+    if (likely(numa_node_configured_count == INT32_MAX)) {
 #if defined(__linux__)
-    return numa_num_configured_nodes();
+        numa_node_configured_count = numa_num_configured_nodes();
 #else
 #error Platform not supported
 #endif
+
+        // Ensure that a NUMA node gets always reported
+        if (numa_node_configured_count == 0) {
+            numa_node_configured_count = 1;
+        }
+    }
+
+    return numa_node_configured_count;
 }
 
 uint32_t utils_numa_node_current_index() {
@@ -44,11 +57,15 @@ uint32_t utils_numa_node_current_index() {
 }
 
 int utils_numa_cpu_configured_count() {
+    if (likely(numa_cpu_configured_count == INT32_MAX)) {
 #if defined(__linux__)
-    return numa_num_configured_cpus();
+        numa_cpu_configured_count = numa_num_configured_cpus();
 #else
 #error Platform not supported
 #endif
+    }
+
+    return numa_cpu_configured_count;
 }
 
 bool utils_numa_cpu_allowed(

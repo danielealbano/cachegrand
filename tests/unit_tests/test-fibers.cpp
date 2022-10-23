@@ -15,7 +15,7 @@
 
 #include "xalloc.h"
 #include "signals_support.h"
-#include "fiber.h"
+#include "fiber/fiber.h"
 
 char test_fiber_name[] = "test-fiber";
 size_t test_fiber_name_len = sizeof(test_fiber_name);
@@ -101,7 +101,7 @@ TEST_CASE("fiber.c", "[fiber]") {
     SECTION("fiber_stack_protection") {
         SECTION("test enabling the memory protection") {
             int protection_flags = -1;
-            fiber_t fiber = { NULL };
+            fiber_t fiber = { 0 };
             fiber.stack_base = aligned_alloc(page_size, page_size);
 
             // Enable stack fiber protection
@@ -119,7 +119,7 @@ TEST_CASE("fiber.c", "[fiber]") {
 
         SECTION("test disabling the memory protection") {
             int protection_flags = -1;
-            fiber_t fiber = { NULL };
+            fiber_t fiber = { 0 };
             fiber.stack_base = aligned_alloc(page_size, page_size);
 
             // Enable and disable the stack protection
@@ -143,7 +143,7 @@ TEST_CASE("fiber.c", "[fiber]") {
         SECTION("allocate a new fiber") {
             int user_data = 0;
 
-            fiber_t * fiber = fiber_new(
+            fiber_t *fiber = fiber_new(
                     test_fiber_name,
                     test_fiber_name_len,
                     stack_size,
@@ -153,10 +153,12 @@ TEST_CASE("fiber.c", "[fiber]") {
             // Calculate the end of the stack to be 16 bytes aligned and with 128 bytes free for the red zone
             uintptr_t stack_pointer = (uintptr_t)fiber->stack_base + stack_size;
             stack_pointer &= -16L;
-            stack_pointer -= 128;
 
             // Add room for the first push/pop
             stack_pointer -= sizeof(void*) * 1;
+#if defined(__aarch64__)
+            stack_pointer -= sizeof(void*) * 1;
+#endif
 
             REQUIRE(fiber);
             REQUIRE(fiber->stack_size == stack_size);
@@ -217,12 +219,18 @@ TEST_CASE("fiber.c", "[fiber]") {
             void* test_fiber_context_get_sp_first_var = fiber_context_get_test(fiber);
 
 #if DEBUG == 1
-            // The code below calculates the position of the address saved in the RSP register when the context was read.
-            // The magic value 28 only works Linux x64 platforms with the code compiled with gcc in debug mode as it is
-            // dependent both on the ABI, which changes between different OSes and architectures, and on how the debug
-            // information are stored on the stack.
-            // It might work with LLVM but it's untested
-            REQUIRE((char*)test_fiber_context_get_sp_first_var - 28 == fiber->context.rsp);
+            // The code below calculates the position of the address saved in the stack pointer register specific of the
+            // architecture when the context was read.
+            // The magic value used is dependent on the ABI and the compiler, the ones defined in the code below are
+            // GCC specific and are untested with LLVM.
+
+#if defined(__x86_64__)
+            REQUIRE((char*)test_fiber_context_get_sp_first_var - 0x1C == fiber->context.rsp);
+#elif defined(__aarch64__)
+            REQUIRE((char*)test_fiber_context_get_sp_first_var - 0x2C == fiber->context.sp);
+#else
+#error "unsupported platform"
+#endif
 #endif
 
             fiber_free(fiber);

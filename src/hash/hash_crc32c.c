@@ -23,11 +23,10 @@ uint32_t hash_crc32c(
 __attribute__ ((ifunc ("hash_crc32c_resolve")));
 
 static void *hash_crc32c_resolve(void) {
-    __builtin_cpu_init();
-
     LOG_DI("Selecting optimal hash_crc32c");
 
 #if defined(__x86_64__)
+    __builtin_cpu_init();
     LOG_DI("CPU FOUND: %s", "X64");
     LOG_DI("> HAS SSE4.2: %s", __builtin_cpu_supports("sse4.2") ? "yes" : "no");
 

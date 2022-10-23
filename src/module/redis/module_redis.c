@@ -29,7 +29,7 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "memory_allocator/ffma.h"
 #include "config.h"
-#include "fiber.h"
+#include "fiber/fiber.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "protocol/redis/protocol_redis_writer.h"

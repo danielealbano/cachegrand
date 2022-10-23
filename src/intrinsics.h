@@ -5,8 +5,7 @@
 extern "C" {
 #endif
 
-uint64_t intrinsic_rdtscp(
-        uint32_t *aux);
+uint64_t intrinsic_tsc();
 
 #ifdef __cplusplus
 }

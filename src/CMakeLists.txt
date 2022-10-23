@@ -7,10 +7,15 @@
 add_subdirectory(module)
 
 macro(CACHEGRAND_BUILD_ADHOC_HASHTABLE_MCMP_SUPPORT_OP_ARCH ARCH)
-    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx512f -mno-avx256-split-unaligned-load -mavx512f -mavx2 -mavx -mbmi -mbmi2 -mfma -mtune=skylake)
-    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx2 -mno-avx512f -mno-avx256-split-unaligned-load -mavx2 -mavx -mavx -mbmi -mbmi2 -mfma -mtune=haswell)
-    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx -mno-avx512f -mno-avx2 -mno-avx256-split-unaligned-load -mavx -mbmi -mbmi2)
-    set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_loop -mno-avx512f -mno-avx2 -mno-avx)
+    if(ARCH_IS_X86_64)
+        set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx512f -mno-avx256-split-unaligned-load -mavx512f -mavx2 -mavx -mbmi -mbmi2 -mfma -mtune=skylake)
+        set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx2 -mno-avx512f -mno-avx256-split-unaligned-load -mavx2 -mavx -mavx -mbmi -mbmi2 -mfma -mtune=haswell)
+        set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_avx -mno-avx512f -mno-avx2 -mno-avx256-split-unaligned-load -mavx -mbmi -mbmi2)
+        set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_loop -mno-avx512f -mno-avx2 -mno-avx)
+    elseif(ARCH_IS_AARCH64)
+        set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_armv8a_neon -march=armv8-a)
+        set(HASHTABLE_MCMP_SUPPORT_OP_ARCH_OPT_loop "")
+    endif()
 
     message(STATUS "Enabling accelerated hashtable support operations -- ${ARCH}")
 
@@ -68,9 +73,12 @@ elseif(HASH_ALGORITHM_SELECTED_COUNTER EQUAL 0)
 endif()
 
 # Build the base cachegrand library
-file(GLOB_RECURSE SRC_FILES_CACHEGRAND "*.c" "*.s")
+file(GLOB_RECURSE SRC_FILES_CACHEGRAND "*.c")
 list(APPEND SRC_FILES_CACHEGRAND "${CACHEGRAND_CMAKE_CONFIG_C_SRC}")
 list(REMOVE_ITEM SRC_FILES_CACHEGRAND ${CMAKE_CURRENT_SOURCE_DIR}/main.c)
+
+# Remove all the architecure dependant impmentation of the string functions -- avx2
+list(REMOVE_ITEM SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/utils_string_avx2.c")
 
 # Remove all the architecture dependant implementation of the hash crc32 algorithm
 list(REMOVE_ITEM SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hash/hash_crc32c_sse42.c")
@@ -79,6 +87,10 @@ list(REMOVE_ITEM SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/hash/hash_crc
 list(FILTER SRC_FILES_CACHEGRAND EXCLUDE REGEX ".*hashtable_support_op_arch.c$")
 
 if(ARCH_IS_X86_64)
+    # Fiber context
+    message(STATUS "Enabling Fiber context arch x86-64")
+    list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/fiber/arch/x86-64/fiber_context.s")
+
     message(STATUS "Enabling accelerated string functions")
 
     # utils_string_avx2.c
@@ -115,6 +127,17 @@ if(ARCH_IS_X86_64)
 
 elseif(ARCH_IS_AARCH64)
     message(STATUS "No accelerated implementations for AARCH64, using portable")
+
+    # Fiber context
+    message(STATUS "Enabling Fiber context arch aarch64")
+    list(APPEND SRC_FILES_CACHEGRAND "${CMAKE_CURRENT_SOURCE_DIR}/fiber/arch/aarch64/fiber_context.s")
+
+    foreach(HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX
+            armv8a_neon
+            loop)
+        CACHEGRAND_BUILD_ADHOC_HASHTABLE_MCMP_SUPPORT_OP_ARCH(
+                ${HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX})
+    endforeach()
 else()
     message(FATAL_ERROR "Unsupported architecture")
 endif()

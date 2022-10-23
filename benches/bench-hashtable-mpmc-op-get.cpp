@@ -11,14 +11,34 @@
 
 #include <benchmark/benchmark.h>
 
+#include "misc.h"
 #include "exttypes.h"
+#include "xalloc.h"
+#include "clock.h"
+#include "config.h"
+#include "thread.h"
+#include "memory_fences.h"
+#include "transaction.h"
+#include "transaction_spinlock.h"
 #include "spinlock.h"
+#include "log/log.h"
+#include "memory_fences.h"
+#include "utils_cpu.h"
+#include "fiber/fiber.h"
+#include "fiber/fiber_scheduler.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
+#include "memory_allocator/ffma.h"
 
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "worker/worker_stats.h"
+#include "worker/worker_context.h"
+#include "worker/worker.h"
+
 #include "data_structures/hashtable/mcmp/hashtable_op_get.h"
 
-#include "../tests/support.h"
-#include "hashtable/mpmc/fixtures-hashtable-mpmc.h"
+#include "../tests/unit_tests/support.h"
+#include "../tests/unit_tests/data_structures/hashtable/mpmc/fixtures-hashtable-mpmc.h"
 
 #include "benchmark-program.hpp"
 #include "benchmark-support.hpp"
@@ -30,6 +50,11 @@
 static void hashtable_op_get_not_found_key(benchmark::State& state) {
     static hashtable_t* hashtable;
     hashtable_value_data_t value;
+    worker_context_t worker_context = { 0 };
+
+    worker_context.worker_index = state.thread_index();
+    worker_context_set(&worker_context);
+    transaction_set_worker_index(worker_context.worker_index);
 
     if (state.thread_index() == 0) {
         hashtable = test_support_init_hashtable(state.range(0));
@@ -59,6 +84,11 @@ static void hashtable_op_get_single_key_inline(benchmark::State& state) {
     hashtable_value_data_t value;
     bool result;
     char error_message[150] = {0};
+    worker_context_t worker_context = { 0 };
+
+    worker_context.worker_index = state.thread_index();
+    worker_context_set(&worker_context);
+    transaction_set_worker_index(worker_context.worker_index);
 
     if (state.thread_index() == 0) {
         hashtable = test_support_init_hashtable(state.range(0));
@@ -113,6 +143,11 @@ static void hashtable_op_get_single_key_external(benchmark::State& state) {
     hashtable_value_data_t value;
     bool result;
     char error_message[150] = {0};
+    worker_context_t worker_context = { 0 };
+
+    worker_context.worker_index = state.thread_index();
+    worker_context_set(&worker_context);
+    transaction_set_worker_index(worker_context.worker_index);
 
     if (state.thread_index() == 0) {
         hashtable = test_support_init_hashtable(state.range(0));
@@ -120,7 +155,7 @@ static void hashtable_op_get_single_key_external(benchmark::State& state) {
         bucket_index = test_key_1_hash % hashtable->ht_current->buckets_count;
         chunk_index = HASHTABLE_TO_CHUNK_INDEX(bucket_index);
         chunk_slot_index = 0;
-        char *test_key_1_clone = (char*)ffma_mem_alloc_zero(test_key_1_len + 1);
+        char *test_key_1_clone = (char*)xalloc_alloc(test_key_1_len + 1);
         strncpy(test_key_1_clone, test_key_1, test_key_1_len);
 
         HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(
@@ -164,7 +199,7 @@ static void BenchArguments(benchmark::internal::Benchmark* b) {
     b
             ->Arg(256)
             ->ThreadRange(TEST_THREADS_RANGE_BEGIN, TEST_THREADS_RANGE_END)
-            ->Iterations(10000000)
+            ->Iterations(10000)
             ->DisplayAggregatesOnly(false);
 }
 
