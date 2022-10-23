@@ -24,7 +24,7 @@ TEST_CASE("program_ulimit.c", "[program][program_ulimit]") {
 
     SECTION("program_ulimit_nofile") {
         SECTION("allowed value") {
-            REQUIRE(program_ulimit_set_nofile(0x40000));
+            CHECK_NOFAIL(program_ulimit_set_nofile(0x40000));
         }
 
         SECTION("not allowed value") {
