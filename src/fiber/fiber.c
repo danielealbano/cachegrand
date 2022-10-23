@@ -100,7 +100,7 @@ fiber_t *fiber_new(
 #error "unsupported architecture"
 #endif
 
-//    fiber_stack_protection(fiber, true);
+    fiber_stack_protection(fiber, true);
 
     return fiber;
 }
