@@ -19,14 +19,14 @@ jobs:
         config:
           - {
             name: "Ubuntu 20.04",
-            os: ubuntu-20.04,
+            os: [ linux, x64, ubuntu-20.04 ],
             triplet: x64-linux,
             cc: "gcc",
             cxx: "g++"
           }
           - {
             name: "Ubuntu 22.04",
-            os: ubuntu-22.04,
+            os: [ linux, x64, ubuntu-22.04 ],
             triplet: x64-linux,
             cc: "gcc",
             cxx: "g++"
@@ -82,7 +82,7 @@ jobs:
       - uses: codecov/codecov-action@v3
         with:
           files: ${{github.workspace}}/coverage.info
-          flags: unittests # optional
+          flags: unittests
           name: cachegrand-server
           fail_ci_if_error: false
           verbose: false
@@ -91,8 +91,8 @@ jobs:
         working-directory: ${{github.workspace}}/build
         shell: bash
         run: ctest -R cachegrand-integration-tests-redis-server --verbose || true
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: tests-integration-tests-redis-server-results
-          path: ${{github.workspace}}/build/tests/integration_tests/redis_server/junit-report.xml
+#
+#      - uses: actions/upload-artifact@v2
+#        with:
+#          name: tests-integration-tests-redis-server-results
+#          path: ${{github.workspace}}/build/tests/integration_tests/redis_server/junit-report.xml
