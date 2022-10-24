@@ -1,0 +1,81 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  BUILD_TYPE: Debug
+
+jobs:
+  build:
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {
+            name: "Ubuntu 22.04",
+            os: [self-hosted, linux, ARM64, ubuntu-22.04],
+            triplet: x64-linux,
+            cc: "gcc",
+            cxx: "g++"
+          }
+
+    steps:
+      - name: Setup cmake
+        uses: lukka/get-cmake@latest
+
+      - name: Ensure 350 2MB Hugepages free (required for comprehensive testing)
+        shell: bash
+        timeout-minutes: 5
+        run: while [ $(cat /proc/meminfo | grep HugePages_Free | awk '{ printf $2 }') -lt 350 ]; do echo "Requesting 350 2MB hugepages"; echo 350 | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages; cat /proc/meminfo | grep HugePages_; done; free -m;
+
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+          fetch-depth: 2
+
+      - name: Install required dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config git libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev libmbedtls-dev libpcre2-8-0 libpcre2-dev libjson-c-dev valgrind
+
+      - name: Create Build Environment
+        run: cmake -E make_directory ${{github.workspace}}/build
+
+      - name: Configure CMake
+        shell: bash
+        working-directory: ${{github.workspace}}/build
+        run: CC=/usr/bin/gcc-9 CXX=/usr/bin/g++-9 cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_HASH_ALGORITHM_XXH3=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
+
+      - name: Build cachegrand-tests
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: cmake --build . --target cachegrand-tests -- -j 4
+
+      - name: Build cachegrand-server
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: cmake --build . --target cachegrand-server -- -j 4
+
+      - name: Tests - Unit Tests
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: sudo tests/unit_tests/cachegrand-tests --order lex
+
+      - name: Code Coverage - Generation
+        uses: danielealbano/lcov-action@v3
+        with:
+          gcov_path: /usr/bin/gcov-9
+          remove_patterns: 3rdparty,tests
+
+      - uses: codecov/codecov-action@v3
+        with:
+          files: ${{github.workspace}}/coverage.info
+          flags: unittests # optional
+          name: cachegrand-server
+          fail_ci_if_error: false
+          verbose: false
