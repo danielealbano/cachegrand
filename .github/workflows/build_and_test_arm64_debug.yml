@@ -1,4 +1,4 @@
-name: Build & Test
+name: Build & Test - arm64 - Debug
 
 on:
   push:
