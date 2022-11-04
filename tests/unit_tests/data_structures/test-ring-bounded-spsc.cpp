@@ -10,7 +10,7 @@
 
 #include "data_structures/ring_bounded_spsc/ring_bounded_spsc.h"
 
-TEST_CASE("data_structures/circular_queue/ring_bounded_spsc.c", "[data_structures][ring_bounded_spsc]") {
+TEST_CASE("data_structures/ring_bounded_spsc/ring_bounded_spsc.c", "[data_structures][ring_bounded_spsc]") {
     SECTION("ring_bounded_spsc_init") {
         ring_bounded_spsc_t* rb = ring_bounded_spsc_init(10);
 
