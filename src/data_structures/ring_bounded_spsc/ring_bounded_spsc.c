@@ -19,11 +19,11 @@
 #include "ring_bounded_spsc.h"
 
 ring_bounded_spsc_t* ring_bounded_spsc_init(
-        int16_t length) {
+        int16_t size) {
     // The fast fixed memory allocator doesn't have the ability to allocate more than the maximum object size therefore
     // the size of the circular queue can't be greater than the maximum size the memory allocator can allocate divided
     // by the size of the ring_bounded_spsc struct. On 64-bit systems this should be equal to 4096.
-    assert(length < (FFMA_OBJECT_SIZE_MAX / sizeof(ring_bounded_spsc_t)));
+    assert(size <= (FFMA_OBJECT_SIZE_MAX / sizeof(void*)));
 
     ring_bounded_spsc_t *rb = NULL;
     rb = (ring_bounded_spsc_t*)ffma_mem_alloc(sizeof(ring_bounded_spsc_t));
@@ -32,17 +32,17 @@ ring_bounded_spsc_t* ring_bounded_spsc_init(
         return NULL;
     }
 
-    rb->items = (void**)ffma_mem_alloc(length * sizeof(void*));
+    rb->items = (void**)ffma_mem_alloc(size * sizeof(void*));
 
     if (!rb->items) {
         ffma_mem_free(rb);
         return NULL;
     }
 
-    rb->maxsize = length;
+    rb->size = size;
     rb->head = 0;
     rb->tail = -1;
-    rb->count = 0;
+    rb->length = 0;
 
     return rb;
 }
@@ -53,19 +53,19 @@ void ring_bounded_spsc_free(
     ffma_mem_free(rb);
 }
 
-int16_t ring_bounded_spsc_count(
+int16_t ring_bounded_spsc_get_length(
         ring_bounded_spsc_t *rb) {
-    return rb->count;
+    return rb->length;
 }
 
 bool ring_bounded_spsc_is_empty(
         ring_bounded_spsc_t *rb) {
-    return !ring_bounded_spsc_count(rb);
+    return !ring_bounded_spsc_get_length(rb);
 }
 
 bool ring_bounded_spsc_is_full(
         ring_bounded_spsc_t *rb) {
-    return ring_bounded_spsc_count(rb) == rb->maxsize;
+    return ring_bounded_spsc_get_length(rb) == rb->size;
 }
 
 void *ring_bounded_spsc_peek(
@@ -84,9 +84,9 @@ bool ring_bounded_spsc_enqueue(
         return false;
     }
 
-    rb->tail = (rb->tail + 1) % rb->maxsize;
+    rb->tail = (rb->tail + 1) % rb->size;
     rb->items[rb->tail] = value;
-    rb->count++;
+    rb->length++;
 
     return true;
 }
@@ -101,8 +101,8 @@ void *ring_bounded_spsc_dequeue(
 
     void *value = ring_bounded_spsc_peek(rb);
 
-    rb->head = (rb->head + 1) % rb->maxsize;
-    rb->count--;
+    rb->head = (rb->head + 1) % rb->size;
+    rb->length--;
 
     return value;
 }
