@@ -23,6 +23,8 @@
 
 ring_bounded_mpmc_t* ring_bounded_mpmc_init(
         int16_t size) {
+    // The size of the queue should always be at least twice the count of threads, to ensure that any dequeue operation
+    // will never follow straight away by an enqueue operation on the same ring slot.
     size = (int16_t)pow2_next(size);
 
     // The fast fixed memory allocator doesn't have the ability to allocate more than the maximum object size therefore
