@@ -30,7 +30,6 @@ struct test_ring_bounded_mpmc_fuzzy_test_thread_info {
 
 typedef struct test_ring_bounded_mpmc_fuzzy_test_data test_ring_bounded_mpmc_fuzzy_test_data_t;
 struct test_ring_bounded_mpmc_fuzzy_test_data {
-    uint64_t reads;
     uint64_t ops_counter_total;
     uint64_t ops_counter_push;
     uint64_t hash_data_x;
@@ -44,8 +43,6 @@ uint64_t test_ring_bounded_mpmc_calc_hash_x(
     x = x ^ (x >> 30) ^ (x >> 60);
 
     return x;
-
-    return x;
 }
 
 uint64_t test_ring_bounded_mpmc_calc_hash_y(
@@ -53,8 +50,6 @@ uint64_t test_ring_bounded_mpmc_calc_hash_y(
     y = (y ^ (y >> 31) ^ (y >> 62)) * UINT64_C(0x3b9643b2d24d8ec3);
     y = (y ^ (y >> 27) ^ (y >> 54)) * UINT64_C(0x91de1a173f119089);
     y = y ^ (y >> 30) ^ (y >> 60);
-
-    return y;
 
     return y;
 }
@@ -73,7 +68,6 @@ void *test_ring_bounded_mpmc_fuzzy_multi_thread_thread_func(
     } while(!*ti->start);
 
     while(!*ti->stop) {
-        bool enqueue_success;
         bool enqueue_or_dequeue = random_generate() % 1000 > 500;
 
         uint64_t ops_counter_total = __atomic_fetch_add(ti->ops_counter_total, 1, __ATOMIC_ACQ_REL);
@@ -83,27 +77,24 @@ void *test_ring_bounded_mpmc_fuzzy_multi_thread_thread_func(
 
             data = (test_ring_bounded_mpmc_fuzzy_test_data_t *)malloc(
                     sizeof(test_ring_bounded_mpmc_fuzzy_test_data_t));
-            data->reads = 0;
             data->ops_counter_total = ops_counter_total;
             data->ops_counter_push = ops_counter_push;
             data->hash_data_x = test_ring_bounded_mpmc_calc_hash_x(data->ops_counter_total);
             data->hash_data_y = test_ring_bounded_mpmc_calc_hash_y(data->ops_counter_push);
 
-            enqueue_success = ring_bounded_mpmc_enqueue(ring_bounded_mpmc, data);
+            if (!ring_bounded_mpmc_enqueue(ring_bounded_mpmc, data)) {
+                __atomic_fetch_sub(ti->ops_counter_push, 1, __ATOMIC_ACQ_REL);
+                enqueue_or_dequeue = !enqueue_or_dequeue;
+                free(data);
+            }
         }
 
-        if (!enqueue_or_dequeue || !enqueue_success) {
-            data = (test_ring_bounded_mpmc_fuzzy_test_data_t*)ring_bounded_mpmc_dequeue(ring_bounded_mpmc);
+        if (!enqueue_or_dequeue) {
+            data = (test_ring_bounded_mpmc_fuzzy_test_data_t*) ring_bounded_mpmc_dequeue(ring_bounded_mpmc);
 
             // There was an item at the time of the get length but not anymore
             if(!data) {
                 continue;
-            }
-
-            uint64_t reads = __atomic_add_fetch(&data->reads, 1, __ATOMIC_ACQ_REL);
-
-            if (reads != 1) {
-                FATAL("test-queue-mpmc", "wut???");
             }
 
             uint64_t hash_data_x = test_ring_bounded_mpmc_calc_hash_x(data->ops_counter_total);
@@ -228,7 +219,7 @@ void test_ring_bounded_mpmc_fuzzy_single_thread(
         }
 
         if (!enqueue_or_dequeue || !enqueue_success) {
-            data = (test_ring_bounded_mpmc_fuzzy_test_data_t*)ring_bounded_mpmc_dequeue(rb);
+            data = (test_ring_bounded_mpmc_fuzzy_test_data_t*) ring_bounded_mpmc_dequeue(rb);
 
             if (data) {
                 uint64_t hash_data_x = test_ring_bounded_mpmc_calc_hash_x(data->ops_counter_total);
@@ -295,7 +286,7 @@ TEST_CASE("data_structures/ring_bounded_mpmc/ring_bounded_mpmc.c", "[data_struct
             REQUIRE(rb->items[1] == random_values_from_memory[1]);
         }
 
-        SECTION("fill circular queue") {
+        SECTION("fill ring") {
             for(int i = 0; i < rb->size; i++) {
                 res = ring_bounded_mpmc_enqueue(rb, random_values_from_memory[i]);
                 REQUIRE(res == true);
@@ -305,12 +296,43 @@ TEST_CASE("data_structures/ring_bounded_mpmc/ring_bounded_mpmc.c", "[data_struct
             REQUIRE(rb->tail == rb->size);
         }
 
-        SECTION("overflow circular queue") {
+        SECTION("overflow ring") {
             for(int i = 0; i < rb->size; i++) {
                 res = ring_bounded_mpmc_enqueue(rb, random_values_from_memory[i]);
                 REQUIRE(res == true);
             }
 
+            res = ring_bounded_mpmc_enqueue(rb, random_values_from_memory[0]);
+            REQUIRE(res == false);
+        }
+
+        SECTION("overflow ring multiple times") {
+            for(int i = 0; i < rb->size; i++) {
+                res = ring_bounded_mpmc_enqueue(rb, random_values_from_memory[i]);
+                REQUIRE(res == true);
+            }
+
+            res = ring_bounded_mpmc_enqueue(rb, random_values_from_memory[0]);
+            REQUIRE(res == false);
+
+            REQUIRE(ring_bounded_mpmc_dequeue(rb) == random_values_from_memory[0]);
+
+            res = ring_bounded_mpmc_enqueue(rb, random_values_from_memory[0]);
+            REQUIRE(res == true);
+            res = ring_bounded_mpmc_enqueue(rb, random_values_from_memory[0]);
+            REQUIRE(res == false);
+
+            REQUIRE(ring_bounded_mpmc_dequeue(rb) == random_values_from_memory[1]);
+
+            res = ring_bounded_mpmc_enqueue(rb, random_values_from_memory[0]);
+            REQUIRE(res == true);
+            res = ring_bounded_mpmc_enqueue(rb, random_values_from_memory[0]);
+            REQUIRE(res == false);
+
+            REQUIRE(ring_bounded_mpmc_dequeue(rb) == random_values_from_memory[2]);
+
+            res = ring_bounded_mpmc_enqueue(rb, random_values_from_memory[0]);
+            REQUIRE(res == true);
             res = ring_bounded_mpmc_enqueue(rb, random_values_from_memory[0]);
             REQUIRE(res == false);
         }
@@ -362,7 +384,7 @@ TEST_CASE("data_structures/ring_bounded_mpmc/ring_bounded_mpmc.c", "[data_struct
             REQUIRE(rb->tail == 2);
         }
 
-        SECTION("fill and empty circular queue") {
+        SECTION("fill and empty ring") {
             for(int i = 0; i < rb->size; i++) {
                 ring_bounded_mpmc_enqueue(rb, random_values_from_memory[i]);
             }
