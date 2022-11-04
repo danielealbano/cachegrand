@@ -12,8 +12,9 @@
 #include <assert.h>
 #include <stdatomic.h>
 
+#include "misc.h"
 #include "exttypes.h"
-#include "memory_fences.h"
+#include "pow2.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "memory_allocator/ffma.h"
@@ -21,11 +22,13 @@
 #include "ring_bounded_mpmc.h"
 
 ring_bounded_mpmc_t* ring_bounded_mpmc_init(
-        int16_t length) {
+        int16_t size) {
+    size = (int16_t)pow2_next(size);
+
     // The fast fixed memory allocator doesn't have the ability to allocate more than the maximum object size therefore
     // the size of the circular queue can't be greater than the maximum size the memory allocator can allocate divided
     // by the size of the ring_bounded_mpmc struct. On 64-bit systems this should be equal to 4096.
-    assert(length < (FFMA_OBJECT_SIZE_MAX / sizeof(ring_bounded_mpmc_t)));
+    assert(size <= (FFMA_OBJECT_SIZE_MAX / sizeof(void*)));
 
     ring_bounded_mpmc_t *rb = NULL;
     rb = (ring_bounded_mpmc_t*)ffma_mem_alloc(sizeof(ring_bounded_mpmc_t));
@@ -34,17 +37,17 @@ ring_bounded_mpmc_t* ring_bounded_mpmc_init(
         return NULL;
     }
 
-    rb->items = (void**)ffma_mem_alloc(length * sizeof(void*));
+    rb->items = (void**)ffma_mem_alloc_zero(size * sizeof(void*));
 
     if (!rb->items) {
         ffma_mem_free(rb);
         return NULL;
     }
 
-    rb->header.data.maxsize = length;
-    rb->header.data.head = 0;
-    rb->header.data.tail = -1;
-    rb->header.data.count = 0;
+    rb->size = size;
+    rb->mask = (int16_t)(size - 1);
+    rb->head = 0;
+    rb->tail = 0;
 
     return rb;
 }
@@ -55,84 +58,48 @@ void ring_bounded_mpmc_free(
     ffma_mem_free(rb);
 }
 
-int16_t ring_bounded_mpmc_count(
-        ring_bounded_mpmc_t *rb) {
-    MEMORY_FENCE_LOAD();
-    return rb->header.data.count;
-}
-
-bool ring_bounded_mpmc_is_empty(
-        ring_bounded_mpmc_t *rb) {
-    return !ring_bounded_mpmc_count(rb);
-}
-
-bool ring_bounded_mpmc_is_full(
-        ring_bounded_mpmc_t *rb) {
-    // No need for memory fences, they will be issued by ring_bounded_mpmc_count
-    return ring_bounded_mpmc_count(rb) == rb->header.data.maxsize;
-}
-
-void *ring_bounded_mpmc_peek(
-        ring_bounded_mpmc_t *rb) {
-    if (ring_bounded_mpmc_is_empty(rb)) {
-        return NULL;
-    }
-
-    // No need for memory fences, they will be issued by ring_bounded_mpmc_count
-    return rb->items[rb->header.data.head];
-}
-
 bool ring_bounded_mpmc_enqueue(
         ring_bounded_mpmc_t *rb,
         void *value) {
-    if (ring_bounded_mpmc_is_full(rb)) {
-        return false;
-    }
+    uint64_t tail = __atomic_load_n(&rb->tail, __ATOMIC_ACQUIRE);
 
-    ring_bounded_mpmc_header_t header_expected;
-    ring_bounded_mpmc_header_t header_new;
     do {
-        header_expected._id = rb->header._id;
-        header_new._id = header_expected._id;
-
-        header_new.data.tail = (header_new.data.tail + 1) % (int16_t)header_new.data.maxsize;
-        header_new.data.count++;
+        void *current_value = __atomic_load_n(&rb->items[tail & rb->mask], __ATOMIC_ACQUIRE);
+        if (unlikely(current_value != NULL)) {
+            return false;
+        }
     } while (!__atomic_compare_exchange_n(
-            &rb->header._id,
-            &header_expected._id,
-            header_new._id,
+            &rb->tail,
+            &tail,
+            tail + 1,
             true,
             __ATOMIC_ACQ_REL,
             __ATOMIC_RELAXED));
 
-    rb->items[header_new.data.tail] = value;
+    __atomic_store_n(&rb->items[tail & rb->mask], value, __ATOMIC_RELEASE);
 
     return true;
 }
 
 void *ring_bounded_mpmc_dequeue(
         ring_bounded_mpmc_t *rb) {
-    // No need to check if rb->header.data.head == rb->header.data.tail because if it's the case rb->header.data.count will be zero and
-    // ring_bounded_mpmc_is_empty will return true
-    if (ring_bounded_mpmc_is_empty(rb)) {
-        return NULL;
-    }
+    void *value = NULL;
+    uint64_t head = __atomic_load_n(&rb->head, __ATOMIC_ACQUIRE);
 
-    ring_bounded_mpmc_header_t header_expected;
-    ring_bounded_mpmc_header_t header_new;
     do {
-        header_expected._id = rb->header._id;
-        header_new._id = header_expected._id;
-
-        header_new.data.head = (header_new.data.head + 1) % (int16_t)header_new.data.maxsize;
-        header_new.data.count--;
+        value = __atomic_load_n(&rb->items[head & rb->mask], __ATOMIC_ACQUIRE);
+        if (unlikely(value == NULL)) {
+            return NULL;
+        }
     } while (!__atomic_compare_exchange_n(
-            &rb->header._id,
-            &header_expected._id,
-            header_new._id,
+            &rb->head,
+            &head,
+            head + 1,
             true,
             __ATOMIC_ACQ_REL,
             __ATOMIC_RELAXED));
 
-    return rb->items[header_expected.data.head];
+     __atomic_store_n(&rb->items[head & rb->mask], NULL, __ATOMIC_RELEASE);
+
+    return value;
 }
