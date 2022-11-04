@@ -54,6 +54,17 @@ if (HOST_HAS_AVX)
             -mavx -mbmi -mbmi2)
 endif()
 
+add_custom_command(
+        TARGET cachegrand-tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+        ${CMAKE_CURRENT_BINARY_DIR}/fixtures)
+
+add_custom_command(
+        TARGET cachegrand-tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_SOURCE_DIR}/tests/unit_tests/fixtures/*
+        ${CMAKE_CURRENT_BINARY_DIR}/fixtures/)
+
 # The libcyaml library can't be statically linked for the tests, the C++ compiler will fail to link the libyaml library
 # as it is compiled for C and the C++ is not properly configured.
 # Linking it dynamically will avoid the issue, it has a number of side effects but for the tests it's fine (at least
