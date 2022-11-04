@@ -74,7 +74,7 @@ bool ring_bounded_mpmc_enqueue(
             tail + 1,
             true,
             __ATOMIC_ACQ_REL,
-            __ATOMIC_RELAXED));
+            __ATOMIC_ACQUIRE));
 
     __atomic_store_n(&rb->items[tail & rb->mask], value, __ATOMIC_RELEASE);
 
@@ -97,7 +97,7 @@ void *ring_bounded_mpmc_dequeue(
             head + 1,
             true,
             __ATOMIC_ACQ_REL,
-            __ATOMIC_RELAXED));
+            __ATOMIC_ACQUIRE));
 
      __atomic_store_n(&rb->items[head & rb->mask], NULL, __ATOMIC_RELEASE);
 
