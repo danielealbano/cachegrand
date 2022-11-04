@@ -60,6 +60,8 @@ TEST_CASE("data_structures/art/spsc/art_spsc.c", "[data_structures][art][spsc][a
         char buf[512];
         FILE *f = fopen("fixtures/words.txt", "r");
 
+        REQUIRE(f != nullptr);
+
         uintptr_t line = 1;
         while (fgets(buf, sizeof buf, f)) {
             len = strlen(buf);
@@ -134,6 +136,8 @@ TEST_CASE("data_structures/art/spsc/art_spsc.c", "[data_structures][art][spsc][a
         char buf[512];
         FILE *f = fopen("fixtures/words.txt", "r");
 
+        REQUIRE(f != nullptr);
+
         uintptr_t line = 1;
         while (fgets(buf, sizeof buf, f)) {
             len = strlen(buf);
@@ -176,6 +180,8 @@ TEST_CASE("data_structures/art/spsc/art_spsc.c", "[data_structures][art][spsc][a
         size_t len;
         char buf[512];
         FILE *f = fopen("fixtures/words.txt", "r");
+
+        REQUIRE(f != nullptr);
 
         uintptr_t line = 1, nlines;
         while (fgets(buf, sizeof buf, f)) {
@@ -227,6 +233,8 @@ TEST_CASE("data_structures/art/spsc/art_spsc.c", "[data_structures][art][spsc][a
         char buf[512];
         FILE *f = fopen("fixtures/words.txt", "r");
 
+        REQUIRE(f != nullptr);
+
         uintptr_t line = 1;
         while (fgets(buf, sizeof buf, f)) {
             len = strlen(buf);
@@ -263,6 +271,8 @@ TEST_CASE("data_structures/art/spsc/art_spsc.c", "[data_structures][art][spsc][a
         size_t len;
         char buf[512];
         FILE *f = fopen("fixtures/words.txt", "r");
+
+        REQUIRE(f != nullptr);
 
         uint64_t xor_mask = 0;
         uintptr_t line = 1, nlines;
@@ -405,6 +415,8 @@ TEST_CASE("data_structures/art/spsc/art_spsc.c", "[data_structures][art][spsc][a
         size_t len;
         char buf[512];
         FILE *f = fopen("fixtures/uuid.txt", "r");
+
+        REQUIRE(f != nullptr);
 
         uintptr_t line = 1;
         while (fgets(buf, sizeof buf, f)) {
