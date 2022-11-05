@@ -71,7 +71,9 @@ bool ring_bounded_spsc_is_full(
 
 void *ring_bounded_spsc_peek(
         ring_bounded_spsc_t *rb) {
-    if (unlikely(ring_bounded_spsc_is_empty(rb))) {
+    MEMORY_FENCE_LOAD();
+
+    if (unlikely(rb->head == rb->tail)) {
         return NULL;
     }
 
