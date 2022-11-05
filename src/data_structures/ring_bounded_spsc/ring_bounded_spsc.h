@@ -8,20 +8,20 @@ extern "C" {
 typedef struct ring_bounded_spsc ring_bounded_spsc_t;
 struct ring_bounded_spsc
 {
-    int16_t size;
-    int16_t head;
-    int16_t tail;
-    int16_t length;
-    void **items;
+    uint32_t size;
+    uint32_t mask;
+    uint32_volatile_t head;
+    uint32_volatile_t tail;
+    volatile void **items;
 };
 
 ring_bounded_spsc_t* ring_bounded_spsc_init(
-        int16_t size);
+        uint32_t size);
 
 void ring_bounded_spsc_free(
         ring_bounded_spsc_t *rb);
 
-int16_t ring_bounded_spsc_get_length(
+uint32_t ring_bounded_spsc_get_length(
         ring_bounded_spsc_t *rb);
 
 bool ring_bounded_spsc_is_empty(
