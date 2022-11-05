@@ -100,7 +100,9 @@ static inline __attribute__((always_inline)) void clock_diff(
     }
 
     if (unlikely(tv_nsec < 0)) {
-        tv_sec--;
+        if (tv_sec > 0) {
+            tv_sec--;
+        }
         tv_nsec += (int64_t)1000000000;
     }
 

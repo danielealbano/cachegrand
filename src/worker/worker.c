@@ -44,7 +44,7 @@
 #include "support/io_uring/io_uring_support.h"
 #include "support/io_uring/io_uring_capabilities.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
-#include "data_structures/small_circular_queue/small_circular_queue.h"
+#include "data_structures/ring_bounded_spsc/ring_bounded_spsc.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "support/simple_file_io.h"
 #include "module/module.h"

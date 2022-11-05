@@ -70,8 +70,8 @@ bool queue_mpmc_push(
             &head_expected._packed,
             head_new._packed,
             true,
-            __ATOMIC_RELEASE,
-            __ATOMIC_RELAXED));
+            __ATOMIC_ACQ_REL,
+            __ATOMIC_ACQUIRE));
 
     return true;
 }
@@ -93,7 +93,7 @@ void *queue_mpmc_pop(
                 &head_expected._packed,
                 head_new._packed,
                 true,
-                __ATOMIC_RELEASE,
+                __ATOMIC_ACQ_REL,
                 __ATOMIC_ACQUIRE)) {
             break;
         }
