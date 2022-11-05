@@ -61,7 +61,7 @@ uint32_t ring_bounded_spsc_get_length(
 
 bool ring_bounded_spsc_is_empty(
         ring_bounded_spsc_t *rb) {
-    return !ring_bounded_spsc_get_length(rb);
+    return ring_bounded_spsc_get_length(rb) == 0;
 }
 
 bool ring_bounded_spsc_is_full(
