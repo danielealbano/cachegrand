@@ -10,7 +10,7 @@
 
 #include "intrinsics.h"
 
-uint64_t intrinsic_tsc() {
+uint64_t intrinsics_tsc() {
 #if defined(__x86_64__)
     uint64_t rax, rdx;
     __asm__ __volatile__ (

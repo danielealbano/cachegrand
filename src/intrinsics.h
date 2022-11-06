@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-uint64_t intrinsic_tsc();
+uint64_t intrinsics_tsc();
 
 #ifdef __cplusplus
 }
