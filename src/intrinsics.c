@@ -12,11 +12,10 @@
 
 uint64_t intrinsic_tsc() {
 #if defined(__x86_64__)
-    uint32_t aux;
     uint64_t rax, rdx;
-    asm volatile (
-            "rdtscp\n"
-            : "=a" (rax), "=d" (rdx), "=c" (aux) : : );
+    __asm__ __volatile__ (
+            "rdtsc"
+            : "=a" (rax), "=d" (rdx));
     return (rdx << 32) + rax;
 #elif defined(__aarch64__)
     int64_t tsc;
