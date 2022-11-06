@@ -21,8 +21,8 @@
 
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 
-int value1 = 1234;
-int value2 = 4321;
+int test_queue_mpmc_value1 = 1234;
+int test_queue_mpmc_value2 = 4321;
 
 typedef struct test_queue_mpmc_fuzzy_test_thread_info test_queue_mpmc_fuzzy_test_thread_info_t;
 struct test_queue_mpmc_fuzzy_test_thread_info {
@@ -275,23 +275,23 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
         queue_mpmc_t *queue_mpmc = queue_mpmc_init();
 
         SECTION("one value") {
-            REQUIRE(queue_mpmc_push(queue_mpmc, &value1));
+            REQUIRE(queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value1));
             REQUIRE(queue_mpmc->head.data.length == 1);
             REQUIRE(queue_mpmc->head.data.version == 1);
             REQUIRE(queue_mpmc->head.data.node != NULL);
-            REQUIRE(queue_mpmc->head.data.node->data == &value1);
+            REQUIRE(queue_mpmc->head.data.node->data == &test_queue_mpmc_value1);
         }
 
         SECTION("two values") {
-            REQUIRE(queue_mpmc_push(queue_mpmc, &value1));
-            REQUIRE(queue_mpmc_push(queue_mpmc, &value2));
+            REQUIRE(queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value1));
+            REQUIRE(queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value2));
 
             REQUIRE(queue_mpmc->head.data.length == 2);
             REQUIRE(queue_mpmc->head.data.version == 2);
             REQUIRE(queue_mpmc->head.data.node != nullptr);
-            REQUIRE(queue_mpmc->head.data.node->data == &value2);
+            REQUIRE(queue_mpmc->head.data.node->data == &test_queue_mpmc_value2);
             REQUIRE((queue_mpmc->head.data.node->next != nullptr));
-            REQUIRE(queue_mpmc->head.data.node->next->data == &value1);
+            REQUIRE(queue_mpmc->head.data.node->next->data == &test_queue_mpmc_value1);
         }
 
         queue_mpmc_free(queue_mpmc);
@@ -310,26 +310,26 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
         }
 
         SECTION("one value") {
-            queue_mpmc_push(queue_mpmc, &value1);
+            queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value1);
             int *value_pop = (int*)queue_mpmc_pop(queue_mpmc);
 
             REQUIRE(queue_mpmc->head.data.length == 0);
             REQUIRE(queue_mpmc->head.data.version == 2);
             REQUIRE(queue_mpmc->head.data.node == NULL);
-            REQUIRE(value_pop == &value1);
+            REQUIRE(value_pop == &test_queue_mpmc_value1);
         }
 
         SECTION("two values") {
-            queue_mpmc_push(queue_mpmc, &value1);
-            queue_mpmc_push(queue_mpmc, &value2);
+            queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value1);
+            queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value2);
             int *value2_pop = (int*)queue_mpmc_pop(queue_mpmc);
             int *value1_pop = (int*)queue_mpmc_pop(queue_mpmc);
 
             REQUIRE(queue_mpmc->head.data.length == 0);
             REQUIRE(queue_mpmc->head.data.version == 4);
             REQUIRE(queue_mpmc->head.data.node == NULL);
-            REQUIRE(value1_pop == &value1);
-            REQUIRE(value2_pop == &value2);
+            REQUIRE(value1_pop == &test_queue_mpmc_value1);
+            REQUIRE(value2_pop == &test_queue_mpmc_value2);
         }
 
         queue_mpmc_free(queue_mpmc);
@@ -348,26 +348,26 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
         }
 
         SECTION("one value") {
-            queue_mpmc_push(queue_mpmc, &value1);
+            queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value1);
             int *value_pop = (int*)queue_mpmc_peek(queue_mpmc);
 
             REQUIRE(queue_mpmc->head.data.length == 1);
             REQUIRE(queue_mpmc->head.data.version == 1);
             REQUIRE(queue_mpmc->head.data.node != NULL);
-            REQUIRE(queue_mpmc->head.data.node->data == &value1);
-            REQUIRE(value_pop == &value1);
+            REQUIRE(queue_mpmc->head.data.node->data == &test_queue_mpmc_value1);
+            REQUIRE(value_pop == &test_queue_mpmc_value1);
         }
 
         SECTION("two values") {
-            queue_mpmc_push(queue_mpmc, &value1);
-            queue_mpmc_push(queue_mpmc, &value2);
+            queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value1);
+            queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value2);
             int *value_pop = (int*)queue_mpmc_peek(queue_mpmc);
 
             REQUIRE(queue_mpmc->head.data.length == 2);
             REQUIRE(queue_mpmc->head.data.version == 2);
             REQUIRE(queue_mpmc->head.data.node != NULL);
-            REQUIRE(queue_mpmc->head.data.node->data == &value2);
-            REQUIRE(value_pop == &value2);
+            REQUIRE(queue_mpmc->head.data.node->data == &test_queue_mpmc_value2);
+            REQUIRE(value_pop == &test_queue_mpmc_value2);
         }
 
         queue_mpmc_free(queue_mpmc);
@@ -381,13 +381,13 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
         }
 
         SECTION("one value") {
-            queue_mpmc_push(queue_mpmc, &value1);
+            queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value1);
             REQUIRE(queue_mpmc_get_length(queue_mpmc) == 1);
         }
 
         SECTION("two values") {
-            queue_mpmc_push(queue_mpmc, &value1);
-            queue_mpmc_push(queue_mpmc, &value2);
+            queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value1);
+            queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value2);
             REQUIRE(queue_mpmc_get_length(queue_mpmc) == 2);
         }
 
@@ -402,13 +402,13 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
         }
 
         SECTION("one value") {
-            queue_mpmc_push(queue_mpmc, &value1);
+            queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value1);
             REQUIRE(queue_mpmc_is_empty(queue_mpmc) == false);
         }
 
         SECTION("two values") {
-            queue_mpmc_push(queue_mpmc, &value1);
-            queue_mpmc_push(queue_mpmc, &value2);
+            queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value1);
+            queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value2);
             REQUIRE(queue_mpmc_is_empty(queue_mpmc) == false);
         }
 

@@ -19,6 +19,11 @@ typedef _Volatile(uint16_t) uint16_volatile_t;
 typedef _Volatile(uint32_t) uint32_volatile_t;
 typedef _Volatile(uint64_t) uint64_volatile_t;
 typedef _Volatile(uint128_t) uint128_volatile_t;
+typedef _Volatile(int8_t) int8_volatile_t;
+typedef _Volatile(int16_t) int16_volatile_t;
+typedef _Volatile(int32_t) int32_volatile_t;
+typedef _Volatile(int64_t) int64_volatile_t;
+typedef _Volatile(int128_t) int128_volatile_t;
 typedef _Volatile(bool) bool_volatile_t;
 
 #ifdef __cplusplus
