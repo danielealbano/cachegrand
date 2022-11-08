@@ -1,7 +1,6 @@
 #ifndef CACHEGRAND_EPOCH_GC_H
 #define CACHEGRAND_EPOCH_GC_H
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -86,7 +85,6 @@ uint32_t epoch_gc_thread_collect_all(
 bool epoch_gc_stage_object(
         epoch_gc_object_type_t object_type,
         void* object);
-
 
 #ifdef __cplusplus
 }
