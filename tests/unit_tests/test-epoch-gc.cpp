@@ -10,50 +10,254 @@
 
 #include <cstdint>
 #include <cstdbool>
-#include <csignal>
-#include <csetjmp>
+#include <pthread.h>
 
+#include "clock.h"
+#include "random.h"
 #include "spinlock.h"
+#include "xalloc.h"
+#include "utils_cpu.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/ring_bounded_spsc/ring_bounded_spsc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "memory_allocator/ffma.h"
-#include "xalloc.h"
-#include "signals_support.h"
 
 #include "epoch_gc.h"
 
-sigjmp_buf test_epoch_gc_jump_fp;
-void test_epoch_gc_signal_sigabrt_and_sigsegv_handler_longjmp(int) {
-    siglongjmp(test_epoch_gc_jump_fp, 1);
-}
-
-void test_epoch_gc_signal_sigabrt_and_sigsegv_handler_setup() {
-    signals_support_register_signal_handler(
-            SIGABRT,
-            test_epoch_gc_signal_sigabrt_and_sigsegv_handler_longjmp,
-            nullptr);
-
-    signals_support_register_signal_handler(
-            SIGSEGV,
-            test_epoch_gc_signal_sigabrt_and_sigsegv_handler_longjmp,
-            nullptr);
-}
-
 static uint8_t test_epoch_gc_object_destructor_cb_params_staged_objects_count = 0;
 static epoch_gc_staged_object_t **test_epoch_gc_object_destructor_cb_params_staged_objects;
-void test_epoch_gc_object_destructor_cb(
+void test_epoch_gc_object_destructor_cb_test(
         uint8_t staged_objects_count,
         epoch_gc_staged_object_t *staged_objects[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE]) {
     test_epoch_gc_object_destructor_cb_params_staged_objects_count = staged_objects_count;
     test_epoch_gc_object_destructor_cb_params_staged_objects = staged_objects;
 
-    for(uint64_t i = 0; i < EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE; i++) {
-        REQUIRE(staged_objects[i]->object == (void*)i);
+    for(uint64_t i = 0; i < staged_objects_count; i++) {
+        REQUIRE((uintptr_t)staged_objects[i]->object == (uintptr_t)(i+1));
     }
 }
 
-TEST_CASE("epoch_gc.c", "[epoch-gc]") {
+void test_epoch_gc_object_destructor_cb_real(
+        uint8_t staged_objects_count,
+        epoch_gc_staged_object_t *staged_objects[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE]) {
+    for(uint64_t i = 0; i < staged_objects_count; i++) {
+        free(staged_objects[i]->object);
+    }
+}
+
+typedef struct test_epoch_gc_fuzzy_separated_producer_consumer_thread_data
+    test_epoch_gc_fuzzy_separated_producer_consumer_thread_data_t;
+struct test_epoch_gc_fuzzy_separated_producer_consumer_thread_data {
+    bool terminate;
+    epoch_gc_t *epoch_gc;
+    uint32_t producers_count;
+    uint32_t producers_terminated;
+    uint64_t staged_objects_counter;
+    uint64_t advanced_epochs_counter;
+    uint64_t freed_objects_counter;
+};
+
+void *test_epoch_gc_fuzzy_separated_producer_consumer_producer_thread_func(
+        void *user_data) {
+    auto thread_data = (test_epoch_gc_fuzzy_separated_producer_consumer_thread_data_t*)user_data;
+
+    epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init();
+
+    epoch_gc_thread_register_global(thread_data->epoch_gc, epoch_gc_thread);
+    epoch_gc_thread_register_local(epoch_gc_thread);
+
+    do {
+        usleep(random_generate() % 5);
+
+        void *mem_ptr = malloc(8);
+        REQUIRE(epoch_gc_stage_object(epoch_gc_thread->epoch_gc->object_type, mem_ptr));
+        __atomic_fetch_add(&thread_data->staged_objects_counter, 1, __ATOMIC_ACQ_REL);
+
+        if (random_generate() % 1000 > 500) {
+            __atomic_fetch_add(&thread_data->advanced_epochs_counter, 1, __ATOMIC_ACQ_REL);
+            epoch_gc_thread_advance_epoch_tsc(epoch_gc_thread);
+        }
+
+        MEMORY_FENCE_STORE();
+
+        MEMORY_FENCE_LOAD();
+    } while(thread_data->terminate == false);
+
+    epoch_gc_thread_terminate(epoch_gc_thread);
+    epoch_gc_thread_unregister_local(epoch_gc_thread);
+
+    __atomic_fetch_add(&thread_data->producers_terminated, 1, __ATOMIC_ACQ_REL);
+
+    return nullptr;
+}
+
+void *test_epoch_gc_fuzzy_separated_producer_consumer_consumer_thread_func(
+        void *user_data) {
+     auto thread_data = (test_epoch_gc_fuzzy_separated_producer_consumer_thread_data_t*)user_data;
+     epoch_gc_t *epoch_gc = thread_data->epoch_gc;
+    epoch_gc_thread_t **epoch_gc_thread_list_cache = nullptr;
+    uint32_t epoch_gc_thread_list_length = 0;
+    uint32_t epoch_gc_thread_list_index = 0;
+    uint64_t epoch_gc_thread_list_change_epoch = 0;
+
+    do {
+        // Sleep 5ms
+        usleep(5 * 1000);
+
+        // Check if the cache of threads for the epoch_gc has to be rebuilt
+        MEMORY_FENCE_LOAD();
+        if (epoch_gc_thread_list_change_epoch == 0 ||
+            epoch_gc_thread_list_change_epoch != epoch_gc->thread_list_change_epoch) {
+            if (epoch_gc_thread_list_cache != nullptr) {
+                free(epoch_gc_thread_list_cache);
+                epoch_gc_thread_list_length = 0;
+            }
+
+            // Lock the thread list
+            spinlock_lock(&epoch_gc->thread_list_spinlock);
+
+            epoch_gc_thread_list_length = epoch_gc->thread_list->count;
+            epoch_gc_thread_list_cache = (epoch_gc_thread_t**)malloc(
+                    epoch_gc_thread_list_length * sizeof(epoch_gc_thread_t*));
+
+            epoch_gc_thread_list_index = 0;
+            double_linked_list_item_t *item = nullptr;
+            while((item = double_linked_list_iter_next(epoch_gc->thread_list, item)) != nullptr) {
+                epoch_gc_thread_list_cache[epoch_gc_thread_list_index] = (epoch_gc_thread_t*)item->data;
+                epoch_gc_thread_list_index++;
+            }
+
+            epoch_gc_thread_list_change_epoch = epoch_gc->thread_list_change_epoch;
+
+            // Unlock the thread list
+            spinlock_unlock(&epoch_gc->thread_list_spinlock);
+        }
+
+        // Iterate over the cached epoch gc threads
+        for(
+                epoch_gc_thread_list_index = 0;
+                epoch_gc_thread_list_index < epoch_gc_thread_list_length;
+                epoch_gc_thread_list_index++) {
+            thread_data->freed_objects_counter += epoch_gc_thread_collect_all(
+                    epoch_gc_thread_list_cache[epoch_gc_thread_list_index]);
+            MEMORY_FENCE_STORE();
+        }
+
+        MEMORY_FENCE_LOAD();
+    } while(!thread_data->terminate);
+
+    // Wait for all the threads to be marked as terminated
+    bool epoch_gc_all_terminated;
+    do {
+        epoch_gc_all_terminated = true;
+        for(
+                epoch_gc_thread_list_index = 0;
+                epoch_gc_thread_list_index < epoch_gc_thread_list_length;
+                epoch_gc_thread_list_index++) {
+            if (!epoch_gc_thread_is_terminated(epoch_gc_thread_list_cache[epoch_gc_thread_list_index])) {
+                epoch_gc_all_terminated = false;
+                break;
+            }
+        }
+    } while(!epoch_gc_all_terminated);
+
+    REQUIRE(thread_data->producers_count == thread_data->producers_terminated);
+
+    // All the threads are terminated, advance the epoch on the epoch_gc_thread, trigger a collect_all and at the end
+    // free the structure
+    for(
+            epoch_gc_thread_list_index = 0;
+            epoch_gc_thread_list_index < epoch_gc_thread_list_length;
+            epoch_gc_thread_list_index++) {
+        epoch_gc_thread_advance_epoch_tsc(epoch_gc_thread_list_cache[epoch_gc_thread_list_index]);
+
+        thread_data->freed_objects_counter += epoch_gc_thread_collect_all(
+                epoch_gc_thread_list_cache[epoch_gc_thread_list_index]);
+    }
+
+    MEMORY_FENCE_LOAD_STORE();
+
+    for(
+            epoch_gc_thread_list_index = 0;
+            epoch_gc_thread_list_index < epoch_gc_thread_list_length;
+            epoch_gc_thread_list_index++) {
+        epoch_gc_thread_unregister_global(epoch_gc_thread_list_cache[epoch_gc_thread_list_index]);
+        epoch_gc_thread_free(epoch_gc_thread_list_cache[epoch_gc_thread_list_index]);
+    }
+
+    epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+
+    if (epoch_gc_thread_list_cache != nullptr) {
+        free(epoch_gc_thread_list_cache);
+        epoch_gc_thread_list_length = 0;
+    }
+
+    return nullptr;
+}
+
+void test_epoch_gc_fuzzy_separated_producers_consumer(
+        epoch_gc_t *epoch_gc,
+        uint64_t duration,
+        uint32_t producers_count) {
+    timespec_t start_time, current_time, diff_time;
+    pthread_t *pthread_producers;
+    pthread_t pthread_consumer;
+    pthread_attr_t attr;
+
+    test_epoch_gc_fuzzy_separated_producer_consumer_thread_data_t thread_data = {
+            .terminate = false,
+            .epoch_gc = epoch_gc,
+            .producers_count = 0,
+            .producers_terminated = 0,
+            .staged_objects_counter = 0,
+            .advanced_epochs_counter = 0,
+            .freed_objects_counter = 0,
+    };
+
+    REQUIRE(pthread_attr_init(&attr) == 0);
+
+    // Start the requested producers
+    thread_data.producers_count = producers_count;
+    pthread_producers = (pthread_t*)malloc(producers_count * sizeof(pthread_t));
+    for(uint32_t i = 0; i < producers_count; i++) {
+        REQUIRE(pthread_create(
+                &pthread_producers[i],
+                &attr,
+                &test_epoch_gc_fuzzy_separated_producer_consumer_producer_thread_func,
+                (void *)&thread_data) == 0);
+    }
+
+    // Start the consumer
+    REQUIRE(pthread_create(
+            &pthread_consumer,
+            &attr,
+            &test_epoch_gc_fuzzy_separated_producer_consumer_consumer_thread_func,
+            (void *)&thread_data) == 0);
+
+    clock_monotonic(&start_time);
+
+    do {
+        clock_monotonic(&current_time);
+        sched_yield();
+
+        clock_diff(&start_time, &current_time, &diff_time);
+    } while(diff_time.tv_sec < duration);
+
+    thread_data.terminate = true;
+    MEMORY_FENCE_STORE();
+
+    // The producers will terminate before the consumer
+    for(uint32_t i = 0; i < producers_count; i++) {
+        pthread_join(pthread_producers[i], nullptr);
+    }
+    pthread_join(pthread_consumer, nullptr);
+
+    free(pthread_producers);
+
+    REQUIRE(thread_data.staged_objects_counter == thread_data.freed_objects_counter);
+}
+
+TEST_CASE("epoch_gc.c", "[epoch_gc]") {
     SECTION("epoch_gc_init") {
         SECTION("valid object type") {
             epoch_gc_t *epoch_gc = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
@@ -65,58 +269,22 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
             double_linked_list_free(epoch_gc->thread_list);
             xalloc_free(epoch_gc);
         }
-
-#if DEBUG == 1
-        SECTION("invalid object type") {
-            bool fatal_caught = false;
-            if (sigsetjmp(test_epoch_gc_jump_fp, 1) == 0) {
-                test_epoch_gc_signal_sigabrt_and_sigsegv_handler_setup();
-                epoch_gc_init((epoch_gc_object_type_t)UINT32_MAX);
-            } else {
-                fatal_caught = true;
-            }
-
-            // The fatal_caught variable has to be set to true as sigsetjmp on the second execution will return a value
-            // different from zero.
-            // A sigsegv raised by the kernel because of the memory protection means that the stack overflow protection
-            // is working as intended
-            REQUIRE(fatal_caught);
-        }
-#endif
     }
 
+#if DEBUG == 1
     SECTION("epoch_gc_register_object_type_destructor_cb") {
         SECTION("valid object type and valid function pointer") {
             epoch_gc_register_object_type_destructor_cb(
                     EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
-                    test_epoch_gc_object_destructor_cb);
+                    test_epoch_gc_object_destructor_cb_test);
 
-            REQUIRE(epoch_gc_staged_object_destructor_cb[EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX] ==
-                test_epoch_gc_object_destructor_cb);
+            REQUIRE(epoch_gc_get_epoch_gc_staged_object_destructor_cb()[EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX] ==
+                    test_epoch_gc_object_destructor_cb_test);
 
-            epoch_gc_staged_object_destructor_cb[EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX] = nullptr;
+            epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
         }
-
-#if DEBUG == 1
-        SECTION("invalid object type") {
-            bool fatal_caught = false;
-            if (sigsetjmp(test_epoch_gc_jump_fp, 1) == 0) {
-                test_epoch_gc_signal_sigabrt_and_sigsegv_handler_setup();
-                epoch_gc_register_object_type_destructor_cb(
-                        (epoch_gc_object_type_t)UINT32_MAX,
-                        test_epoch_gc_object_destructor_cb);
-            } else {
-                fatal_caught = true;
-            }
-
-            // The fatal_caught variable has to be set to true as sigsetjmp on the second execution will return a value
-            // different from zero.
-            // A sigsegv raised by the kernel because of the memory protection means that the stack overflow protection
-            // is working as intended
-            REQUIRE(fatal_caught);
-        }
-#endif
     }
+#endif
 
     SECTION("epoch_gc_thread_append_new_staged_objects_ring") {
         epoch_gc_thread_t epoch_gc_thread = { nullptr };
@@ -131,6 +299,7 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
         }
 
         SECTION("append 2 new rings") {
+            epoch_gc_thread_append_new_staged_objects_ring(&epoch_gc_thread);
             epoch_gc_thread_append_new_staged_objects_ring(&epoch_gc_thread);
 
             REQUIRE(epoch_gc_thread.staged_objects_ring_list->count == 2);
@@ -161,19 +330,21 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
     }
 
     SECTION("epoch_gc_thread_init") {
-        epoch_gc_t epoch_gc = { 0 };
+        epoch_gc_t epoch_gc = { nullptr };
         epoch_gc.thread_list = double_linked_list_init();
         epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX;
         spinlock_init(&epoch_gc.thread_list_spinlock);
 
         SECTION("create one thread") {
-            auto epoch_gc_thread = epoch_gc_thread_init(&epoch_gc);
+            auto epoch_gc_thread = epoch_gc_thread_init();
 
             REQUIRE(epoch_gc_thread != nullptr);
             REQUIRE(epoch_gc_thread->epoch == 0);
             REQUIRE(epoch_gc_thread->staged_objects_ring_list->count == 1);
             REQUIRE(epoch_gc_thread->staged_objects_ring_list->tail->data == epoch_gc_thread->staged_objects_ring_last);
             REQUIRE(ring_bounded_spsc_get_length(epoch_gc_thread->staged_objects_ring_last) == 0);
+
+            epoch_gc_thread_free(epoch_gc_thread);
         }
 
         // Free the thread list
@@ -181,14 +352,14 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
     }
 
     SECTION("epoch_gc_thread_register_global") {
-        epoch_gc_t epoch_gc = { 0 };
+        epoch_gc_t epoch_gc = {nullptr };
         epoch_gc.thread_list = double_linked_list_init();
         epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX;
         spinlock_init(&epoch_gc.thread_list_spinlock);
 
-        epoch_gc_thread_t *epoch_gc_thread_1 = epoch_gc_thread_init(&epoch_gc);
-        epoch_gc_thread_t *epoch_gc_thread_2 = epoch_gc_thread_init(&epoch_gc);
-        epoch_gc_thread_t *epoch_gc_thread_3 = epoch_gc_thread_init(&epoch_gc);
+        epoch_gc_thread_t *epoch_gc_thread_1 = epoch_gc_thread_init();
+        epoch_gc_thread_t *epoch_gc_thread_2 = epoch_gc_thread_init();
+        epoch_gc_thread_t *epoch_gc_thread_3 = epoch_gc_thread_init();
 
         SECTION("register one thread") {
             epoch_gc_thread_register_global(&epoch_gc, epoch_gc_thread_1);
@@ -220,20 +391,24 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
             REQUIRE(epoch_gc.thread_list->tail->data == epoch_gc_thread_3);
         }
 
-        // Free up the list of threads and the related data
+        // Destroy the list of items
         double_linked_list_item_t *item = epoch_gc.thread_list->head;
         while(item != nullptr) {
             double_linked_list_item_t *current = item;
             item = item->next;
 
-            epoch_gc_thread_free((epoch_gc_thread_t*)current->data);
             double_linked_list_item_free(current);
         }
 
         // Free the thread list
         double_linked_list_free(epoch_gc.thread_list);
+
+        epoch_gc_thread_free(epoch_gc_thread_1);
+        epoch_gc_thread_free(epoch_gc_thread_2);
+        epoch_gc_thread_free(epoch_gc_thread_3);
     }
 
+#if DEBUG == 1
     SECTION("epoch_gc_thread_register_local") {
         epoch_gc_t epoch_gc = {
                 .object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
@@ -245,17 +420,20 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
 
         epoch_gc_thread_register_local(&epoch_gc_thread);
 
-        REQUIRE(thread_local_epoch_gc[epoch_gc.object_type] == &epoch_gc_thread);
+        REQUIRE(epoch_gc_get_thread_local_epoch_gc()[epoch_gc.object_type] == &epoch_gc_thread);
 
-        thread_local_epoch_gc[epoch_gc.object_type] = nullptr;
+        epoch_gc_thread_unregister_local(&epoch_gc_thread);
     }
+#endif
 
     SECTION("epoch_gc_thread_get_instance") {
         epoch_gc_t epoch_gc = {
                 .object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
         };
 
-        epoch_gc_thread_t epoch_gc_thread = { nullptr };
+        epoch_gc_thread_t epoch_gc_thread = {
+                .epoch_gc = &epoch_gc,
+        };
 
         epoch_gc_thread_register_local(&epoch_gc_thread);
 
@@ -270,7 +448,7 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
         REQUIRE(&epoch_gc == epoch_gc_new);
         REQUIRE(&epoch_gc_thread == epoch_gc_thread_new);
 
-        thread_local_epoch_gc[epoch_gc.object_type] = nullptr;
+        epoch_gc_thread_unregister_local(&epoch_gc_thread);
     }
 
     SECTION("epoch_gc_thread_is_terminated") {
@@ -295,23 +473,7 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
         }
     }
 
-    SECTION("epoch_gc_thread_terminate") {
-        epoch_gc_t epoch_gc = {
-                .object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
-        };
-
-        epoch_gc_thread_t epoch_gc_thread = {
-                .epoch_gc = &epoch_gc,
-                .thread_terminated = false,
-        };
-
-        SECTION("terminate") {
-            epoch_gc_thread_terminate(&epoch_gc_thread);
-            REQUIRE(epoch_gc_thread_is_terminated(&epoch_gc_thread) == true);
-        }
-    }
-
-    SECTION("epoch_gc_thread_advance_epoch") {
+    SECTION("epoch_gc_thread_advance_epoch_tsc") {
         epoch_gc_t epoch_gc = {
                 .object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
         };
@@ -322,16 +484,38 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
         };
 
         SECTION("advance once") {
-            epoch_gc_thread_advance_epoch(&epoch_gc_thread);
+            epoch_gc_thread_advance_epoch_tsc(&epoch_gc_thread);
             REQUIRE(epoch_gc_thread.epoch > 0);
         }
 
         SECTION("advance twice") {
-            epoch_gc_thread_advance_epoch(&epoch_gc_thread);
+            epoch_gc_thread_advance_epoch_tsc(&epoch_gc_thread);
             uint64_t epoch_temp = epoch_gc_thread.epoch;
             usleep(10000);
-            epoch_gc_thread_advance_epoch(&epoch_gc_thread);
+            epoch_gc_thread_advance_epoch_tsc(&epoch_gc_thread);
             REQUIRE(epoch_gc_thread.epoch > epoch_temp);
+        }
+    }
+
+    SECTION("epoch_gc_thread_advance_epoch_by_one") {
+        epoch_gc_t epoch_gc = {
+                .object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+        };
+
+        epoch_gc_thread_t epoch_gc_thread = {
+                .epoch = 0,
+                .epoch_gc = &epoch_gc,
+        };
+
+        SECTION("advance once") {
+            epoch_gc_thread_advance_epoch_by_one(&epoch_gc_thread);
+            REQUIRE(epoch_gc_thread.epoch == 1);
+        }
+
+        SECTION("advance twice") {
+            epoch_gc_thread_advance_epoch_by_one(&epoch_gc_thread);
+            epoch_gc_thread_advance_epoch_by_one(&epoch_gc_thread);
+            REQUIRE(epoch_gc_thread.epoch == 2);
         }
     }
 
@@ -340,11 +524,11 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
 
         for(uint64_t i = 0; i < EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE; i++) {
             staged_objects[i] = (epoch_gc_staged_object_t*)ffma_mem_alloc(16);
-            staged_objects[i]->object = (void*)i;
+            staged_objects[i]->object = (void*)(i+1);
         }
 
         epoch_gc_thread_destruct_staged_objects_batch(
-                test_epoch_gc_object_destructor_cb,
+                test_epoch_gc_object_destructor_cb_test,
                 EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE,
                 staged_objects);
 
@@ -355,13 +539,15 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
     }
 
     SECTION("epoch_gc_thread_collect") {
-        epoch_gc_t epoch_gc = { 0 };
+        epoch_gc_t epoch_gc = { nullptr };
         epoch_gc.thread_list = double_linked_list_init();
         epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX;
         spinlock_init(&epoch_gc.thread_list_spinlock);
 
-        epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init(&epoch_gc);
+        epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init();
 
+        epoch_gc_register_object_type_destructor_cb(
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, test_epoch_gc_object_destructor_cb_test);
         epoch_gc_thread_register_global(&epoch_gc, epoch_gc_thread);
 
         auto epoch_gc_staged_object_1 =
@@ -401,8 +587,13 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
             epoch_gc_staged_object_2 = nullptr;
         }
 
-        SECTION("two pointers, collect 2, 2 collected because of epoch in two rounds") {
+        SECTION("two pointers, collect 2, 2 collected because of epoch in two rounds because of max_objects") {
             epoch_gc_thread->epoch = 201;
+
+            // The test destructor expects each item of the batch be numbered from 1 to 16, as the staged objects are
+            // being purged in two rounds both the pointers must have value 1
+            epoch_gc_staged_object_2->object = (void*)1;
+
             REQUIRE(epoch_gc_thread_collect(epoch_gc_thread, 1) == 1);
             REQUIRE(epoch_gc_thread_collect(epoch_gc_thread, 1) == 1);
 
@@ -414,21 +605,30 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
             auto epoch_gc_staged_object_3 =
                     (epoch_gc_staged_object_t*)ffma_mem_alloc(sizeof(epoch_gc_staged_object_t));
             epoch_gc_staged_object_3->epoch = 300;
-            epoch_gc_staged_object_3->object = (void*)1;
+            epoch_gc_staged_object_3->object = (void*)3;
 
-            epoch_gc_thread_append_new_staged_objects_ring(epoch_gc_thread);
+            // Get the current ring
             ring_bounded_spsc_t *ring_initial = epoch_gc_thread->staged_objects_ring_last;
+
+            // Append a new ring
+            epoch_gc_thread_append_new_staged_objects_ring(epoch_gc_thread);
+
+            // Enqueue the item onto the new ring
             ring_bounded_spsc_enqueue(epoch_gc_thread->staged_objects_ring_last, epoch_gc_staged_object_3);
 
+            // Set the epoch in a way that all the staged pointers will get deleted
             epoch_gc_thread->epoch = 301;
-            REQUIRE(epoch_gc_thread_collect(epoch_gc_thread, 1) == 1);
-            REQUIRE(epoch_gc_thread_collect(epoch_gc_thread, 1) == 1);
-            REQUIRE(epoch_gc_thread_collect(epoch_gc_thread, 1) == 1);
+
+            REQUIRE(epoch_gc_thread_collect(epoch_gc_thread, 3) == 3);
             REQUIRE(epoch_gc_thread->staged_objects_ring_last != ring_initial);
             REQUIRE(epoch_gc_thread->staged_objects_ring_list->count == 1);
 
             epoch_gc_staged_object_1 = nullptr;
             epoch_gc_staged_object_2 = nullptr;
+        }
+
+        while(ring_bounded_spsc_dequeue(epoch_gc_thread->staged_objects_ring_last) != nullptr) {
+            // do nothing
         }
 
         if (epoch_gc_staged_object_1) {
@@ -440,16 +640,20 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
         }
 
         epoch_gc_thread_unregister_global(epoch_gc_thread);
+        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+        epoch_gc_thread_free(epoch_gc_thread);
     }
 
     SECTION("epoch_gc_thread_collect_all") {
-        epoch_gc_t epoch_gc = { 0 };
+        epoch_gc_t epoch_gc = { nullptr };
         epoch_gc.thread_list = double_linked_list_init();
         epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX;
         spinlock_init(&epoch_gc.thread_list_spinlock);
 
-        epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init(&epoch_gc);
+        epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init();
 
+        epoch_gc_register_object_type_destructor_cb(
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, test_epoch_gc_object_destructor_cb_test);
         epoch_gc_thread_register_global(&epoch_gc, epoch_gc_thread);
 
         auto epoch_gc_staged_object_1 =
@@ -467,7 +671,6 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
         ring_bounded_spsc_enqueue(epoch_gc_thread->staged_objects_ring_last, epoch_gc_staged_object_2);
 
         SECTION("two pointers, collect 2, no collection because of epoch") {
-
             epoch_gc_thread->epoch = 100;
 
             REQUIRE(epoch_gc_thread_collect_all(epoch_gc_thread) == 0);
@@ -493,19 +696,30 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
             auto epoch_gc_staged_object_3 =
                     (epoch_gc_staged_object_t*)ffma_mem_alloc(sizeof(epoch_gc_staged_object_t));
             epoch_gc_staged_object_3->epoch = 300;
-            epoch_gc_staged_object_3->object = (void*)1;
+            epoch_gc_staged_object_3->object = (void*)3;
 
-            epoch_gc_thread_append_new_staged_objects_ring(epoch_gc_thread);
+            // Get the current ring
             ring_bounded_spsc_t *ring_initial = epoch_gc_thread->staged_objects_ring_last;
+
+            // Append a new ring
+            epoch_gc_thread_append_new_staged_objects_ring(epoch_gc_thread);
+
+            // Enqueue the item onto the new ring
             ring_bounded_spsc_enqueue(epoch_gc_thread->staged_objects_ring_last, epoch_gc_staged_object_3);
 
+            // Set the epoch in a way that all the staged pointers will get deleted
             epoch_gc_thread->epoch = 301;
-            REQUIRE(epoch_gc_thread_collect_all(epoch_gc_thread) == 3);
+
+            REQUIRE(epoch_gc_thread_collect(epoch_gc_thread, 3) == 3);
             REQUIRE(epoch_gc_thread->staged_objects_ring_last != ring_initial);
             REQUIRE(epoch_gc_thread->staged_objects_ring_list->count == 1);
 
             epoch_gc_staged_object_1 = nullptr;
             epoch_gc_staged_object_2 = nullptr;
+        }
+
+        while(ring_bounded_spsc_dequeue(epoch_gc_thread->staged_objects_ring_last) != nullptr) {
+            // do nothing
         }
 
         if (epoch_gc_staged_object_1) {
@@ -517,19 +731,43 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
         }
 
         epoch_gc_thread_unregister_global(epoch_gc_thread);
+        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+        epoch_gc_thread_free(epoch_gc_thread);
+    }
+
+    SECTION("epoch_gc_thread_terminate") {
+        epoch_gc_t epoch_gc = { nullptr };
+        epoch_gc.thread_list = double_linked_list_init();
+        epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX;
+        spinlock_init(&epoch_gc.thread_list_spinlock);
+
+        epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init();
+
+        epoch_gc_register_object_type_destructor_cb(
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, test_epoch_gc_object_destructor_cb_test);
+        epoch_gc_thread_register_global(&epoch_gc, epoch_gc_thread);
+
+        SECTION("terminate") {
+            epoch_gc_thread_terminate(epoch_gc_thread);
+            REQUIRE(epoch_gc_thread_is_terminated(epoch_gc_thread) == true);
+        }
+
+        epoch_gc_thread_unregister_global(epoch_gc_thread);
+        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+        epoch_gc_thread_free(epoch_gc_thread);
     }
 
     SECTION("epoch_gc_stage_object") {
         epoch_gc_register_object_type_destructor_cb(
                 EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
-                test_epoch_gc_object_destructor_cb);
+                test_epoch_gc_object_destructor_cb_test);
 
-        epoch_gc_t epoch_gc = { 0 };
+        epoch_gc_t epoch_gc = { nullptr };
         epoch_gc.thread_list = double_linked_list_init();
         epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX;
         spinlock_init(&epoch_gc.thread_list_spinlock);
 
-        epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init(&epoch_gc);
+        epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init();
 
         epoch_gc_thread_register_global(&epoch_gc, epoch_gc_thread);
         epoch_gc_thread_register_local(epoch_gc_thread);
@@ -538,8 +776,14 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
             REQUIRE(epoch_gc_stage_object(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, (void*)1) == true);
 
             REQUIRE(ring_bounded_spsc_get_length(epoch_gc_thread->staged_objects_ring_last) == 1);
-            REQUIRE(((epoch_gc_staged_object_t*)ring_bounded_spsc_dequeue(
-                    epoch_gc_thread->staged_objects_ring_last))->object == (void*)1);
+
+            auto staged_object = (epoch_gc_staged_object_t *)ring_bounded_spsc_dequeue(
+                    epoch_gc_thread->staged_objects_ring_last);
+
+            REQUIRE(staged_object->object == (void*)1);
+            REQUIRE(staged_object->epoch == epoch_gc_thread->epoch);
+
+            ffma_mem_free(staged_object);
         }
 
         SECTION("stage 2 objects") {
@@ -556,7 +800,11 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
 
             REQUIRE(staged_object_1->object == (void*)1);
             REQUIRE(staged_object_2->object == (void*)2);
-            REQUIRE(staged_object_2->epoch > staged_object_1->epoch);
+            REQUIRE(staged_object_1->epoch == epoch_gc_thread->epoch);
+            REQUIRE(staged_object_2->epoch == epoch_gc_thread->epoch);
+
+            ffma_mem_free(staged_object_1);
+            ffma_mem_free(staged_object_2);
         }
 
         SECTION("fill one ring") {
@@ -568,36 +816,104 @@ TEST_CASE("epoch_gc.c", "[epoch-gc]") {
             }
 
             REQUIRE(ring_bounded_spsc_get_length(
-                    (ring_bounded_spsc_t*)epoch_gc_thread->staged_objects_ring_list->head
-                    ) == EPOCH_GC_STAGED_OBJECTS_RING_SIZE);
+                    (ring_bounded_spsc_t*)epoch_gc_thread->staged_objects_ring_list->head->data)
+                    == EPOCH_GC_STAGED_OBJECTS_RING_SIZE);
             REQUIRE(ring_bounded_spsc_get_length(
-                    (ring_bounded_spsc_t*)epoch_gc_thread->staged_objects_ring_list->tail) == 1);
+                    (ring_bounded_spsc_t*)epoch_gc_thread->staged_objects_ring_list->tail->data)
+                    == 1);
 
             REQUIRE(epoch_gc_thread->staged_objects_ring_last != ring_initial);
             REQUIRE(epoch_gc_thread->staged_objects_ring_list->count == 2);
         }
 
         // Free up the staged objects
-        double_linked_list_item_t *item = epoch_gc_thread->staged_objects_ring_list->head;
-        while(item != nullptr) {
-            double_linked_list_item_t *current = item;
-            auto *ring = (ring_bounded_spsc_t*)current->data;
-            item = item->next;
+        double_linked_list_item_t *item = nullptr;
+        while((item = double_linked_list_iter_next(epoch_gc_thread->staged_objects_ring_list, item))) {
+            auto *ring = (ring_bounded_spsc_t*)item->data;
 
             // When freeing the epoch_gc_thread structure there should NEVER be staged objects in the ring
             epoch_gc_staged_object_t *staged_object = nullptr;
             while((staged_object = (epoch_gc_staged_object_t*)ring_bounded_spsc_dequeue(ring)) != nullptr) {
                 ffma_mem_free(staged_object);
             }
-
-            ring_bounded_spsc_free(ring);
-            double_linked_list_item_free(current);
         }
 
-        double_linked_list_free(epoch_gc_thread->staged_objects_ring_list);
-
+        epoch_gc_thread_unregister_local(epoch_gc_thread);
         epoch_gc_thread_unregister_global(epoch_gc_thread);
+        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+        epoch_gc_thread_free(epoch_gc_thread);
+    }
 
-        epoch_gc_staged_object_destructor_cb[EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX] = nullptr;
+    SECTION("test workflow end to end") {
+        epoch_gc_register_object_type_destructor_cb(
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                test_epoch_gc_object_destructor_cb_test);
+
+        epoch_gc_t epoch_gc = { nullptr };
+        epoch_gc.thread_list = double_linked_list_init();
+        epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX;
+        spinlock_init(&epoch_gc.thread_list_spinlock);
+
+        epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init();
+
+        epoch_gc_thread_register_global(&epoch_gc, epoch_gc_thread);
+        epoch_gc_thread_register_local(epoch_gc_thread);
+
+        // Stage 2 object
+        REQUIRE(epoch_gc_stage_object(
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, (void*)1) == true);
+        REQUIRE(epoch_gc_stage_object(
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, (void*)2) == true);
+
+        // Try to collect but nothing to be collected
+        REQUIRE(epoch_gc_thread_collect_all(epoch_gc_thread) == 0);
+
+        // Advance the epoch gc thread epoch
+        epoch_gc_thread_advance_epoch_tsc(epoch_gc_thread);
+
+        // Stage a third object
+        REQUIRE(epoch_gc_stage_object(
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, (void*)1) == true);
+
+        // Collect the first 2 objects
+        REQUIRE(epoch_gc_thread_collect_all(epoch_gc_thread) == 2);
+
+        // Advance the epoch gc thread epoch
+        epoch_gc_thread_advance_epoch_tsc(epoch_gc_thread);
+
+        // Collect the third object
+        REQUIRE(epoch_gc_thread_collect_all(epoch_gc_thread) == 1);
+
+        epoch_gc_thread_terminate(epoch_gc_thread);
+        epoch_gc_thread_unregister_local(epoch_gc_thread);
+        epoch_gc_thread_unregister_global(epoch_gc_thread);
+        epoch_gc_thread_free(epoch_gc_thread);
+        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+
+        double_linked_list_free(epoch_gc.thread_list);
+    }
+
+    SECTION("fuzzy staging/collecting") {
+        epoch_gc_register_object_type_destructor_cb(
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                test_epoch_gc_object_destructor_cb_real);
+
+        epoch_gc_t *epoch_gc = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+
+        SECTION("one producer / one consumer") {
+            test_epoch_gc_fuzzy_separated_producers_consumer(
+                    epoch_gc,
+                    2,
+                    1);
+        }
+
+        SECTION("multiple producers / one consumer") {
+            test_epoch_gc_fuzzy_separated_producers_consumer(
+                    epoch_gc,
+                    2,
+                    utils_cpu_count());
+        }
+
+        epoch_gc_free(epoch_gc);
     }
 }
