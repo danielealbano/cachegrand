@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include "misc.h"
 #include "xalloc.h"
@@ -21,21 +22,36 @@
 
 #include "epoch_gc.h"
 
+typedef struct ring_list_item_map ring_list_item_map_t;
+struct ring_list_item_map {
+    ring_bounded_spsc_t *ring;
+    double_linked_list_item_t *item;
+    bool to_delete;
+};
+
+thread_local epoch_gc_thread_t *thread_local_epoch_gc[EPOCH_GC_OBJECT_TYPE_MAX] = {
+        NULL
+};
+epoch_gc_staged_object_destructor_cb_t* epoch_gc_staged_object_destructor_cb[EPOCH_GC_OBJECT_TYPE_MAX] = {
+        NULL
+};
+
+#if DEBUG == 1
+epoch_gc_thread_t** epoch_gc_get_thread_local_epoch_gc() {
+    return thread_local_epoch_gc;
+}
+
+epoch_gc_staged_object_destructor_cb_t** epoch_gc_get_epoch_gc_staged_object_destructor_cb() {
+    return epoch_gc_staged_object_destructor_cb;
+}
+#endif
+
 epoch_gc_t *epoch_gc_init(
         epoch_gc_object_type_t object_type) {
-    assert(object_type < EPOCH_GC_OBJECT_TYPE_MAX);
-
-    epoch_gc_t *epoch_gc = xalloc_alloc_zero(sizeof(epoch_gc_t));
-    if (!epoch_gc) {
-        return NULL;
-    }
-
+    epoch_gc_t *epoch_gc = xalloc_alloc_zero( sizeof(epoch_gc_t));
     epoch_gc->object_type = object_type;
     epoch_gc->thread_list = double_linked_list_init();
-    if (!epoch_gc->thread_list) {
-        xalloc_free(epoch_gc);
-        return NULL;
-    }
+    epoch_gc->thread_list_change_epoch = 0;
 
     spinlock_init(&epoch_gc->thread_list_spinlock);
 
@@ -44,39 +60,45 @@ epoch_gc_t *epoch_gc_init(
 
 void epoch_gc_free(
         epoch_gc_t *epoch_gc) {
-    // TODO
+    double_linked_list_free(epoch_gc->thread_list);
+    xalloc_free(epoch_gc);
 }
 
 void epoch_gc_register_object_type_destructor_cb(
         epoch_gc_object_type_t object_type,
         epoch_gc_staged_object_destructor_cb_t *destructor_cb) {
-    assert(object_type < EPOCH_GC_OBJECT_TYPE_MAX);
-
     epoch_gc_staged_object_destructor_cb[object_type] = destructor_cb;
+}
+
+void epoch_gc_unregister_object_type_destructor_cb(
+        epoch_gc_object_type_t object_type) {
+    epoch_gc_staged_object_destructor_cb[object_type] = NULL;
 }
 
 void epoch_gc_thread_append_new_staged_objects_ring(
         epoch_gc_thread_t *epoch_gc_thread) {
     ring_bounded_spsc_t *rb = ring_bounded_spsc_init(EPOCH_GC_STAGED_OBJECTS_RING_SIZE);
+
+    // Initialize the new double linked list item
     double_linked_list_item_t *rb_item = double_linked_list_item_init();
-
-    // Update the last ring to be used
-    epoch_gc_thread->staged_objects_ring_last = rb;
-
-    // Append the ring to the ring list
     rb_item->data = rb;
+
+    // Critical section to update the ring list and the ring to be used
+    spinlock_lock(&epoch_gc_thread->staged_objects_ring_list_spinlock);
+    epoch_gc_thread->staged_objects_ring_last = rb;
     double_linked_list_push_item(epoch_gc_thread->staged_objects_ring_list, rb_item);
+    spinlock_unlock(&epoch_gc_thread->staged_objects_ring_list_spinlock);
 }
 
-epoch_gc_thread_t *epoch_gc_thread_init(
-        epoch_gc_t *epoch_gc) {
+epoch_gc_thread_t *epoch_gc_thread_init() {
     epoch_gc_thread_t *epoch_gc_thread = NULL;
 
     // Initialize the epoch gc thread structure
-    epoch_gc_thread = xalloc_alloc_zero(sizeof(epoch_gc_thread_t));
+    epoch_gc_thread = xalloc_alloc_zero( sizeof(epoch_gc_thread_t));
     epoch_gc_thread->epoch = 0;
     epoch_gc_thread->staged_objects_ring_list = double_linked_list_init();
     epoch_gc_thread->staged_objects_ring_last = ring_bounded_spsc_init(EPOCH_GC_STAGED_OBJECTS_RING_SIZE);
+    spinlock_init(&epoch_gc_thread->staged_objects_ring_list_spinlock);
 
     // Initialize the ring a new ring for the staged objects
     epoch_gc_thread_append_new_staged_objects_ring(epoch_gc_thread);
@@ -116,6 +138,7 @@ void epoch_gc_thread_register_global(
     // Add the thread to the thread list of the gc
     spinlock_lock(&epoch_gc->thread_list_spinlock);
     double_linked_list_push_item(epoch_gc->thread_list, epoch_gc_thread_item);
+    epoch_gc->thread_list_change_epoch = intrinsics_tsc();
     spinlock_unlock(&epoch_gc->thread_list_spinlock);
 }
 
@@ -139,14 +162,23 @@ void epoch_gc_thread_unregister_global(
             continue;
         }
 
+        double_linked_list_remove_item(epoch_gc->thread_list, item);
         double_linked_list_item_free(item);
         break;
     }
+
+    epoch_gc->thread_list_change_epoch = intrinsics_tsc();
 
     // Unlock the thread list
     spinlock_unlock(&epoch_gc->thread_list_spinlock);
 
     epoch_gc_thread->epoch_gc = NULL;
+}
+
+void epoch_gc_thread_unregister_local(
+        epoch_gc_thread_t *epoch_gc_thread) {
+    epoch_gc_t *epoch_gc = epoch_gc_thread->epoch_gc;
+    thread_local_epoch_gc[epoch_gc->object_type] = NULL;
 }
 
 void epoch_gc_thread_get_instance(
@@ -168,14 +200,19 @@ bool epoch_gc_thread_is_terminated(
 
 void epoch_gc_thread_terminate(
         epoch_gc_thread_t *epoch_gc_thread) {
-    epoch_gc_thread_collect_all(epoch_gc_thread);
     epoch_gc_thread->thread_terminated = true;
     MEMORY_FENCE_STORE();
 }
 
-void epoch_gc_thread_advance_epoch(
+void epoch_gc_thread_advance_epoch_tsc(
         epoch_gc_thread_t *epoch_gc_thread) {
     epoch_gc_thread->epoch = intrinsics_tsc();
+    MEMORY_FENCE_STORE();
+}
+
+void epoch_gc_thread_advance_epoch_by_one(
+        epoch_gc_thread_t *epoch_gc_thread) {
+    epoch_gc_thread->epoch++;
     MEMORY_FENCE_STORE();
 }
 
@@ -196,16 +233,19 @@ void epoch_gc_thread_destruct_staged_objects_batch(
 uint32_t epoch_gc_thread_collect(
         epoch_gc_thread_t *epoch_gc_thread,
         uint32_t max_objects) {
+    epoch_gc_staged_object_t *staged_object = NULL;
     uint32_t deleted_counter = 0;
-    epoch_gc_staged_object_t *staged_objects[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE];
-    uint8_t staged_objects_counter = 0;
+    epoch_gc_staged_object_t *staged_objects_to_delete[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE];
+    uint8_t staged_objects_to_delete_counter = 0;
     epoch_gc_t *epoch_gc = epoch_gc_thread->epoch_gc;
 
     // Get the lowest epoch among all the threads registered for this object type
     uint64_t epoch = UINT64_MAX;
     double_linked_list_item_t* epoch_gc_thread_item = NULL;
 
-    // Critical section operating on the thread list
+    // Critical section operating on the thread list to collect the lowest epoch
+    // TODO: move this outside and change collect and collect all to get the starting epoch as parameter
+
     spinlock_lock(&epoch_gc->thread_list_spinlock);
     while((epoch_gc_thread_item = double_linked_list_iter_next(
             epoch_gc->thread_list, epoch_gc_thread_item)) != NULL) {
@@ -218,67 +258,132 @@ uint32_t epoch_gc_thread_collect(
     }
     spinlock_unlock(&epoch_gc->thread_list_spinlock);
 
-    // Can't iterate over the double linked list normally as items can be deleted as part of the process
-    double_linked_list_t *list = epoch_gc_thread->staged_objects_ring_list;
-    double_linked_list_item_t* item = list->head;
-    while(item != NULL) {
-        epoch_gc_staged_object_t *staged_object;
-        bool stop = false;
-        ring_bounded_spsc_t *staged_objects_ring = item->data;
+    // End of the critical section
+
+    // if there is only one ring, the code path can be much simpler and faster and will normally be the case
+    MEMORY_FENCE_LOAD();
+    if (likely(epoch_gc_thread->staged_objects_ring_list->count == 1)) {
+        // The ring is loaded from staged_objects_ring_list->head instead that from staged_objects_ring_last just in
+        // case a new ring get added right after reading the count.
+        ring_bounded_spsc_t *staged_objects_ring = epoch_gc_thread->staged_objects_ring_list->head->data;
 
         // Peek, instead of dequeue, to avoid fetching an item that can't be destroyed as potentially it's in use
         while(likely((staged_object = ring_bounded_spsc_peek(staged_objects_ring)) != NULL)) {
-            if (epoch <= staged_object->epoch || deleted_counter > max_objects) {
-                stop = true;
+            if (epoch <= staged_object->epoch || deleted_counter >= max_objects) {
                 break;
             }
 
             // Remove the fetched object from the queue
-            ring_bounded_spsc_dequeue(staged_objects_ring);
+            epoch_gc_staged_object_t *staged_object_temp = ring_bounded_spsc_dequeue(staged_objects_ring);
 
-            staged_objects[staged_objects_counter] = staged_object;
-            staged_objects_counter++;
-            if (staged_objects_counter == ARRAY_SIZE(staged_objects)) {
+            assert(staged_object == staged_object_temp);
+
+            staged_objects_to_delete[staged_objects_to_delete_counter] = staged_object;
+            staged_objects_to_delete_counter++;
+            deleted_counter++;
+            if (staged_objects_to_delete_counter == ARRAY_SIZE(staged_objects_to_delete)) {
                 epoch_gc_thread_destruct_staged_objects_batch(
                         epoch_gc_staged_object_destructor_cb[epoch_gc->object_type],
-                        staged_objects_counter,
-                        staged_objects);
+                        staged_objects_to_delete_counter,
+                        staged_objects_to_delete);
 
-                deleted_counter += staged_objects_counter;
-                staged_objects_counter = 0;
+                staged_objects_to_delete_counter = 0;
+            }
+        }
+    } else {
+        // Critical section to acquire the list of rings
+        spinlock_lock(&epoch_gc_thread->staged_objects_ring_list_spinlock);
+
+        // Allocate a map of ring_list_item_map_t to fetch the items and the amount of times a lock is needed
+        uint32_t ring_list_item_map_index = 0;
+        uint32_t ring_list_item_map_length = epoch_gc_thread->staged_objects_ring_list->count;
+        ring_list_item_map_t *ring_list_item_map_list = xalloc_alloc_zero(
+                ring_list_item_map_length * sizeof(ring_list_item_map_t));
+
+        double_linked_list_item_t* item = NULL;
+        while((item = double_linked_list_iter_next(
+                epoch_gc_thread->staged_objects_ring_list, item)) != NULL) {
+            ring_list_item_map_list[ring_list_item_map_index].ring = item->data;
+            ring_list_item_map_list[ring_list_item_map_index].item = item;
+            ring_list_item_map_list[ring_list_item_map_index].to_delete = false;
+            ring_list_item_map_index++;
+        }
+
+        // End critical section to acquire the list of rings
+        spinlock_unlock(&epoch_gc_thread->staged_objects_ring_list_spinlock);
+
+        for(
+                ring_list_item_map_index = 0;
+                ring_list_item_map_index < ring_list_item_map_length;
+                ring_list_item_map_index++) {
+            bool stop = false;
+            ring_bounded_spsc_t *staged_objects_ring = ring_list_item_map_list[ring_list_item_map_index].ring;
+
+            // Peek, instead of dequeue, to avoid fetching an item that can't be destroyed as potentially it's in use
+            while (likely((staged_object = ring_bounded_spsc_peek(staged_objects_ring)) != NULL)) {
+                if (epoch <= staged_object->epoch || deleted_counter >= max_objects) {
+                    stop = true;
+                    break;
+                }
+
+                // Remove the fetched object from the queue
+                ring_bounded_spsc_dequeue(staged_objects_ring);
+
+                staged_objects_to_delete[staged_objects_to_delete_counter] = staged_object;
+                staged_objects_to_delete_counter++;
+                if (staged_objects_to_delete_counter == ARRAY_SIZE(staged_objects_to_delete)) {
+                    epoch_gc_thread_destruct_staged_objects_batch(
+                            epoch_gc_staged_object_destructor_cb[epoch_gc->object_type],
+                            staged_objects_to_delete_counter,
+                            staged_objects_to_delete);
+
+                    staged_objects_to_delete_counter = 0;
+                }
+
+                deleted_counter++;
             }
 
-            deleted_counter++;
+            if (stop) {
+                break;
+            }
+
+            ring_list_item_map_list[ring_list_item_map_index].to_delete = true;
         }
 
-        if (stop) {
-            break;
+        // Critical section to delete the empty rings
+        spinlock_lock(&epoch_gc_thread->staged_objects_ring_list_spinlock);
+
+        for(
+                ring_list_item_map_index = 0;
+                ring_list_item_map_index < ring_list_item_map_length;
+                ring_list_item_map_index++) {
+            ring_bounded_spsc_t *staged_objects_ring = ring_list_item_map_list[ring_list_item_map_index].ring;
+
+            // Don't delete the active ring
+            if (ring_list_item_map_list[ring_list_item_map_index].to_delete == false ||
+                    staged_objects_ring == epoch_gc_thread->staged_objects_ring_last) {
+                continue;
+            }
+
+            double_linked_list_remove_item(
+                    epoch_gc_thread->staged_objects_ring_list,
+                    ring_list_item_map_list[ring_list_item_map_index].item);
+            double_linked_list_item_free(ring_list_item_map_list[ring_list_item_map_index].item);
+            ring_bounded_spsc_free(ring_list_item_map_list[ring_list_item_map_index].ring);
         }
 
-        // Before checking if the ring can be removed store the current item in a new variable and get the next one
-        double_linked_list_item_t *old_item = item;
-        item = item->next;
+        spinlock_unlock(&epoch_gc_thread->staged_objects_ring_list_spinlock);
 
-        // TODO: the check on the ring useless as the only way to get to this point is if the ring is empty but needs
-        //       testing, so better to leave this check around. The part of the if that checks if there is only one
-        //       ring is required as if it's the last one we don't really want to remove it.
-        //       It's not necessary to update staged_objects_ring_last as that's always point to the last one and, per
-        //       definition, when processing the double linked list of rings if the code get to the last one the check
-        //       will avoid removing it.
-        if (list->count > 1 && ring_bounded_spsc_is_empty(staged_objects_ring)) {
-            double_linked_list_remove_item(list, old_item);
-            double_linked_list_item_free(old_item);
-            ring_bounded_spsc_free(staged_objects_ring);
-        }
+        // End of the critical section
+
+        xalloc_free(ring_list_item_map_list);
     }
 
-    if (staged_objects_counter > 0) {
+    if (staged_objects_to_delete_counter > 0) {
         epoch_gc_thread_destruct_staged_objects_batch(
                 epoch_gc_staged_object_destructor_cb[epoch_gc->object_type],
-                staged_objects_counter,
-                staged_objects);
-
-        deleted_counter += staged_objects_counter;
+                staged_objects_to_delete_counter,
+                staged_objects_to_delete);
     }
 
     return deleted_counter;
@@ -299,7 +404,7 @@ bool epoch_gc_stage_object(
 
     // Allocate the staged pointer
     epoch_gc_staged_object_t *staged_object = ffma_mem_alloc(sizeof(epoch_gc_staged_object_t));
-    staged_object->epoch = intrinsics_tsc();
+    staged_object->epoch = epoch_gc_thread->epoch;
     staged_object->object = object;
 
     // Try to insert the pointer into the last available ring
