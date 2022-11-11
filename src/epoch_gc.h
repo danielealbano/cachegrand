@@ -11,7 +11,10 @@ extern "C" {
 #define EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE (16)
 
 enum epoch_gc_object_type {
-    EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE,
+    EPOCH_GC_OBJECT_TYPE_HASHTABLE_KV_SMALL, // to be used with values smaller than 64kb
+    EPOCH_GC_OBJECT_TYPE_HASHTABLE_KV_MEDIUM, // to be used with values smaller than 1MB
+    EPOCH_GC_OBJECT_TYPE_HASHTABLE_KV_LARGE, // to be used with values smaller than 16MB
+    EPOCH_GC_OBJECT_TYPE_HASHTABLE_KV_XLARGE, // to be used with rest of values bigger than 16MB
     EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
     EPOCH_GC_OBJECT_TYPE_MAX,
 };
@@ -27,7 +30,7 @@ struct epoch_gc {
 
 typedef struct epoch_gc_thread epoch_gc_thread_t;
 struct epoch_gc_thread {
-    ring_bounded_spsc_t *staged_objects_ring_last;
+    ring_bounded_spsc_uint128_t *staged_objects_ring_last;
     double_linked_list_t *staged_objects_ring_list;
     uint64_t epoch;
     epoch_gc_t *epoch_gc;
@@ -35,15 +38,18 @@ struct epoch_gc_thread {
     bool thread_terminated;
 };
 
-typedef struct epoch_gc_staged_object epoch_gc_staged_object_t;
-struct epoch_gc_staged_object {
-    uint64_t epoch;
-    void *object;
+typedef union epoch_gc_staged_object epoch_gc_staged_object_t;
+union epoch_gc_staged_object {
+    struct {
+        uint64_t epoch;
+        void *object;
+    } data;
+    uint128_t _packed;
 };
 
 typedef void (epoch_gc_staged_object_destructor_cb_t)(
         uint8_t,
-        epoch_gc_staged_object_t*[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE]);
+        epoch_gc_staged_object_t[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE]);
 
 #if DEBUG == 1
 // Used only for testing and debugging
