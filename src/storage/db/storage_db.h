@@ -70,7 +70,7 @@ struct storage_db_shard {
 typedef struct storage_db_worker storage_db_worker_t;
 struct storage_db_worker {
     storage_db_shard_t *active_shard;
-    ring_bounded_spsc_t *deleted_entry_index_ring_buffer;
+    ring_bounded_queue_spsc_voidptr_t *deleted_entry_index_ring_buffer;
     double_linked_list_t *deleting_entry_index_list;
 };
 
@@ -186,7 +186,7 @@ void storage_db_free(
 storage_db_shard_t *storage_db_worker_active_shard(
         storage_db_t *db);
 
-ring_bounded_spsc_t *storage_db_worker_deleted_entry_index_ring_buffer(
+ring_bounded_queue_spsc_voidptr_t *storage_db_worker_deleted_entry_index_ring_buffer(
         storage_db_t *db);
 
 void storage_db_worker_garbage_collect_deleting_entry_index_when_no_readers(

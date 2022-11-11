@@ -480,7 +480,7 @@ class Program:
             "#include \"spinlock.h\"",
             "#include \"transaction.h\"",
             "#include \"transaction_spinlock.h\"",
-            "#include \"data_structures/ring_bounded_spsc/ring_bounded_spsc.h\"",
+            "#include \"data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h\"",
             "#include \"data_structures/double_linked_list/double_linked_list.h\"",
             "#include \"memory_allocator/ffma.h\"",
             "#include \"data_structures/hashtable/spsc/hashtable_spsc.h\"",

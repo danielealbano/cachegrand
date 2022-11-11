@@ -18,30 +18,23 @@
 #include "xalloc.h"
 #include "utils_cpu.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
-#include "data_structures/ring_bounded_spsc/ring_bounded_spsc.h"
-#include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
+#include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 
 #include "epoch_gc.h"
 
-static uint8_t test_epoch_gc_object_destructor_cb_params_staged_objects_count = 0;
-static epoch_gc_staged_object_t **test_epoch_gc_object_destructor_cb_params_staged_objects;
 void test_epoch_gc_object_destructor_cb_test(
         uint8_t staged_objects_count,
-        epoch_gc_staged_object_t *staged_objects[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE]) {
-    test_epoch_gc_object_destructor_cb_params_staged_objects_count = staged_objects_count;
-    test_epoch_gc_object_destructor_cb_params_staged_objects = staged_objects;
-
+        epoch_gc_staged_object_t staged_objects[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE]) {
     for(uint64_t i = 0; i < staged_objects_count; i++) {
-        REQUIRE((uintptr_t)staged_objects[i]->object == (uintptr_t)(i+1));
+        REQUIRE((uintptr_t)staged_objects[i].data.object == (uintptr_t)(i+1));
     }
 }
 
 void test_epoch_gc_object_destructor_cb_real(
         uint8_t staged_objects_count,
-        epoch_gc_staged_object_t *staged_objects[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE]) {
+        epoch_gc_staged_object_t staged_objects[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE]) {
     for(uint64_t i = 0; i < staged_objects_count; i++) {
-        free(staged_objects[i]->object);
+        free(staged_objects[i].data.object);
     }
 }
 
@@ -264,7 +257,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
 
             REQUIRE(epoch_gc->object_type == EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
             REQUIRE(spinlock_is_locked(&epoch_gc->thread_list_spinlock) == false);
-            REQUIRE(epoch_gc->thread_list != NULL);
+            REQUIRE(epoch_gc->thread_list != nullptr);
 
             double_linked_list_free(epoch_gc->thread_list);
             xalloc_free(epoch_gc);
@@ -295,7 +288,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
 
             REQUIRE(epoch_gc_thread.staged_objects_ring_list->count == 1);
             REQUIRE(epoch_gc_thread.staged_objects_ring_list->tail->data == epoch_gc_thread.staged_objects_ring_last);
-            REQUIRE(ring_bounded_spsc_get_length(epoch_gc_thread.staged_objects_ring_last) == 0);
+            REQUIRE(ring_bounded_queue_spsc_uint128_get_length(epoch_gc_thread.staged_objects_ring_last) == 0);
         }
 
         SECTION("append 2 new rings") {
@@ -304,7 +297,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
 
             REQUIRE(epoch_gc_thread.staged_objects_ring_list->count == 2);
             REQUIRE(epoch_gc_thread.staged_objects_ring_list->tail->data == epoch_gc_thread.staged_objects_ring_last);
-            REQUIRE(ring_bounded_spsc_get_length(epoch_gc_thread.staged_objects_ring_last) == 0);
+            REQUIRE(ring_bounded_queue_spsc_uint128_get_length(epoch_gc_thread.staged_objects_ring_last) == 0);
         }
 
         SECTION("append multiple new rings") {
@@ -314,7 +307,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
 
             REQUIRE(epoch_gc_thread.staged_objects_ring_list->count == 64);
             REQUIRE(epoch_gc_thread.staged_objects_ring_list->tail->data == epoch_gc_thread.staged_objects_ring_last);
-            REQUIRE(ring_bounded_spsc_get_length(epoch_gc_thread.staged_objects_ring_last) == 0);
+            REQUIRE(ring_bounded_queue_spsc_uint128_get_length(epoch_gc_thread.staged_objects_ring_last) == 0);
         }
 
         double_linked_list_item_t *rb_item = epoch_gc_thread.staged_objects_ring_list->head;
@@ -322,7 +315,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
             double_linked_list_item_t *current = rb_item;
             rb_item = rb_item->next;
 
-            ring_bounded_spsc_free((ring_bounded_spsc_t*)current->data);
+            ring_bounded_queue_spsc_uint128_free((ring_bounded_queue_spsc_uint128_t*)current->data);
             double_linked_list_item_free(current);
         }
 
@@ -342,7 +335,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
             REQUIRE(epoch_gc_thread->epoch == 0);
             REQUIRE(epoch_gc_thread->staged_objects_ring_list->count == 1);
             REQUIRE(epoch_gc_thread->staged_objects_ring_list->tail->data == epoch_gc_thread->staged_objects_ring_last);
-            REQUIRE(ring_bounded_spsc_get_length(epoch_gc_thread->staged_objects_ring_last) == 0);
+            REQUIRE(ring_bounded_queue_spsc_uint128_get_length(epoch_gc_thread->staged_objects_ring_last) == 0);
 
             epoch_gc_thread_free(epoch_gc_thread);
         }
@@ -519,25 +512,6 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
         }
     }
 
-    SECTION("epoch_gc_thread_destruct_staged_objects_batch") {
-        epoch_gc_staged_object_t *staged_objects[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE];
-
-        for(uint64_t i = 0; i < EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE; i++) {
-            staged_objects[i] = (epoch_gc_staged_object_t*)ffma_mem_alloc(16);
-            staged_objects[i]->object = (void*)(i+1);
-        }
-
-        epoch_gc_thread_destruct_staged_objects_batch(
-                test_epoch_gc_object_destructor_cb_test,
-                EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE,
-                staged_objects);
-
-        REQUIRE(test_epoch_gc_object_destructor_cb_params_staged_objects_count ==
-            EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE);
-        REQUIRE(test_epoch_gc_object_destructor_cb_params_staged_objects ==
-            staged_objects);
-    }
-
     SECTION("epoch_gc_thread_collect") {
         epoch_gc_t epoch_gc = { nullptr };
         epoch_gc.thread_list = double_linked_list_init();
@@ -550,22 +524,13 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
                 EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, test_epoch_gc_object_destructor_cb_test);
         epoch_gc_thread_register_global(&epoch_gc, epoch_gc_thread);
 
-        auto epoch_gc_staged_object_1 =
-                (epoch_gc_staged_object_t*)ffma_mem_alloc(sizeof(epoch_gc_staged_object_t));
-        auto epoch_gc_staged_object_2 =
-                (epoch_gc_staged_object_t*)ffma_mem_alloc(sizeof(epoch_gc_staged_object_t));
+        epoch_gc_staged_object_t epoch_gc_staged_object_1 = { .data = { .epoch = 100, .object = (void*)1, } };
+        epoch_gc_staged_object_t epoch_gc_staged_object_2 = { .data = { .epoch = 200, .object = (void*)2, } };
 
-        epoch_gc_staged_object_1->epoch = 100;
-        epoch_gc_staged_object_1->object = (void*)1;
-
-        epoch_gc_staged_object_2->epoch = 200;
-        epoch_gc_staged_object_2->object = (void*)2;
-
-        ring_bounded_spsc_enqueue(epoch_gc_thread->staged_objects_ring_last, epoch_gc_staged_object_1);
-        ring_bounded_spsc_enqueue(epoch_gc_thread->staged_objects_ring_last, epoch_gc_staged_object_2);
+        ring_bounded_queue_spsc_uint128_enqueue(epoch_gc_thread->staged_objects_ring_last, epoch_gc_staged_object_1._packed);
+        ring_bounded_queue_spsc_uint128_enqueue(epoch_gc_thread->staged_objects_ring_last, epoch_gc_staged_object_2._packed);
 
         SECTION("two pointers, collect 2, no collection because of epoch") {
-
             epoch_gc_thread->epoch = 100;
 
             REQUIRE(epoch_gc_thread_collect(epoch_gc_thread, 2) == 0);
@@ -575,46 +540,40 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
             epoch_gc_thread->epoch = 101;
 
             REQUIRE(epoch_gc_thread_collect(epoch_gc_thread, 2) == 1);
-
-            epoch_gc_staged_object_1 = nullptr;
         }
 
         SECTION("two pointers, collect 2, 2 collected because of epoch") {
             epoch_gc_thread->epoch = 201;
             REQUIRE(epoch_gc_thread_collect(epoch_gc_thread, 2) == 2);
-
-            epoch_gc_staged_object_1 = nullptr;
-            epoch_gc_staged_object_2 = nullptr;
         }
 
         SECTION("two pointers, collect 2, 2 collected because of epoch in two rounds because of max_objects") {
             epoch_gc_thread->epoch = 201;
 
+            REQUIRE(epoch_gc_thread_collect(epoch_gc_thread, 1) == 1);
+
             // The test destructor expects each item of the batch be numbered from 1 to 16, as the staged objects are
             // being purged in two rounds both the pointers must have value 1
-            epoch_gc_staged_object_2->object = (void*)1;
+            ring_bounded_queue_spsc_uint128_dequeue(epoch_gc_thread->staged_objects_ring_last, nullptr);
+            epoch_gc_staged_object_2.data.object = (void*)1;
+            ring_bounded_queue_spsc_uint128_enqueue(epoch_gc_thread->staged_objects_ring_last, epoch_gc_staged_object_2._packed);
 
             REQUIRE(epoch_gc_thread_collect(epoch_gc_thread, 1) == 1);
-            REQUIRE(epoch_gc_thread_collect(epoch_gc_thread, 1) == 1);
-
-            epoch_gc_staged_object_1 = nullptr;
-            epoch_gc_staged_object_2 = nullptr;
         }
 
         SECTION("test empty ring removal") {
-            auto epoch_gc_staged_object_3 =
-                    (epoch_gc_staged_object_t*)ffma_mem_alloc(sizeof(epoch_gc_staged_object_t));
-            epoch_gc_staged_object_3->epoch = 300;
-            epoch_gc_staged_object_3->object = (void*)3;
+            epoch_gc_staged_object_t epoch_gc_staged_object_3 = { .data = { .epoch = 300, .object = (void*)3, } };
 
             // Get the current ring
-            ring_bounded_spsc_t *ring_initial = epoch_gc_thread->staged_objects_ring_last;
+            ring_bounded_queue_spsc_uint128_t *ring_initial = epoch_gc_thread->staged_objects_ring_last;
 
             // Append a new ring
             epoch_gc_thread_append_new_staged_objects_ring(epoch_gc_thread);
 
             // Enqueue the item onto the new ring
-            ring_bounded_spsc_enqueue(epoch_gc_thread->staged_objects_ring_last, epoch_gc_staged_object_3);
+            ring_bounded_queue_spsc_uint128_enqueue(
+                    epoch_gc_thread->staged_objects_ring_last,
+                    epoch_gc_staged_object_3._packed);
 
             // Set the epoch in a way that all the staged pointers will get deleted
             epoch_gc_thread->epoch = 301;
@@ -622,22 +581,15 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
             REQUIRE(epoch_gc_thread_collect(epoch_gc_thread, 3) == 3);
             REQUIRE(epoch_gc_thread->staged_objects_ring_last != ring_initial);
             REQUIRE(epoch_gc_thread->staged_objects_ring_list->count == 1);
-
-            epoch_gc_staged_object_1 = nullptr;
-            epoch_gc_staged_object_2 = nullptr;
         }
 
-        while(ring_bounded_spsc_dequeue(epoch_gc_thread->staged_objects_ring_last) != nullptr) {
-            // do nothing
-        }
+        bool found = false;
+        do {
+            epoch_gc_staged_object_t staged_object_temp;
+            staged_object_temp._packed = ring_bounded_queue_spsc_uint128_dequeue(
+                    epoch_gc_thread->staged_objects_ring_last, &found);
 
-        if (epoch_gc_staged_object_1) {
-            ffma_mem_free(epoch_gc_staged_object_1);
-        }
-
-        if (epoch_gc_staged_object_2) {
-            ffma_mem_free(epoch_gc_staged_object_2);
-        }
+        } while(found);
 
         epoch_gc_thread_unregister_global(epoch_gc_thread);
         epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
@@ -653,22 +605,15 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
         epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init();
 
         epoch_gc_register_object_type_destructor_cb(
-                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, test_epoch_gc_object_destructor_cb_test);
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                test_epoch_gc_object_destructor_cb_test);
         epoch_gc_thread_register_global(&epoch_gc, epoch_gc_thread);
 
-        auto epoch_gc_staged_object_1 =
-                (epoch_gc_staged_object_t*)ffma_mem_alloc(sizeof(epoch_gc_staged_object_t));
-        auto epoch_gc_staged_object_2 =
-                (epoch_gc_staged_object_t*)ffma_mem_alloc(sizeof(epoch_gc_staged_object_t));
+        epoch_gc_staged_object_t epoch_gc_staged_object_1 = { .data = { .epoch = 100, .object = (void*)1, } };
+        epoch_gc_staged_object_t epoch_gc_staged_object_2 = { .data = { .epoch = 200, .object = (void*)2, } };
 
-        epoch_gc_staged_object_1->epoch = 100;
-        epoch_gc_staged_object_1->object = (void*)1;
-
-        epoch_gc_staged_object_2->epoch = 200;
-        epoch_gc_staged_object_2->object = (void*)2;
-
-        ring_bounded_spsc_enqueue(epoch_gc_thread->staged_objects_ring_last, epoch_gc_staged_object_1);
-        ring_bounded_spsc_enqueue(epoch_gc_thread->staged_objects_ring_last, epoch_gc_staged_object_2);
+        ring_bounded_queue_spsc_uint128_enqueue(epoch_gc_thread->staged_objects_ring_last, epoch_gc_staged_object_1._packed);
+        ring_bounded_queue_spsc_uint128_enqueue(epoch_gc_thread->staged_objects_ring_last, epoch_gc_staged_object_2._packed);
 
         SECTION("two pointers, collect 2, no collection because of epoch") {
             epoch_gc_thread->epoch = 100;
@@ -680,32 +625,26 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
             epoch_gc_thread->epoch = 101;
 
             REQUIRE(epoch_gc_thread_collect_all(epoch_gc_thread) == 1);
-
-            epoch_gc_staged_object_1 = nullptr;
         }
 
         SECTION("two pointers, collect 2, 2 collected because of epoch") {
             epoch_gc_thread->epoch = 201;
             REQUIRE(epoch_gc_thread_collect_all(epoch_gc_thread) == 2);
-
-            epoch_gc_staged_object_1 = nullptr;
-            epoch_gc_staged_object_2 = nullptr;
         }
 
         SECTION("test empty ring removal") {
-            auto epoch_gc_staged_object_3 =
-                    (epoch_gc_staged_object_t*)ffma_mem_alloc(sizeof(epoch_gc_staged_object_t));
-            epoch_gc_staged_object_3->epoch = 300;
-            epoch_gc_staged_object_3->object = (void*)3;
+            epoch_gc_staged_object_t epoch_gc_staged_object_3 = { .data = { .epoch = 300, .object = (void*)3, } };
 
             // Get the current ring
-            ring_bounded_spsc_t *ring_initial = epoch_gc_thread->staged_objects_ring_last;
+            ring_bounded_queue_spsc_uint128_t *ring_initial = epoch_gc_thread->staged_objects_ring_last;
 
             // Append a new ring
             epoch_gc_thread_append_new_staged_objects_ring(epoch_gc_thread);
 
             // Enqueue the item onto the new ring
-            ring_bounded_spsc_enqueue(epoch_gc_thread->staged_objects_ring_last, epoch_gc_staged_object_3);
+            ring_bounded_queue_spsc_uint128_enqueue(
+                    epoch_gc_thread->staged_objects_ring_last,
+                    epoch_gc_staged_object_3._packed);
 
             // Set the epoch in a way that all the staged pointers will get deleted
             epoch_gc_thread->epoch = 301;
@@ -713,22 +652,15 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
             REQUIRE(epoch_gc_thread_collect(epoch_gc_thread, 3) == 3);
             REQUIRE(epoch_gc_thread->staged_objects_ring_last != ring_initial);
             REQUIRE(epoch_gc_thread->staged_objects_ring_list->count == 1);
-
-            epoch_gc_staged_object_1 = nullptr;
-            epoch_gc_staged_object_2 = nullptr;
         }
 
-        while(ring_bounded_spsc_dequeue(epoch_gc_thread->staged_objects_ring_last) != nullptr) {
-            // do nothing
-        }
+        bool found = false;
+        do {
+            epoch_gc_staged_object_t staged_object_temp;
+            staged_object_temp._packed = ring_bounded_queue_spsc_uint128_dequeue(
+                    epoch_gc_thread->staged_objects_ring_last, &found);
 
-        if (epoch_gc_staged_object_1) {
-            ffma_mem_free(epoch_gc_staged_object_1);
-        }
-
-        if (epoch_gc_staged_object_2) {
-            ffma_mem_free(epoch_gc_staged_object_2);
-        }
+        } while(found);
 
         epoch_gc_thread_unregister_global(epoch_gc_thread);
         epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
@@ -744,7 +676,8 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
         epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init();
 
         epoch_gc_register_object_type_destructor_cb(
-                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, test_epoch_gc_object_destructor_cb_test);
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                test_epoch_gc_object_destructor_cb_test);
         epoch_gc_thread_register_global(&epoch_gc, epoch_gc_thread);
 
         SECTION("terminate") {
@@ -773,69 +706,77 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
         epoch_gc_thread_register_local(epoch_gc_thread);
 
         SECTION("stage 1 object") {
-            REQUIRE(epoch_gc_stage_object(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, (void*)1) == true);
+            REQUIRE(epoch_gc_stage_object(
+                    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                    (void*)1) == true);
 
-            REQUIRE(ring_bounded_spsc_get_length(epoch_gc_thread->staged_objects_ring_last) == 1);
+            REQUIRE(ring_bounded_queue_spsc_uint128_get_length(epoch_gc_thread->staged_objects_ring_last) == 1);
 
-            auto staged_object = (epoch_gc_staged_object_t *)ring_bounded_spsc_dequeue(
-                    epoch_gc_thread->staged_objects_ring_last);
+            epoch_gc_staged_object_t staged_object;
+            staged_object._packed =
+                    ring_bounded_queue_spsc_uint128_dequeue(epoch_gc_thread->staged_objects_ring_last, nullptr);
 
-            REQUIRE(staged_object->object == (void*)1);
-            REQUIRE(staged_object->epoch == epoch_gc_thread->epoch);
-
-            ffma_mem_free(staged_object);
+            REQUIRE(staged_object.data.object == (void*)1);
+            REQUIRE(staged_object.data.epoch == epoch_gc_thread->epoch);
         }
 
         SECTION("stage 2 objects") {
-            REQUIRE(epoch_gc_stage_object(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, (void*)1) == true);
+            REQUIRE(epoch_gc_stage_object(
+                    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                    (void*)1) == true);
             usleep(10000);
-            REQUIRE(epoch_gc_stage_object(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, (void*)2) == true);
+            REQUIRE(epoch_gc_stage_object(
+                    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                    (void*)2) == true);
 
-            REQUIRE(ring_bounded_spsc_get_length(epoch_gc_thread->staged_objects_ring_last) == 2);
+            REQUIRE(ring_bounded_queue_spsc_uint128_get_length(epoch_gc_thread->staged_objects_ring_last) == 2);
 
-            auto* staged_object_1 =
-                    (epoch_gc_staged_object_t*)ring_bounded_spsc_dequeue(epoch_gc_thread->staged_objects_ring_last);
-            auto* staged_object_2 =
-                    (epoch_gc_staged_object_t*)ring_bounded_spsc_dequeue(epoch_gc_thread->staged_objects_ring_last);
+            epoch_gc_staged_object_t staged_object_1, staged_object_2;
+            staged_object_1._packed =
+                    ring_bounded_queue_spsc_uint128_dequeue(epoch_gc_thread->staged_objects_ring_last, nullptr);
+            staged_object_2._packed =
+                    ring_bounded_queue_spsc_uint128_dequeue(epoch_gc_thread->staged_objects_ring_last, nullptr);
 
-            REQUIRE(staged_object_1->object == (void*)1);
-            REQUIRE(staged_object_2->object == (void*)2);
-            REQUIRE(staged_object_1->epoch == epoch_gc_thread->epoch);
-            REQUIRE(staged_object_2->epoch == epoch_gc_thread->epoch);
-
-            ffma_mem_free(staged_object_1);
-            ffma_mem_free(staged_object_2);
+            REQUIRE(staged_object_1.data.object == (void*)1);
+            REQUIRE(staged_object_2.data.object == (void*)2);
+            REQUIRE(staged_object_1.data.epoch == epoch_gc_thread->epoch);
+            REQUIRE(staged_object_2.data.epoch == epoch_gc_thread->epoch);
         }
 
         SECTION("fill one ring") {
-            ring_bounded_spsc_t *ring_initial = epoch_gc_thread->staged_objects_ring_last;
+            ring_bounded_queue_spsc_uint128_t *ring_initial = epoch_gc_thread->staged_objects_ring_last;
 
             for(uint64_t i = 0; i < EPOCH_GC_STAGED_OBJECTS_RING_SIZE + 1; i++) {
                 REQUIRE(epoch_gc_stage_object(
                         EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, (void*)i) == true);
             }
 
-            REQUIRE(ring_bounded_spsc_get_length(
-                    (ring_bounded_spsc_t*)epoch_gc_thread->staged_objects_ring_list->head->data)
+            REQUIRE(ring_bounded_queue_spsc_uint128_get_length(
+                    (ring_bounded_queue_spsc_uint128_t*)epoch_gc_thread->staged_objects_ring_list->head->data)
                     == EPOCH_GC_STAGED_OBJECTS_RING_SIZE);
-            REQUIRE(ring_bounded_spsc_get_length(
-                    (ring_bounded_spsc_t*)epoch_gc_thread->staged_objects_ring_list->tail->data)
+            REQUIRE(ring_bounded_queue_spsc_uint128_get_length(
+                    (ring_bounded_queue_spsc_uint128_t*)epoch_gc_thread->staged_objects_ring_list->tail->data)
                     == 1);
 
             REQUIRE(epoch_gc_thread->staged_objects_ring_last != ring_initial);
             REQUIRE(epoch_gc_thread->staged_objects_ring_list->count == 2);
         }
 
-        // Free up the staged objects
-        double_linked_list_item_t *item = nullptr;
-        while((item = double_linked_list_iter_next(epoch_gc_thread->staged_objects_ring_list, item))) {
-            auto *ring = (ring_bounded_spsc_t*)item->data;
+        bool found = false;
+        do {
+            epoch_gc_staged_object_t staged_object_temp;
+            staged_object_temp._packed = ring_bounded_queue_spsc_uint128_dequeue(
+                    (ring_bounded_queue_spsc_uint128_t*)epoch_gc_thread->staged_objects_ring_list->head->data,
+                    &found);
+        } while(found);
 
-            // When freeing the epoch_gc_thread structure there should NEVER be staged objects in the ring
-            epoch_gc_staged_object_t *staged_object = nullptr;
-            while((staged_object = (epoch_gc_staged_object_t*)ring_bounded_spsc_dequeue(ring)) != nullptr) {
-                ffma_mem_free(staged_object);
-            }
+        if (epoch_gc_thread->staged_objects_ring_list->head->next) {
+            do {
+                epoch_gc_staged_object_t staged_object_temp;
+                staged_object_temp._packed = ring_bounded_queue_spsc_uint128_dequeue(
+                        (ring_bounded_queue_spsc_uint128_t*)epoch_gc_thread->staged_objects_ring_list->head->next->data,
+                        &found);
+            } while(found);
         }
 
         epoch_gc_thread_unregister_local(epoch_gc_thread);
