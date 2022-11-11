@@ -32,6 +32,7 @@ struct test_ring_bounded_spsc_fuzzy_test_thread_info {
     test_ring_bounded_spsc_fuzzy_test_thread_info_action_t action;
     uint32_volatile_t *ops_counter_total;
     uint32_volatile_t *ops_counter_enqueue;
+    uint32_volatile_t *ops_counter_dequeue;
 };
 
 typedef struct test_ring_bounded_spsc_fuzzy_test_data test_ring_bounded_spsc_fuzzy_test_data_t;
@@ -99,6 +100,7 @@ void *test_ring_bounded_spsc_fuzzy_multi_thread_thread_func(
                 continue;
             }
 
+            __atomic_fetch_add(ti->ops_counter_dequeue, 1, __ATOMIC_ACQ_REL);
             uint64_t hash_data_x = test_ring_bounded_spsc_calc_hash_x(data->ops_counter_total);
             uint64_t hash_data_y = test_ring_bounded_spsc_calc_hash_y(data->ops_counter_enqueue);
 
@@ -122,7 +124,7 @@ void *test_ring_bounded_spsc_fuzzy_multi_thread_thread_func(
 
 void test_ring_bounded_spsc_fuzzy_multi_thread(
         uint32_t duration) {
-    uint32_t ops_counter_total = 0, ops_counter_enqueue = 0;
+    uint32_t ops_counter_total = 0, ops_counter_enqueue = 0, ops_counter_dequeue = 0;
     timespec_t start_time, current_time, diff_time;
     ring_bounded_spsc_t *rb = ring_bounded_spsc_init(4096);
     bool start = false;
@@ -144,6 +146,7 @@ void test_ring_bounded_spsc_fuzzy_multi_thread(
                 : test_ring_bounded_spsc_fuzzy_test_thread_info_action_dequeue;
         ti->ops_counter_total = &ops_counter_total;
         ti->ops_counter_enqueue = &ops_counter_enqueue;
+        ti->ops_counter_dequeue = &ops_counter_dequeue;
 
         if (pthread_create(
                 &ti->thread,
@@ -186,8 +189,11 @@ void test_ring_bounded_spsc_fuzzy_multi_thread(
 
     void *to_free_data;
     while((to_free_data = (void*)ring_bounded_spsc_dequeue(rb)) != nullptr) {
+        ops_counter_dequeue++;
         free(to_free_data);
     }
+
+    REQUIRE(ops_counter_enqueue == ops_counter_dequeue);
 
     ring_bounded_spsc_free(rb);
     free(ti_list);
@@ -197,7 +203,7 @@ void test_ring_bounded_spsc_fuzzy_single_thread(
         uint32_t duration) {
     test_ring_bounded_spsc_fuzzy_test_data_t *data;
     timespec_t start_time, current_time, diff_time;
-    uint32_t ops_counter_total = 0, ops_counter_enqueue = 0;
+    uint32_t ops_counter_total = 0, ops_counter_enqueue = 0, ops_counter_dequeue = 0;
 
     ring_bounded_spsc_t *rb = ring_bounded_spsc_init(4096);
 
@@ -226,6 +232,7 @@ void test_ring_bounded_spsc_fuzzy_single_thread(
             data = (test_ring_bounded_spsc_fuzzy_test_data_t*) ring_bounded_spsc_dequeue(rb);
 
             if (data) {
+                ops_counter_dequeue++;
                 uint64_t hash_data_x = test_ring_bounded_spsc_calc_hash_x(data->ops_counter_total);
                 uint64_t hash_data_y = test_ring_bounded_spsc_calc_hash_y(data->ops_counter_enqueue);
 
@@ -250,8 +257,11 @@ void test_ring_bounded_spsc_fuzzy_single_thread(
 
     void *to_free_data;
     while((to_free_data = (void*)ring_bounded_spsc_dequeue(rb)) != nullptr) {
+        ops_counter_dequeue++;
         free(to_free_data);
     }
+
+    REQUIRE(ops_counter_enqueue == ops_counter_dequeue);
 
     ring_bounded_spsc_free(rb);
 }
