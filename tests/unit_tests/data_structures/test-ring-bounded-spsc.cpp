@@ -13,7 +13,7 @@
 #include "clock.h"
 #include "random.h"
 #include "thread.h"
-#include "data_structures/ring_bounded_spsc/ring_bounded_spsc.h"
+#include "data_structures/ring_bounded_spsc/ring_bounded_spsc_voidptr.h"
 
 enum test_ring_bounded_spsc_fuzzy_test_thread_info_action {
     test_ring_bounded_spsc_fuzzy_test_thread_info_action_enqueue = 0,
@@ -28,7 +28,7 @@ struct test_ring_bounded_spsc_fuzzy_test_thread_info {
     bool_volatile_t *start;
     bool_volatile_t *stop;
     bool_volatile_t stopped;
-    ring_bounded_spsc_t *ring;
+    ring_bounded_spsc_voidptr_t *ring;
     test_ring_bounded_spsc_fuzzy_test_thread_info_action_t action;
     uint32_volatile_t *ops_counter_total;
     uint32_volatile_t *ops_counter_enqueue;
@@ -66,7 +66,7 @@ void *test_ring_bounded_spsc_fuzzy_multi_thread_thread_func(
     auto *ti = (test_ring_bounded_spsc_fuzzy_test_thread_info_t*)user_data;
     test_ring_bounded_spsc_fuzzy_test_data_t *data;
 
-    ring_bounded_spsc *ring_bounded_spsc = ti->ring;
+    ring_bounded_spsc_voidptr_t *ring_bounded_spsc = ti->ring;
 
     thread_current_set_affinity(ti->cpu_index);
 
@@ -87,12 +87,12 @@ void *test_ring_bounded_spsc_fuzzy_multi_thread_thread_func(
             data->hash_data_x = test_ring_bounded_spsc_calc_hash_x(data->ops_counter_total);
             data->hash_data_y = test_ring_bounded_spsc_calc_hash_y(data->ops_counter_enqueue);
 
-            if (!ring_bounded_spsc_enqueue(ring_bounded_spsc, data)) {
+            if (!ring_bounded_spsc_voidptr_enqueue(ring_bounded_spsc, data)) {
                 __atomic_fetch_sub(ti->ops_counter_enqueue, 1, __ATOMIC_ACQ_REL);
                 free(data);
             }
         } else {
-            data = (test_ring_bounded_spsc_fuzzy_test_data_t*) ring_bounded_spsc_dequeue(ring_bounded_spsc);
+            data = (test_ring_bounded_spsc_fuzzy_test_data_t*) ring_bounded_spsc_voidptr_dequeue(ring_bounded_spsc);
 
             // There was an item at the time of the get length but not anymore
             if(!data) {
@@ -126,7 +126,7 @@ void test_ring_bounded_spsc_fuzzy_multi_thread(
         uint32_t duration) {
     uint32_t ops_counter_total = 0, ops_counter_enqueue = 0, ops_counter_dequeue = 0;
     timespec_t start_time, current_time, diff_time;
-    ring_bounded_spsc_t *rb = ring_bounded_spsc_init(4096);
+    ring_bounded_spsc_voidptr_t *rb = ring_bounded_spsc_voidptr_init(4096);
     bool start = false;
     bool stop = false;
 
@@ -188,14 +188,14 @@ void test_ring_bounded_spsc_fuzzy_multi_thread(
     } while(!stopped);
 
     void *to_free_data;
-    while((to_free_data = (void*)ring_bounded_spsc_dequeue(rb)) != nullptr) {
+    while((to_free_data = (void*)ring_bounded_spsc_voidptr_dequeue(rb)) != nullptr) {
         ops_counter_dequeue++;
         free(to_free_data);
     }
 
     REQUIRE(ops_counter_enqueue == ops_counter_dequeue);
 
-    ring_bounded_spsc_free(rb);
+    ring_bounded_spsc_voidptr_free(rb);
     free(ti_list);
 }
 
@@ -205,7 +205,7 @@ void test_ring_bounded_spsc_fuzzy_single_thread(
     timespec_t start_time, current_time, diff_time;
     uint32_t ops_counter_total = 0, ops_counter_enqueue = 0, ops_counter_dequeue = 0;
 
-    ring_bounded_spsc_t *rb = ring_bounded_spsc_init(4096);
+    ring_bounded_spsc_voidptr_t *rb = ring_bounded_spsc_voidptr_init(4096);
 
     clock_monotonic(&start_time);
 
@@ -225,11 +225,11 @@ void test_ring_bounded_spsc_fuzzy_single_thread(
             data->hash_data_x = test_ring_bounded_spsc_calc_hash_x(data->ops_counter_total);
             data->hash_data_y = test_ring_bounded_spsc_calc_hash_y(data->ops_counter_enqueue);
 
-            enqueue_success = ring_bounded_spsc_enqueue(rb, data);
+            enqueue_success = ring_bounded_spsc_voidptr_enqueue(rb, data);
         }
 
         if (!enqueue_or_dequeue || !enqueue_success) {
-            data = (test_ring_bounded_spsc_fuzzy_test_data_t*) ring_bounded_spsc_dequeue(rb);
+            data = (test_ring_bounded_spsc_fuzzy_test_data_t*) ring_bounded_spsc_voidptr_dequeue(rb);
 
             if (data) {
                 ops_counter_dequeue++;
@@ -256,76 +256,75 @@ void test_ring_bounded_spsc_fuzzy_single_thread(
     } while(diff_time.tv_sec < duration);
 
     void *to_free_data;
-    while((to_free_data = (void*)ring_bounded_spsc_dequeue(rb)) != nullptr) {
+    while((to_free_data = (void*)ring_bounded_spsc_voidptr_dequeue(rb)) != nullptr) {
         ops_counter_dequeue++;
         free(to_free_data);
     }
 
     REQUIRE(ops_counter_enqueue == ops_counter_dequeue);
 
-    ring_bounded_spsc_free(rb);
+    ring_bounded_spsc_voidptr_free(rb);
 }
 
 TEST_CASE("data_structures/ring_bounded_spsc/ring_bounded_spsc.c", "[data_structures][ring_bounded_spsc]") {
-    SECTION("ring_bounded_spsc_init") {
-        ring_bounded_spsc_t* rb = ring_bounded_spsc_init(10);
+    SECTION("ring_bounded_spsc_voidptr_init") {
+        ring_bounded_spsc_voidptr_t* rb = ring_bounded_spsc_voidptr_init(10);
 
         REQUIRE(rb != NULL);
         REQUIRE(rb->size == 16);
         REQUIRE(rb->head == 0);
         REQUIRE(rb->tail == 0);
-        REQUIRE(rb->items != NULL);
 
-        ring_bounded_spsc_free(rb);
+        ring_bounded_spsc_voidptr_free(rb);
     }
 
     SECTION("ring_bounded_spsc_get_length") {
-        ring_bounded_spsc_t* rb = ring_bounded_spsc_init(10);
+        ring_bounded_spsc_voidptr_t* rb = ring_bounded_spsc_voidptr_init(10);
 
         rb->tail = 5;
-        REQUIRE(ring_bounded_spsc_get_length(rb) == 5);
+        REQUIRE(ring_bounded_spsc_voidptr_get_length(rb) == 5);
 
-        ring_bounded_spsc_free(rb);
+        ring_bounded_spsc_voidptr_free(rb);
     }
 
     SECTION("ring_bounded_spsc_is_empty") {
-        ring_bounded_spsc_t* rb = ring_bounded_spsc_init(10);
+        ring_bounded_spsc_voidptr_t* rb = ring_bounded_spsc_voidptr_init(10);
 
         SECTION("empty") {
-            REQUIRE(ring_bounded_spsc_is_empty(rb) == true);
+            REQUIRE(ring_bounded_spsc_voidptr_is_empty(rb) == true);
         }
 
         SECTION("not empty") {
             rb->tail = 5;
-            REQUIRE(ring_bounded_spsc_is_empty(rb) == false);
+            REQUIRE(ring_bounded_spsc_voidptr_is_empty(rb) == false);
         }
 
-        ring_bounded_spsc_free(rb);
+        ring_bounded_spsc_voidptr_free(rb);
     }
 
     SECTION("ring_bounded_spsc_is_full") {
-        ring_bounded_spsc_t* rb = ring_bounded_spsc_init(10);
+        ring_bounded_spsc_voidptr_t* rb = ring_bounded_spsc_voidptr_init(10);
 
         SECTION("full") {
             rb->tail = rb->size;
-            REQUIRE(ring_bounded_spsc_is_full(rb) == true);
+            REQUIRE(ring_bounded_spsc_voidptr_is_full(rb) == true);
         }
 
         SECTION("not full") {
             rb->tail = 0;
-            REQUIRE(ring_bounded_spsc_is_full(rb) == false);
+            REQUIRE(ring_bounded_spsc_voidptr_is_full(rb) == false);
         }
 
-        ring_bounded_spsc_free(rb);
+        ring_bounded_spsc_voidptr_free(rb);
     }
 
-    SECTION("ring_bounded_spsc_enqueue") {
+    SECTION("ring_bounded_spsc_voidptr_enqueue") {
         bool res;
-        ring_bounded_spsc_t* rb = ring_bounded_spsc_init(10);
+        ring_bounded_spsc_voidptr_t* rb = ring_bounded_spsc_voidptr_init(10);
         void** random_values_from_memory = (void**)malloc(sizeof(void*) * rb->size);
 
         SECTION("enqueue 1") {
-            res = ring_bounded_spsc_enqueue(rb, random_values_from_memory[0]);
+            res = ring_bounded_spsc_voidptr_enqueue(rb, random_values_from_memory[0]);
 
             REQUIRE(res == true);
             REQUIRE(rb->head == 0);
@@ -334,10 +333,10 @@ TEST_CASE("data_structures/ring_bounded_spsc/ring_bounded_spsc.c", "[data_struct
         }
 
         SECTION("enqueue 2") {
-            res = ring_bounded_spsc_enqueue(rb, random_values_from_memory[0]);
+            res = ring_bounded_spsc_voidptr_enqueue(rb, random_values_from_memory[0]);
             REQUIRE(res == true);
 
-            res = ring_bounded_spsc_enqueue(rb, random_values_from_memory[1]);
+            res = ring_bounded_spsc_voidptr_enqueue(rb, random_values_from_memory[1]);
             REQUIRE(res == true);
 
             REQUIRE(rb->head == 0);
@@ -347,7 +346,7 @@ TEST_CASE("data_structures/ring_bounded_spsc/ring_bounded_spsc.c", "[data_struct
 
         SECTION("fill circular queue") {
             for(int i = 0; i < rb->size; i++) {
-                res = ring_bounded_spsc_enqueue(rb, random_values_from_memory[i]);
+                res = ring_bounded_spsc_voidptr_enqueue(rb, random_values_from_memory[i]);
                 REQUIRE(res == true);
             }
 
@@ -357,47 +356,47 @@ TEST_CASE("data_structures/ring_bounded_spsc/ring_bounded_spsc.c", "[data_struct
 
         SECTION("overflow circular queue") {
             for(int i = 0; i < rb->size; i++) {
-                res = ring_bounded_spsc_enqueue(rb, random_values_from_memory[i]);
+                res = ring_bounded_spsc_voidptr_enqueue(rb, random_values_from_memory[i]);
                 REQUIRE(res == true);
             }
 
-            res = ring_bounded_spsc_enqueue(rb, random_values_from_memory[0]);
+            res = ring_bounded_spsc_voidptr_enqueue(rb, random_values_from_memory[0]);
             REQUIRE(res == false);
         }
 
-        ring_bounded_spsc_free(rb);
+        ring_bounded_spsc_voidptr_free(rb);
         free(random_values_from_memory);
     }
 
     SECTION("ring_bounded_spsc_peek") {
-        ring_bounded_spsc_t* rb = ring_bounded_spsc_init(10);
+        ring_bounded_spsc_voidptr_t* rb = ring_bounded_spsc_voidptr_init(10);
         void** random_values_from_memory = (void**)malloc(sizeof(void*) * rb->size);
 
         SECTION("enqueue 1") {
-            ring_bounded_spsc_enqueue(rb, random_values_from_memory[0]);
+            ring_bounded_spsc_voidptr_enqueue(rb, random_values_from_memory[0]);
 
-            REQUIRE(ring_bounded_spsc_peek(rb) == random_values_from_memory[0]);
+            REQUIRE(ring_bounded_spsc_voidptr_peek(rb) == random_values_from_memory[0]);
         }
 
         SECTION("enqueue 2") {
-            ring_bounded_spsc_enqueue(rb, random_values_from_memory[0]);
-            ring_bounded_spsc_enqueue(rb, random_values_from_memory[1]);
+            ring_bounded_spsc_voidptr_enqueue(rb, random_values_from_memory[0]);
+            ring_bounded_spsc_voidptr_enqueue(rb, random_values_from_memory[1]);
 
-            REQUIRE(ring_bounded_spsc_peek(rb) == random_values_from_memory[0]);
+            REQUIRE(ring_bounded_spsc_voidptr_peek(rb) == random_values_from_memory[0]);
         }
 
-        ring_bounded_spsc_free(rb);
+        ring_bounded_spsc_voidptr_free(rb);
         free(random_values_from_memory);
     }
 
-    SECTION("ring_bounded_spsc_dequeue") {
-        ring_bounded_spsc_t* rb = ring_bounded_spsc_init(10);
+    SECTION("ring_bounded_spsc_voidptr_dequeue") {
+        ring_bounded_spsc_voidptr_t* rb = ring_bounded_spsc_voidptr_init(10);
         void** random_values_from_memory = (void**)malloc(sizeof(void*) * rb->size);
 
         SECTION("dequeue 1") {
-            ring_bounded_spsc_enqueue(rb, random_values_from_memory[0]);
+            ring_bounded_spsc_voidptr_enqueue(rb, random_values_from_memory[0]);
 
-            void* value = ring_bounded_spsc_dequeue(rb);
+            void* value = ring_bounded_spsc_voidptr_dequeue(rb);
 
             REQUIRE(value == random_values_from_memory[0]);
             REQUIRE(rb->head == 1);
@@ -405,11 +404,11 @@ TEST_CASE("data_structures/ring_bounded_spsc/ring_bounded_spsc.c", "[data_struct
         }
 
         SECTION("dequeue 2") {
-            ring_bounded_spsc_enqueue(rb, random_values_from_memory[0]);
-            ring_bounded_spsc_enqueue(rb, random_values_from_memory[1]);
+            ring_bounded_spsc_voidptr_enqueue(rb, random_values_from_memory[0]);
+            ring_bounded_spsc_voidptr_enqueue(rb, random_values_from_memory[1]);
 
-            void* value1 = ring_bounded_spsc_dequeue(rb);
-            void* value2 = ring_bounded_spsc_dequeue(rb);
+            void* value1 = ring_bounded_spsc_voidptr_dequeue(rb);
+            void* value2 = ring_bounded_spsc_voidptr_dequeue(rb);
 
             REQUIRE(value1 == random_values_from_memory[0]);
             REQUIRE(value2 == random_values_from_memory[1]);
@@ -418,11 +417,11 @@ TEST_CASE("data_structures/ring_bounded_spsc/ring_bounded_spsc.c", "[data_struct
         }
 
         SECTION("enqueue and dequeue twice 2") {
-            ring_bounded_spsc_enqueue(rb, random_values_from_memory[0]);
-            void* value1 = ring_bounded_spsc_dequeue(rb);
+            ring_bounded_spsc_voidptr_enqueue(rb, random_values_from_memory[0]);
+            void* value1 = ring_bounded_spsc_voidptr_dequeue(rb);
 
-            ring_bounded_spsc_enqueue(rb, random_values_from_memory[1]);
-            void* value2 = ring_bounded_spsc_dequeue(rb);
+            ring_bounded_spsc_voidptr_enqueue(rb, random_values_from_memory[1]);
+            void* value2 = ring_bounded_spsc_voidptr_dequeue(rb);
 
             REQUIRE(value1 == random_values_from_memory[0]);
             REQUIRE(value2 == random_values_from_memory[1]);
@@ -432,11 +431,11 @@ TEST_CASE("data_structures/ring_bounded_spsc/ring_bounded_spsc.c", "[data_struct
 
         SECTION("fill and empty circular queue") {
             for(int i = 0; i < rb->size; i++) {
-                ring_bounded_spsc_enqueue(rb, random_values_from_memory[i]);
+                ring_bounded_spsc_voidptr_enqueue(rb, random_values_from_memory[i]);
             }
 
             for(int i = 0; i < rb->size; i++) {
-                void* value = ring_bounded_spsc_dequeue(rb);
+                void* value = ring_bounded_spsc_voidptr_dequeue(rb);
                 REQUIRE(value == random_values_from_memory[i]);
             }
 
@@ -444,7 +443,7 @@ TEST_CASE("data_structures/ring_bounded_spsc/ring_bounded_spsc.c", "[data_struct
             REQUIRE(rb->tail == rb->size);
         }
 
-        ring_bounded_spsc_free(rb);
+        ring_bounded_spsc_voidptr_free(rb);
         free(random_values_from_memory);
     }
 
