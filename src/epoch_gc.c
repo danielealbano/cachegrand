@@ -16,13 +16,13 @@
 #include "spinlock.h"
 #include "intrinsics.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
-#include "data_structures/ring_bounded_spsc/ring_bounded_spsc_uint128.h"
+#include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 
 #include "epoch_gc.h"
 
 typedef struct ring_list_item_map ring_list_item_map_t;
 struct ring_list_item_map {
-    ring_bounded_spsc_uint128_t *ring;
+    ring_bounded_queue_spsc_uint128_t *ring;
     double_linked_list_item_t *item;
     bool to_delete;
 };
@@ -75,7 +75,7 @@ void epoch_gc_unregister_object_type_destructor_cb(
 
 void epoch_gc_thread_append_new_staged_objects_ring(
         epoch_gc_thread_t *epoch_gc_thread) {
-    ring_bounded_spsc_uint128_t *rb = ring_bounded_spsc_uint128_init(EPOCH_GC_STAGED_OBJECTS_RING_SIZE);
+    ring_bounded_queue_spsc_uint128_t *rb = ring_bounded_queue_spsc_uint128_init(EPOCH_GC_STAGED_OBJECTS_RING_SIZE);
 
     // Initialize the new double linked list item
     double_linked_list_item_t *rb_item = double_linked_list_item_init();
@@ -95,7 +95,7 @@ epoch_gc_thread_t *epoch_gc_thread_init() {
     epoch_gc_thread = xalloc_alloc_zero( sizeof(epoch_gc_thread_t));
     epoch_gc_thread->epoch = 0;
     epoch_gc_thread->staged_objects_ring_list = double_linked_list_init();
-    epoch_gc_thread->staged_objects_ring_last = ring_bounded_spsc_uint128_init(EPOCH_GC_STAGED_OBJECTS_RING_SIZE);
+    epoch_gc_thread->staged_objects_ring_last = ring_bounded_queue_spsc_uint128_init(EPOCH_GC_STAGED_OBJECTS_RING_SIZE);
     spinlock_init(&epoch_gc_thread->staged_objects_ring_list_spinlock);
 
     // Initialize the ring a new ring for the staged objects
@@ -109,13 +109,13 @@ void epoch_gc_thread_free(
     double_linked_list_item_t *item = epoch_gc_thread->staged_objects_ring_list->head;
     while(item != NULL) {
         double_linked_list_item_t *current = item;
-        ring_bounded_spsc_uint128_t *ring = (ring_bounded_spsc_uint128_t*)current->data;
+        ring_bounded_queue_spsc_uint128_t *ring = (ring_bounded_queue_spsc_uint128_t*)current->data;
         item = item->next;
 
         // When freeing the epoch_gc_thread structure there should NEVER be staged objects in the ring
-        assert(ring_bounded_spsc_uint128_get_length(ring) == 0);
+        assert(ring_bounded_queue_spsc_uint128_get_length(ring) == 0);
 
-        ring_bounded_spsc_uint128_free(ring);
+        ring_bounded_queue_spsc_uint128_free(ring);
         double_linked_list_item_free(current);
     }
 
@@ -249,12 +249,12 @@ uint32_t epoch_gc_thread_collect(
     if (likely(epoch_gc_thread->staged_objects_ring_list->count == 1)) {
         // The ring is loaded from staged_objects_ring_list->head instead that from staged_objects_ring_last just in
         // case a new ring get added right after reading the count.
-        ring_bounded_spsc_uint128_t *staged_objects_ring = epoch_gc_thread->staged_objects_ring_list->head->data;
+        ring_bounded_queue_spsc_uint128_t *staged_objects_ring = epoch_gc_thread->staged_objects_ring_list->head->data;
 
         // Peek, instead of dequeue, to avoid fetching an item that can't be destroyed as potentially it's in use
         while(true) {
             bool found = false;
-            staged_object._packed = ring_bounded_spsc_uint128_peek(staged_objects_ring, &found);
+            staged_object._packed = ring_bounded_queue_spsc_uint128_peek(staged_objects_ring, &found);
 
             if (unlikely(!found)) {
                 break;
@@ -265,7 +265,7 @@ uint32_t epoch_gc_thread_collect(
             }
 
             // Remove the fetched object from the queue
-            ring_bounded_spsc_uint128_dequeue(staged_objects_ring, NULL);
+            ring_bounded_queue_spsc_uint128_dequeue(staged_objects_ring, NULL);
 
             staged_objects_to_delete[staged_objects_to_delete_counter]._packed = staged_object._packed;
             staged_objects_to_delete_counter++;
@@ -303,12 +303,12 @@ uint32_t epoch_gc_thread_collect(
                 ring_list_item_map_index < ring_list_item_map_length;
                 ring_list_item_map_index++) {
             bool stop = false;
-            ring_bounded_spsc_uint128_t *staged_objects_ring = ring_list_item_map_list[ring_list_item_map_index].ring;
+            ring_bounded_queue_spsc_uint128_t *staged_objects_ring = ring_list_item_map_list[ring_list_item_map_index].ring;
 
             // Peek, instead of dequeue, to avoid fetching an item that can't be destroyed as potentially it's in use
             while(true) {
                 bool found = false;
-                staged_object._packed = ring_bounded_spsc_uint128_peek(staged_objects_ring, &found);
+                staged_object._packed = ring_bounded_queue_spsc_uint128_peek(staged_objects_ring, &found);
 
                 if (unlikely(!found)) {
                     break;
@@ -320,7 +320,7 @@ uint32_t epoch_gc_thread_collect(
                 }
 
                 // Remove the fetched object from the queue
-                ring_bounded_spsc_uint128_dequeue(staged_objects_ring, NULL);
+                ring_bounded_queue_spsc_uint128_dequeue(staged_objects_ring, NULL);
 
                 staged_objects_to_delete[staged_objects_to_delete_counter] = staged_object;
                 staged_objects_to_delete_counter++;
@@ -347,7 +347,7 @@ uint32_t epoch_gc_thread_collect(
                 ring_list_item_map_index = 0;
                 ring_list_item_map_index < ring_list_item_map_length;
                 ring_list_item_map_index++) {
-            ring_bounded_spsc_uint128_t *staged_objects_ring = ring_list_item_map_list[ring_list_item_map_index].ring;
+            ring_bounded_queue_spsc_uint128_t *staged_objects_ring = ring_list_item_map_list[ring_list_item_map_index].ring;
 
             // Don't delete the active ring
             if (ring_list_item_map_list[ring_list_item_map_index].to_delete == false ||
@@ -359,7 +359,7 @@ uint32_t epoch_gc_thread_collect(
                     epoch_gc_thread->staged_objects_ring_list,
                     ring_list_item_map_list[ring_list_item_map_index].item);
             double_linked_list_item_free(ring_list_item_map_list[ring_list_item_map_index].item);
-            ring_bounded_spsc_uint128_free(ring_list_item_map_list[ring_list_item_map_index].ring);
+            ring_bounded_queue_spsc_uint128_free(ring_list_item_map_list[ring_list_item_map_index].ring);
         }
 
         spinlock_unlock(&epoch_gc_thread->staged_objects_ring_list_spinlock);
@@ -399,11 +399,11 @@ bool epoch_gc_stage_object(
     };
 
     // Try to insert the pointer into the last available ring
-    if (unlikely(!ring_bounded_spsc_uint128_enqueue(epoch_gc_thread->staged_objects_ring_last, staged_object._packed))) {
+    if (unlikely(!ring_bounded_queue_spsc_uint128_enqueue(epoch_gc_thread->staged_objects_ring_last, staged_object._packed))) {
         // If the operation fails a new ring has to be appended and the operation retried
         epoch_gc_thread_append_new_staged_objects_ring(epoch_gc_thread);
 
-        if (unlikely(!ring_bounded_spsc_uint128_enqueue(epoch_gc_thread->staged_objects_ring_last, staged_object._packed))) {
+        if (unlikely(!ring_bounded_queue_spsc_uint128_enqueue(epoch_gc_thread->staged_objects_ring_last, staged_object._packed))) {
             // Can't really happen as the ring is brand new and therefore empty, but better to always check the return
             // values. This is also the slow path so an additional branch is not a particular problem.
             return false;

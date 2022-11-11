@@ -27,7 +27,7 @@
 #include "transaction_spinlock.h"
 #include "utils_string.h"
 #include "xalloc.h"
-#include "data_structures/ring_bounded_spsc/ring_bounded_spsc_voidptr.h"
+#include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
@@ -130,8 +130,8 @@ storage_db_t* storage_db_new(
 
     // Initialize the per worker needed information
     for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
-        ring_bounded_spsc_voidptr_t *deleted_entry_index_ring_buffer =
-                ring_bounded_spsc_voidptr_init(STORAGE_DB_WORKER_ENTRY_INDEX_RING_BUFFER_SIZE);
+        ring_bounded_queue_spsc_voidptr_t *deleted_entry_index_ring_buffer =
+                ring_bounded_queue_spsc_voidptr_init(STORAGE_DB_WORKER_ENTRY_INDEX_RING_BUFFER_SIZE);
 
         if (!deleted_entry_index_ring_buffer) {
             LOG_E(TAG, "Unable to allocate memory for the deleted entry index ring buffer per worker");
@@ -188,7 +188,7 @@ fail:
     if (workers) {
         for(uint32_t worker_index = 0; worker_index < workers_count; worker_index++) {
             if (workers[worker_index].deleted_entry_index_ring_buffer) {
-                ring_bounded_spsc_voidptr_free(workers[worker_index].deleted_entry_index_ring_buffer);
+                ring_bounded_queue_spsc_voidptr_free(workers[worker_index].deleted_entry_index_ring_buffer);
             }
 
             if (workers[worker_index].deleting_entry_index_list) {
@@ -237,7 +237,7 @@ storage_db_shard_t *storage_db_worker_active_shard(
     return db->workers[worker_index].active_shard;
 }
 
-ring_bounded_spsc_voidptr_t *storage_db_worker_deleted_entry_index_ring_buffer(
+ring_bounded_queue_spsc_voidptr_t *storage_db_worker_deleted_entry_index_ring_buffer(
         storage_db_t *db) {
     worker_context_t *worker_context = worker_context_get();
     uint32_t worker_index = worker_context->worker_index;
@@ -440,17 +440,17 @@ void storage_db_deleted_entry_ring_buffer_per_worker_free(
         storage_db_t *db,
         uint32_t worker_index) {
     storage_db_entry_index_t *entry_index = NULL;
-    ring_bounded_spsc_voidptr_t *rb = db->workers[worker_index].deleted_entry_index_ring_buffer;
+    ring_bounded_queue_spsc_voidptr_t *rb = db->workers[worker_index].deleted_entry_index_ring_buffer;
 
     if (!rb) {
         return;
     }
 
-    while((entry_index = ring_bounded_spsc_voidptr_dequeue(rb)) != NULL) {
+    while((entry_index = ring_bounded_queue_spsc_voidptr_dequeue(rb)) != NULL) {
         storage_db_entry_index_free(db, entry_index);
     }
 
-    ring_bounded_spsc_voidptr_free(rb);
+    ring_bounded_queue_spsc_voidptr_free(rb);
 }
 
 void storage_db_deleting_entry_index_list_per_worker_free(
@@ -520,10 +520,10 @@ storage_db_entry_index_t *storage_db_entry_index_ring_buffer_new(
     // might be trying to access the value stored in the hashtable to be checked.
     // if the queue is not full then a new entry_index is allocated
 
-    ring_bounded_spsc_voidptr_t *rb = storage_db_worker_deleted_entry_index_ring_buffer(db);
+    ring_bounded_queue_spsc_voidptr_t *rb = storage_db_worker_deleted_entry_index_ring_buffer(db);
 
-    if (ring_bounded_spsc_voidptr_is_full(rb)) {
-        entry_index = ring_bounded_spsc_voidptr_dequeue(rb);
+    if (ring_bounded_queue_spsc_voidptr_is_full(rb)) {
+        entry_index = ring_bounded_queue_spsc_voidptr_dequeue(rb);
         entry_index->status._cas_wrapper = 0;
     } else {
         entry_index = storage_db_entry_index_new();
@@ -542,15 +542,15 @@ void storage_db_entry_index_touch(
 void storage_db_entry_index_ring_buffer_free(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index) {
-    ring_bounded_spsc_voidptr_t *rb = storage_db_worker_deleted_entry_index_ring_buffer(db);
+    ring_bounded_queue_spsc_voidptr_t *rb = storage_db_worker_deleted_entry_index_ring_buffer(db);
 
     // If the queue is full, the entry in the head can be dequeued and freed because it means it has lived enough
-    if (ring_bounded_spsc_voidptr_is_full(rb)) {
-        storage_db_entry_index_t *entry_index_to_free = ring_bounded_spsc_voidptr_dequeue(rb);
+    if (ring_bounded_queue_spsc_voidptr_is_full(rb)) {
+        storage_db_entry_index_t *entry_index_to_free = ring_bounded_queue_spsc_voidptr_dequeue(rb);
         storage_db_entry_index_free(db, entry_index_to_free);
     }
 
-    ring_bounded_spsc_voidptr_enqueue(rb, entry_index);
+    ring_bounded_queue_spsc_voidptr_enqueue(rb, entry_index);
 }
 
 storage_db_entry_index_t *storage_db_entry_index_new() {

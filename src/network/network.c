@@ -27,7 +27,7 @@
 #include "fiber/fiber.h"
 #include "fiber/fiber_scheduler.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
-#include "data_structures/ring_bounded_spsc/ring_bounded_spsc_voidptr.h"
+#include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "support/simple_file_io.h"
 #include "config.h"

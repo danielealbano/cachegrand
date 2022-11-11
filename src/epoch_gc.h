@@ -30,7 +30,7 @@ struct epoch_gc {
 
 typedef struct epoch_gc_thread epoch_gc_thread_t;
 struct epoch_gc_thread {
-    ring_bounded_spsc_uint128_t *staged_objects_ring_last;
+    ring_bounded_queue_spsc_uint128_t *staged_objects_ring_last;
     double_linked_list_t *staged_objects_ring_list;
     uint64_t epoch;
     epoch_gc_t *epoch_gc;
