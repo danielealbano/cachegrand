@@ -368,6 +368,36 @@ TEST_CASE("data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc.c", "
         free(random_values_from_memory);
     }
 
+    SECTION("ring_bounded_queue_spsc_voidptr_enqueue_ptr") {
+        void** ptr;
+        ring_bounded_queue_spsc_voidptr_t* rb = ring_bounded_queue_spsc_voidptr_init(10);
+        void** random_values_from_memory = (void**)malloc(sizeof(void*) * rb->size);
+
+        SECTION("enqueue 1") {
+            ptr = ring_bounded_queue_spsc_voidptr_enqueue_ptr(rb, random_values_from_memory[0]);
+
+            REQUIRE(ptr == &rb->items[0]);
+            REQUIRE(rb->head == 0);
+            REQUIRE(rb->tail == 1);
+            REQUIRE(rb->items[0] == random_values_from_memory[0]);
+        }
+
+        SECTION("enqueue 2") {
+            ptr = ring_bounded_queue_spsc_voidptr_enqueue_ptr(rb, random_values_from_memory[0]);
+            REQUIRE(ptr == &rb->items[0]);
+
+            ptr = ring_bounded_queue_spsc_voidptr_enqueue_ptr(rb, random_values_from_memory[1]);
+            REQUIRE(ptr == &rb->items[1]);
+
+            REQUIRE(rb->head == 0);
+            REQUIRE(rb->tail == 2);
+            REQUIRE(rb->items[1] == random_values_from_memory[1]);
+        }
+
+        ring_bounded_queue_spsc_voidptr_free(rb);
+        free(random_values_from_memory);
+    }
+
     SECTION("ring_bounded_queue_spsc_peek") {
         ring_bounded_queue_spsc_voidptr_t* rb = ring_bounded_queue_spsc_voidptr_init(10);
         void** random_values_from_memory = (void**)malloc(sizeof(void*) * rb->size);
