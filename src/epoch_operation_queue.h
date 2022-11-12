@@ -10,15 +10,15 @@ extern "C" {
 typedef union epoch_operation_queue_operation epoch_operation_queue_operation_t;
 union epoch_operation_queue_operation {
     struct {
-        uint64_t start_epoch;
-        uint64_t end_epoch;
+        bool completed:1;
+        uint64_t start_epoch:63;
     } data;
-    uint128_t _packed;
+    uint64_t _packed;
 };
 
 typedef struct epoch_operation_queue epoch_operation_queue_t;
 struct epoch_operation_queue {
-    ring_bounded_queue_spsc_uint128_t *ring;
+    ring_bounded_queue_spsc_uint64_t *ring;
     uint64_t latest_epoch;
 };
 
