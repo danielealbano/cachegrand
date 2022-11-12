@@ -139,6 +139,32 @@ static inline bool RING_BOUNDED_QUEUE_SPSC_ABI(enqueue)(
     return true;
 }
 
+static inline RING_BOUNDED_QUEUE_SPSC_ITEM_TYPE* RING_BOUNDED_QUEUE_SPSC_ABI(enqueue_ptr)(
+        RING_BOUNDED_QUEUE_SPSC_ITEM_TYPEDEF *rb,
+        RING_BOUNDED_QUEUE_SPSC_ITEM_TYPE value) {
+    RING_BOUNDED_QUEUE_SPSC_ITEM_TYPE* return_value;
+
+    // First update the value, then update the tail index, all using memory fences. This will ensure that when using
+    // different threads as consumer / producer, the change will be visible only after the value has been written
+
+    MEMORY_FENCE_LOAD();
+
+    if (unlikely(RING_BOUNDED_QUEUE_SPSC_ABI(is_full)(rb))) {
+        return NULL;
+    }
+
+    rb->items[rb->tail & rb->mask] = value;
+    return_value = (RING_BOUNDED_QUEUE_SPSC_ITEM_TYPE*)&rb->items[rb->tail & rb->mask];
+
+    MEMORY_FENCE_STORE();
+
+    rb->tail++;
+
+    MEMORY_FENCE_STORE();
+
+    return return_value;
+}
+
 static inline RING_BOUNDED_QUEUE_SPSC_ITEM_TYPE RING_BOUNDED_QUEUE_SPSC_ABI(dequeue)(
 #if RING_BOUNDED_QUEUE_SPSC_ABI_EXPOSE_FOUND == 1
         RING_BOUNDED_QUEUE_SPSC_ITEM_TYPEDEF *rb,
