@@ -1,0 +1,13 @@
+3rdparty/*
+!3rdparty/*.cmake
+
+tests/unit_tests/fixtures/*
+
+*.md
+*.txt
+*.json
+
+.venv
+cmake-build-*
+.ignore
+.git*
