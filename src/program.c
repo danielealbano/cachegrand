@@ -28,6 +28,7 @@
 #include "exttypes.h"
 #include "clock.h"
 #include "xalloc.h"
+#include "memory_fences.h"
 #include "pidfile.h"
 #include "log/log.h"
 #include "log/sink/log_sink.h"
@@ -39,8 +40,10 @@
 #include "config.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
+#include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
-#include "memory_fences.h"
+#include "epoch_gc.h"
+#include "epoch_gc_worker.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
@@ -102,6 +105,38 @@ signal_handler_thread_context_t* program_signal_handler_thread_initialize(
     }
 
     return signal_handler_thread_context;
+}
+
+bool program_epoch_gc_workers_initialize(
+        bool_volatile_t *terminate_event_loop,
+        program_context_t *program_context) {
+
+    int epoch_gc_workers_count = (int)EPOCH_GC_OBJECT_TYPE_MAX;
+    program_context->epoch_gc_workers_context =
+            xalloc_alloc_zero(epoch_gc_workers_count * sizeof(epoch_gc_worker_context_t));
+
+    LOG_V(TAG, "Creating epoch gc workers");
+
+    for(int object_type_index = 0; object_type_index < epoch_gc_workers_count; object_type_index++) {
+        epoch_gc_worker_context_t *epoch_gc_worker_context =
+                &program_context->epoch_gc_workers_context[object_type_index];
+
+        epoch_gc_worker_context->epoch_gc = epoch_gc_init(object_type_index);
+        epoch_gc_worker_context->terminate_event_loop = terminate_event_loop;
+        epoch_gc_worker_context->stats.collected_objects = 0;
+
+        if (pthread_create(
+                &epoch_gc_worker_context->pthread,
+                NULL,
+                epoch_gc_worker_func,
+                epoch_gc_worker_context) != 0) {
+            LOG_E(TAG, "Unable to start the epoch gc worker for object type index <%d>", object_type_index);
+            LOG_E_OS_ERROR(TAG);
+            return false;
+        }
+    }
+
+    return true;
 }
 
 void program_workers_initialize_count(
@@ -265,6 +300,42 @@ void program_workers_cleanup(
                     worker_index);
         }
     }
+}
+
+void program_epoch_gc_workers_cleanup(
+        epoch_gc_worker_context_t *epoch_gc_workers_context,
+        uint32_t epoch_gc_workers_count) {
+    int res;
+
+    LOG_V(
+            TAG,
+            "Cleaning signal handler thread");
+    LOG_V(
+            TAG,
+            "Waiting for signal handler thread to terminate");
+
+    for(uint32_t index = 0; index < epoch_gc_workers_count; index++) {
+        epoch_gc_worker_context_t *epoch_gc_worker_context = &epoch_gc_workers_context[index];
+
+        if (epoch_gc_worker_context->epoch_gc == NULL) {
+            continue;
+        }
+
+        res = pthread_join(
+                epoch_gc_worker_context->pthread,
+                NULL);
+
+        if (res != 0) {
+            LOG_E(TAG, "Error while joining the epoch gc worker for object type <%d>", index);
+            LOG_E_OS_ERROR(TAG);
+        } else {
+            LOG_V(TAG, "Epoch gc worker for object type <%d> terminated", index);
+        }
+
+        epoch_gc_free(epoch_gc_worker_context->epoch_gc);
+    }
+
+    LOG_V(TAG, "Epoch gc workers terminated");
 }
 
 void program_signal_handler_thread_cleanup(
@@ -604,6 +675,13 @@ void program_cleanup(
         storage_db_free(program_context->db, program_context->workers_count);
     }
 
+    if (program_context->epoch_gc_workers_context) {
+        program_epoch_gc_workers_cleanup(
+                program_context->epoch_gc_workers_context,
+                program_context->epoch_gc_workers_count);
+        xalloc_free(program_context->epoch_gc_workers_context);
+    }
+
     if (program_context->fast_memory_allocator_initialized) {
         hugepage_cache_free();
     }
@@ -722,6 +800,12 @@ int program_main(
         goto end;
     }
 
+    if (program_epoch_gc_workers_initialize(
+            &program_terminate_event_loop,
+            program_context) == false) {
+        goto end;
+    }
+
     if (program_workers_initialize_context(
             &program_terminate_event_loop,
             program_context) == NULL) {
@@ -739,7 +823,6 @@ int program_main(
             program_context->workers_context,
             program_context->workers_count,
             &program_terminate_event_loop);
-
 
     return_res = 0;
 
