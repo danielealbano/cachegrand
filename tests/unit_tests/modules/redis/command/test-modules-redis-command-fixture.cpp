@@ -119,6 +119,8 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
     program_context->config = &config;
     program_context->db = db;
 
+    program_epoch_gc_workers_initialize(&terminate_event_loop, program_context);
+
     program_config_thread_affinity_set_selected_cpus(program_context);
     program_workers_initialize_count(program_context);
     worker_context = program_workers_initialize_context(
@@ -155,6 +157,10 @@ TestModulesRedisCommandFixture::~TestModulesRedisCommandFixture() {
             1);
 
     REQUIRE(mprobe(worker_context) == -MCHECK_FREE);
+
+    program_epoch_gc_workers_cleanup(
+            program_context->epoch_gc_workers_context,
+            program_context->epoch_gc_workers_count);
 
     storage_db_close(db);
     storage_db_free(db, workers_count);
