@@ -30,6 +30,8 @@
 #include "transaction.h"
 #include "transaction_spinlock.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "module/module.h"
@@ -41,6 +43,8 @@
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "signal_handler_thread.h"
+#include "epoch_gc.h"
+#include "epoch_gc_worker.h"
 
 #include "program.h"
 

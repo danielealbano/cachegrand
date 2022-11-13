@@ -28,6 +28,7 @@
 #include "transaction.h"
 #include "transaction_spinlock.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
+#include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
@@ -43,6 +44,8 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
+#include "epoch_gc.h"
+#include "epoch_gc_worker.h"
 
 #include "program.h"
 
@@ -116,6 +119,8 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
     program_context->config = &config;
     program_context->db = db;
 
+    program_epoch_gc_workers_initialize(&terminate_event_loop, program_context);
+
     program_config_thread_affinity_set_selected_cpus(program_context);
     program_workers_initialize_count(program_context);
     worker_context = program_workers_initialize_context(
@@ -152,6 +157,10 @@ TestModulesRedisCommandFixture::~TestModulesRedisCommandFixture() {
             1);
 
     REQUIRE(mprobe(worker_context) == -MCHECK_FREE);
+
+    program_epoch_gc_workers_cleanup(
+            program_context->epoch_gc_workers_context,
+            program_context->epoch_gc_workers_count);
 
     storage_db_close(db);
     storage_db_free(db, workers_count);

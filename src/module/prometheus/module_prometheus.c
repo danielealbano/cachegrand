@@ -25,6 +25,7 @@
 #include "transaction.h"
 #include "transaction_spinlock.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
+#include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
@@ -41,6 +42,8 @@
 #include "worker/worker_context.h"
 #include "worker/worker.h"
 #include "network/network.h"
+#include "epoch_gc.h"
+#include "epoch_gc_worker.h"
 #include "signal_handler_thread.h"
 #include "program.h"
 

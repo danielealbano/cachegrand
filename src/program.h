@@ -16,11 +16,21 @@ struct program_context {
     uint32_t workers_count;
     worker_context_t *workers_context;
     signal_handler_thread_context_t *signal_handler_thread_context;
+    uint32_t epoch_gc_workers_count;
+    epoch_gc_worker_context_t *epoch_gc_workers_context;
 };
 
 program_context_t *program_get_context();
 
 void program_reset_context();
+
+bool program_epoch_gc_workers_initialize(
+        bool_volatile_t *terminate_event_loop,
+        program_context_t *program_context);
+
+void program_epoch_gc_workers_cleanup(
+        epoch_gc_worker_context_t *epoch_gc_workers_context,
+        uint32_t epoch_gc_workers_count);
 
 void program_workers_initialize_count(
         program_context_t *program_context);
