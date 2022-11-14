@@ -178,7 +178,7 @@ void *test_epoch_gc_fuzzy_separated_producer_consumer_consumer_thread_func(
         epoch_gc_thread_free(epoch_gc_thread_list_cache[epoch_gc_thread_list_index]);
     }
 
-    epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+    epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE);
 
     if (epoch_gc_thread_list_cache != nullptr) {
         free(epoch_gc_thread_list_cache);
@@ -253,9 +253,9 @@ void test_epoch_gc_fuzzy_separated_producers_consumer(
 TEST_CASE("epoch_gc.c", "[epoch_gc]") {
     SECTION("epoch_gc_init") {
         SECTION("valid object type") {
-            epoch_gc_t *epoch_gc = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+            epoch_gc_t *epoch_gc = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE);
 
-            REQUIRE(epoch_gc->object_type == EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+            REQUIRE(epoch_gc->object_type == EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE);
             REQUIRE(spinlock_is_locked(&epoch_gc->thread_list_spinlock) == false);
             REQUIRE(epoch_gc->thread_list != nullptr);
 
@@ -268,13 +268,13 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
     SECTION("epoch_gc_register_object_type_destructor_cb") {
         SECTION("valid object type and valid function pointer") {
             epoch_gc_register_object_type_destructor_cb(
-                    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE,
                     test_epoch_gc_object_destructor_cb_test);
 
-            REQUIRE(epoch_gc_get_epoch_gc_staged_object_destructor_cb()[EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX] ==
+            REQUIRE(epoch_gc_get_epoch_gc_staged_object_destructor_cb()[EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE] ==
                     test_epoch_gc_object_destructor_cb_test);
 
-            epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+            epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE);
         }
     }
 #endif
@@ -325,7 +325,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
     SECTION("epoch_gc_thread_init") {
         epoch_gc_t epoch_gc = { nullptr };
         epoch_gc.thread_list = double_linked_list_init();
-        epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX;
+        epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE;
         spinlock_init(&epoch_gc.thread_list_spinlock);
 
         SECTION("create one thread") {
@@ -347,7 +347,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
     SECTION("epoch_gc_thread_register_global") {
         epoch_gc_t epoch_gc = {nullptr };
         epoch_gc.thread_list = double_linked_list_init();
-        epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX;
+        epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE;
         spinlock_init(&epoch_gc.thread_list_spinlock);
 
         epoch_gc_thread_t *epoch_gc_thread_1 = epoch_gc_thread_init();
@@ -404,7 +404,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
 #if DEBUG == 1
     SECTION("epoch_gc_thread_register_local") {
         epoch_gc_t epoch_gc = {
-                .object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                .object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE,
         };
 
         epoch_gc_thread_t epoch_gc_thread = {
@@ -421,7 +421,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
 
     SECTION("epoch_gc_thread_get_instance") {
         epoch_gc_t epoch_gc = {
-                .object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                .object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE,
         };
 
         epoch_gc_thread_t epoch_gc_thread = {
@@ -434,7 +434,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
         epoch_gc_thread_t *epoch_gc_thread_new = nullptr;
 
         epoch_gc_thread_get_instance(
-                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE,
                 &epoch_gc_new,
                 &epoch_gc_thread_new);
 
@@ -446,7 +446,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
 
     SECTION("epoch_gc_thread_is_terminated") {
         epoch_gc_t epoch_gc = {
-                .object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                .object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE,
         };
 
         epoch_gc_thread_t epoch_gc_thread = {
@@ -468,7 +468,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
 
     SECTION("epoch_gc_thread_advance_epoch_tsc") {
         epoch_gc_t epoch_gc = {
-                .object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                .object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE,
         };
 
         epoch_gc_thread_t epoch_gc_thread = {
@@ -492,7 +492,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
 
     SECTION("epoch_gc_thread_advance_epoch_by_one") {
         epoch_gc_t epoch_gc = {
-                .object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                .object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE,
         };
 
         epoch_gc_thread_t epoch_gc_thread = {
@@ -515,13 +515,13 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
     SECTION("epoch_gc_thread_collect") {
         epoch_gc_t epoch_gc = { nullptr };
         epoch_gc.thread_list = double_linked_list_init();
-        epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX;
+        epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE;
         spinlock_init(&epoch_gc.thread_list_spinlock);
 
         epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init();
 
         epoch_gc_register_object_type_destructor_cb(
-                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, test_epoch_gc_object_destructor_cb_test);
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE, test_epoch_gc_object_destructor_cb_test);
         epoch_gc_thread_register_global(&epoch_gc, epoch_gc_thread);
 
         epoch_gc_staged_object_t epoch_gc_staged_object_1 = { .data = { .epoch = 100, .object = (void*)1, } };
@@ -592,20 +592,20 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
         } while(found);
 
         epoch_gc_thread_unregister_global(epoch_gc_thread);
-        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE);
         epoch_gc_thread_free(epoch_gc_thread);
     }
 
     SECTION("epoch_gc_thread_collect_all") {
         epoch_gc_t epoch_gc = { nullptr };
         epoch_gc.thread_list = double_linked_list_init();
-        epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX;
+        epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE;
         spinlock_init(&epoch_gc.thread_list_spinlock);
 
         epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init();
 
         epoch_gc_register_object_type_destructor_cb(
-                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE,
                 test_epoch_gc_object_destructor_cb_test);
         epoch_gc_thread_register_global(&epoch_gc, epoch_gc_thread);
 
@@ -663,20 +663,20 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
         } while(found);
 
         epoch_gc_thread_unregister_global(epoch_gc_thread);
-        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE);
         epoch_gc_thread_free(epoch_gc_thread);
     }
 
     SECTION("epoch_gc_thread_terminate") {
         epoch_gc_t epoch_gc = { nullptr };
         epoch_gc.thread_list = double_linked_list_init();
-        epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX;
+        epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE;
         spinlock_init(&epoch_gc.thread_list_spinlock);
 
         epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init();
 
         epoch_gc_register_object_type_destructor_cb(
-                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE,
                 test_epoch_gc_object_destructor_cb_test);
         epoch_gc_thread_register_global(&epoch_gc, epoch_gc_thread);
 
@@ -686,18 +686,18 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
         }
 
         epoch_gc_thread_unregister_global(epoch_gc_thread);
-        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE);
         epoch_gc_thread_free(epoch_gc_thread);
     }
 
     SECTION("epoch_gc_stage_object") {
         epoch_gc_register_object_type_destructor_cb(
-                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE,
                 test_epoch_gc_object_destructor_cb_test);
 
         epoch_gc_t epoch_gc = { nullptr };
         epoch_gc.thread_list = double_linked_list_init();
-        epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX;
+        epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE;
         spinlock_init(&epoch_gc.thread_list_spinlock);
 
         epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init();
@@ -707,7 +707,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
 
         SECTION("stage 1 object") {
             REQUIRE(epoch_gc_stage_object(
-                    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE,
                     (void*)1) == true);
 
             REQUIRE(ring_bounded_queue_spsc_uint128_get_length(epoch_gc_thread->staged_objects_ring_last) == 1);
@@ -722,11 +722,11 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
 
         SECTION("stage 2 objects") {
             REQUIRE(epoch_gc_stage_object(
-                    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE,
                     (void*)1) == true);
             usleep(10000);
             REQUIRE(epoch_gc_stage_object(
-                    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE,
                     (void*)2) == true);
 
             REQUIRE(ring_bounded_queue_spsc_uint128_get_length(epoch_gc_thread->staged_objects_ring_last) == 2);
@@ -748,7 +748,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
 
             for(uint64_t i = 0; i < EPOCH_GC_STAGED_OBJECTS_RING_SIZE + 1; i++) {
                 REQUIRE(epoch_gc_stage_object(
-                        EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, (void*)i) == true);
+                        EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE, (void*)i) == true);
             }
 
             REQUIRE(ring_bounded_queue_spsc_uint128_get_length(
@@ -781,18 +781,18 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
 
         epoch_gc_thread_unregister_local(epoch_gc_thread);
         epoch_gc_thread_unregister_global(epoch_gc_thread);
-        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE);
         epoch_gc_thread_free(epoch_gc_thread);
     }
 
     SECTION("test workflow end to end") {
         epoch_gc_register_object_type_destructor_cb(
-                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE,
                 test_epoch_gc_object_destructor_cb_test);
 
         epoch_gc_t epoch_gc = { nullptr };
         epoch_gc.thread_list = double_linked_list_init();
-        epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX;
+        epoch_gc.object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE;
         spinlock_init(&epoch_gc.thread_list_spinlock);
 
         epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init();
@@ -802,9 +802,9 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
 
         // Stage 2 object
         REQUIRE(epoch_gc_stage_object(
-                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, (void*)1) == true);
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE, (void*)1) == true);
         REQUIRE(epoch_gc_stage_object(
-                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, (void*)2) == true);
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE, (void*)2) == true);
 
         // Try to collect but nothing to be collected
         REQUIRE(epoch_gc_thread_collect_all(epoch_gc_thread) == 0);
@@ -814,7 +814,7 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
 
         // Stage a third object
         REQUIRE(epoch_gc_stage_object(
-                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX, (void*)1) == true);
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE, (void*)1) == true);
 
         // Collect the first 2 objects
         REQUIRE(epoch_gc_thread_collect_all(epoch_gc_thread) == 2);
@@ -829,17 +829,17 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
         epoch_gc_thread_unregister_local(epoch_gc_thread);
         epoch_gc_thread_unregister_global(epoch_gc_thread);
         epoch_gc_thread_free(epoch_gc_thread);
-        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE);
 
         double_linked_list_free(epoch_gc.thread_list);
     }
 
     SECTION("fuzzy staging/collecting") {
         epoch_gc_register_object_type_destructor_cb(
-                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE,
                 test_epoch_gc_object_destructor_cb_real);
 
-        epoch_gc_t *epoch_gc = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+        epoch_gc_t *epoch_gc = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE);
 
         SECTION("one producer / one consumer") {
             test_epoch_gc_fuzzy_separated_producers_consumer(

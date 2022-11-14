@@ -151,7 +151,7 @@ TEST_CASE("epoch_gc_worker.c", "[epoch_gc_worker]") {
 
     SECTION("epoch_gc_worker_log_producer_set_early_prefix_thread") {
         char early_prefix_cmp[] = "[epoch gc 4]";
-        epoch_gc_t *epoch_gc = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+        epoch_gc_t *epoch_gc = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE);
         epoch_gc_worker_context_t epoch_gc_worker_context = { .epoch_gc = epoch_gc };
 
         char *early_prefix = epoch_gc_worker_log_producer_set_early_prefix_thread(
@@ -166,7 +166,7 @@ TEST_CASE("epoch_gc_worker.c", "[epoch_gc_worker]") {
     SECTION("epoch_gc_worker_set_thread_name") {
         char thread_name_current[16] = { 0 };
         char thread_name_cmp[] = "epoch_gc_4";
-        epoch_gc_t *epoch_gc = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+        epoch_gc_t *epoch_gc = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE);
         epoch_gc_worker_context_t epoch_gc_worker_context = { .epoch_gc = epoch_gc };
 
         pthread_getname_np(pthread_self(), thread_name_current, sizeof(thread_name_current));
@@ -183,10 +183,10 @@ TEST_CASE("epoch_gc_worker.c", "[epoch_gc_worker]") {
 
     SECTION("fuzzy staging/collecting") {
         epoch_gc_register_object_type_destructor_cb(
-                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+                EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE,
                 test_epoch_gc_worker_object_destructor_cb_real);
 
-        epoch_gc_t *epoch_gc = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX);
+        epoch_gc_t *epoch_gc = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE);
 
         SECTION("one producer / one consumer") {
             test_epoch_gc_worker_fuzzy_separated_producers_consumer(
