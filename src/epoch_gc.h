@@ -11,11 +11,12 @@ extern "C" {
 #define EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE (16)
 
 enum epoch_gc_object_type {
-    EPOCH_GC_OBJECT_TYPE_HASHTABLE_KV_SMALL, // to be used with values smaller than 64kb
-    EPOCH_GC_OBJECT_TYPE_HASHTABLE_KV_MEDIUM, // to be used with values smaller than 1MB
-    EPOCH_GC_OBJECT_TYPE_HASHTABLE_KV_LARGE, // to be used with values smaller than 16MB
-    EPOCH_GC_OBJECT_TYPE_HASHTABLE_KV_XLARGE, // to be used with rest of values bigger than 16MB
-    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX,
+    EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE,
+    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_XSMALL, // to be used with values smaller than 64kb
+    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_SMALL, // to be used with values smaller than 64kb
+    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_MEDIUM, // to be used with values smaller than 1MB
+    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE, // to be used with values smaller than 16MB
+    EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_XLARGE, // to be used with rest of values bigger than 16MB
     EPOCH_GC_OBJECT_TYPE_MAX,
 };
 typedef enum epoch_gc_object_type epoch_gc_object_type_t;
