@@ -229,6 +229,7 @@ bool hashtable_mpmc_op_set(
         bool *return_created_new,
         bool *return_value_updated) {
     bool retry_loop;
+    bool result = false;
     hashtable_mpmc_data_bucket_t found_bucket, new_bucket;
     hashtable_mpmc_bucket_index_t found_bucket_index, new_bucket_index;
     hashtable_mpmc_hash_t hash = hashtable_mcmp_support_hash_calculate(key, key_length);
@@ -272,7 +273,7 @@ bool hashtable_mpmc_op_set(
 
             bool is_temporary = ((uintptr_t)found_bucket.data.key_value & 0x01) == 0x01;
             if (found_bucket.data.transaction_id.id != 0 || is_temporary) {
-                return true;
+                goto end;
             }
 
             uintptr_t expected_value = found_bucket.data.key_value->value;
@@ -288,7 +289,8 @@ bool hashtable_mpmc_op_set(
             // As the key is owned by the hashtable, the pointer is freed as well
             xalloc_free(key);
 
-            return true;
+            result = true;
+            goto end;
         }
 
         // If the bucket hasn't been found, a new one needs to be inserted and therefore the key_value struct has to be
@@ -345,7 +347,7 @@ bool hashtable_mpmc_op_set(
 
         // If no empty bucket has been found the hashtable is full and needs resizing
         if (!empty_bucket_found) {
-            return false;
+            goto end;
         }
 
         for(
@@ -392,5 +394,10 @@ bool hashtable_mpmc_op_set(
     // the bucket
     MEMORY_FENCE_STORE();
 
-    return true;
+end:
+
+    // Mark the operation as completed
+    epoch_operation_queue_mark_completed(operation);
+
+    return result;
 }
