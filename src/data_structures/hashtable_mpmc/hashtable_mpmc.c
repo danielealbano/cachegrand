@@ -78,9 +78,14 @@ hashtable_mpmc_t *hashtable_mpmc_init(
     return hashtable_mpmc;
 }
 
+hashtable_mpmc_hash_half_t hashtable_mpmc_support_hash_half(hashtable_mpmc_hash_t hash) {
+    return hash & 0xFFFFFFFF;
+}
+
 bool hashtable_mpmc_support_get_bucket_and_key_value(
         hashtable_mpmc_t *hashtable_mpmc,
         hashtable_mpmc_hash_t hash,
+        hashtable_mpmc_hash_half_t hash_half,
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length,
         bool allow_temporary,
@@ -88,7 +93,6 @@ bool hashtable_mpmc_support_get_bucket_and_key_value(
         hashtable_mpmc_bucket_index_t *return_bucket_index) {
     bool found = false;
     hashtable_mpmc_bucket_index_t bucket_index;
-    hashtable_mpmc_hash_half_t hash_half = hash & 0xFFFFFFFF;
 
     // The bucket index is calculated by the upper half of the hash as the lower half is the one stored in the buckets
     // array, we would face plenty of collisions otherwise. The bucket index is calculated using an AND operation as the
@@ -159,6 +163,7 @@ uintptr_t hashtable_mpmc_op_get(
     bool found = hashtable_mpmc_support_get_bucket_and_key_value(
             hashtable_mpmc,
             hash,
+            hashtable_mpmc_support_hash_half(hash),
             key,
             key_length,
             false,
@@ -190,6 +195,7 @@ bool hashtable_mpmc_op_delete(
     bool found = hashtable_mpmc_support_get_bucket_and_key_value(
             hashtable_mpmc,
             hash,
+            hashtable_mpmc_support_hash_half(hash),
             key,
             key_length,
             false,
@@ -226,7 +232,7 @@ bool hashtable_mpmc_op_set(
     hashtable_mpmc_data_bucket_t found_bucket, new_bucket;
     hashtable_mpmc_bucket_index_t found_bucket_index, new_bucket_index;
     hashtable_mpmc_hash_t hash = hashtable_mcmp_support_hash_calculate(key, key_length);
-    hashtable_mpmc_hash_half_t hash_half = hash & 0xFFFFFFFF;
+    hashtable_mpmc_hash_half_t hash_half = hashtable_mpmc_support_hash_half(hash);
 
     *return_created_new = false;
     *return_value_updated = false;
@@ -249,6 +255,7 @@ bool hashtable_mpmc_op_set(
         bool found = hashtable_mpmc_support_get_bucket_and_key_value(
                 hashtable_mpmc,
                 hash,
+                hash_half,
                 key,
                 key_length,
                 true,
