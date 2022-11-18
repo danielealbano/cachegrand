@@ -42,6 +42,12 @@
 #include "log/sink/log_sink.h"
 #include "log/sink/log_sink_console.h"
 
+#define TEST_VALIDATE_KEYS 0
+
+// It is possible to control the amount of threads used for the test tuning the two defines below
+#define TEST_THREADS_RANGE_BEGIN (1)
+#define TEST_THREADS_RANGE_END (utils_cpu_count())
+
 class BenchmarkProgram {
 private:
     const char* tag;
@@ -80,10 +86,6 @@ public:
 int main(int argc, char** argv) {
     return BenchmarkProgram(__FILE__).Main(argc, argv);
 }
-
-// It is possible to control the amount of threads used for the test tuning the two defines below
-#define TEST_THREADS_RANGE_BEGIN (1)
-#define TEST_THREADS_RANGE_END (utils_cpu_count())
 
 static void hashtable_mpmc_op_get_not_found_key(benchmark::State& state) {
     static hashtable_mpmc_t * hashtable;
@@ -160,6 +162,7 @@ static void hashtable_mpmc_op_get_single_key_inline(benchmark::State& state) {
                 test_key_1_len,
                 &value)));
 
+#if TEST_VALIDATE_KEYS == 1
         if (result == HASHTABLE_MPMC_RESULT_FALSE || value != test_value_1) {
             sprintf(
                     error_message,
@@ -170,6 +173,7 @@ static void hashtable_mpmc_op_get_single_key_inline(benchmark::State& state) {
             state.SkipWithError(error_message);
             break;
         }
+#endif
     }
 
     if (state.thread_index() == 0) {
@@ -222,6 +226,7 @@ static void hashtable_mpmc_op_get_single_key_external(benchmark::State& state) {
                 test_key_1_len,
                 &value)));
 
+#if TEST_VALIDATE_KEYS == 1
         if (result == HASHTABLE_MPMC_RESULT_FALSE || value != test_value_1) {
             sprintf(
                     error_message,
@@ -232,6 +237,7 @@ static void hashtable_mpmc_op_get_single_key_external(benchmark::State& state) {
             state.SkipWithError(error_message);
             break;
         }
+#endif
     }
 
     if (state.thread_index() == 0) {
