@@ -68,6 +68,13 @@ struct hashtable_mpmc {
     hashtable_mpmc_data_t *data;
 };
 
+enum hashtable_mpmc_result {
+    HASHTABLE_MPMC_RESULT_FALSE,
+    HASHTABLE_MPMC_RESULT_TRUE,
+    HASHTABLE_MPMC_RESULT_TRY_AGAIN,
+};
+typedef enum hashtable_mpmc_result hashtable_mpmc_result_t;
+
 void hashtable_mpmc_epoch_gc_object_type_hashtable_key_value_destructor_cb(
         uint8_t staged_objects_count,
         epoch_gc_staged_object_t staged_objects[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE]);
@@ -99,7 +106,7 @@ void hashtable_mpmc_free(
 hashtable_mpmc_hash_half_t hashtable_mpmc_support_hash_half(
         hashtable_mpmc_hash_t hash);
 
-bool hashtable_mpmc_support_get_bucket_and_key_value(
+hashtable_mpmc_result_t hashtable_mpmc_support_get_bucket_and_key_value(
         hashtable_mpmc_data_t *hashtable_mpmc_data,
         hashtable_mpmc_hash_t hash,
         hashtable_mpmc_hash_half_t hash_half,
@@ -109,17 +116,18 @@ bool hashtable_mpmc_support_get_bucket_and_key_value(
         hashtable_mpmc_data_bucket_t *return_bucket,
         hashtable_mpmc_bucket_index_t *return_bucket_index);
 
-uintptr_t hashtable_mpmc_op_get(
+hashtable_mpmc_result_t hashtable_mpmc_op_get(
+        hashtable_mpmc_t *hashtable_mpmc,
+        hashtable_mpmc_key_t *key,
+        hashtable_mpmc_key_length_t key_length,
+        uintptr_t *return_value);
+
+hashtable_mpmc_result_t hashtable_mpmc_op_delete(
         hashtable_mpmc_t *hashtable_mpmc,
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length);
 
-bool hashtable_mpmc_op_delete(
-        hashtable_mpmc_t *hashtable_mpmc,
-        hashtable_mpmc_key_t *key,
-        hashtable_mpmc_key_length_t key_length);
-
-bool hashtable_mpmc_op_set(
+hashtable_mpmc_result_t hashtable_mpmc_op_set(
         hashtable_mpmc_t *hashtable_mpmc,
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length,

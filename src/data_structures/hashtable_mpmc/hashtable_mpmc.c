@@ -146,7 +146,7 @@ hashtable_mpmc_bucket_index_t hashtable_mpmc_support_bucket_index_from_hash(
     return (hash >> 32) & hashtable_mpmc_data->buckets_count_mask;
 }
 
-bool hashtable_mpmc_support_get_bucket_and_key_value(
+hashtable_mpmc_result_t hashtable_mpmc_support_get_bucket_and_key_value(
         hashtable_mpmc_data_t *hashtable_mpmc_data,
         hashtable_mpmc_hash_t hash,
         hashtable_mpmc_hash_half_t hash_half,
@@ -155,7 +155,7 @@ bool hashtable_mpmc_support_get_bucket_and_key_value(
         bool allow_temporary,
         hashtable_mpmc_data_bucket_t *return_bucket,
         hashtable_mpmc_bucket_index_t *return_bucket_index) {
-    bool found = false;
+    hashtable_mpmc_result_t found = HASHTABLE_MPMC_RESULT_FALSE;
     hashtable_mpmc_bucket_index_t bucket_index;
 
     // The bucket index is calculated by the upper half of the hash as the lower half is the one stored in the buckets
@@ -208,16 +208,17 @@ bool hashtable_mpmc_support_get_bucket_and_key_value(
         // Update the return bucket
         return_bucket->_packed = hashtable_mpmc_data->buckets[bucket_index]._packed;
         *return_bucket_index = bucket_index;
-        found = true;
+        found = HASHTABLE_MPMC_RESULT_TRUE;
     }
 
     return found;
 }
 
-uintptr_t hashtable_mpmc_op_get(
+hashtable_mpmc_result_t hashtable_mpmc_op_get(
         hashtable_mpmc_t *hashtable_mpmc,
         hashtable_mpmc_key_t *key,
-        hashtable_mpmc_key_length_t key_length) {
+        hashtable_mpmc_key_length_t key_length,
+        uintptr_t *return_value) {
     uintptr_t value;
     hashtable_mpmc_data_bucket_t bucket;
     hashtable_mpmc_bucket_index_t bucket_index;
@@ -227,7 +228,7 @@ uintptr_t hashtable_mpmc_op_get(
     epoch_operation_queue_operation_t *operation = epoch_operation_queue_enqueue(
             thread_local_operation_queue);
 
-    bool found = hashtable_mpmc_support_get_bucket_and_key_value(
+    hashtable_mpmc_result_t found = hashtable_mpmc_support_get_bucket_and_key_value(
             hashtable_mpmc->data,
             hash,
             hashtable_mpmc_support_hash_half(hash),
@@ -237,18 +238,20 @@ uintptr_t hashtable_mpmc_op_get(
             &bucket,
             &bucket_index);
 
-    if (found) {
+    if (unlikely(found == HASHTABLE_MPMC_RESULT_TRY_AGAIN)) {
+        return HASHTABLE_MPMC_RESULT_TRY_AGAIN;
+    } else if (found == HASHTABLE_MPMC_RESULT_TRUE) {
         // Fetch the value
-        value = bucket.data.key_value->value;
+        *return_value = bucket.data.key_value->value;
     }
 
     // Mark the operation as completed
     epoch_operation_queue_mark_completed(operation);
 
-    return found ? value : 0;
+    return found;
 }
 
-bool hashtable_mpmc_op_delete(
+hashtable_mpmc_result_t hashtable_mpmc_op_delete(
         hashtable_mpmc_t *hashtable_mpmc,
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length) {
@@ -261,7 +264,7 @@ bool hashtable_mpmc_op_delete(
             thread_local_operation_queue);
 
     // Try to search for the key
-    bool found = hashtable_mpmc_support_get_bucket_and_key_value(
+    hashtable_mpmc_result_t found = hashtable_mpmc_support_get_bucket_and_key_value(
             hashtable_mpmc->data,
             hash,
             hashtable_mpmc_support_hash_half(hash),
@@ -270,6 +273,10 @@ bool hashtable_mpmc_op_delete(
             false,
             &found_bucket,
             &found_bucket_index);
+
+    if (found != HASHTABLE_MPMC_RESULT_TRUE) {
+        return found;
+    }
 
     // Try to empty the bucket, if the operation is successful, stage the key_value pointer to be garbage collected
     if (__atomic_compare_exchange_n(
@@ -290,7 +297,7 @@ bool hashtable_mpmc_op_delete(
     return found;
 }
 
-bool hashtable_mpmc_op_set(
+hashtable_mpmc_result_t hashtable_mpmc_op_set(
         hashtable_mpmc_t *hashtable_mpmc,
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length,
@@ -298,7 +305,7 @@ bool hashtable_mpmc_op_set(
         bool *return_created_new,
         bool *return_value_updated) {
     bool retry_loop;
-    bool result = false;
+    hashtable_mpmc_result_t result = HASHTABLE_MPMC_RESULT_FALSE;
     hashtable_mpmc_data_bucket_t found_bucket, new_bucket;
     hashtable_mpmc_bucket_index_t found_bucket_index, new_bucket_index;
     hashtable_mpmc_data_key_value_t *new_key_value = NULL;
@@ -316,9 +323,12 @@ bool hashtable_mpmc_op_set(
     // - searches first for a bucket with a matching hash
     // - if it doesn't find it, it searches for an empty bucket and update it marking it as still being added
     // - searches again the entire range to see if some other thread did set the value, if it finds a match marked
-    //   as being added will drop the bucket and restart the process from the first step otherwise will drop the bucket
+    //   as being added will drop the bucket and ask the caller to try again the process from the first step otherwise will drop the bucket
     //   and drop the update operation as well as another thread finished the insert operation before the one being
     //   processed
+
+    // Maximum number of allowed retries
+    uint8_t retries = 5;
     do {
         retry_loop = false;
 
@@ -356,7 +366,7 @@ bool hashtable_mpmc_op_set(
             // As the key is owned by the hashtable, the pointer is freed as well
             xalloc_free(key);
 
-            result = true;
+            result = HASHTABLE_MPMC_RESULT_TRUE;
             goto end;
         }
 
@@ -472,7 +482,13 @@ bool hashtable_mpmc_op_set(
             retry_loop = true;
             break;
         }
-    } while(retry_loop);
+    } while(retry_loop && --retries > 0);
+
+    // If after the allowed retries the retry loop flag is still true, asks the caller to try again later
+    if (retry_loop) {
+        result = HASHTABLE_MPMC_RESULT_TRY_AGAIN;
+        goto end;
+    }
 
     // Drop the temporary flag from the key_value pointer
     hashtable_mpmc->data->buckets[new_bucket_index].data.key_value = new_key_value;
@@ -484,7 +500,7 @@ bool hashtable_mpmc_op_set(
     // Operation successful, set the result to true and update the status variables
     *return_created_new = true;
     *return_value_updated = true;
-    result = true;
+    result = HASHTABLE_MPMC_RESULT_TRUE;
 
 end:
 

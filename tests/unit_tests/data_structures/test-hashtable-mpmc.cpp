@@ -311,7 +311,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t)value1,
                     &return_created_new,
-                    &return_value_updated));
+                    &return_value_updated) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(return_created_new);
             REQUIRE(return_value_updated);
@@ -333,7 +333,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_embed_length,
                     (uintptr_t)value1,
                     &return_created_new,
-                    &return_value_updated));
+                    &return_value_updated) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(return_created_new);
             REQUIRE(return_value_updated);
@@ -358,14 +358,14 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t)value1,
                     &return_created_new,
-                    &return_value_updated));
+                    &return_value_updated) == HASHTABLE_MPMC_RESULT_TRUE);
             REQUIRE(hashtable_mpmc_op_set(
                     hashtable,
                     key_copy2,
                     key_length,
                     (uintptr_t)value2,
                     &return_created_new,
-                    &return_value_updated));
+                    &return_value_updated) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(!return_created_new);
             REQUIRE(return_value_updated);
@@ -387,14 +387,14 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t)value1,
                     &return_created_new,
-                    &return_value_updated));
+                    &return_value_updated) == HASHTABLE_MPMC_RESULT_TRUE);
             REQUIRE(hashtable_mpmc_op_set(
                     hashtable,
                     key2_copy,
                     key2_length,
                     (uintptr_t)value2,
                     &return_created_new,
-                    &return_value_updated));
+                    &return_value_updated) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index]._packed != 0);
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.key_value != nullptr);
@@ -427,13 +427,13 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                 hashtable->data->buckets[index].data.hash_half = 12345;
             }
 
-            REQUIRE(!hashtable_mpmc_op_set(
+            REQUIRE(hashtable_mpmc_op_set(
                     hashtable,
                     key,
                     key_length,
                     (uintptr_t)value1,
                     &return_created_new,
-                    &return_value_updated));
+                    &return_value_updated) == HASHTABLE_MPMC_RESULT_FALSE);
 
             // Hashes have to be set back to zero before freeing up the hashtable
             for (
@@ -455,6 +455,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
 
     SECTION("hashtable_mpmc_op_get") {
         char *key_copy = mi_strdup(key);
+        uintptr_t return_value = 0;
 
         auto key_value = (hashtable_mpmc_data_key_value_t*)xalloc_alloc(sizeof(hashtable_mpmc_data_key_value_t));
         key_value->key.external.key = key_copy;
@@ -477,7 +478,12 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value = key_value;
 
-            REQUIRE(hashtable_mpmc_op_get(hashtable, key, key_length) == 12345);
+            REQUIRE(hashtable_mpmc_op_get(
+                    hashtable,
+                    key,
+                    key_length,
+                    &return_value) == HASHTABLE_MPMC_RESULT_TRUE);
+            REQUIRE(return_value == 12345);
         }
 
         SECTION("value found - embedded key") {
@@ -489,7 +495,12 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             hashtable->data->buckets[hashtable_key_embed_bucket_index].data.hash_half = key_embed_hash_half;
             hashtable->data->buckets[hashtable_key_embed_bucket_index].data.key_value = key_value;
 
-            REQUIRE(hashtable_mpmc_op_get(hashtable, key_embed, key_embed_length) == 12345);
+            REQUIRE(hashtable_mpmc_op_get(
+                    hashtable,
+                    key_embed,
+                    key_embed_length,
+                    &return_value) == HASHTABLE_MPMC_RESULT_TRUE);
+            REQUIRE(return_value == 12345);
         }
 
         SECTION("value not found - existing key with different case") {
@@ -497,11 +508,19 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value = key_value;
 
-            REQUIRE(hashtable_mpmc_op_get(hashtable, key_different_case, key_length) == 0);
+            REQUIRE(hashtable_mpmc_op_get(
+                    hashtable,
+                    key_different_case,
+                    key_length,
+                    &return_value) == HASHTABLE_MPMC_RESULT_FALSE);
         }
 
         SECTION("value not found - non-existent key") {
-            REQUIRE(hashtable_mpmc_op_get(hashtable, key, key_length) == 0);
+            REQUIRE(hashtable_mpmc_op_get(
+                    hashtable,
+                    key,
+                    key_length,
+                    &return_value) == HASHTABLE_MPMC_RESULT_FALSE);
         }
 
         SECTION("value not found - temporary") {
@@ -510,7 +529,11 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value =
                     (hashtable_mpmc_data_key_value_volatile_t*)((uintptr_t)(key_value) | 0x01);
 
-            REQUIRE(hashtable_mpmc_op_get(hashtable, key, key_length) == 0);
+            REQUIRE(hashtable_mpmc_op_get(
+                    hashtable,
+                    key,
+                    key_length,
+                    &return_value) == HASHTABLE_MPMC_RESULT_FALSE);
         }
 
         hashtable_mpmc_thread_operation_queue_free();
@@ -544,7 +567,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value = key_value;
 
-            REQUIRE(hashtable_mpmc_op_delete(hashtable, key, key_length));
+            REQUIRE(hashtable_mpmc_op_delete(hashtable, key, key_length) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index]._packed == 0);
 
@@ -557,13 +580,19 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value = key_value;
 
-            REQUIRE(!hashtable_mpmc_op_delete(hashtable, key_different_case, key_length));
+            REQUIRE(hashtable_mpmc_op_delete(
+                    hashtable,
+                    key_different_case,
+                    key_length) == HASHTABLE_MPMC_RESULT_FALSE);
 
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index]._packed != 0);
         }
 
         SECTION("value not deleted - non-existent key") {
-            REQUIRE(!hashtable_mpmc_op_delete(hashtable, key, key_length));
+            REQUIRE(hashtable_mpmc_op_delete(
+                    hashtable,
+                    key,
+                    key_length) == HASHTABLE_MPMC_RESULT_FALSE);
         }
 
         hashtable_mpmc_thread_operation_queue_free();
