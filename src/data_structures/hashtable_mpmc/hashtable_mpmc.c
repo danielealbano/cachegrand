@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 #include <string.h>
+#include <assert.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -224,6 +225,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
     // Start to track the operation to avoid trying to access freed memory
     epoch_operation_queue_operation_t *operation = epoch_operation_queue_enqueue(
             thread_local_operation_queue);
+    assert(operation != NULL);
 
     hashtable_mpmc_result_t found = hashtable_mpmc_support_get_bucket_and_key_value(
             hashtable_mpmc->data,
@@ -259,6 +261,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
     // Start to track the operation to avoid trying to access freed memory
     epoch_operation_queue_operation_t *operation = epoch_operation_queue_enqueue(
             thread_local_operation_queue);
+    assert(operation != NULL);
 
     // Try to search for the key
     hashtable_mpmc_result_t found = hashtable_mpmc_support_get_bucket_and_key_value(
@@ -315,6 +318,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
     // Start to track the operation to avoid trying to access freed memory
     epoch_operation_queue_operation_t *operation = epoch_operation_queue_enqueue(
             thread_local_operation_queue);
+    assert(operation != NULL);
 
     // Uses a 3-phase approach:
     // - searches first for a bucket with a matching hash
