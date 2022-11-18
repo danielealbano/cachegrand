@@ -72,6 +72,7 @@ hashtable_mpmc_data_t *hashtable_mpmc_data_init(
         FATAL(TAG, "Unable to zero the requested memory %lu", struct_size);
     }
 
+    hashtable_mpmc_data->struct_size = struct_size;
     hashtable_mpmc_data->buckets_count = buckets_count;
     hashtable_mpmc_data->buckets_count_real = buckets_count_real;
     hashtable_mpmc_data->buckets_count_mask = hashtable_mpmc_data->buckets_count - 1;
