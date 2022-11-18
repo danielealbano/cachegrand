@@ -409,10 +409,15 @@ bool hashtable_mpmc_op_set(
             goto end;
         }
 
+        // Third pass iteration to ensure that no other thread is trying to insert the same exact key
         for(
                 found_bucket_index = new_bucket_index_start;
                 found_bucket_index < new_bucket_index_start + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE;
                 found_bucket_index++) {
+            if (found_bucket_index == new_bucket_index) {
+                continue;
+            }
+
             MEMORY_FENCE_LOAD();
             if (hashtable_mpmc->data->buckets[found_bucket_index].data.hash_half != hash_half) {
                 continue;
