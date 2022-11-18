@@ -128,7 +128,7 @@ hashtable_mpmc_bucket_index_t hashtable_mpmc_support_bucket_index_from_hash(
 }
 
 bool hashtable_mpmc_support_get_bucket_and_key_value(
-        hashtable_mpmc_t *hashtable_mpmc,
+        hashtable_mpmc_data_t *hashtable_mpmc_data,
         hashtable_mpmc_hash_t hash,
         hashtable_mpmc_hash_half_t hash_half,
         hashtable_mpmc_key_t *key,
@@ -142,7 +142,9 @@ bool hashtable_mpmc_support_get_bucket_and_key_value(
     // The bucket index is calculated by the upper half of the hash as the lower half is the one stored in the buckets
     // array, we would face plenty of collisions otherwise. The bucket index is calculated using an AND operation as the
     // number of buckets is always a power of 2 and a mask is pre-calculated and stored in buckets_count_mask.
-    hashtable_mpmc_bucket_index_t bucket_index_start = (hash >> 32) & hashtable_mpmc->data->buckets_count_mask;
+    hashtable_mpmc_bucket_index_t bucket_index_start = hashtable_mpmc_support_bucket_index_from_hash(
+            hashtable_mpmc_data,
+            hash);
 
     // The extra buckets that might be searched if bucket_index_start is exactly the last element will always be present
     // because they are allocated in hashtable_mpmc_data_init
@@ -151,11 +153,11 @@ bool hashtable_mpmc_support_get_bucket_and_key_value(
             bucket_index < bucket_index_start + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE;
             bucket_index++) {
         MEMORY_FENCE_LOAD();
-        if (hashtable_mpmc->data->buckets[bucket_index].data.hash_half != hash_half) {
+        if (hashtable_mpmc_data->buckets[bucket_index].data.hash_half != hash_half) {
             continue;
         }
 
-        uintptr_t key_value_uintptr_value = (uintptr_t)hashtable_mpmc->data->buckets[bucket_index].data.key_value;
+        uintptr_t key_value_uintptr_value = (uintptr_t)hashtable_mpmc_data->buckets[bucket_index].data.key_value;
         bool is_temporary = (key_value_uintptr_value & 0x01) == 0x01;
 
         // The least significant bit of the pointer to the key_value is used to track if the entry is still being added
@@ -185,7 +187,7 @@ bool hashtable_mpmc_support_get_bucket_and_key_value(
         }
 
         // Update the return bucket
-        return_bucket->_packed = hashtable_mpmc->data->buckets[bucket_index]._packed;
+        return_bucket->_packed = hashtable_mpmc_data->buckets[bucket_index]._packed;
         *return_bucket_index = bucket_index;
         found = true;
     }
@@ -206,7 +208,7 @@ uintptr_t hashtable_mpmc_op_get(
             thread_local_operation_queue);
 
     bool found = hashtable_mpmc_support_get_bucket_and_key_value(
-            hashtable_mpmc,
+            hashtable_mpmc->data,
             hash,
             hashtable_mpmc_support_hash_half(hash),
             key,
@@ -238,7 +240,7 @@ bool hashtable_mpmc_op_delete(
 
     // Try to search for the key
     bool found = hashtable_mpmc_support_get_bucket_and_key_value(
-            hashtable_mpmc,
+            hashtable_mpmc->data,
             hash,
             hashtable_mpmc_support_hash_half(hash),
             key,
@@ -299,7 +301,7 @@ bool hashtable_mpmc_op_set(
 
         // Try to find the value in the hashtable
         bool found = hashtable_mpmc_support_get_bucket_and_key_value(
-                hashtable_mpmc,
+                hashtable_mpmc->data,
                 hash,
                 hash_half,
                 key,
