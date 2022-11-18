@@ -199,6 +199,7 @@ uintptr_t hashtable_mpmc_op_get(
         hashtable_mpmc_t *hashtable_mpmc,
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length) {
+    uintptr_t value;
     hashtable_mpmc_data_bucket_t bucket;
     hashtable_mpmc_bucket_index_t bucket_index;
     hashtable_mpmc_hash_t hash = hashtable_mcmp_support_hash_calculate(key, key_length);
@@ -217,8 +218,10 @@ uintptr_t hashtable_mpmc_op_get(
             &bucket,
             &bucket_index);
 
-    // Fetch the value
-    uintptr_t value = bucket.data.key_value->value;
+    if (found) {
+        // Fetch the value
+        value = bucket.data.key_value->value;
+    }
 
     // Mark the operation as completed
     epoch_operation_queue_mark_completed(operation);
