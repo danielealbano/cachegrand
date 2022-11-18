@@ -206,6 +206,7 @@ hashtable_mpmc_result_t hashtable_mpmc_support_get_bucket_and_key_value(
         return_bucket->_packed = hashtable_mpmc_data->buckets[bucket_index]._packed;
         *return_bucket_index = bucket_index;
         found = HASHTABLE_MPMC_RESULT_TRUE;
+        break;
     }
 
     return found;
