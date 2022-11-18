@@ -68,6 +68,61 @@ struct hashtable_mpmc {
     hashtable_mpmc_data_t *data;
 };
 
+void hashtable_mpmc_thread_operation_queue_init();
+
+void hashtable_mpmc_thread_operation_queue_free();
+
+hashtable_mpmc_hash_t hashtable_mcmp_support_hash_calculate(
+        hashtable_mpmc_key_t *key,
+        hashtable_mpmc_key_length_t key_length);
+
+hashtable_mpmc_bucket_index_t hashtable_mpmc_support_bucket_index_from_hash(
+        hashtable_mpmc_data_t *hashtable_mpmc_data,
+        hashtable_mpmc_hash_t hash);
+
+hashtable_mpmc_data_t *hashtable_mpmc_data_init(
+        uint64_t buckets_count);
+
+void hashtable_mpmc_data_free(
+        hashtable_mpmc_data_t *hashtable_mpmc_data);
+
+hashtable_mpmc_t *hashtable_mpmc_init(
+        uint64_t buckets_count);
+
+void hashtable_mpmc_free(
+        hashtable_mpmc_t *hashtable_mpmc);
+
+hashtable_mpmc_hash_half_t hashtable_mpmc_support_hash_half(
+        hashtable_mpmc_hash_t hash);
+
+bool hashtable_mpmc_support_get_bucket_and_key_value(
+        hashtable_mpmc_data_t *hashtable_mpmc_data,
+        hashtable_mpmc_hash_t hash,
+        hashtable_mpmc_hash_half_t hash_half,
+        hashtable_mpmc_key_t *key,
+        hashtable_mpmc_key_length_t key_length,
+        bool allow_temporary,
+        hashtable_mpmc_data_bucket_t *return_bucket,
+        hashtable_mpmc_bucket_index_t *return_bucket_index);
+
+uintptr_t hashtable_mpmc_op_get(
+        hashtable_mpmc_t *hashtable_mpmc,
+        hashtable_mpmc_key_t *key,
+        hashtable_mpmc_key_length_t key_length);
+
+bool hashtable_mpmc_op_delete(
+        hashtable_mpmc_t *hashtable_mpmc,
+        hashtable_mpmc_key_t *key,
+        hashtable_mpmc_key_length_t key_length);
+
+bool hashtable_mpmc_op_set(
+        hashtable_mpmc_t *hashtable_mpmc,
+        hashtable_mpmc_key_t *key,
+        hashtable_mpmc_key_length_t key_length,
+        uintptr_t value,
+        bool *return_created_new,
+        bool *return_value_updated);
+
 #ifdef __cplusplus
 }
 #endif
