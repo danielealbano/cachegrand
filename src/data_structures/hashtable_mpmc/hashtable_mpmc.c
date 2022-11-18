@@ -282,6 +282,7 @@ bool hashtable_mpmc_op_set(
     bool result = false;
     hashtable_mpmc_data_bucket_t found_bucket, new_bucket;
     hashtable_mpmc_bucket_index_t found_bucket_index, new_bucket_index;
+    hashtable_mpmc_data_key_value_t *new_key_value = NULL;
     hashtable_mpmc_hash_t hash = hashtable_mcmp_support_hash_calculate(key, key_length);
     hashtable_mpmc_hash_half_t hash_half = hashtable_mpmc_support_hash_half(hash);
 
@@ -315,15 +316,12 @@ bool hashtable_mpmc_op_set(
 
         // If the bucket was previously found, try to swap it with the new bucket
         if (found) {
-            // If the value is found check if there is a transaction in progress or if the temporary bit is set and in
-            // case abort the set operation and return it as successful as:
-            // - if there is a transaction, it will potentially override the change anyway
-            // - if the temporary bit is set the value is still being set, but it doesn't make sense to wait as the
-            //   execution is in the middle of a race and therefore doesn't matter if the value is discarded
-
+            // If the value found is temporary or if there is a transaction in progress it means that another thread is
+            // writing the data so the flow can just wait for it to complete before carrying out the operations.
             bool is_temporary = ((uintptr_t)found_bucket.data.key_value & 0x01) == 0x01;
-            if (found_bucket.data.transaction_id.id != 0 || is_temporary) {
-                goto end;
+            if (unlikely(is_temporary || found_bucket.data.transaction_id.id != 0)) {
+                retry_loop = true;
+                continue;
             }
 
             uintptr_t expected_value = found_bucket.data.key_value->value;
@@ -343,30 +341,9 @@ bool hashtable_mpmc_op_set(
             goto end;
         }
 
-        // If the bucket hasn't been found, a new one needs to be inserted and therefore the key_value struct has to be
-        // allocated
-        hashtable_mpmc_data_key_value_t *new_key_value = xalloc_alloc(sizeof(hashtable_mpmc_data_key_value_t));
-        new_key_value->value = value;
-
-        if (key_length <= sizeof(new_key_value->key.embedded.key)) {
-            // The key can be embedded
-            strncpy(new_key_value->key.embedded.key, key, key_length);
-            new_key_value->key.embedded.key_length = key_length;
-            new_key_value->key_is_embedded = true;
-        } else {
-            // The key is too large and can't be embedded
-            new_key_value->key.external.key = key;
-            new_key_value->key.external.key_length = key_length;
-            new_key_value->key_is_embedded = false;
-        }
-
-        // Prepare the new bucket, the new_key_value pointer points to the key_value struct already prepared but with
-        // the least significant bit set to 1 to indicate that it's a temporary allocation.
-        new_bucket.data.transaction_id.id = 0;
-        new_bucket.data.hash_half = hash_half;
-        new_bucket.data.key_value = (void*)((uintptr_t)new_key_value | 0x01);
-
-        hashtable_mpmc_bucket_index_t new_bucket_index_start = (hash >> 32) & hashtable_mpmc->data->buckets_count_mask;
+        hashtable_mpmc_bucket_index_t new_bucket_index_start = hashtable_mpmc_support_bucket_index_from_hash(
+                hashtable_mpmc->data,
+                hash);
         bool empty_bucket_found = false;
         for(
                 new_bucket_index = new_bucket_index_start;
@@ -378,6 +355,38 @@ bool hashtable_mpmc_op_set(
             if (hashtable_mpmc->data->buckets[new_bucket_index]._packed != 0) {
                 // Skip the non-empty value
                 continue;
+            }
+
+            // This loop might get retried a number of times in case of clashes, therefore it allocates the
+            // new_key_value only once and only if necessary. To speed up the hot path (e.g. no clashes) it's marked as
+            // likely to be true.
+            // For optimization reasons, this operation is done only if an empty bucket is found.
+            if (likely(!new_key_value)) {
+                // If the bucket hasn't been found, a new one needs to be inserted and therefore the key_value struct
+                // has to be allocated
+                new_key_value = xalloc_alloc(sizeof(hashtable_mpmc_data_key_value_t));
+                new_key_value->hash = hash;
+                new_key_value->value = value;
+
+                // Check if the key can be embedded, uses the lesser than or equal as we don't care about the nul
+                // because the key_length is what drives the string operations on the keys.
+                if (key_length <= sizeof(new_key_value->key.embedded.key)) {
+                    // The key can be embedded
+                    strncpy(new_key_value->key.embedded.key, key, key_length);
+                    new_key_value->key.embedded.key_length = key_length;
+                    new_key_value->key_is_embedded = true;
+                } else {
+                    // The key is too large and can't be embedded
+                    new_key_value->key.external.key = key;
+                    new_key_value->key.external.key_length = key_length;
+                    new_key_value->key_is_embedded = false;
+                }
+
+                // Prepare the new bucket, the new_key_value pointer points to the key_value struct already prepared but
+                // with the least significant bit set to 1 to indicate that it's a temporary allocation.
+                new_bucket.data.transaction_id.id = 0;
+                new_bucket.data.hash_half = hash_half;
+                new_bucket.data.key_value = (void*)((uintptr_t)new_key_value | 0x01);
             }
 
             // Initialize the value of the expected bucket to 0
@@ -448,6 +457,12 @@ end:
 
     // Mark the operation as completed
     epoch_operation_queue_mark_completed(operation);
+
+    // If a new_key_value has been allocated but at the end a new bucket wasn't created, it has to be staged in the GC
+    // as another thread in the meantime (e.g. another thread trying to insert the same key) might be reading it.
+    if (unlikely(*return_created_new == false && new_key_value != NULL)) {
+        epoch_gc_stage_object(EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE, new_key_value);
+    }
 
     return result;
 }
