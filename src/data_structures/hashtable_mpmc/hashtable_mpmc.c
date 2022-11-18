@@ -37,6 +37,25 @@
 // This thread local variable prevents from having more instances of the hashtable but currently this is not required
 static thread_local epoch_operation_queue_t *thread_local_operation_queue = NULL;
 
+FUNCTION_CTOR(hashtable_mpmc_epoch_gc_object_type_hashtable_key_value_destructor_cb_init, {
+    epoch_gc_register_object_type_destructor_cb(
+            EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE,
+            hashtable_mpmc_epoch_gc_object_type_hashtable_key_value_destructor_cb);
+})
+
+void hashtable_mpmc_epoch_gc_object_type_hashtable_key_value_destructor_cb(
+        uint8_t staged_objects_count,
+        epoch_gc_staged_object_t staged_objects[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE]) {
+    for(uint8_t index = 0; index < staged_objects_count; index++) {
+        hashtable_mpmc_data_key_value_t *key_value = staged_objects[index].data.object;
+        if (!key_value->key_is_embedded) {
+            xalloc_free(key_value->key.external.key);
+        }
+
+        xalloc_free(key_value);
+    }
+}
+
 void hashtable_mpmc_thread_operation_queue_init() {
     thread_local_operation_queue = epoch_operation_queue_init();
 }

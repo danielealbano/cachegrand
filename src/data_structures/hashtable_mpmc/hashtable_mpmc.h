@@ -68,6 +68,10 @@ struct hashtable_mpmc {
     hashtable_mpmc_data_t *data;
 };
 
+void hashtable_mpmc_epoch_gc_object_type_hashtable_key_value_destructor_cb(
+        uint8_t staged_objects_count,
+        epoch_gc_staged_object_t staged_objects[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE]);
+
 void hashtable_mpmc_thread_operation_queue_init();
 
 void hashtable_mpmc_thread_operation_queue_free();
