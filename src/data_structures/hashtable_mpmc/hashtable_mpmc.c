@@ -121,6 +121,12 @@ hashtable_mpmc_hash_half_t hashtable_mpmc_support_hash_half(
     return hash & 0xFFFFFFFF;
 }
 
+hashtable_mpmc_bucket_index_t hashtable_mpmc_support_bucket_index_from_hash(
+        hashtable_mpmc_data_t *hashtable_mpmc_data,
+        hashtable_mpmc_hash_t hash) {
+    return (hash >> 32) & hashtable_mpmc_data->buckets_count_mask;
+}
+
 bool hashtable_mpmc_support_get_bucket_and_key_value(
         hashtable_mpmc_t *hashtable_mpmc,
         hashtable_mpmc_hash_t hash,
