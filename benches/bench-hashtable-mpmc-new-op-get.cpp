@@ -247,7 +247,7 @@ static void BenchArguments(benchmark::internal::Benchmark* b) {
     b
             ->Arg(256)
             ->ThreadRange(TEST_THREADS_RANGE_BEGIN, TEST_THREADS_RANGE_END)
-            ->Iterations(10000)
+            ->Iterations(131072)
             ->DisplayAggregatesOnly(false);
 }
 
