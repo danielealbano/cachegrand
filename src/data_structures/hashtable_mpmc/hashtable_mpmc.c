@@ -116,7 +116,8 @@ void hashtable_mpmc_free(
     xalloc_free(hashtable_mpmc);
 }
 
-hashtable_mpmc_hash_half_t hashtable_mpmc_support_hash_half(hashtable_mpmc_hash_t hash) {
+hashtable_mpmc_hash_half_t hashtable_mpmc_support_hash_half(
+        hashtable_mpmc_hash_t hash) {
     return hash & 0xFFFFFFFF;
 }
 
