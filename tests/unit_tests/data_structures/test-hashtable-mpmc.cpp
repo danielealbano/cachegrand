@@ -18,8 +18,8 @@
 #include "spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
-#include "data_structures/hashtable_mpmc/hashtable_mpmc.h"
 #include "epoch_gc.h"
+#include "data_structures/hashtable_mpmc/hashtable_mpmc.h"
 
 #if CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2 == 1
 #include "t1ha.h"
@@ -30,12 +30,6 @@
 #else
 #error "Unsupported hash algorithm"
 #endif
-
-void test_hashtable_mpmc_epoch_gc_object_destructor_cb_test(
-        uint8_t staged_objects_count,
-        epoch_gc_staged_object_t staged_objects[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE]) {
-    // do nothing
-}
 
 hashtable_mpmc_hash_t test_hashtable_mcmp_support_hash_calculate(
         hashtable_mpmc_key_t *key,
@@ -303,9 +297,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         hashtable_mpmc_bucket_index_t hashtable_key_bucket_index_max =
                 hashtable_key_bucket_index + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE;
 
-        epoch_gc_register_object_type_destructor_cb(
-                EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE,
-                test_hashtable_mpmc_epoch_gc_object_destructor_cb_test);
         epoch_gc_t *epoch_gc = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE);
         epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init();
         epoch_gc_thread_register_global(epoch_gc, epoch_gc_thread);
@@ -460,7 +451,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         epoch_gc_thread_unregister_global(epoch_gc_thread);
         epoch_gc_thread_free(epoch_gc_thread);
         epoch_gc_free(epoch_gc);
-        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE);
     }
 
     SECTION("hashtable_mpmc_op_get") {
@@ -542,9 +532,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         hashtable_mpmc_bucket_index_t hashtable_key_bucket_index =
                 hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key_hash);
 
-        epoch_gc_register_object_type_destructor_cb(
-                EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE,
-                test_hashtable_mpmc_epoch_gc_object_destructor_cb_test);
         epoch_gc_t *epoch_gc = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE);
         epoch_gc_thread_t *epoch_gc_thread = epoch_gc_thread_init();
         epoch_gc_thread_register_global(epoch_gc, epoch_gc_thread);
@@ -586,7 +573,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         epoch_gc_thread_unregister_global(epoch_gc_thread);
         epoch_gc_thread_free(epoch_gc_thread);
         epoch_gc_free(epoch_gc);
-        epoch_gc_unregister_object_type_destructor_cb(EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE);
     }
 //
 //    SECTION("hashtable_spsc_op_iter") {
