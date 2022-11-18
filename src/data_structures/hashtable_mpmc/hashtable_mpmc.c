@@ -60,8 +60,8 @@ hashtable_mpmc_data_t *hashtable_mpmc_data_init(
     buckets_count = pow2_next(buckets_count);
     uint64_t buckets_count_real = buckets_count + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE;
 
-    hashtable_mpmc_data_t *hashtable_mpmc_data = (hashtable_mpmc_data_t *)xalloc_mmap_alloc(
-            sizeof(hashtable_mpmc_data_t) + (sizeof(hashtable_mpmc_data_bucket_t) * buckets_count_real));
+    size_t struct_size = sizeof(hashtable_mpmc_data_t) + (sizeof(hashtable_mpmc_data_bucket_t) * buckets_count_real);
+    hashtable_mpmc_data_t *hashtable_mpmc_data = (hashtable_mpmc_data_t *)xalloc_mmap_alloc(struct_size);
 
     hashtable_mpmc_data->buckets_count = buckets_count;
     hashtable_mpmc_data->buckets_count_real = buckets_count_real;

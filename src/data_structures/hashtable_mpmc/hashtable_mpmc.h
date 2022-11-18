@@ -59,6 +59,7 @@ struct hashtable_mpmc_data {
     uint64_t buckets_count;
     uint64_t buckets_count_real;
     uint64_t buckets_count_mask;
+    size_t struct_size;
     hashtable_mpmc_data_bucket_t buckets[];
 };
 
