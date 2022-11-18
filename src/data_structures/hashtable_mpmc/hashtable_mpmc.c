@@ -75,7 +75,7 @@ hashtable_mpmc_data_t *hashtable_mpmc_data_init(
     hashtable_mpmc_data->struct_size = struct_size;
     hashtable_mpmc_data->buckets_count = buckets_count;
     hashtable_mpmc_data->buckets_count_real = buckets_count_real;
-    hashtable_mpmc_data->buckets_count_mask = hashtable_mpmc_data->buckets_count - 1;
+    hashtable_mpmc_data->buckets_count_mask = buckets_count - 1;
 
     return hashtable_mpmc_data;
 }
