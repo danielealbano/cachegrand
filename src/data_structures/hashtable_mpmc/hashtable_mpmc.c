@@ -440,6 +440,11 @@ bool hashtable_mpmc_op_set(
                 continue;
             }
 
+            // Resets the previously initialized bucket, no need for atomic operations as the current thread is the only
+            // one that by algorithm will ever change this bucket.
+            hashtable_mpmc->data->buckets[new_bucket_index]._packed = 0;
+            MEMORY_FENCE_STORE();
+
             retry_loop = true;
             break;
         }
