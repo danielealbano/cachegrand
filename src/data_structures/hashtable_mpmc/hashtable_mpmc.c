@@ -5,8 +5,6 @@
 
 #include "misc.h"
 #include "exttypes.h"
-#include "clock.h"
-#include "log/log.h"
 #include "fatal.h"
 #include "pow2.h"
 #include "memory_fences.h"
@@ -16,7 +14,6 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_spinlock.h"
 #include "epoch_operation_queue.h"
 #include "epoch_gc.h"
 
@@ -219,7 +216,6 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length,
         uintptr_t *return_value) {
-    uintptr_t value;
     hashtable_mpmc_data_bucket_t bucket;
     hashtable_mpmc_bucket_index_t bucket_index;
     hashtable_mpmc_hash_t hash = hashtable_mcmp_support_hash_calculate(key, key_length);
