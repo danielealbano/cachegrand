@@ -450,13 +450,17 @@ bool hashtable_mpmc_op_set(
         }
     } while(retry_loop);
 
-    *return_created_new = true;
-    hashtable_mpmc->data->buckets[new_bucket_index].data.key_value =
-            (void*)((uintptr_t)hashtable_mpmc->data->buckets[new_bucket_index].data.key_value & ~0x07);
+    // Drop the temporary flag from the key_value pointer
+    hashtable_mpmc->data->buckets[new_bucket_index].data.key_value = new_key_value;
 
     // No need for an atomic operation, the value can be safely overwritten as by algorithm no other thread will touch
     // the bucket
     MEMORY_FENCE_STORE();
+
+    // Operation successful, set the result to true and update the status variables
+    *return_created_new = true;
+    *return_value_updated = true;
+    result = true;
 
 end:
 
