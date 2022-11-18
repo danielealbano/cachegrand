@@ -5,6 +5,9 @@
 
 #include "misc.h"
 #include "exttypes.h"
+#include "clock.h"
+#include "log/log.h"
+#include "fatal.h"
 #include "pow2.h"
 #include "memory_fences.h"
 #include "xalloc.h"
@@ -28,6 +31,8 @@
 #else
 #error "Unsupported hash algorithm"
 #endif
+
+#define TAG "hashtable_mpmc"
 
 // This thread local variable prevents from having more instances of the hashtable but currently this is not required
 static thread_local epoch_operation_queue_t *thread_local_operation_queue = NULL;
@@ -62,6 +67,10 @@ hashtable_mpmc_data_t *hashtable_mpmc_data_init(
 
     size_t struct_size = sizeof(hashtable_mpmc_data_t) + (sizeof(hashtable_mpmc_data_bucket_t) * buckets_count_real);
     hashtable_mpmc_data_t *hashtable_mpmc_data = (hashtable_mpmc_data_t *)xalloc_mmap_alloc(struct_size);
+
+    if (memset(hashtable_mpmc_data, 0, struct_size) != hashtable_mpmc_data) {
+        FATAL(TAG, "Unable to zero the requested memory %lu", struct_size);
+    }
 
     hashtable_mpmc_data->buckets_count = buckets_count;
     hashtable_mpmc_data->buckets_count_real = buckets_count_real;
