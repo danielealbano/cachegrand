@@ -80,12 +80,40 @@ hashtable_mpmc_data_t *hashtable_mpmc_data_init(
     return hashtable_mpmc_data;
 }
 
+void hashtable_mpmc_data_free(
+        hashtable_mpmc_data_t *hashtable_mpmc_data) {
+    for(
+            hashtable_mpmc_bucket_index_t bucket_index = 0;
+            bucket_index < hashtable_mpmc_data->buckets_count_real;
+            bucket_index++) {
+        if (hashtable_mpmc_data->buckets[bucket_index].data.hash_half == 0) {
+            continue;
+        }
+
+        uintptr_t key_value_ptr = (uintptr_t)hashtable_mpmc_data->buckets[bucket_index].data.key_value & ~0x01;
+        hashtable_mpmc_data_key_value_t *key_value = (hashtable_mpmc_data_key_value_t*)key_value_ptr;
+
+        if (!key_value->key_is_embedded) {
+            xalloc_free(key_value->key.external.key);
+        }
+        xalloc_free((void*)key_value);
+    }
+
+    xalloc_mmap_free(hashtable_mpmc_data, hashtable_mpmc_data->struct_size);
+}
+
 hashtable_mpmc_t *hashtable_mpmc_init(
         uint64_t buckets_count) {
     hashtable_mpmc_t *hashtable_mpmc = (hashtable_mpmc_t *)xalloc_alloc_zero(sizeof(hashtable_mpmc_t));
     hashtable_mpmc->data = hashtable_mpmc_data_init(buckets_count);
 
     return hashtable_mpmc;
+}
+
+void hashtable_mpmc_free(
+        hashtable_mpmc_t *hashtable_mpmc) {
+    hashtable_mpmc_data_free(hashtable_mpmc->data);
+    xalloc_free(hashtable_mpmc);
 }
 
 hashtable_mpmc_hash_half_t hashtable_mpmc_support_hash_half(hashtable_mpmc_hash_t hash) {
