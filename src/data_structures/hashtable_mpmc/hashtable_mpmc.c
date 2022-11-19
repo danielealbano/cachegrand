@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 #include <string.h>
+#include <math.h>
 #include <assert.h>
 
 #include "misc.h"
@@ -9,6 +10,7 @@
 #include "fatal.h"
 #include "pow2.h"
 #include "memory_fences.h"
+#include "intrinsics.h"
 #include "xalloc.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint64.h"
@@ -29,6 +31,9 @@
 #else
 #error "Unsupported hash algorithm"
 #endif
+
+// TODO: need to review get during the upsize !!!
+// TODO: need to review deletion during the upsize !!!
 
 #define TAG "hashtable_mpmc"
 
@@ -120,18 +125,149 @@ void hashtable_mpmc_data_free(
     xalloc_mmap_free(hashtable_mpmc_data, hashtable_mpmc_data->struct_size);
 }
 
+hashtable_mpmc_upsize_info_t *hashtable_mpmc_upsize_info_init(
+        hashtable_mpmc_data_t *from,
+        hashtable_mpmc_data_t *to,
+        uint32_t block_size) {
+    // Recalculate the size of the blocks to ensure that the last one will be always include all the buckets, although
+    // for the last block it might be greater, so it has always to ensure it's not going to try to read data outside the
+    // size of buckets (defined via buckets_count_real).
+    uint32_t total_blocks = ceil((double)from->buckets_count_real / (double)block_size);
+    uint32_t new_block_size = ceil((double)from->buckets_count_real / (double)total_blocks);
+
+    hashtable_mpmc_upsize_info_t *upsize_info = xalloc_alloc_zero(sizeof(hashtable_mpmc_upsize_info_t));
+    upsize_info->from = from;
+    upsize_info->to = to;
+    upsize_info->total_blocks = total_blocks;
+    upsize_info->remaining_blocks = total_blocks;
+    upsize_info->block_size = new_block_size;
+    upsize_info->threads_copying = 0;
+
+    return upsize_info;
+}
+
+void hashtable_mpmc_upsize_info_free(
+        hashtable_mpmc_upsize_info_t *hashtable_mpmc_upsize_info) {
+    xalloc_free(hashtable_mpmc_upsize_info);
+}
+
 hashtable_mpmc_t *hashtable_mpmc_init(
-        uint64_t buckets_count) {
+        uint64_t buckets_count,
+        uint64_t buckets_count_max) {
     hashtable_mpmc_t *hashtable_mpmc = (hashtable_mpmc_t *)xalloc_alloc_zero(sizeof(hashtable_mpmc_t));
+
     hashtable_mpmc->data = hashtable_mpmc_data_init(buckets_count);
+    hashtable_mpmc->buckets_count_max = pow2_next(buckets_count_max);
+    hashtable_mpmc->upsize_list = double_linked_list_init();
+    spinlock_init(&hashtable_mpmc->upsize_list_spinlock);
 
     return hashtable_mpmc;
 }
 
 void hashtable_mpmc_free(
         hashtable_mpmc_t *hashtable_mpmc) {
+    // Destroy the list of hashtable to upsize
+    double_linked_list_item_t *item = hashtable_mpmc->upsize_list->head;
+    while(item != NULL) {
+        hashtable_mpmc_upsize_info_t *upsize_info = item->data;
+        double_linked_list_item_t *current = item;
+        item = item->next;
+
+        hashtable_mpmc_data_free(upsize_info->from);
+        hashtable_mpmc_upsize_info_free(upsize_info);
+        double_linked_list_item_free(current);
+    }
+
     hashtable_mpmc_data_free(hashtable_mpmc->data);
+    double_linked_list_free(hashtable_mpmc->upsize_list);
     xalloc_free(hashtable_mpmc);
+}
+
+bool hashtable_mpmc_upsize_is_allowed(
+        hashtable_mpmc_t *hashtable_mpmc) {
+    return pow2_next(hashtable_mpmc->data->buckets_count) <= hashtable_mpmc->buckets_count_max;
+}
+
+void hashtable_mpmc_upsize_prepare(
+        hashtable_mpmc_t *hashtable_mpmc) {
+    hashtable_mpmc_upsize_status_t upsize_status;
+
+    // Try to load the current status
+    __atomic_load(
+            &hashtable_mpmc->upsize_status,
+            &upsize_status,
+            __ATOMIC_ACQUIRE);
+
+    // Check if another thread has already marked the hashtable in prepare for resizing
+    if (upsize_status == HASHTABLE_MPMC_STATUS_PREPARE_FOR_UPSIZE) {
+        return;
+    }
+
+    // Try to set the value to HASHTABLE_MPMC_PREPARE_FOR_RESIZING
+    if (!__atomic_compare_exchange_n(
+            &hashtable_mpmc->upsize_status,
+            &upsize_status,
+            HASHTABLE_MPMC_STATUS_PREPARE_FOR_UPSIZE,
+            false,
+            __ATOMIC_ACQ_REL,
+            __ATOMIC_ACQUIRE)) {
+        // If it failed another thread has already set the flag and has the ownership of the preparation
+        return;
+    }
+
+    // As buckets count uses the current one plus one as hashtable_mpmc_data_init will calculate the next power of 2
+    // and use that as size.
+    hashtable_mpmc_data_t *new_hashtable_mpmc_data = hashtable_mpmc_data_init(
+            hashtable_mpmc->data->buckets_count + 1);
+
+    // Create the new item for the upsize_list and append it
+    double_linked_list_item_t *item = double_linked_list_item_init();
+    item->data = hashtable_mpmc_upsize_info_init(
+            hashtable_mpmc->data,
+            new_hashtable_mpmc_data,
+            HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
+
+    spinlock_lock(&hashtable_mpmc->upsize_list_spinlock);
+    double_linked_list_push_item(hashtable_mpmc->upsize_list, item);
+    spinlock_unlock(&hashtable_mpmc->upsize_list_spinlock);
+
+    hashtable_mpmc->data = new_hashtable_mpmc_data;
+    MEMORY_FENCE_STORE();
+
+    // Update the upsize_list_last_change_epoch and the upsize_status
+    hashtable_mpmc->upsize_list_last_change_epoch = intrinsics_tsc();
+    hashtable_mpmc->upsize_status = HASHTABLE_MPMC_STATUS_UPSIZING;
+    MEMORY_FENCE_STORE();
+}
+
+void hashtable_mpmc_upsize_copy_block(
+        hashtable_mpmc_t *hashtable_mpmc) {
+    uint64_t block_number;
+    hashtable_mpmc_bucket_index_t bucket_index_start, bucket_index;
+    hashtable_mpmc_upsize_info_t *upsize_info;
+
+    // Fetch the oldest upsize info from the double linked list
+    spinlock_lock(&hashtable_mpmc->upsize_list_spinlock);
+
+    if (unlikely(hashtable_mpmc->upsize_list->count == 0)) {
+        spinlock_unlock(&hashtable_mpmc->upsize_list_spinlock);
+        return;
+    }
+
+    upsize_info = hashtable_mpmc->upsize_list->head->data;
+    MEMORY_FENCE_LOAD();
+
+    if (unlikely(upsize_info->remaining_blocks == 0)) {
+        spinlock_unlock(&hashtable_mpmc->upsize_list_spinlock);
+        return;
+    }
+
+    block_number = upsize_info->remaining_blocks--;
+    total_number = upsize_info->remaining_blocks--;
+
+    spinlock_unlock(&hashtable_mpmc->upsize_list_spinlock);
+
+    hashtable_mpmc_bucket_index_t bucket_index_start =
 }
 
 hashtable_mpmc_hash_half_t hashtable_mpmc_support_hash_half(

@@ -7,6 +7,7 @@ extern "C" {
 
 #define HASHTABLE_MPMC_HASH_SEED 42U
 #define HASHTABLE_MPMC_LINEAR_SEARCH_RANGE 256
+#define HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE 1024
 
 #define HASHTABLE_MPMC_POINTER_TAG_TEMPORARY (0x01)
 #define HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE (0x02)
@@ -75,15 +76,48 @@ struct hashtable_mpmc_data {
     hashtable_mpmc_data_bucket_t buckets[];
 };
 
+enum hashtable_mpmc_upsize_status {
+    // the thread can only on data, no need to iterate over the list of previous hashtables when fetching keys
+    HASHTABLE_MPMC_STATUS_NOT_UPSIZING,
+
+    // the hashtable needs to upsize, the upsize_status in hashtable_mpmc_t can be changed only by one thread and that
+    // thread will take care of allocating the new data and update the upsize_list before setting the status to
+    // HASHTABLE_MPMC_STATUS_UPSIZING.
+    // The hashtable can switch to this status both from not resizing and from resizing as it's basically used as lock
+    // to ensure that other threads will not try to carry out multiple operations on the same data.
+    // Every time a thread updates the upsize_list it has to update the epoch in upsize_list_last_change_epoch
+    HASHTABLE_MPMC_STATUS_PREPARE_FOR_UPSIZE,
+
+    // The upsize_list contains at least 1 item that has to be processed
+    HASHTABLE_MPMC_STATUS_UPSIZING,
+};
+typedef enum hashtable_mpmc_upsize_status hashtable_mpmc_upsize_status_t;
+
+typedef struct hashtable_mpmc_upsize_info hashtable_mpmc_upsize_info_t;
+struct hashtable_mpmc_upsize_info {
+    hashtable_mpmc_data_t *from;
+    hashtable_mpmc_data_t *to;
+    uint64_t total_blocks;
+    uint64_t remaining_blocks;
+    uint32_t block_size;
+    uint16_t threads_copying;
+};
+
 typedef struct hashtable_mpmc hashtable_mpmc_t;
 struct hashtable_mpmc {
     hashtable_mpmc_data_t *data;
+    uint64_t buckets_count_max;
+    hashtable_mpmc_upsize_status_t upsize_status;
+    double_linked_list_t *upsize_list;
+    spinlock_lock_t upsize_list_spinlock;
+    uint64_t upsize_list_last_change_epoch;
 };
 
 enum hashtable_mpmc_result {
     HASHTABLE_MPMC_RESULT_FALSE,
     HASHTABLE_MPMC_RESULT_TRUE,
-    HASHTABLE_MPMC_RESULT_TRY_AGAIN,
+    HASHTABLE_MPMC_RESULT_TRY_LATER,
+    HASHTABLE_MPMC_RESULT_NEEDS_RESIZING,
 };
 typedef enum hashtable_mpmc_result hashtable_mpmc_result_t;
 
@@ -110,9 +144,21 @@ void hashtable_mpmc_data_free(
         hashtable_mpmc_data_t *hashtable_mpmc_data);
 
 hashtable_mpmc_t *hashtable_mpmc_init(
-        uint64_t buckets_count);
+        uint64_t buckets_count,
+        uint64_t buckets_count_max);
 
 void hashtable_mpmc_free(
+        hashtable_mpmc_t *hashtable_mpmc);
+
+hashtable_mpmc_upsize_info_t *hashtable_mpmc_upsize_info_init(
+        hashtable_mpmc_data_t *from,
+        hashtable_mpmc_data_t *to,
+        uint32_t block_size);
+
+void hashtable_mpmc_upsize_info_free(
+        hashtable_mpmc_upsize_info_t *hashtable_mpmc_upsize_info);
+
+void hashtable_mpmc_upsize_prepare(
         hashtable_mpmc_t *hashtable_mpmc);
 
 hashtable_mpmc_hash_half_t hashtable_mpmc_support_hash_half(
