@@ -285,6 +285,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         char *key2_copy = mi_strdup(key2);
         bool return_created_new = false;
         bool return_value_updated = false;
+        uintptr_t return_previous_value = 0;
 
         hashtable_mpmc_t *hashtable = hashtable_mpmc_init(16);
 
@@ -311,7 +312,34 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t)value1,
                     &return_created_new,
-                    &return_value_updated) == HASHTABLE_MPMC_RESULT_TRUE);
+                    &return_value_updated,
+                    &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
+
+            REQUIRE(return_created_new);
+            REQUIRE(return_value_updated);
+            REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index]._packed != 0);
+            REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.key_value != nullptr);
+            REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half == key_hash_half);
+            REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.key_value->key_is_embedded == false);
+            REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.key_value->key.external.key == key_copy);
+            REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.key_value->key.external.key_length ==
+                    key_length);
+            REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.key_value->hash == key_hash);
+            REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.key_value->value == (uintptr_t)value1);
+        }
+
+        SECTION("value set - insert - tombstone") {
+            hashtable->data->buckets[hashtable_key_bucket_index].data.key_value =
+                    (hashtable_mpmc_data_key_value_t*)HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE;
+
+            REQUIRE(hashtable_mpmc_op_set(
+                    hashtable,
+                    key_copy,
+                    key_length,
+                    (uintptr_t)value1,
+                    &return_created_new,
+                    &return_value_updated,
+                    &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(return_created_new);
             REQUIRE(return_value_updated);
@@ -333,7 +361,8 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_embed_length,
                     (uintptr_t)value1,
                     &return_created_new,
-                    &return_value_updated) == HASHTABLE_MPMC_RESULT_TRUE);
+                    &return_value_updated,
+                    &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(return_created_new);
             REQUIRE(return_value_updated);
@@ -358,17 +387,20 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t)value1,
                     &return_created_new,
-                    &return_value_updated) == HASHTABLE_MPMC_RESULT_TRUE);
+                    &return_value_updated,
+                    &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
             REQUIRE(hashtable_mpmc_op_set(
                     hashtable,
                     key_copy2,
                     key_length,
                     (uintptr_t)value2,
                     &return_created_new,
-                    &return_value_updated) == HASHTABLE_MPMC_RESULT_TRUE);
+                    &return_value_updated,
+                    &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(!return_created_new);
             REQUIRE(return_value_updated);
+            REQUIRE(return_previous_value == (uintptr_t)value1);
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index]._packed != 0);
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.key_value != nullptr);
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half == key_hash_half);
@@ -387,14 +419,16 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t)value1,
                     &return_created_new,
-                    &return_value_updated) == HASHTABLE_MPMC_RESULT_TRUE);
+                    &return_value_updated,
+                    &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
             REQUIRE(hashtable_mpmc_op_set(
                     hashtable,
                     key2_copy,
                     key2_length,
                     (uintptr_t)value2,
                     &return_created_new,
-                    &return_value_updated) == HASHTABLE_MPMC_RESULT_TRUE);
+                    &return_value_updated,
+                    &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index]._packed != 0);
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.key_value != nullptr);
@@ -433,7 +467,8 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t)value1,
                     &return_created_new,
-                    &return_value_updated) == HASHTABLE_MPMC_RESULT_FALSE);
+                    &return_value_updated,
+                    &return_previous_value) == HASHTABLE_MPMC_RESULT_FALSE);
 
             // Hashes have to be set back to zero before freeing up the hashtable
             for (
@@ -503,6 +538,21 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             REQUIRE(return_value == 12345);
         }
 
+        SECTION("value found - after tombstone key") {
+            hashtable->data->buckets[hashtable_key_bucket_index].data.key_value =
+                    (hashtable_mpmc_data_key_value_t*)HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE;
+            hashtable->data->buckets[hashtable_key_bucket_index + 1].data.transaction_id.id = 0;
+            hashtable->data->buckets[hashtable_key_bucket_index + 1].data.hash_half = key_hash_half;
+            hashtable->data->buckets[hashtable_key_bucket_index + 1].data.key_value = key_value;
+
+            REQUIRE(hashtable_mpmc_op_get(
+                    hashtable,
+                    key,
+                    key_length,
+                    &return_value) == HASHTABLE_MPMC_RESULT_TRUE);
+            REQUIRE(return_value == 12345);
+        }
+
         SECTION("value not found - existing key with different case") {
             hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id.id = 0;
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
@@ -528,6 +578,18 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value =
                     (hashtable_mpmc_data_key_value_volatile_t*)((uintptr_t)(key_value) | 0x01);
+
+            REQUIRE(hashtable_mpmc_op_get(
+                    hashtable,
+                    key,
+                    key_length,
+                    &return_value) == HASHTABLE_MPMC_RESULT_FALSE);
+        }
+
+        SECTION("value not found - empty (without tombstone) before") {
+            hashtable->data->buckets[hashtable_key_bucket_index + 1].data.transaction_id.id = 0;
+            hashtable->data->buckets[hashtable_key_bucket_index + 1].data.hash_half = key_hash_half;
+            hashtable->data->buckets[hashtable_key_bucket_index + 1].data.key_value = key_value;
 
             REQUIRE(hashtable_mpmc_op_get(
                     hashtable,
@@ -569,7 +631,10 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
 
             REQUIRE(hashtable_mpmc_op_delete(hashtable, key, key_length) == HASHTABLE_MPMC_RESULT_TRUE);
 
-            REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index]._packed == 0);
+            REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id.id == 0);
+            REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half == 0);
+            REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.key_value ==
+                    (hashtable_mpmc_data_key_value_t*)HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE);
 
             epoch_gc_thread_advance_epoch_tsc(epoch_gc_thread);
             REQUIRE(epoch_gc_thread_collect_all(epoch_gc_thread) == 1);
