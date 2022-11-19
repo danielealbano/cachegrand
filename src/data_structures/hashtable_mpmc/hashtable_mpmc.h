@@ -118,7 +118,7 @@ void hashtable_mpmc_free(
 hashtable_mpmc_hash_half_t hashtable_mpmc_support_hash_half(
         hashtable_mpmc_hash_t hash);
 
-hashtable_mpmc_result_t hashtable_mpmc_support_get_bucket_and_key_value(
+hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
         hashtable_mpmc_data_t *hashtable_mpmc_data,
         hashtable_mpmc_hash_t hash,
         hashtable_mpmc_hash_half_t hash_half,

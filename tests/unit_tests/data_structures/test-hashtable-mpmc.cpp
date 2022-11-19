@@ -94,7 +94,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         hashtable_mpmc_free(hashtable);
     }
 
-    SECTION("hashtable_mpmc_support_get_bucket_and_key_value") {
+    SECTION("hashtable_mpmc_support_find_bucket_and_key_value") {
         hashtable_mpmc_data_bucket_t return_bucket;
         hashtable_mpmc_bucket_index_t return_bucket_index;
 
@@ -120,7 +120,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value = key_value;
 
-            REQUIRE(hashtable_mpmc_support_get_bucket_and_key_value(
+            REQUIRE(hashtable_mpmc_support_find_bucket_and_key_value(
                     hashtable->data,
                     key_hash,
                     key_hash_half,
@@ -139,7 +139,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value =
                     (hashtable_mpmc_data_key_value_volatile_t*)((uintptr_t)(key_value) | 0x01);
 
-            REQUIRE(hashtable_mpmc_support_get_bucket_and_key_value(
+            REQUIRE(hashtable_mpmc_support_find_bucket_and_key_value(
                     hashtable->data,
                     key_hash,
                     key_hash_half,
@@ -161,7 +161,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             hashtable->data->buckets[hashtable_key_embed_bucket_index].data.hash_half = key_embed_hash_half;
             hashtable->data->buckets[hashtable_key_embed_bucket_index].data.key_value = key_value;
 
-            REQUIRE(hashtable_mpmc_support_get_bucket_and_key_value(
+            REQUIRE(hashtable_mpmc_support_find_bucket_and_key_value(
                     hashtable->data,
                     key_embed_hash,
                     key_embed_hash_half,
@@ -179,7 +179,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value = key_value;
 
-            REQUIRE(hashtable_mpmc_support_get_bucket_and_key_value(
+            REQUIRE(hashtable_mpmc_support_find_bucket_and_key_value(
                     hashtable->data,
                     key2_hash,
                     key2_hash_half,
@@ -196,7 +196,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value =
                     (hashtable_mpmc_data_key_value_volatile_t*)((uintptr_t)(key_value) | 0x01);
 
-            REQUIRE(hashtable_mpmc_support_get_bucket_and_key_value(
+            REQUIRE(hashtable_mpmc_support_find_bucket_and_key_value(
                     hashtable->data,
                     key_hash,
                     key_hash_half,
@@ -212,7 +212,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             hashtable->data->buckets[hashtable_key_bucket_index_max].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index_max].data.key_value = key_value;
 
-            REQUIRE(hashtable_mpmc_support_get_bucket_and_key_value(
+            REQUIRE(hashtable_mpmc_support_find_bucket_and_key_value(
                     hashtable->data,
                     key_hash,
                     key_hash_half,
@@ -224,7 +224,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         }
 
         SECTION("bucket not found - hashtable empty") {
-            REQUIRE(hashtable_mpmc_support_get_bucket_and_key_value(
+            REQUIRE(hashtable_mpmc_support_find_bucket_and_key_value(
                     hashtable->data,
                     key_hash,
                     key_hash_half,

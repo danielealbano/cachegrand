@@ -145,7 +145,7 @@ hashtable_mpmc_bucket_index_t hashtable_mpmc_support_bucket_index_from_hash(
     return (hash >> 32) & hashtable_mpmc_data->buckets_count_mask;
 }
 
-hashtable_mpmc_result_t hashtable_mpmc_support_get_bucket_and_key_value(
+hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
         hashtable_mpmc_data_t *hashtable_mpmc_data,
         hashtable_mpmc_hash_t hash,
         hashtable_mpmc_hash_half_t hash_half,
@@ -236,7 +236,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
             thread_local_operation_queue);
     assert(operation != NULL);
 
-    hashtable_mpmc_result_t found = hashtable_mpmc_support_get_bucket_and_key_value(
+    hashtable_mpmc_result_t found = hashtable_mpmc_support_find_bucket_and_key_value(
             hashtable_mpmc->data,
             hash,
             hashtable_mpmc_support_hash_half(hash),
@@ -273,7 +273,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
     assert(operation != NULL);
 
     // Try to search for the key
-    hashtable_mpmc_result_t found = hashtable_mpmc_support_get_bucket_and_key_value(
+    hashtable_mpmc_result_t found = hashtable_mpmc_support_find_bucket_and_key_value(
             hashtable_mpmc->data,
             hash,
             hashtable_mpmc_support_hash_half(hash),
@@ -351,7 +351,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
         retry_loop = false;
 
         // Try to find the value in the hashtable
-        bool found = hashtable_mpmc_support_get_bucket_and_key_value(
+        bool found = hashtable_mpmc_support_find_bucket_and_key_value(
                 hashtable_mpmc->data,
                 hash,
                 hash_half,
