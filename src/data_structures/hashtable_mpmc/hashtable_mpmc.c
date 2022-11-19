@@ -192,7 +192,7 @@ hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
         }
 
         hashtable_mpmc_data_key_value_volatile_t *key_value =
-            HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(hashtable_mpmc_data->buckets[bucket_index]);
+                HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(hashtable_mpmc_data->buckets[bucket_index]);
 
         // Compare the key
         bool does_key_match = false;
@@ -327,8 +327,8 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
             &bucket,
             &bucket_index);
 
-    if (unlikely(found == HASHTABLE_MPMC_RESULT_TRY_AGAIN)) {
-        return HASHTABLE_MPMC_RESULT_TRY_AGAIN;
+    if (unlikely(found == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
+        return HASHTABLE_MPMC_RESULT_TRY_LATER;
     } else if (found == HASHTABLE_MPMC_RESULT_TRUE) {
         // Fetch the value
         *return_value = bucket.data.key_value->value;
@@ -368,7 +368,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
         return found;
     }
 
-    // When a bucket is deleted is marked with a tombstone to let get know that there is/was something past this point
+    // When a bucket is deleted is marked with a tombstone to let get know that there is/was something past this point,
     // and it has to continue to search
     hashtable_mpmc_data_bucket_t deleted_bucket = { ._packed = 0 };
     deleted_bucket.data.key_value = (void*)HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE;
@@ -402,8 +402,8 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
         bool *return_value_updated,
         uintptr_t *return_previous_value) {
     bool retry_loop;
-    hashtable_mpmc_result_t result = HASHTABLE_MPMC_RESULT_FALSE;
-    hashtable_mpmc_data_bucket_t found_bucket, new_bucket, bucket_to_overwrite;
+    hashtable_mpmc_result_t result;
+    hashtable_mpmc_data_bucket_t found_bucket, bucket_to_overwrite;
     hashtable_mpmc_bucket_index_t found_bucket_index, new_bucket_index;
     hashtable_mpmc_data_key_value_t *new_key_value = NULL;
     hashtable_mpmc_hash_t hash = hashtable_mcmp_support_hash_calculate(key, key_length);
@@ -422,17 +422,17 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
     // - searches first for a bucket with a matching hash
     // - if it doesn't find it, it searches for an empty bucket and update it marking it as still being added
     // - searches again the entire range to see if some other thread did set the value, if it finds a match marked
-    //   as being added will drop the bucket and ask the caller to try again the process from the first step otherwise will drop the bucket
-    //   and drop the update operation as well as another thread finished the insert operation before the one being
-    //   processed
+    //   as being added will drop the bucket and ask the caller to try again the process from the first step otherwise
+    //   will drop the bucket and drop the update operation as well as another thread finished the insert operation
+    //   before the one being processed
 
     // Maximum number of allowed retries
-    uint8_t retries = 5;
+    uint8_t retries = 3;
     do {
         retry_loop = false;
 
         // Try to find the value in the hashtable
-        bool found = hashtable_mpmc_support_find_bucket_and_key_value(
+        hashtable_mpmc_result_t found_existing = hashtable_mpmc_support_find_bucket_and_key_value(
                 hashtable_mpmc->data,
                 hash,
                 hash_half,
@@ -443,7 +443,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
                 &found_bucket_index);
 
         // If the bucket was previously found, try to swap it with the new bucket
-        if (found) {
+        if (found_existing == HASHTABLE_MPMC_RESULT_TRUE) {
             // If the value found is temporary or if there is a transaction in progress it means that another thread is
             // writing the data so the flow can just wait for it to complete before carrying out the operations.
             bool is_temporary = ((uintptr_t)found_bucket.data.key_value & 0x01) == 0x01;
@@ -556,7 +556,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
 
     // If after the allowed retries the retry loop flag is still true, asks the caller to try again later
     if (retry_loop) {
-        result = HASHTABLE_MPMC_RESULT_TRY_AGAIN;
+        result = HASHTABLE_MPMC_RESULT_TRY_LATER;
         goto end;
     }
 
