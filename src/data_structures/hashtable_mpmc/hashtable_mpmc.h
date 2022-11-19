@@ -8,6 +8,18 @@ extern "C" {
 #define HASHTABLE_MPMC_HASH_SEED 42U
 #define HASHTABLE_MPMC_LINEAR_SEARCH_RANGE 256
 
+#define HASHTABLE_MPMC_POINTER_TAG_TEMPORARY (0x01)
+#define HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE (0x02)
+#define HASHTABLE_MPMC_POINTER_TAG_MASK (0x07)
+#define HASHTABLE_MPMC_POINTER_TAG_MASK_INVERTED (~HASHTABLE_MPMC_POINTER_TAG_MASK)
+
+#define HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(BUCKET) \
+    ((((uintptr_t)(BUCKET).data.key_value & HASHTABLE_MPMC_POINTER_TAG_TEMPORARY) > 0))
+#define HASHTABLE_MPMC_BUCKET_IS_TOMBSTONE(BUCKET) \
+    ((((uintptr_t)(BUCKET).data.key_value & HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE) > 0))
+#define HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(BUCKET) \
+    ((hashtable_mpmc_data_key_value_volatile_t*)(((uintptr_t)(BUCKET).data.key_value & HASHTABLE_MPMC_POINTER_TAG_MASK_INVERTED)))
+
 typedef char hashtable_mpmc_key_t;
 typedef uint16_t hashtable_mpmc_key_length_t;
 
@@ -133,7 +145,8 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
         hashtable_mpmc_key_length_t key_length,
         uintptr_t value,
         bool *return_created_new,
-        bool *return_value_updated);
+        bool *return_value_updated,
+        uintptr_t *return_previous_value);
 
 #ifdef __cplusplus
 }

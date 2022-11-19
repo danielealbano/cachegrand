@@ -107,12 +107,13 @@ void hashtable_mpmc_data_free(
             continue;
         }
 
-        uintptr_t key_value_ptr = (uintptr_t)hashtable_mpmc_data->buckets[bucket_index].data.key_value & ~0x01;
-        hashtable_mpmc_data_key_value_t *key_value = (hashtable_mpmc_data_key_value_t*)key_value_ptr;
+        hashtable_mpmc_data_key_value_volatile_t *key_value =
+                HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(hashtable_mpmc_data->buckets[bucket_index]);
 
         if (!key_value->key_is_embedded) {
             xalloc_free(key_value->key.external.key);
         }
+
         xalloc_free((void*)key_value);
     }
 
@@ -174,16 +175,13 @@ hashtable_mpmc_result_t hashtable_mpmc_support_get_bucket_and_key_value(
             continue;
         }
 
-        uintptr_t key_value_uintptr_value = (uintptr_t)hashtable_mpmc_data->buckets[bucket_index].data.key_value;
-        bool is_temporary = (key_value_uintptr_value & 0x01) == 0x01;
-
-        // The least significant bit of the pointer to the key_value is used to track if the entry is still being added
-        // or not. It's better to leave the hash unaltered, so it can be compared using SIMD instructions.
+        bool is_temporary = HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(hashtable_mpmc_data->buckets[bucket_index]);
         if (unlikely(!allow_temporary && is_temporary)) {
             continue;
         }
 
-        hashtable_mpmc_data_key_value_volatile_t *key_value = (void*)(key_value_uintptr_value & ~0x07);
+        hashtable_mpmc_data_key_value_volatile_t *key_value =
+            HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(hashtable_mpmc_data->buckets[bucket_index]);
 
         // Compare the key
         bool does_key_match = false;
@@ -416,7 +414,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
                 // with the least significant bit set to 1 to indicate that it's a temporary allocation.
                 new_bucket.data.transaction_id.id = 0;
                 new_bucket.data.hash_half = hash_half;
-                new_bucket.data.key_value = (void*)((uintptr_t)new_key_value | 0x01);
+                new_bucket.data.key_value = (void*)((uintptr_t)new_key_value | HASHTABLE_MPMC_POINTER_TAG_TEMPORARY);
             }
 
             // Initialize the value of the expected bucket to 0
@@ -453,9 +451,8 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
                 continue;
             }
 
-            uintptr_t key_value_uintptr_value =
-                    (uintptr_t)hashtable_mpmc->data->buckets[found_bucket_index].data.key_value;
-            hashtable_mpmc_data_key_value_volatile_t *found_key_value = (void*)(key_value_uintptr_value & ~0x07);
+            hashtable_mpmc_data_key_value_volatile_t *found_key_value =
+                    HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(hashtable_mpmc->data->buckets[found_bucket_index]);
 
             // Compare the key
             bool does_key_match = false;
