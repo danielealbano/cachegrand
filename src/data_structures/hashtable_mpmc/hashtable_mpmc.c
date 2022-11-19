@@ -171,7 +171,18 @@ hashtable_mpmc_result_t hashtable_mpmc_support_get_bucket_and_key_value(
             bucket_index < bucket_index_start + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE;
             bucket_index++) {
         MEMORY_FENCE_LOAD();
-        if (hashtable_mpmc_data->buckets[bucket_index].data.hash_half != hash_half) {
+        // If no tombstone is set, the loop can be interrupted, no values have ever been set past the bucket being
+        // checked
+        if (unlikely(hashtable_mpmc_data->buckets[bucket_index]._packed == 0)) {
+            break;
+        }
+
+        // Although it might seem odd to have a condition that will cause a slow processing of a match, the reality is
+        // that in the vast majority of cases (99.6% of cases) the hash will not match and the loop will have to
+        // continue.
+        // Even if this likely might slow down finding buckets that are in the slot where they are supposed to be, it
+        // will speed up all the other ones
+        if (likely(hashtable_mpmc_data->buckets[bucket_index].data.hash_half != hash_half)) {
             continue;
         }
 
@@ -201,7 +212,7 @@ hashtable_mpmc_result_t hashtable_mpmc_support_get_bucket_and_key_value(
             continue;
         }
 
-        // Update the return bucket
+        // Update the return bucket and mark the operation as successful
         return_bucket->_packed = hashtable_mpmc_data->buckets[bucket_index]._packed;
         *return_bucket_index = bucket_index;
         found = HASHTABLE_MPMC_RESULT_TRUE;
@@ -276,11 +287,17 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
         return found;
     }
 
-    // Try to empty the bucket, if the operation is successful, stage the key_value pointer to be garbage collected
+    // When a bucket is deleted is marked with a tombstone to let get know that there is/was something past this point
+    // and it has to continue to search
+    hashtable_mpmc_data_bucket_t deleted_bucket = { ._packed = 0 };
+    deleted_bucket.data.key_value = (void*)HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE;
+
+    // Try to empty the bucket, if the operation is successful, stage the key_value pointer to be garbage collected, if
+    // it's not it means that something else already deleted the value or changed it so the operation can be ignored
     if (__atomic_compare_exchange_n(
             &hashtable_mpmc->data->buckets[found_bucket_index]._packed,
             (uint128_t*)&found_bucket._packed,
-            0,
+            deleted_bucket._packed,
             false,
             __ATOMIC_ACQ_REL,
             __ATOMIC_ACQUIRE)) {
@@ -301,10 +318,11 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
         hashtable_mpmc_key_length_t key_length,
         uintptr_t value,
         bool *return_created_new,
-        bool *return_value_updated) {
+        bool *return_value_updated,
+        uintptr_t *return_previous_value) {
     bool retry_loop;
     hashtable_mpmc_result_t result = HASHTABLE_MPMC_RESULT_FALSE;
-    hashtable_mpmc_data_bucket_t found_bucket, new_bucket;
+    hashtable_mpmc_data_bucket_t found_bucket, new_bucket, bucket_to_overwrite;
     hashtable_mpmc_bucket_index_t found_bucket_index, new_bucket_index;
     hashtable_mpmc_data_key_value_t *new_key_value = NULL;
     hashtable_mpmc_hash_t hash = hashtable_mcmp_support_hash_calculate(key, key_length);
@@ -312,6 +330,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
 
     *return_created_new = false;
     *return_value_updated = false;
+    *return_previous_value = 0;
 
     // Start to track the operation to avoid trying to access freed memory
     epoch_operation_queue_operation_t *operation = epoch_operation_queue_enqueue(
@@ -362,6 +381,10 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
                     __ATOMIC_ACQ_REL,
                     __ATOMIC_ACQUIRE);
 
+            if (*return_value_updated) {
+                *return_previous_value = expected_value;
+            }
+
             // As the key is owned by the hashtable, the pointer is freed as well
             xalloc_free(key);
 
@@ -377,10 +400,15 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
                 new_bucket_index = new_bucket_index_start;
                 new_bucket_index < new_bucket_index_start + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE;
                 new_bucket_index++) {
+            __atomic_load(
+                    &hashtable_mpmc->data->buckets[new_bucket_index]._packed,
+                    (uint128_t*)&bucket_to_overwrite._packed,
+                    __ATOMIC_ACQUIRE);
+
             // No need for an atomic operation here, the compare and exchange will fail if the value is not actually
             // zero. It's extremely likely anyway that the current CPU will have an up-to-date value because of all the
             // full memory fences triggered by the atomic operations in addition to the ad-hoc ones.
-            if (hashtable_mpmc->data->buckets[new_bucket_index]._packed != 0) {
+            if (bucket_to_overwrite.data.hash_half != 0) {
                 // Skip the non-empty value
                 continue;
             }
@@ -417,12 +445,9 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
                 new_bucket.data.key_value = (void*)((uintptr_t)new_key_value | HASHTABLE_MPMC_POINTER_TAG_TEMPORARY);
             }
 
-            // Initialize the value of the expected bucket to 0
-            uint128_t expected_bucket_packed_value = 0;
-
             if (__atomic_compare_exchange_n(
                     &hashtable_mpmc->data->buckets[new_bucket_index]._packed,
-                    &expected_bucket_packed_value,
+                    (uint128_t*)&bucket_to_overwrite._packed,
                     new_bucket._packed,
                     false,
                     __ATOMIC_ACQ_REL,
@@ -474,9 +499,10 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
 
             // Resets the previously initialized bucket, no need for atomic operations as the current thread is the only
             // one that by algorithm will ever change this bucket.
-            hashtable_mpmc->data->buckets[new_bucket_index]._packed = 0;
+            hashtable_mpmc->data->buckets[new_bucket_index]._packed = bucket_to_overwrite._packed;
             MEMORY_FENCE_STORE();
 
+            bucket_to_overwrite._packed = 0;
             retry_loop = true;
             break;
         }
