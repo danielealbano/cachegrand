@@ -128,6 +128,17 @@ hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
         hashtable_mpmc_data_bucket_t *return_bucket,
         hashtable_mpmc_bucket_index_t *return_bucket_index);
 
+hashtable_mpmc_result_t hashtable_mpmc_support_acquire_empty_bucket_for_insert(
+        hashtable_mpmc_data_t *hashtable_mpmc_data,
+        hashtable_mpmc_hash_t hash,
+        hashtable_mpmc_hash_half_t hash_half,
+        hashtable_mpmc_key_t *key,
+        hashtable_mpmc_key_length_t key_length,
+        uintptr_t value,
+        hashtable_mpmc_data_key_value_t **new_key_value,
+        hashtable_mpmc_data_bucket_t *overridden_bucket,
+        hashtable_mpmc_bucket_index_t *new_bucket_index);
+
 hashtable_mpmc_result_t hashtable_mpmc_op_get(
         hashtable_mpmc_t *hashtable_mpmc,
         hashtable_mpmc_key_t *key,

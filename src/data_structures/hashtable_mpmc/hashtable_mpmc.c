@@ -222,6 +222,87 @@ hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
     return found;
 }
 
+hashtable_mpmc_result_t hashtable_mpmc_support_acquire_empty_bucket_for_insert(
+        hashtable_mpmc_data_t *hashtable_mpmc_data,
+        hashtable_mpmc_hash_t hash,
+        hashtable_mpmc_hash_half_t hash_half,
+        hashtable_mpmc_key_t *key,
+        hashtable_mpmc_key_length_t key_length,
+        uintptr_t value,
+        hashtable_mpmc_data_key_value_t **new_key_value,
+        hashtable_mpmc_data_bucket_t *overridden_bucket,
+        hashtable_mpmc_bucket_index_t *new_bucket_index) {
+    hashtable_mpmc_result_t found = HASHTABLE_MPMC_RESULT_NEEDS_RESIZING;
+    hashtable_mpmc_data_bucket_t bucket, new_bucket;
+    hashtable_mpmc_bucket_index_t bucket_index;
+
+    hashtable_mpmc_bucket_index_t bucket_index_start = hashtable_mpmc_support_bucket_index_from_hash(
+            hashtable_mpmc_data,
+            hash);
+
+    for(
+            bucket_index = bucket_index_start;
+            bucket_index < bucket_index_start + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE;
+            bucket_index++) {
+        __atomic_load(
+                &hashtable_mpmc_data->buckets[bucket_index]._packed,
+                (uint128_t*)&bucket._packed,
+                __ATOMIC_ACQUIRE);
+
+        if (bucket.data.hash_half != 0) {
+            // Skip the non-empty value
+            continue;
+        }
+
+        // This loop might get retried a number of times in case of clashes, therefore it allocates the
+        // new_key_value only once and only if necessary. To speed up the hot path (e.g. no clashes) it's marked as
+        // likely to be true.
+        // For optimization reasons, this operation is done only if an empty bucket is found.
+        if (likely(!*new_key_value)) {
+            // If the bucket hasn't been found, a new one needs to be inserted and therefore the key_value struct
+            // has to be allocated
+            *new_key_value = xalloc_alloc(sizeof(hashtable_mpmc_data_key_value_t));
+            (*new_key_value)->hash = hash;
+            (*new_key_value)->value = value;
+
+            // Check if the key can be embedded, uses the lesser than or equal as we don't care about the nul
+            // because the key_length is what drives the string operations on the keys.
+            if (key_length <= sizeof((*new_key_value)->key.embedded.key)) {
+                // The key can be embedded
+                strncpy((*new_key_value)->key.embedded.key, key, key_length);
+                (*new_key_value)->key.embedded.key_length = key_length;
+                (*new_key_value)->key_is_embedded = true;
+            } else {
+                // The key is too large and can't be embedded
+                (*new_key_value)->key.external.key = key;
+                (*new_key_value)->key.external.key_length = key_length;
+                (*new_key_value)->key_is_embedded = false;
+            }
+
+            // Prepare the new bucket, the new_key_value pointer points to the key_value struct already prepared but
+            // with the least significant bit set to 1 to indicate that it's a temporary allocation.
+            new_bucket.data.transaction_id.id = 0;
+            new_bucket.data.hash_half = hash_half;
+            new_bucket.data.key_value = (void*)((uintptr_t)(*new_key_value) | HASHTABLE_MPMC_POINTER_TAG_TEMPORARY);
+        }
+
+        if (__atomic_compare_exchange_n(
+                &hashtable_mpmc_data->buckets[bucket_index]._packed,
+                (uint128_t*)&bucket._packed,
+                new_bucket._packed,
+                false,
+                __ATOMIC_ACQ_REL,
+                __ATOMIC_ACQUIRE)) {
+            found = HASHTABLE_MPMC_RESULT_TRUE;
+            overridden_bucket->_packed = bucket._packed;
+            *new_bucket_index = bucket_index;
+            break;
+        }
+    }
+
+    return found;
+}
+
 hashtable_mpmc_result_t hashtable_mpmc_op_get(
         hashtable_mpmc_t *hashtable_mpmc,
         hashtable_mpmc_key_t *key,
@@ -392,75 +473,40 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
             goto end;
         }
 
+        // If the status of the hashtable is HASHTABLE_MPMC_PREPARE_FOR_RESIZING retry the loop directly as there is
+        // work in progress to upsize the hashtable
+        MEMORY_FENCE_LOAD();
+        if (hashtable_mpmc->upsize_status == HASHTABLE_MPMC_STATUS_PREPARE_FOR_UPSIZE) {
+            retry_loop = true;
+            continue;
+        }
+
+        hashtable_mpmc_result_t found_empty = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
+                hashtable_mpmc->data,
+                hash,
+                hash_half,
+                key,
+                key_length,
+                value,
+                &new_key_value,
+                &bucket_to_overwrite,
+                &new_bucket_index);
+
+        // If no empty bucket has been found the hashtable is full and needs resizing
+        if (unlikely(found_empty == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING)) {
+            if (unlikely(!hashtable_mpmc_upsize_is_allowed(hashtable_mpmc))) {
+                result = HASHTABLE_MPMC_RESULT_FALSE;
+                break;
+            }
+            
+            hashtable_mpmc_upsize_prepare(hashtable_mpmc);
+            retry_loop = true;
+            continue;
+        }
+
         hashtable_mpmc_bucket_index_t new_bucket_index_start = hashtable_mpmc_support_bucket_index_from_hash(
                 hashtable_mpmc->data,
                 hash);
-        bool empty_bucket_found = false;
-        for(
-                new_bucket_index = new_bucket_index_start;
-                new_bucket_index < new_bucket_index_start + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE;
-                new_bucket_index++) {
-            __atomic_load(
-                    &hashtable_mpmc->data->buckets[new_bucket_index]._packed,
-                    (uint128_t*)&bucket_to_overwrite._packed,
-                    __ATOMIC_ACQUIRE);
-
-            // No need for an atomic operation here, the compare and exchange will fail if the value is not actually
-            // zero. It's extremely likely anyway that the current CPU will have an up-to-date value because of all the
-            // full memory fences triggered by the atomic operations in addition to the ad-hoc ones.
-            if (bucket_to_overwrite.data.hash_half != 0) {
-                // Skip the non-empty value
-                continue;
-            }
-
-            // This loop might get retried a number of times in case of clashes, therefore it allocates the
-            // new_key_value only once and only if necessary. To speed up the hot path (e.g. no clashes) it's marked as
-            // likely to be true.
-            // For optimization reasons, this operation is done only if an empty bucket is found.
-            if (likely(!new_key_value)) {
-                // If the bucket hasn't been found, a new one needs to be inserted and therefore the key_value struct
-                // has to be allocated
-                new_key_value = xalloc_alloc(sizeof(hashtable_mpmc_data_key_value_t));
-                new_key_value->hash = hash;
-                new_key_value->value = value;
-
-                // Check if the key can be embedded, uses the lesser than or equal as we don't care about the nul
-                // because the key_length is what drives the string operations on the keys.
-                if (key_length <= sizeof(new_key_value->key.embedded.key)) {
-                    // The key can be embedded
-                    strncpy(new_key_value->key.embedded.key, key, key_length);
-                    new_key_value->key.embedded.key_length = key_length;
-                    new_key_value->key_is_embedded = true;
-                } else {
-                    // The key is too large and can't be embedded
-                    new_key_value->key.external.key = key;
-                    new_key_value->key.external.key_length = key_length;
-                    new_key_value->key_is_embedded = false;
-                }
-
-                // Prepare the new bucket, the new_key_value pointer points to the key_value struct already prepared but
-                // with the least significant bit set to 1 to indicate that it's a temporary allocation.
-                new_bucket.data.transaction_id.id = 0;
-                new_bucket.data.hash_half = hash_half;
-                new_bucket.data.key_value = (void*)((uintptr_t)new_key_value | HASHTABLE_MPMC_POINTER_TAG_TEMPORARY);
-            }
-
-            if (__atomic_compare_exchange_n(
-                    &hashtable_mpmc->data->buckets[new_bucket_index]._packed,
-                    (uint128_t*)&bucket_to_overwrite._packed,
-                    new_bucket._packed,
-                    false,
-                    __ATOMIC_ACQ_REL,
-                    __ATOMIC_ACQUIRE)) {
-                empty_bucket_found = true;
-                break;
-            }
-        }
-
-        // If no empty bucket has been found the hashtable is full and needs resizing
-        if (!empty_bucket_found) {
-            goto end;
-        }
 
         // Third pass iteration to ensure that no other thread is trying to insert the same exact key
         for(
