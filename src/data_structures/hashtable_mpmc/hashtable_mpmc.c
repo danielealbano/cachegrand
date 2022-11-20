@@ -439,6 +439,60 @@ hashtable_mpmc_result_t hashtable_mpmc_support_acquire_empty_bucket_for_insert(
     return found;
 }
 
+hashtable_mpmc_result_t hashtable_mpmc_support_validate_insert(
+        hashtable_mpmc_data_t *hashtable_mpmc_data,
+        hashtable_mpmc_hash_t hash,
+        hashtable_mpmc_hash_half_t hash_half,
+        hashtable_mpmc_key_t *key,
+        hashtable_mpmc_key_length_t key_length,
+        hashtable_mpmc_bucket_index_t new_bucket_index) {
+    hashtable_mpmc_bucket_index_t bucket_index;
+
+    hashtable_mpmc_bucket_index_t bucket_index_start = hashtable_mpmc_support_bucket_index_from_hash(
+            hashtable_mpmc_data,
+            hash);
+
+    // Third pass iteration to ensure that no other thread is trying to insert the same exact key
+    for(
+            bucket_index = bucket_index_start;
+            bucket_index < bucket_index_start + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE;
+            bucket_index++) {
+        if (bucket_index == new_bucket_index) {
+            continue;
+        }
+
+        MEMORY_FENCE_LOAD();
+        if (hashtable_mpmc_data->buckets[bucket_index].data.hash_half != hash_half) {
+            continue;
+        }
+
+        hashtable_mpmc_data_key_value_volatile_t *key_value =
+                HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(hashtable_mpmc_data->buckets[bucket_index]);
+
+        // Compare the key
+        bool does_key_match = false;
+        if (key_value->key_is_embedded) {
+            does_key_match =
+                    key_value->key.embedded.key_length == key_length &&
+                    strncmp((char *)key_value->key.embedded.key, key, key_length) == 0;
+        } else {
+            does_key_match =
+                    key_value->key.external.key_length == key_length &&
+                    strncmp((char *)key_value->key.external.key, key, key_length) == 0;
+        }
+
+        // If the hash matches is extremely likely the key will match as well, this branch can be marked with unlikely
+        // for better performances
+        if (unlikely(!does_key_match)) {
+            continue;
+        }
+
+        return HASHTABLE_MPMC_RESULT_FALSE;
+    }
+
+    return HASHTABLE_MPMC_RESULT_TRUE;
+}
+
 hashtable_mpmc_result_t hashtable_mpmc_op_get(
         hashtable_mpmc_t *hashtable_mpmc,
         hashtable_mpmc_key_t *key,
@@ -640,45 +694,15 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
             continue;
         }
 
-        hashtable_mpmc_bucket_index_t new_bucket_index_start = hashtable_mpmc_support_bucket_index_from_hash(
+        hashtable_mpmc_result_t validate_insert_result = hashtable_mpmc_support_validate_insert(
                 hashtable_mpmc->data,
-                hash);
+                hash,
+                hash_half,
+                key,
+                key_length,
+                new_bucket_index);
 
-        // Third pass iteration to ensure that no other thread is trying to insert the same exact key
-        for(
-                found_bucket_index = new_bucket_index_start;
-                found_bucket_index < new_bucket_index_start + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE;
-                found_bucket_index++) {
-            if (found_bucket_index == new_bucket_index) {
-                continue;
-            }
-
-            MEMORY_FENCE_LOAD();
-            if (hashtable_mpmc->data->buckets[found_bucket_index].data.hash_half != hash_half) {
-                continue;
-            }
-
-            hashtable_mpmc_data_key_value_volatile_t *found_key_value =
-                    HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(hashtable_mpmc->data->buckets[found_bucket_index]);
-
-            // Compare the key
-            bool does_key_match = false;
-            if (found_key_value->key_is_embedded) {
-                does_key_match =
-                        found_key_value->key.embedded.key_length == key_length &&
-                        strncmp((char *)found_key_value->key.embedded.key, key, key_length) == 0;
-            } else {
-                does_key_match =
-                        found_key_value->key.external.key_length == key_length &&
-                        strncmp((char *)found_key_value->key.external.key, key, key_length) == 0;
-            }
-
-            // If the hash matches is extremely likely the key will match as well, this branch can be marked with unlikely
-            // for better performances
-            if (unlikely(!does_key_match)) {
-                continue;
-            }
-
+        if (validate_insert_result == HASHTABLE_MPMC_RESULT_FALSE) {
             // Resets the previously initialized bucket, no need for atomic operations as the current thread is the only
             // one that by algorithm will ever change this bucket.
             hashtable_mpmc->data->buckets[new_bucket_index]._packed = bucket_to_overwrite._packed;
