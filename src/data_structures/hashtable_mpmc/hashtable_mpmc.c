@@ -147,32 +147,6 @@ void hashtable_mpmc_data_free(
     xalloc_mmap_free(hashtable_mpmc_data, hashtable_mpmc_data->struct_size);
 }
 
-hashtable_mpmc_upsize_info_t *hashtable_mpmc_upsize_info_init(
-        hashtable_mpmc_data_t *from,
-        hashtable_mpmc_data_t *to,
-        uint32_t block_size) {
-    // Recalculate the size of the blocks to ensure that the last one will be always include all the buckets, although
-    // for the last block it might be greater, so it has always to ensure it's not going to try to read data outside the
-    // size of buckets (defined via buckets_count_real).
-    uint32_t total_blocks = ceil((double)from->buckets_count_real / (double)block_size);
-    uint32_t new_block_size = ceil((double)from->buckets_count_real / (double)total_blocks);
-
-    hashtable_mpmc_upsize_info_t *upsize_info = xalloc_alloc_zero(sizeof(hashtable_mpmc_upsize_info_t));
-    upsize_info->from = from;
-    upsize_info->to = to;
-    upsize_info->total_blocks = total_blocks;
-    upsize_info->remaining_blocks = total_blocks;
-    upsize_info->block_size = new_block_size;
-    upsize_info->threads_copying = 0;
-
-    return upsize_info;
-}
-
-void hashtable_mpmc_upsize_info_free(
-        hashtable_mpmc_upsize_info_t *hashtable_mpmc_upsize_info) {
-    xalloc_free(hashtable_mpmc_upsize_info);
-}
-
 hashtable_mpmc_t *hashtable_mpmc_init(
         uint64_t buckets_count,
         uint64_t buckets_count_max,
@@ -181,8 +155,6 @@ hashtable_mpmc_t *hashtable_mpmc_init(
 
     hashtable_mpmc->data = hashtable_mpmc_data_init(buckets_count);
     hashtable_mpmc->buckets_count_max = pow2_next(buckets_count_max);
-    hashtable_mpmc->upsize_list = double_linked_list_init();
-    spinlock_init(&hashtable_mpmc->upsize_list_spinlock);
     hashtable_mpmc->upsize_preferred_block_size = upsize_preferred_block_size;
 
     return hashtable_mpmc;
@@ -190,20 +162,11 @@ hashtable_mpmc_t *hashtable_mpmc_init(
 
 void hashtable_mpmc_free(
         hashtable_mpmc_t *hashtable_mpmc) {
-    // Destroy the list of hashtable to upsize
-    double_linked_list_item_t *item = hashtable_mpmc->upsize_list->head;
-    while(item != NULL) {
-        hashtable_mpmc_upsize_info_t *upsize_info = item->data;
-        double_linked_list_item_t *current = item;
-        item = item->next;
-
-        hashtable_mpmc_data_free(upsize_info->from);
-        hashtable_mpmc_upsize_info_free(upsize_info);
-        double_linked_list_item_free(current);
+    if (hashtable_mpmc->upsize.from != NULL) {
+        hashtable_mpmc_data_free(hashtable_mpmc->upsize.from);
     }
 
     hashtable_mpmc_data_free(hashtable_mpmc->data);
-    double_linked_list_free(hashtable_mpmc->upsize_list);
     xalloc_free(hashtable_mpmc);
 }
 
@@ -218,7 +181,7 @@ void hashtable_mpmc_upsize_prepare(
 
     // Try to load the current status
     __atomic_load(
-            &hashtable_mpmc->upsize_status,
+            &hashtable_mpmc->upsize.status,
             &upsize_status,
             __ATOMIC_ACQUIRE);
 
@@ -229,7 +192,7 @@ void hashtable_mpmc_upsize_prepare(
 
     // Try to set the value to HASHTABLE_MPMC_PREPARE_FOR_RESIZING
     if (!__atomic_compare_exchange_n(
-            &hashtable_mpmc->upsize_status,
+            &hashtable_mpmc->upsize.status,
             &upsize_status,
             HASHTABLE_MPMC_STATUS_PREPARE_FOR_UPSIZE,
             false,
@@ -239,59 +202,158 @@ void hashtable_mpmc_upsize_prepare(
         return;
     }
 
+    // Recalculate the size of the blocks to ensure that the last one will be always include all the buckets, although
+    // for the last block it might be greater, so it has always to ensure it's not going to try to read data outside the
+    // size of buckets (defined via buckets_count_real).
+    uint32_t total_blocks =
+            ceil((double)hashtable_mpmc->data->buckets_count_real / (double)hashtable_mpmc->upsize_preferred_block_size);
+    uint32_t new_block_size = ceil((double)hashtable_mpmc->data->buckets_count_real / (double)total_blocks);
+
     // As buckets count uses the current one plus one as hashtable_mpmc_data_init will calculate the next power of 2
     // and use that as size.
     hashtable_mpmc_data_t *new_hashtable_mpmc_data = hashtable_mpmc_data_init(
             hashtable_mpmc->data->buckets_count + 1);
 
-    // Create the new item for the upsize_list and append it
-    double_linked_list_item_t *item = double_linked_list_item_init();
-    item->data = hashtable_mpmc_upsize_info_init(
-            hashtable_mpmc->data,
-            new_hashtable_mpmc_data,
-            HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
-
-    spinlock_lock(&hashtable_mpmc->upsize_list_spinlock);
-    double_linked_list_push_item(hashtable_mpmc->upsize_list, item);
-    spinlock_unlock(&hashtable_mpmc->upsize_list_spinlock);
+    // In 3 steps:
+    // 1) sets the information for to upsize
+    // 2) sets the new memory area for the hashtable
+    // 3) updates the status
+    //
+    // The get and delete operation have to check if the status is different from NOT_UPSIZING, in case they will have
+    // to check if upsize.from is set and if it's different from data. If it's the case they will have to check there as
+    // well.
+    hashtable_mpmc->upsize.total_blocks = total_blocks;
+    hashtable_mpmc->upsize.remaining_blocks = total_blocks;
+    hashtable_mpmc->upsize.block_size = new_block_size;
+    hashtable_mpmc->upsize.from = hashtable_mpmc->data;
+    MEMORY_FENCE_STORE();
 
     hashtable_mpmc->data = new_hashtable_mpmc_data;
     MEMORY_FENCE_STORE();
 
-    // Update the upsize_list_last_change_epoch and the upsize_status
-    hashtable_mpmc->upsize_list_last_change_epoch = intrinsics_tsc();
-    hashtable_mpmc->upsize_status = HASHTABLE_MPMC_STATUS_UPSIZING;
+    hashtable_mpmc->upsize.status = HASHTABLE_MPMC_STATUS_UPSIZING;
     MEMORY_FENCE_STORE();
 }
 
 void hashtable_mpmc_upsize_copy_block(
         hashtable_mpmc_t *hashtable_mpmc) {
-    uint64_t block_number;
-    hashtable_mpmc_bucket_index_t bucket_index_start, bucket_index;
-    hashtable_mpmc_upsize_info_t *upsize_info;
+    int64_t new_remaining_blocks, current_remaining_blocks, block_number;
+    uint16_t threads_count;
+    hashtable_mpmc_bucket_index_t bucket_to_copy_index_start, bucket_to_copy_index_end, bucket_to_copy_index;
+    hashtable_mpmc_bucket_index_t found_bucket_index;
+    hashtable_mpmc_bucket_t bucket_to_copy, found_bucket, bucket_to_overwrite;
 
-    // Fetch the oldest upsize info from the double linked list
-    spinlock_lock(&hashtable_mpmc->upsize_list_spinlock);
+    new_remaining_blocks = __atomic_sub_fetch(&hashtable_mpmc->upsize.remaining_blocks, 1, __ATOMIC_ACQ_REL);
 
-    if (unlikely(hashtable_mpmc->upsize_list->count == 0)) {
-        spinlock_unlock(&hashtable_mpmc->upsize_list_spinlock);
+    // If there are no more blocks to copy returns
+    if (new_remaining_blocks < 0) {
         return;
     }
 
-    upsize_info = hashtable_mpmc->upsize_list->head->data;
-    MEMORY_FENCE_LOAD();
+    // Start to track the operation to avoid trying to access freed memory
+    epoch_operation_queue_operation_t *operation = epoch_operation_queue_enqueue(
+            thread_local_epoch_operation_queue_hashtable_key_value);
+    assert(operation != NULL);
 
-    if (unlikely(upsize_info->remaining_blocks == 0)) {
-        spinlock_unlock(&hashtable_mpmc->upsize_list_spinlock);
-        return;
+    // Increments the threads counter
+    __atomic_add_fetch(&hashtable_mpmc->upsize.threads_count, 1, __ATOMIC_ACQ_REL);
+
+    block_number = (hashtable_mpmc->upsize.total_blocks - new_remaining_blocks) - 1;
+
+    bucket_to_copy_index_start = block_number * HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE;
+    bucket_to_copy_index_end =
+            MIN(hashtable_mpmc->upsize.from->buckets_count_real, bucket_to_copy_index_start + HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
+
+    for(
+            bucket_to_copy_index = bucket_to_copy_index_start;
+            bucket_to_copy_index < bucket_to_copy_index_end;
+            bucket_to_copy_index++) {
+        __atomic_load(
+                &hashtable_mpmc->upsize.from->buckets[bucket_to_copy_index]._packed,
+                (uint128_t*)&bucket_to_copy._packed,
+                __ATOMIC_ACQUIRE);
+
+        char *key = bucket_to_copy.data.key_value->key_is_embedded
+                    ? (char*)bucket_to_copy.data.key_value->key.embedded.key
+                    : bucket_to_copy.data.key_value->key.external.key;
+        uint16_t key_length = bucket_to_copy.data.key_value->key_is_embedded
+                    ? bucket_to_copy.data.key_value->key.embedded.key_length
+                    : bucket_to_copy.data.key_value->key.external.key_length;
+
+        // Check if the key has already been inserted in the new hashtable, temporary values are allowed as it means
+        // that the value is being inserted, therefore we can skip this copy as well
+        hashtable_mpmc_result_t found_existing_result = hashtable_mpmc_support_find_bucket_and_key_value(
+                hashtable_mpmc->data,
+                bucket_to_copy.data.key_value->hash,
+                bucket_to_copy.data.hash_half,
+                key,
+                key_length,
+                true,
+                &found_bucket,
+                &found_bucket_index);
+
+        if (found_existing_result == HASHTABLE_MPMC_RESULT_TRUE) {
+            // the bucket is set to zero to avoid it being accessed if the new value is deleted
+            hashtable_mpmc->upsize.from->buckets[bucket_to_copy_index]._packed = 0;
+            MEMORY_FENCE_STORE();
+            continue;
+        }
+
+        hashtable_mpmc_result_t found_empty_result = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
+                hashtable_mpmc->data,
+                bucket_to_copy.data.key_value->hash,
+                bucket_to_copy.data.hash_half,
+                key,
+                key_length,
+                bucket_to_copy.data.key_value->value,
+                (hashtable_mpmc_data_key_value_t**)&bucket_to_copy.data.key_value,
+                &bucket_to_overwrite,
+                &found_bucket_index);
+
+        if (found_empty_result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
+            // This is very bad, the current algorithm can't handle nested resizes, for now just fail
+            assert(false);
+            FATAL(TAG, "Resizing during resizes aren't supported, shutting down");
+        }
+
+        hashtable_mpmc_result_t validate_insert_result = hashtable_mpmc_support_validate_insert(
+                hashtable_mpmc->data,
+                bucket_to_copy.data.key_value->hash,
+                bucket_to_copy.data.hash_half,
+                key,
+                key_length,
+                found_bucket_index);
+
+        if (validate_insert_result == HASHTABLE_MPMC_RESULT_FALSE) {
+            // Resets the previously initialized bucket, no need for atomic operations as the current thread is the only
+            // one that by algorithm will ever change this bucket.
+            hashtable_mpmc->data->buckets[found_bucket_index]._packed = bucket_to_overwrite._packed;
+            MEMORY_FENCE_STORE();
+
+            // the bucket is set to zero to avoid it being accessed if the new value is deleted
+            hashtable_mpmc->upsize.from->buckets[bucket_to_copy_index]._packed = 0;
+            MEMORY_FENCE_STORE();
+            continue;
+        }
     }
 
-    block_number = upsize_info->remaining_blocks--;
-    total_number = upsize_info->remaining_blocks--;
+    // Decrements the threads counter and load the value of remaining blocks
+    threads_count = __atomic_sub_fetch(&hashtable_mpmc->upsize.threads_count, 1, __ATOMIC_ACQ_REL);
+    __atomic_load(&hashtable_mpmc->upsize.remaining_blocks, &current_remaining_blocks, __ATOMIC_ACQUIRE);
 
-    spinlock_unlock(&hashtable_mpmc->upsize_list_spinlock);
+    epoch_operation_queue_mark_completed(operation);
 
-    hashtable_mpmc_bucket_index_t bucket_index_start =
+    // If there are no more blocks to copy and no more threads trying to copy, the status of the upsize operation can be
+    // set back to NOT_RESIZING
+    if (current_remaining_blocks <= 0 && threads_count) {
+        hashtable_mpmc->upsize.status = HASHTABLE_MPMC_STATUS_NOT_UPSIZING;
+        MEMORY_FENCE_STORE();
+
+        epoch_gc_stage_object(EPOCH_GC_OBJECT_TYPE_HASHTABLE_DATA, hashtable_mpmc->upsize.from);
+
+        hashtable_mpmc->upsize.from = NULL;
+        MEMORY_FENCE_STORE();
+    }
 }
 
 hashtable_mpmc_hash_half_t hashtable_mpmc_support_hash_half(
@@ -690,7 +752,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
         // If the status of the hashtable is HASHTABLE_MPMC_PREPARE_FOR_RESIZING retry the loop directly as there is
         // work in progress to upsize the hashtable
         MEMORY_FENCE_LOAD();
-        if (hashtable_mpmc->upsize_status == HASHTABLE_MPMC_STATUS_PREPARE_FOR_UPSIZE) {
+        if (hashtable_mpmc->upsize.status == HASHTABLE_MPMC_STATUS_PREPARE_FOR_UPSIZE) {
             retry_loop = true;
             continue;
         }

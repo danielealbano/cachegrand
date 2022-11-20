@@ -93,25 +93,21 @@ enum hashtable_mpmc_upsize_status {
 };
 typedef enum hashtable_mpmc_upsize_status hashtable_mpmc_upsize_status_t;
 
-typedef struct hashtable_mpmc_upsize_info hashtable_mpmc_upsize_info_t;
-struct hashtable_mpmc_upsize_info {
-    hashtable_mpmc_data_t *from;
-    hashtable_mpmc_data_t *to;
-    uint64_t total_blocks;
-    uint64_t remaining_blocks;
-    uint32_t block_size;
-    uint16_t threads_copying;
-};
-
+// upsize.remaining_blocks needs to be signed as threads will try to decrement it and if it becomes negative they can
+// skip the upsize operations as there isn't anything else to upsize
 typedef struct hashtable_mpmc hashtable_mpmc_t;
 struct hashtable_mpmc {
     hashtable_mpmc_data_t *data;
     uint64_t buckets_count_max;
-    hashtable_mpmc_upsize_status_t upsize_status;
-    double_linked_list_t *upsize_list;
-    spinlock_lock_t upsize_list_spinlock;
-    uint64_t upsize_list_last_change_epoch;
     uint16_t upsize_preferred_block_size;
+    struct {
+        hashtable_mpmc_data_t *from;
+        int64_t total_blocks;
+        int64_t remaining_blocks;
+        hashtable_mpmc_upsize_status_t status;
+        uint16_t block_size;
+        uint16_t threads_count;
+    } upsize;
 };
 
 enum hashtable_mpmc_result {
@@ -126,9 +122,17 @@ void hashtable_mpmc_epoch_gc_object_type_hashtable_key_value_destructor_cb(
         uint8_t staged_objects_count,
         epoch_gc_staged_object_t staged_objects[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE]);
 
-void hashtable_mpmc_thread_operation_queue_init();
+void hashtable_mpmc_epoch_gc_object_type_hashtable_data_destructor_cb(
+        uint8_t staged_objects_count,
+        epoch_gc_staged_object_t staged_objects[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE]);
 
-void hashtable_mpmc_thread_operation_queue_free();
+void hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
+
+void hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free();
+
+void hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_init();
+
+void hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_free();
 
 hashtable_mpmc_hash_t hashtable_mcmp_support_hash_calculate(
         hashtable_mpmc_key_t *key,
@@ -151,14 +155,6 @@ hashtable_mpmc_t *hashtable_mpmc_init(
 
 void hashtable_mpmc_free(
         hashtable_mpmc_t *hashtable_mpmc);
-
-hashtable_mpmc_upsize_info_t *hashtable_mpmc_upsize_info_init(
-        hashtable_mpmc_data_t *from,
-        hashtable_mpmc_data_t *to,
-        uint32_t block_size);
-
-void hashtable_mpmc_upsize_info_free(
-        hashtable_mpmc_upsize_info_t *hashtable_mpmc_upsize_info);
 
 void hashtable_mpmc_upsize_prepare(
         hashtable_mpmc_t *hashtable_mpmc);
@@ -186,6 +182,14 @@ hashtable_mpmc_result_t hashtable_mpmc_support_acquire_empty_bucket_for_insert(
         hashtable_mpmc_data_key_value_t **new_key_value,
         hashtable_mpmc_bucket_t *overridden_bucket,
         hashtable_mpmc_bucket_index_t *new_bucket_index);
+
+hashtable_mpmc_result_t hashtable_mpmc_support_validate_insert(
+        hashtable_mpmc_data_t *hashtable_mpmc_data,
+        hashtable_mpmc_hash_t hash,
+        hashtable_mpmc_hash_half_t hash_half,
+        hashtable_mpmc_key_t *key,
+        hashtable_mpmc_key_length_t key_length,
+        hashtable_mpmc_bucket_index_t new_bucket_index);
 
 hashtable_mpmc_result_t hashtable_mpmc_op_get(
         hashtable_mpmc_t *hashtable_mpmc,
