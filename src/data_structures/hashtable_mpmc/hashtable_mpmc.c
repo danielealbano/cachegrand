@@ -34,16 +34,21 @@
 
 // TODO: need to review get during the upsize !!!
 // TODO: need to review deletion during the upsize !!!
+// TODO: use the epoch gc for hashtable_mpmc_data to free it
 
 #define TAG "hashtable_mpmc"
 
 // This thread local variable prevents from having more instances of the hashtable but currently this is not required
 static thread_local epoch_operation_queue_t *thread_local_epoch_operation_queue_hashtable_key_value = NULL;
+static thread_local epoch_operation_queue_t *thread_local_epoch_operation_queue_hashtable_data = NULL;
 
 FUNCTION_CTOR(hashtable_mpmc_epoch_gc_object_type_hashtable_key_value_destructor_cb_init, {
     epoch_gc_register_object_type_destructor_cb(
             EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE,
             hashtable_mpmc_epoch_gc_object_type_hashtable_key_value_destructor_cb);
+    epoch_gc_register_object_type_destructor_cb(
+            EPOCH_GC_OBJECT_TYPE_HASHTABLE_DATA,
+            hashtable_mpmc_epoch_gc_object_type_hashtable_data_destructor_cb);
 })
 
 void hashtable_mpmc_epoch_gc_object_type_hashtable_key_value_destructor_cb(
@@ -59,12 +64,29 @@ void hashtable_mpmc_epoch_gc_object_type_hashtable_key_value_destructor_cb(
     }
 }
 
+void hashtable_mpmc_epoch_gc_object_type_hashtable_data_destructor_cb(
+        uint8_t staged_objects_count,
+        epoch_gc_staged_object_t staged_objects[EPOCH_GC_STAGED_OBJECT_DESTRUCTOR_CB_BATCH_SIZE]) {
+    for(uint8_t index = 0; index < staged_objects_count; index++) {
+        hashtable_mpmc_data_t *hashtable_mpmc_data = staged_objects[index].data.object;
+        hashtable_mpmc_data_free(hashtable_mpmc_data);
+    }
+}
+
 void hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init() {
     thread_local_epoch_operation_queue_hashtable_key_value = epoch_operation_queue_init();
 }
 
 void hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free() {
     epoch_operation_queue_free(thread_local_epoch_operation_queue_hashtable_key_value);
+}
+
+void hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_init() {
+    thread_local_epoch_operation_queue_hashtable_data = epoch_operation_queue_init();
+}
+
+void hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_free() {
+    epoch_operation_queue_free(thread_local_epoch_operation_queue_hashtable_data);
 }
 
 hashtable_mpmc_hash_t hashtable_mcmp_support_hash_calculate(

@@ -12,6 +12,7 @@ extern "C" {
 
 enum epoch_gc_object_type {
     EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE,
+    EPOCH_GC_OBJECT_TYPE_HASHTABLE_DATA,
     EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_XSMALL, // to be used with values smaller than 64kb
     EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_SMALL, // to be used with values smaller than 64kb
     EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_MEDIUM, // to be used with values smaller than 1MB
