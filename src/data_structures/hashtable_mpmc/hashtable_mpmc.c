@@ -38,7 +38,7 @@
 #define TAG "hashtable_mpmc"
 
 // This thread local variable prevents from having more instances of the hashtable but currently this is not required
-static thread_local epoch_operation_queue_t *thread_local_operation_queue = NULL;
+static thread_local epoch_operation_queue_t *thread_local_epoch_operation_queue_hashtable_key_value = NULL;
 
 FUNCTION_CTOR(hashtable_mpmc_epoch_gc_object_type_hashtable_key_value_destructor_cb_init, {
     epoch_gc_register_object_type_destructor_cb(
@@ -59,12 +59,12 @@ void hashtable_mpmc_epoch_gc_object_type_hashtable_key_value_destructor_cb(
     }
 }
 
-void hashtable_mpmc_thread_operation_queue_init() {
-    thread_local_operation_queue = epoch_operation_queue_init();
+void hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init() {
+    thread_local_epoch_operation_queue_hashtable_key_value = epoch_operation_queue_init();
 }
 
-void hashtable_mpmc_thread_operation_queue_free() {
-    epoch_operation_queue_free(thread_local_operation_queue);
+void hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free() {
+    epoch_operation_queue_free(thread_local_epoch_operation_queue_hashtable_key_value);
 }
 
 hashtable_mpmc_hash_t hashtable_mcmp_support_hash_calculate(
@@ -504,10 +504,10 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
 
     // Start to track the operation to avoid trying to access freed memory
     epoch_operation_queue_operation_t *operation = epoch_operation_queue_enqueue(
-            thread_local_operation_queue);
+            thread_local_epoch_operation_queue_hashtable_key_value);
     assert(operation != NULL);
 
-    hashtable_mpmc_result_t found = hashtable_mpmc_support_find_bucket_and_key_value(
+    hashtable_mpmc_result_t found_result = hashtable_mpmc_support_find_bucket_and_key_value(
             hashtable_mpmc->data,
             hash,
             hashtable_mpmc_support_hash_half(hash),
@@ -517,9 +517,9 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
             &bucket,
             &bucket_index);
 
-    if (unlikely(found == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
+    if (unlikely(found_result == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
         return HASHTABLE_MPMC_RESULT_TRY_LATER;
-    } else if (found == HASHTABLE_MPMC_RESULT_TRUE) {
+    } else if (found_result == HASHTABLE_MPMC_RESULT_TRUE) {
         // Fetch the value
         *return_value = bucket.data.key_value->value;
     }
@@ -527,7 +527,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
     // Mark the operation as completed
     epoch_operation_queue_mark_completed(operation);
 
-    return found;
+    return found_result;
 }
 
 hashtable_mpmc_result_t hashtable_mpmc_op_delete(
@@ -540,11 +540,11 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
 
     // Start to track the operation to avoid trying to access freed memory
     epoch_operation_queue_operation_t *operation = epoch_operation_queue_enqueue(
-            thread_local_operation_queue);
+            thread_local_epoch_operation_queue_hashtable_key_value);
     assert(operation != NULL);
 
     // Try to search for the key
-    hashtable_mpmc_result_t found = hashtable_mpmc_support_find_bucket_and_key_value(
+    hashtable_mpmc_result_t found_result = hashtable_mpmc_support_find_bucket_and_key_value(
             hashtable_mpmc->data,
             hash,
             hashtable_mpmc_support_hash_half(hash),
@@ -554,8 +554,8 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
             &found_bucket,
             &found_bucket_index);
 
-    if (found != HASHTABLE_MPMC_RESULT_TRUE) {
-        return found;
+    if (found_result != HASHTABLE_MPMC_RESULT_TRUE) {
+        return found_result;
     }
 
     // When a bucket is deleted is marked with a tombstone to let get know that there is/was something past this point,
@@ -580,7 +580,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
     // Mark the operation as completed
     epoch_operation_queue_mark_completed(operation);
 
-    return found;
+    return found_result;
 }
 
 hashtable_mpmc_result_t hashtable_mpmc_op_set(
@@ -605,7 +605,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
 
     // Start to track the operation to avoid trying to access freed memory
     epoch_operation_queue_operation_t *operation = epoch_operation_queue_enqueue(
-            thread_local_operation_queue);
+            thread_local_epoch_operation_queue_hashtable_key_value);
     assert(operation != NULL);
 
     // Uses a 3-phase approach:
@@ -622,7 +622,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
         retry_loop = false;
 
         // Try to find the value in the hashtable
-        hashtable_mpmc_result_t found_existing = hashtable_mpmc_support_find_bucket_and_key_value(
+        hashtable_mpmc_result_t found_existing_result = hashtable_mpmc_support_find_bucket_and_key_value(
                 hashtable_mpmc->data,
                 hash,
                 hash_half,
@@ -633,7 +633,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
                 &found_bucket_index);
 
         // If the bucket was previously found, try to swap it with the new bucket
-        if (found_existing == HASHTABLE_MPMC_RESULT_TRUE) {
+        if (found_existing_result == HASHTABLE_MPMC_RESULT_TRUE) {
             // If the value found is temporary or if there is a transaction in progress it means that another thread is
             // writing the data so the flow can just wait for it to complete before carrying out the operations.
             bool is_temporary = ((uintptr_t)found_bucket.data.key_value & 0x01) == 0x01;
@@ -671,7 +671,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
             continue;
         }
 
-        hashtable_mpmc_result_t found_empty = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
+        hashtable_mpmc_result_t found_empty_result = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
                 hashtable_mpmc->data,
                 hash,
                 hash_half,
@@ -683,7 +683,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
                 &new_bucket_index);
 
         // If no empty bucket has been found the hashtable is full and needs resizing
-        if (unlikely(found_empty == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING)) {
+        if (unlikely(found_empty_result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING)) {
             if (unlikely(!hashtable_mpmc_upsize_is_allowed(hashtable_mpmc))) {
                 result = HASHTABLE_MPMC_RESULT_FALSE;
                 break;
