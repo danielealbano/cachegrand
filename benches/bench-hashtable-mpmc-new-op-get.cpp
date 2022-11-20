@@ -96,7 +96,7 @@ static void hashtable_mpmc_op_get_not_found_key(benchmark::State& state) {
     worker_context_set(&worker_context);
     transaction_set_worker_index(worker_context.worker_index);
 
-    hashtable_mpmc_thread_operation_queue_init();
+    hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
 
     if (state.thread_index() == 0) {
         hashtable = hashtable_mpmc_init(state.range(0));
@@ -116,7 +116,7 @@ static void hashtable_mpmc_op_get_not_found_key(benchmark::State& state) {
         hashtable_mpmc_free(hashtable);
     }
 
-    hashtable_mpmc_thread_operation_queue_free();
+    hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free();
 }
 
 static void hashtable_mpmc_op_get_single_key_inline(benchmark::State& state) {
@@ -131,7 +131,7 @@ static void hashtable_mpmc_op_get_single_key_inline(benchmark::State& state) {
     worker_context_set(&worker_context);
     transaction_set_worker_index(worker_context.worker_index);
 
-    hashtable_mpmc_thread_operation_queue_init();
+    hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
 
     if (state.thread_index() == 0) {
         hashtable = hashtable_mpmc_init(state.range(0));
@@ -180,7 +180,7 @@ static void hashtable_mpmc_op_get_single_key_inline(benchmark::State& state) {
         hashtable_mpmc_free(hashtable);
     }
 
-    hashtable_mpmc_thread_operation_queue_free();
+    hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free();
 }
 
 static void hashtable_mpmc_op_get_single_key_external(benchmark::State& state) {
@@ -195,7 +195,7 @@ static void hashtable_mpmc_op_get_single_key_external(benchmark::State& state) {
     worker_context_set(&worker_context);
     transaction_set_worker_index(worker_context.worker_index);
 
-    hashtable_mpmc_thread_operation_queue_init();
+    hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
 
     if (state.thread_index() == 0) {
         hashtable = hashtable_mpmc_init(state.range(0));
@@ -244,7 +244,7 @@ static void hashtable_mpmc_op_get_single_key_external(benchmark::State& state) {
         hashtable_mpmc_free(hashtable);
     }
 
-    hashtable_mpmc_thread_operation_queue_free();
+    hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free();
 }
 
 static void BenchArguments(benchmark::internal::Benchmark* b) {

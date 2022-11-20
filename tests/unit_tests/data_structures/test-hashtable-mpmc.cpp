@@ -77,13 +77,13 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         REQUIRE(hashtable_data->buckets_count_real == 16 + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE);
         REQUIRE(hashtable_data->struct_size ==
                 sizeof(hashtable_mpmc_data_t) +
-                (sizeof(hashtable_mpmc_data_bucket_t) * (16 + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE)));
+                (sizeof(hashtable_mpmc_bucket_t) * (16 + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE)));
 
         hashtable_mpmc_data_free(hashtable_data);
     }
 
     SECTION("hashtable_mpmc_init") {
-        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(10, 32);
+        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(10, 32, HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
 
         REQUIRE(hashtable->data != nullptr);
         REQUIRE(hashtable->data->buckets_count == 16);
@@ -91,56 +91,11 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         REQUIRE(hashtable->data->buckets_count_real == 16 + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE);
         REQUIRE(hashtable->data->struct_size ==
                 sizeof(hashtable_mpmc_data_t) +
-                (sizeof(hashtable_mpmc_data_bucket_t) * (16 + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE)));
+                (sizeof(hashtable_mpmc_bucket_t) * (16 + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE)));
         REQUIRE(hashtable->buckets_count_max == 32);
-
-        hashtable_mpmc_free(hashtable);
-    }
-
-    SECTION("hashtable_mpmc_upsize_info_init") {
-        hashtable_mpmc_data_t *from = hashtable_mpmc_data_init(16);
-        hashtable_mpmc_data_t *to = hashtable_mpmc_data_init(32);
-
-        auto hashtable_mpmc_upsize_info = hashtable_mpmc_upsize_info_init(
-                from,
-                to,
-                3);
-
-        REQUIRE(hashtable_mpmc_upsize_info->from == from);
-        REQUIRE(hashtable_mpmc_upsize_info->to == to);
-        REQUIRE(hashtable_mpmc_upsize_info->total_blocks == 91);
-        REQUIRE(hashtable_mpmc_upsize_info->remaining_blocks == 91);
-        REQUIRE(hashtable_mpmc_upsize_info->block_size == 3);
-
-        hashtable_mpmc_upsize_info_free(hashtable_mpmc_upsize_info);
-        hashtable_mpmc_data_free(from);
-        hashtable_mpmc_data_free(to);
-    }
-
-    SECTION("hashtable_mpmc_upsize_prepare") {
-        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(10, 32);
-
-        SECTION("own upsize") {
-            uint64_t current_epoch = intrinsics_tsc();
-            hashtable_mpmc_upsize_prepare(hashtable);
-
-            REQUIRE(hashtable->upsize_status == HASHTABLE_MPMC_STATUS_UPSIZING);
-            REQUIRE(hashtable->upsize_list->count == 1);
-            REQUIRE(hashtable->upsize_list_last_change_epoch > current_epoch);
-            REQUIRE(hashtable->upsize_list_last_change_epoch < intrinsics_tsc());
-            REQUIRE(hashtable->data->buckets_count == 32);
-            REQUIRE(hashtable->data->buckets_count_mask == 32 - 1);
-            REQUIRE(hashtable->data->buckets_count_real == 32 + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE);
-        }
-
-        SECTION("upsize in progress") {
-            hashtable->upsize_status = HASHTABLE_MPMC_STATUS_PREPARE_FOR_UPSIZE;
-            hashtable_mpmc_upsize_prepare(hashtable);
-
-            REQUIRE(hashtable->upsize_status == HASHTABLE_MPMC_STATUS_PREPARE_FOR_UPSIZE);
-            REQUIRE(hashtable->upsize_list->count == 0);
-            REQUIRE(hashtable->upsize_list_last_change_epoch == 0);
-        }
+        REQUIRE(hashtable->upsize_preferred_block_size == HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
+        REQUIRE(hashtable->upsize.from == nullptr);
+        REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_NOT_UPSIZING);
 
         hashtable_mpmc_free(hashtable);
     }
@@ -150,7 +105,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
     }
 
     SECTION("hashtable_mpmc_support_bucket_index_from_hash") {
-        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(10, 32);
+        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(10, 32, HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
 
         REQUIRE(hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key_hash) ==
                 ((key_hash >> 32) & hashtable->data->buckets_count_mask));
@@ -159,7 +114,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
     }
 
     SECTION("hashtable_mpmc_support_find_bucket_and_key_value") {
-        hashtable_mpmc_data_bucket_t return_bucket;
+        hashtable_mpmc_bucket_t return_bucket;
         hashtable_mpmc_bucket_index_t return_bucket_index;
 
         char *key_copy = mi_strdup(key);
@@ -171,7 +126,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         key_value->hash = key_hash;
         key_value->key_is_embedded = false;
 
-        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(16, 32);
+        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(16, 32, HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
         hashtable_mpmc_bucket_index_t hashtable_key_bucket_index =
                 hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key_hash);
         hashtable_mpmc_bucket_index_t hashtable_key_bucket_index_max =
@@ -351,7 +306,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         bool return_value_updated = false;
         uintptr_t return_previous_value = 0;
 
-        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(16, 32);
+        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(16, 32, HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
 
         hashtable_mpmc_bucket_index_t hashtable_key_bucket_index =
                 hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key_hash);
@@ -367,7 +322,8 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         epoch_gc_thread_register_global(epoch_gc, epoch_gc_thread);
         epoch_gc_thread_register_local(epoch_gc_thread);
 
-        hashtable_mpmc_thread_operation_queue_init();
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_init();
 
         SECTION("value set - insert") {
             REQUIRE(hashtable_mpmc_op_set(
@@ -548,10 +504,8 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key_hash);
 
             REQUIRE(hashtable->data->buckets_count_mask == (hashtable_mpmc_data_current->buckets_count_mask << 1) + 1);
-            REQUIRE(hashtable->upsize_list_spinlock.lock == SPINLOCK_UNLOCKED);
-            REQUIRE(hashtable->upsize_list->count == 1);
-            REQUIRE(hashtable->upsize_status == HASHTABLE_MPMC_STATUS_UPSIZING);
-            REQUIRE(hashtable->upsize_list_last_change_epoch > 0);
+            REQUIRE(hashtable->upsize.from != nullptr);
+            REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING);
 
             REQUIRE(return_created_new);
             REQUIRE(return_value_updated);
@@ -566,7 +520,8 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.key_value->value == (uintptr_t)value1);
         }
 
-        hashtable_mpmc_thread_operation_queue_free();
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free();
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_free();
         hashtable_mpmc_free(hashtable);
 
         epoch_gc_thread_unregister_local(epoch_gc_thread);
@@ -586,14 +541,15 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         key_value->hash = key_hash;
         key_value->key_is_embedded = false;
 
-        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(16, 32);
+        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(16, 32, HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
 
         hashtable_mpmc_bucket_index_t hashtable_key_bucket_index =
                 hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key_hash);
         hashtable_mpmc_bucket_index_t hashtable_key_embed_bucket_index =
                 hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key_embed_hash);
 
-        hashtable_mpmc_thread_operation_queue_init();
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_init();
 
         SECTION("value found - existing key") {
             hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id.id = 0;
@@ -685,7 +641,8 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     &return_value) == HASHTABLE_MPMC_RESULT_FALSE);
         }
 
-        hashtable_mpmc_thread_operation_queue_free();
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free();
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_free();
         hashtable_mpmc_free(hashtable);
     }
 
@@ -699,7 +656,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         key_value->hash = key_hash;
         key_value->key_is_embedded = false;
 
-        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(16, 32);
+        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(16, 32, HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
 
         hashtable_mpmc_bucket_index_t hashtable_key_bucket_index =
                 hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key_hash);
@@ -709,7 +666,8 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         epoch_gc_thread_register_global(epoch_gc, epoch_gc_thread);
         epoch_gc_thread_register_local(epoch_gc_thread);
 
-        hashtable_mpmc_thread_operation_queue_init();
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_init();
 
         SECTION("value deleted - existing key") {
             hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id.id = 0;
@@ -747,7 +705,8 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length) == HASHTABLE_MPMC_RESULT_FALSE);
         }
 
-        hashtable_mpmc_thread_operation_queue_free();
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free();
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_free();
         hashtable_mpmc_free(hashtable);
 
         epoch_gc_thread_unregister_local(epoch_gc_thread);
