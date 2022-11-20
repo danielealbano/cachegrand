@@ -87,7 +87,7 @@ hashtable_mpmc_data_t *hashtable_mpmc_data_init(
     buckets_count = pow2_next(buckets_count);
     uint64_t buckets_count_real = buckets_count + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE;
 
-    size_t struct_size = sizeof(hashtable_mpmc_data_t) + (sizeof(hashtable_mpmc_data_bucket_t) * buckets_count_real);
+    size_t struct_size = sizeof(hashtable_mpmc_data_t) + (sizeof(hashtable_mpmc_bucket_t) * buckets_count_real);
     hashtable_mpmc_data_t *hashtable_mpmc_data = (hashtable_mpmc_data_t *)xalloc_mmap_alloc(struct_size);
 
     if (memset(hashtable_mpmc_data, 0, struct_size) != hashtable_mpmc_data) {
@@ -288,7 +288,7 @@ hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length,
         bool allow_temporary,
-        hashtable_mpmc_data_bucket_t *return_bucket,
+        hashtable_mpmc_bucket_t *return_bucket,
         hashtable_mpmc_bucket_index_t *return_bucket_index) {
     hashtable_mpmc_result_t found = HASHTABLE_MPMC_RESULT_FALSE;
     hashtable_mpmc_bucket_index_t bucket_index;
@@ -366,10 +366,10 @@ hashtable_mpmc_result_t hashtable_mpmc_support_acquire_empty_bucket_for_insert(
         hashtable_mpmc_key_length_t key_length,
         uintptr_t value,
         hashtable_mpmc_data_key_value_t **new_key_value,
-        hashtable_mpmc_data_bucket_t *overridden_bucket,
+        hashtable_mpmc_bucket_t *overridden_bucket,
         hashtable_mpmc_bucket_index_t *new_bucket_index) {
     hashtable_mpmc_result_t found = HASHTABLE_MPMC_RESULT_NEEDS_RESIZING;
-    hashtable_mpmc_data_bucket_t bucket, new_bucket;
+    hashtable_mpmc_bucket_t bucket, new_bucket;
     hashtable_mpmc_bucket_index_t bucket_index;
 
     hashtable_mpmc_bucket_index_t bucket_index_start = hashtable_mpmc_support_bucket_index_from_hash(
@@ -444,7 +444,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length,
         uintptr_t *return_value) {
-    hashtable_mpmc_data_bucket_t bucket;
+    hashtable_mpmc_bucket_t bucket;
     hashtable_mpmc_bucket_index_t bucket_index;
     hashtable_mpmc_hash_t hash = hashtable_mcmp_support_hash_calculate(key, key_length);
 
@@ -480,7 +480,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
         hashtable_mpmc_t *hashtable_mpmc,
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length) {
-    hashtable_mpmc_data_bucket_t found_bucket;
+    hashtable_mpmc_bucket_t found_bucket;
     hashtable_mpmc_bucket_index_t found_bucket_index;
     hashtable_mpmc_hash_t hash = hashtable_mcmp_support_hash_calculate(key, key_length);
 
@@ -506,7 +506,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
 
     // When a bucket is deleted is marked with a tombstone to let get know that there is/was something past this point,
     // and it has to continue to search
-    hashtable_mpmc_data_bucket_t deleted_bucket = { ._packed = 0 };
+    hashtable_mpmc_bucket_t deleted_bucket = { ._packed = 0 };
     deleted_bucket.data.key_value = (void*)HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE;
 
     // Try to empty the bucket, if the operation is successful, stage the key_value pointer to be garbage collected, if
@@ -539,7 +539,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
         uintptr_t *return_previous_value) {
     bool retry_loop;
     hashtable_mpmc_result_t result;
-    hashtable_mpmc_data_bucket_t found_bucket, bucket_to_overwrite;
+    hashtable_mpmc_bucket_t found_bucket, bucket_to_overwrite;
     hashtable_mpmc_bucket_index_t found_bucket_index, new_bucket_index;
     hashtable_mpmc_data_key_value_t *new_key_value = NULL;
     hashtable_mpmc_hash_t hash = hashtable_mcmp_support_hash_calculate(key, key_length);

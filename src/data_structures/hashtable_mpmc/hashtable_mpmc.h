@@ -57,7 +57,7 @@ struct hashtable_mpmc_data_key_value {
     bool key_is_embedded;
 };
 
-typedef union hashtable_mpmc_data_bucket hashtable_mpmc_data_bucket_t;
+typedef union hashtable_mpmc_data_bucket hashtable_mpmc_bucket_t;
 union hashtable_mpmc_data_bucket {
     uint128_volatile_t _packed;
     struct {
@@ -73,7 +73,7 @@ struct hashtable_mpmc_data {
     uint64_t buckets_count_real;
     uint64_t buckets_count_mask;
     size_t struct_size;
-    hashtable_mpmc_data_bucket_t buckets[];
+    hashtable_mpmc_bucket_t buckets[];
 };
 
 enum hashtable_mpmc_upsize_status {
@@ -171,7 +171,7 @@ hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length,
         bool allow_temporary,
-        hashtable_mpmc_data_bucket_t *return_bucket,
+        hashtable_mpmc_bucket_t *return_bucket,
         hashtable_mpmc_bucket_index_t *return_bucket_index);
 
 hashtable_mpmc_result_t hashtable_mpmc_support_acquire_empty_bucket_for_insert(
@@ -182,7 +182,7 @@ hashtable_mpmc_result_t hashtable_mpmc_support_acquire_empty_bucket_for_insert(
         hashtable_mpmc_key_length_t key_length,
         uintptr_t value,
         hashtable_mpmc_data_key_value_t **new_key_value,
-        hashtable_mpmc_data_bucket_t *overridden_bucket,
+        hashtable_mpmc_bucket_t *overridden_bucket,
         hashtable_mpmc_bucket_index_t *new_bucket_index);
 
 hashtable_mpmc_result_t hashtable_mpmc_op_get(
