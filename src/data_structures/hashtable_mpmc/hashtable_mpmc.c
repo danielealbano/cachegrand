@@ -175,13 +175,15 @@ void hashtable_mpmc_upsize_info_free(
 
 hashtable_mpmc_t *hashtable_mpmc_init(
         uint64_t buckets_count,
-        uint64_t buckets_count_max) {
+        uint64_t buckets_count_max,
+        uint16_t upsize_preferred_block_size) {
     hashtable_mpmc_t *hashtable_mpmc = (hashtable_mpmc_t *)xalloc_alloc_zero(sizeof(hashtable_mpmc_t));
 
     hashtable_mpmc->data = hashtable_mpmc_data_init(buckets_count);
     hashtable_mpmc->buckets_count_max = pow2_next(buckets_count_max);
     hashtable_mpmc->upsize_list = double_linked_list_init();
     spinlock_init(&hashtable_mpmc->upsize_list_spinlock);
+    hashtable_mpmc->upsize_preferred_block_size = upsize_preferred_block_size;
 
     return hashtable_mpmc;
 }

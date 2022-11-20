@@ -111,6 +111,7 @@ struct hashtable_mpmc {
     double_linked_list_t *upsize_list;
     spinlock_lock_t upsize_list_spinlock;
     uint64_t upsize_list_last_change_epoch;
+    uint16_t upsize_preferred_block_size;
 };
 
 enum hashtable_mpmc_result {
@@ -145,7 +146,8 @@ void hashtable_mpmc_data_free(
 
 hashtable_mpmc_t *hashtable_mpmc_init(
         uint64_t buckets_count,
-        uint64_t buckets_count_max);
+        uint64_t buckets_count_max,
+        uint16_t upsize_preferred_block_size);
 
 void hashtable_mpmc_free(
         hashtable_mpmc_t *hashtable_mpmc);
