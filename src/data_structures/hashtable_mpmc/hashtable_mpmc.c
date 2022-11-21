@@ -393,9 +393,11 @@ hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
             bucket_index < bucket_index_start + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE;
             bucket_index++) {
         MEMORY_FENCE_LOAD();
+        return_bucket->_packed = hashtable_mpmc_data->buckets[bucket_index]._packed;
+
         // If no tombstone is set, the loop can be interrupted, no values have ever been set past the bucket being
         // checked
-        if (unlikely(hashtable_mpmc_data->buckets[bucket_index]._packed == 0)) {
+        if (unlikely(return_bucket->_packed == 0)) {
             break;
         }
 
@@ -404,17 +406,15 @@ hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
         // continue.
         // Even if this likely might slow down finding buckets that are in the slot where they are supposed to be, it
         // will speed up all the other ones
-        if (likely(hashtable_mpmc_data->buckets[bucket_index].data.hash_half != hash_half)) {
+        if (likely(return_bucket->data.hash_half != hash_half)) {
             continue;
         }
 
-        bool is_temporary = HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(hashtable_mpmc_data->buckets[bucket_index]);
-        if (unlikely(!allow_temporary && is_temporary)) {
+        if (unlikely(!allow_temporary && HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(*return_bucket))) {
             continue;
         }
 
-        hashtable_mpmc_data_key_value_volatile_t *key_value =
-                HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(hashtable_mpmc_data->buckets[bucket_index]);
+        hashtable_mpmc_data_key_value_volatile_t *key_value = HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(*return_bucket);
 
         // Compare the key
         bool does_key_match = false;
@@ -435,7 +435,6 @@ hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
         }
 
         // Update the return bucket and mark the operation as successful
-        return_bucket->_packed = hashtable_mpmc_data->buckets[bucket_index]._packed;
         *return_bucket_index = bucket_index;
         found = HASHTABLE_MPMC_RESULT_TRUE;
         break;
