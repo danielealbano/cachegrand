@@ -245,7 +245,7 @@ void hashtable_mpmc_upsize_prepare(
     MEMORY_FENCE_STORE();
 }
 
-void hashtable_mpmc_upsize_copy_block(
+void hashtable_mpmc_upsize_migrate_block(
         hashtable_mpmc_t *hashtable_mpmc) {
     int64_t new_remaining_blocks, current_remaining_blocks, block_number;
     uint16_t threads_count;
