@@ -130,9 +130,13 @@ void hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
 
 void hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free();
 
+uint64_t hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch();
+
 void hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_init();
 
 void hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_free();
+
+uint64_t hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch();
 
 hashtable_mpmc_hash_t hashtable_mcmp_support_hash_calculate(
         hashtable_mpmc_key_t *key,

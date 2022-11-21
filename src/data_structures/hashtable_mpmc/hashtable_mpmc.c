@@ -81,12 +81,22 @@ void hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free() {
     epoch_operation_queue_free(thread_local_epoch_operation_queue_hashtable_key_value);
 }
 
+uint64_t hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch() {
+    return epoch_operation_queue_get_latest_epoch(
+            thread_local_epoch_operation_queue_hashtable_key_value);
+}
+
 void hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_init() {
     thread_local_epoch_operation_queue_hashtable_data = epoch_operation_queue_init();
 }
 
 void hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_free() {
     epoch_operation_queue_free(thread_local_epoch_operation_queue_hashtable_data);
+}
+
+uint64_t hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch() {
+    return epoch_operation_queue_get_latest_epoch(
+            thread_local_epoch_operation_queue_hashtable_data);
 }
 
 hashtable_mpmc_hash_t hashtable_mcmp_support_hash_calculate(
