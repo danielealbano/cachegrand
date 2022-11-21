@@ -283,12 +283,23 @@ void hashtable_mpmc_upsize_copy_block(
                 (uint128_t*)&bucket_to_copy._packed,
                 __ATOMIC_ACQUIRE);
 
-        char *key = bucket_to_copy.data.key_value->key_is_embedded
-                    ? (char*)bucket_to_copy.data.key_value->key.embedded.key
-                    : bucket_to_copy.data.key_value->key.external.key;
-        uint16_t key_length = bucket_to_copy.data.key_value->key_is_embedded
-                    ? bucket_to_copy.data.key_value->key.embedded.key_length
-                    : bucket_to_copy.data.key_value->key.external.key_length;
+        // If the bucket is empty, skip it
+        if (bucket_to_copy.data.hash_half == 0) {
+            continue;
+        }
+
+        // If the bucket is temporary, skip it, the op_set will ensure that the value is inserted again in the right
+        // hashtable mpmc data struct
+        if (HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(bucket_to_copy)) {
+            continue;
+        }
+
+        hashtable_mpmc_data_key_value_volatile_t *key_value = HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(bucket_to_copy);
+
+        char *key = key_value->key_is_embedded ? (char*)key_value->key.embedded.key : key_value->key.external.key;
+        uint16_t key_length = key_value->key_is_embedded
+                    ? key_value->key.embedded.key_length
+                    : key_value->key.external.key_length;
 
         // Check if the key has already been inserted in the new hashtable, temporary values are allowed as it means
         // that the value is being inserted, therefore we can skip this copy as well
@@ -715,10 +726,12 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
     uint8_t retries = 3;
     do {
         retry_loop = false;
+        MEMORY_FENCE_LOAD();
+        hashtable_mpmc_data_t *current_hashtable_mpmc_data = hashtable_mpmc->data;
 
         // Try to find the value in the hashtable
         hashtable_mpmc_result_t found_existing_result = hashtable_mpmc_support_find_bucket_and_key_value(
-                hashtable_mpmc->data,
+                current_hashtable_mpmc_data,
                 hash,
                 hash_half,
                 key,
@@ -737,16 +750,20 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
                 continue;
             }
 
+            // Acquire the current value
             uintptr_t expected_value = found_bucket.data.key_value->value;
 
+            // Try to set the new value
             *return_value_updated = __atomic_compare_exchange_n(
-                    &hashtable_mpmc->data->buckets[found_bucket_index].data.key_value->value,
+                    &current_hashtable_mpmc_data->buckets[found_bucket_index].data.key_value->value,
                     &expected_value,
                     value,
                     false,
                     __ATOMIC_ACQ_REL,
                     __ATOMIC_ACQUIRE);
 
+            // If the swap fails it can be because of another set so the previous value is popped up only if the
+            // operation is successful
             if (*return_value_updated) {
                 *return_previous_value = expected_value;
             }
@@ -767,7 +784,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
         }
 
         hashtable_mpmc_result_t found_empty_result = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
-                hashtable_mpmc->data,
+                current_hashtable_mpmc_data,
                 hash,
                 hash_half,
                 key,
@@ -781,7 +798,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
         if (unlikely(found_empty_result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING)) {
             if (unlikely(!hashtable_mpmc_upsize_is_allowed(hashtable_mpmc))) {
                 result = HASHTABLE_MPMC_RESULT_FALSE;
-                break;
+                goto end;
             }
             
             hashtable_mpmc_upsize_prepare(hashtable_mpmc);
@@ -790,14 +807,18 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
         }
 
         hashtable_mpmc_result_t validate_insert_result = hashtable_mpmc_support_validate_insert(
-                hashtable_mpmc->data,
+                current_hashtable_mpmc_data,
                 hash,
                 hash_half,
                 key,
                 key_length,
                 new_bucket_index);
 
-        if (validate_insert_result == HASHTABLE_MPMC_RESULT_FALSE) {
+        // If the validation failed or the hashtable started a resize in the meantime, the process will try to carry
+        // out an insert again
+        MEMORY_FENCE_LOAD();
+        if (validate_insert_result == HASHTABLE_MPMC_RESULT_FALSE ||
+            current_hashtable_mpmc_data != hashtable_mpmc->data) {
             // Resets the previously initialized bucket, no need for atomic operations as the current thread is the only
             // one that by algorithm will ever change this bucket.
             hashtable_mpmc->data->buckets[new_bucket_index]._packed = bucket_to_overwrite._packed;
