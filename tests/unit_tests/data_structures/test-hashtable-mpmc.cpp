@@ -126,7 +126,10 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         key_value->hash = key_hash;
         key_value->key_is_embedded = false;
 
-        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(16, 32, HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
+        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(
+                16,
+                32,
+                HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
         hashtable_mpmc_bucket_index_t hashtable_key_bucket_index =
                 hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key_hash);
         hashtable_mpmc_bucket_index_t hashtable_key_bucket_index_max =
@@ -257,43 +260,126 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         hashtable_mpmc_free(hashtable);
     }
 
-//    SECTION("hashtable_spsc_find_empty_bucket") {
-//        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(16);
-//        hashtable_mpmc_bucket_index_t hashtable_bucket_index = key_hash & hashtable->data->buckets_count_mask;
-//        hashtable_mpmc_bucket_index_t hashtable_bucket_index_max =
-//                hashtable_bucket_index + hashtable->max_range;
-//
-//        SECTION("bucket found") {
-//            REQUIRE(hashtable_spsc_find_empty_bucket(
-//                    hashtable,
-//                    hashtable_bucket_index,
-//                    hashtable_bucket_index_max) == hashtable_bucket_index);
-//        }
-//
-//        SECTION("bucket not found - nothing in range") {
-//            for (int index = hashtable_bucket_index; index < hashtable_bucket_index_max; index++) {
-//                hashtable->hashes[index].set = true;
-//            }
-//
-//            REQUIRE(hashtable_spsc_find_empty_bucket(
-//                    hashtable,
-//                    hashtable_bucket_index,
-//                    hashtable_bucket_index_max) == -1);
-//        }
-//
-//        SECTION("bucket not found - hashtable full") {
-//            for (int index = 0; index < hashtable->buckets_count_real; index++) {
-//                hashtable->hashes[index].set = true;
-//            }
-//
-//            REQUIRE(hashtable_spsc_find_empty_bucket(
-//                    hashtable,
-//                    hashtable_bucket_index,
-//                    hashtable_bucket_index_max) == -1);
-//        }
-//
-//        hashtable_mpmc_free(hashtable);
-//    }
+    SECTION("hashtable_mpmc_support_acquire_empty_bucket_for_insert") {
+        hashtable_mpmc_bucket_t bucket_to_overwrite;
+        hashtable_mpmc_bucket_index_t found_bucket_index;
+        hashtable_mpmc_data_key_value_t *new_key_value = nullptr;
+        char *key_copy = mi_strdup(key);
+        char *value1 = "first value";
+
+        hashtable_mpmc_t *hashtable = hashtable_mpmc_init(
+                16,
+                32,
+                HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
+
+        hashtable_mpmc_bucket_index_t hashtable_key_bucket_index =
+                hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key_hash);
+        hashtable_mpmc_bucket_index_t hashtable_key_bucket_index_max =
+                hashtable_key_bucket_index + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE;
+        hashtable_mpmc_bucket_index_t hashtable_key_embed_bucket_index =
+                hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key_embed_hash);
+
+        SECTION("bucket found") {
+            hashtable_mpmc_result_t found_empty_result = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
+                    hashtable->data,
+                    key_hash,
+                    key_hash_half,
+                    key_copy,
+                    key_length,
+                    (uintptr_t)value1,
+                    &new_key_value,
+                    &bucket_to_overwrite,
+                    &found_bucket_index);
+
+            REQUIRE(found_empty_result == HASHTABLE_MPMC_RESULT_TRUE);
+        }
+
+        SECTION("bucket not found - nothing in range") {
+            hashtable_mpmc_data_t *hashtable_mpmc_data_current = hashtable->data;
+            for (
+                    hashtable_mpmc_bucket_index_t index = hashtable_key_bucket_index;
+                    index < hashtable_key_bucket_index_max;
+                    index++) {
+                hashtable->data->buckets[index].data.hash_half = 12345;
+            }
+
+            hashtable_mpmc_result_t found_empty_result = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
+                    hashtable->data,
+                    key_hash,
+                    key_hash_half,
+                    key_copy,
+                    key_length,
+                    (uintptr_t)value1,
+                    &new_key_value,
+                    &bucket_to_overwrite,
+                    &found_bucket_index);
+
+            REQUIRE(found_empty_result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING);
+
+            // Hashes have to be set back to zero before freeing up the hashtable otherwise hashtable_mpmc_free will try
+            // to free the bucket, which is invalid, and will cause a segfault
+            for (
+                    hashtable_mpmc_bucket_index_t index = hashtable_key_bucket_index;
+                    index < hashtable_key_bucket_index_max;
+                    index++) {
+                hashtable_mpmc_data_current->buckets[index].data.hash_half = 0;
+            }
+
+            xalloc_free(new_key_value);
+        }
+
+        SECTION("bucket not found - hashtable full") {
+            hashtable_mpmc_data_t *hashtable_mpmc_data_current = hashtable->data;
+            for (
+                    hashtable_mpmc_bucket_index_t index = 0;
+                    index < hashtable->data->buckets_count_real;
+                    index++) {
+                hashtable->data->buckets[index].data.hash_half = 12345;
+            }
+
+            hashtable_mpmc_result_t found_empty_result = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
+                    hashtable->data,
+                    key_hash,
+                    key_hash_half,
+                    key_copy,
+                    key_length,
+                    (uintptr_t)value1,
+                    &new_key_value,
+                    &bucket_to_overwrite,
+                    &found_bucket_index);
+
+            REQUIRE(found_empty_result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING);
+
+            // Hashes have to be set back to zero before freeing up the hashtable otherwise hashtable_mpmc_free will try
+            // to free the bucket, which is invalid, and will cause a segfault
+            for (
+                    hashtable_mpmc_bucket_index_t index = 0;
+                    index < hashtable->data->buckets_count_real;
+                    index++) {
+                hashtable_mpmc_data_current->buckets[index].data.hash_half = 0;
+            }
+
+            xalloc_free(new_key_value);
+        }
+
+        hashtable_mpmc_free(hashtable);
+    }
+
+    SECTION("hashtable_mpmc_support_validate_insert") {
+
+    }
+
+    SECTION("hashtable_mpmc_upsize_migrate_bucket") {
+
+    }
+
+    SECTION("hashtable_mpmc_upsize_migrate_block") {
+
+    }
+
+    SECTION("hashtable_mpmc_upsize_prepare") {
+
+    }
 
     SECTION("hashtable_mpmc_op_set") {
         char *value1 = "first value";
@@ -714,6 +800,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         epoch_gc_thread_free(epoch_gc_thread);
         epoch_gc_free(epoch_gc);
     }
+
 //
 //    SECTION("hashtable_spsc_op_iter") {
 //        char *value1 = "first value";
