@@ -7,10 +7,11 @@ extern "C" {
 
 #define HASHTABLE_MPMC_HASH_SEED 42U
 #define HASHTABLE_MPMC_LINEAR_SEARCH_RANGE 256
-#define HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE 1024
+#define HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE 4096
 
 #define HASHTABLE_MPMC_POINTER_TAG_TEMPORARY (0x01)
 #define HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE (0x02)
+#define HASHTABLE_MPMC_POINTER_TAG_MIGRATING (0x03)
 #define HASHTABLE_MPMC_POINTER_TAG_MASK (0x07)
 #define HASHTABLE_MPMC_POINTER_TAG_MASK_INVERTED (~HASHTABLE_MPMC_POINTER_TAG_MASK)
 
@@ -18,6 +19,8 @@ extern "C" {
     ((((uintptr_t)(BUCKET).data.key_value & HASHTABLE_MPMC_POINTER_TAG_TEMPORARY) > 0))
 #define HASHTABLE_MPMC_BUCKET_IS_TOMBSTONE(BUCKET) \
     ((((uintptr_t)(BUCKET).data.key_value & HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE) > 0))
+#define HASHTABLE_MPMC_BUCKET_IS_MIGRATED(BUCKET) \
+    ((((uintptr_t)(BUCKET).data.key_value & HASHTABLE_MPMC_POINTER_TAG_MIGRATING) > 0))
 #define HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(BUCKET) \
     ((hashtable_mpmc_data_key_value_volatile_t*)(((uintptr_t)(BUCKET).data.key_value & HASHTABLE_MPMC_POINTER_TAG_MASK_INVERTED)))
 
@@ -161,6 +164,14 @@ void hashtable_mpmc_free(
         hashtable_mpmc_t *hashtable_mpmc);
 
 void hashtable_mpmc_upsize_prepare(
+        hashtable_mpmc_t *hashtable_mpmc);
+
+bool hashtable_mpmc_upsize_migrate_bucket(
+        hashtable_mpmc_data_t *from,
+        hashtable_mpmc_data_t *to,
+        hashtable_mpmc_bucket_index_t bucket_to_migrate_index);
+
+uint32_t hashtable_mpmc_upsize_migrate_block(
         hashtable_mpmc_t *hashtable_mpmc);
 
 hashtable_mpmc_hash_half_t hashtable_mpmc_support_hash_half(
