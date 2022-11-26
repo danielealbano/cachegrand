@@ -11,8 +11,8 @@ extern "C" {
 
 #define HASHTABLE_SPSC_DEFAULT_MAX_RANGE 24
 
-typedef int32_t hashtable_spsc_bucket_index_t;
-typedef uint16_t hashtable_spsc_bucket_count_t;
+typedef int64_t hashtable_spsc_bucket_index_t;
+typedef uint32_t hashtable_spsc_bucket_count_t;
 typedef uint16_t hashtable_spsc_cmp_hash_t;
 typedef uint16_t hashtable_spsc_key_length_t;
 
