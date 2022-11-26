@@ -202,16 +202,21 @@ void epoch_gc_thread_terminate(
     MEMORY_FENCE_STORE();
 }
 
+void epoch_gc_thread_set_epoch(
+        epoch_gc_thread_t *epoch_gc_thread,
+        uint64_t epoch) {
+    epoch_gc_thread->epoch = epoch;
+    MEMORY_FENCE_STORE();
+}
+
 void epoch_gc_thread_advance_epoch_tsc(
         epoch_gc_thread_t *epoch_gc_thread) {
-    epoch_gc_thread->epoch = intrinsics_tsc();
-    MEMORY_FENCE_STORE();
+    epoch_gc_thread_set_epoch(epoch_gc_thread, intrinsics_tsc());
 }
 
 void epoch_gc_thread_advance_epoch_by_one(
         epoch_gc_thread_t *epoch_gc_thread) {
-    epoch_gc_thread->epoch++;
-    MEMORY_FENCE_STORE();
+    epoch_gc_thread_set_epoch(epoch_gc_thread, ++epoch_gc_thread->epoch);
 }
 
 uint32_t epoch_gc_thread_collect(

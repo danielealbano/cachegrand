@@ -11,7 +11,7 @@ extern "C" {
 
 #define HASHTABLE_MPMC_POINTER_TAG_TEMPORARY (0x01)
 #define HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE (0x02)
-#define HASHTABLE_MPMC_POINTER_TAG_MIGRATING (0x03)
+#define HASHTABLE_MPMC_POINTER_TAG_MIGRATING (0x04)
 #define HASHTABLE_MPMC_POINTER_TAG_MASK (0x07)
 #define HASHTABLE_MPMC_POINTER_TAG_MASK_INVERTED (~HASHTABLE_MPMC_POINTER_TAG_MASK)
 
@@ -163,7 +163,7 @@ hashtable_mpmc_t *hashtable_mpmc_init(
 void hashtable_mpmc_free(
         hashtable_mpmc_t *hashtable_mpmc);
 
-void hashtable_mpmc_upsize_prepare(
+bool hashtable_mpmc_upsize_prepare(
         hashtable_mpmc_t *hashtable_mpmc);
 
 bool hashtable_mpmc_upsize_migrate_bucket(

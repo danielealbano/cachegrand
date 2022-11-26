@@ -105,6 +105,10 @@ bool epoch_gc_thread_is_terminated(
 void epoch_gc_thread_terminate(
         epoch_gc_thread_t *epoch_gc_thread);
 
+void epoch_gc_thread_set_epoch(
+        epoch_gc_thread_t *epoch_gc_thread,
+        uint64_t epoch);
+
 void epoch_gc_thread_advance_epoch_tsc(
         epoch_gc_thread_t *epoch_gc_thread);
 
