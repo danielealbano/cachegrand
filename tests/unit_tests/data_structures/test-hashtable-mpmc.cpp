@@ -326,6 +326,9 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
     ti->stopped = true;
     MEMORY_FENCE_STORE();
 
+    hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free();
+    hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_free();
+
     epoch_gc_thread_terminate(epoch_gc_kv_thread);
     epoch_gc_thread_unregister_local(epoch_gc_kv_thread);
 
