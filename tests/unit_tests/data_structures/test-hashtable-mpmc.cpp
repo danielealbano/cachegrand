@@ -1591,9 +1591,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         uint16_t key_length_max = 12;
         char *keys = test_hashtable_mpmc_fuzzy_testing_keys_generate(keys_count, key_length_min, key_length_max);
 
-        epoch_gc_t *epoch_gc_kv = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE);
-        epoch_gc_t *epoch_gc_data = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_HASHTABLE_DATA);
-
         SECTION("no upsize") {
             hashtable_mpmc_t *hashtable = hashtable_mpmc_init(
                     keys_count * 2,
