@@ -190,6 +190,8 @@ public:
                     30,
                     random_seed);
 
+            MEMORY_FENCE_LOAD();
+
             // Set up the hashtable
             static_hashtable = hashtable_mpmc_init(
                     state.range(0),
@@ -454,6 +456,8 @@ public:
                     30,
                     random_seed);
 
+            MEMORY_FENCE_LOAD();
+
             // Set up the hashtable
             static_hashtable = hashtable_mpmc_init(
                     state.range(0),
@@ -488,9 +492,6 @@ public:
         this->_epoch_gc_ht_data_thread = epoch_gc_thread_init();
         epoch_gc_thread_register_global((epoch_gc_t*)static_epoch_gc_ht_data, this->_epoch_gc_ht_data_thread);
         epoch_gc_thread_register_local(this->_epoch_gc_ht_data_thread);
-
-        sched_yield();
-        sleep(1);
 
         for(
                 uint64_t key_index = state.thread_index();
