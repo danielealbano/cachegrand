@@ -146,6 +146,7 @@ void epoch_gc_thread_register_local(
         epoch_gc_thread_t *epoch_gc_thread) {
     assert(epoch_gc_thread != NULL);
     epoch_gc_t *epoch_gc = epoch_gc_thread->epoch_gc;
+    assert(epoch_gc != NULL);
     epoch_gc_object_type_t object_type = epoch_gc->object_type;
     assert(thread_local_epoch_gc[object_type] == NULL);
     thread_local_epoch_gc[object_type] = epoch_gc_thread;
