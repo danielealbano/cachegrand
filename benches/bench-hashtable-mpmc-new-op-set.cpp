@@ -110,8 +110,8 @@ void benchmark_hashtable_mpmc_set_keyset_free(benchmark_hashtable_mpmc_set_keyse
 //   have been configured by the thread 0. The other threads will wait for these allocations to be made.
 volatile static hashtable_mpmc_t *static_hashtable = nullptr;
 volatile static benchmark_hashtable_mpmc_set_keyset_t *static_keyset = nullptr;
-volatile static epoch_gc_t *static_epoch_gc_ht_kv;
-volatile static epoch_gc_t *static_epoch_gc_ht_data;
+volatile static epoch_gc_t *static_epoch_gc_ht_kv = nullptr;
+volatile static epoch_gc_t *static_epoch_gc_ht_data = nullptr;
 
 int main(int argc, char** argv) {
     thread_current_set_affinity(0);
@@ -190,15 +190,15 @@ public:
                     30,
                     random_seed);
 
-            MEMORY_FENCE_LOAD();
+            MEMORY_FENCE_STORE();
 
             // Set up the hashtable
-            static_hashtable = hashtable_mpmc_init(
+            volatile hashtable_mpmc_t *hashtable_temp = hashtable_mpmc_init(
                     state.range(0),
                     state.range(0),
                     HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
 
-            if (!static_hashtable) {
+            if (!hashtable_temp) {
                 sprintf(
                         error_message,
                         "Failed to allocate the hashtable, unable to continue");
@@ -206,11 +206,28 @@ public:
                 return;
             }
 
+            static_hashtable = hashtable_temp;
+
             MEMORY_FENCE_STORE();
         }
 
         if (state.thread_index() != 0) {
             while (!static_hashtable) {
+                MEMORY_FENCE_LOAD();
+                sched_yield();
+            }
+
+            while (!static_keyset) {
+                MEMORY_FENCE_LOAD();
+                sched_yield();
+            }
+
+            while (!static_epoch_gc_ht_kv) {
+                MEMORY_FENCE_LOAD();
+                sched_yield();
+            }
+
+            while (!static_epoch_gc_ht_data) {
                 MEMORY_FENCE_LOAD();
                 sched_yield();
             }
@@ -246,20 +263,25 @@ public:
         this->RunningThreadsDecrement();
         this->RunningThreadsWait();
 
-        if (state.thread_index() != 0) {
-            return;
-        }
+        if (state.thread_index() == 0) {
+            // TODO: free up the epoch gc for ht kv and ht data
 
-        // TODO: free up the epoch gc for ht kv and ht data
+            if (this->_hashtable != nullptr) {
+                // Free the storage
+                hashtable_mpmc_free(this->_hashtable);
+            }
 
-        if (this->_hashtable != nullptr) {
-            // Free the storage
-            hashtable_mpmc_free(this->_hashtable);
-        }
+            if (this->_keyset != nullptr) {
+                // Free the keys
+                benchmark_hashtable_mpmc_set_keyset_free(this->_keyset);
+            }
 
-        if (this->_keyset != nullptr) {
-            // Free the keys
-            benchmark_hashtable_mpmc_set_keyset_free(this->_keyset);
+            static_hashtable = nullptr;
+            static_keyset = nullptr;
+            static_epoch_gc_ht_kv = nullptr;
+            static_epoch_gc_ht_data = nullptr;
+
+            MEMORY_FENCE_STORE();
         }
 
         this->_hashtable = nullptr;
@@ -267,11 +289,6 @@ public:
         this->_requested_keyset_size = 0;
         this->_epoch_gc_ht_kv_thread = nullptr;
         this->_epoch_gc_ht_data_thread = nullptr;
-
-        static_hashtable = nullptr;
-        static_keyset = nullptr;
-        static_epoch_gc_ht_kv = nullptr;
-        static_epoch_gc_ht_data = nullptr;
     }
 
     static std::atomic<int> running_threads;
@@ -456,15 +473,15 @@ public:
                     30,
                     random_seed);
 
-            MEMORY_FENCE_LOAD();
+            MEMORY_FENCE_STORE();
 
             // Set up the hashtable
-            static_hashtable = hashtable_mpmc_init(
+            volatile hashtable_mpmc_t *hashtable_temp = hashtable_mpmc_init(
                     state.range(0),
                     state.range(0),
                     HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
 
-            if (!static_hashtable) {
+            if (!hashtable_temp) {
                 sprintf(
                         error_message,
                         "Failed to allocate the hashtable, unable to continue");
@@ -472,11 +489,28 @@ public:
                 return;
             }
 
+            static_hashtable = hashtable_temp;
+
             MEMORY_FENCE_STORE();
         }
 
         if (state.thread_index() != 0) {
             while (!static_hashtable) {
+                MEMORY_FENCE_LOAD();
+                sched_yield();
+            }
+
+            while (!static_keyset) {
+                MEMORY_FENCE_LOAD();
+                sched_yield();
+            }
+
+            while (!static_epoch_gc_ht_kv) {
+                MEMORY_FENCE_LOAD();
+                sched_yield();
+            }
+
+            while (!static_epoch_gc_ht_data) {
                 MEMORY_FENCE_LOAD();
                 sched_yield();
             }
@@ -553,20 +587,25 @@ public:
         this->RunningThreadsDecrement();
         this->RunningThreadsWait();
 
-        if (state.thread_index() != 0) {
-            return;
-        }
+        if (state.thread_index() == 0) {
+            // TODO: free up the epoch gc for ht kv and ht data
 
-        // TODO: free up the epoch gc for ht kv and ht data
+            if (this->_hashtable != nullptr) {
+                // Free the storage
+                hashtable_mpmc_free(this->_hashtable);
+            }
 
-        if (this->_hashtable != nullptr) {
-            // Free the storage
-            hashtable_mpmc_free(this->_hashtable);
-        }
+            if (this->_keyset != nullptr) {
+                // Free the keys
+                benchmark_hashtable_mpmc_set_keyset_free(this->_keyset);
+            }
 
-        if (this->_keyset != nullptr) {
-            // Free the keys
-            benchmark_hashtable_mpmc_set_keyset_free(this->_keyset);
+            static_hashtable = nullptr;
+            static_keyset = nullptr;
+            static_epoch_gc_ht_kv = nullptr;
+            static_epoch_gc_ht_data = nullptr;
+
+            MEMORY_FENCE_STORE();
         }
 
         this->_hashtable = nullptr;
@@ -574,11 +613,6 @@ public:
         this->_requested_keyset_size = 0;
         this->_epoch_gc_ht_kv_thread = nullptr;
         this->_epoch_gc_ht_data_thread = nullptr;
-
-        static_hashtable = nullptr;
-        static_keyset = nullptr;
-        static_epoch_gc_ht_kv = nullptr;
-        static_epoch_gc_ht_data = nullptr;
     }
 };
 
