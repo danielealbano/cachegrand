@@ -893,9 +893,9 @@ static void BenchArguments(benchmark::internal::Benchmark* b) {
                                   { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu },
                                   { 50, 75 },
                           })
-            ->ThreadRange(TEST_THREADS_RANGE_END, TEST_THREADS_RANGE_END)
+            ->ThreadRange(TEST_THREADS_RANGE_BEGIN, TEST_THREADS_RANGE_END)
             ->Iterations(1)
-            ->Repetitions(10)
+            ->Repetitions(25)
             ->DisplayAggregatesOnly(false);
 }
 
