@@ -504,16 +504,25 @@ BENCHMARK_DEFINE_F(HashtableOpSetInsertFixture, hashtable_mpmc_op_set_insert)(be
             }
 #endif
 
-            epoch_gc_thread_set_epoch(
-                    epoch_gc_ht_kv_thread,
-                    hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+            if ((key_index & 0x01FF) == 0) {
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_ht_kv_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
 
-            epoch_gc_thread_set_epoch(
-                    epoch_gc_ht_data_thread,
-                    hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_ht_data_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
+            }
         }
     }
 
+    epoch_gc_thread_set_epoch(
+            epoch_gc_ht_kv_thread,
+            hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+
+    epoch_gc_thread_set_epoch(
+            epoch_gc_ht_kv_thread,
+            hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
 #if TEST_VALIDATE_KEYS == 1
     for(
             uint64_t key_index = state.thread_index();
@@ -827,16 +836,25 @@ BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_mpmc_op_set_update)(be
             }
 #endif
 
-            epoch_gc_thread_set_epoch(
-                    epoch_gc_ht_kv_thread,
-                    hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+            if ((key_index & 0x01FF) == 0) {
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_ht_kv_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
 
-            epoch_gc_thread_set_epoch(
-                    epoch_gc_ht_data_thread,
-                    hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_ht_data_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
+            }
         }
     }
 
+    epoch_gc_thread_set_epoch(
+            epoch_gc_ht_kv_thread,
+            hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+
+    epoch_gc_thread_set_epoch(
+            epoch_gc_ht_kv_thread,
+            hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
 
 #if TEST_VALIDATE_KEYS == 1
     for(
