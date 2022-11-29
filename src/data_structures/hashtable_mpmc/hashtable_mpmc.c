@@ -558,6 +558,13 @@ hashtable_mpmc_result_t hashtable_mpmc_support_acquire_empty_bucket_for_insert(
                 (uint128_t*)&bucket._packed,
                 __ATOMIC_ACQUIRE);
         if (bucket.data.hash_half != 0) {
+            // In some cases, all the buckets might be occupied by a mix of temporary values and actually inserted
+            // values, if it's the case and there is no space for an insertion the caller should retry later as the
+            // temporarily filled buckets might get freed.
+            if (unlikely(HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(bucket))) {
+                found = HASHTABLE_MPMC_RESULT_TRY_LATER;
+            }
+
             // Skip the non-empty value
             continue;
         }
@@ -1021,7 +1028,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
 
         // If the swap fails it can be because of another set so the previous value is popped up only if the
         // operation is successful
-        if (*return_value_updated) {
+        if (likely(*return_value_updated)) {
             *return_previous_value = expected_value;
         }
 
