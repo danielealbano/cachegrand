@@ -155,7 +155,7 @@ benchmark_hashtable_mpmc_set_key_t* benchmark_hashtable_mpmc_set_keyset_generate
         }
     }
 
-    fprintf(stdout, "Generating keys...");
+    fprintf(stdout, "Generating <%u> keys", keys_count);
     fflush(stdout);
     uint32_t processed_keys = 0;
     int prev_perc = 0;
@@ -194,10 +194,10 @@ benchmark_hashtable_mpmc_set_key_t* benchmark_hashtable_mpmc_set_keyset_generate
 
                 processed_keys++;
 
-                int new_perc = (int)(((float)processed_keys / (float)keys_count) * 100.0f);
+                int new_perc = (int)(((float)processed_keys / (float)keys_count) * 20.0f);
                 if (new_perc > prev_perc) {
                     prev_perc = new_perc;
-                    fprintf(stdout, "%d%% ", new_perc);
+                    fprintf(stdout, ".");
                     fflush(stdout);
                 }
 
@@ -223,6 +223,8 @@ benchmark_hashtable_mpmc_set_key_t* benchmark_hashtable_mpmc_set_keyset_generate
             perror("pthread_join");
         }
     }
+    fprintf(stdout, "done, cleaning up...");
+    fflush(stdout);
 
     // Frees up all the extra keys generated
     for(uint32_t thread_num = 1; thread_num < n_threads; thread_num++) {
@@ -247,7 +249,7 @@ benchmark_hashtable_mpmc_set_key_t* benchmark_hashtable_mpmc_set_keyset_generate
     free(threads_info);
     hashtable_spsc_free(hashtable_track_dup_keys);
 
-    fprintf(stdout, " done\n");
+    fprintf(stdout, "done\n");
     fflush(stdout);
 
     return keyset;
@@ -397,16 +399,26 @@ public:
         hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
         hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_init();
 
-        this->_epoch_gc_ht_kv_thread = epoch_gc_thread_init();
-        epoch_gc_thread_register_global((epoch_gc_t*)static_epoch_gc_ht_kv, this->_epoch_gc_ht_kv_thread);
-        epoch_gc_thread_register_local(this->_epoch_gc_ht_kv_thread);
+        auto epoch_gc_ht_kv_thread = epoch_gc_thread_init();
+        epoch_gc_thread_register_global((epoch_gc_t*)static_epoch_gc_ht_kv, epoch_gc_ht_kv_thread);
 
-        this->_epoch_gc_ht_data_thread = epoch_gc_thread_init();
-        epoch_gc_thread_register_global((epoch_gc_t*)static_epoch_gc_ht_data, this->_epoch_gc_ht_data_thread);
-        epoch_gc_thread_register_local(this->_epoch_gc_ht_data_thread);
+        assert(static_epoch_gc_ht_kv != nullptr);
+        assert(epoch_gc_ht_kv_thread->epoch_gc != nullptr);
+
+        epoch_gc_thread_register_local(epoch_gc_ht_kv_thread);
+
+        auto epoch_gc_ht_data_thread = epoch_gc_thread_init();
+        epoch_gc_thread_register_global((epoch_gc_t*)static_epoch_gc_ht_data, epoch_gc_ht_data_thread);
+
+        assert(static_epoch_gc_ht_data != nullptr);
+        assert(epoch_gc_ht_data_thread->epoch_gc != nullptr);
+
+        epoch_gc_thread_register_local(epoch_gc_ht_data_thread);
 
         this->_hashtable = (hashtable_mpmc_t *)static_hashtable;
         this->_keyset = (benchmark_hashtable_mpmc_set_key_t *)static_keyset;
+        this->_epoch_gc_ht_kv_thread = epoch_gc_ht_kv_thread;
+        this->_epoch_gc_ht_data_thread = epoch_gc_ht_data_thread;
 
         this->RunningThreadsIncrement();
     }
@@ -442,12 +454,6 @@ public:
 
             MEMORY_FENCE_STORE();
         }
-
-        this->_hashtable = nullptr;
-        this->_keyset = nullptr;
-        this->_requested_keyset_size = 0;
-        this->_epoch_gc_ht_kv_thread = nullptr;
-        this->_epoch_gc_ht_data_thread = nullptr;
     }
 
     static std::atomic<int> running_threads;
@@ -472,27 +478,63 @@ BENCHMARK_DEFINE_F(HashtableOpSetInsertFixture, hashtable_mpmc_op_set_insert)(be
     epoch_gc_ht_data_thread = this->GetEpochGcHtDataThread();
 
     for (auto _ : state) {
+        uint64_t counter = 0;
+        uint64_t increment = state.threads();
+        ring_bounded_queue_spsc_uint64_t *key_indexes_to_retry_ring = ring_bounded_queue_spsc_uint64_init(64 * 1024);
+
         for(
                 uint64_t key_index = state.thread_index();
                 key_index < requested_keyset_size;
-                key_index += state.threads()) {
+                key_index += increment) {
             hashtable_mpmc_result_t result;
             bool created_new, value_updated;
             uintptr_t previous_value;
+            counter++;
 
-            benchmark::DoNotOptimize((result = hashtable_mpmc_op_set(
+            if (unlikely(counter % 0x80 == 0)) {
+            epoch_gc_thread_set_epoch(
+                    epoch_gc_ht_kv_thread,
+                    hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+
+            epoch_gc_thread_set_epoch(
+                    epoch_gc_ht_data_thread,
+                    hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
+            }
+
+            result = hashtable_mpmc_op_set(
                     hashtable,
                     keyset[key_index].data.key,
                     keyset[key_index].data.key_length,
                     (uintptr_t)key_index,
                     &created_new,
                     &value_updated,
-                    &previous_value)));
+                    &previous_value);
+
+            if (unlikely(result == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
+                if (unlikely(!ring_bounded_queue_spsc_uint64_enqueue(key_indexes_to_retry_ring, key_index))) {
+                    sprintf(
+                            error_message,
+                            "The keys to retry ring is full, unable to add the key with index <%ld> for the thread <%d>, unable to continue",
+                            key_index,
+                            state.thread_index());
+                            state.SkipWithError(error_message);
+                    break;
+                }
+                continue;
+            } else if (unlikely(result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING)) {
+                sprintf(
+                        error_message,
+                        "Hashtable marked as full trying to set the key with index <%ld> for the thread <%d>, unable to continue",
+                        key_index,
+                        state.thread_index());
+                state.SkipWithError(error_message);
+                break;
+            }
 
             assert(created_new == true);
             assert(value_updated == true);
 
-#if TEST_VALIDATE_KEYS == 1
+#if TEST_VALIDATE_KEYS > 0
             if (result != HASHTABLE_MPMC_RESULT_TRUE) {
                 sprintf(
                         error_message,
@@ -500,19 +542,40 @@ BENCHMARK_DEFINE_F(HashtableOpSetInsertFixture, hashtable_mpmc_op_set_insert)(be
                         keyset[key_index].data.key,
                         key_index,
                         state.thread_index());
-                state.SkipWithError(error_message);
+                        state.SkipWithError(error_message);
                 break;
             }
 #endif
 
-            if ((key_index & 0x01FF) == 0) {
-                epoch_gc_thread_set_epoch(
-                        epoch_gc_ht_kv_thread,
-                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+            if (unlikely(counter & (state.thread_index() + 1)) == (state.thread_index() + 1)) {
+                bool found = false;
+                uint64_t key_index_to_retry = ring_bounded_queue_spsc_uint64_peek(key_indexes_to_retry_ring, &found);
 
-                epoch_gc_thread_set_epoch(
-                        epoch_gc_ht_data_thread,
-                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
+                if (unlikely(found)) {
+                    result = hashtable_mpmc_op_set(
+                            hashtable,
+                            keyset[key_index_to_retry].data.key,
+                            keyset[key_index_to_retry].data.key_length,
+                            (uintptr_t)key_index_to_retry,
+                            &created_new,
+                            &value_updated,
+                            &previous_value);
+
+                    if (unlikely(result == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
+                        continue;
+                    } else if (unlikely(result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING)) {
+                        sprintf(
+                                error_message,
+                                "Hashtable marked as full trying to set the key with index <%ld> for the thread <%d>, unable to continue",
+                                key_index,
+                                state.thread_index());
+                                state.SkipWithError(error_message);
+                        break;
+                    }
+
+                    assert(created_new == true);
+                    assert(value_updated == true);
+                }
             }
         }
     }
@@ -524,7 +587,7 @@ BENCHMARK_DEFINE_F(HashtableOpSetInsertFixture, hashtable_mpmc_op_set_insert)(be
     epoch_gc_thread_set_epoch(
             epoch_gc_ht_kv_thread,
             hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
-#if TEST_VALIDATE_KEYS == 1
+#if TEST_VALIDATE_KEYS == 2
     for(
             uint64_t key_index = state.thread_index();
             key_index < requested_keyset_size;
@@ -688,28 +751,54 @@ public:
         hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
         hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_init();
 
-        this->_epoch_gc_ht_kv_thread = epoch_gc_thread_init();
-        epoch_gc_thread_register_global((epoch_gc_t*)static_epoch_gc_ht_kv, this->_epoch_gc_ht_kv_thread);
-        epoch_gc_thread_register_local(this->_epoch_gc_ht_kv_thread);
+        auto epoch_gc_ht_kv_thread = epoch_gc_thread_init();
+        epoch_gc_thread_register_global(
+                (epoch_gc_t*)static_epoch_gc_ht_kv,
+                epoch_gc_ht_kv_thread);
 
-        this->_epoch_gc_ht_data_thread = epoch_gc_thread_init();
-        epoch_gc_thread_register_global((epoch_gc_t*)static_epoch_gc_ht_data, this->_epoch_gc_ht_data_thread);
-        epoch_gc_thread_register_local(this->_epoch_gc_ht_data_thread);
+        assert(static_epoch_gc_ht_kv != nullptr);
+        assert(epoch_gc_ht_kv_thread->epoch_gc != nullptr);
 
+        epoch_gc_thread_register_local(epoch_gc_ht_kv_thread);
+
+        auto epoch_gc_ht_data_thread = epoch_gc_thread_init();
+        epoch_gc_thread_register_global(
+                (epoch_gc_t*)static_epoch_gc_ht_data,
+                epoch_gc_ht_data_thread);
+
+        assert(static_epoch_gc_ht_data != nullptr);
+        assert(epoch_gc_ht_data_thread->epoch_gc != nullptr);
+
+        epoch_gc_thread_register_local(epoch_gc_ht_data_thread);
+
+        uint64_t increment = state.threads();
         for(
                 uint64_t key_index = state.thread_index();
                 key_index < this->_requested_keyset_size;
-                key_index += state.threads()) {
+                key_index += increment) {
             bool created_new, value_updated;
             uintptr_t previous_value;
             hashtable_mpmc_result_t result = hashtable_mpmc_op_set(
                     (hashtable_mpmc_t*)static_hashtable,
-                    mi_strdup(static_keyset[key_index].data.key),
+                    static_keyset[key_index].data.key,
                     static_keyset[key_index].data.key_length,
                     (uintptr_t)key_index,
                     &created_new,
                     &value_updated,
                     &previous_value);
+
+            epoch_gc_thread_set_epoch(
+                    epoch_gc_ht_kv_thread,
+                    hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+
+            epoch_gc_thread_set_epoch(
+                    epoch_gc_ht_data_thread,
+                    hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
+
+            if (result == HASHTABLE_MPMC_RESULT_TRY_LATER) {
+                key_index -= increment;
+                continue;
+            }
 
             assert(created_new == true);
             assert(value_updated == true);
@@ -727,18 +816,12 @@ public:
                 ((::benchmark::State &) state).SkipWithError(error_message);
                 break;
             }
-
-            epoch_gc_thread_set_epoch(
-                    this->_epoch_gc_ht_kv_thread,
-                    hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
-
-            epoch_gc_thread_set_epoch(
-                    this->_epoch_gc_ht_data_thread,
-                    hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
         }
 
         this->_hashtable = (hashtable_mpmc_t *)static_hashtable;
         this->_keyset = (benchmark_hashtable_mpmc_set_key_t *)static_keyset;
+        this->_epoch_gc_ht_kv_thread = epoch_gc_ht_kv_thread;
+        this->_epoch_gc_ht_data_thread = epoch_gc_ht_data_thread;
 
         this->RunningThreadsIncrement();
     }
@@ -774,12 +857,6 @@ public:
 
             MEMORY_FENCE_STORE();
         }
-
-        this->_hashtable = nullptr;
-        this->_keyset = nullptr;
-        this->_requested_keyset_size = 0;
-        this->_epoch_gc_ht_kv_thread = nullptr;
-        this->_epoch_gc_ht_data_thread = nullptr;
     }
 };
 
@@ -803,27 +880,60 @@ BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_mpmc_op_set_update)(be
     epoch_gc_ht_data_thread = this->GetEpochGcHtDataThread();
 
     for (auto _ : state) {
+        uint64_t counter = 0;
+        uint64_t increment = state.threads();
+        ring_bounded_queue_spsc_uint64_t *key_indexes_to_retry_ring = ring_bounded_queue_spsc_uint64_init(64 * 1024);
+
         for(
                 uint64_t key_index = state.thread_index();
                 key_index < requested_keyset_size;
-                key_index += state.threads()) {
+                key_index += increment) {
             bool created_new, value_updated;
             uintptr_t previous_value;
             hashtable_mpmc_result_t result;
-            benchmark::DoNotOptimize((result = hashtable_mpmc_op_set(
+            counter++;
+
+            if (counter % 0x80 == 0) {
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_ht_kv_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_ht_data_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
+            }
+
+            result = hashtable_mpmc_op_set(
                     hashtable,
-                    keyset[key_index].data.key,
+                    mi_strdup(keyset[key_index].data.key),
                     keyset[key_index].data.key_length,
                     (uintptr_t)key_index,
                     &created_new,
                     &value_updated,
-                    &previous_value)));
+                    &previous_value);
 
-            assert(created_new == false);
-            assert(value_updated == true);
-            assert(previous_value == (uintptr_t)key_index);
+            if (unlikely(result == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
+                if (unlikely(!ring_bounded_queue_spsc_uint64_enqueue(key_indexes_to_retry_ring, key_index))) {
+                    sprintf(
+                            error_message,
+                            "The keys to retry ring is full, unable to add the key with index <%ld> for the thread <%d>, unable to continue",
+                            key_index,
+                            state.thread_index());
+                            state.SkipWithError(error_message);
+                    break;
+                }
+                continue;
+            } else if (unlikely(result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING)) {
+                sprintf(
+                        error_message,
+                        "Hashtable marked as full trying to set the key with index <%ld> for the thread <%d>, unable to continue",
+                        key_index,
+                        state.thread_index());
+                state.SkipWithError(error_message);
+                break;
+            }
 
-#if TEST_VALIDATE_KEYS == 1
+#if TEST_VALIDATE_KEYS > 0
             if (result != HASHTABLE_MPMC_RESULT_TRUE) {
                 sprintf(
                         error_message,
@@ -837,14 +947,40 @@ BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_mpmc_op_set_update)(be
             }
 #endif
 
-            if ((key_index & 0x01FF) == 0) {
-                epoch_gc_thread_set_epoch(
-                        epoch_gc_ht_kv_thread,
-                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+            assert(created_new == false);
+            assert(value_updated == true);
+            assert(previous_value == (uintptr_t)key_index);
 
-                epoch_gc_thread_set_epoch(
-                        epoch_gc_ht_data_thread,
-                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
+            if (unlikely(counter & (state.thread_index() + 1)) == (state.thread_index() + 1)) {
+                bool found = false;
+                uint64_t key_index_to_retry = ring_bounded_queue_spsc_uint64_peek(key_indexes_to_retry_ring, &found);
+
+                if (unlikely(found)) {
+                    result = hashtable_mpmc_op_set(
+                            hashtable,
+                            keyset[key_index_to_retry].data.key,
+                            keyset[key_index_to_retry].data.key_length,
+                            (uintptr_t)key_index_to_retry,
+                            &created_new,
+                            &value_updated,
+                            &previous_value);
+
+                    if (unlikely(result == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
+                        continue;
+                    } else if (unlikely(result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING)) {
+                        sprintf(
+                                error_message,
+                                "Hashtable marked as full trying to set the key with index <%ld> for the thread <%d>, unable to continue",
+                                key_index,
+                                state.thread_index());
+                                state.SkipWithError(error_message);
+                                break;
+                        }
+
+                    assert(created_new == false);
+                    assert(value_updated == true);
+                    assert(previous_value == (uintptr_t)key_index);
+                }
             }
         }
     }
@@ -857,7 +993,7 @@ BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_mpmc_op_set_update)(be
             epoch_gc_ht_kv_thread,
             hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
 
-#if TEST_VALIDATE_KEYS == 1
+#if TEST_VALIDATE_KEYS == 2
     for(
             uint64_t key_index = state.thread_index();
             key_index < requested_keyset_size;
@@ -909,12 +1045,12 @@ BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_mpmc_op_set_update)(be
 static void BenchArguments(benchmark::internal::Benchmark* b) {
     b
             ->ArgsProduct({
-                                  { 0x0000FFFFu, 0x000FFFFFu, 0x001FFFFFu, 0x007FFFFFu },
-                                  { 50, 75 },
+                                  { 0x03FFFFFFu },
+                                  { 75 },
                           })
             ->ThreadRange(TEST_THREADS_RANGE_BEGIN, TEST_THREADS_RANGE_END)
             ->Iterations(1)
-            ->Repetitions(25)
+            ->Repetitions(1)
             ->DisplayAggregatesOnly(false);
 }
 
