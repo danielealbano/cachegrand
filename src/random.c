@@ -12,6 +12,7 @@
 #include "clock.h"
 #include "misc.h"
 #include "random.h"
+#include "intrinsics.h"
 
 static thread_local random_state_t random_state = { 0 };
 
@@ -40,11 +41,9 @@ random_state_t random_init(
 
 uint64_t random_generate() {
     uint64_t t, s;
-    timespec_t seed;
 
     if (random_state.a == 0) {
-        clock_monotonic_coarse(&seed);
-        random_init(seed.tv_nsec);
+        random_init(intrinsics_tsc());
     }
 
     t = random_state.a;
