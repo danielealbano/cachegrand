@@ -1060,13 +1060,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
 
     // If no empty bucket has been found the hashtable is full and needs resizing
     if (unlikely(found_empty_result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING)) {
-        if (unlikely(!hashtable_mpmc_upsize_is_allowed(hashtable_mpmc))) {
-            return_result = HASHTABLE_MPMC_RESULT_FALSE;
-            goto end;
-        }
-
-        hashtable_mpmc_upsize_prepare(hashtable_mpmc);
-        return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
+        return_result = HASHTABLE_MPMC_RESULT_NEEDS_RESIZING;
         goto end;
     }
 
