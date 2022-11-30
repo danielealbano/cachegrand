@@ -78,6 +78,7 @@ enum test_hashtable_mpmc_fuzzy_test_key_operation {
     TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_OPERATION_INSERT,
     TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_OPERATION_UPDATE,
     TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_OPERATION_READ,
+    TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_OPERATION_TRY_LATER,
     TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_OPERATION_NEEDS_RESIZE,
 };
 typedef enum test_hashtable_mpmc_fuzzy_test_key_operation test_hashtable_mpmc_fuzzy_test_key_operation_t;
@@ -260,8 +261,10 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
                     &return_previous_value);
 
             if (result == HASHTABLE_MPMC_RESULT_TRY_LATER) {
-                __atomic_fetch_add(ti->ops_counter_insert, 1, __ATOMIC_RELAXED);
+                operation = TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_OPERATION_TRY_LATER;
+            } else if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
                 operation = TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_OPERATION_NEEDS_RESIZE;
+                hashtable_mpmc_upsize_prepare(hashtable);
             } else {
                 if (keys_status[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
                     __atomic_fetch_add(ti->ops_counter_insert, 1, __ATOMIC_RELAXED);
@@ -1060,7 +1063,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     (uintptr_t)value1,
                     &return_created_new,
                     &return_value_updated,
-                    &return_previous_value) == HASHTABLE_MPMC_RESULT_TRY_LATER);
+                    &return_previous_value) == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING);
 
             // Hashes have to be set back to zero before freeing up the hashtable
             for (
@@ -1070,13 +1073,8 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                 hashtable_mpmc_data_current->buckets[index].data.hash_half = 0;
             }
 
-            // Recalculate the size index as the hashtable has grown
-            hashtable_key_bucket_index =
-                    hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key_hash);
-
-            REQUIRE(hashtable->data->buckets_count_mask == (hashtable_mpmc_data_current->buckets_count_mask << 1) + 1);
-            REQUIRE(hashtable->upsize.from != nullptr);
-            REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING);
+            REQUIRE(hashtable->upsize.from == nullptr);
+            REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_NOT_UPSIZING);
         }
 
         hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free();
@@ -1436,15 +1434,16 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                         &return_value_updated,
                         &return_previous_value);
 
-                REQUIRE((result == HASHTABLE_MPMC_RESULT_TRUE || result == HASHTABLE_MPMC_RESULT_TRY_LATER));
+                REQUIRE(result != HASHTABLE_MPMC_RESULT_FALSE);
 
-                if (hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING) {
+                if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
                     break;
                 }
 
                 count++;
             }
 
+            REQUIRE(hashtable_mpmc_upsize_prepare(hashtable));
             REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING);
 
             for(uint32_t index = 0; index < hashtable->upsize.from->buckets_count_real; index++) {
@@ -1461,6 +1460,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             // Force set the status of the hashtable to upsized as the GET while upsizing hasn't been tested yet at this
             // point
             hashtable->upsize.status = HASHTABLE_MPMC_STATUS_NOT_UPSIZING;
+            hashtable->upsize.from = nullptr;
 
             for(uint32_t index = 0; index < count; index++) {
                 size_t key_temp_length = snprintf(key_temp, 0, "key-%05d", index) + 1;
@@ -1534,15 +1534,16 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     &return_value_updated,
                     &return_previous_value);
 
-            REQUIRE((result == HASHTABLE_MPMC_RESULT_TRUE || result == HASHTABLE_MPMC_RESULT_TRY_LATER));
+            REQUIRE(result != HASHTABLE_MPMC_RESULT_FALSE);
 
-            if (hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING) {
+            if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
                 break;
             }
 
             inserted_keys_count++;
         }
 
+        REQUIRE(hashtable_mpmc_upsize_prepare(hashtable));
         REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING);
 
         SECTION("migrate all the blocks") {
