@@ -32,11 +32,6 @@
 #error "Unsupported hash algorithm"
 #endif
 
-//#define xalloc_alloc malloc
-//#define xalloc_alloc_zero(LEN) calloc(1, LEN)
-//#define xalloc_free free
-//#define mi_strdup strdup
-
 #define TAG "hashtable_mpmc"
 
 // This thread local variable prevents from having more instances of the hashtable but currently this is not required
