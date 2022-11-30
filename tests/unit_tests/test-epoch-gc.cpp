@@ -464,6 +464,8 @@ TEST_CASE("epoch_gc.c", "[epoch_gc]") {
             epoch_gc_thread.thread_terminated = false;
             REQUIRE(epoch_gc_thread_is_terminated(&epoch_gc_thread) == false);
         }
+
+        epoch_gc_thread_unregister_local(&epoch_gc_thread);
     }
 
     SECTION("epoch_gc_thread_advance_epoch_tsc") {
