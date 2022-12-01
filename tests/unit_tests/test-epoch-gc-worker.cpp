@@ -150,8 +150,15 @@ TEST_CASE("epoch_gc_worker.c", "[epoch_gc_worker]") {
     }
 
     SECTION("epoch_gc_worker_log_producer_set_early_prefix_thread") {
-        char early_prefix_cmp[] = "[epoch gc 4]";
-        epoch_gc_t *epoch_gc = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE);
+        epoch_gc_object_type_t object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE;
+        char early_prefix_cmp[16] = { 0 };
+        REQUIRE(snprintf(
+                early_prefix_cmp,
+                sizeof(early_prefix_cmp),
+                "[epoch gc %d]",
+                object_type) == 12);
+
+        epoch_gc_t *epoch_gc = epoch_gc_init(object_type);
         epoch_gc_worker_context_t epoch_gc_worker_context = { .epoch_gc = epoch_gc };
 
         char *early_prefix = epoch_gc_worker_log_producer_set_early_prefix_thread(
@@ -164,9 +171,15 @@ TEST_CASE("epoch_gc_worker.c", "[epoch_gc_worker]") {
     }
 
     SECTION("epoch_gc_worker_set_thread_name") {
+        epoch_gc_object_type_t object_type = EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE;
         char thread_name_current[16] = { 0 };
-        char thread_name_cmp[] = "epoch_gc_4";
-        epoch_gc_t *epoch_gc = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_STORAGEDB_ENTRY_INDEX_LARGE);
+        char thread_name_cmp[16] = { 0 };
+        REQUIRE(snprintf(
+                thread_name_cmp,
+                sizeof(thread_name_cmp),
+                "epoch_gc_%d",
+                object_type) == 10);
+        epoch_gc_t *epoch_gc = epoch_gc_init(object_type);
         epoch_gc_worker_context_t epoch_gc_worker_context = { .epoch_gc = epoch_gc };
 
         pthread_getname_np(pthread_self(), thread_name_current, sizeof(thread_name_current));
