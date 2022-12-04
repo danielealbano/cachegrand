@@ -19,7 +19,7 @@ extern "C" {
     ((((uintptr_t)(BUCKET).data.key_value & HASHTABLE_MPMC_POINTER_TAG_TEMPORARY) > 0))
 #define HASHTABLE_MPMC_BUCKET_IS_TOMBSTONE(BUCKET) \
     ((((uintptr_t)(BUCKET).data.key_value & HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE) > 0))
-#define HASHTABLE_MPMC_BUCKET_IS_MIGRATED(BUCKET) \
+#define HASHTABLE_MPMC_BUCKET_IS_MIGRATING(BUCKET) \
     ((((uintptr_t)(BUCKET).data.key_value & HASHTABLE_MPMC_POINTER_TAG_MIGRATING) > 0))
 #define HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(BUCKET) \
     ((hashtable_mpmc_data_key_value_volatile_t*)(((uintptr_t)(BUCKET).data.key_value & HASHTABLE_MPMC_POINTER_TAG_MASK_INVERTED)))
@@ -98,19 +98,22 @@ typedef enum hashtable_mpmc_upsize_status hashtable_mpmc_upsize_status_t;
 
 // upsize.remaining_blocks needs to be signed as threads will try to decrement it and if it becomes negative they can
 // skip the upsize operations as there isn't anything else to upsize
+typedef struct hashtable_mpmc_upsize_info hashtable_mpmc_upsize_info_t;
+struct hashtable_mpmc_upsize_info {
+    hashtable_mpmc_data_t *from;
+    int64_t total_blocks;
+    int64_t remaining_blocks;
+    hashtable_mpmc_upsize_status_t status;
+    uint16_t block_size;
+    uint16_t threads_count;
+};
+
 typedef struct hashtable_mpmc hashtable_mpmc_t;
 struct hashtable_mpmc {
     hashtable_mpmc_data_t *data;
     uint64_t buckets_count_max;
     uint16_t upsize_preferred_block_size;
-    struct {
-        hashtable_mpmc_data_t *from;
-        int64_t total_blocks;
-        int64_t remaining_blocks;
-        hashtable_mpmc_upsize_status_t status;
-        uint16_t block_size;
-        uint16_t threads_count;
-    } upsize;
+    hashtable_mpmc_upsize_info_t upsize;
 };
 
 enum hashtable_mpmc_result {

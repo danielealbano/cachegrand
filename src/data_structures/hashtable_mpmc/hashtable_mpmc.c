@@ -255,9 +255,13 @@ bool hashtable_mpmc_upsize_migrate_bucket(
         hashtable_mpmc_data_t *from,
         hashtable_mpmc_data_t *to,
         hashtable_mpmc_bucket_index_t bucket_to_migrate_index) {
-    hashtable_mpmc_bucket_t bucket_to_migrate, found_bucket, bucket_to_overwrite;
+    hashtable_mpmc_bucket_t bucket_to_migrate, found_bucket, bucket_to_overwrite, new_bucket_value, deleted_bucket;
     hashtable_mpmc_bucket_index_t found_bucket_index;
-    hashtable_mpmc_bucket_t new_bucket_value;
+
+    // The bucket has been processed, so it can be set to deleted (not zero as it would break all the get and delete
+    // operations happening in the meantime)
+    deleted_bucket._packed = 0;
+    deleted_bucket.data.key_value = (void*)HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE;
 
     // It's necessary to mark the bucket being migrated with a specific tag, but if the bucket is empty it's not
     // required. Therefore, the algorithm first read the bucket and checks the hash moving to the next one if empty
@@ -269,20 +273,21 @@ bool hashtable_mpmc_upsize_migrate_bucket(
     MEMORY_FENCE_LOAD();
     bucket_to_migrate._packed = from->buckets[bucket_to_migrate_index]._packed;
 
-    // If the bucket is empty, skip it
-    if (bucket_to_migrate.data.hash_half == 0) {
-        return false;
-    }
-
-    // If the bucket is temporary, skip it, the op_set will ensure that the value is inserted again in the right
-    // hashtable mpmc data struct
-    if (HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(bucket_to_migrate)) {
-        return false;
-    }
-
     // Tries to acquire the bucket to migrated, at the end bucket_to_copy will contain the value that was used
     // as base to mark the bucket as migrating and therefore can be used to carry out the required operations.
+    // For every retry ensures that there is still something to migrate and that it's not temporary.
     do {
+        // If the bucket is empty, skip it
+        if (bucket_to_migrate.data.hash_half == 0) {
+            return false;
+        }
+
+        // If the bucket is temporary, skip it, the op_set will ensure that the value is inserted again in the right
+        // hashtable mpmc data struct
+        if (HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(bucket_to_migrate)) {
+            return false;
+        }
+
         // Set up the new bucket value setting the migrating pointer tag on key_value
         new_bucket_value._packed = bucket_to_migrate._packed;
         new_bucket_value.data.key_value = (hashtable_mpmc_data_key_value_volatile_t*)(
@@ -295,77 +300,51 @@ bool hashtable_mpmc_upsize_migrate_bucket(
             __ATOMIC_ACQ_REL,
             __ATOMIC_ACQUIRE));
 
-    // If the bucket is empty, skip it
-    if (bucket_to_migrate.data.hash_half == 0) {
-        return false;
-    }
-
     hashtable_mpmc_data_key_value_volatile_t *key_value = HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(bucket_to_migrate);
-
     char *key = key_value->key_is_embedded ? (char*)key_value->key.embedded.key : key_value->key.external.key;
     uint16_t key_length = key_value->key_is_embedded
                           ? key_value->key.embedded.key_length
                           : key_value->key.external.key_length;
 
-    // Check if the key has already been inserted in the new hashtable, temporary values are allowed as it means
-    // that the value is being inserted, therefore we can skip this copy as well
-    hashtable_mpmc_result_t found_existing_result = hashtable_mpmc_support_find_bucket_and_key_value(
-            to,
-            bucket_to_migrate.data.key_value->hash,
-            bucket_to_migrate.data.hash_half,
-            key,
-            key_length,
-            true,
-            &found_bucket,
-            &found_bucket_index);
-
-    if (found_existing_result == HASHTABLE_MPMC_RESULT_TRUE) {
-        // the bucket is set to zero to avoid it being accessed if the new value is deleted
-        from->buckets[bucket_to_migrate_index]._packed = 0;
-        MEMORY_FENCE_STORE();
-        return false;
-    }
+    // Check if the key has already been inserted in the new hashtable, temporary values are allowed to be returned as
+    // well. If an operation is being carried out on the same key in parallel it's necessary to retry.
+    while (hashtable_mpmc_support_find_bucket_and_key_value(
+                to,
+                key_value->hash,
+                bucket_to_migrate.data.hash_half,
+                key,
+                key_length,
+                true,
+                &found_bucket,
+                &found_bucket_index) == HASHTABLE_MPMC_RESULT_TRUE) {
+        // If the key is found in the destination
+        usleep(100);
+    };
 
     hashtable_mpmc_result_t found_empty_result = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
             to,
-            bucket_to_migrate.data.key_value->hash,
+            key_value->hash,
             bucket_to_migrate.data.hash_half,
             key,
             key_length,
-            bucket_to_migrate.data.key_value->value,
-            (hashtable_mpmc_data_key_value_t**)&bucket_to_migrate.data.key_value,
+            key_value->value,
+            (hashtable_mpmc_data_key_value_t**)&key_value,
             &bucket_to_overwrite,
             &found_bucket_index);
 
     if (found_empty_result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
-        // TODO: handle nested resizes, for now just fail as it's very unlikely to happen
+        // TODO: handle nested resizes, for now just fail as it's very unlikely (if not impossible) to happen when the
+        //       hashtable is large enough (e.g., over 16k buckets)
         assert(false);
         FATAL(TAG, "Resizing during resizes aren't supported, shutting down");
     }
 
-    hashtable_mpmc_result_t validate_insert_result = hashtable_mpmc_support_validate_insert(
-            to,
-            bucket_to_migrate.data.key_value->hash,
-            bucket_to_migrate.data.hash_half,
-            key,
-            key_length,
-            found_bucket_index);
+    // No need to check for duplicated inserts during the upsize, the insertion or updates is blocked
+    to->buckets[found_bucket_index].data.key_value = key_value;
+    MEMORY_FENCE_STORE();
 
-    if (validate_insert_result == HASHTABLE_MPMC_RESULT_FALSE) {
-        // Resets the previously initialized bucket, no need for atomic operations as the current thread is the only
-        // one that by algorithm will ever change this bucket.
-        to->buckets[found_bucket_index]._packed = bucket_to_overwrite._packed;
-        MEMORY_FENCE_STORE();
-    }
-
-    // Drop the temporary flag
-    to->buckets[found_bucket_index].data.key_value = bucket_to_migrate.data.key_value;
-
-    // The bucket has been processed, so it can be set to deleted (not zero as it would break all the get and delete
-    // operations happening in the meantime)
-    hashtable_mpmc_bucket_t deleted_bucket = { ._packed = 0 };
-    deleted_bucket.data.key_value = (void*)HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE;
-
+    // Once the temporary flag has been dropped, mark the previous value as deleted (this will allow the operation to
+    // skip the search on the upsize from hashtable and search in the current one directly)
     from->buckets[bucket_to_migrate_index]._packed = deleted_bucket._packed;
     MEMORY_FENCE_STORE();
 
@@ -377,6 +356,13 @@ uint32_t hashtable_mpmc_upsize_migrate_block(
     int64_t new_remaining_blocks, current_remaining_blocks, block_number;
     uint16_t threads_count;
     hashtable_mpmc_bucket_index_t bucket_to_migrate_index_start, bucket_to_migrate_index_end, bucket_to_migrate_index;
+
+    // If there are no more blocks to copy returns, doesn't use memory fences and rely solely on the value already in
+    // cache if present because most likely has already been updated because of the atomic operations. Worst case
+    // scenario, this check will allow the continuation of the execution and the one afterwards will stop it anyway.
+    if (hashtable_mpmc->upsize.remaining_blocks < 0) {
+        return 0;
+    }
 
     new_remaining_blocks = __atomic_sub_fetch(&hashtable_mpmc->upsize.remaining_blocks, 1, __ATOMIC_ACQ_REL);
 
@@ -499,20 +485,17 @@ hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
                     strncmp((char *)key_value->key.external.key, key, key_length) == 0;
         }
 
-        // If the hash matches is extremely likely the key will match as well, this branch can be marked with unlikely
-        // for better performances
-        if (unlikely(!does_key_match)) {
-            continue;
-        }
-
-        // Most of the time reads will be done on filled buckets, not on buckets being filled
-        if (unlikely(!allow_temporary && HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(*return_bucket))) {
-            // Continue reading, maybe a filled bucket is afterwards
+        // If the hash matches, it is extremely likely the key will match as well, check also if the bucket is marked as
+        // temporary, if yes the allow_temporary flag has to be set to true otherwise the key is skipped.
+        if (unlikely(
+                !does_key_match
+                || (!allow_temporary && HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(*return_bucket)))) {
             continue;
         }
 
         // Most of the time reads will be done on buckets not being migrated
-        if (unlikely(HASHTABLE_MPMC_BUCKET_IS_MIGRATED(*return_bucket))) {
+        if (unlikely(HASHTABLE_MPMC_BUCKET_IS_MIGRATING(*return_bucket))) {
+            // If a bucket is being migrated no operation can be carried out on it
             found = HASHTABLE_MPMC_RESULT_TRY_LATER;
             break;
         }
@@ -679,10 +662,14 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length,
         uintptr_t *return_value) {
-    hashtable_mpmc_result_t return_result, upsize_from_ht_return_result = HASHTABLE_MPMC_RESULT_FALSE;
+    hashtable_mpmc_result_t return_result, upsize_from_ht_return_result;
     hashtable_mpmc_bucket_t bucket;
     hashtable_mpmc_bucket_index_t bucket_index;
     hashtable_mpmc_data_t *hashtable_mpmc_data_upsize, *hashtable_mpmc_data_current;
+
+    if (hashtable_mpmc->upsize.status != HASHTABLE_MPMC_STATUS_NOT_UPSIZING) {
+        return HASHTABLE_MPMC_RESULT_TRY_LATER;
+    }
 
     epoch_operation_queue_operation_t *operation_kv, *operation_ht_data = NULL;
     hashtable_mpmc_hash_t hash = hashtable_mcmp_support_hash_calculate(key, key_length);
@@ -696,8 +683,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
     // operation
     MEMORY_FENCE_LOAD();
     hashtable_mpmc_data_current = hashtable_mpmc->data;
-    hashtable_mpmc_data_upsize = hashtable_mpmc->upsize.from;
-    if (unlikely(hashtable_mpmc_data_upsize != NULL)) {
+    if (unlikely(hashtable_mpmc->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING)) {
         operation_ht_data = epoch_operation_queue_enqueue(
                 thread_local_epoch_operation_queue_hashtable_data);
         assert(operation_ht_data != NULL);
@@ -705,7 +691,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
         // The value might have changed or freed in between, it's necessary to check again
         MEMORY_FENCE_LOAD();
         hashtable_mpmc_data_upsize = hashtable_mpmc->upsize.from;
-        if (likely(hashtable_mpmc_data_upsize != NULL)) {
+        if (likely(hashtable_mpmc->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING)) {
             upsize_from_ht_return_result = hashtable_mpmc_support_find_bucket_and_key_value(
                     hashtable_mpmc_data_upsize,
                     hash,
@@ -716,14 +702,18 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
                     &bucket,
                     &bucket_index);
 
-            // If the value is found and not being migrated, acquire it
-            if (upsize_from_ht_return_result == HASHTABLE_MPMC_RESULT_TRUE) {
-                *return_value = bucket.data.key_value->value;
+            // If it has to retry later, set the return value and jump to the end
+            if (unlikely(upsize_from_ht_return_result == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
+                return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
+                goto end;
             }
 
-            // If the bucket is found (even if being migrated), return the result (and the value if not being migrated)
-            if (upsize_from_ht_return_result != HASHTABLE_MPMC_RESULT_FALSE) {
-                return_result = upsize_from_ht_return_result;
+            // If the value is found and not being migrated, acquire it
+            if (upsize_from_ht_return_result == HASHTABLE_MPMC_RESULT_TRUE) {
+                hashtable_mpmc_data_key_value_volatile_t *key_value =
+                        HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(bucket);
+                *return_value = key_value->value;
+                return_result = HASHTABLE_MPMC_RESULT_TRUE;
                 goto end;
             }
         }
@@ -740,7 +730,9 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
             &bucket_index);
 
     if (return_result == HASHTABLE_MPMC_RESULT_TRUE) {
-        *return_value = bucket.data.key_value->value;
+        hashtable_mpmc_data_key_value_volatile_t *key_value =
+                HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(bucket);
+        *return_value = key_value->value;
     }
 
 end:
@@ -765,8 +757,12 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
     hashtable_mpmc_bucket_index_t found_bucket_index;
     hashtable_mpmc_data_t *hashtable_mpmc_data_upsize, *hashtable_mpmc_data_current;
     epoch_operation_queue_operation_t *operation_kv, *operation_ht_data = NULL;
-
     hashtable_mpmc_hash_t hash = hashtable_mcmp_support_hash_calculate(key, key_length);
+
+    MEMORY_FENCE_LOAD();
+    if (unlikely(hashtable_mpmc->upsize.status == HASHTABLE_MPMC_STATUS_PREPARE_FOR_UPSIZE)) {
+        return HASHTABLE_MPMC_RESULT_TRY_LATER;
+    }
 
     // When a bucket is deleted is marked with a tombstone to let get know that there is/was something past this point,
     // and it has to continue to search
@@ -782,16 +778,15 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
     // operation
     MEMORY_FENCE_LOAD();
     hashtable_mpmc_data_current = hashtable_mpmc->data;
-    hashtable_mpmc_data_upsize = hashtable_mpmc->upsize.from;
-    if (unlikely(hashtable_mpmc_data_upsize != NULL)) {
+    if (unlikely(hashtable_mpmc->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING)) {
         operation_ht_data = epoch_operation_queue_enqueue(
                 thread_local_epoch_operation_queue_hashtable_data);
         assert(operation_ht_data != NULL);
 
-        // The value might have changed or freed in between, it's necessary to check again
+        // Get the upsize hashtable and ensure that it's still in the UPSIZING status
         MEMORY_FENCE_LOAD();
         hashtable_mpmc_data_upsize = hashtable_mpmc->upsize.from;
-        if (likely(hashtable_mpmc_data_upsize != NULL)) {
+        if (likely(hashtable_mpmc->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING)) {
             upsize_from_ht_return_result = hashtable_mpmc_support_find_bucket_and_key_value(
                     hashtable_mpmc_data_upsize,
                     hash,
@@ -802,30 +797,35 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
                     &found_bucket,
                     &found_bucket_index);
 
-            if (upsize_from_ht_return_result != HASHTABLE_MPMC_RESULT_FALSE) {
-                if (likely(upsize_from_ht_return_result == HASHTABLE_MPMC_RESULT_TRUE)) {
-                    if (likely(__atomic_compare_exchange_n(
-                            &hashtable_mpmc_data_upsize->buckets[found_bucket_index]._packed,
-                            (uint128_t*)&found_bucket._packed,
-                            deleted_bucket._packed,
-                            false,
-                            __ATOMIC_ACQ_REL,
-                            __ATOMIC_ACQUIRE))) {
-                        epoch_gc_stage_object(
-                                EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE,
-                                (void*)found_bucket.data.key_value);
-                    } else {
-                        // If replacing the value with the tombstone fails, it might have been marked for migration in which
-                        // case it will be necessary to try again the operation later
-                        if (unlikely(HASHTABLE_MPMC_BUCKET_IS_MIGRATED(found_bucket))) {
-                            // Set upsize_from_ht_return_result to try later to let the code afterward kick in as the tag
-                            // would have been found initially by hashtable_mpmc_support_find_bucket_and_key_value
-                            upsize_from_ht_return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
-                        }
-                    }
+            // If it has to retry later, set the return value and jump to the end
+            if (unlikely(upsize_from_ht_return_result == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
+                return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
+                goto end;
+            }
+
+            if (upsize_from_ht_return_result == HASHTABLE_MPMC_RESULT_TRUE) {
+                bool swap_result = __atomic_compare_exchange_n(
+                &hashtable_mpmc_data_upsize->buckets[found_bucket_index]._packed,
+                        (uint128_t*)&found_bucket._packed,
+                        deleted_bucket._packed,
+                        false,
+                        __ATOMIC_ACQ_REL,
+                        __ATOMIC_ACQUIRE);
+
+                if (likely(swap_result)) {
+                    epoch_gc_stage_object(
+                            EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE,
+                            (void*)HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(found_bucket));
+
+                    return_result = HASHTABLE_MPMC_RESULT_TRUE;
+                } else {
+                    // If replacing the value with the tombstone fails, it might have been marked for migration in which
+                    // case it will be necessary to try again the operation later
+                    return_result = unlikely(HASHTABLE_MPMC_BUCKET_IS_MIGRATING(found_bucket))
+                            ? HASHTABLE_MPMC_RESULT_TRY_LATER
+                            : HASHTABLE_MPMC_RESULT_TRUE;
                 }
 
-                return_result = upsize_from_ht_return_result;
                 goto end;
             }
         }
@@ -843,6 +843,12 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
             &found_bucket_index);
 
     if (found_result != HASHTABLE_MPMC_RESULT_TRUE) {
+        MEMORY_FENCE_LOAD();
+        if (found_result == HASHTABLE_MPMC_RESULT_FALSE && hashtable_mpmc_data_current != hashtable_mpmc->data) {
+            found_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
+        }
+
+        return_result = found_result;
         goto end;
     }
 
@@ -857,12 +863,12 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
             __ATOMIC_ACQUIRE))) {
         epoch_gc_stage_object(
                 EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE,
-                (void*)found_bucket.data.key_value);
+                (void*)HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(found_bucket));
         return_result = HASHTABLE_MPMC_RESULT_TRUE;
     } else {
         // Check if by any chance the deletion process kicked right before the upsizing process and the bucket gets
         // marked as migrated in which case the operation has to be retried
-        if (unlikely(HASHTABLE_MPMC_BUCKET_IS_MIGRATED(found_bucket))) {
+        if (unlikely(HASHTABLE_MPMC_BUCKET_IS_MIGRATING(found_bucket))) {
             // Set upsize_from_ht_return_result to try later to let the code afterward kick in as the tag
             // would have been found initially by hashtable_mpmc_support_find_bucket_and_key_value
             return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
@@ -902,6 +908,11 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
     *return_value_updated = false;
     *return_previous_value = 0;
 
+    MEMORY_FENCE_LOAD();
+    if (unlikely(hashtable_mpmc->upsize.status == HASHTABLE_MPMC_STATUS_PREPARE_FOR_UPSIZE)) {
+        return HASHTABLE_MPMC_RESULT_TRY_LATER;
+    }
+
     // Start to track the operation to avoid trying to access freed memory
     epoch_operation_queue_operation_t *operation_kv = epoch_operation_queue_enqueue(
             thread_local_epoch_operation_queue_hashtable_key_value);
@@ -917,19 +928,20 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
 
     MEMORY_FENCE_LOAD();
     hashtable_mpmc_data_current = hashtable_mpmc->data;
-    hashtable_mpmc_data_upsize = hashtable_mpmc->upsize.from;
 
     // If there is a resize in progress, first check if the key is being migrated, if yes the caller has to retry
     // the operation
-    if (hashtable_mpmc_data_upsize != NULL) {
+    if (unlikely(hashtable_mpmc->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING)) {
         operation_ht_data = epoch_operation_queue_enqueue(
                 thread_local_epoch_operation_queue_hashtable_data);
         assert(operation_ht_data != NULL);
 
-        // The value might have changed or freed in between, it's necessary to check again
+        // Load the previous hashtable
         MEMORY_FENCE_LOAD();
         hashtable_mpmc_data_upsize = hashtable_mpmc->upsize.from;
-        if (hashtable_mpmc_data_upsize != NULL) {
+        if (likely(hashtable_mpmc->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING)) {
+            // TODO: should allow to return of the buckets being migrated as we care only about updating the value in
+            //       the key value structure and will not touch the bucket itself
             hashtable_mpmc_result_t found_existing_result_in_upsize_ht =
                     hashtable_mpmc_support_find_bucket_and_key_value(
                         hashtable_mpmc_data_upsize,
@@ -948,20 +960,14 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
 
             // If the bucket was previously found, try to swap it with the new bucket
             if (found_existing_result_in_upsize_ht == HASHTABLE_MPMC_RESULT_TRUE) {
-                // If the value found is temporary or if there is a transaction in progress it means that another thread is
-                // writing the data so the flow can just wait for it to complete before carrying out the operations.
-                bool is_temporary = ((uintptr_t)found_bucket.data.key_value & 0x01) == 0x01;
-                if (unlikely(is_temporary || found_bucket.data.transaction_id.id != 0)) {
-                    return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
-                    goto end;
-                }
-
                 // Acquire the current value
-                uintptr_t expected_value = found_bucket.data.key_value->value;
+                hashtable_mpmc_data_key_value_volatile_t *key_value =
+                        HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(found_bucket);
+                uintptr_t expected_value = key_value->value;
 
                 // Try to set the new value
                 *return_value_updated = __atomic_compare_exchange_n(
-                        &found_bucket.data.key_value->value,
+                        &key_value->value,
                         &expected_value,
                         value,
                         false,
@@ -974,7 +980,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
                     *return_previous_value = expected_value;
                 }
 
-                // As the key is owned by the hashtable, the pointer is freed as well
+                // As the key is owned by the hashtable and this copy is not in use, the key is freed as well
                 xalloc_free(key);
 
                 return_result = HASHTABLE_MPMC_RESULT_TRUE;
@@ -1003,18 +1009,18 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
     if (found_existing_result == HASHTABLE_MPMC_RESULT_TRUE) {
         // If the value found is temporary or if there is a transaction in progress it means that another thread is
         // writing the data so the flow can just wait for it to complete before carrying out the operations.
-        bool is_temporary = ((uintptr_t)found_bucket.data.key_value & 0x01) == 0x01;
-        if (unlikely(is_temporary || found_bucket.data.transaction_id.id != 0)) {
+        if (unlikely(HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(found_bucket) || found_bucket.data.transaction_id.id != 0)) {
             return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
             goto end;
         }
 
         // Acquire the current value
-        uintptr_t expected_value = found_bucket.data.key_value->value;
+        hashtable_mpmc_data_key_value_volatile_t *key_value = HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(found_bucket);
+        uintptr_t expected_value = key_value->value;
 
         // Try to set the new value
         *return_value_updated = __atomic_compare_exchange_n(
-                &found_bucket.data.key_value->value,
+                &key_value->value,
                 &expected_value,
                 value,
                 false,
@@ -1054,8 +1060,10 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
             &new_bucket_index);
 
     // If no empty bucket has been found the hashtable is full and needs resizing
-    if (unlikely(found_empty_result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING)) {
-        return_result = HASHTABLE_MPMC_RESULT_NEEDS_RESIZING;
+    if (unlikely(
+            found_empty_result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING ||
+            found_empty_result == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
+        return_result = found_empty_result;
         goto end;
     }
 
@@ -1072,10 +1080,16 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
     MEMORY_FENCE_LOAD();
     if (validate_insert_result == HASHTABLE_MPMC_RESULT_FALSE ||
         hashtable_mpmc_data_current != hashtable_mpmc->data) {
-        // Resets the previously initialized bucket, no need for atomic operations as the current thread is the only
-        // one that by algorithm will ever change this bucket.
-        hashtable_mpmc->data->buckets[new_bucket_index]._packed = bucket_to_overwrite._packed;
-        MEMORY_FENCE_STORE();
+        // Resets the previously initialized bucket, uses an atomic operation to ensure the bucket wasn't changed in
+        // the meantime (e.g. during an upsize not another set operation)
+        uint128_t temp_expected_value = bucket_to_overwrite._packed;
+        __atomic_compare_exchange_n(
+                &hashtable_mpmc->data->buckets[new_bucket_index]._packed,
+                &temp_expected_value,
+                bucket_to_overwrite._packed,
+                false,
+                __ATOMIC_ACQ_REL,
+                __ATOMIC_ACQUIRE);
 
         bucket_to_overwrite._packed = 0;
         return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
@@ -1088,6 +1102,11 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
     // No need for an atomic operation, the value can be safely overwritten as by algorithm no other thread will touch
     // the bucket
     MEMORY_FENCE_STORE();
+
+    // If the key is embedded free the one passed
+    if (new_key_value->key_is_embedded) {
+        xalloc_free(key);
+    }
 
     // Operation successful, set the result to true and update the status variables
     *return_created_new = true;
