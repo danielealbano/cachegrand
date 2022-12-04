@@ -240,8 +240,6 @@ bool hashtable_mpmc_upsize_prepare(
     hashtable_mpmc->upsize.remaining_blocks = total_blocks;
     hashtable_mpmc->upsize.block_size = new_block_size;
     hashtable_mpmc->upsize.from = hashtable_mpmc->data;
-    MEMORY_FENCE_STORE();
-
     hashtable_mpmc->data = new_hashtable_mpmc_data;
     MEMORY_FENCE_STORE();
 
@@ -282,10 +280,10 @@ bool hashtable_mpmc_upsize_migrate_bucket(
             return false;
         }
 
-        // If the bucket is temporary, skip it, the op_set will ensure that the value is inserted again in the right
-        // hashtable mpmc data struct
+        // If the bucket is temporary, wait until it's finalized or set back to be empty
         if (HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(bucket_to_migrate)) {
-            return false;
+            usleep(100);
+            continue;
         }
 
         // Set up the new bucket value setting the migrating pointer tag on key_value
@@ -317,7 +315,7 @@ bool hashtable_mpmc_upsize_migrate_bucket(
                 true,
                 &found_bucket,
                 &found_bucket_index) == HASHTABLE_MPMC_RESULT_TRUE) {
-        // If the key is found in the destination
+        // If the key is found in the destination wait and retry
         usleep(100);
     };
 
@@ -1085,26 +1083,15 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
     // If the validation failed or the hashtable started a resize in the meantime, the process will try to carry
     // out an insert again
     MEMORY_FENCE_LOAD();
-    if (validate_insert_result == HASHTABLE_MPMC_RESULT_FALSE ||
-        hashtable_mpmc_data_current != hashtable_mpmc->data) {
-        // Resets the previously initialized bucket, uses an atomic operation to ensure the bucket wasn't changed in
-        // the meantime (e.g. during an upsize not another set operation)
-        uint128_t temp_expected_value = bucket_to_overwrite._packed;
-        __atomic_compare_exchange_n(
-                &hashtable_mpmc->data->buckets[new_bucket_index]._packed,
-                &temp_expected_value,
-                bucket_to_overwrite._packed,
-                false,
-                __ATOMIC_ACQ_REL,
-                __ATOMIC_ACQUIRE);
-
-        bucket_to_overwrite._packed = 0;
+    if (validate_insert_result == HASHTABLE_MPMC_RESULT_FALSE || hashtable_mpmc_data_current != hashtable_mpmc->data) {
+        // Resets the previously initialized bucket
+        hashtable_mpmc_data_current->buckets[new_bucket_index]._packed = bucket_to_overwrite._packed;
         return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
         goto end;
     }
 
     // Drop the temporary flag from the key_value pointer
-    hashtable_mpmc->data->buckets[new_bucket_index].data.key_value = new_key_value;
+    hashtable_mpmc_data_current->buckets[new_bucket_index].data.key_value = new_key_value;
 
     // No need for an atomic operation, the value can be safely overwritten as by algorithm no other thread will touch
     // the bucket
