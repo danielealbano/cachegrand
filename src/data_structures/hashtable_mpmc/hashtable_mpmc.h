@@ -57,6 +57,8 @@ struct hashtable_mpmc_data_key_value {
     } key;
     uintptr_t value;
     uint64_t hash;
+    uint64_t creation_time;
+    uint64_t last_update_time;
     bool key_is_embedded;
 };
 

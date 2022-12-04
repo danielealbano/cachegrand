@@ -557,6 +557,7 @@ hashtable_mpmc_result_t hashtable_mpmc_support_acquire_empty_bucket_for_insert(
             *new_key_value = xalloc_alloc(sizeof(hashtable_mpmc_data_key_value_t));
             (*new_key_value)->hash = hash;
             (*new_key_value)->value = value;
+            (*new_key_value)->creation_time = (*new_key_value)->last_update_time = intrinsics_tsc();
 
             // Check if the key can be embedded, uses the lesser than or equal as we don't care about the nul
             // because the key_length is what drives the string operations on the keys.
@@ -978,6 +979,12 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
                 // operation is successful
                 if (*return_value_updated) {
                     *return_previous_value = expected_value;
+
+                    // If the swap is successful, overwrites the last update time, which is not perfect as another value
+                    // at this point might have already updated the timestamp but this kind of time granularity is not
+                    // required as the operations will happen within a few nanoseconds of difference if there will be a
+                    // collision between two successful updates.
+                    key_value->last_update_time = intrinsics_tsc();
                 }
 
                 // As the key is owned by the hashtable and this copy is not in use, the key is freed as well
