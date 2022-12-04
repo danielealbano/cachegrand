@@ -1554,8 +1554,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         //       assert but this impacts the ease of testing, they should instead set an error, stop the processing and
         //       bubble up the error back to the caller and then here (the caller) should use REQUIRE to validate the
         //       result.
-        uint8_t test_runs = 10;
-        uint8_t test_duration = 2;
+        uint8_t test_duration = 3;
         uint32_t keys_count = 4 * 1024 * 1024;
         uint16_t key_length_min = 8;
         uint16_t key_length_max = 12;
