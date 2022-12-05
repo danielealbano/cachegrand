@@ -72,7 +72,9 @@ sudo apt install \
     libnuma1 libnuma-dev \
     libcurl4-openssl-dev libcurl4 \
     libyaml-0-2 libyaml-dev \
-    libmbedtls-dev libmbedtls12
+    libmbedtls-dev libmbedtls12 \
+    libpcre2-8-0 libpcre2-dev \
+    libjson-c-dev
 ```
 
 ### Fedora 36

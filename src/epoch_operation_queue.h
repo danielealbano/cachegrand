@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#define EPOCH_OPERATION_QUEUE_RING_SIZE (16 * 1024)
+#define EPOCH_OPERATION_QUEUE_RING_SIZE (128 * 1024)
 
 typedef union epoch_operation_queue_operation epoch_operation_queue_operation_t;
 union epoch_operation_queue_operation {

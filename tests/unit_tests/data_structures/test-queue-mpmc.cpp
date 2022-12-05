@@ -31,7 +31,7 @@ struct test_queue_mpmc_fuzzy_test_thread_info {
     bool_volatile_t *start;
     bool_volatile_t *stop;
     bool_volatile_t stopped;
-    queue_mpmc *queue;
+    queue_mpmc_t *queue;
     uint32_t min_length;
     uint32_t max_length;
     uint32_volatile_t *ops_counter_total;
@@ -66,7 +66,7 @@ uint64_t test_queue_mpmc_calc_hash_y(
 
 void *test_queue_mpmc_fuzzy_multi_thread_thread_func(
         void *user_data) {
-    test_queue_mpmc_fuzzy_test_thread_info_t *ti = (test_queue_mpmc_fuzzy_test_thread_info_t*)user_data;
+    auto ti = (test_queue_mpmc_fuzzy_test_thread_info_t*)user_data;
 
     queue_mpmc *queue_mpmc = ti->queue;
     uint32_t min_length  = ti->min_length;
@@ -88,8 +88,7 @@ void *test_queue_mpmc_fuzzy_multi_thread_thread_func(
         if (queue_mpmc_length < min_length || (random_generate() % 1000 > 500 && queue_mpmc_length < max_length)) {
             uint32_t ops_counter_push = __atomic_fetch_add(ti->ops_counter_push, 1, __ATOMIC_RELAXED);
 
-            test_queue_mpmc_fuzzy_test_data_t *data =
-                    (test_queue_mpmc_fuzzy_test_data_t*)malloc(sizeof(test_queue_mpmc_fuzzy_test_data_t));
+            auto data = (test_queue_mpmc_fuzzy_test_data_t*)malloc(sizeof(test_queue_mpmc_fuzzy_test_data_t));
             data->ops_counter_total = ops_counter_total;
             data->ops_counter_push = ops_counter_push;
             data->hash_data_x = test_queue_mpmc_calc_hash_x(ops_counter_total);
@@ -97,7 +96,7 @@ void *test_queue_mpmc_fuzzy_multi_thread_thread_func(
 
             queue_mpmc_push(queue_mpmc, data);
         } else {
-            test_queue_mpmc_fuzzy_test_data_t *data = (test_queue_mpmc_fuzzy_test_data_t*)queue_mpmc_pop(queue_mpmc);
+            auto data = (test_queue_mpmc_fuzzy_test_data_t*)queue_mpmc_pop(queue_mpmc);
 
             // There was an item at the time of the get length but not anymore
             if(!data) {
@@ -136,8 +135,8 @@ void test_queue_mpmc_fuzzy_multi_thread(
     bool stop = false;
     int n_cpus = utils_cpu_count();
 
-    test_queue_mpmc_fuzzy_test_thread_info_t *ti_list =
-            (test_queue_mpmc_fuzzy_test_thread_info_t*)malloc(sizeof(test_queue_mpmc_fuzzy_test_thread_info_t) * n_cpus);
+    auto ti_list = (test_queue_mpmc_fuzzy_test_thread_info_t*)malloc(
+            sizeof(test_queue_mpmc_fuzzy_test_thread_info_t) * n_cpus);
 
     for(int i = 0; i < n_cpus; i++) {
         test_queue_mpmc_fuzzy_test_thread_info_t *ti = &ti_list[i];
@@ -224,7 +223,7 @@ void test_queue_mpmc_fuzzy_single_thread(
         if (queue_mpmc_length < min_length || (random_generate() % 1000 > 500 && queue_mpmc_length < max_length)) {
             ops_counter_push++;
 
-            test_queue_mpmc_fuzzy_test_data_t *data = (test_queue_mpmc_fuzzy_test_data_t*)malloc(sizeof(test_queue_mpmc_fuzzy_test_data_t));
+            auto data = (test_queue_mpmc_fuzzy_test_data_t*)malloc(sizeof(test_queue_mpmc_fuzzy_test_data_t));
             data->ops_counter_total = ops_counter_total;
             data->ops_counter_push = ops_counter_push;
             data->hash_data_x = test_queue_mpmc_calc_hash_x(ops_counter_total);
@@ -233,7 +232,7 @@ void test_queue_mpmc_fuzzy_single_thread(
             queue_mpmc_push(queue_mpmc, data);
         } else {
 
-            test_queue_mpmc_fuzzy_test_data_t *data = (test_queue_mpmc_fuzzy_test_data_t*)queue_mpmc_pop(queue_mpmc);
+            auto data = (test_queue_mpmc_fuzzy_test_data_t*)queue_mpmc_pop(queue_mpmc);
 
             uint64_t hash_data_x = test_queue_mpmc_calc_hash_x(data->ops_counter_total);
             uint64_t hash_data_y = test_queue_mpmc_calc_hash_y(data->ops_counter_push);

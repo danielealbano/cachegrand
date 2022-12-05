@@ -128,6 +128,8 @@ void epoch_gc_thread_free(
 void epoch_gc_thread_register_global(
         epoch_gc_t *epoch_gc,
         epoch_gc_thread_t *epoch_gc_thread) {
+    assert(epoch_gc != NULL);
+    assert(epoch_gc_thread != NULL);
     double_linked_list_item_t *epoch_gc_thread_item = double_linked_list_item_init();
     epoch_gc_thread_item->data = epoch_gc_thread;
 
@@ -142,7 +144,12 @@ void epoch_gc_thread_register_global(
 
 void epoch_gc_thread_register_local(
         epoch_gc_thread_t *epoch_gc_thread) {
-    thread_local_epoch_gc[epoch_gc_thread->epoch_gc->object_type] = epoch_gc_thread;
+    assert(epoch_gc_thread != NULL);
+    epoch_gc_t *epoch_gc = epoch_gc_thread->epoch_gc;
+    assert(epoch_gc != NULL);
+    epoch_gc_object_type_t object_type = epoch_gc->object_type;
+    assert(thread_local_epoch_gc[object_type] == NULL);
+    thread_local_epoch_gc[object_type] = epoch_gc_thread;
 }
 
 void epoch_gc_thread_unregister_global(
@@ -176,7 +183,9 @@ void epoch_gc_thread_unregister_global(
 void epoch_gc_thread_unregister_local(
         epoch_gc_thread_t *epoch_gc_thread) {
     epoch_gc_t *epoch_gc = epoch_gc_thread->epoch_gc;
-    thread_local_epoch_gc[epoch_gc->object_type] = NULL;
+    epoch_gc_object_type_t object_type = epoch_gc->object_type;
+    assert(thread_local_epoch_gc[object_type] != NULL);
+    thread_local_epoch_gc[object_type] = NULL;
 }
 
 void epoch_gc_thread_get_instance(
@@ -202,16 +211,21 @@ void epoch_gc_thread_terminate(
     MEMORY_FENCE_STORE();
 }
 
+void epoch_gc_thread_set_epoch(
+        epoch_gc_thread_t *epoch_gc_thread,
+        uint64_t epoch) {
+    epoch_gc_thread->epoch = epoch;
+    MEMORY_FENCE_STORE();
+}
+
 void epoch_gc_thread_advance_epoch_tsc(
         epoch_gc_thread_t *epoch_gc_thread) {
-    epoch_gc_thread->epoch = intrinsics_tsc();
-    MEMORY_FENCE_STORE();
+    epoch_gc_thread_set_epoch(epoch_gc_thread, intrinsics_tsc());
 }
 
 void epoch_gc_thread_advance_epoch_by_one(
         epoch_gc_thread_t *epoch_gc_thread) {
-    epoch_gc_thread->epoch++;
-    MEMORY_FENCE_STORE();
+    epoch_gc_thread_set_epoch(epoch_gc_thread, ++epoch_gc_thread->epoch);
 }
 
 uint32_t epoch_gc_thread_collect(

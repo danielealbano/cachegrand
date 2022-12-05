@@ -22,9 +22,9 @@ hashtable_spsc_t *hashtable_spsc_new(
 
     assert(buckets_count > 0);
     assert(max_range > 0);
-    assert(buckets_count < UINT16_MAX);
+    assert(buckets_count < UINT32_MAX);
 
-    buckets_count_pow2_next = (uint16_t)pow2_next(buckets_count);
+    buckets_count_pow2_next = (uint32_t)pow2_next(buckets_count);
     buckets_to_allocate = buckets_count_pow2_next + max_range;
 
     assert(buckets_count_pow2_next >= buckets_count);
