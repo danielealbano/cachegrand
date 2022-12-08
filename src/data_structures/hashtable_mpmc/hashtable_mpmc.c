@@ -579,9 +579,10 @@ hashtable_mpmc_result_t hashtable_mpmc_support_acquire_empty_bucket_for_insert(
             }
         }
 
+        // new_key_value can be passed externally already pre initialized, therefore the new bucket needs to be
+        // initialized separately.
         if (unlikely(new_bucket._packed == 0)) {
-            // Prepare the new bucket, the new_key_value pointer points to the key_value struct already prepared but
-            // with the least significant bit set to 1 to indicate that it's a temporary allocation.
+            // Prepare the new bucket marking it as temporary
             new_bucket.data.transaction_id.id = 0;
             new_bucket.data.hash_half = hash_half;
             new_bucket.data.key_value = (void *)((uintptr_t)(*new_key_value) | HASHTABLE_MPMC_POINTER_TAG_TEMPORARY);
