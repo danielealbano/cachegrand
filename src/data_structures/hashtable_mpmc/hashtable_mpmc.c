@@ -288,13 +288,18 @@ bool hashtable_mpmc_upsize_migrate_bucket(
         new_bucket_value._packed = bucket_to_migrate._packed;
         new_bucket_value.data.key_value = (hashtable_mpmc_data_key_value_volatile_t*)(
                 (uintptr_t)new_bucket_value.data.key_value | HASHTABLE_MPMC_POINTER_TAG_MIGRATING);
-    } while(!__atomic_compare_exchange_n(
-            &from->buckets[bucket_to_migrate_index]._packed,
-            (uint128_t*)&bucket_to_migrate._packed,
-            new_bucket_value._packed,
-            false,
-            __ATOMIC_ACQ_REL,
-            __ATOMIC_ACQUIRE));
+
+        if (__atomic_compare_exchange_n(
+                &from->buckets[bucket_to_migrate_index]._packed,
+                (uint128_t*)&bucket_to_migrate._packed,
+                new_bucket_value._packed,
+                false,
+                __ATOMIC_ACQ_REL,
+                __ATOMIC_ACQUIRE)) {
+            break;
+        }
+
+    } while(true);
 
     hashtable_mpmc_data_key_value_volatile_t *key_value = HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(bucket_to_migrate);
     char *key = key_value->key_is_embedded ? (char*)key_value->key.embedded.key : key_value->key.external.key;
