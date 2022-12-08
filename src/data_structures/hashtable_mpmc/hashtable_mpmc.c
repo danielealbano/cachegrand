@@ -186,7 +186,7 @@ void hashtable_mpmc_free(
 
 bool hashtable_mpmc_upsize_is_allowed(
         hashtable_mpmc_t *hashtable_mpmc) {
-    return pow2_next(hashtable_mpmc->data->buckets_count) <= hashtable_mpmc->buckets_count_max;
+    return pow2_next(hashtable_mpmc->data->buckets_count + 1) <= hashtable_mpmc->buckets_count_max;
 }
 
 bool hashtable_mpmc_upsize_prepare(
