@@ -168,6 +168,9 @@ hashtable_mpmc_t *hashtable_mpmc_init(
 void hashtable_mpmc_free(
         hashtable_mpmc_t *hashtable_mpmc);
 
+bool hashtable_mpmc_upsize_is_allowed(
+        hashtable_mpmc_t *hashtable_mpmc);
+
 bool hashtable_mpmc_upsize_prepare(
         hashtable_mpmc_t *hashtable_mpmc);
 
