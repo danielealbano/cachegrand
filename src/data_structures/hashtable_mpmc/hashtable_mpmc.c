@@ -387,9 +387,10 @@ uint32_t hashtable_mpmc_upsize_migrate_block(
 
     block_number = (hashtable_mpmc->upsize.total_blocks - new_remaining_blocks) - 1;
 
-    bucket_to_migrate_index_start = block_number * HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE;
-    bucket_to_migrate_index_end =
-            MIN(hashtable_mpmc->upsize.from->buckets_count_real, bucket_to_migrate_index_start + HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
+    bucket_to_migrate_index_start = block_number * hashtable_mpmc->upsize.block_size;
+    bucket_to_migrate_index_end = MIN(
+            hashtable_mpmc->upsize.from->buckets_count_real,
+            bucket_to_migrate_index_start + hashtable_mpmc->upsize.block_size);
 
     uint32_t migrated_buckets_count = 0;
     for(
