@@ -144,7 +144,9 @@ void hashtable_mpmc_data_free(
             hashtable_mpmc_bucket_index_t bucket_index = 0;
             bucket_index < hashtable_mpmc_data->buckets_count_real;
             bucket_index++) {
-        if (hashtable_mpmc_data->buckets[bucket_index].data.hash_half == 0) {
+        hashtable_mpmc_bucket_t bucket = { ._packed = hashtable_mpmc_data->buckets[bucket_index]._packed };
+
+        if (bucket._packed == 0 || HASHTABLE_MPMC_BUCKET_IS_TOMBSTONE(bucket)) {
             continue;
         }
 
@@ -261,22 +263,18 @@ bool hashtable_mpmc_upsize_migrate_bucket(
     deleted_bucket._packed = 0;
     deleted_bucket.data.key_value = (void*)HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE;
 
-    // It's necessary to mark the bucket being migrated with a specific tag, but if the bucket is empty it's not
-    // required. Therefore, the algorithm first read the bucket and checks the hash moving to the next one if empty
-    // otherwise it re-read the value and carry out the swap to set the bucket as migrating. Once the swap has been
-    // done it's necessary to check again if the bucket is empty as it might have been deleted in the meantime.
-    // This double check doesn't really have a negative performance impact, as the data are in the DCACHE and ICACHE
-    // of the core executing the code, unless there is an actual change in between, but in that case is absolutely
-    // fine to pay a minimal performance penalty for safety reasons.
-    MEMORY_FENCE_LOAD();
-    bucket_to_migrate._packed = from->buckets[bucket_to_migrate_index]._packed;
-
-    // Tries to acquire the bucket to migrated, at the end bucket_to_copy will contain the value that was used
+    // Tries to acquire the bucket to be migrated, at the end bucket_to_copy will contain the value that was used
     // as base to mark the bucket as migrating and therefore can be used to carry out the required operations.
     // For every retry ensures that there is still something to migrate and that it's not temporary.
+
     do {
-        // If the bucket is empty, skip it
-        if (bucket_to_migrate.data.hash_half == 0) {
+        __atomic_load(
+                &from->buckets[bucket_to_migrate_index]._packed,
+                (uint128_t*)&bucket_to_migrate._packed,
+                __ATOMIC_ACQUIRE);
+
+        // If the bucket is empty, or it's a tombstone it can be skipped
+        if (bucket_to_migrate._packed == 0 || HASHTABLE_MPMC_BUCKET_IS_TOMBSTONE(bucket_to_migrate)) {
             return false;
         }
 
@@ -451,21 +449,16 @@ hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
             bucket_index = bucket_index_start;
             bucket_index < bucket_index_start + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE;
             bucket_index++) {
-        MEMORY_FENCE_LOAD();
-        return_bucket->_packed = hashtable_mpmc_data->buckets[bucket_index]._packed;
+        __atomic_load(
+                &hashtable_mpmc_data->buckets[bucket_index]._packed,
+                (uint128_t*)&return_bucket->_packed,
+                __ATOMIC_ACQUIRE);
 
-        // If no tombstone is set, the loop can be interrupted, no values have ever been set past the bucket being
-        // checked
         if (unlikely(return_bucket->_packed == 0)) {
             break;
         }
 
-        // Although it might seem odd to have a condition that will cause a slow processing of a match, the reality is
-        // that in the vast majority of cases (99.6% of cases) the hash will not match and the loop will have to
-        // continue.
-        // Even if this likely might slow down finding buckets that are in the slot where they are supposed to be, it
-        // will speed up all the other ones
-        if (likely(return_bucket->data.hash_half != hash_half)) {
+        if (likely(return_bucket->data.hash_half != hash_half || HASHTABLE_MPMC_BUCKET_IS_TOMBSTONE(*return_bucket))) {
             continue;
         }
 
@@ -487,7 +480,7 @@ hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
         // temporary, if yes the allow_temporary flag has to be set to true otherwise the key is skipped.
         if (unlikely(
                 !does_key_match
-                || (!allow_temporary && HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(*return_bucket)))) {
+                || (HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(*return_bucket) && !allow_temporary))) {
             continue;
         }
 
@@ -533,15 +526,18 @@ hashtable_mpmc_result_t hashtable_mpmc_support_acquire_empty_bucket_for_insert(
                 &hashtable_mpmc_data->buckets[bucket_index]._packed,
                 (uint128_t*)&bucket._packed,
                 __ATOMIC_ACQUIRE);
-        if (bucket.data.hash_half != 0) {
-            // In some cases, all the buckets might be occupied by a mix of temporary values and actually inserted
-            // values, if it's the case and there is no space for an insertion the caller should retry later as the
-            // temporarily filled buckets might get freed.
-            if (unlikely(HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(bucket))) {
-                found = HASHTABLE_MPMC_RESULT_TRY_LATER;
-            }
 
-            // Skip the non-empty value
+        // In some cases, all the buckets might be occupied by a mix of temporary values and actually inserted
+        // values, if it's the case and there is no space for an insertion the caller should retry later as the
+        // temporarily filled buckets might get freed.
+        // It might also be the case that an op set is trying to insert into a hashtable being migrated and finds
+        // a bucket marked as in migrating status, in this case it can stop the execution right away to retry later.
+        if (unlikely(HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(bucket))) {
+            found = HASHTABLE_MPMC_RESULT_TRY_LATER;
+            continue;
+        } else if (unlikely(HASHTABLE_MPMC_BUCKET_IS_MIGRATING(bucket))) {
+            return HASHTABLE_MPMC_RESULT_TRY_LATER;
+        } else if (bucket._packed != 0 && !HASHTABLE_MPMC_BUCKET_IS_TOMBSTONE(bucket)) {
             continue;
         }
 
@@ -604,9 +600,10 @@ hashtable_mpmc_result_t hashtable_mpmc_support_validate_insert(
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length,
         hashtable_mpmc_bucket_index_t new_bucket_index) {
-    hashtable_mpmc_bucket_index_t bucket_index;
+    hashtable_mpmc_bucket_index_t bucket_index, bucket_index_start;
+    hashtable_mpmc_bucket_t bucket;
 
-    hashtable_mpmc_bucket_index_t bucket_index_start = hashtable_mpmc_support_bucket_index_from_hash(
+    bucket_index_start = hashtable_mpmc_support_bucket_index_from_hash(
             hashtable_mpmc_data,
             hash);
 
@@ -619,14 +616,16 @@ hashtable_mpmc_result_t hashtable_mpmc_support_validate_insert(
             continue;
         }
 
-        MEMORY_FENCE_LOAD();
-        hashtable_mpmc_bucket_t bucket = { ._packed = hashtable_mpmc_data->buckets[bucket_index]._packed };
+        __atomic_load(
+                &hashtable_mpmc_data->buckets[bucket_index]._packed,
+                (uint128_t*)&bucket._packed,
+                __ATOMIC_ACQUIRE);
 
         if (bucket._packed == 0) {
             break;
         }
 
-        if (bucket.data.hash_half != hash_half) {
+        if (likely(bucket.data.hash_half != hash_half || HASHTABLE_MPMC_BUCKET_IS_TOMBSTONE(bucket))) {
             continue;
         }
 
@@ -678,10 +677,11 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
             thread_local_epoch_operation_queue_hashtable_key_value);
     assert(operation_kv != NULL);
 
-    // If there is a resize in progress, first check if the key is being migrated, if yes the caller has to retry the
-    // operation
     MEMORY_FENCE_LOAD();
     hashtable_mpmc_data_current = hashtable_mpmc->data;
+
+    // If there is a resize in progress, first check if the key is being migrated, if yes the caller has to retry the
+    // operation
     if (unlikely(hashtable_mpmc->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING)) {
         operation_ht_data = epoch_operation_queue_enqueue(
                 thread_local_epoch_operation_queue_hashtable_data);
@@ -765,7 +765,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
 
     // When a bucket is deleted is marked with a tombstone to let get know that there is/was something past this point,
     // and it has to continue to search
-    hashtable_mpmc_bucket_t deleted_bucket = { ._packed = 0 };
+    deleted_bucket._packed = 0;
     deleted_bucket.data.key_value = (void*)HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE;
 
     // Start to track the operation to avoid trying to access freed memory
