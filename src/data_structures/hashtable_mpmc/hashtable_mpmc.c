@@ -302,14 +302,17 @@ bool hashtable_mpmc_upsize_migrate_bucket(
     } while(true);
 
     hashtable_mpmc_data_key_value_volatile_t *key_value = HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(bucket_to_migrate);
-    char *key = key_value->key_is_embedded ? (char*)key_value->key.embedded.key : key_value->key.external.key;
+    char *key = key_value->key_is_embedded
+            ? (char*)key_value->key.embedded.key
+            : key_value->key.external.key;
     uint16_t key_length = key_value->key_is_embedded
-                          ? key_value->key.embedded.key_length
-                          : key_value->key.external.key_length;
+            ? key_value->key.embedded.key_length
+            : key_value->key.external.key_length;
 
     // Check if the key has already been inserted in the new hashtable, temporary values are allowed to be returned as
     // well. If an operation is being carried out on the same key in parallel it's necessary to retry.
-    while (hashtable_mpmc_support_find_bucket_and_key_value(
+    hashtable_mpmc_result_t find_bucket_result;
+    while ((find_bucket_result = hashtable_mpmc_support_find_bucket_and_key_value(
                 to,
                 key_value->hash,
                 bucket_to_migrate.data.hash_half,
@@ -317,10 +320,12 @@ bool hashtable_mpmc_upsize_migrate_bucket(
                 key_length,
                 true,
                 &found_bucket,
-                &found_bucket_index) == HASHTABLE_MPMC_RESULT_TRUE) {
+                &found_bucket_index)) == HASHTABLE_MPMC_RESULT_TRUE) {
         // If the key is found in the destination wait and retry
         usleep(100);
     };
+
+    assert(find_bucket_result == HASHTABLE_MPMC_RESULT_FALSE);
 
     hashtable_mpmc_result_t found_empty_result = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
             to,
