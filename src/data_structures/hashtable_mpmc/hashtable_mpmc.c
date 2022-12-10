@@ -196,10 +196,8 @@ bool hashtable_mpmc_upsize_prepare(
     hashtable_mpmc_upsize_status_t upsize_status;
 
     // Try to load the current status
-    __atomic_load(
-            &hashtable_mpmc->upsize.status,
-            &upsize_status,
-            __ATOMIC_ACQUIRE);
+    MEMORY_FENCE_LOAD();
+    upsize_status = hashtable_mpmc->upsize.status;
 
     // Check if another thread has already marked the hashtable in prepare for resizing
     if (upsize_status != HASHTABLE_MPMC_STATUS_NOT_UPSIZING) {
@@ -268,10 +266,8 @@ bool hashtable_mpmc_upsize_migrate_bucket(
     // For every retry ensures that there is still something to migrate and that it's not temporary.
 
     do {
-        __atomic_load(
-                &from->buckets[bucket_to_migrate_index]._packed,
-                (uint128_t*)&bucket_to_migrate._packed,
-                __ATOMIC_ACQUIRE);
+        MEMORY_FENCE_LOAD();
+        bucket_to_migrate._packed = from->buckets[bucket_to_migrate_index]._packed;
 
         // If the bucket is empty, or it's a tombstone it can be skipped
         if (bucket_to_migrate._packed == 0 || HASHTABLE_MPMC_BUCKET_IS_TOMBSTONE(bucket_to_migrate)) {
@@ -457,10 +453,8 @@ hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
             bucket_index = bucket_index_start;
             bucket_index < bucket_index_start + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE;
             bucket_index++) {
-        __atomic_load(
-                &hashtable_mpmc_data->buckets[bucket_index]._packed,
-                (uint128_t*)&return_bucket->_packed,
-                __ATOMIC_ACQUIRE);
+        MEMORY_FENCE_LOAD();
+        return_bucket->_packed = hashtable_mpmc_data->buckets[bucket_index]._packed;
 
         if (unlikely(return_bucket->_packed == 0)) {
             break;
@@ -530,10 +524,8 @@ hashtable_mpmc_result_t hashtable_mpmc_support_acquire_empty_bucket_for_insert(
             bucket_index = bucket_index_start;
             bucket_index < bucket_index_start + HASHTABLE_MPMC_LINEAR_SEARCH_RANGE;
             bucket_index++) {
-        __atomic_load(
-                &hashtable_mpmc_data->buckets[bucket_index]._packed,
-                (uint128_t*)&bucket._packed,
-                __ATOMIC_ACQUIRE);
+        MEMORY_FENCE_LOAD();
+        bucket._packed = hashtable_mpmc_data->buckets[bucket_index]._packed;
 
         // In some cases, all the buckets might be occupied by a mix of temporary values and actually inserted
         // values, if it's the case and there is no space for an insertion the caller should retry later as the
@@ -625,10 +617,8 @@ hashtable_mpmc_result_t hashtable_mpmc_support_validate_insert(
             continue;
         }
 
-        __atomic_load(
-                &hashtable_mpmc_data->buckets[bucket_index]._packed,
-                (uint128_t*)&bucket._packed,
-                __ATOMIC_ACQUIRE);
+        MEMORY_FENCE_LOAD();
+        bucket._packed = hashtable_mpmc_data->buckets[bucket_index]._packed;
 
         if (bucket._packed == 0) {
             break;
