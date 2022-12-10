@@ -1856,5 +1856,52 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             test_hashtable_mpmc_fuzzy_testing_keys_free(test_keys);
         }
 
+        SECTION("random key count and multiple test runs") {
+            uint32_t test_runs = 10;
+            uint32_t test_duration = 5;
+            uint32_t test_threads = utils_cpu_count() * 4;
+            uint32_t test_hashtable_initial_size = 16 * 1024;
+            uint32_t test_hashtable_upsize_block_size = HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE;
+
+            SECTION("multi thread") {
+                for (uint32_t test_run = 0; test_run < test_runs; test_run++) {
+                    uint32_t test_keys_count = 4 * 1024 * 1024;
+                    uint16_t test_key_length = 12;
+                    uint32_t test_hashtable_max_size = test_keys_count * 2;
+
+                    fprintf(
+                            stdout,
+                            "[%lu] > test_run <%u/%u>\n",
+                            intrinsics_tsc(),
+                            test_run + 1,
+                            test_runs);
+                    fflush(stdout);
+
+                    fprintf(stdout, "[%lu] >   generating <%u> keys\n", intrinsics_tsc(), test_keys_count);
+                    char *test_keys = test_hashtable_mpmc_fuzzy_testing_keys_generate(
+                            test_keys_count,
+                            test_key_length);
+                    fprintf(stdout, "[%lu] >   keys generated\n", intrinsics_tsc());
+
+                    hashtable_mpmc_t *test_hashtable = hashtable_mpmc_init(
+                            test_hashtable_initial_size,
+                            test_hashtable_max_size,
+                            test_hashtable_upsize_block_size);
+
+                    test_hashtable_mpmc_fuzzy_testing_run(
+                            test_hashtable,
+                            test_keys,
+                            test_keys_count,
+                            test_key_length,
+                            test_threads,
+                            test_duration);
+
+                    test_hashtable_mpmc_fuzzy_testing_keys_free(test_keys);
+
+                    fprintf(stdout, "[%lu] >   test run completed\n", intrinsics_tsc());
+                    fflush(stdout);
+                }
+            }
+        }
     }
 }
