@@ -497,7 +497,6 @@ void test_hashtable_mpmc_fuzzy_testing_run(
     fprintf(stdout, "[%lu] >   ops_counter_insert = %lu\n", intrinsics_tsc(), ops_counter_insert);
     fprintf(stdout, "[%lu] >   ops_counter_update = %lu\n", intrinsics_tsc(), ops_counter_update);
     fprintf(stdout, "[%lu] >   ops_counter_delete = %lu\n", intrinsics_tsc(), ops_counter_delete);
-    fprintf(stdout, "\n");
     fflush(stdout);
 
     hashtable_mpmc_free(hashtable);
