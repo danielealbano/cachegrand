@@ -309,13 +309,6 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
 
             if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
                 if (hashtable_mpmc_upsize_is_allowed(hashtable)) {
-                    fprintf(
-                            stdout,
-                            "[%lu] >   unable to insert key <%s (%lu)> because resize is required\n",
-                            intrinsics_tsc(),
-                            key,
-                            strlen(key));
-                    fflush(stdout);
                     hashtable_mpmc_upsize_prepare(hashtable);
                 } else {
                     fprintf(stdout, ">   hashtable maximum size reached, can't upsize\n");
