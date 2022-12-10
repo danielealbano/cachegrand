@@ -298,7 +298,6 @@ bool hashtable_mpmc_upsize_migrate_bucket(
                 __ATOMIC_ACQUIRE)) {
             break;
         }
-
     } while(true);
 
     hashtable_mpmc_data_key_value_volatile_t *key_value = HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(bucket_to_migrate);
@@ -321,8 +320,9 @@ bool hashtable_mpmc_upsize_migrate_bucket(
                 true,
                 &found_bucket,
                 &found_bucket_index)) == HASHTABLE_MPMC_RESULT_TRUE) {
+
         // If the key is found in the destination wait and retry
-        usleep(100);
+        usleep(1000);
     };
 
     assert(find_bucket_result == HASHTABLE_MPMC_RESULT_FALSE);
@@ -339,10 +339,7 @@ bool hashtable_mpmc_upsize_migrate_bucket(
             &found_bucket_index);
 
     if (found_empty_result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
-        // TODO: handle nested resizes, for now just fail as it's very unlikely (if not impossible) to happen when the
-        //       hashtable is large enough (e.g., over 16k buckets)
-        assert(false);
-        FATAL(TAG, "Resizing during resizes aren't supported, shutting down");
+        FATAL(TAG, "Resizing during a resize isn't supported, shutting down");
     }
 
     // No need to check for duplicated inserts during the upsize, the insertion or updates is blocked
@@ -721,8 +718,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
 
             // If the value is found and not being migrated, acquire it
             if (upsize_from_ht_return_result == HASHTABLE_MPMC_RESULT_TRUE) {
-                hashtable_mpmc_data_key_value_volatile_t *key_value =
-                        HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(bucket);
+                hashtable_mpmc_data_key_value_volatile_t *key_value = HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(bucket);
                 *return_value = key_value->value;
                 return_result = HASHTABLE_MPMC_RESULT_TRUE;
                 goto end;
@@ -744,7 +740,6 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
         hashtable_mpmc_data_key_value_volatile_t *key_value =
                 HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(bucket);
         *return_value = key_value->value;
-    } else if (unlikely(return_result == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
     } else if (return_result == HASHTABLE_MPMC_RESULT_FALSE) {
         MEMORY_FENCE_LOAD();
         if (hashtable_mpmc_data_current != hashtable_mpmc->data) {
