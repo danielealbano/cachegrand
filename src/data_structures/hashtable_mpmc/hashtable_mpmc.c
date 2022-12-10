@@ -576,6 +576,8 @@ hashtable_mpmc_result_t hashtable_mpmc_support_acquire_empty_bucket_for_insert(
         }
     }
 
+    assert(found != HASHTABLE_MPMC_RESULT_FALSE);
+
     return found;
 }
 
