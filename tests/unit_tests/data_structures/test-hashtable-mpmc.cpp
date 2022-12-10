@@ -1786,74 +1786,75 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
     }
 
     SECTION("fuzzy testing") {
-        // TODO: this test should be improved, the threads spanwed by test_hashtable_mpmc_fuzzy_testing_run simply do an
-        //       assert but this impacts the ease of testing, they should instead set an error, stop the processing and
-        //       bubble up the error back to the caller and then here (the caller) should use REQUIRE to validate the
-        //       result.
-        uint8_t test_duration = 3;
-        uint32_t keys_count = 4 * 1024 * 1024;
-        uint16_t key_length_min = 8;
-        uint16_t key_length_max = 12;
+        SECTION("fixed key count") {
+            // TODO: this test should be improved, the threads spanwed by test_hashtable_mpmc_fuzzy_testing_run simply do an
+            //       assert but this impacts the ease of testing, they should instead set an error, stop the processing and
+            //       bubble up the error back to the caller and then here (the caller) should use REQUIRE to validate the
+            //       result.
+            uint32_t test_duration = 3;
+            uint32_t test_keys_count = 4 * 1024 * 1024;
+            uint16_t test_key_length = 12;
 
-        char *keys = test_hashtable_mpmc_fuzzy_testing_keys_generate(
-                keys_count,
-                key_length_min,
-                key_length_max);
+            char *test_keys = test_hashtable_mpmc_fuzzy_testing_keys_generate(
+                    test_keys_count,
+                    test_key_length);
 
-        SECTION("no upsize") {
-            hashtable_mpmc_t *hashtable = hashtable_mpmc_init(
-                    keys_count * 2,
-                    keys_count * 2,
-                    HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
+            SECTION("no upsize") {
+                hashtable_mpmc_t *test_hashtable = hashtable_mpmc_init(
+                        test_keys_count * 2,
+                        test_keys_count * 2,
+                        HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
 
-            SECTION("single thread") {
-                test_hashtable_mpmc_fuzzy_testing_run(
-                        hashtable,
-                        keys,
-                        keys_count,
-                        key_length_max,
-                        1,
-                        test_duration);
+                SECTION("single thread") {
+                    test_hashtable_mpmc_fuzzy_testing_run(
+                            test_hashtable,
+                            test_keys,
+                            test_keys_count,
+                            test_key_length,
+                            1,
+                            test_duration);
+                }
+
+                SECTION("multi thread") {
+                    test_hashtable_mpmc_fuzzy_testing_run(
+                            test_hashtable,
+                            test_keys,
+                            test_keys_count,
+                            test_key_length,
+                            utils_cpu_count() * 2,
+                            test_duration);
+                }
             }
 
-            SECTION("multi thread") {
-                test_hashtable_mpmc_fuzzy_testing_run(
-                        hashtable,
-                        keys,
-                        keys_count,
-                        key_length_max,
-                        utils_cpu_count() * 2,
-                        test_duration);
+            SECTION("with upsize") {
+                hashtable_mpmc_t *test_hashtable = hashtable_mpmc_init(
+                        16 * 1024,
+                        test_keys_count * 2,
+                        HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
+
+                SECTION("single thread") {
+                    test_hashtable_mpmc_fuzzy_testing_run(
+                            test_hashtable,
+                            test_keys,
+                            test_keys_count,
+                            test_key_length,
+                            1,
+                            test_duration);
+                }
+
+                SECTION("multi thread") {
+                    test_hashtable_mpmc_fuzzy_testing_run(
+                            test_hashtable,
+                            test_keys,
+                            test_keys_count,
+                            test_key_length,
+                            utils_cpu_count() * 2,
+                            test_duration);
+                }
             }
+
+            test_hashtable_mpmc_fuzzy_testing_keys_free(test_keys);
         }
 
-        SECTION("with upsize") {
-            hashtable_mpmc_t *hashtable = hashtable_mpmc_init(
-                    16 * 1024,
-                    keys_count * 2,
-                    HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
-
-            SECTION("single thread") {
-                test_hashtable_mpmc_fuzzy_testing_run(
-                        hashtable,
-                        keys,
-                        keys_count,
-                        key_length_max,
-                        1,
-                        test_duration);
-            }
-
-            SECTION("multi thread") {
-                test_hashtable_mpmc_fuzzy_testing_run(
-                        hashtable,
-                        keys,
-                        keys_count,
-                        key_length_max,
-                        utils_cpu_count() * 2,
-                        test_duration);
-            }
-        }
-
-        test_hashtable_mpmc_fuzzy_testing_keys_free(keys);
     }
 }
