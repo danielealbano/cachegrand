@@ -103,25 +103,34 @@ char* test_hashtable_mpmc_fuzzy_testing_keys_generate(
     char charset_list[] = {TEST_HASHTABLE_MPMC_FUZZY_TESTING_KEYS_CHARACTER_SET};
     size_t charset_size = sizeof(charset_list);
 
-    hashtable_spsc_t *hashtable_track_dup_keys = hashtable_spsc_new(keys_count * 2, 512, true, false);
+    uint64_t hash_track_dup_keys_capacity = keys_count * 4;
+    auto hash_track_dup_keys = (uint64_t*)xalloc_alloc_zero(sizeof(uint64_t) * hash_track_dup_keys_capacity);
     char *keys = (char*)xalloc_alloc_zero(keys_count * (max_key_length + 1));
 
     random_init(intrinsics_tsc());
+    uint64_t seed = random_generate();
 
     for(uint32_t key_index = 0; key_index < keys_count; key_index++) {
         uint32_t key_offset = key_index * (max_key_length + 1);
-        uint16_t key_length = (random_generate() % (max_key_length - min_key_length)) + min_key_length;
+        uint16_t key_length = max_key_length;
+        char *key = &keys[key_offset];
 
+        uint64_t hash = 0;
+        uint64_t hash_track_dup_keys_index = 0;
         do {
             for(uint16_t letter_index = 0; letter_index < key_length; letter_index++) {
-                keys[key_offset + letter_index] = charset_list[random_generate() % charset_size];
+                key[letter_index] = charset_list[random_generate() % charset_size];
             }
-        } while(hashtable_spsc_op_get_cs(hashtable_track_dup_keys, &keys[key_offset], key_length) != nullptr);
+            key[key_length] = 0;
 
-        assert(hashtable_spsc_op_try_set_cs(hashtable_track_dup_keys, &keys[key_offset], key_length, (void*)1));
+            hash = t1ha2_atonce(key, key_length, seed);
+            hash_track_dup_keys_index = hash % hash_track_dup_keys_capacity;
+        } while(hash_track_dup_keys[hash_track_dup_keys_index] == 1);
+
+        hash_track_dup_keys[hash_track_dup_keys_index] = 1;
     }
 
-    hashtable_spsc_free(hashtable_track_dup_keys);
+    xalloc_free(hash_track_dup_keys);
 
     return keys;
 }
