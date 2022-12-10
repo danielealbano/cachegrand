@@ -114,7 +114,7 @@ typedef struct hashtable_mpmc hashtable_mpmc_t;
 struct hashtable_mpmc {
     hashtable_mpmc_data_t *data;
     uint64_t buckets_count_max;
-    uint16_t upsize_preferred_block_size;
+    uint64_t upsize_preferred_block_size;
     hashtable_mpmc_upsize_info_t upsize;
 };
 
@@ -163,7 +163,7 @@ void hashtable_mpmc_data_free(
 hashtable_mpmc_t *hashtable_mpmc_init(
         uint64_t buckets_count,
         uint64_t buckets_count_max,
-        uint16_t upsize_preferred_block_size);
+        uint64_t upsize_preferred_block_size);
 
 void hashtable_mpmc_free(
         hashtable_mpmc_t *hashtable_mpmc);
