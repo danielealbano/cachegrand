@@ -1857,8 +1857,8 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
 
             SECTION("multi thread") {
                 for (uint32_t test_run = 0; test_run < test_runs; test_run++) {
-                    uint32_t test_keys_count = 4 * 1024 * 1024;
-                    uint16_t test_key_length = 12;
+                    uint32_t test_keys_count = 1 * 1024 * 1024;
+                    uint16_t test_key_length = 8;
                     uint32_t test_hashtable_max_size = test_keys_count * 2;
 
                     fprintf(
