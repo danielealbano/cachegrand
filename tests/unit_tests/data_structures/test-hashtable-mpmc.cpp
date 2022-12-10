@@ -458,6 +458,8 @@ void test_hashtable_mpmc_fuzzy_testing_run(
                 test_hashtable_mpmc_fuzzy_testing_thread_func,
                 ti) != 0) {
             REQUIRE(false);
+
+            usleep(10000);
         }
     }
 
