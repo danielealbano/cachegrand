@@ -276,7 +276,6 @@ bool hashtable_mpmc_upsize_migrate_bucket(
 
         // If the bucket is temporary, wait until it's finalized or set back to be empty
         if (HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(bucket_to_migrate)) {
-            usleep(100);
             continue;
         }
 
@@ -304,6 +303,7 @@ bool hashtable_mpmc_upsize_migrate_bucket(
             ? key_value->key.embedded.key_length
             : key_value->key.external.key_length;
 
+    // TODO: review this loop, shouldn't be necessary
     hashtable_mpmc_result_t found_empty_result;
     while ((found_empty_result = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
             to,
@@ -315,11 +315,11 @@ bool hashtable_mpmc_upsize_migrate_bucket(
             (hashtable_mpmc_data_key_value_t**)&key_value,
             &bucket_to_overwrite,
             &found_bucket_index)) == HASHTABLE_MPMC_RESULT_TRY_LATER) {
-        // If the key is found in the destination wait and retry
-        usleep(100);
+        // If the key is found in the destination retry
     };
 
     if (found_empty_result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
+        fprintf(stdout, "> can't insert key during upsize\n"); fflush(stdout);
         FATAL(TAG, "Resizing during a resize isn't supported, shutting down");
     }
 
@@ -651,7 +651,8 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
     hashtable_mpmc_bucket_index_t bucket_index;
     hashtable_mpmc_data_t *hashtable_mpmc_data_upsize, *hashtable_mpmc_data_current;
 
-    if (hashtable_mpmc->upsize.status != HASHTABLE_MPMC_STATUS_NOT_UPSIZING) {
+    MEMORY_FENCE_LOAD();
+    if (unlikely(hashtable_mpmc->upsize.status == HASHTABLE_MPMC_STATUS_PREPARE_FOR_UPSIZE)) {
         return HASHTABLE_MPMC_RESULT_TRY_LATER;
     }
 
@@ -982,7 +983,6 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
         }
     }
 
-
     // Try to find the value in the hashtable
     hashtable_mpmc_result_t found_existing_result = hashtable_mpmc_support_find_bucket_and_key_value(
             hashtable_mpmc_data_current,
@@ -1006,7 +1006,6 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
 
     // If the bucket was previously found, try to swap it with the new bucket
     if (found_existing_result == HASHTABLE_MPMC_RESULT_TRUE) {
-
         // Acquire the current value
         hashtable_mpmc_data_key_value_volatile_t *key_value = HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(found_bucket);
         uintptr_t expected_value = key_value->value;
