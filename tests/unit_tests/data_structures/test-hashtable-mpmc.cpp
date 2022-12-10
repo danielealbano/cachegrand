@@ -98,21 +98,19 @@ struct test_hashtable_mpmc_fuzzy_test_thread_info {
 
 char* test_hashtable_mpmc_fuzzy_testing_keys_generate(
         uint32_t keys_count,
-        uint16_t min_key_length,
-        uint16_t max_key_length) {
+        uint16_t key_length) {
     char charset_list[] = {TEST_HASHTABLE_MPMC_FUZZY_TESTING_KEYS_CHARACTER_SET};
     size_t charset_size = sizeof(charset_list);
 
     uint64_t hash_track_dup_keys_capacity = keys_count * 4;
     auto hash_track_dup_keys = (uint64_t*)xalloc_alloc_zero(sizeof(uint64_t) * hash_track_dup_keys_capacity);
-    char *keys = (char*)xalloc_alloc_zero(keys_count * (max_key_length + 1));
+    char *keys = (char*)xalloc_alloc_zero(keys_count * (key_length + 1));
 
     random_init(intrinsics_tsc());
     uint64_t seed = random_generate();
 
     for(uint32_t key_index = 0; key_index < keys_count; key_index++) {
-        uint32_t key_offset = key_index * (max_key_length + 1);
-        uint16_t key_length = max_key_length;
+        uint32_t key_offset = key_index * (key_length + 1);
         char *key = &keys[key_offset];
 
         uint64_t hash = 0;
