@@ -166,7 +166,7 @@ void hashtable_mpmc_data_free(
 hashtable_mpmc_t *hashtable_mpmc_init(
         uint64_t buckets_count,
         uint64_t buckets_count_max,
-        uint16_t upsize_preferred_block_size) {
+        uint64_t upsize_preferred_block_size) {
     hashtable_mpmc_t *hashtable_mpmc = (hashtable_mpmc_t *)xalloc_alloc_zero(sizeof(hashtable_mpmc_t));
 
     hashtable_mpmc->data = hashtable_mpmc_data_init(buckets_count);
@@ -219,9 +219,9 @@ bool hashtable_mpmc_upsize_prepare(
     // Recalculate the size of the blocks to ensure that the last one will be always include all the buckets, although
     // for the last block it might be greater, so it has always to ensure it's not going to try to read data outside the
     // size of buckets (defined via buckets_count_real).
-    uint32_t total_blocks =
+    int64_t total_blocks =
             ceil((double)hashtable_mpmc->data->buckets_count_real / (double)hashtable_mpmc->upsize_preferred_block_size);
-    uint32_t new_block_size = ceil((double)hashtable_mpmc->data->buckets_count_real / (double)total_blocks);
+    int64_t new_block_size = ceil((double)hashtable_mpmc->data->buckets_count_real / (double)total_blocks);
 
     // As buckets count uses the current one plus one as hashtable_mpmc_data_init will calculate the next power of 2
     // and use that as size.
