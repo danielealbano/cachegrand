@@ -159,6 +159,8 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
 
     thread_current_set_affinity(ti->cpu_index);
 
+    random_init(intrinsics_tsc());
+
     hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
     hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_init();
 
