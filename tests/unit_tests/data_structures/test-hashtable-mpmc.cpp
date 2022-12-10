@@ -211,8 +211,36 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
 
             if (result != HASHTABLE_MPMC_RESULT_TRY_LATER) {
                 if (keys_status[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
+                    if (result != HASHTABLE_MPMC_RESULT_FALSE) {
+                        *ti->stop = true;
+                        MEMORY_FENCE_STORE();
+
+                        fprintf(
+                                stdout,
+                                "[%lu] >   the deleted key <%s (%lu)> has been found\n",
+                                intrinsics_tsc(),
+                                key,
+                                strlen(key));
+                        fflush(stdout);
+                        FATAL("crash", "crash");
+                    }
+
                     assert(result == HASHTABLE_MPMC_RESULT_FALSE);
                 } else {
+                    if (result != HASHTABLE_MPMC_RESULT_TRUE) {
+                        *ti->stop = true;
+                        MEMORY_FENCE_STORE();
+
+                        fprintf(
+                                stdout,
+                                "[%lu] >   the inserted key <%s (%lu)> can't be found\n",
+                                intrinsics_tsc(),
+                                key,
+                                strlen(key));
+                        fflush(stdout);
+                        FATAL("crash", "crash");
+                    }
+
                     assert(result == HASHTABLE_MPMC_RESULT_TRUE);
                     assert(return_value == test_hashtable_mpmc_fuzzy_testing_calc_value_from_key_index(key_index));
                 }
@@ -228,12 +256,40 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
 
             if (result != HASHTABLE_MPMC_RESULT_TRY_LATER) {
                 if (keys_status[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
+                    if (result != HASHTABLE_MPMC_RESULT_FALSE) {
+                        *ti->stop = true;
+                        MEMORY_FENCE_STORE();
+
+                        fprintf(
+                                stdout,
+                                "[%lu] >   the deleted key <%s (%lu)> has been re-deleted\n",
+                                intrinsics_tsc(),
+                                key,
+                                strlen(key));
+                        fflush(stdout);
+                        FATAL("crash", "crash");
+                    }
+
                     assert(result == HASHTABLE_MPMC_RESULT_FALSE);
                 } else {
-                    assert(result == HASHTABLE_MPMC_RESULT_TRUE);
-                }
+                    if (result != HASHTABLE_MPMC_RESULT_TRUE) {
+                        *ti->stop = true;
+                        MEMORY_FENCE_STORE();
 
-                keys_status[key_index].key_status = TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED;
+                        fprintf(
+                                stdout,
+                                "[%lu] >   the existing key <%s (%lu)> cannot be deleted\n",
+                                intrinsics_tsc(),
+                                key,
+                                strlen(key));
+                        fflush(stdout);
+                        FATAL("crash", "crash");
+                    }
+
+                    assert(result == HASHTABLE_MPMC_RESULT_TRUE);
+
+                    keys_status[key_index].key_status = TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED;
+                }
             }
         } else {
             // Try to insert or update
@@ -252,7 +308,20 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
                     &return_previous_value);
 
             if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
-                hashtable_mpmc_upsize_prepare(hashtable);
+                if (hashtable_mpmc_upsize_is_allowed(hashtable)) {
+                    fprintf(
+                            stdout,
+                            "[%lu] >   unable to insert key <%s (%lu)> because resize is required\n",
+                            intrinsics_tsc(),
+                            key,
+                            strlen(key));
+                    fflush(stdout);
+                    hashtable_mpmc_upsize_prepare(hashtable);
+                } else {
+                    fprintf(stdout, ">   hashtable maximum size reached, can't upsize\n");
+                    fflush(stdout);
+                    FATAL("crash", "crash");
+                }
             } else if (result != HASHTABLE_MPMC_RESULT_TRY_LATER) {
                 if (keys_status[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
                     __atomic_fetch_add(ti->ops_counter_insert, 1, __ATOMIC_RELAXED);
@@ -263,10 +332,38 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
                 assert(result == HASHTABLE_MPMC_RESULT_TRUE);
 
                 if (keys_status[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
+                    if (return_created_new != true) {
+                        *ti->stop = true;
+                        MEMORY_FENCE_STORE();
+
+                        fprintf(
+                                stdout,
+                                "[%lu] >   the deleted key <%s (%lu)> has been updated instead of inserted\n",
+                                intrinsics_tsc(),
+                                key,
+                                strlen(key));
+                        fflush(stdout);
+                        FATAL("crash", "crash");
+                    }
+
                     assert(return_created_new == true);
                     assert(return_value_updated == true);
                     assert(return_previous_value == 0);
                 } else {
+                    if (return_created_new != false) {
+                        *ti->stop = true;
+                        MEMORY_FENCE_STORE();
+
+                        fprintf(
+                                stdout,
+                                "[%lu] >   the existing key <%s (%lu)> has been reinserted instead of updated\n",
+                                intrinsics_tsc(),
+                                key,
+                                strlen(key));
+                        fflush(stdout);
+                        FATAL("crash", "crash");
+                    }
+
                     assert(return_created_new == false);
                     assert(return_value_updated == true);
                     assert(return_previous_value == test_hashtable_mpmc_fuzzy_testing_calc_value_from_key_index(key_index));
@@ -399,7 +496,14 @@ void test_hashtable_mpmc_fuzzy_testing_run(
         pthread_join(ti->thread, &result);
     }
 
-    // TODO: validate the hashtable
+    fprintf(stdout, "[%lu] > SUMMARY\n", intrinsics_tsc());
+    fprintf(stdout, "[%lu] >   ops_counter_total = %lu\n", intrinsics_tsc(), ops_counter_total);
+    fprintf(stdout, "[%lu] >   ops_counter_read = %lu\n", intrinsics_tsc(), ops_counter_read);
+    fprintf(stdout, "[%lu] >   ops_counter_insert = %lu\n", intrinsics_tsc(), ops_counter_insert);
+    fprintf(stdout, "[%lu] >   ops_counter_update = %lu\n", intrinsics_tsc(), ops_counter_update);
+    fprintf(stdout, "[%lu] >   ops_counter_delete = %lu\n", intrinsics_tsc(), ops_counter_delete);
+    fprintf(stdout, "\n");
+    fflush(stdout);
 
     hashtable_mpmc_free(hashtable);
     xalloc_free(ti_list);
