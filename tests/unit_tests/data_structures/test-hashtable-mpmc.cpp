@@ -89,11 +89,11 @@ struct test_hashtable_mpmc_fuzzy_test_thread_info {
     uint32_t keys_count;
     uint32_t key_length_max;
     test_hashtable_mpmc_fuzzy_test_key_status_info_t *keys_status;
-    uint32_volatile_t *ops_counter_total;
-    uint32_volatile_t *ops_counter_read;
-    uint32_volatile_t *ops_counter_insert;
-    uint32_volatile_t *ops_counter_update;
-    uint32_volatile_t *ops_counter_delete;
+    uint64_volatile_t *ops_counter_total;
+    uint64_volatile_t *ops_counter_read;
+    uint64_volatile_t *ops_counter_insert;
+    uint64_volatile_t *ops_counter_update;
+    uint64_volatile_t *ops_counter_delete;
 };
 
 char* test_hashtable_mpmc_fuzzy_testing_keys_generate(
@@ -413,9 +413,9 @@ void test_hashtable_mpmc_fuzzy_testing_run(
         char *keys,
         uint32_t keys_count,
         uint32_t key_length_max,
-        int threads,
-        int duration) {
-    uint32_t ops_counter_total = 0, ops_counter_read = 0, ops_counter_insert = 0, ops_counter_update = 0,
+        uint32_t threads,
+        uint32_t duration) {
+    uint64_t ops_counter_total = 0, ops_counter_read = 0, ops_counter_insert = 0, ops_counter_update = 0,
         ops_counter_delete = 0;
     timespec_t start_time, current_time, diff_time;
     bool start = false;
