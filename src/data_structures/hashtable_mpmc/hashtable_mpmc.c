@@ -253,7 +253,7 @@ bool hashtable_mpmc_upsize_migrate_bucket(
         hashtable_mpmc_data_t *from,
         hashtable_mpmc_data_t *to,
         hashtable_mpmc_bucket_index_t bucket_to_migrate_index) {
-    hashtable_mpmc_bucket_t bucket_to_migrate, found_bucket, bucket_to_overwrite, new_bucket_value, deleted_bucket;
+    hashtable_mpmc_bucket_t bucket_to_migrate, bucket_to_overwrite, new_bucket_value, deleted_bucket;
     hashtable_mpmc_bucket_index_t found_bucket_index;
 
     // The bucket has been processed, so it can be set to deleted (not zero as it would break all the get and delete
@@ -304,26 +304,8 @@ bool hashtable_mpmc_upsize_migrate_bucket(
             ? key_value->key.embedded.key_length
             : key_value->key.external.key_length;
 
-    // Check if the key has already been inserted in the new hashtable, temporary values are allowed to be returned as
+    hashtable_mpmc_result_t found_empty_result;
     while ((found_empty_result = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
-    hashtable_mpmc_result_t find_bucket_result;
-    while ((find_bucket_result = hashtable_mpmc_support_find_bucket_and_key_value(
-                to,
-                key_value->hash,
-                bucket_to_migrate.data.hash_half,
-                key,
-                key_length,
-                true,
-                &found_bucket,
-                &found_bucket_index)) == HASHTABLE_MPMC_RESULT_TRUE) {
-
-        // If the key is found in the destination wait and retry
-        usleep(1000);
-    };
-
-    assert(find_bucket_result == HASHTABLE_MPMC_RESULT_FALSE);
-
-    hashtable_mpmc_result_t found_empty_result = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
             to,
             key_value->hash,
             bucket_to_migrate.data.hash_half,
