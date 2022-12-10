@@ -899,6 +899,28 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         xalloc_free(key_copy);
     }
 
+    SECTION("hashtable_mpmc_upsize_is_allowed") {
+        SECTION("not allowed") {
+            hashtable_mpmc_t *hashtable = hashtable_mpmc_init(
+                    32,
+                    32,
+                    HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
+            REQUIRE(hashtable_mpmc_upsize_is_allowed(hashtable) == false);
+
+            hashtable_mpmc_free(hashtable);
+        }
+
+        SECTION("allowed") {
+            hashtable_mpmc_t *hashtable = hashtable_mpmc_init(
+                    16,
+                    32,
+                    HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
+            REQUIRE(hashtable_mpmc_upsize_is_allowed(hashtable) == true);
+
+            hashtable_mpmc_free(hashtable);
+        }
+    }
+
     SECTION("hashtable_mpmc_upsize_prepare") {
         hashtable_mpmc_t *hashtable_small = hashtable_mpmc_init(
                 16,
