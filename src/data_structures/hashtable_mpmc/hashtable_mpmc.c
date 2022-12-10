@@ -768,8 +768,8 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
         hashtable_mpmc_t *hashtable_mpmc,
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length) {
-    hashtable_mpmc_result_t return_result = HASHTABLE_MPMC_RESULT_FALSE, upsize_from_ht_return_result;
-    hashtable_mpmc_bucket_t found_bucket;
+    hashtable_mpmc_result_t return_result, upsize_from_ht_return_result;
+    hashtable_mpmc_bucket_t found_bucket, deleted_bucket;
     hashtable_mpmc_bucket_index_t found_bucket_index;
     hashtable_mpmc_data_t *hashtable_mpmc_data_upsize, *hashtable_mpmc_data_current;
     epoch_operation_queue_operation_t *operation_kv, *operation_ht_data = NULL;
@@ -835,11 +835,11 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
 
                     return_result = HASHTABLE_MPMC_RESULT_TRUE;
                 } else {
-                    // If replacing the value with the tombstone fails, it might have been marked for migration in which
-                    // case it will be necessary to try again the operation later
-                    return_result = unlikely(HASHTABLE_MPMC_BUCKET_IS_MIGRATING(found_bucket))
-                                    ? HASHTABLE_MPMC_RESULT_TRY_LATER
-                                    : HASHTABLE_MPMC_RESULT_TRUE;
+                    // If replacing the value with the tombstone fails, it might have been already deleted, might have
+                    // been marked for migration or might have been migrated, in all the cases but first it has to retry
+                    // later and as there isn't a safe and sane way to identify if it's a delete for a migration, or
+                    // it's another thread deleting better to always return a try later.
+                    return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
                 }
 
                 goto end;
@@ -888,11 +888,11 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
                 (void*)HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(found_bucket));
         return_result = HASHTABLE_MPMC_RESULT_TRUE;
     } else {
-        // If replacing the value with the tombstone fails, it might have been marked for migration in which
-        // case it will be necessary to try again the operation later
-        return_result = unlikely(HASHTABLE_MPMC_BUCKET_IS_MIGRATING(found_bucket))
-                        ? HASHTABLE_MPMC_RESULT_TRY_LATER
-                        : HASHTABLE_MPMC_RESULT_TRUE;
+        // If replacing the value with the tombstone fails, it might have been already deleted, might have been marked
+        // for migration or might have been migrated, in all the cases but first it has to retry later and as there
+        // isn't a safe and sane way to identify if it's a delete for a migration, or it's another thread deleting
+        // better to always return a try later.
+        return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
     }
 
 end:
@@ -994,26 +994,22 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
                         __ATOMIC_ACQ_REL,
                         __ATOMIC_ACQUIRE);
 
-                // If the swap fails it can be because of another set so the previous value is popped up only if the
-                // operation is successful
-                if (*return_value_updated) {
+                if (!*return_value_updated) {
+                    return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
+                } else {
+                    return_result = HASHTABLE_MPMC_RESULT_TRUE;
                     *return_previous_value = expected_value;
-
-                    // If the swap is successful, overwrites the last update time, which is not perfect as another value
-                    // at this point might have already updated the timestamp but this kind of time granularity is not
-                    // required as the operations will happen within a few nanoseconds of difference if there will be a
-                    // collision between two successful updates.
                     key_value->update_time = intrinsics_tsc();
+
+                    // As the key is owned by the hashtable and this copy is not in use, the key is freed as well
+                    xalloc_free(key);
                 }
 
-                // As the key is owned by the hashtable and this copy is not in use, the key is freed as well
-                xalloc_free(key);
-
-                return_result = HASHTABLE_MPMC_RESULT_TRUE;
                 goto end;
             }
         }
     }
+
 
     // Try to find the value in the hashtable
     hashtable_mpmc_result_t found_existing_result = hashtable_mpmc_support_find_bucket_and_key_value(
@@ -1032,7 +1028,6 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
     } else if (unlikely(HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(found_bucket) || found_bucket.data.transaction_id.id != 0)) {
         // If the value found is temporary or if there is a transaction in progress it means that another thread is
         // writing the data so the flow can just wait for it to complete before carrying out the operations.
-        *finding_result |= 0x0080;
         return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
         goto end;
     }
@@ -1055,20 +1050,17 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
 
         // If the swap fails it can be because of another set so the previous value is popped up only if the
         // operation is successful
-        if (likely(*return_value_updated)) {
+        if (likely(!*return_value_updated)) {
+            return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
+        } else {
+            return_result = HASHTABLE_MPMC_RESULT_TRUE;
             *return_previous_value = expected_value;
-
-            // If the swap is successful, overwrites the last update time, which is not perfect as another value
-            // at this point might have already updated the timestamp but this kind of time granularity is not
-            // required as the operations will happen within a few nanoseconds of difference if there will be a
-            // collision between two successful updates.
             key_value->update_time = intrinsics_tsc();
+
+            // As the key is owned by the hashtable, the pointer is freed as well
+            xalloc_free(key);
         }
 
-        // As the key is owned by the hashtable, the pointer is freed as well
-        xalloc_free(key);
-
-        return_result = HASHTABLE_MPMC_RESULT_TRUE;
         goto end;
     }
 
