@@ -7,7 +7,7 @@ extern "C" {
 
 #define HASHTABLE_MPMC_HASH_SEED 42U
 #define HASHTABLE_MPMC_LINEAR_SEARCH_RANGE 256
-#define HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE 4096
+#define HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE (1024 * 16)
 
 #define HASHTABLE_MPMC_POINTER_TAG_TEMPORARY (0x01)
 #define HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE (0x02)
@@ -57,8 +57,8 @@ struct hashtable_mpmc_data_key_value {
     } key;
     uintptr_t value;
     uint64_t hash;
-    uint64_t creation_time;
-    uint64_t last_update_time;
+    uint64_t create_time;
+    uint64_t update_time;
     bool key_is_embedded;
 };
 
@@ -166,6 +166,9 @@ hashtable_mpmc_t *hashtable_mpmc_init(
         uint16_t upsize_preferred_block_size);
 
 void hashtable_mpmc_free(
+        hashtable_mpmc_t *hashtable_mpmc);
+
+bool hashtable_mpmc_upsize_is_allowed(
         hashtable_mpmc_t *hashtable_mpmc);
 
 bool hashtable_mpmc_upsize_prepare(
