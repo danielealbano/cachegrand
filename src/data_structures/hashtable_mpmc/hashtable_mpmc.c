@@ -305,7 +305,7 @@ bool hashtable_mpmc_upsize_migrate_bucket(
             : key_value->key.external.key_length;
 
     // Check if the key has already been inserted in the new hashtable, temporary values are allowed to be returned as
-    // well. If an operation is being carried out on the same key in parallel it's necessary to retry.
+    while ((found_empty_result = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
     hashtable_mpmc_result_t find_bucket_result;
     while ((find_bucket_result = hashtable_mpmc_support_find_bucket_and_key_value(
                 to,
@@ -332,7 +332,10 @@ bool hashtable_mpmc_upsize_migrate_bucket(
             key_value->value,
             (hashtable_mpmc_data_key_value_t**)&key_value,
             &bucket_to_overwrite,
-            &found_bucket_index);
+            &found_bucket_index)) == HASHTABLE_MPMC_RESULT_TRY_LATER) {
+        // If the key is found in the destination wait and retry
+        usleep(100);
+    };
 
     if (found_empty_result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
         FATAL(TAG, "Resizing during a resize isn't supported, shutting down");
