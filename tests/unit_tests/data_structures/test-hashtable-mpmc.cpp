@@ -767,6 +767,8 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     index < hashtable_key_bucket_index_max;
                     index++) {
                 hashtable->data->buckets[index].data.hash_half = 12345;
+                hashtable->data->buckets[index].data.key_value =
+                        (hashtable_mpmc_data_key_value_t*)(12345 & HASHTABLE_MPMC_POINTER_TAG_MASK_INVERTED);
             }
 
             hashtable_mpmc_result_t result = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
@@ -789,6 +791,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     index < hashtable_key_bucket_index_max;
                     index++) {
                 hashtable_mpmc_data_current->buckets[index].data.hash_half = 0;
+                hashtable->data->buckets[index].data.key_value = nullptr;
             }
 
             xalloc_free(new_key_value);
@@ -801,6 +804,8 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     index < hashtable->data->buckets_count_real;
                     index++) {
                 hashtable->data->buckets[index].data.hash_half = 12345;
+                hashtable->data->buckets[index].data.key_value =
+                        (hashtable_mpmc_data_key_value_t*)(12345 & HASHTABLE_MPMC_POINTER_TAG_MASK_INVERTED);
             }
 
             hashtable_mpmc_result_t result = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
@@ -823,6 +828,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     index < hashtable->data->buckets_count_real;
                     index++) {
                 hashtable_mpmc_data_current->buckets[index].data.hash_half = 0;
+                hashtable->data->buckets[index].data.key_value = nullptr;
             }
 
             xalloc_free(new_key_value);
@@ -1571,10 +1577,11 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         hashtable_mpmc_bucket_index_t return_bucket_index;
         uintptr_t return_previous_value = 0, return_value = 0;
         uint32_t inserted_keys_count = 0;
+        uint32_t keys_to_insert = 256 * 1024;
 
         hashtable_mpmc_t *hashtable = hashtable_mpmc_init(
-                16,
-                32,
+                1024,
+                keys_to_insert * 2,
                 HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
         epoch_gc_t *epoch_gc_kv = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE);
         epoch_gc_thread_t *epoch_gc_kv_thread = epoch_gc_thread_init();
@@ -1589,42 +1596,50 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
         hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_init();
 
-        hashtable_mpmc_bucket_index_t hashtable_key_bucket_index =
-                hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key_hash);
-        hashtable_mpmc_bucket_index_t hashtable_key2_bucket_index =
-                hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key2_hash);
+        SECTION("migrate all the blocks and try to read") {
+            // Fill up the hashtable
+            for (uint32_t index = 0; index < keys_to_insert; index++) {
+                size_t key_temp_length = snprintf(key_temp, 0, "key-%05d", index) + 1;
+                key_temp = (char *) xalloc_alloc_zero(key_temp_length);
+                snprintf(key_temp, key_temp_length, "key-%05d", index);
 
-        // Fill up the hashtable
-        for (uint32_t index = 0; index < hashtable->data->buckets_count_real; index++) {
-            size_t key_temp_length = snprintf(key_temp, 0, "key-%05d", index) + 1;
-            key_temp = (char *) xalloc_alloc_zero(key_temp_length);
-            snprintf(key_temp, key_temp_length, "key-%05d", index);
+                hashtable_mpmc_result_t result = hashtable_mpmc_op_set(
+                        hashtable,
+                        key_temp,
+                        key_temp_length,
+                        (uintptr_t) index + 1,
+                        &return_created_new,
+                        &return_value_updated,
+                        &return_previous_value);
 
-            hashtable_mpmc_result_t result = hashtable_mpmc_op_set(
-                    hashtable,
-                    key_temp,
-                    key_temp_length,
-                    (uintptr_t) index + 1,
-                    &return_created_new,
-                    &return_value_updated,
-                    &return_previous_value);
+                if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
+                    REQUIRE(hashtable_mpmc_upsize_prepare(hashtable));
+                    REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING);
+                    index--;
+                    continue;
+                }
 
-            REQUIRE(result != HASHTABLE_MPMC_RESULT_FALSE);
+                REQUIRE(result == HASHTABLE_MPMC_RESULT_TRUE);
 
-            if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
-                break;
+                if (hashtable->upsize.remaining_blocks > 0) {
+                    REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING);
+                    REQUIRE(hashtable_mpmc_upsize_migrate_block(hashtable) > 0);
+                }
+
+                inserted_keys_count++;
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_kv_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_data_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
             }
 
-            inserted_keys_count++;
-        }
-
-        REQUIRE(hashtable_mpmc_upsize_prepare(hashtable));
-        REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING);
-
-        SECTION("migrate all the blocks") {
             do {
                 REQUIRE(hashtable_mpmc_upsize_migrate_block(hashtable) > 0);
-            } while (hashtable->upsize.remaining_blocks > 0);
+            } while (hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING && hashtable->upsize.remaining_blocks > 0);
 
             REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_NOT_UPSIZING);
 
@@ -1641,13 +1656,97 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                 REQUIRE(return_value == (uintptr_t) index + 1);
 
                 xalloc_free(key_temp);
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_kv_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_data_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
+            }
+        }
+
+        SECTION("migrate all the blocks and try to update") {
+            // Fill up the hashtable
+            for (uint32_t index = 0; index < keys_to_insert; index++) {
+                size_t key_temp_length = snprintf(key_temp, 0, "key-%05d", index) + 1;
+                key_temp = (char *) xalloc_alloc_zero(key_temp_length);
+                snprintf(key_temp, key_temp_length, "key-%05d", index);
+
+                hashtable_mpmc_result_t result = hashtable_mpmc_op_set(
+                        hashtable,
+                        key_temp,
+                        key_temp_length,
+                        (uintptr_t) index + 1,
+                        &return_created_new,
+                        &return_value_updated,
+                        &return_previous_value);
+
+                if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
+                    REQUIRE(hashtable_mpmc_upsize_prepare(hashtable));
+                    REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING);
+                    index--;
+                    continue;
+                }
+
+                REQUIRE(result == HASHTABLE_MPMC_RESULT_TRUE);
+
+                if (hashtable->upsize.remaining_blocks > 0) {
+                    REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING);
+                    REQUIRE(hashtable_mpmc_upsize_migrate_block(hashtable) > 0);
+                }
+
+                inserted_keys_count++;
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_kv_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_data_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
+            }
+
+            do {
+                hashtable_mpmc_upsize_migrate_block(hashtable);
+            } while (hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING && hashtable->upsize.remaining_blocks > 0);
+
+            REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_NOT_UPSIZING);
+
+            for (uint32_t index = 0; index < inserted_keys_count; index++) {
+                size_t key_temp_length = snprintf(key_temp, 0, "key-%05d", index) + 1;
+                key_temp = (char *) xalloc_alloc_zero(key_temp_length);
+                snprintf(key_temp, key_temp_length, "key-%05d", index);
+
+                hashtable_mpmc_result_t result = hashtable_mpmc_op_set(
+                        hashtable,
+                        key_temp,
+                        key_temp_length,
+                        (uintptr_t) index + 1,
+                        &return_created_new,
+                        &return_value_updated,
+                        &return_previous_value);
+
+                REQUIRE(result == HASHTABLE_MPMC_RESULT_TRUE);
+                REQUIRE(return_created_new == false);
+                REQUIRE(return_value_updated == true);
+                REQUIRE(return_previous_value == (uintptr_t) index + 1);
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_kv_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_data_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
             }
         }
 
         epoch_gc_thread_advance_epoch_tsc(epoch_gc_kv_thread);
         epoch_gc_thread_advance_epoch_tsc(epoch_gc_data_thread);
         REQUIRE(epoch_gc_thread_collect_all(epoch_gc_kv_thread) == 0);
-        REQUIRE(epoch_gc_thread_collect_all(epoch_gc_data_thread) == 1);
+        REQUIRE(epoch_gc_thread_collect_all(epoch_gc_data_thread) > 0);
 
         hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free();
         hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_free();
