@@ -73,6 +73,7 @@ struct test_hashtable_mpmc_fuzzy_test_key_status_info {
     int locked;
     uint64_t operations;
     test_hashtable_mpmc_fuzzy_test_key_status_t key_status;
+    uint64_t retries;
 };
 
 typedef struct test_hashtable_mpmc_fuzzy_test_thread_info test_hashtable_mpmc_fuzzy_test_thread_info_t;
@@ -209,7 +210,11 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
 
             __atomic_fetch_add(ti->ops_counter_read, 1, __ATOMIC_RELAXED);
 
-            if (result != HASHTABLE_MPMC_RESULT_TRY_LATER) {
+            if (result == HASHTABLE_MPMC_RESULT_TRY_LATER) {
+                keys_status[key_index].retries++;
+            } else {
+                keys_status[key_index].retries = 0;
+
                 if (keys_status[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
                     if (result != HASHTABLE_MPMC_RESULT_FALSE) {
                         *ti->stop = true;
@@ -254,7 +259,11 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
 
             __atomic_fetch_add(ti->ops_counter_delete, 1, __ATOMIC_RELAXED);
 
-            if (result != HASHTABLE_MPMC_RESULT_TRY_LATER) {
+            if (result == HASHTABLE_MPMC_RESULT_TRY_LATER) {
+                keys_status[key_index].retries++;
+            } else {
+                keys_status[key_index].retries = 0;
+
                 if (keys_status[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
                     if (result != HASHTABLE_MPMC_RESULT_FALSE) {
                         *ti->stop = true;
@@ -306,6 +315,13 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
                     &return_created_new,
                     &return_value_updated,
                     &return_previous_value);
+
+            if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING || result == HASHTABLE_MPMC_RESULT_TRY_LATER) {
+                xalloc_free(key_copy);
+                keys_status[key_index].retries++;
+            } else {
+                keys_status[key_index].retries = 0;
+            }
 
             if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
                 if (hashtable_mpmc_upsize_is_allowed(hashtable)) {
@@ -364,6 +380,18 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
 
                 keys_status[key_index].key_status = TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_INSERTED;
             }
+        }
+
+        if (keys_status[key_index].retries == 25) {
+            fprintf(
+                    stdout,
+                    "[%lu] >   operations on the key <%s (%lu)> have been retried too many times (<%ld>), aborting\n",
+                    intrinsics_tsc(),
+                    key,
+                    strlen(key),
+                    keys_status[key_index].retries);
+            fflush(stdout);
+            FATAL("crash", "crash");
         }
 
         // Unlock the key status
