@@ -518,6 +518,75 @@ void test_hashtable_mpmc_fuzzy_testing_run(
         auto ti = &ti_list[i];
         pthread_join(ti->thread, &result);
     }
+    // Keys Validation - Begin
+    {
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_init();
+
+        epoch_gc_thread_t *epoch_gc_kv_thread = epoch_gc_thread_init();
+        epoch_gc_thread_register_global(epoch_gc_kv, epoch_gc_kv_thread);
+        epoch_gc_thread_register_local(epoch_gc_kv_thread);
+
+        epoch_gc_thread_t *epoch_gc_data_thread = epoch_gc_thread_init();
+        epoch_gc_thread_register_global(epoch_gc_data, epoch_gc_data_thread);
+        epoch_gc_thread_register_local(epoch_gc_data_thread);
+
+        fprintf(stdout, "[%lu] > VALIDATING INSERTIONS\n", intrinsics_tsc());
+        for (uint32_t key_index = 0; key_index < keys_count; key_index++) {
+            test_hashtable_mpmc_fuzzy_test_key_status_info_t *key_info = &keys_info[key_index];
+
+            if (key_info->key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
+                continue;
+            }
+
+            uint32_t key_offset = key_index * (key_length_max + 1);
+            char *key = &keys[key_offset];
+
+            // Try to read
+            uintptr_t return_value = 0;
+            hashtable_mpmc_result_t result = hashtable_mpmc_op_get(
+                    hashtable,
+                    key,
+                    strlen(key),
+                    &return_value);
+
+            epoch_gc_thread_set_epoch(
+                    epoch_gc_kv_thread,
+                    hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+
+            epoch_gc_thread_set_epoch(
+                    epoch_gc_data_thread,
+                    hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
+
+            if (result != HASHTABLE_MPMC_RESULT_TRUE) {
+                fprintf(
+                        stdout,
+                        "[%lu] >   the inserted key <%s (%lu)> n. <%u> can't be found\n",
+                        intrinsics_tsc(),
+                        key,
+                        strlen(key),
+                        key_index);
+                fflush(stdout);
+                FATAL("crash", "crash");
+            }
+
+            assert(result == HASHTABLE_MPMC_RESULT_TRUE);
+            assert(return_value == test_hashtable_mpmc_fuzzy_testing_calc_value_from_key_index(key_index));
+        }
+
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free();
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_free();
+
+        epoch_gc_thread_collect_all(epoch_gc_kv_thread);
+        epoch_gc_thread_collect_all(epoch_gc_data_thread);
+
+        epoch_gc_thread_terminate(epoch_gc_kv_thread);
+        epoch_gc_thread_unregister_local(epoch_gc_kv_thread);
+
+        epoch_gc_thread_terminate(epoch_gc_data_thread);
+        epoch_gc_thread_unregister_local(epoch_gc_data_thread);
+    }
+    // Keys Validation - End
 
     fprintf(stdout, "[%lu] > SUMMARY\n", intrinsics_tsc());
     fprintf(stdout, "[%lu] >   ops_counter_total = %lu\n", intrinsics_tsc(), ops_counter_total);
