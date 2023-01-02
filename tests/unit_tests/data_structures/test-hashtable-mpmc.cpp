@@ -89,7 +89,7 @@ struct test_hashtable_mpmc_fuzzy_test_thread_info {
     char *keys;
     uint32_t keys_count;
     uint32_t key_length_max;
-    test_hashtable_mpmc_fuzzy_test_key_status_info_t *keys_status;
+    test_hashtable_mpmc_fuzzy_test_key_status_info_t *keys_info;
     uint64_volatile_t *ops_counter_total;
     uint64_volatile_t *ops_counter_read;
     uint64_volatile_t *ops_counter_insert;
@@ -153,7 +153,7 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
 
     auto hashtable = ti->hashtable;
     auto keys = ti->keys;
-    auto keys_status = ti->keys_status;
+    auto keys_info = ti->keys_info;
     auto keys_count  = ti->keys_count;
 
     thread_current_set_affinity(ti->cpu_index);
@@ -185,18 +185,18 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
             locked_expected = 0;
             key_index = random_generate() % keys_count;
         } while (!__atomic_compare_exchange_n(
-                &keys_status[key_index].locked,
+                &keys_info[key_index].locked,
                 &locked_expected,
                 locked_new,
                 false,
                 __ATOMIC_ACQ_REL,
                 __ATOMIC_ACQUIRE));
 
-        int action = random_generate() % 300;
+        uint64_t action = random_generate() % 300;
         uint32_t key_offset = key_index * (ti->key_length_max + 1);
         char *key = &keys[key_offset];
 
-        __atomic_fetch_add(&keys_status[key_index].operations, 1, __ATOMIC_RELAXED);
+        __atomic_fetch_add(&keys_info[key_index].operations, 1, __ATOMIC_RELAXED);
         __atomic_fetch_add(ti->ops_counter_total, 1, __ATOMIC_RELAXED);
 
         if (action < 100) {
@@ -211,11 +211,11 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
             __atomic_fetch_add(ti->ops_counter_read, 1, __ATOMIC_RELAXED);
 
             if (result == HASHTABLE_MPMC_RESULT_TRY_LATER) {
-                keys_status[key_index].retries++;
+                keys_info[key_index].retries++;
             } else {
-                keys_status[key_index].retries = 0;
+                keys_info[key_index].retries = 0;
 
-                if (keys_status[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
+                if (keys_info[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
                     if (result != HASHTABLE_MPMC_RESULT_FALSE) {
                         *ti->stop = true;
                         MEMORY_FENCE_STORE();
@@ -260,11 +260,11 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
             __atomic_fetch_add(ti->ops_counter_delete, 1, __ATOMIC_RELAXED);
 
             if (result == HASHTABLE_MPMC_RESULT_TRY_LATER) {
-                keys_status[key_index].retries++;
+                keys_info[key_index].retries++;
             } else {
-                keys_status[key_index].retries = 0;
+                keys_info[key_index].retries = 0;
 
-                if (keys_status[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
+                if (keys_info[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
                     if (result != HASHTABLE_MPMC_RESULT_FALSE) {
                         *ti->stop = true;
                         MEMORY_FENCE_STORE();
@@ -297,7 +297,7 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
 
                     assert(result == HASHTABLE_MPMC_RESULT_TRUE);
 
-                    keys_status[key_index].key_status = TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED;
+                    keys_info[key_index].key_status = TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED;
                 }
             }
         } else {
@@ -318,9 +318,9 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
 
             if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING || result == HASHTABLE_MPMC_RESULT_TRY_LATER) {
                 xalloc_free(key_copy);
-                keys_status[key_index].retries++;
+                keys_info[key_index].retries++;
             } else {
-                keys_status[key_index].retries = 0;
+                keys_info[key_index].retries = 0;
             }
 
             if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
@@ -332,7 +332,7 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
                     FATAL("crash", "crash");
                 }
             } else if (result != HASHTABLE_MPMC_RESULT_TRY_LATER) {
-                if (keys_status[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
+                if (keys_info[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
                     __atomic_fetch_add(ti->ops_counter_insert, 1, __ATOMIC_RELAXED);
                 } else {
                     __atomic_fetch_add(ti->ops_counter_update, 1, __ATOMIC_RELAXED);
@@ -340,7 +340,7 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
 
                 assert(result == HASHTABLE_MPMC_RESULT_TRUE);
 
-                if (keys_status[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
+                if (keys_info[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
                     if (return_created_new != true) {
                         *ti->stop = true;
                         MEMORY_FENCE_STORE();
@@ -378,24 +378,24 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
                     assert(return_previous_value == test_hashtable_mpmc_fuzzy_testing_calc_value_from_key_index(key_index));
                 }
 
-                keys_status[key_index].key_status = TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_INSERTED;
+                keys_info[key_index].key_status = TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_INSERTED;
             }
         }
 
-        if (keys_status[key_index].retries == 25) {
+        if (keys_info[key_index].retries == 25) {
             fprintf(
                     stdout,
                     "[%lu] >   operations on the key <%s (%lu)> have been retried too many times (<%ld>), aborting\n",
                     intrinsics_tsc(),
                     key,
                     strlen(key),
-                    keys_status[key_index].retries);
+                    keys_info[key_index].retries);
             fflush(stdout);
             FATAL("crash", "crash");
         }
 
         // Unlock the key status
-        keys_status[key_index].locked = 0;
+        keys_info[key_index].locked = 0;
         MEMORY_FENCE_STORE();
 
         if (hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING) {
@@ -614,7 +614,7 @@ void test_hashtable_mpmc_fuzzy_testing_run(
 
     hashtable_mpmc_free(hashtable);
     xalloc_free(ti_list);
-    xalloc_free(keys_status);
+    xalloc_free(keys_info);
 
     epoch_gc_free(epoch_gc_kv);
     epoch_gc_free(epoch_gc_data);
