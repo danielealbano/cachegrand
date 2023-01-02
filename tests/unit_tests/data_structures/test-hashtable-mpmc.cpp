@@ -547,7 +547,7 @@ void test_hashtable_mpmc_fuzzy_testing_run(
         epoch_gc_thread_register_global(epoch_gc_data, epoch_gc_data_thread);
         epoch_gc_thread_register_local(epoch_gc_data_thread);
 
-        fprintf(stdout, "[%lu] > VALIDATING INSERTIONS\n", intrinsics_tsc());
+        fprintf(stdout, "[%lu] > VALIDATING INSERTED KEYS\n", intrinsics_tsc());
         for (uint32_t key_index = 0; key_index < keys_count; key_index++) {
             test_hashtable_mpmc_fuzzy_test_key_status_info_t *key_info = &keys_info[key_index];
 
