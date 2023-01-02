@@ -605,6 +605,7 @@ void test_hashtable_mpmc_fuzzy_testing_run(
     // Keys Validation - End
 
     fprintf(stdout, "[%lu] > SUMMARY\n", intrinsics_tsc());
+    fprintf(stdout, "[%lu] >   hashtable current size = %lu\n", intrinsics_tsc(), hashtable->data->buckets_count);
     fprintf(stdout, "[%lu] >   ops_counter_total = %lu\n", intrinsics_tsc(), ops_counter_total);
     fprintf(stdout, "[%lu] >   ops_counter_read = %lu\n", intrinsics_tsc(), ops_counter_read);
     fprintf(stdout, "[%lu] >   ops_counter_insert = %lu\n", intrinsics_tsc(), ops_counter_insert);
