@@ -437,87 +437,103 @@ void test_hashtable_mpmc_fuzzy_testing_run(
         uint32_t threads,
         uint32_t duration) {
     uint64_t ops_counter_total = 0, ops_counter_read = 0, ops_counter_insert = 0, ops_counter_update = 0,
-        ops_counter_delete = 0;
+            ops_counter_delete = 0;
     timespec_t start_time, current_time, diff_time;
     bool start = false;
     bool stop = false;
 
-    auto ti_list = (test_hashtable_mpmc_fuzzy_test_thread_info_t*)xalloc_alloc_zero(
+    auto ti_list = (test_hashtable_mpmc_fuzzy_test_thread_info_t *) xalloc_alloc_zero(
             sizeof(test_hashtable_mpmc_fuzzy_test_thread_info_t) * threads);
 
-    auto keys_status = (test_hashtable_mpmc_fuzzy_test_key_status_info_t*)xalloc_alloc_zero(
+    auto keys_info = (test_hashtable_mpmc_fuzzy_test_key_status_info_t *) xalloc_alloc_zero(
             sizeof(test_hashtable_mpmc_fuzzy_test_key_status_info_t) * keys_count);
 
     epoch_gc_t *epoch_gc_kv = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE);
     epoch_gc_t *epoch_gc_data = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_HASHTABLE_DATA);
 
-    for(int i = 0; i < threads; i++) {
-        auto ti = &ti_list[i];
+    // Sets up and starts the threads - Begin
+    {
+        for (int i = 0; i < threads; i++) {
+            auto ti = &ti_list[i];
 
-        ti->cpu_index = i;
-        ti->start = &start;
-        ti->stop = &stop;
-        ti->stopped = false;
-        ti->hashtable = hashtable;
-        ti->keys = keys;
-        ti->keys_status = keys_status;
-        ti->keys_count = keys_count;
-        ti->key_length_max = key_length_max;
-        ti->ops_counter_total = &ops_counter_total;
-        ti->ops_counter_read = &ops_counter_read;
-        ti->ops_counter_insert = &ops_counter_insert;
-        ti->ops_counter_update = &ops_counter_update;
-        ti->ops_counter_delete = &ops_counter_delete;
-        ti->epoch_gc_kv = epoch_gc_kv;
-        ti->epoch_gc_data = epoch_gc_data;
+            ti->cpu_index = i;
+            ti->start = &start;
+            ti->stop = &stop;
+            ti->stopped = false;
+            ti->hashtable = hashtable;
+            ti->keys = keys;
+            ti->keys_info = keys_info;
+            ti->keys_count = keys_count;
+            ti->key_length_max = key_length_max;
+            ti->ops_counter_total = &ops_counter_total;
+            ti->ops_counter_read = &ops_counter_read;
+            ti->ops_counter_insert = &ops_counter_insert;
+            ti->ops_counter_update = &ops_counter_update;
+            ti->ops_counter_delete = &ops_counter_delete;
+            ti->epoch_gc_kv = epoch_gc_kv;
+            ti->epoch_gc_data = epoch_gc_data;
 
-        if (pthread_create(
-                &ti->thread,
-                nullptr,
-                test_hashtable_mpmc_fuzzy_testing_thread_func,
-                ti) != 0) {
-            REQUIRE(false);
+            if (pthread_create(
+                    &ti->thread,
+                    nullptr,
+                    test_hashtable_mpmc_fuzzy_testing_thread_func,
+                    ti) != 0) {
+                REQUIRE(false);
 
-            usleep(10000);
-        }
-    }
-
-    start = true;
-    MEMORY_FENCE_STORE();
-
-    clock_monotonic(&start_time);
-
-    do {
-        clock_monotonic(&current_time);
-        sched_yield();
-
-        clock_diff(&start_time, &current_time, &diff_time);
-    } while(diff_time.tv_sec < duration);
-
-    stop = true;
-    MEMORY_FENCE_STORE();
-
-    bool stopped;
-    do {
-        stopped = true;
-        sched_yield();
-
-        // wait for all the threads to stop
-        for(int i = 0; i < threads && stopped; i++) {
-            MEMORY_FENCE_LOAD();
-            if (!ti_list[i].stopped) {
-                stopped = false;
-                continue;
+                usleep(10000);
             }
         }
-    } while(!stopped);
-
-
-    for(int i = 0; i < threads; i++) {
-        void *result;
-        auto ti = &ti_list[i];
-        pthread_join(ti->thread, &result);
     }
+    // Sets up and starts the threads - End
+
+    // Starts the threads and wait for the requested duration - Begin
+    {
+        start = true;
+        MEMORY_FENCE_STORE();
+
+        clock_monotonic(&start_time);
+
+        do {
+            clock_monotonic(&current_time);
+            sched_yield();
+
+            clock_diff(&start_time, &current_time, &diff_time);
+        } while (diff_time.tv_sec < duration);
+    }
+    // Starts the threads and wait for the requested duration - End
+
+    // Wait for all the threads to stop - Begin
+    {
+        stop = true;
+        MEMORY_FENCE_STORE();
+
+        bool stopped;
+        do {
+            stopped = true;
+            sched_yield();
+
+            // wait for all the threads to stop
+            for (int i = 0; i < threads && stopped; i++) {
+                MEMORY_FENCE_LOAD();
+                if (!ti_list[i].stopped) {
+                    stopped = false;
+                    continue;
+                }
+            }
+        } while (!stopped);
+    }
+    // Wait for all the threads to stop - End
+
+    // Wait for all the threads to reach the end of the thread func - Begin
+    {
+        for(int i = 0; i < threads; i++) {
+            void *result;
+            auto ti = &ti_list[i];
+            pthread_join(ti->thread, &result);
+        }
+    }
+    // Wait for all the threads to reach the end of the thread func - End
+
     // Keys Validation - Begin
     {
         hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
