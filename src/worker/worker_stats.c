@@ -96,7 +96,7 @@ bool worker_stats_should_publish_after_interval(
     return res;
 }
 
-worker_stats_t *worker_stats_get() {
+worker_stats_t *worker_stats_get_internal_current() {
     worker_context_t *context = worker_context_get();
     return &context->stats.internal;
 }

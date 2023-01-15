@@ -125,7 +125,7 @@ network_op_result_t network_receive(
         buffer->data_size += received_length;
 
         // Update stats
-        worker_stats_t *stats = worker_stats_get();
+        worker_stats_t *stats = worker_stats_get_internal_current();
         stats->network.per_minute.received_packets++;
         stats->network.total.received_packets++;
         stats->network.per_minute.received_data += received_length;
@@ -285,7 +285,7 @@ network_op_result_t network_send_direct_wrapper(
     }
 
     if (likely(res == NETWORK_OP_RESULT_OK)) {
-        worker_stats_t *stats = worker_stats_get();
+        worker_stats_t *stats = worker_stats_get_internal_current();
         stats->network.per_minute.sent_packets++;
         stats->network.total.sent_packets++;
         stats->network.per_minute.sent_data += sent_length;

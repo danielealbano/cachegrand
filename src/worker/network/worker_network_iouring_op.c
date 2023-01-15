@@ -87,7 +87,7 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
     }
 
     worker_context_t *worker_context = worker_context_get();
-    worker_stats_t *stats = worker_stats_get();
+    worker_stats_t *stats = worker_stats_get_internal_current();
 
     // Setup the new channel
     new_channel->fd = new_channel->wrapped_channel.fd = cqe->res;
