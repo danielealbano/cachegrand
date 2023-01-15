@@ -446,7 +446,7 @@ bool module_prometheus_process_metrics_request_add_metric(
         const char *name,
         const uint64_t value,
         const char *value_formatter,
-        const char *extra_env_metrics) {
+        const char *tags) {
     static char *metric_template = "cachegrand_%%s{%%s} %s\n";
     char metric_template_with_value_formatter[256] = { 0 };
     size_t metric_length, metric_template_with_value_formatter_length;
@@ -472,7 +472,7 @@ bool module_prometheus_process_metrics_request_add_metric(
             0,
             metric_template_with_value_formatter,
             name,
-            extra_env_metrics ? extra_env_metrics : "",
+            tags ? tags : "",
             value);
 
     if (*length + metric_length + 1 > *size) {
@@ -494,7 +494,7 @@ bool module_prometheus_process_metrics_request_add_metric(
             *size - *length,
             metric_template_with_value_formatter,
             name,
-            extra_env_metrics ? extra_env_metrics : "",
+            tags ? tags : "",
             value);
 
     *length += metric_length;
@@ -505,66 +505,102 @@ bool module_prometheus_process_metrics_request_add_metric(
 bool module_prometheus_process_metrics_request(
         network_channel_t *channel,
         module_prometheus_client_t *module_prometheus_client) {
-    worker_stats_t aggregated_stats = { 0 };
+    worker_stats_t worker_stats;
     timespec_t now = { 0 }, uptime = { 0 };
-    char *content = NULL;
+    uint32_t worker_index = 0;
+    bool found_worker = false, result_ret = false;
+    char *content = NULL, *tags_from_env, *tags;
     size_t content_length = 0, content_size = 0;
-    bool result_ret = false;
 
-    // Aggregate the statistics
-    worker_stats_aggregate(&aggregated_stats);
+    // Calculate the uptime
+    program_context_t *program_context = program_get_context();
+    clock_monotonic(&now);
+    clock_diff(
+            &now,
+            (timespec_t *)&program_context->workers_context[0].stats.shared.started_on_timestamp,
+            &uptime);
 
     // Fetch the extra metrics from the env variables
-    char *extra_env_content = module_prometheus_fetch_extra_metrics_from_env();
+    tags_from_env = module_prometheus_fetch_extra_metrics_from_env();
 
-    // Calculate uptime
-    clock_monotonic(&now);
-    uptime.tv_sec = now.tv_sec - aggregated_stats.started_on_timestamp.tv_sec;
+    do {
+        size_t tags_len = (tags_from_env ? strlen(tags_from_env) : 0) + 128;
+        tags = ffma_mem_alloc(tags_len);
 
-    // Build up the list of the fields in the response
-    response_metric_field_t stats_fields[] = {
-        { "network_total_received_packets", "%lu", aggregated_stats.network.total.received_packets },
-        { "network_total_received_data", "%lu", aggregated_stats.network.total.received_data },
-        { "network_total_sent_packets", "%lu", aggregated_stats.network.total.sent_packets },
-        { "network_total_sent_data", "%lu", aggregated_stats.network.total.sent_data },
-        { "network_total_accepted_connections", "%lu", aggregated_stats.network.total.accepted_connections },
-        { "network_total_active_connections", "%lu", aggregated_stats.network.total.active_connections },
-        { "network_total_accepted_tls_connections", "%lu", aggregated_stats.network.total.accepted_tls_connections },
-        { "network_total_active_tls_connections", "%lu", aggregated_stats.network.total.active_tls_connections },
-        { "storage_total_written_data", "%lu", aggregated_stats.storage.total.written_data },
-        { "storage_total_write_iops", "%lu", aggregated_stats.storage.total.write_iops },
-        { "storage_total_read_data", "%lu", aggregated_stats.storage.total.read_data },
-        { "storage_total_read_iops", "%lu", aggregated_stats.storage.total.read_iops },
-        { "storage_total_open_files", "%lu", aggregated_stats.storage.total.open_files },
+        // Try to fetch the stats for a worker, if it fails it builds up the aggregate, the while will later terminate
+        // the loop
+        if ((found_worker = worker_stats_get_shared_by_index(
+                worker_index++,
+                &worker_stats)) == false) {
+            // Aggregate the statistics
+            worker_stats_aggregate(&worker_stats);
 
-        { "network_per_minute_received_packets", "%lu", aggregated_stats.network.per_minute.received_packets },
-        { "network_per_minute_received_data", "%lu", aggregated_stats.network.per_minute.received_data },
-        { "network_per_minute_sent_packets", "%lu", aggregated_stats.network.per_minute.sent_packets },
-        { "network_per_minute_sent_data", "%lu", aggregated_stats.network.per_minute.sent_data },
-        { "network_per_minute_accepted_connections", "%lu", aggregated_stats.network.per_minute.accepted_connections },
-        { "network_per_minute_accepted_tls_connections", "%lu", aggregated_stats.network.per_minute.accepted_tls_connections },
-        { "storage_per_minute_written_data", "%lu", aggregated_stats.storage.per_minute.written_data },
-        { "storage_per_minute_write_iops", "%lu", aggregated_stats.storage.per_minute.write_iops },
-        { "storage_per_minute_read_data", "%lu", aggregated_stats.storage.per_minute.read_data },
-        { "storage_per_minute_read_iops", "%lu", aggregated_stats.storage.per_minute.read_iops },
-
-        { "uptime", "%lu", uptime.tv_sec },
-        { NULL },
-    };
-
-    for(response_metric_field_t *stat_field = stats_fields; stat_field->name; stat_field++) {
-        // Build the metrics
-        if (!module_prometheus_process_metrics_request_add_metric(
-                &content,
-                &content_length,
-                &content_size,
-                stat_field->name,
-                stat_field->value,
-                stat_field->value_formatter,
-                extra_env_content)) {
-            goto end;
+            // Build the tags
+            snprintf(
+                    tags,
+                    tags_len,
+                    "worker=\"aggregated\"%s%s",
+                    tags_from_env ? "," : "",
+                    tags_from_env ? tags_from_env : "");
+        } else {
+            // Build the tags
+            snprintf(
+                    tags,
+                    tags_len,
+                    "worker=\"%u\"%s%s",
+                    worker_index,
+                    tags_from_env ? "," : "",
+                    tags_from_env ? tags_from_env : "");
         }
-    }
+
+        // Build up the list of the fields in the response
+        response_metric_field_t stats_fields[] = {
+            { "network_total_received_packets", "%lu", worker_stats.network.total.received_packets },
+            { "network_total_received_data", "%lu", worker_stats.network.total.received_data },
+            { "network_total_sent_packets", "%lu", worker_stats.network.total.sent_packets },
+            { "network_total_sent_data", "%lu", worker_stats.network.total.sent_data },
+            { "network_total_accepted_connections", "%lu", worker_stats.network.total.accepted_connections },
+            { "network_total_active_connections", "%lu", worker_stats.network.total.active_connections },
+            { "network_total_accepted_tls_connections", "%lu", worker_stats.network.total.accepted_tls_connections },
+            { "network_total_active_tls_connections", "%lu", worker_stats.network.total.active_tls_connections },
+            { "storage_total_written_data", "%lu", worker_stats.storage.total.written_data },
+            { "storage_total_write_iops", "%lu", worker_stats.storage.total.write_iops },
+            { "storage_total_read_data", "%lu", worker_stats.storage.total.read_data },
+            { "storage_total_read_iops", "%lu", worker_stats.storage.total.read_iops },
+            { "storage_total_open_files", "%lu", worker_stats.storage.total.open_files },
+
+            { "network_per_minute_received_packets", "%lu", worker_stats.network.per_minute.received_packets },
+            { "network_per_minute_received_data", "%lu", worker_stats.network.per_minute.received_data },
+            { "network_per_minute_sent_packets", "%lu", worker_stats.network.per_minute.sent_packets },
+            { "network_per_minute_sent_data", "%lu", worker_stats.network.per_minute.sent_data },
+            { "network_per_minute_accepted_connections", "%lu", worker_stats.network.per_minute.accepted_connections },
+            { "network_per_minute_accepted_tls_connections", "%lu", worker_stats.network.per_minute.accepted_tls_connections },
+            { "storage_per_minute_written_data", "%lu", worker_stats.storage.per_minute.written_data },
+            { "storage_per_minute_write_iops", "%lu", worker_stats.storage.per_minute.write_iops },
+            { "storage_per_minute_read_data", "%lu", worker_stats.storage.per_minute.read_data },
+            { "storage_per_minute_read_iops", "%lu", worker_stats.storage.per_minute.read_iops },
+
+            { "uptime", "%lu", uptime.tv_sec },
+            { NULL },
+        };
+
+        for(response_metric_field_t *stat_field = stats_fields; stat_field->name; stat_field++) {
+            // Build the metrics
+            if (!module_prometheus_process_metrics_request_add_metric(
+                    &content,
+                    &content_length,
+                    &content_size,
+                    stat_field->name,
+                    stat_field->value,
+                    stat_field->value_formatter,
+                    tags)) {
+                goto end;
+            }
+        }
+
+        ffma_mem_free(tags);
+        tags = NULL;
+    } while(found_worker);
 
     result_ret = module_prometheus_http_send_response(
         channel,
@@ -578,8 +614,12 @@ end:
         ffma_mem_free(content);
     }
 
-    if (extra_env_content) {
-        ffma_mem_free(extra_env_content);
+    if (tags_from_env) {
+        ffma_mem_free(tags_from_env);
+    }
+
+    if (tags) {
+        ffma_mem_free(tags);
     }
 
     return result_ret;
