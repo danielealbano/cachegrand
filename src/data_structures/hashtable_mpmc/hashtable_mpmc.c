@@ -103,7 +103,7 @@ uint64_t hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_e
             thread_local_epoch_operation_queue_hashtable_data);
 }
 
-hashtable_mpmc_hash_t hashtable_mcmp_support_hash_calculate(
+hashtable_mpmc_hash_t hashtable_mpmc_support_hash_calculate(
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length) {
 #if CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2 == 1
@@ -657,7 +657,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
     }
 
     epoch_operation_queue_operation_t *operation_kv, *operation_ht_data = NULL;
-    hashtable_mpmc_hash_t hash = hashtable_mcmp_support_hash_calculate(key, key_length);
+    hashtable_mpmc_hash_t hash = hashtable_mpmc_support_hash_calculate(key, key_length);
 
     // Start to track the operation to avoid trying to access freed memory
     operation_kv = epoch_operation_queue_enqueue(
@@ -746,7 +746,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
     hashtable_mpmc_bucket_index_t found_bucket_index;
     hashtable_mpmc_data_t *hashtable_mpmc_data_upsize, *hashtable_mpmc_data_current;
     epoch_operation_queue_operation_t *operation_kv, *operation_ht_data = NULL;
-    hashtable_mpmc_hash_t hash = hashtable_mcmp_support_hash_calculate(key, key_length);
+    hashtable_mpmc_hash_t hash = hashtable_mpmc_support_hash_calculate(key, key_length);
 
     MEMORY_FENCE_LOAD();
     if (unlikely(hashtable_mpmc->upsize.status == HASHTABLE_MPMC_STATUS_PREPARE_FOR_UPSIZE)) {
@@ -955,7 +955,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
     hashtable_mpmc_data_t *hashtable_mpmc_data_upsize, *hashtable_mpmc_data_current;
     epoch_operation_queue_operation_t *operation_ht_data = NULL;
     hashtable_mpmc_data_key_value_t *new_key_value = NULL;
-    hashtable_mpmc_hash_t hash = hashtable_mcmp_support_hash_calculate(key, key_length);
+    hashtable_mpmc_hash_t hash = hashtable_mpmc_support_hash_calculate(key, key_length);
     hashtable_mpmc_hash_half_t hash_half = hashtable_mpmc_support_hash_half(hash);
 
     *return_created_new = false;

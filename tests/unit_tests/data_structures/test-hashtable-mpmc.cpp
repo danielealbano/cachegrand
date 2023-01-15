@@ -45,7 +45,7 @@
     '1','2','3','4','5','6','7','8','9','0', '1','2','3','4','5','6','7','8','9','0', \
     '.',',','/','|','\'',';',']','[','<','>','?',':','"','{','}','!','@','$','%','^','&','*','(',')','_','-','=','+','#'
 
-hashtable_mpmc_hash_t test_hashtable_mcmp_support_hash_calculate(
+hashtable_mpmc_hash_t test_hashtable_mpmc_support_hash_calculate(
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length) {
 #if CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2 == 1
@@ -625,17 +625,17 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
     char *key = "This Is A Key - not embedded";
     char *key_different_case = "THIS IS A KEY - NOT EMBEDDED";
     hashtable_mpmc_key_length_t key_length = strlen(key);
-    hashtable_mpmc_hash_t key_hash = test_hashtable_mcmp_support_hash_calculate(key, key_length);
+    hashtable_mpmc_hash_t key_hash = test_hashtable_mpmc_support_hash_calculate(key, key_length);
     hashtable_mpmc_hash_half_t key_hash_half = key_hash & 0XFFFFFFFF;
 
     char *key2 = "This Is Another Key - not embedded";
     hashtable_mpmc_key_length_t key2_length = strlen(key2);
-    hashtable_mpmc_hash_t key2_hash = test_hashtable_mcmp_support_hash_calculate(key2, key2_length);
+    hashtable_mpmc_hash_t key2_hash = test_hashtable_mpmc_support_hash_calculate(key2, key2_length);
     hashtable_mpmc_hash_half_t key2_hash_half = key2_hash & 0XFFFFFFFF;
 
     char *key_embed = "embedded key";
     hashtable_mpmc_key_length_t key_embed_length = strlen(key_embed);
-    hashtable_mpmc_hash_t key_embed_hash = test_hashtable_mcmp_support_hash_calculate(
+    hashtable_mpmc_hash_t key_embed_hash = test_hashtable_mpmc_support_hash_calculate(
             key_embed,
             key_embed_length);
     hashtable_mpmc_hash_half_t key_embed_hash_half = key_embed_hash & 0XFFFFFFFF;
