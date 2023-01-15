@@ -471,6 +471,9 @@ hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
             continue;
         }
 
+
+        // TODO: should allow to return of the buckets being migrated if requested
+
         // Most of the time reads will be done on buckets not being migrated
         if (unlikely(HASHTABLE_MPMC_BUCKET_IS_MIGRATING(*return_bucket))) {
             // If a bucket is being migrated no operation can be carried out on it
@@ -809,9 +812,9 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
                     return_result = HASHTABLE_MPMC_RESULT_TRUE;
                 } else {
                     // If replacing the value with the tombstone fails, it might have been already deleted, might have
-                    // been marked for migration or might have been migrated, in all the cases but first it has to retry
-                    // later and as there isn't a safe and sane way to identify if it's a delete for a migration, or
-                    // it's another thread deleting better to always return a try later.
+                    // been marked for migration or might have been migrated, in all the cases, but first it has to
+                    // retry later and as there isn't a safe and sane way to identify if it's a delete for a migration,
+                    // or it's another thread deleting better to always return a try later.
                     return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
                 }
 
@@ -862,7 +865,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
         return_result = HASHTABLE_MPMC_RESULT_TRUE;
     } else {
         // If replacing the value with the tombstone fails, it might have been already deleted, might have been marked
-        // for migration or might have been migrated, in all the cases but first it has to retry later and as there
+        // for migration or might have been migrated, in all the cases, but first it has to retry later and as there
         // isn't a safe and sane way to identify if it's a delete for a migration, or it's another thread deleting
         // better to always return a try later.
         return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
@@ -981,8 +984,10 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
     //   will drop the bucket and drop the update operation as well as another thread finished the insert operation
     //   before the one being processed
 
-    // If there is a resize in progress, first check if the key is being migrated, if yes the caller has to retry
-    // the operation
+    // It initially checks if an upsize is in progress and if it's in progress queue an epoch operation to avoid getting
+    // the hashtable garbage collected and then try again to get the status of the hashtable and ensure that the
+    // hashtable previously acquired hasn't changed underneath (e.g. a quick upsize that starts and finish in between
+    // the initial read and the check in the if below)
     if (unlikely(hashtable_mpmc->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING)) {
         operation_ht_data = epoch_operation_queue_enqueue(
                 thread_local_epoch_operation_queue_hashtable_data);
