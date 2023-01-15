@@ -947,7 +947,6 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
         hashtable_mpmc_key_length_t key_length,
         uintptr_t value,
         bool *return_created_new,
-        bool *return_value_updated,
         uintptr_t *return_previous_value) {
     hashtable_mpmc_result_t return_result;
     hashtable_mpmc_bucket_t found_bucket, bucket_to_overwrite;
@@ -959,7 +958,6 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
     hashtable_mpmc_hash_half_t hash_half = hashtable_mpmc_support_hash_half(hash);
 
     *return_created_new = false;
-    *return_value_updated = false;
     *return_previous_value = 0;
 
     MEMORY_FENCE_LOAD();
@@ -1162,7 +1160,6 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
 
     // Operation successful, set the result to true and update the status variables
     *return_created_new = true;
-    *return_value_updated = true;
     return_result = HASHTABLE_MPMC_RESULT_TRUE;
 
 end:

@@ -313,7 +313,6 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
                     strlen(key_copy),
                     test_hashtable_mpmc_fuzzy_testing_calc_value_from_key_index(key_index),
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value);
 
             if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING || result == HASHTABLE_MPMC_RESULT_TRY_LATER) {
@@ -1113,7 +1112,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t) value1,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(return_created_new);
@@ -1139,7 +1137,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t) value1,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(return_created_new);
@@ -1162,7 +1159,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_embed_length,
                     (uintptr_t) value1,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(return_created_new);
@@ -1189,7 +1185,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t) value1,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
             REQUIRE(hashtable_mpmc_op_set(
                     hashtable,
@@ -1197,7 +1192,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t) value2,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(!return_created_new);
@@ -1221,7 +1215,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t) value1,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
             REQUIRE(hashtable_mpmc_op_set(
                     hashtable,
@@ -1229,7 +1222,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key2_length,
                     (uintptr_t) value2,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index]._packed != 0);
@@ -1271,7 +1263,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t) value1,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING);
 
             // Hashes have to be set back to zero before freeing up the hashtable
@@ -1518,7 +1509,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t) value1,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(hashtable_mpmc_support_find_bucket_and_key_value(
@@ -1559,7 +1549,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t) value1,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
             REQUIRE(hashtable_mpmc_op_set(
                     hashtable,
@@ -1567,7 +1556,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key2_length,
                     (uintptr_t) value2,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(hashtable_mpmc_support_find_bucket_and_key_value(
@@ -1640,7 +1628,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                         key_temp_length,
                         (uintptr_t) index + 1,
                         &return_created_new,
-                        &return_value_updated,
                         &return_previous_value);
 
                 REQUIRE(result != HASHTABLE_MPMC_RESULT_FALSE);
@@ -1737,7 +1724,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                         key_temp_length,
                         (uintptr_t) index + 1,
                         &return_created_new,
-                        &return_value_updated,
                         &return_previous_value);
 
                 if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
@@ -1808,7 +1794,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                         key_temp_length,
                         (uintptr_t) index + 1,
                         &return_created_new,
-                        &return_value_updated,
                         &return_previous_value);
 
                 if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
@@ -1853,12 +1838,10 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                         key_temp_length,
                         (uintptr_t) index + 1,
                         &return_created_new,
-                        &return_value_updated,
                         &return_previous_value);
 
                 REQUIRE(result == HASHTABLE_MPMC_RESULT_TRUE);
                 REQUIRE(return_created_new == false);
-                REQUIRE(return_value_updated == true);
                 REQUIRE(return_previous_value == (uintptr_t) index + 1);
 
                 epoch_gc_thread_set_epoch(

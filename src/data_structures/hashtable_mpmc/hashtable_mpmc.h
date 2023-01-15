@@ -231,7 +231,6 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
         hashtable_mpmc_key_length_t key_length,
         uintptr_t value,
         bool *return_created_new,
-        bool *return_value_updated,
         uintptr_t *return_previous_value);
 
 #ifdef __cplusplus
