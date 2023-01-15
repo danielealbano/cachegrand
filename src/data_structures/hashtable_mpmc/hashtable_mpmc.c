@@ -880,6 +880,67 @@ end:
     return return_result;
 }
 
+hashtable_mpmc_result_t hashtable_mpmc_op_set_update_value_if_key_exists(
+        hashtable_mpmc_data_t *hashtable_mpmc_data,
+        hashtable_mpmc_hash_t hash,
+        hashtable_mpmc_hash_t hash_half,
+        hashtable_mpmc_key_t *key,
+        hashtable_mpmc_key_length_t key_length,
+        uintptr_t value,
+        uintptr_t *return_previous_value) {
+    hashtable_mpmc_bucket_t found_bucket = { ._packed = 0 };
+    hashtable_mpmc_bucket_index_t found_bucket_index = 0;
+    hashtable_mpmc_result_t return_result;
+
+    return_result = hashtable_mpmc_support_find_bucket_and_key_value(
+            hashtable_mpmc_data,
+            hash,
+            hash_half,
+            key,
+            key_length,
+            true,
+            &found_bucket,
+            &found_bucket_index);
+
+    if (return_result != HASHTABLE_MPMC_RESULT_TRUE) {
+        // If no bucket is found or if it's necessary to retry later jump to tne end
+        goto end;
+    } else if (unlikely(HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(found_bucket) || found_bucket.data.transaction_id.id != 0)) {
+        // If the value found is temporary or if there is a transaction in progress it means that another thread is
+        // writing the data so the flow can just wait for it to complete before carrying out the operations.
+        return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
+        goto end;
+    }
+
+    // Acquire the current value
+    hashtable_mpmc_data_key_value_volatile_t *key_value = HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(found_bucket);
+    uintptr_t expected_value = key_value->value;
+
+    // Try to set the new value
+    bool return_value_updated = __atomic_compare_exchange_n(
+            &key_value->value,
+            &expected_value,
+            value,
+            true,
+            __ATOMIC_ACQ_REL,
+            __ATOMIC_ACQUIRE);
+
+    if (!return_value_updated) {
+        return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
+    } else {
+        return_result = HASHTABLE_MPMC_RESULT_TRUE;
+        *return_previous_value = expected_value;
+        key_value->update_time = intrinsics_tsc();
+
+        // As the key is owned by the hashtable and this copy is not in use, the key is freed as well
+        xalloc_free(key);
+    }
+
+end:
+
+    return return_result;
+}
+
 hashtable_mpmc_result_t hashtable_mpmc_op_set(
         hashtable_mpmc_t *hashtable_mpmc,
         hashtable_mpmc_key_t *key,
