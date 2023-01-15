@@ -975,6 +975,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
 
     MEMORY_FENCE_LOAD();
     hashtable_mpmc_data_current = hashtable_mpmc->data;
+    hashtable_mpmc_data_upsize = hashtable_mpmc->upsize.from;
 
     // Uses a 3-phase approach:
     // - searches first for a bucket with a matching hash
@@ -995,107 +996,37 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
 
         // Load the previous hashtable
         MEMORY_FENCE_LOAD();
-        hashtable_mpmc_data_upsize = hashtable_mpmc->upsize.from;
+        if (hashtable_mpmc_data_upsize != hashtable_mpmc->upsize.from) {
+            return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
+            goto end;
+        }
+
         if (likely(hashtable_mpmc->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING)) {
-            // TODO: should allow to return of the buckets being migrated as we care only about updating the value in
-            //       the key value structure and will not touch the bucket itself
-            hashtable_mpmc_result_t found_existing_result_in_upsize_ht =
-                    hashtable_mpmc_support_find_bucket_and_key_value(
-                        hashtable_mpmc_data_upsize,
-                        hash,
-                        hashtable_mpmc_support_hash_half(hash),
-                        key,
-                        key_length,
-                        false,
-                        &found_bucket,
-                        &found_bucket_index);
+            return_result = hashtable_mpmc_op_set_update_value_if_key_exists(
+                    hashtable_mpmc_data_upsize,
+                    hash,
+                    hash_half,
+                    key,
+                    key_length,
+                    value,
+                    return_previous_value);
 
-            if (unlikely(found_existing_result_in_upsize_ht == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
-                return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
-                goto end;
-            }
-
-            // If the bucket was previously found, try to swap it with the new bucket
-            if (found_existing_result_in_upsize_ht == HASHTABLE_MPMC_RESULT_TRUE) {
-                // Acquire the current value
-                hashtable_mpmc_data_key_value_volatile_t *key_value =
-                        HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(found_bucket);
-                uintptr_t expected_value = key_value->value;
-
-                // Try to set the new value
-                *return_value_updated = __atomic_compare_exchange_n(
-                        &key_value->value,
-                        &expected_value,
-                        value,
-                        false,
-                        __ATOMIC_ACQ_REL,
-                        __ATOMIC_ACQUIRE);
-
-                if (!*return_value_updated) {
-                    return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
-                } else {
-                    return_result = HASHTABLE_MPMC_RESULT_TRUE;
-                    *return_previous_value = expected_value;
-                    key_value->update_time = intrinsics_tsc();
-
-                    // As the key is owned by the hashtable and this copy is not in use, the key is freed as well
-                    xalloc_free(key);
-                }
-
+            // If the result is different from false it's necessary to retry later or the operation has completed
+            // successfully, in both cases the current function can terminate
+            if (return_result != HASHTABLE_MPMC_RESULT_FALSE) {
                 goto end;
             }
         }
     }
 
-    // Try to find the value in the hashtable
-    hashtable_mpmc_result_t found_existing_result = hashtable_mpmc_support_find_bucket_and_key_value(
+    if ((return_result = hashtable_mpmc_op_set_update_value_if_key_exists(
             hashtable_mpmc_data_current,
             hash,
             hash_half,
             key,
             key_length,
-            true,
-            &found_bucket,
-            &found_bucket_index);
-
-    if (unlikely(found_existing_result == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
-        return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
-        goto end;
-    } else if (unlikely(HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(found_bucket) || found_bucket.data.transaction_id.id != 0)) {
-        // If the value found is temporary or if there is a transaction in progress it means that another thread is
-        // writing the data so the flow can just wait for it to complete before carrying out the operations.
-        return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
-        goto end;
-    }
-
-    // If the bucket was previously found, try to swap it with the new bucket
-    if (found_existing_result == HASHTABLE_MPMC_RESULT_TRUE) {
-        // Acquire the current value
-        hashtable_mpmc_data_key_value_volatile_t *key_value = HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(found_bucket);
-        uintptr_t expected_value = key_value->value;
-
-        // Try to set the new value
-        *return_value_updated = __atomic_compare_exchange_n(
-                &key_value->value,
-                &expected_value,
-                value,
-                false,
-                __ATOMIC_ACQ_REL,
-                __ATOMIC_ACQUIRE);
-
-        // If the swap fails it can be because of another set so the previous value is popped up only if the
-        // operation is successful
-        if (likely(!*return_value_updated)) {
-            return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
-        } else {
-            return_result = HASHTABLE_MPMC_RESULT_TRUE;
-            *return_previous_value = expected_value;
-            key_value->update_time = intrinsics_tsc();
-
-            // As the key is owned by the hashtable, the pointer is freed as well
-            xalloc_free(key);
-        }
-
+            value,
+            return_previous_value)) != HASHTABLE_MPMC_RESULT_FALSE) {
         goto end;
     }
 
