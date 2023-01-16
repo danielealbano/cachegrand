@@ -219,8 +219,8 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
                 // Ensure that the next metric is the expected one
                 REQUIRE(strncmp(new_line_ptr, *metric_name, strlen(*metric_name)) == 0);
 
-                // As there are no env labels, ensure that the metric name is followed by "{} "
-                REQUIRE(strncmp(new_line_ptr + strlen(*metric_name), "{} ", 3) == 0);
+                // As there are no env labels, ensure that the metric name is followed by "{worker="0"} "
+                REQUIRE(strncmp(new_line_ptr + strlen(*metric_name), "{worker=\"0\"} ", 3) == 0);
 
                 // THere is always a new line at the end of the line, even the last line
                 REQUIRE((new_line_ptr = (char*)memchr(new_line_ptr, '\n', buffer_recv_length)) != NULL);
@@ -228,10 +228,8 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
         }
 
         SECTION("With env vars") {
-            char *new_line_ptr = NULL;
             int buffer_recv_length;
-
-            char *expected_labels = "{label_1=\"value 1\",another_label=\"another value\"}";
+            char *new_line_ptr = NULL, *expected_env_labels = "label_1=\"value 1\",another_label=\"another value\"";
 
             // Set 2 env vars to use them as lables in the metrics
             setenv("CACHEGRAND_METRIC_ENV_LABEL_1", "value 1", 1);
@@ -264,21 +262,31 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
             // Ensure that has found the double new line at the end of the HTTP header
             REQUIRE(new_line_ptr != NULL);
 
-            for (char **metric_name = metrics_names; *metric_name; ++metric_name) {
-                // Ensure that there is enough content in the buffer to contain the metric name, the labels, a space, at
-                // least 1 digit and then \n
-                REQUIRE((buffer_recv_length - ((new_line_ptr + 1) - buffer_recv)) >=
-                    strlen(*metric_name) + strlen(expected_labels) + 1 + 1 + 1);
-                new_line_ptr++;
+            for (int worker_index = 0; worker_index <= 1; worker_index++) {
+                for (char **metric_name = metrics_names; *metric_name; ++metric_name) {
+                    char expected_labels[255] = { 0 };
+                    snprintf(
+                            expected_labels,
+                            sizeof(expected_labels),
+                            "{worker=\"%s\",%s}",
+                            worker_index == 0 ? "0" : "aggregated",
+                            expected_env_labels);
 
-                // Ensure that the next metric is the expected one
-                REQUIRE(strncmp(new_line_ptr, *metric_name, strlen(*metric_name)) == 0);
+                    // Ensure that there is enough content in the buffer to contain the metric name, the labels, a space, at
+                    // least 1 digit and then \n
+                    REQUIRE((buffer_recv_length - ((new_line_ptr + 1) - buffer_recv)) >=
+                        strlen(*metric_name) + strlen(expected_labels) + 1 + 1 + 1);
+                    new_line_ptr++;
 
-                // As there are no env labels, ensure that the metric name is followed by expected_labels
-                REQUIRE(strncmp(new_line_ptr + strlen(*metric_name), expected_labels, strlen(expected_labels)) == 0);
+                    // Ensure that the next metric is the expected one
+                    REQUIRE(strncmp(new_line_ptr, *metric_name, strlen(*metric_name)) == 0);
 
-                // THere is always a new line at the end of the line, even the last line
-                REQUIRE((new_line_ptr = (char*)memchr(new_line_ptr, '\n', buffer_recv_length)) != NULL);
+                    // Ensure that the metric name is followed by expected_labels
+                    REQUIRE(strncmp(new_line_ptr + strlen(*metric_name), expected_labels, strlen(expected_labels)) == 0);
+
+                    // THere is always a new line at the end of the line, even the last line
+                    REQUIRE((new_line_ptr = (char*)memchr(new_line_ptr, '\n', buffer_recv_length)) != NULL);
+                }
             }
         }
     }
