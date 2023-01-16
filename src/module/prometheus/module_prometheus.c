@@ -530,7 +530,7 @@ bool module_prometheus_process_metrics_request(
         // Try to fetch the stats for a worker, if it fails it builds up the aggregate, the while will later terminate
         // the loop
         if ((found_worker = worker_stats_get_shared_by_index(
-                worker_index++,
+                worker_index,
                 &worker_stats)) == false) {
             // Aggregate the statistics
             worker_stats_aggregate(&worker_stats);
@@ -600,6 +600,7 @@ bool module_prometheus_process_metrics_request(
 
         ffma_mem_free(tags);
         tags = NULL;
+        worker_index++;
     } while(found_worker);
 
     result_ret = module_prometheus_http_send_response(
