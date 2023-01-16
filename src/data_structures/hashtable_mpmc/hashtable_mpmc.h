@@ -146,7 +146,7 @@ void hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_free();
 
 uint64_t hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch();
 
-hashtable_mpmc_hash_t hashtable_mcmp_support_hash_calculate(
+hashtable_mpmc_hash_t hashtable_mpmc_support_hash_calculate(
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length);
 
@@ -231,7 +231,6 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
         hashtable_mpmc_key_length_t key_length,
         uintptr_t value,
         bool *return_created_new,
-        bool *return_value_updated,
         uintptr_t *return_previous_value);
 
 #ifdef __cplusplus
