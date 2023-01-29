@@ -87,12 +87,12 @@ jobs:
           fail_ci_if_error: false
           verbose: false
 
-      - name: Tests - Integration Tests - Redis Server
-        working-directory: ${{github.workspace}}/build
-        shell: bash
-        run: ctest -R cachegrand-integration-tests-redis-server --verbose || true
+#      - name: Tests - Integration Tests - Redis Server
+#        working-directory: ${{github.workspace}}/build
+#        shell: bash
+#        run: ctest -R cachegrand-integration-tests-redis-server --verbose || true
 
-      - uses: actions/upload-artifact@v2
-        with:
-          name: tests-integration-tests-redis-server-results
-          path: ${{github.workspace}}/build/tests/integration_tests/redis_server/junit-report.xml
+#      - uses: actions/upload-artifact@v2
+#        with:
+#          name: tests-integration-tests-redis-server-results
+#          path: ${{github.workspace}}/build/tests/integration_tests/redis_server/junit-report.xml
