@@ -20,7 +20,7 @@ use_huge_pages: false
 
 network:
   backend: io_uring
-  max_clients: 250
+  max_clients: 100
   listen_backlog: 100
 
 modules:

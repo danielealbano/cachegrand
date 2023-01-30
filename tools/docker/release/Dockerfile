@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Daniele Salvatore Albano
+# Copyright (C) 2018-2023 Daniele Salvatore Albano
 # All rights reserved.
 #
 # This software may be modified and distributed under the terms
@@ -50,7 +50,6 @@ RUN cd /root \
     && make cachegrand-server
 
 FROM ubuntu:22.04
-
 LABEL maintainer="d.albano@cachegrand.io"
 
 # General dpkg and packages settings
@@ -66,14 +65,33 @@ RUN apt-get update -y \
     && apt-get install -y --no-install-recommends \
         apt-utils \
     && apt-get install -y --no-install-recommends \
-        libnuma1 libyaml-0-2 libcurl4 libmbedtls14 libatomic1 \
+        libnuma1 libyaml-0-2 libcurl4 libmbedtls14 libatomic1 openssl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /opt/cachegrand
+RUN \
+    mkdir /etc/cachegrand \
+    && mkdir /var/run/cachegrand/
 
 COPY --from=builder /root/build/cachegrand/cmake-build-release/src/cachegrand-server /usr/bin
+COPY --from=builder /root/build/cachegrand/etc/cachegrand.yaml.skel /etc/cachegrand/cachegrand.yaml.skel
+COPY --from=builder /root/build/cachegrand/tools/docker/release/self-signed-ssl-cert-gen.sh /self-signed-ssl-cert-gen.sh
+COPY --from=builder /root/build/cachegrand/tools/docker/release/startup.sh /startup.sh
+
+RUN \
+    cat /etc/cachegrand/cachegrand.yaml.skel \
+        | sed -e 's/\#\(\s\+tls\:\)/\1/' \
+        | sed -e 's/\#\(\s\+certificate_path\:\)/\1/' \
+        | sed -e 's/\#\(\s\+private_key_path\:\)/\1/' \
+        | sed -e "/^\s\- type\: file$/ s|^|//|; /^\s*\- type\: file/, /);$/ s|^|#|" \
+        | sed -e 's/^           tls: true/          tls: true/' \
+        | sed -e 's/^           tls: false/          tls: false/' \
+        > /etc/cachegrand/cachegrand.yaml \
+    && rm /etc/cachegrand/cachegrand.yaml.skel \
+    && chmod 700 /self-signed-ssl-cert-gen.sh \
+    && chmod 700 /startup.sh
 
 EXPOSE 6379
+EXPOSE 6380
 
-CMD ["/usr/bin/cachegrand-server", "-c" ,"/etc/cachegrand/cachegrand.yaml"]
+CMD [ "/startup.sh" ]
