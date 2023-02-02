@@ -16,6 +16,7 @@ ExternalProject_Add(
         GIT_TAG           227bbe04581541d8e97b7306a81c05fa2894841b # tag v1.2.0
         PREFIX ${CMAKE_BINARY_DIR}/_deps
         CONFIGURE_COMMAND ""
+        BUILD_BYPRODUCTS ${CMAKE_BINARY_DIR}/_deps/src/cyaml/build/release/libcyaml.so.1
         BUILD_COMMAND
         sed -e "s/VERSION_DEVEL = 1/VERSION_DEVEL = 0/" -i ${LIBCYAML_SRC_PATH}/Makefile &&
         CFLAGS="-fPIC" make -C ${LIBCYAML_SRC_PATH} ${LIBCYAML_BUILD_PATH_REL}/libcyaml.a ${LIBCYAML_BUILD_PATH_REL}/libcyaml.so.1

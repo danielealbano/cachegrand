@@ -14,6 +14,7 @@ if (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} GREATER_EQUAL 3.24)
             DOWNLOAD_EXTRACT_TIMESTAMP true
             INSTALL_DIR ${CMAKE_BINARY_DIR}/benchmark-install
             URL https://github.com/google/benchmark/archive/v1.6.1.tar.gz
+            BUILD_BYPRODUCTS ${CMAKE_BINARY_DIR}/benchmark-install/lib/libbenchmark.a
             CMAKE_CACHE_ARGS
             -DCMAKE_C_COMPILER:STRING=${CMAKE_C_COMPILER}
             -DCMAKE_CXX_COMPILER:STRING=${CMAKE_CXX_COMPILER}
@@ -27,6 +28,7 @@ else()
             PREFIX benchmark-sources
             INSTALL_DIR ${CMAKE_BINARY_DIR}/benchmark-install
             URL https://github.com/google/benchmark/archive/v1.6.1.tar.gz
+            BUILD_BYPRODUCTS ${CMAKE_BINARY_DIR}/benchmark-install/lib/libbenchmark.a
             CMAKE_CACHE_ARGS
             -DCMAKE_C_COMPILER:STRING=${CMAKE_C_COMPILER}
             -DCMAKE_CXX_COMPILER:STRING=${CMAKE_CXX_COMPILER}
@@ -36,8 +38,6 @@ else()
             -DBENCHMARK_ENABLE_TESTING:BOOL=OFF
             -DBENCHMARK_DOWNLOAD_DEPENDENCIES:BOOL=ON)
 endif()
-
-
 
 add_library(benchmark::benchmark STATIC IMPORTED)
 add_dependencies(benchmark::benchmark benchmark-install)
