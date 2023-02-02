@@ -1042,7 +1042,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             REQUIRE(hashtable_small->upsize.remaining_blocks == 1);
             REQUIRE(hashtable_small->upsize.total_blocks == 1);
             REQUIRE(hashtable_small->upsize.threads_count == 0);
-            REQUIRE(hashtable_small->upsize.block_size == 272);
+            REQUIRE(hashtable_small->upsize.block_size == HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
         };
 
         SECTION("preparation successful - multiple blocks") {
@@ -1053,7 +1053,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             REQUIRE(hashtable_large->upsize.remaining_blocks == 17);
             REQUIRE(hashtable_large->upsize.total_blocks == 17);
             REQUIRE(hashtable_large->upsize.threads_count == 0);
-            REQUIRE(hashtable_large->upsize.block_size == 15436);
+            REQUIRE(hashtable_large->upsize.block_size == HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
         };
 
         SECTION("preparation failed - already upsizing") {
