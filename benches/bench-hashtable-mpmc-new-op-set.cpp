@@ -36,7 +36,7 @@
 #include "data_structures/hashtable_mpmc/hashtable_mpmc.h"
 #include "mimalloc.h"
 
-#define TEST_VALIDATE_KEYS 0
+#define TEST_VALIDATE_KEYS 1
 
 #define BENCH_HASHTABLE_MPMC_NEW_OP_SET_KEY_MIN_LENGTH 7
 #define BENCH_HASHTABLE_MPMC_NEW_OP_SET_KEY_MAX_LENGTH 8
@@ -487,7 +487,7 @@ BENCHMARK_DEFINE_F(HashtableOpSetInsertFixture, hashtable_mpmc_op_set_insert)(be
                 key_index < requested_keyset_size;
                 key_index += increment) {
             hashtable_mpmc_result_t result;
-            bool created_new, value_updated;
+            bool created_new;
             uintptr_t previous_value;
             counter++;
 
@@ -507,7 +507,6 @@ BENCHMARK_DEFINE_F(HashtableOpSetInsertFixture, hashtable_mpmc_op_set_insert)(be
                     keyset[key_index].data.key_length,
                     (uintptr_t)key_index,
                     &created_new,
-                    &value_updated,
                     &previous_value);
 
             if (unlikely(result == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
@@ -532,7 +531,6 @@ BENCHMARK_DEFINE_F(HashtableOpSetInsertFixture, hashtable_mpmc_op_set_insert)(be
             }
 
             assert(created_new == true);
-            assert(value_updated == true);
 
 #if TEST_VALIDATE_KEYS > 0
             if (result != HASHTABLE_MPMC_RESULT_TRUE) {
@@ -558,7 +556,6 @@ BENCHMARK_DEFINE_F(HashtableOpSetInsertFixture, hashtable_mpmc_op_set_insert)(be
                             keyset[key_index_to_retry].data.key_length,
                             (uintptr_t)key_index_to_retry,
                             &created_new,
-                            &value_updated,
                             &previous_value);
 
                     if (unlikely(result == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
@@ -574,7 +571,6 @@ BENCHMARK_DEFINE_F(HashtableOpSetInsertFixture, hashtable_mpmc_op_set_insert)(be
                     }
 
                     assert(created_new == true);
-                    assert(value_updated == true);
                 }
             }
         }
@@ -776,7 +772,7 @@ public:
                 uint64_t key_index = state.thread_index();
                 key_index < this->_requested_keyset_size;
                 key_index += increment) {
-            bool created_new, value_updated;
+            bool created_new;
             uintptr_t previous_value;
             hashtable_mpmc_result_t result = hashtable_mpmc_op_set(
                     (hashtable_mpmc_t*)static_hashtable,
@@ -784,7 +780,6 @@ public:
                     static_keyset[key_index].data.key_length,
                     (uintptr_t)key_index,
                     &created_new,
-                    &value_updated,
                     &previous_value);
 
             epoch_gc_thread_set_epoch(
@@ -801,7 +796,6 @@ public:
             }
 
             assert(created_new == true);
-            assert(value_updated == true);
 
             if (result != HASHTABLE_MPMC_RESULT_TRUE) {
                 sprintf(
@@ -888,7 +882,7 @@ BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_mpmc_op_set_update)(be
                 uint64_t key_index = state.thread_index();
                 key_index < requested_keyset_size;
                 key_index += increment) {
-            bool created_new, value_updated;
+            bool created_new;
             uintptr_t previous_value;
             hashtable_mpmc_result_t result;
             counter++;
@@ -909,7 +903,6 @@ BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_mpmc_op_set_update)(be
                     keyset[key_index].data.key_length,
                     (uintptr_t)key_index,
                     &created_new,
-                    &value_updated,
                     &previous_value);
 
             if (unlikely(result == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
@@ -948,7 +941,6 @@ BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_mpmc_op_set_update)(be
 #endif
 
             assert(created_new == false);
-            assert(value_updated == true);
             assert(previous_value == (uintptr_t)key_index);
 
             if (unlikely(counter & (state.thread_index() + 1)) == (state.thread_index() + 1)) {
@@ -962,7 +954,6 @@ BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_mpmc_op_set_update)(be
                             keyset[key_index_to_retry].data.key_length,
                             (uintptr_t)key_index_to_retry,
                             &created_new,
-                            &value_updated,
                             &previous_value);
 
                     if (unlikely(result == HASHTABLE_MPMC_RESULT_TRY_LATER)) {
@@ -978,7 +969,6 @@ BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_mpmc_op_set_update)(be
                         }
 
                     assert(created_new == false);
-                    assert(value_updated == true);
                     assert(previous_value == (uintptr_t)key_index);
                 }
             }
@@ -1056,6 +1046,6 @@ static void BenchArguments(benchmark::internal::Benchmark* b) {
 
 BENCHMARK_REGISTER_F(HashtableOpSetInsertFixture, hashtable_mpmc_op_set_insert)
         ->Apply(BenchArguments);
-
-BENCHMARK_REGISTER_F(HashtableOpSetUpdateFixture, hashtable_mpmc_op_set_update)
-        ->Apply(BenchArguments);
+//
+//BENCHMARK_REGISTER_F(HashtableOpSetUpdateFixture, hashtable_mpmc_op_set_update)
+//        ->Apply(BenchArguments);
