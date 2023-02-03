@@ -216,12 +216,9 @@ bool hashtable_mpmc_upsize_prepare(
         return false;
     }
 
-    // Recalculate the size of the blocks to ensure that the last one will be always include all the buckets, although
-    // for the last block it might be greater, so it has always to ensure it's not going to try to read data outside the
-    // size of buckets (defined via buckets_count_real).
-    int64_t total_blocks =
-            ceil((double)hashtable_mpmc->data->buckets_count_real / (double)hashtable_mpmc->upsize_preferred_block_size);
-    int64_t new_block_size = ceil((double)hashtable_mpmc->data->buckets_count_real / (double)total_blocks);
+    // Calculate the amount of blox to migrate
+    int64_t total_blocks = ceil(
+            (double)hashtable_mpmc->data->buckets_count_real / (double)hashtable_mpmc->upsize_preferred_block_size);
 
     // As buckets count uses the current one plus one as hashtable_mpmc_data_init will calculate the next power of 2
     // and use that as size.
@@ -238,7 +235,7 @@ bool hashtable_mpmc_upsize_prepare(
     // well.
     hashtable_mpmc->upsize.total_blocks = total_blocks;
     hashtable_mpmc->upsize.remaining_blocks = total_blocks;
-    hashtable_mpmc->upsize.block_size = new_block_size;
+    hashtable_mpmc->upsize.block_size = hashtable_mpmc->upsize_preferred_block_size;
     hashtable_mpmc->upsize.from = hashtable_mpmc->data;
     hashtable_mpmc->data = new_hashtable_mpmc_data;
     MEMORY_FENCE_STORE();
