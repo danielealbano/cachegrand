@@ -35,8 +35,12 @@
 #define TAG "hashtable_mpmc"
 
 // This thread local variable prevents from having more instances of the hashtable but currently this is not required
-static thread_local epoch_operation_queue_t *thread_local_epoch_operation_queue_hashtable_key_value = NULL;
-static thread_local epoch_operation_queue_t *thread_local_epoch_operation_queue_hashtable_data = NULL;
+thread_local epoch_operation_queue_t *thread_local_epoch_operation_queue_hashtable_key_value = NULL;
+thread_local epoch_operation_queue_t *thread_local_epoch_operation_queue_hashtable_data = NULL;
+
+// Thread local variables for the counters
+thread_local bool hashtable_mpmc_thread_counter_index_fetched = false;
+thread_local uint32_t hashtable_mpmc_thread_counter_index;
 
 FUNCTION_CTOR(hashtable_mpmc_epoch_gc_object_type_hashtable_key_value_destructor_cb_init, {
     epoch_gc_register_object_type_destructor_cb(
@@ -173,6 +177,8 @@ hashtable_mpmc_t *hashtable_mpmc_init(
     hashtable_mpmc->buckets_count_max = pow2_next(buckets_count_max);
     hashtable_mpmc->upsize_preferred_block_size = upsize_preferred_block_size;
 
+    hashtable_mpmc_thread_counters_init(hashtable_mpmc, 0);
+
     return hashtable_mpmc;
 }
 
@@ -182,6 +188,7 @@ void hashtable_mpmc_free(
         hashtable_mpmc_data_free(hashtable_mpmc->upsize.from);
     }
 
+    hashtable_mpmc_thread_counters_free(hashtable_mpmc);
     hashtable_mpmc_data_free(hashtable_mpmc->data);
     xalloc_free(hashtable_mpmc);
 }
@@ -313,7 +320,7 @@ bool hashtable_mpmc_upsize_migrate_bucket(
             &bucket_to_overwrite,
             &found_bucket_index)) == HASHTABLE_MPMC_RESULT_TRY_LATER) {
         // If the key is found in the destination retry
-    };
+    }
 
     if (found_empty_result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
         fprintf(stdout, "> can't insert key during upsize\n"); fflush(stdout);
@@ -860,6 +867,9 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
                 EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE,
                 (void*)HASHTABLE_MPMC_BUCKET_GET_KEY_VALUE_PTR(found_bucket));
         return_result = HASHTABLE_MPMC_RESULT_TRUE;
+
+        // Decrement the size counter
+        hashtable_mpmc_thread_counters_get_current_thread(hashtable_mpmc)->size--;
     } else {
         // If replacing the value with the tombstone fails, it might have been already deleted, might have been marked
         // for migration or might have been migrated, in all the cases, but first it has to retry later and as there
@@ -949,8 +959,8 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
         bool *return_created_new,
         uintptr_t *return_previous_value) {
     hashtable_mpmc_result_t return_result;
-    hashtable_mpmc_bucket_t found_bucket, bucket_to_overwrite;
-    hashtable_mpmc_bucket_index_t found_bucket_index, new_bucket_index;
+    hashtable_mpmc_bucket_t bucket_to_overwrite;
+    hashtable_mpmc_bucket_index_t new_bucket_index;
     hashtable_mpmc_data_t *hashtable_mpmc_data_upsize, *hashtable_mpmc_data_current;
     epoch_operation_queue_operation_t *operation_ht_data = NULL;
     hashtable_mpmc_data_key_value_t *new_key_value = NULL;
@@ -1082,6 +1092,9 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
     // Drop the temporary flag from the key_value pointer
     hashtable_mpmc_data_current->buckets[new_bucket_index].data.key_value = new_key_value;
 
+    // Increment the size counter
+    hashtable_mpmc_thread_counters_get_current_thread(hashtable_mpmc)->size++;
+
     // No need for an atomic operation, the value can be safely overwritten as by algorithm no other thread will touch
     // the bucket
     MEMORY_FENCE_STORE();
@@ -1111,4 +1124,144 @@ end:
     }
 
     return return_result;
+}
+
+hashtable_mpmc_counters_t *hashtable_mpmc_thread_counters_sum_fetch(
+        hashtable_mpmc_t *hashtable_mpmc) {
+    hashtable_mpmc_counters_t *counters_sum = xalloc_alloc_zero(sizeof(hashtable_mpmc_counters_t));
+
+    for(uint32_t index = 0; likely(index < hashtable_mpmc->thread_counters.size); index++) {
+        hashtable_mpmc_counters_volatile_t *thread_counter = hashtable_mpmc_thread_counters_get_by_index(
+                hashtable_mpmc, index);
+        counters_sum->size += thread_counter->size;
+    }
+
+    assert(counters_sum->size >= 0);
+
+    return counters_sum;
+}
+
+void hashtable_mpmc_thread_counters_sum_free(
+        hashtable_mpmc_counters_t *counters_sum) {
+    xalloc_free(counters_sum);
+}
+
+void hashtable_mpmc_thread_counters_reset(
+        hashtable_mpmc_t *hashtable_mpmc) {
+    spinlock_lock(&hashtable_mpmc->thread_counters.lock);
+
+    if (hashtable_mpmc->thread_counters.size == 0) {
+        // If the current list has size 0 it doesn't contain any counter so there is nothing to reset
+        spinlock_unlock(&hashtable_mpmc->thread_counters.lock);
+        return;
+    }
+
+    hashtable_mpmc_counters_volatile_t **old_counters = hashtable_mpmc->thread_counters.list;
+    hashtable_mpmc->thread_counters.size = 0;
+    hashtable_mpmc->thread_counters.list = NULL;
+
+    spinlock_unlock(&hashtable_mpmc->thread_counters.lock);
+
+    if (likely(old_counters)) {
+        // At this point a memory fence has been issued so the old counters can be flushed away
+        xalloc_free(old_counters);
+    }
+}
+
+void hashtable_mpmc_thread_counters_expand_to(
+        hashtable_mpmc_t *hashtable_mpmc,
+        uint32_t new_size) {
+    assert(hashtable_mpmc->thread_counters.size < UINT32_MAX);
+
+    // The function is invoked only if the resize is needed, so no need to check outside the spinlock
+    spinlock_lock(&hashtable_mpmc->thread_counters.lock);
+
+    // Ensure that the resize is actually needed under lock
+    if (likely(new_size <= hashtable_mpmc->thread_counters.size)) {
+        spinlock_unlock(&hashtable_mpmc->thread_counters.lock);
+        return;
+    }
+
+    // Below is basically a realloc, but the new value has to be assigned before the old one gets freed otherwise
+    // threads will try to access to freed memory triggering a sigsegv, it has to be done without realloc in a two-step
+    // process
+    hashtable_mpmc_counters_volatile_t **counters = xalloc_alloc(sizeof(hashtable_mpmc_counters_t*) * new_size);
+
+    // Copy the previous set of pointers
+    if (likely(hashtable_mpmc->thread_counters.list)) {
+        memcpy(
+                counters,
+                hashtable_mpmc->thread_counters.list,
+                sizeof(hashtable_mpmc_counters_t*) * hashtable_mpmc->thread_counters.size);
+    }
+
+    // Allocate the new structs for the new size
+    for(uint32_t index = hashtable_mpmc->thread_counters.size; index < new_size; index++) {
+        counters[index] = xalloc_alloc_zero(sizeof(hashtable_mpmc_counters_t));
+    }
+
+    // No need to use memory fences here, spinlock_unlock will do it for us
+    hashtable_mpmc_counters_volatile_t **old_counters = hashtable_mpmc->thread_counters.list;
+    hashtable_mpmc->thread_counters.list = counters;
+    hashtable_mpmc->thread_counters.size = new_size;
+
+    spinlock_unlock(&hashtable_mpmc->thread_counters.lock);
+
+    if (old_counters) {
+        // At this point a memory fence has been issued so the old counters can be flushed away
+        xalloc_free(old_counters);
+    }
+}
+
+uint32_t hashtable_mpmc_thread_counters_fetch_new_index(
+        hashtable_mpmc_t *hashtable_mpmc) {
+    return hashtable_mpmc->thread_counters.size;
+}
+
+hashtable_mpmc_counters_volatile_t* hashtable_mpmc_thread_counters_get_by_index(
+        hashtable_mpmc_t *hashtable_mpmc,
+        uint32_t index) {
+    MEMORY_FENCE_LOAD();
+
+    // Ensure that the current thread_counters size contains the index being requested, if it's not the case it expands
+    // the list as needed. This is necessary because the hashtable might be flushed, we don't want to deal with the
+    // thread_counters at the high level.
+    if (unlikely(index >= hashtable_mpmc->thread_counters.size)) {
+        hashtable_mpmc_thread_counters_expand_to(hashtable_mpmc, index + 1);
+    }
+
+    return hashtable_mpmc->thread_counters.list[index];
+}
+
+hashtable_mpmc_counters_volatile_t* hashtable_mpmc_thread_counters_get_current_thread(
+        hashtable_mpmc_t* hashtable_mpmc) {
+    if (unlikely(!hashtable_mpmc_thread_counter_index_fetched)) {
+        hashtable_mpmc_thread_counter_index = hashtable_mpmc_thread_counters_fetch_new_index(
+                hashtable_mpmc);
+        hashtable_mpmc_thread_counter_index_fetched = true;
+    }
+
+    return hashtable_mpmc_thread_counters_get_by_index(
+            hashtable_mpmc,
+            hashtable_mpmc_thread_counter_index);
+}
+
+void hashtable_mpmc_thread_counters_init(
+        hashtable_mpmc_t *hashtable_mpmc,
+        uint32_t initial_size) {
+    spinlock_init(&hashtable_mpmc->thread_counters.lock);
+    hashtable_mpmc->thread_counters.list = NULL;
+    hashtable_mpmc->thread_counters.size = 0;
+
+    hashtable_mpmc_thread_counters_expand_to(hashtable_mpmc, initial_size);
+}
+
+void hashtable_mpmc_thread_counters_free(
+        hashtable_mpmc_t *hashtable_mpmc) {
+    for(uint32_t index = 0; index < hashtable_mpmc->thread_counters.size; index++) {
+        xalloc_free((hashtable_mpmc_counters_t*)hashtable_mpmc->thread_counters.list[index]);
+    }
+    xalloc_free(hashtable_mpmc->thread_counters.list);
+    hashtable_mpmc->thread_counters.list = NULL;
+    hashtable_mpmc->thread_counters.size = 0;
 }

@@ -668,6 +668,130 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         hashtable_mpmc_free(hashtable);
     }
 
+
+    SECTION("hashtable_mpmc_thread_counters_expand_to") {
+        hashtable_mpmc_t hashtable_mpmc = { nullptr };
+
+        SECTION("initial size 0") {
+            hashtable_mpmc_thread_counters_expand_to(&hashtable_mpmc, 0);
+
+            REQUIRE(hashtable_mpmc.thread_counters.size == 0);
+            REQUIRE(spinlock_is_locked(&hashtable_mpmc.thread_counters.lock) == false);
+            REQUIRE(hashtable_mpmc.thread_counters.list == NULL);
+
+            hashtable_mpmc_thread_counters_free(&hashtable_mpmc);
+        }
+
+        SECTION("initial size 16") {
+            hashtable_mpmc_thread_counters_expand_to(&hashtable_mpmc, 16);
+
+            REQUIRE(hashtable_mpmc.thread_counters.size == 16);
+            REQUIRE(spinlock_is_locked(&hashtable_mpmc.thread_counters.lock) == false);
+            REQUIRE(hashtable_mpmc.thread_counters.list != NULL);
+
+            hashtable_mpmc_thread_counters_free(&hashtable_mpmc);
+        }
+    }
+
+    SECTION("hashtable_mpmc_thread_counters_init") {
+        hashtable_mpmc_t hashtable_mpmc = { nullptr };
+
+        SECTION("initial size 0") {
+            hashtable_mpmc_thread_counters_init(&hashtable_mpmc, 0);
+
+            REQUIRE(hashtable_mpmc.thread_counters.size == 0);
+            REQUIRE(spinlock_is_locked(&hashtable_mpmc.thread_counters.lock) == false);
+            REQUIRE(hashtable_mpmc.thread_counters.list == NULL);
+
+            hashtable_mpmc_thread_counters_free(&hashtable_mpmc);
+        }
+
+        SECTION("initial size 16") {
+            hashtable_mpmc_thread_counters_init(&hashtable_mpmc, 16);
+
+            REQUIRE(hashtable_mpmc.thread_counters.size == 16);
+            REQUIRE(spinlock_is_locked(&hashtable_mpmc.thread_counters.lock) == false);
+            REQUIRE(hashtable_mpmc.thread_counters.list != NULL);
+
+            hashtable_mpmc_thread_counters_free(&hashtable_mpmc);
+        }
+    }
+
+    SECTION("hashtable_mpmc_thread_counters_fetch_new_index") {
+        hashtable_mpmc_t hashtable_mpmc = { nullptr };
+
+        REQUIRE(hashtable_mpmc_thread_counters_fetch_new_index(&hashtable_mpmc) == 0);
+
+        hashtable_mpmc.thread_counters.size = 16;
+
+        REQUIRE(hashtable_mpmc_thread_counters_fetch_new_index(&hashtable_mpmc) == 16);
+    }
+
+    SECTION("hashtable_mpmc_thread_counters_get_by_index") {
+        hashtable_mpmc_t hashtable_mpmc = { nullptr };
+        hashtable_mpmc_thread_counters_init(&hashtable_mpmc, 8);
+        hashtable_mpmc.thread_counters.list[3]->size = 10;
+
+        SECTION("existing thread index") {
+            REQUIRE(hashtable_mpmc_thread_counters_get_by_index(&hashtable_mpmc, 3)->size == 10);
+        }
+
+        SECTION("non-existing thread index") {
+            REQUIRE(hashtable_mpmc_thread_counters_get_by_index(&hashtable_mpmc, 16)->size == 0);
+            REQUIRE(hashtable_mpmc.thread_counters.size == 17);
+        }
+
+        hashtable_mpmc_thread_counters_free(&hashtable_mpmc);
+    }
+
+    SECTION("hashtable_mpmc_thread_counters_reset") {
+        hashtable_mpmc_t hashtable_mpmc = { nullptr };
+        hashtable_mpmc_thread_counters_init(&hashtable_mpmc, 8);
+        hashtable_mpmc_thread_counters_reset(&hashtable_mpmc);
+        REQUIRE(hashtable_mpmc.thread_counters.size == 0);
+        REQUIRE(hashtable_mpmc.thread_counters.list == NULL);
+
+        hashtable_mpmc_thread_counters_free(&hashtable_mpmc);
+    }
+
+    SECTION("hashtable_mpmc_thread_counters_sum_fetch") {
+        hashtable_mpmc_t hashtable_mpmc = { nullptr };
+        hashtable_mpmc_thread_counters_init(&hashtable_mpmc, 8);
+        hashtable_mpmc.thread_counters.list[1]->size = 5;
+        hashtable_mpmc.thread_counters.list[2]->size = 6;
+        hashtable_mpmc.thread_counters.list[3]->size = 7;
+        hashtable_mpmc.thread_counters.list[4]->size = 8;
+
+        hashtable_mpmc_counters_t *hashtable_mpmc_counters = hashtable_mpmc_thread_counters_sum_fetch(&hashtable_mpmc);
+
+        REQUIRE(hashtable_mpmc_counters->size == 5+6+7+8);
+
+        hashtable_mpmc_thread_counters_sum_free(hashtable_mpmc_counters);
+        hashtable_mpmc_thread_counters_free(&hashtable_mpmc);
+    }
+
+    SECTION("hashtable_mpmc_thread_counters_sum_fetch") {
+        hashtable_mpmc_t hashtable_mpmc = { nullptr };
+        hashtable_mpmc_thread_counters_init(&hashtable_mpmc, 0);
+
+        SECTION("get once") {
+            hashtable_mpmc_counters_volatile_t *hashtable_mpmc_counters =
+                    hashtable_mpmc_thread_counters_get_current_thread(&hashtable_mpmc);
+            REQUIRE(hashtable_mpmc_counters->size == 0);
+        }
+
+        SECTION("get, update, get again") {
+            hashtable_mpmc_counters_volatile_t *hashtable_mpmc_counters =
+                    hashtable_mpmc_thread_counters_get_current_thread(&hashtable_mpmc);
+            hashtable_mpmc_counters->size = 10;
+
+            hashtable_mpmc_counters = hashtable_mpmc_thread_counters_get_current_thread(&hashtable_mpmc);
+            REQUIRE(hashtable_mpmc_counters->size == 10);
+        }
+
+        hashtable_mpmc_thread_counters_free(&hashtable_mpmc);
+    }
+
     SECTION("hashtable_mpmc_support_hash_half") {
         REQUIRE(hashtable_mpmc_support_hash_half(key_hash) == key_hash_half);
     }
@@ -1043,7 +1167,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             REQUIRE(hashtable_small->upsize.total_blocks == 1);
             REQUIRE(hashtable_small->upsize.threads_count == 0);
             REQUIRE(hashtable_small->upsize.block_size == HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
-        };
+        }
 
         SECTION("preparation successful - multiple blocks") {
             REQUIRE(hashtable_mpmc_upsize_prepare(hashtable_large));
@@ -1054,19 +1178,19 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             REQUIRE(hashtable_large->upsize.total_blocks == 17);
             REQUIRE(hashtable_large->upsize.threads_count == 0);
             REQUIRE(hashtable_large->upsize.block_size == HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
-        };
+        }
 
         SECTION("preparation failed - already upsizing") {
             hashtable_small->upsize.status = HASHTABLE_MPMC_STATUS_UPSIZING;
 
             REQUIRE(!hashtable_mpmc_upsize_prepare(hashtable_small));
-        };
+        }
 
         SECTION("preparation failed - preparing to upsize") {
             hashtable_small->upsize.status = HASHTABLE_MPMC_STATUS_PREPARE_FOR_UPSIZE;
 
             REQUIRE(!hashtable_mpmc_upsize_prepare(hashtable_small));
-        };
+        }
 
         hashtable_mpmc_free(hashtable_small);
         hashtable_mpmc_free(hashtable_large);
@@ -1865,7 +1989,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
 
     SECTION("fuzzy testing") {
         SECTION("fixed key count") {
-            // TODO: this test should be improved, the threads spanwed by test_hashtable_mpmc_fuzzy_testing_run simply do an
+            // TODO: this test should be improved, the threads spawned by test_hashtable_mpmc_fuzzy_testing_run simply do an
             //       assert but this impacts the ease of testing, they should instead set an error, stop the processing and
             //       bubble up the error back to the caller and then here (the caller) should use REQUIRE to validate the
             //       result.
