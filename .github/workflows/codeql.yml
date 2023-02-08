@@ -37,7 +37,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_HASH_ALGORITHM_T1HA2=1
+          cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
@@ -54,3 +54,27 @@ jobs:
         uses: github/codeql-action/analyze@v2
         with:
           category: "/language:${{ matrix.language }}"
+          upload: false
+          output: sarif-results
+
+      - name: filter-sarif
+        uses: advanced-security/filter-sarif@v1
+        with:
+          patterns: |
+            -**/build/_deps/*.c
+            -**/build/_deps/*.h
+            -**/build/_deps/*.cpp
+          input: "sarif-results/${{ matrix.language }}.sarif"
+          output: "sarif-results/${{ matrix.language }}.sarif"
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: "sarif-results/${{ matrix.language }}.sarif"
+
+      - name: Upload loc as a Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: sarif-results
+          path: sarif-results
+          retention-days: 7
