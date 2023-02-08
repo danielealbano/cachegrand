@@ -6,7 +6,8 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <cmath>
 #include <numa.h>
 
 #include <string.h>

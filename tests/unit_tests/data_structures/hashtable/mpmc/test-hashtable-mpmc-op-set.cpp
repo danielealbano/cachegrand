@@ -34,7 +34,7 @@
 #include "../../../support.h"
 #include "fixtures-hashtable-mpmc.h"
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashtable_mcmp_op_set]") {
     worker_context_t worker_context = { 0 };

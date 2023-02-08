@@ -10,7 +10,7 @@
  **/
 
 #include <cstring>
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 #include "data_structures/art_spsc/art_spsc.h"
 

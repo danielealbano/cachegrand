@@ -6,8 +6,8 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#define CATCH_CONFIG_RUNNER
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_session.hpp>
 
 #include <sys/types.h>
 #include <unistd.h>
