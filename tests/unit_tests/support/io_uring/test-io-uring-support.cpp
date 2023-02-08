@@ -297,7 +297,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             io_uring_wait_cqe(ring, &cqe);
             REQUIRE(cqe != NULL);
             REQUIRE(cqe->flags == 0);
-            REQUIRE((cqe->res == -ECANCELED) || (cqe->res == -ETIME));
+            REQUIRE(((cqe->res == -ECANCELED) || (cqe->res == -ETIME)));
             REQUIRE(cqe->user_data == 1234);
             io_uring_cqe_seen(ring, cqe);
 
