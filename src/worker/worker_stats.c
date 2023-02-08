@@ -96,9 +96,26 @@ bool worker_stats_should_publish_after_interval(
     return res;
 }
 
-worker_stats_t *worker_stats_get() {
+worker_stats_t *worker_stats_get_internal_current() {
     worker_context_t *context = worker_context_get();
     return &context->stats.internal;
+}
+
+bool worker_stats_get_shared_by_index(
+        uint32_t index,
+        worker_stats_t *return_worker_stats) {
+    program_context_t *program_context = program_get_context();
+
+    if (index >= program_context->workers_count) {
+        return false;
+    }
+
+    memcpy(
+            return_worker_stats,
+            (worker_stats_t *)&program_context->workers_context[index].stats.shared,
+            sizeof(worker_stats_t));
+
+    return true;
 }
 
 worker_stats_t *worker_stats_aggregate(

@@ -286,7 +286,7 @@ void worker_network_listeners_listen(
 
 void worker_network_new_client_fiber_entrypoint(
         void *user_data) {
-    worker_stats_t *stats = worker_stats_get();
+    worker_stats_t *stats = worker_stats_get_internal_current();
 
     network_channel_t *new_channel = user_data;
     bool tls_enabled = new_channel->tls.enabled;

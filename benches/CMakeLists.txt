@@ -8,11 +8,14 @@
 include(ExternalProject)
 set (CMAKE_CXX_STANDARD 17)
 
-ExternalProject_Add(benchmark-install
-        PREFIX benchmark-sources
-        INSTALL_DIR ${CMAKE_BINARY_DIR}/benchmark-install
-        URL https://github.com/google/benchmark/archive/v1.6.1.tar.gz
-        CMAKE_CACHE_ARGS
+if (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} GREATER_EQUAL 3.24)
+    ExternalProject_Add(benchmark-install
+            PREFIX benchmark-sources
+            DOWNLOAD_EXTRACT_TIMESTAMP true
+            INSTALL_DIR ${CMAKE_BINARY_DIR}/benchmark-install
+            URL https://github.com/google/benchmark/archive/v1.6.1.tar.gz
+            BUILD_BYPRODUCTS ${CMAKE_BINARY_DIR}/benchmark-install/lib/libbenchmark.a
+            CMAKE_CACHE_ARGS
             -DCMAKE_C_COMPILER:STRING=${CMAKE_C_COMPILER}
             -DCMAKE_CXX_COMPILER:STRING=${CMAKE_CXX_COMPILER}
             -DCMAKE_BUILD_TYPE:STRING=RELEASE
@@ -20,6 +23,21 @@ ExternalProject_Add(benchmark-install
             -DCMAKE_CXX_FLAGS:STRING=${BENCHMARK_LIBCXX_COMPILE_FLAGS}
             -DBENCHMARK_ENABLE_TESTING:BOOL=OFF
             -DBENCHMARK_DOWNLOAD_DEPENDENCIES:BOOL=ON)
+else()
+    ExternalProject_Add(benchmark-install
+            PREFIX benchmark-sources
+            INSTALL_DIR ${CMAKE_BINARY_DIR}/benchmark-install
+            URL https://github.com/google/benchmark/archive/v1.6.1.tar.gz
+            BUILD_BYPRODUCTS ${CMAKE_BINARY_DIR}/benchmark-install/lib/libbenchmark.a
+            CMAKE_CACHE_ARGS
+            -DCMAKE_C_COMPILER:STRING=${CMAKE_C_COMPILER}
+            -DCMAKE_CXX_COMPILER:STRING=${CMAKE_CXX_COMPILER}
+            -DCMAKE_BUILD_TYPE:STRING=RELEASE
+            -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+            -DCMAKE_CXX_FLAGS:STRING=${BENCHMARK_LIBCXX_COMPILE_FLAGS}
+            -DBENCHMARK_ENABLE_TESTING:BOOL=OFF
+            -DBENCHMARK_DOWNLOAD_DEPENDENCIES:BOOL=ON)
+endif()
 
 add_library(benchmark::benchmark STATIC IMPORTED)
 add_dependencies(benchmark::benchmark benchmark-install)

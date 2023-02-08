@@ -7,7 +7,7 @@ extern "C" {
 
 #define HASHTABLE_MPMC_HASH_SEED 42U
 #define HASHTABLE_MPMC_LINEAR_SEARCH_RANGE 256
-#define HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE 4096
+#define HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE (1024 * 16)
 
 #define HASHTABLE_MPMC_POINTER_TAG_TEMPORARY (0x01)
 #define HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE (0x02)
@@ -57,8 +57,8 @@ struct hashtable_mpmc_data_key_value {
     } key;
     uintptr_t value;
     uint64_t hash;
-    uint64_t creation_time;
-    uint64_t last_update_time;
+    uint64_t create_time;
+    uint64_t update_time;
     bool key_is_embedded;
 };
 
@@ -110,12 +110,23 @@ struct hashtable_mpmc_upsize_info {
     uint16_t threads_count;
 };
 
+typedef struct hashtable_mpmc_counters hashtable_mpmc_counters_t;
+typedef _Volatile(hashtable_mpmc_counters_t) hashtable_mpmc_counters_volatile_t;
+struct hashtable_mpmc_counters {
+    int64_t size;
+};
+
 typedef struct hashtable_mpmc hashtable_mpmc_t;
 struct hashtable_mpmc {
     hashtable_mpmc_data_t *data;
     uint64_t buckets_count_max;
-    uint16_t upsize_preferred_block_size;
+    uint64_t upsize_preferred_block_size;
     hashtable_mpmc_upsize_info_t upsize;
+    struct {
+        spinlock_lock_volatile_t lock;
+        uint32_volatile_t size;
+        hashtable_mpmc_counters_volatile_t **list;
+    } thread_counters;
 };
 
 enum hashtable_mpmc_result {
@@ -146,7 +157,7 @@ void hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_free();
 
 uint64_t hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch();
 
-hashtable_mpmc_hash_t hashtable_mcmp_support_hash_calculate(
+hashtable_mpmc_hash_t hashtable_mpmc_support_hash_calculate(
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length);
 
@@ -163,9 +174,12 @@ void hashtable_mpmc_data_free(
 hashtable_mpmc_t *hashtable_mpmc_init(
         uint64_t buckets_count,
         uint64_t buckets_count_max,
-        uint16_t upsize_preferred_block_size);
+        uint64_t upsize_preferred_block_size);
 
 void hashtable_mpmc_free(
+        hashtable_mpmc_t *hashtable_mpmc);
+
+bool hashtable_mpmc_upsize_is_allowed(
         hashtable_mpmc_t *hashtable_mpmc);
 
 bool hashtable_mpmc_upsize_prepare(
@@ -228,8 +242,37 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
         hashtable_mpmc_key_length_t key_length,
         uintptr_t value,
         bool *return_created_new,
-        bool *return_value_updated,
         uintptr_t *return_previous_value);
+
+hashtable_mpmc_counters_t *hashtable_mpmc_thread_counters_sum_fetch(
+        hashtable_mpmc_t *hashtable);
+
+void hashtable_mpmc_thread_counters_sum_free(
+        hashtable_mpmc_counters_t *counters_sum);
+
+void hashtable_mpmc_thread_counters_reset(
+        hashtable_mpmc_t *hashtable_mpmc);
+
+void hashtable_mpmc_thread_counters_expand_to(
+        hashtable_mpmc_t *hashtable_mpmc,
+        uint32_t new_size);
+
+uint32_t hashtable_mpmc_thread_counters_fetch_new_index(
+        hashtable_mpmc_t *hashtable_mpmc);
+
+hashtable_mpmc_counters_volatile_t* hashtable_mpmc_thread_counters_get_by_index(
+        hashtable_mpmc_t *hashtable_mpmc,
+        uint32_t index);
+
+hashtable_mpmc_counters_volatile_t* hashtable_mpmc_thread_counters_get_current_thread(
+        hashtable_mpmc_t* hashtable_mpmc);
+
+void hashtable_mpmc_thread_counters_init(
+        hashtable_mpmc_t *hashtable_mpmc,
+        uint32_t initial_size);
+
+void hashtable_mpmc_thread_counters_free(
+        hashtable_mpmc_t *hashtable_mpmc);
 
 #ifdef __cplusplus
 }

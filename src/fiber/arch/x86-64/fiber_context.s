@@ -88,3 +88,11 @@ fiber_context_swap:
     # Return.
     xorl %eax, %eax
     ret
+
+/**
+ * The following section is added as the functions here don't require an executable stack, it's used to fix the
+ * following warning:
+ * /usr/bin/ld: warning: fiber_context.s.o: missing .note.GNU-stack section implies executable stack
+ * /usr/bin/ld: NOTE: This behaviour is deprecated and will be removed in a future version of the linker
+ **/
+.section .note.GNU-stack,"",%progbits

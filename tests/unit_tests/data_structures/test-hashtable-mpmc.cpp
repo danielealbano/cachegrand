@@ -45,7 +45,7 @@
     '1','2','3','4','5','6','7','8','9','0', '1','2','3','4','5','6','7','8','9','0', \
     '.',',','/','|','\'',';',']','[','<','>','?',':','"','{','}','!','@','$','%','^','&','*','(',')','_','-','=','+','#'
 
-hashtable_mpmc_hash_t test_hashtable_mcmp_support_hash_calculate(
+hashtable_mpmc_hash_t test_hashtable_mpmc_support_hash_calculate(
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length) {
 #if CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2 == 1
@@ -73,6 +73,7 @@ struct test_hashtable_mpmc_fuzzy_test_key_status_info {
     int locked;
     uint64_t operations;
     test_hashtable_mpmc_fuzzy_test_key_status_t key_status;
+    uint64_t retries;
 };
 
 typedef struct test_hashtable_mpmc_fuzzy_test_thread_info test_hashtable_mpmc_fuzzy_test_thread_info_t;
@@ -88,40 +89,47 @@ struct test_hashtable_mpmc_fuzzy_test_thread_info {
     char *keys;
     uint32_t keys_count;
     uint32_t key_length_max;
-    test_hashtable_mpmc_fuzzy_test_key_status_info_t *keys_status;
-    uint32_volatile_t *ops_counter_total;
-    uint32_volatile_t *ops_counter_read;
-    uint32_volatile_t *ops_counter_insert;
-    uint32_volatile_t *ops_counter_update;
-    uint32_volatile_t *ops_counter_delete;
+    test_hashtable_mpmc_fuzzy_test_key_status_info_t *keys_info;
+    uint64_volatile_t *ops_counter_total;
+    uint64_volatile_t *ops_counter_read;
+    uint64_volatile_t *ops_counter_insert;
+    uint64_volatile_t *ops_counter_update;
+    uint64_volatile_t *ops_counter_delete;
 };
 
 char* test_hashtable_mpmc_fuzzy_testing_keys_generate(
         uint32_t keys_count,
-        uint16_t min_key_length,
-        uint16_t max_key_length) {
+        uint16_t key_length) {
     char charset_list[] = {TEST_HASHTABLE_MPMC_FUZZY_TESTING_KEYS_CHARACTER_SET};
     size_t charset_size = sizeof(charset_list);
 
-    hashtable_spsc_t *hashtable_track_dup_keys = hashtable_spsc_new(keys_count * 2, 512, true, false);
-    char *keys = (char*)xalloc_alloc_zero(keys_count * (max_key_length + 1));
+    uint64_t hash_track_dup_keys_capacity = keys_count * 4;
+    auto hash_track_dup_keys = (uint64_t*)xalloc_alloc_zero(sizeof(uint64_t) * hash_track_dup_keys_capacity);
+    char *keys = (char*)xalloc_alloc_zero(keys_count * (key_length + 1));
 
     random_init(intrinsics_tsc());
+    uint64_t seed = random_generate();
 
     for(uint32_t key_index = 0; key_index < keys_count; key_index++) {
-        uint32_t key_offset = key_index * (max_key_length + 1);
-        uint16_t key_length = (random_generate() % (max_key_length - min_key_length)) + min_key_length;
+        uint32_t key_offset = key_index * (key_length + 1);
+        char *key = &keys[key_offset];
 
+        uint64_t hash = 0;
+        uint64_t hash_track_dup_keys_index = 0;
         do {
             for(uint16_t letter_index = 0; letter_index < key_length; letter_index++) {
-                keys[key_offset + letter_index] = charset_list[random_generate() % charset_size];
+                key[letter_index] = charset_list[random_generate() % charset_size];
             }
-        } while(hashtable_spsc_op_get_cs(hashtable_track_dup_keys, &keys[key_offset], key_length) != nullptr);
+            key[key_length] = 0;
 
-        assert(hashtable_spsc_op_try_set_cs(hashtable_track_dup_keys, &keys[key_offset], key_length, (void*)1));
+            hash = t1ha2_atonce(key, key_length, seed);
+            hash_track_dup_keys_index = hash % hash_track_dup_keys_capacity;
+        } while(hash_track_dup_keys[hash_track_dup_keys_index] == 1);
+
+        hash_track_dup_keys[hash_track_dup_keys_index] = 1;
     }
 
-    hashtable_spsc_free(hashtable_track_dup_keys);
+    xalloc_free(hash_track_dup_keys);
 
     return keys;
 }
@@ -145,10 +153,12 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
 
     auto hashtable = ti->hashtable;
     auto keys = ti->keys;
-    auto keys_status = ti->keys_status;
+    auto keys_info = ti->keys_info;
     auto keys_count  = ti->keys_count;
 
     thread_current_set_affinity(ti->cpu_index);
+
+    random_init(intrinsics_tsc());
 
     hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
     hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_init();
@@ -175,18 +185,18 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
             locked_expected = 0;
             key_index = random_generate() % keys_count;
         } while (!__atomic_compare_exchange_n(
-                &keys_status[key_index].locked,
+                &keys_info[key_index].locked,
                 &locked_expected,
                 locked_new,
                 false,
                 __ATOMIC_ACQ_REL,
                 __ATOMIC_ACQUIRE));
 
-        int action = random_generate() % 300;
+        uint64_t action = random_generate() % 300;
         uint32_t key_offset = key_index * (ti->key_length_max + 1);
         char *key = &keys[key_offset];
 
-        __atomic_fetch_add(&keys_status[key_index].operations, 1, __ATOMIC_RELAXED);
+        __atomic_fetch_add(&keys_info[key_index].operations, 1, __ATOMIC_RELAXED);
         __atomic_fetch_add(ti->ops_counter_total, 1, __ATOMIC_RELAXED);
 
         if (action < 100) {
@@ -200,10 +210,42 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
 
             __atomic_fetch_add(ti->ops_counter_read, 1, __ATOMIC_RELAXED);
 
-            if (result != HASHTABLE_MPMC_RESULT_TRY_LATER) {
-                if (keys_status[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
+            if (result == HASHTABLE_MPMC_RESULT_TRY_LATER) {
+                keys_info[key_index].retries++;
+            } else {
+                keys_info[key_index].retries = 0;
+
+                if (keys_info[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
+                    if (result != HASHTABLE_MPMC_RESULT_FALSE) {
+                        *ti->stop = true;
+                        MEMORY_FENCE_STORE();
+
+                        fprintf(
+                                stdout,
+                                "[%lu] >   the deleted key <%s (%lu)> has been found\n",
+                                intrinsics_tsc(),
+                                key,
+                                strlen(key));
+                        fflush(stdout);
+                        FATAL("crash", "crash");
+                    }
+
                     assert(result == HASHTABLE_MPMC_RESULT_FALSE);
                 } else {
+                    if (result != HASHTABLE_MPMC_RESULT_TRUE) {
+                        *ti->stop = true;
+                        MEMORY_FENCE_STORE();
+
+                        fprintf(
+                                stdout,
+                                "[%lu] >   the inserted key <%s (%lu)> can't be found\n",
+                                intrinsics_tsc(),
+                                key,
+                                strlen(key));
+                        fflush(stdout);
+                        FATAL("crash", "crash");
+                    }
+
                     assert(result == HASHTABLE_MPMC_RESULT_TRUE);
                     assert(return_value == test_hashtable_mpmc_fuzzy_testing_calc_value_from_key_index(key_index));
                 }
@@ -217,20 +259,51 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
 
             __atomic_fetch_add(ti->ops_counter_delete, 1, __ATOMIC_RELAXED);
 
-            if (result != HASHTABLE_MPMC_RESULT_TRY_LATER) {
-                if (keys_status[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
+            if (result == HASHTABLE_MPMC_RESULT_TRY_LATER) {
+                keys_info[key_index].retries++;
+            } else {
+                keys_info[key_index].retries = 0;
+
+                if (keys_info[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
+                    if (result != HASHTABLE_MPMC_RESULT_FALSE) {
+                        *ti->stop = true;
+                        MEMORY_FENCE_STORE();
+
+                        fprintf(
+                                stdout,
+                                "[%lu] >   the deleted key <%s (%lu)> has been re-deleted\n",
+                                intrinsics_tsc(),
+                                key,
+                                strlen(key));
+                        fflush(stdout);
+                        FATAL("crash", "crash");
+                    }
+
                     assert(result == HASHTABLE_MPMC_RESULT_FALSE);
                 } else {
-                    assert(result == HASHTABLE_MPMC_RESULT_TRUE);
-                }
+                    if (result != HASHTABLE_MPMC_RESULT_TRUE) {
+                        *ti->stop = true;
+                        MEMORY_FENCE_STORE();
 
-                keys_status[key_index].key_status = TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED;
+                        fprintf(
+                                stdout,
+                                "[%lu] >   the existing key <%s (%lu)> cannot be deleted\n",
+                                intrinsics_tsc(),
+                                key,
+                                strlen(key));
+                        fflush(stdout);
+                        FATAL("crash", "crash");
+                    }
+
+                    assert(result == HASHTABLE_MPMC_RESULT_TRUE);
+
+                    keys_info[key_index].key_status = TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED;
+                }
             }
         } else {
             // Try to insert or update
             char *key_copy = mi_strdup(key);
             bool return_created_new = false;
-            bool return_value_updated = false;
             uintptr_t return_previous_value = 0;
 
             result = hashtable_mpmc_op_set(
@@ -239,13 +312,25 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
                     strlen(key_copy),
                     test_hashtable_mpmc_fuzzy_testing_calc_value_from_key_index(key_index),
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value);
 
+            if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING || result == HASHTABLE_MPMC_RESULT_TRY_LATER) {
+                xalloc_free(key_copy);
+                keys_info[key_index].retries++;
+            } else {
+                keys_info[key_index].retries = 0;
+            }
+
             if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
-                hashtable_mpmc_upsize_prepare(hashtable);
+                if (hashtable_mpmc_upsize_is_allowed(hashtable)) {
+                    hashtable_mpmc_upsize_prepare(hashtable);
+                } else {
+                    fprintf(stdout, ">   hashtable maximum size reached, can't upsize\n");
+                    fflush(stdout);
+                    FATAL("crash", "crash");
+                }
             } else if (result != HASHTABLE_MPMC_RESULT_TRY_LATER) {
-                if (keys_status[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
+                if (keys_info[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
                     __atomic_fetch_add(ti->ops_counter_insert, 1, __ATOMIC_RELAXED);
                 } else {
                     __atomic_fetch_add(ti->ops_counter_update, 1, __ATOMIC_RELAXED);
@@ -253,22 +338,60 @@ void* test_hashtable_mpmc_fuzzy_testing_thread_func(
 
                 assert(result == HASHTABLE_MPMC_RESULT_TRUE);
 
-                if (keys_status[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
+                if (keys_info[key_index].key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
+                    if (return_created_new != true) {
+                        *ti->stop = true;
+                        MEMORY_FENCE_STORE();
+
+                        fprintf(
+                                stdout,
+                                "[%lu] >   the deleted key <%s (%lu)> has been updated instead of inserted\n",
+                                intrinsics_tsc(),
+                                key,
+                                strlen(key));
+                        fflush(stdout);
+                        FATAL("crash", "crash");
+                    }
+
                     assert(return_created_new == true);
-                    assert(return_value_updated == true);
                     assert(return_previous_value == 0);
                 } else {
+                    if (return_created_new != false) {
+                        *ti->stop = true;
+                        MEMORY_FENCE_STORE();
+
+                        fprintf(
+                                stdout,
+                                "[%lu] >   the existing key <%s (%lu)> has been reinserted instead of updated\n",
+                                intrinsics_tsc(),
+                                key,
+                                strlen(key));
+                        fflush(stdout);
+                        FATAL("crash", "crash");
+                    }
+
                     assert(return_created_new == false);
-                    assert(return_value_updated == true);
                     assert(return_previous_value == test_hashtable_mpmc_fuzzy_testing_calc_value_from_key_index(key_index));
                 }
 
-                keys_status[key_index].key_status = TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_INSERTED;
+                keys_info[key_index].key_status = TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_INSERTED;
             }
         }
 
+        if (keys_info[key_index].retries == 25) {
+            fprintf(
+                    stdout,
+                    "[%lu] >   operations on the key <%s (%lu)> have been retried too many times (<%ld>), aborting\n",
+                    intrinsics_tsc(),
+                    key,
+                    strlen(key),
+                    keys_info[key_index].retries);
+            fflush(stdout);
+            FATAL("crash", "crash");
+        }
+
         // Unlock the key status
-        keys_status[key_index].locked = 0;
+        keys_info[key_index].locked = 0;
         MEMORY_FENCE_STORE();
 
         if (hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING) {
@@ -307,94 +430,188 @@ void test_hashtable_mpmc_fuzzy_testing_run(
         char *keys,
         uint32_t keys_count,
         uint32_t key_length_max,
-        int threads,
-        int duration) {
-    uint32_t ops_counter_total = 0, ops_counter_read = 0, ops_counter_insert = 0, ops_counter_update = 0,
-        ops_counter_delete = 0;
+        uint32_t threads,
+        uint32_t duration) {
+    uint64_t ops_counter_total = 0, ops_counter_read = 0, ops_counter_insert = 0, ops_counter_update = 0,
+            ops_counter_delete = 0;
     timespec_t start_time, current_time, diff_time;
     bool start = false;
     bool stop = false;
 
-    auto ti_list = (test_hashtable_mpmc_fuzzy_test_thread_info_t*)xalloc_alloc_zero(
+    auto ti_list = (test_hashtable_mpmc_fuzzy_test_thread_info_t *) xalloc_alloc_zero(
             sizeof(test_hashtable_mpmc_fuzzy_test_thread_info_t) * threads);
 
-    auto keys_status = (test_hashtable_mpmc_fuzzy_test_key_status_info_t*)xalloc_alloc_zero(
+    auto keys_info = (test_hashtable_mpmc_fuzzy_test_key_status_info_t *) xalloc_alloc_zero(
             sizeof(test_hashtable_mpmc_fuzzy_test_key_status_info_t) * keys_count);
 
     epoch_gc_t *epoch_gc_kv = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE);
     epoch_gc_t *epoch_gc_data = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_HASHTABLE_DATA);
 
-    for(int i = 0; i < threads; i++) {
-        auto ti = &ti_list[i];
+    // Sets up and starts the threads - Begin
+    {
+        for (int i = 0; i < threads; i++) {
+            auto ti = &ti_list[i];
 
-        ti->cpu_index = i;
-        ti->start = &start;
-        ti->stop = &stop;
-        ti->stopped = false;
-        ti->hashtable = hashtable;
-        ti->keys = keys;
-        ti->keys_status = keys_status;
-        ti->keys_count = keys_count;
-        ti->key_length_max = key_length_max;
-        ti->ops_counter_total = &ops_counter_total;
-        ti->ops_counter_read = &ops_counter_read;
-        ti->ops_counter_insert = &ops_counter_insert;
-        ti->ops_counter_update = &ops_counter_update;
-        ti->ops_counter_delete = &ops_counter_delete;
-        ti->epoch_gc_kv = epoch_gc_kv;
-        ti->epoch_gc_data = epoch_gc_data;
+            ti->cpu_index = i;
+            ti->start = &start;
+            ti->stop = &stop;
+            ti->stopped = false;
+            ti->hashtable = hashtable;
+            ti->keys = keys;
+            ti->keys_info = keys_info;
+            ti->keys_count = keys_count;
+            ti->key_length_max = key_length_max;
+            ti->ops_counter_total = &ops_counter_total;
+            ti->ops_counter_read = &ops_counter_read;
+            ti->ops_counter_insert = &ops_counter_insert;
+            ti->ops_counter_update = &ops_counter_update;
+            ti->ops_counter_delete = &ops_counter_delete;
+            ti->epoch_gc_kv = epoch_gc_kv;
+            ti->epoch_gc_data = epoch_gc_data;
 
-        if (pthread_create(
-                &ti->thread,
-                nullptr,
-                test_hashtable_mpmc_fuzzy_testing_thread_func,
-                ti) != 0) {
-            REQUIRE(false);
-        }
-    }
+            if (pthread_create(
+                    &ti->thread,
+                    nullptr,
+                    test_hashtable_mpmc_fuzzy_testing_thread_func,
+                    ti) != 0) {
+                REQUIRE(false);
 
-    start = true;
-    MEMORY_FENCE_STORE();
-
-    clock_monotonic(&start_time);
-
-    do {
-        clock_monotonic(&current_time);
-        sched_yield();
-
-        clock_diff(&start_time, &current_time, &diff_time);
-    } while(diff_time.tv_sec < duration);
-
-    stop = true;
-    MEMORY_FENCE_STORE();
-
-    bool stopped;
-    do {
-        stopped = true;
-        sched_yield();
-
-        // wait for all the threads to stop
-        for(int i = 0; i < threads && stopped; i++) {
-            MEMORY_FENCE_LOAD();
-            if (!ti_list[i].stopped) {
-                stopped = false;
-                continue;
+                usleep(10000);
             }
         }
-    } while(!stopped);
-
-
-    for(int i = 0; i < threads; i++) {
-        void *result;
-        auto ti = &ti_list[i];
-        pthread_join(ti->thread, &result);
     }
+    // Sets up and starts the threads - End
 
-    // TODO: validate the hashtable
+    // Starts the threads and wait for the requested duration - Begin
+    {
+        start = true;
+        MEMORY_FENCE_STORE();
+
+        clock_monotonic(&start_time);
+
+        do {
+            clock_monotonic(&current_time);
+            sched_yield();
+
+            clock_diff(&start_time, &current_time, &diff_time);
+        } while (diff_time.tv_sec < duration);
+    }
+    // Starts the threads and wait for the requested duration - End
+
+    // Wait for all the threads to stop - Begin
+    {
+        stop = true;
+        MEMORY_FENCE_STORE();
+
+        bool stopped;
+        do {
+            stopped = true;
+            sched_yield();
+
+            // wait for all the threads to stop
+            for (int i = 0; i < threads && stopped; i++) {
+                MEMORY_FENCE_LOAD();
+                if (!ti_list[i].stopped) {
+                    stopped = false;
+                    continue;
+                }
+            }
+        } while (!stopped);
+    }
+    // Wait for all the threads to stop - End
+
+    // Wait for all the threads to reach the end of the thread func - Begin
+    {
+        for(int i = 0; i < threads; i++) {
+            void *result;
+            auto ti = &ti_list[i];
+            pthread_join(ti->thread, &result);
+        }
+    }
+    // Wait for all the threads to reach the end of the thread func - End
+
+    // Keys Validation - Begin
+    {
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_init();
+
+        epoch_gc_thread_t *epoch_gc_kv_thread = epoch_gc_thread_init();
+        epoch_gc_thread_register_global(epoch_gc_kv, epoch_gc_kv_thread);
+        epoch_gc_thread_register_local(epoch_gc_kv_thread);
+
+        epoch_gc_thread_t *epoch_gc_data_thread = epoch_gc_thread_init();
+        epoch_gc_thread_register_global(epoch_gc_data, epoch_gc_data_thread);
+        epoch_gc_thread_register_local(epoch_gc_data_thread);
+
+        fprintf(stdout, "[%lu] > VALIDATING INSERTED KEYS\n", intrinsics_tsc());
+        for (uint32_t key_index = 0; key_index < keys_count; key_index++) {
+            test_hashtable_mpmc_fuzzy_test_key_status_info_t *key_info = &keys_info[key_index];
+
+            if (key_info->key_status == TEST_HASHTABLE_MPMC_FUZZY_TEST_KEY_STATUS_DELETED) {
+                continue;
+            }
+
+            uint32_t key_offset = key_index * (key_length_max + 1);
+            char *key = &keys[key_offset];
+
+            // Try to read
+            uintptr_t return_value = 0;
+            hashtable_mpmc_result_t result = hashtable_mpmc_op_get(
+                    hashtable,
+                    key,
+                    strlen(key),
+                    &return_value);
+
+            epoch_gc_thread_set_epoch(
+                    epoch_gc_kv_thread,
+                    hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+
+            epoch_gc_thread_set_epoch(
+                    epoch_gc_data_thread,
+                    hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
+
+            if (result != HASHTABLE_MPMC_RESULT_TRUE) {
+                fprintf(
+                        stdout,
+                        "[%lu] >   the inserted key <%s (%lu)> n. <%u> can't be found\n",
+                        intrinsics_tsc(),
+                        key,
+                        strlen(key),
+                        key_index);
+                fflush(stdout);
+                FATAL("crash", "crash");
+            }
+
+            assert(result == HASHTABLE_MPMC_RESULT_TRUE);
+            assert(return_value == test_hashtable_mpmc_fuzzy_testing_calc_value_from_key_index(key_index));
+        }
+
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free();
+        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_free();
+
+        epoch_gc_thread_collect_all(epoch_gc_kv_thread);
+        epoch_gc_thread_collect_all(epoch_gc_data_thread);
+
+        epoch_gc_thread_terminate(epoch_gc_kv_thread);
+        epoch_gc_thread_unregister_local(epoch_gc_kv_thread);
+
+        epoch_gc_thread_terminate(epoch_gc_data_thread);
+        epoch_gc_thread_unregister_local(epoch_gc_data_thread);
+    }
+    // Keys Validation - End
+
+    fprintf(stdout, "[%lu] > SUMMARY\n", intrinsics_tsc());
+    fprintf(stdout, "[%lu] >   hashtable current size = %lu\n", intrinsics_tsc(), hashtable->data->buckets_count);
+    fprintf(stdout, "[%lu] >   ops_counter_total = %lu\n", intrinsics_tsc(), ops_counter_total);
+    fprintf(stdout, "[%lu] >   ops_counter_read = %lu\n", intrinsics_tsc(), ops_counter_read);
+    fprintf(stdout, "[%lu] >   ops_counter_insert = %lu\n", intrinsics_tsc(), ops_counter_insert);
+    fprintf(stdout, "[%lu] >   ops_counter_update = %lu\n", intrinsics_tsc(), ops_counter_update);
+    fprintf(stdout, "[%lu] >   ops_counter_delete = %lu\n", intrinsics_tsc(), ops_counter_delete);
+    fflush(stdout);
 
     hashtable_mpmc_free(hashtable);
     xalloc_free(ti_list);
-    xalloc_free(keys_status);
+    xalloc_free(keys_info);
 
     epoch_gc_free(epoch_gc_kv);
     epoch_gc_free(epoch_gc_data);
@@ -404,17 +621,17 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
     char *key = "This Is A Key - not embedded";
     char *key_different_case = "THIS IS A KEY - NOT EMBEDDED";
     hashtable_mpmc_key_length_t key_length = strlen(key);
-    hashtable_mpmc_hash_t key_hash = test_hashtable_mcmp_support_hash_calculate(key, key_length);
+    hashtable_mpmc_hash_t key_hash = test_hashtable_mpmc_support_hash_calculate(key, key_length);
     hashtable_mpmc_hash_half_t key_hash_half = key_hash & 0XFFFFFFFF;
 
     char *key2 = "This Is Another Key - not embedded";
     hashtable_mpmc_key_length_t key2_length = strlen(key2);
-    hashtable_mpmc_hash_t key2_hash = test_hashtable_mcmp_support_hash_calculate(key2, key2_length);
+    hashtable_mpmc_hash_t key2_hash = test_hashtable_mpmc_support_hash_calculate(key2, key2_length);
     hashtable_mpmc_hash_half_t key2_hash_half = key2_hash & 0XFFFFFFFF;
 
     char *key_embed = "embedded key";
     hashtable_mpmc_key_length_t key_embed_length = strlen(key_embed);
-    hashtable_mpmc_hash_t key_embed_hash = test_hashtable_mcmp_support_hash_calculate(
+    hashtable_mpmc_hash_t key_embed_hash = test_hashtable_mpmc_support_hash_calculate(
             key_embed,
             key_embed_length);
     hashtable_mpmc_hash_half_t key_embed_hash_half = key_embed_hash & 0XFFFFFFFF;
@@ -449,6 +666,130 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_NOT_UPSIZING);
 
         hashtable_mpmc_free(hashtable);
+    }
+
+
+    SECTION("hashtable_mpmc_thread_counters_expand_to") {
+        hashtable_mpmc_t hashtable_mpmc = { nullptr };
+
+        SECTION("initial size 0") {
+            hashtable_mpmc_thread_counters_expand_to(&hashtable_mpmc, 0);
+
+            REQUIRE(hashtable_mpmc.thread_counters.size == 0);
+            REQUIRE(spinlock_is_locked(&hashtable_mpmc.thread_counters.lock) == false);
+            REQUIRE(hashtable_mpmc.thread_counters.list == NULL);
+
+            hashtable_mpmc_thread_counters_free(&hashtable_mpmc);
+        }
+
+        SECTION("initial size 16") {
+            hashtable_mpmc_thread_counters_expand_to(&hashtable_mpmc, 16);
+
+            REQUIRE(hashtable_mpmc.thread_counters.size == 16);
+            REQUIRE(spinlock_is_locked(&hashtable_mpmc.thread_counters.lock) == false);
+            REQUIRE(hashtable_mpmc.thread_counters.list != NULL);
+
+            hashtable_mpmc_thread_counters_free(&hashtable_mpmc);
+        }
+    }
+
+    SECTION("hashtable_mpmc_thread_counters_init") {
+        hashtable_mpmc_t hashtable_mpmc = { nullptr };
+
+        SECTION("initial size 0") {
+            hashtable_mpmc_thread_counters_init(&hashtable_mpmc, 0);
+
+            REQUIRE(hashtable_mpmc.thread_counters.size == 0);
+            REQUIRE(spinlock_is_locked(&hashtable_mpmc.thread_counters.lock) == false);
+            REQUIRE(hashtable_mpmc.thread_counters.list == NULL);
+
+            hashtable_mpmc_thread_counters_free(&hashtable_mpmc);
+        }
+
+        SECTION("initial size 16") {
+            hashtable_mpmc_thread_counters_init(&hashtable_mpmc, 16);
+
+            REQUIRE(hashtable_mpmc.thread_counters.size == 16);
+            REQUIRE(spinlock_is_locked(&hashtable_mpmc.thread_counters.lock) == false);
+            REQUIRE(hashtable_mpmc.thread_counters.list != NULL);
+
+            hashtable_mpmc_thread_counters_free(&hashtable_mpmc);
+        }
+    }
+
+    SECTION("hashtable_mpmc_thread_counters_fetch_new_index") {
+        hashtable_mpmc_t hashtable_mpmc = { nullptr };
+
+        REQUIRE(hashtable_mpmc_thread_counters_fetch_new_index(&hashtable_mpmc) == 0);
+
+        hashtable_mpmc.thread_counters.size = 16;
+
+        REQUIRE(hashtable_mpmc_thread_counters_fetch_new_index(&hashtable_mpmc) == 16);
+    }
+
+    SECTION("hashtable_mpmc_thread_counters_get_by_index") {
+        hashtable_mpmc_t hashtable_mpmc = { nullptr };
+        hashtable_mpmc_thread_counters_init(&hashtable_mpmc, 8);
+        hashtable_mpmc.thread_counters.list[3]->size = 10;
+
+        SECTION("existing thread index") {
+            REQUIRE(hashtable_mpmc_thread_counters_get_by_index(&hashtable_mpmc, 3)->size == 10);
+        }
+
+        SECTION("non-existing thread index") {
+            REQUIRE(hashtable_mpmc_thread_counters_get_by_index(&hashtable_mpmc, 16)->size == 0);
+            REQUIRE(hashtable_mpmc.thread_counters.size == 17);
+        }
+
+        hashtable_mpmc_thread_counters_free(&hashtable_mpmc);
+    }
+
+    SECTION("hashtable_mpmc_thread_counters_reset") {
+        hashtable_mpmc_t hashtable_mpmc = { nullptr };
+        hashtable_mpmc_thread_counters_init(&hashtable_mpmc, 8);
+        hashtable_mpmc_thread_counters_reset(&hashtable_mpmc);
+        REQUIRE(hashtable_mpmc.thread_counters.size == 0);
+        REQUIRE(hashtable_mpmc.thread_counters.list == NULL);
+
+        hashtable_mpmc_thread_counters_free(&hashtable_mpmc);
+    }
+
+    SECTION("hashtable_mpmc_thread_counters_sum_fetch") {
+        hashtable_mpmc_t hashtable_mpmc = { nullptr };
+        hashtable_mpmc_thread_counters_init(&hashtable_mpmc, 8);
+        hashtable_mpmc.thread_counters.list[1]->size = 5;
+        hashtable_mpmc.thread_counters.list[2]->size = 6;
+        hashtable_mpmc.thread_counters.list[3]->size = 7;
+        hashtable_mpmc.thread_counters.list[4]->size = 8;
+
+        hashtable_mpmc_counters_t *hashtable_mpmc_counters = hashtable_mpmc_thread_counters_sum_fetch(&hashtable_mpmc);
+
+        REQUIRE(hashtable_mpmc_counters->size == 5+6+7+8);
+
+        hashtable_mpmc_thread_counters_sum_free(hashtable_mpmc_counters);
+        hashtable_mpmc_thread_counters_free(&hashtable_mpmc);
+    }
+
+    SECTION("hashtable_mpmc_thread_counters_sum_fetch") {
+        hashtable_mpmc_t hashtable_mpmc = { nullptr };
+        hashtable_mpmc_thread_counters_init(&hashtable_mpmc, 0);
+
+        SECTION("get once") {
+            hashtable_mpmc_counters_volatile_t *hashtable_mpmc_counters =
+                    hashtable_mpmc_thread_counters_get_current_thread(&hashtable_mpmc);
+            REQUIRE(hashtable_mpmc_counters->size == 0);
+        }
+
+        SECTION("get, update, get again") {
+            hashtable_mpmc_counters_volatile_t *hashtable_mpmc_counters =
+                    hashtable_mpmc_thread_counters_get_current_thread(&hashtable_mpmc);
+            hashtable_mpmc_counters->size = 10;
+
+            hashtable_mpmc_counters = hashtable_mpmc_thread_counters_get_current_thread(&hashtable_mpmc);
+            REQUIRE(hashtable_mpmc_counters->size == 10);
+        }
+
+        hashtable_mpmc_thread_counters_free(&hashtable_mpmc);
     }
 
     SECTION("hashtable_mpmc_support_hash_half") {
@@ -652,6 +993,8 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     index < hashtable_key_bucket_index_max;
                     index++) {
                 hashtable->data->buckets[index].data.hash_half = 12345;
+                hashtable->data->buckets[index].data.key_value =
+                        (hashtable_mpmc_data_key_value_t*)(12345 & HASHTABLE_MPMC_POINTER_TAG_MASK_INVERTED);
             }
 
             hashtable_mpmc_result_t result = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
@@ -674,6 +1017,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     index < hashtable_key_bucket_index_max;
                     index++) {
                 hashtable_mpmc_data_current->buckets[index].data.hash_half = 0;
+                hashtable->data->buckets[index].data.key_value = nullptr;
             }
 
             xalloc_free(new_key_value);
@@ -686,6 +1030,8 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     index < hashtable->data->buckets_count_real;
                     index++) {
                 hashtable->data->buckets[index].data.hash_half = 12345;
+                hashtable->data->buckets[index].data.key_value =
+                        (hashtable_mpmc_data_key_value_t*)(12345 & HASHTABLE_MPMC_POINTER_TAG_MASK_INVERTED);
             }
 
             hashtable_mpmc_result_t result = hashtable_mpmc_support_acquire_empty_bucket_for_insert(
@@ -708,6 +1054,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     index < hashtable->data->buckets_count_real;
                     index++) {
                 hashtable_mpmc_data_current->buckets[index].data.hash_half = 0;
+                hashtable->data->buckets[index].data.key_value = nullptr;
             }
 
             xalloc_free(new_key_value);
@@ -778,6 +1125,28 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         xalloc_free(key_copy);
     }
 
+    SECTION("hashtable_mpmc_upsize_is_allowed") {
+        SECTION("not allowed") {
+            hashtable_mpmc_t *hashtable = hashtable_mpmc_init(
+                    32,
+                    32,
+                    HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
+            REQUIRE(hashtable_mpmc_upsize_is_allowed(hashtable) == false);
+
+            hashtable_mpmc_free(hashtable);
+        }
+
+        SECTION("allowed") {
+            hashtable_mpmc_t *hashtable = hashtable_mpmc_init(
+                    16,
+                    32,
+                    HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
+            REQUIRE(hashtable_mpmc_upsize_is_allowed(hashtable) == true);
+
+            hashtable_mpmc_free(hashtable);
+        }
+    }
+
     SECTION("hashtable_mpmc_upsize_prepare") {
         hashtable_mpmc_t *hashtable_small = hashtable_mpmc_init(
                 16,
@@ -797,8 +1166,8 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             REQUIRE(hashtable_small->upsize.remaining_blocks == 1);
             REQUIRE(hashtable_small->upsize.total_blocks == 1);
             REQUIRE(hashtable_small->upsize.threads_count == 0);
-            REQUIRE(hashtable_small->upsize.block_size == 272);
-        };
+            REQUIRE(hashtable_small->upsize.block_size == HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
+        }
 
         SECTION("preparation successful - multiple blocks") {
             REQUIRE(hashtable_mpmc_upsize_prepare(hashtable_large));
@@ -808,20 +1177,20 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             REQUIRE(hashtable_large->upsize.remaining_blocks == 17);
             REQUIRE(hashtable_large->upsize.total_blocks == 17);
             REQUIRE(hashtable_large->upsize.threads_count == 0);
-            REQUIRE(hashtable_large->upsize.block_size == 3871);
-        };
+            REQUIRE(hashtable_large->upsize.block_size == HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
+        }
 
         SECTION("preparation failed - already upsizing") {
             hashtable_small->upsize.status = HASHTABLE_MPMC_STATUS_UPSIZING;
 
             REQUIRE(!hashtable_mpmc_upsize_prepare(hashtable_small));
-        };
+        }
 
         SECTION("preparation failed - preparing to upsize") {
             hashtable_small->upsize.status = HASHTABLE_MPMC_STATUS_PREPARE_FOR_UPSIZE;
 
             REQUIRE(!hashtable_mpmc_upsize_prepare(hashtable_small));
-        };
+        }
 
         hashtable_mpmc_free(hashtable_small);
         hashtable_mpmc_free(hashtable_large);
@@ -835,7 +1204,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         char *key_embed_copy = mi_strdup(key_embed);
         char *key2_copy = mi_strdup(key2);
         bool return_created_new = false;
-        bool return_value_updated = false;
         uintptr_t return_previous_value = 0;
 
         hashtable_mpmc_t *hashtable = hashtable_mpmc_init(16, 32, HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
@@ -864,11 +1232,9 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t) value1,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(return_created_new);
-            REQUIRE(return_value_updated);
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index]._packed != 0);
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.key_value != nullptr);
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half == key_hash_half);
@@ -890,11 +1256,9 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t) value1,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(return_created_new);
-            REQUIRE(return_value_updated);
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index]._packed != 0);
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.key_value != nullptr);
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half == key_hash_half);
@@ -913,11 +1277,9 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_embed_length,
                     (uintptr_t) value1,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(return_created_new);
-            REQUIRE(return_value_updated);
             REQUIRE(hashtable->data->buckets[hashtable_key_embed_bucket_index]._packed != 0);
             REQUIRE(hashtable->data->buckets[hashtable_key_embed_bucket_index].data.key_value != nullptr);
             REQUIRE(hashtable->data->buckets[hashtable_key_embed_bucket_index].data.hash_half == key_embed_hash_half);
@@ -940,7 +1302,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t) value1,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
             REQUIRE(hashtable_mpmc_op_set(
                     hashtable,
@@ -948,11 +1309,9 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t) value2,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(!return_created_new);
-            REQUIRE(return_value_updated);
             REQUIRE(return_previous_value == (uintptr_t) value1);
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index]._packed != 0);
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.key_value != nullptr);
@@ -972,7 +1331,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t) value1,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
             REQUIRE(hashtable_mpmc_op_set(
                     hashtable,
@@ -980,7 +1338,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key2_length,
                     (uintptr_t) value2,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index]._packed != 0);
@@ -994,7 +1351,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.key_value->value == (uintptr_t) value1);
 
             REQUIRE(return_created_new);
-            REQUIRE(return_value_updated);
             REQUIRE(hashtable->data->buckets[hashtable_key2_bucket_index]._packed != 0);
             REQUIRE(hashtable->data->buckets[hashtable_key2_bucket_index].data.key_value != nullptr);
             REQUIRE(hashtable->data->buckets[hashtable_key2_bucket_index].data.hash_half == key2_hash_half);
@@ -1022,7 +1378,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t) value1,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING);
 
             // Hashes have to be set back to zero before freeing up the hashtable
@@ -1240,7 +1595,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         auto key_copy = mi_strdup(key);
         auto key2_copy = mi_strdup(key2);
         bool return_created_new = false;
-        bool return_value_updated = false;
         hashtable_mpmc_bucket_t return_bucket, return_bucket2, return_bucket_orig, return_bucket_orig2;
         hashtable_mpmc_bucket_index_t return_bucket_index, return_bucket_index2;
         uintptr_t return_previous_value = 0, return_value = 0;
@@ -1269,7 +1623,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t) value1,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(hashtable_mpmc_support_find_bucket_and_key_value(
@@ -1310,7 +1663,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key_length,
                     (uintptr_t) value1,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
             REQUIRE(hashtable_mpmc_op_set(
                     hashtable,
@@ -1318,7 +1670,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     key2_length,
                     (uintptr_t) value2,
                     &return_created_new,
-                    &return_value_updated,
                     &return_previous_value) == HASHTABLE_MPMC_RESULT_TRUE);
 
             REQUIRE(hashtable_mpmc_support_find_bucket_and_key_value(
@@ -1391,7 +1742,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                         key_temp_length,
                         (uintptr_t) index + 1,
                         &return_created_new,
-                        &return_value_updated,
                         &return_previous_value);
 
                 REQUIRE(result != HASHTABLE_MPMC_RESULT_FALSE);
@@ -1451,15 +1801,15 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
     SECTION("hashtable_mpmc_upsize_migrate_block") {
         char *key_temp = nullptr;
         bool return_created_new = false;
-        bool return_value_updated = false;
         hashtable_mpmc_bucket_t return_bucket;
         hashtable_mpmc_bucket_index_t return_bucket_index;
         uintptr_t return_previous_value = 0, return_value = 0;
         uint32_t inserted_keys_count = 0;
+        uint32_t keys_to_insert = 256 * 1024;
 
         hashtable_mpmc_t *hashtable = hashtable_mpmc_init(
-                16,
-                32,
+                1024,
+                keys_to_insert * 2,
                 HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
         epoch_gc_t *epoch_gc_kv = epoch_gc_init(EPOCH_GC_OBJECT_TYPE_HASHTABLE_KEY_VALUE);
         epoch_gc_thread_t *epoch_gc_kv_thread = epoch_gc_thread_init();
@@ -1474,42 +1824,49 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
         hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_init();
 
-        hashtable_mpmc_bucket_index_t hashtable_key_bucket_index =
-                hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key_hash);
-        hashtable_mpmc_bucket_index_t hashtable_key2_bucket_index =
-                hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key2_hash);
+        SECTION("migrate all the blocks and try to read") {
+            // Fill up the hashtable
+            for (uint32_t index = 0; index < keys_to_insert; index++) {
+                size_t key_temp_length = snprintf(key_temp, 0, "key-%05d", index) + 1;
+                key_temp = (char *) xalloc_alloc_zero(key_temp_length);
+                snprintf(key_temp, key_temp_length, "key-%05d", index);
 
-        // Fill up the hashtable
-        for (uint32_t index = 0; index < hashtable->data->buckets_count_real; index++) {
-            size_t key_temp_length = snprintf(key_temp, 0, "key-%05d", index) + 1;
-            key_temp = (char *) xalloc_alloc_zero(key_temp_length);
-            snprintf(key_temp, key_temp_length, "key-%05d", index);
+                hashtable_mpmc_result_t result = hashtable_mpmc_op_set(
+                        hashtable,
+                        key_temp,
+                        key_temp_length,
+                        (uintptr_t) index + 1,
+                        &return_created_new,
+                        &return_previous_value);
 
-            hashtable_mpmc_result_t result = hashtable_mpmc_op_set(
-                    hashtable,
-                    key_temp,
-                    key_temp_length,
-                    (uintptr_t) index + 1,
-                    &return_created_new,
-                    &return_value_updated,
-                    &return_previous_value);
+                if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
+                    REQUIRE(hashtable_mpmc_upsize_prepare(hashtable));
+                    REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING);
+                    index--;
+                    continue;
+                }
 
-            REQUIRE(result != HASHTABLE_MPMC_RESULT_FALSE);
+                REQUIRE(result == HASHTABLE_MPMC_RESULT_TRUE);
 
-            if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
-                break;
+                if (hashtable->upsize.remaining_blocks > 0) {
+                    REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING);
+                    REQUIRE(hashtable_mpmc_upsize_migrate_block(hashtable) > 0);
+                }
+
+                inserted_keys_count++;
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_kv_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_data_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
             }
 
-            inserted_keys_count++;
-        }
-
-        REQUIRE(hashtable_mpmc_upsize_prepare(hashtable));
-        REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING);
-
-        SECTION("migrate all the blocks") {
             do {
-                REQUIRE(hashtable_mpmc_upsize_migrate_block(hashtable) > 0);
-            } while (hashtable->upsize.remaining_blocks > 0);
+                hashtable_mpmc_upsize_migrate_block(hashtable);
+            } while (hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING && hashtable->upsize.remaining_blocks > 0);
 
             REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_NOT_UPSIZING);
 
@@ -1526,13 +1883,94 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                 REQUIRE(return_value == (uintptr_t) index + 1);
 
                 xalloc_free(key_temp);
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_kv_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_data_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
+            }
+        }
+
+        SECTION("migrate all the blocks and try to update") {
+            // Fill up the hashtable
+            for (uint32_t index = 0; index < keys_to_insert; index++) {
+                size_t key_temp_length = snprintf(key_temp, 0, "key-%05d", index) + 1;
+                key_temp = (char *) xalloc_alloc_zero(key_temp_length);
+                snprintf(key_temp, key_temp_length, "key-%05d", index);
+
+                hashtable_mpmc_result_t result = hashtable_mpmc_op_set(
+                        hashtable,
+                        key_temp,
+                        key_temp_length,
+                        (uintptr_t) index + 1,
+                        &return_created_new,
+                        &return_previous_value);
+
+                if (result == HASHTABLE_MPMC_RESULT_NEEDS_RESIZING) {
+                    REQUIRE(hashtable_mpmc_upsize_prepare(hashtable));
+                    REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING);
+                    index--;
+                    continue;
+                }
+
+                REQUIRE(result == HASHTABLE_MPMC_RESULT_TRUE);
+
+                if (hashtable->upsize.remaining_blocks > 0) {
+                    REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING);
+                    REQUIRE(hashtable_mpmc_upsize_migrate_block(hashtable) > 0);
+                }
+
+                inserted_keys_count++;
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_kv_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_data_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
+            }
+
+            do {
+                hashtable_mpmc_upsize_migrate_block(hashtable);
+            } while (hashtable->upsize.status == HASHTABLE_MPMC_STATUS_UPSIZING && hashtable->upsize.remaining_blocks > 0);
+
+            REQUIRE(hashtable->upsize.status == HASHTABLE_MPMC_STATUS_NOT_UPSIZING);
+
+            for (uint32_t index = 0; index < inserted_keys_count; index++) {
+                size_t key_temp_length = snprintf(key_temp, 0, "key-%05d", index) + 1;
+                key_temp = (char *) xalloc_alloc_zero(key_temp_length);
+                snprintf(key_temp, key_temp_length, "key-%05d", index);
+
+                hashtable_mpmc_result_t result = hashtable_mpmc_op_set(
+                        hashtable,
+                        key_temp,
+                        key_temp_length,
+                        (uintptr_t) index + 1,
+                        &return_created_new,
+                        &return_previous_value);
+
+                REQUIRE(result == HASHTABLE_MPMC_RESULT_TRUE);
+                REQUIRE(return_created_new == false);
+                REQUIRE(return_previous_value == (uintptr_t) index + 1);
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_kv_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_get_latest_epoch());
+
+                epoch_gc_thread_set_epoch(
+                        epoch_gc_data_thread,
+                        hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_get_latest_epoch());
             }
         }
 
         epoch_gc_thread_advance_epoch_tsc(epoch_gc_kv_thread);
         epoch_gc_thread_advance_epoch_tsc(epoch_gc_data_thread);
         REQUIRE(epoch_gc_thread_collect_all(epoch_gc_kv_thread) == 0);
-        REQUIRE(epoch_gc_thread_collect_all(epoch_gc_data_thread) == 1);
+        REQUIRE(epoch_gc_thread_collect_all(epoch_gc_data_thread) > 0);
 
         hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free();
         hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_free();
@@ -1550,74 +1988,122 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
     }
 
     SECTION("fuzzy testing") {
-        // TODO: this test should be improved, the threads spanwed by test_hashtable_mpmc_fuzzy_testing_run simply do an
-        //       assert but this impacts the ease of testing, they should instead set an error, stop the processing and
-        //       bubble up the error back to the caller and then here (the caller) should use REQUIRE to validate the
-        //       result.
-        uint8_t test_duration = 3;
-        uint32_t keys_count = 4 * 1024 * 1024;
-        uint16_t key_length_min = 8;
-        uint16_t key_length_max = 12;
+        SECTION("fixed key count") {
+            // TODO: this test should be improved, the threads spawned by test_hashtable_mpmc_fuzzy_testing_run simply do an
+            //       assert but this impacts the ease of testing, they should instead set an error, stop the processing and
+            //       bubble up the error back to the caller and then here (the caller) should use REQUIRE to validate the
+            //       result.
+            uint32_t test_duration = 3;
+            uint32_t test_keys_count = 4 * 1024 * 1024;
+            uint16_t test_key_length = 12;
 
-        char *keys = test_hashtable_mpmc_fuzzy_testing_keys_generate(
-                keys_count,
-                key_length_min,
-                key_length_max);
+            char *test_keys = test_hashtable_mpmc_fuzzy_testing_keys_generate(
+                    test_keys_count,
+                    test_key_length);
 
-        SECTION("no upsize") {
-            hashtable_mpmc_t *hashtable = hashtable_mpmc_init(
-                    keys_count * 2,
-                    keys_count * 2,
-                    HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
+            SECTION("no upsize") {
+                hashtable_mpmc_t *test_hashtable = hashtable_mpmc_init(
+                        test_keys_count * 2,
+                        test_keys_count * 2,
+                        HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
 
-            SECTION("single thread") {
-                test_hashtable_mpmc_fuzzy_testing_run(
-                        hashtable,
-                        keys,
-                        keys_count,
-                        key_length_max,
-                        1,
-                        test_duration);
+                SECTION("single thread") {
+                    test_hashtable_mpmc_fuzzy_testing_run(
+                            test_hashtable,
+                            test_keys,
+                            test_keys_count,
+                            test_key_length,
+                            1,
+                            test_duration);
+                }
+
+                SECTION("multi thread") {
+                    test_hashtable_mpmc_fuzzy_testing_run(
+                            test_hashtable,
+                            test_keys,
+                            test_keys_count,
+                            test_key_length,
+                            utils_cpu_count() * 2,
+                            test_duration);
+                }
             }
 
-            SECTION("multi thread") {
-                test_hashtable_mpmc_fuzzy_testing_run(
-                        hashtable,
-                        keys,
-                        keys_count,
-                        key_length_max,
-                        utils_cpu_count() * 2,
-                        test_duration);
+            SECTION("with upsize") {
+                hashtable_mpmc_t *test_hashtable = hashtable_mpmc_init(
+                        128 * 1024,
+                        test_keys_count * 2,
+                        HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
+
+                SECTION("single thread") {
+                    test_hashtable_mpmc_fuzzy_testing_run(
+                            test_hashtable,
+                            test_keys,
+                            test_keys_count,
+                            test_key_length,
+                            1,
+                            test_duration);
+                }
+
+                SECTION("multi thread") {
+                    test_hashtable_mpmc_fuzzy_testing_run(
+                            test_hashtable,
+                            test_keys,
+                            test_keys_count,
+                            test_key_length,
+                            utils_cpu_count() * 2,
+                            test_duration);
+                }
             }
+
+            test_hashtable_mpmc_fuzzy_testing_keys_free(test_keys);
         }
 
-        SECTION("with upsize") {
-            hashtable_mpmc_t *hashtable = hashtable_mpmc_init(
-                    16 * 1024,
-                    keys_count * 2,
-                    HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE);
-
-            SECTION("single thread") {
-                test_hashtable_mpmc_fuzzy_testing_run(
-                        hashtable,
-                        keys,
-                        keys_count,
-                        key_length_max,
-                        1,
-                        test_duration);
-            }
+        SECTION("random key count and multiple test runs") {
+            uint32_t test_runs = 10;
+            uint32_t test_duration = 5;
+            uint32_t test_threads = utils_cpu_count() * 4;
+            uint32_t test_hashtable_initial_size = 128 * 1024;
+            uint32_t test_hashtable_upsize_block_size = HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE;
 
             SECTION("multi thread") {
-                test_hashtable_mpmc_fuzzy_testing_run(
-                        hashtable,
-                        keys,
-                        keys_count,
-                        key_length_max,
-                        utils_cpu_count() * 2,
-                        test_duration);
+                for (uint32_t test_run = 0; test_run < test_runs; test_run++) {
+                    uint32_t test_keys_count = 1 * 1024 * 1024;
+                    uint16_t test_key_length = 8;
+                    uint32_t test_hashtable_max_size = test_keys_count * 2;
+
+                    fprintf(
+                            stdout,
+                            "[%lu] > test_run <%u/%u>\n",
+                            intrinsics_tsc(),
+                            test_run + 1,
+                            test_runs);
+                    fflush(stdout);
+
+                    fprintf(stdout, "[%lu] >   generating <%u> keys\n", intrinsics_tsc(), test_keys_count);
+                    char *test_keys = test_hashtable_mpmc_fuzzy_testing_keys_generate(
+                            test_keys_count,
+                            test_key_length);
+                    fprintf(stdout, "[%lu] >   keys generated\n", intrinsics_tsc());
+
+                    hashtable_mpmc_t *test_hashtable = hashtable_mpmc_init(
+                            test_hashtable_initial_size,
+                            test_hashtable_max_size,
+                            test_hashtable_upsize_block_size);
+
+                    test_hashtable_mpmc_fuzzy_testing_run(
+                            test_hashtable,
+                            test_keys,
+                            test_keys_count,
+                            test_key_length,
+                            test_threads,
+                            test_duration);
+
+                    test_hashtable_mpmc_fuzzy_testing_keys_free(test_keys);
+
+                    fprintf(stdout, "[%lu] >   test run completed\n", intrinsics_tsc());
+                    fflush(stdout);
+                }
             }
         }
-
-        test_hashtable_mpmc_fuzzy_testing_keys_free(keys);
     }
 }

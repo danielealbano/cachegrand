@@ -59,7 +59,11 @@ bool worker_stats_should_publish_after_interval(
         worker_stats_volatile_t* worker_stats_public,
         int interval);
 
-worker_stats_t *worker_stats_get();
+worker_stats_t *worker_stats_get_internal_current();
+
+bool worker_stats_get_shared_by_index(
+        uint32_t index,
+        worker_stats_t *return_worker_stats);
 
 worker_stats_t *worker_stats_aggregate(
         worker_stats_t *aggregated_stats);

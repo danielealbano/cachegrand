@@ -1,6 +1,5 @@
 [![Build & Test](https://github.com/danielealbano/cachegrand/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/danielealbano/cachegrand/actions/workflows/build_and_test.yml)
 [![codecov](https://codecov.io/gh/danielealbano/cachegrand/branch/main/graph/badge.svg?token=H4W0N0F7MT)](https://codecov.io/gh/danielealbano/cachegrand)
-[![LGTM Grade](https://img.shields.io/lgtm/grade/cpp/github/danielealbano/cachegrand?label=lgtm%20code%20quality)](https://lgtm.com/projects/g/danielealbano/cachegrand/context:cpp)
 ![Lines of code](https://badges.cachegrand.io/svg/ssc-total-lines.svg)
 [![COCOMO](https://badges.cachegrand.io/svg/ssc-cocomo.svg)](https://en.wikipedia.org/wiki/COCOMO)
 [![](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/danielealbano)
@@ -161,18 +160,52 @@ for any corresponding short options.
 
 #### Start it locally
 
+Once cachegrand has been [built from the sources](#build-from-source), it's possible to run it with the following command
+
 ```shell
-/path/to/cachegrand-server -c /path/to/cachegrand.yaml
-[2022-06-05T10:26:08Z][INFO       ][program] cachegrand-server version v0.1.0 (built on 2022-07-05T10:26:07Z)
-[2022-06-05T10:26:08Z][INFO       ][program] > Release build, compiled using GCC v10.3.0
-[2022-06-05T10:26:08Z][INFO       ][program] > Hashing algorithm in use t1ha2
-[2022-06-05T10:26:08Z][INFO       ][config] Loading the configuration from ../../etc/cachegrand.yaml
-[2022-06-05T10:26:08Z][INFO       ][program] Ready to accept connections
+/path/to/cachegrand-server -c /path/to/cachegrand.yaml.skel
+[2023-00-30T23:36:53Z][INFO       ][config] Loading the configuration from /etc/cachegrand/cachegrand.yaml
+[2023-00-30T23:36:53Z][INFO       ][program] cachegrand-server version v0.1.5-5-g70d8425 (built on 2023-01-30T23:19:48Z)
+[2023-00-30T23:36:53Z][INFO       ][program] > Release build, compiled using gcc v11.3.0
+[2023-00-30T23:36:53Z][INFO       ][program] > Hashing algorithm in use t1ha2
+[2023-00-30T23:36:53Z][INFO       ][program] > TLS: mbed TLS 2.28.0 (kernel offloading enabled)
+[2023-00-30T23:36:53Z][INFO       ][program] > Clock resolution: 4 ms
+[2023-00-30T23:36:53Z][INFO       ][program] Starting <32> workers
 ```
 
 #### Docker
 
-Download the example config file
+Simply run
+
+```shell
+docker run \
+  --ulimit memlock=-1:-1 \
+  --ulimit nofile=262144:262144 \
+  -p 6379:6379 \
+  -p 6380:6380 \
+  --rm \
+  cachegrand/cachegrand-server:latest
+```
+
+it comes with a default config file with redis on port 6379 and ssl for redis enabled on port 6380.
+
+The certificate will be generated on each start, to use an ad-hoc SSL certificate, instead of the auto-generated one,
+it's possible to mount the required certificate and key using the following command
+
+```shell
+docker run \
+  -v /path/to/certificate.pem:/etc/cachegrand/cachegrand.pem \
+  -v /path/to/certificate.key:/etc/cachegrand/cachegrand.key \
+  -v /path/to/cachegrand.yaml:/etc/cachegrand/cachegrand.yaml \
+  --ulimit memlock=-1:-1 \
+  --ulimit nofile=262144:262144 \
+  -p 6379:6379 \
+  -p 6380:6380 \
+  --rm \
+  cachegrand/cachegrand-server:latest
+```
+
+if you want to enable prometheus or change other parameters you can download the example config file
 
 ```shell
 curl https://raw.githubusercontent.com/danielealbano/cachegrand/main/etc/cachegrand.yaml.skel -o /path/to/cachegrand.yaml
@@ -186,6 +219,7 @@ docker run \
   --ulimit memlock=-1:-1 \
   --ulimit nofile=262144:262144 \
   -p 6379:6379 \
+  -p 6380:6380 \
   --rm \
   cachegrand/cachegrand-server:latest
 ```
