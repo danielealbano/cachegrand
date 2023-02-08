@@ -61,9 +61,10 @@ jobs:
         uses: advanced-security/filter-sarif@v1
         with:
           patterns: |
-            -**/build/_deps/*.c
-            -**/build/_deps/*.h
-            -**/build/_deps/*.cpp
+            -**/build/_deps/**/*.c
+            -**/build/_deps/**/*.h
+            -**/build/_deps/**/*.cpp
+            -**/build/_deps/**/*.hpp
           input: "sarif-results/${{ matrix.language }}.sarif"
           output: "sarif-results/${{ matrix.language }}.sarif"
 
