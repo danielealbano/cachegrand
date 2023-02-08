@@ -63,8 +63,14 @@ jobs:
           patterns: |
             -**/build/_deps/**/*.c
             -**/build/_deps/**/*.h
+            -**/build/_deps/**/*.cc
             -**/build/_deps/**/*.cpp
             -**/build/_deps/**/*.hpp
+            -**/3rdparty/**/*.c
+            -**/3rdparty/**/*.h
+            -**/3rdparty/**/*.cc
+            -**/3rdparty/**/*.cpp
+            -**/3rdparty/**/*.hpp
           input: "sarif-results/${{ matrix.language }}.sarif"
           output: "sarif-results/${{ matrix.language }}.sarif"
 

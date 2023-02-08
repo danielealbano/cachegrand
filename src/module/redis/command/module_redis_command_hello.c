@@ -77,7 +77,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
     }
 
     // Validate the parameters
-    if (connection_context->reader_context.arguments.count - 1 > 0) {
+    if (connection_context->reader_context.arguments.count > 1) {
         if (context->protover.value < 2 || context->protover.value > 3) {
             module_redis_connection_error_message_printf_noncritical(
                     connection_context,

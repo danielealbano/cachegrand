@@ -255,7 +255,8 @@ bool module_prometheus_http_send_response(
             "\r\n";
 
     clock_realtime(&now_timestamp);
-    struct tm tm = *gmtime(&now_timestamp.tv_sec);
+    struct tm tm = { 0 };
+    gmtime_r(&now_timestamp.tv_sec, &tm);
     strftime(now, sizeof(now), "%a, %d %b %Y %H:%M:%S %Z", &tm);
 
     // Calculate the amount of memory needed for the http response

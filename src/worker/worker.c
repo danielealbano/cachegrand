@@ -346,7 +346,7 @@ void worker_cleanup(
 void* worker_thread_func(
         void* user_data) {
     bool aborted = true;
-    bool res;
+    bool res = false;
 
     worker_module_context_t *worker_module_contexts = NULL;
     network_channel_t *listeners = NULL;
