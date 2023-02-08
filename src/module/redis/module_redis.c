@@ -150,8 +150,6 @@ bool module_redis_process_data(
     protocol_redis_reader_op_t ops[8] = { 0 };
     uint8_t ops_size = (sizeof(ops) / sizeof(protocol_redis_reader_op_t));
 
-    worker_context_t *worker_context = worker_context_get();
-
     // The loops below terminate if data_size is equals to zero, it should never happen that this function is invoked
     // with the read buffer empty.
     assert(read_buffer->data_size > 0);

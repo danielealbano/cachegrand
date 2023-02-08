@@ -307,9 +307,9 @@ TEST_CASE("log/sink/log_sink.c", "[log][sink][log_sink]") {
             REQUIRE(sink->type == LOG_SINK_TYPE_FILE);
             REQUIRE(sink->levels == LOG_LEVEL_INFO);
             REQUIRE(sink->settings.file.path == settings.file.path);
-            REQUIRE(sink->settings.file.internal.fp != NULL);
+            REQUIRE(sink->settings.file.internal.fd != 0);
 
-            int fd = fileno(sink->settings.file.internal.fp);
+            int fd = sink->settings.file.internal.fd;
 
             snprintf(fd_link_buf, sizeof(fd_link_buf), "/proc/self/fd/%d", fd);
             REQUIRE(readlink(fd_link_buf, fd_link_resolved_buf, sizeof(fd_link_resolved_buf)) > 0);

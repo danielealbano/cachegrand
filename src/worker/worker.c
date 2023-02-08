@@ -198,7 +198,7 @@ void worker_cleanup_network(
         uint8_t listeners_count) {
     // TODO: should use a struct with fp pointers, not ifs
     if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING) {
-        worker_network_iouring_cleanup(listeners, listeners_count); // lgtm [cpp/useless-expression]
+        worker_network_iouring_cleanup(listeners, listeners_count);
     }
 
     for(

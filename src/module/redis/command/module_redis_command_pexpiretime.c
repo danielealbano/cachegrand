@@ -39,7 +39,6 @@
 #define TAG "module_redis_command_pexpiretime"
 
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(pexpiretime) {
-    bool return_res = false;
     storage_db_entry_index_t *current_entry_index = NULL;
     int64_t expiry_time;
     transaction_t transaction = { 0 };

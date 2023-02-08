@@ -38,7 +38,6 @@
 #define TAG "module_redis_command_expiretime"
 
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(expiretime) {
-    bool return_res = false;
     storage_db_entry_index_t *current_entry_index = NULL;
     transaction_t transaction = { 0 };
     storage_db_op_rmw_status_t rmw_status = { 0 };
