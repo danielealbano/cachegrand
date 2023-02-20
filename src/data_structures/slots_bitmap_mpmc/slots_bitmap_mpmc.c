@@ -10,8 +10,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <string.h>
 #include <stdatomic.h>
+#include <math.h>
+#include <string.h>
 #include <assert.h>
 
 #include "misc.h"
@@ -28,12 +29,11 @@
 
 uint64_t slots_bitmap_mpmc_calculate_shard_count(
         uint64_t size) {
-    return (size / SLOTS_BITMAP_MPMC_SHARD_SIZE) + 1;
+    return (uint64_t)ceil((double)size / (double)SLOTS_BITMAP_MPMC_SHARD_SIZE);
 }
 
 slots_bitmap_mpmc_t *slots_bitmap_mpmc_init(
         uint64_t size) {
-
     size_t shards_count = slots_bitmap_mpmc_calculate_shard_count(size);
     size_t allocation_size =
             sizeof(slots_bitmap_mpmc_t) +
@@ -62,27 +62,29 @@ void slots_bitmap_mpmc_free(
 slots_bitmap_mpmc_shard_t* slots_bitmap_mpmc_get_shard_ptr(
         slots_bitmap_mpmc_t *bitmap,
         uint64_t shard_index) {
+    uintptr_t bitmap_ptr = (uintptr_t)bitmap;
+    uintptr_t bitmap_shards_ptr = bitmap_ptr + offsetof(slots_bitmap_mpmc_t, shards);
+    uintptr_t bitmap_shard_ptr = bitmap_shards_ptr + (sizeof(slots_bitmap_mpmc_shard_t) * shard_index);
 
-    return (slots_bitmap_mpmc_shard_t*)
-                   bitmap +
-           offsetof(slots_bitmap_mpmc_t, shards) +
-           (sizeof(slots_bitmap_mpmc_shard_t) * shard_index);
+    return (slots_bitmap_mpmc_shard_t*)bitmap_shard_ptr;
 }
 
 uint8_t* slots_bitmap_mpmc_get_shard_used_count_ptr(
         slots_bitmap_mpmc_t *bitmap,
         uint64_t shard_index) {
+    uintptr_t bitmap_ptr = (uintptr_t)bitmap;
+    uintptr_t bitmap_shards_ptr = bitmap_ptr + offsetof(slots_bitmap_mpmc_t, shards);
+    uintptr_t bitmap_shards_used_slots_ptr =
+            bitmap_shards_ptr + (sizeof(slots_bitmap_mpmc_shard_t) * bitmap->shards_count);
+    uintptr_t bitmap_shard_used_slots_ptr =
+            bitmap_shards_used_slots_ptr + (sizeof(uint8_t) * shard_index);
 
-    return (uint8_t*)
-                   bitmap +
-           offsetof(slots_bitmap_mpmc_t, shards) +
-           (sizeof(slots_bitmap_mpmc_shard_t) * bitmap->shards_count) +
-           (sizeof(uint8_t) * shard_index);
+    return (uint8_t*)bitmap_shard_used_slots_ptr;
 }
 
 bool slots_bitmap_mpmc_get_first_available(
         slots_bitmap_mpmc_t *bitmap,
-        uint64_t *return_bitmap_index) {
+        uint64_t *return_slots_bitmap_index) {
     bool should_restart_loop = false;
     uint8_t *shard_used_count = slots_bitmap_mpmc_get_shard_used_count_ptr(bitmap, 0);
 
@@ -135,7 +137,7 @@ bool slots_bitmap_mpmc_get_first_available(
                 __atomic_fetch_add(&shard_used_count[bitmap_shard_index], 1, __ATOMIC_ACQ_REL);
 
                 // The CAS operation succeeded, the bit has been set to 1, return the bitmap index
-                *return_bitmap_index = (bitmap_shard_index * SLOTS_BITMAP_MPMC_SHARD_SIZE) + bitmap_shard_bit_index;
+                *return_slots_bitmap_index = (bitmap_shard_index * SLOTS_BITMAP_MPMC_SHARD_SIZE) + bitmap_shard_bit_index;
 
                 return true;
             }
@@ -152,10 +154,10 @@ bool slots_bitmap_mpmc_get_first_available(
 
 void slots_bitmap_mpmc_release(
         slots_bitmap_mpmc_t *bitmap,
-        uint64_t bitmap_index) {
+        uint64_t slots_bitmap_index) {
     uint8_t *shard_used_count = slots_bitmap_mpmc_get_shard_used_count_ptr(bitmap, 0);
-    uint16_t bitmap_shard_index = bitmap_index / SLOTS_BITMAP_MPMC_SHARD_SIZE;
-    uint8_t bitmap_shard_bit_index = bitmap_index % SLOTS_BITMAP_MPMC_SHARD_SIZE;
+    uint16_t bitmap_shard_index = slots_bitmap_index / SLOTS_BITMAP_MPMC_SHARD_SIZE;
+    uint8_t bitmap_shard_bit_index = slots_bitmap_index % SLOTS_BITMAP_MPMC_SHARD_SIZE;
 
     // Update the shard value
     slots_bitmap_mpmc_shard_t bitmap_shard;

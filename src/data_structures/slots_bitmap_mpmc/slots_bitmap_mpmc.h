@@ -19,30 +19,67 @@ struct slots_bitmap_mpmc {
     uint8_volatile_t shards_used_slots[0];
 };
 
+/**
+ * Calculate the number of shards needed to store the given size
+ * @param size
+ * @return
+ */
 uint64_t slots_bitmap_mpmc_calculate_shard_count(
         uint64_t size);
 
+/**
+ * Calculate the number of shards needed to store the given size
+ * @param size Size of the bitmap
+ * @return Number of shards needed to store the given size
+ */
 slots_bitmap_mpmc_t *slots_bitmap_mpmc_init(
         uint64_t size);
 
+/**
+ * Free the bitmap
+ * @param slots_bitmap Pointer to the bitmap
+ */
 void slots_bitmap_mpmc_free(
-        slots_bitmap_mpmc_t *bitmap);
+        slots_bitmap_mpmc_t *slots_bitmap);
 
+/**
+ * Get the pointer to the shard
+ * @param slots_bitmap Pointer to the bitmap
+ * @param shard_index Index of the shard
+ * @return Pointer to the shard
+ */
 slots_bitmap_mpmc_shard_t* slots_bitmap_mpmc_get_shard_ptr(
-        slots_bitmap_mpmc_t *bitmap,
+        slots_bitmap_mpmc_t *slots_bitmap,
         uint64_t shard_index);
 
+/**
+ * Get the pointer to the shard used count of a shard
+ * @param slots_bitmap Pointer to the bitmap
+ * @param shard_index Index of the shard
+ * @return Pointer to the shard used count
+ */
 uint8_t* slots_bitmap_mpmc_get_shard_used_count_ptr(
-        slots_bitmap_mpmc_t *bitmap,
+        slots_bitmap_mpmc_t *slots_bitmap,
         uint64_t shard_index);
 
+/**
+ * Get the first available slot in the bitmap
+ * @param slots_bitmap Pointer to the bitmap
+ * @param return_slots_bitmap_index Pointer to the variable that will contain the index of the first available slot
+ * @return True if a slot was found, false otherwise
+ */
 bool slots_bitmap_mpmc_get_first_available(
-        slots_bitmap_mpmc_t *bitmap,
-        uint64_t *return_bitmap_index);
+        slots_bitmap_mpmc_t *slots_bitmap,
+        uint64_t *return_slots_bitmap_index);
 
+/**
+ * Release a slot in the bitmap
+ * @param slots_bitmap Pointer to the bitmap
+ * @param slots_bitmap_index Index of the slot to release
+ */
 void slots_bitmap_mpmc_release(
-        slots_bitmap_mpmc_t *bitmap,
-        uint64_t bitmap_index);
+        slots_bitmap_mpmc_t *slots_bitmap,
+        uint64_t slots_bitmap_index);
 
 #ifdef __cplusplus
 }
