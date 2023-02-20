@@ -104,14 +104,24 @@ bool slots_bitmap_spsc_is_shard_full(
         uint64_t shard_index);
 
 /**
- * Get the first available slot in the bitmap
+ * Get the first available slot in the bitmap, the slot is returned as a pointer to the slot, a boolean is returned
+ * to indicate if a slot was found or not.
  * @param slots_bitmap Pointer to the bitmap
  * @param return_slots_bitmap_index Pointer to the variable that will contain the index of the first available slot
  * @return True if a slot was found, false otherwise
  */
-bool slots_bitmap_spsc_get_first_available(
+bool slots_bitmap_spsc_get_next_available_ptr(
         slots_bitmap_spsc_t *slots_bitmap,
         uint64_t *return_slots_bitmap_index);
+
+/**
+ * Get the first available slot in the bitmap, an index is returned to indicate the slot, in case of failure UINT64_MAX
+ * is returned.
+ * @param slots_bitmap Pointer to the bitmap
+ * @return Index of the first available slot
+ */
+uint64_t slots_bitmap_spsc_get_next_available(
+        slots_bitmap_spsc_t *slots_bitmap);
 
 /**
  * Release a slot in the bitmap

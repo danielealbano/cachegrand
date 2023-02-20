@@ -82,7 +82,7 @@ uint8_t* slots_bitmap_mpmc_get_shard_used_count_ptr(
     return (uint8_t*)bitmap_shard_used_slots_ptr;
 }
 
-bool slots_bitmap_mpmc_get_first_available(
+bool slots_bitmap_mpmc_get_next_available_ptr(
         slots_bitmap_mpmc_t *bitmap,
         uint64_t *return_slots_bitmap_index) {
     bool should_restart_loop = false;
@@ -150,6 +150,17 @@ bool slots_bitmap_mpmc_get_first_available(
     } while(should_restart_loop);
 
     return false;
+}
+
+uint64_t slots_bitmap_mpmc_get_next_available(
+        slots_bitmap_mpmc_t *slots_bitmap) {
+    uint64_t index;
+
+    if (slots_bitmap_mpmc_get_next_available_ptr(slots_bitmap, &index)) {
+        return index;
+    }
+
+    return UINT64_MAX;
 }
 
 void slots_bitmap_mpmc_release(
