@@ -34,24 +34,28 @@ uint64_t slots_bitmap_mpmc_calculate_shard_count(
 
 slots_bitmap_mpmc_t *slots_bitmap_mpmc_init(
         uint64_t size) {
+    if (size == 0) {
+        return NULL;
+    }
+
     size_t shards_count = slots_bitmap_mpmc_calculate_shard_count(size);
     size_t allocation_size =
             sizeof(slots_bitmap_mpmc_t) +
             (sizeof(slots_bitmap_mpmc_shard_t) * shards_count) +
             (sizeof(uint8_t) * shards_count);
 
-    slots_bitmap_mpmc_t *bitmap = (slots_bitmap_mpmc_t *)ffma_mem_alloc(allocation_size);
+    slots_bitmap_mpmc_t *slots_bitmap = (slots_bitmap_mpmc_t *)ffma_mem_alloc(allocation_size);
 
-    if (bitmap == NULL) {
+    if (slots_bitmap == NULL) {
         return NULL;
     }
 
-    memset(bitmap, 0, allocation_size);
+    memset(slots_bitmap, 0, allocation_size);
 
-    bitmap->size = size;
-    bitmap->shards_count = shards_count;
+    slots_bitmap->size = shards_count * SLOTS_BITMAP_MPMC_SHARD_SIZE;
+    slots_bitmap->shards_count = shards_count;
 
-    return bitmap;
+    return slots_bitmap;
 }
 
 void slots_bitmap_mpmc_free(

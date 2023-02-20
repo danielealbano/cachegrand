@@ -39,6 +39,9 @@ uint64_t slots_bitmap_spsc_calculate_shard_full_count(
 
 slots_bitmap_spsc_t *slots_bitmap_spsc_init(
         uint64_t size) {
+    if (size == 0) {
+        return NULL;
+    }
 
     size_t shards_count = slots_bitmap_spsc_calculate_shard_count(size);
     size_t allocation_size =
