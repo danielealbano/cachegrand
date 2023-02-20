@@ -10,45 +10,58 @@
 
 #include "data_structures/slots_bitmap_spsc/slots_bitmap_spsc.h"
 
-
 TEST_CASE("data_structures/slots_bitmap_spsc/slots_bitmap_spsc.c", "[data_structures][slots_bitmap_spsc]") {
     SECTION("slots_bitmap_spsc_calculate_shard_count") {
-        uint64_t size = 100;
-        uint64_t expected_shard_count = 2;
-        REQUIRE(slots_bitmap_spsc_calculate_shard_count(size) == expected_shard_count);
+        SECTION("Size is zero") {
+            REQUIRE(slots_bitmap_spsc_calculate_shard_count(0) == 0);
+        }
 
-        size = 64;
-        expected_shard_count = 1;
-        REQUIRE(slots_bitmap_spsc_calculate_shard_count(size) == expected_shard_count);
+        SECTION("Size is 1") {
+            REQUIRE(slots_bitmap_spsc_calculate_shard_count(1) == 1);
+        }
 
-        size = 0;
-        expected_shard_count = 0;
-        REQUIRE(slots_bitmap_spsc_calculate_shard_count(size) == expected_shard_count);
+        SECTION("Size is a multiple of shard size") {
+            REQUIRE(slots_bitmap_spsc_calculate_shard_count(64) == 1);
+            REQUIRE(slots_bitmap_spsc_calculate_shard_count(128) == 2);
+        }
+
+        SECTION("Size is not a multiple of shard size") {
+            REQUIRE(slots_bitmap_spsc_calculate_shard_count(65) == 2);
+            REQUIRE(slots_bitmap_spsc_calculate_shard_count(127) == 2);
+            REQUIRE(slots_bitmap_spsc_calculate_shard_count(129) == 3);
+        }
     }
 
     SECTION("slots_bitmap_spsc_init") {
-        uint64_t size = 10;
-        slots_bitmap_spsc_t *slots_bitmap = slots_bitmap_spsc_init(size);
-        REQUIRE(slots_bitmap != NULL);
-        REQUIRE(slots_bitmap->size == 64);
-        REQUIRE(slots_bitmap->shards_count == 1);
-        REQUIRE(slots_bitmap_spsc_get_shard_ptr(slots_bitmap, 0) != NULL);
-        REQUIRE(slots_bitmap_spsc_get_shard_used_count_ptr(slots_bitmap, 0) != NULL);
-        REQUIRE(slots_bitmap_spsc_get_shard_full_ptr(slots_bitmap, 0) != NULL);
-        slots_bitmap_spsc_free(slots_bitmap);
+        SECTION("Size is zero") {
+            slots_bitmap_spsc_t *bitmap = slots_bitmap_spsc_init(0);
+            REQUIRE(bitmap == NULL);
+        }
 
-        size = 65;
-        slots_bitmap = slots_bitmap_spsc_init(size);
-        REQUIRE(slots_bitmap != NULL);
-        REQUIRE(slots_bitmap->size == 128);
-        REQUIRE(slots_bitmap->shards_count == 2);
-        REQUIRE(slots_bitmap_spsc_get_shard_ptr(slots_bitmap, 0) != NULL);
-        REQUIRE(slots_bitmap_spsc_get_shard_ptr(slots_bitmap, 1) != NULL);
-        REQUIRE(slots_bitmap_spsc_get_shard_used_count_ptr(slots_bitmap, 0) != NULL);
-        REQUIRE(slots_bitmap_spsc_get_shard_used_count_ptr(slots_bitmap, 1) != NULL);
-        REQUIRE(slots_bitmap_spsc_get_shard_full_ptr(slots_bitmap, 0) != NULL);
-        REQUIRE(slots_bitmap_spsc_get_shard_full_ptr(slots_bitmap, 1) != NULL);
-        slots_bitmap_spsc_free(slots_bitmap);
+        SECTION("Size is positive") {
+            uint64_t size = 10;
+            slots_bitmap_spsc_t *slots_bitmap = slots_bitmap_spsc_init(size);
+            REQUIRE(slots_bitmap != NULL);
+            REQUIRE(slots_bitmap->size == 64);
+            REQUIRE(slots_bitmap->shards_count == 1);
+            REQUIRE(slots_bitmap_spsc_get_shard_ptr(slots_bitmap, 0) != NULL);
+            REQUIRE(slots_bitmap_spsc_get_shard_used_count_ptr(slots_bitmap, 0) != NULL);
+            REQUIRE(slots_bitmap_spsc_get_shard_full_ptr(slots_bitmap, 0) != NULL);
+            slots_bitmap_spsc_free(slots_bitmap);
+
+            size = 65;
+            slots_bitmap = slots_bitmap_spsc_init(size);
+            REQUIRE(slots_bitmap != NULL);
+            REQUIRE(slots_bitmap->size == 128);
+            REQUIRE(slots_bitmap->shards_count == 2);
+            REQUIRE(slots_bitmap_spsc_get_shard_ptr(slots_bitmap, 0) != NULL);
+            REQUIRE(slots_bitmap_spsc_get_shard_ptr(slots_bitmap, 1) != NULL);
+            REQUIRE(slots_bitmap_spsc_get_shard_used_count_ptr(slots_bitmap, 0) != NULL);
+            REQUIRE(slots_bitmap_spsc_get_shard_used_count_ptr(slots_bitmap, 1) != NULL);
+            REQUIRE(slots_bitmap_spsc_get_shard_full_ptr(slots_bitmap, 0) != NULL);
+            REQUIRE(slots_bitmap_spsc_get_shard_full_ptr(slots_bitmap, 1) != NULL);
+            slots_bitmap_spsc_free(slots_bitmap);
+        }
     }
 
     SECTION("slots_bitmap_spsc_free") {
