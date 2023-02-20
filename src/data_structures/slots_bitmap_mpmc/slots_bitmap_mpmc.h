@@ -28,9 +28,9 @@ uint64_t slots_bitmap_mpmc_calculate_shard_count(
         uint64_t size);
 
 /**
- * Calculate the number of shards needed to store the given size
+ * Initialize a new concurrent bitmap with the given size
  * @param size Size of the bitmap
- * @return Number of shards needed to store the given size
+ * @return A pointer to the new concurrent bitmap, or NULL if memory allocation fails or size is 0
  */
 slots_bitmap_mpmc_t *slots_bitmap_mpmc_init(
         uint64_t size);

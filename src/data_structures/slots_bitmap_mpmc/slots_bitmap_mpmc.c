@@ -29,6 +29,7 @@
 
 uint64_t slots_bitmap_mpmc_calculate_shard_count(
         uint64_t size) {
+    // ceil function is used to round up to the nearest integer the result of the division
     return (uint64_t)ceil((double)size / (double)SLOTS_BITMAP_MPMC_SHARD_SIZE);
 }
 
@@ -38,7 +39,10 @@ slots_bitmap_mpmc_t *slots_bitmap_mpmc_init(
         return NULL;
     }
 
+    // Calculate the number of shards needed to store the given size
     size_t shards_count = slots_bitmap_mpmc_calculate_shard_count(size);
+
+    // Allocate memory for the concurrent bitmap, shards, and used slots
     size_t allocation_size =
             sizeof(slots_bitmap_mpmc_t) +
             (sizeof(slots_bitmap_mpmc_shard_t) * shards_count) +
@@ -46,12 +50,13 @@ slots_bitmap_mpmc_t *slots_bitmap_mpmc_init(
 
     slots_bitmap_mpmc_t *slots_bitmap = (slots_bitmap_mpmc_t *)ffma_mem_alloc(allocation_size);
 
+    // If memory allocation fails, return NULL
     if (slots_bitmap == NULL) {
         return NULL;
     }
 
+    // Initialize the bitmap, set its size and shards count
     memset(slots_bitmap, 0, allocation_size);
-
     slots_bitmap->size = shards_count * SLOTS_BITMAP_MPMC_SHARD_SIZE;
     slots_bitmap->shards_count = shards_count;
 
@@ -60,12 +65,14 @@ slots_bitmap_mpmc_t *slots_bitmap_mpmc_init(
 
 void slots_bitmap_mpmc_free(
         slots_bitmap_mpmc_t *bitmap) {
+    // Free the memory allocated for the concurrent bitmap
     ffma_mem_free(bitmap);
 }
 
 slots_bitmap_mpmc_shard_t* slots_bitmap_mpmc_get_shard_ptr(
         slots_bitmap_mpmc_t *bitmap,
         uint64_t shard_index) {
+    // Calculate the address of the specified shard and return a pointer to it
     uintptr_t bitmap_ptr = (uintptr_t)bitmap;
     uintptr_t bitmap_shards_ptr = bitmap_ptr + offsetof(slots_bitmap_mpmc_t, shards);
     uintptr_t bitmap_shard_ptr = bitmap_shards_ptr + (sizeof(slots_bitmap_mpmc_shard_t) * shard_index);
@@ -76,6 +83,7 @@ slots_bitmap_mpmc_shard_t* slots_bitmap_mpmc_get_shard_ptr(
 uint8_t* slots_bitmap_mpmc_get_shard_used_count_ptr(
         slots_bitmap_mpmc_t *bitmap,
         uint64_t shard_index) {
+    // Calculate the address of the specified shard's used count and return a pointer to it
     uintptr_t bitmap_ptr = (uintptr_t)bitmap;
     uintptr_t bitmap_shards_ptr = bitmap_ptr + offsetof(slots_bitmap_mpmc_t, shards);
     uintptr_t bitmap_shards_used_slots_ptr =

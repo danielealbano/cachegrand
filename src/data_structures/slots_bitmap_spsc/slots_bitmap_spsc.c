@@ -43,7 +43,10 @@ slots_bitmap_spsc_t *slots_bitmap_spsc_init(
         return NULL;
     }
 
+    // Calculate the number of shards needed to store the given size
     size_t shards_count = slots_bitmap_spsc_calculate_shard_count(size);
+
+    // Allocate memory for the bitmap, shards, and used slots
     size_t allocation_size =
             sizeof(slots_bitmap_spsc_t) +
             (sizeof(slots_bitmap_spsc_shard_t) * shards_count) +
@@ -52,10 +55,12 @@ slots_bitmap_spsc_t *slots_bitmap_spsc_init(
 
     slots_bitmap_spsc_t *slots_bitmap = (slots_bitmap_spsc_t *)ffma_mem_alloc(allocation_size);
 
+    // If memory allocation fails, return NULL
     if (slots_bitmap == NULL) {
         return NULL;
     }
 
+    // Initialize the bitmap, set its size and shards count
     memset(slots_bitmap, 0, allocation_size);
 
     slots_bitmap->size = shards_count * SLOTS_BITMAP_SPSC_SHARD_SIZE;
@@ -66,6 +71,7 @@ slots_bitmap_spsc_t *slots_bitmap_spsc_init(
 
 void slots_bitmap_spsc_free(
         slots_bitmap_spsc_t *slots_bitmap) {
+    // Free the memory allocated for the bitmap
     ffma_mem_free(slots_bitmap);
 }
 

@@ -40,7 +40,7 @@ uint64_t slots_bitmap_spsc_calculate_shard_count(
 /**
  * Initialize a new bitmap
  * @param size Size of the bitmap
- * @return Pointer to the bitmap
+ * @return A pointer to the new bitmap, or NULL if memory allocation fails or size is 0
  */
 slots_bitmap_spsc_t *slots_bitmap_spsc_init(
         uint64_t size);
