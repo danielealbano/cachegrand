@@ -105,6 +105,74 @@ TEST_CASE("data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.c", "[data_struct
                 (uint8_t*)bitmap_shards_used_slots_ptr);
         slots_bitmap_mpmc_free(slots_bitmap);
     }
+
+    SECTION("slots_bitmap_mpmc_get_next_available_ptr_with_step") {
+        slots_bitmap_mpmc_t *bitmap = slots_bitmap_mpmc_init(512);
+        uint64_t index;
+
+        SECTION("No space available") {
+            for (uint64_t i = 0; i < bitmap->size; i++) {
+                *slots_bitmap_mpmc_get_shard_ptr(bitmap, i / 64) |= ((slots_bitmap_mpmc_shard_t)1 << i);
+                *slots_bitmap_mpmc_get_shard_used_count_ptr(bitmap, i / 64) += 1;
+            }
+
+            REQUIRE(slots_bitmap_mpmc_get_next_available_ptr_with_step(bitmap, 0, 1, &index) == false);
+        }
+
+        SECTION("Space available") {
+            REQUIRE(slots_bitmap_mpmc_get_next_available_ptr_with_step(bitmap, 0, 1, &index) == true);
+            REQUIRE(index == 0);
+        }
+
+        SECTION("Multiple available") {
+            REQUIRE(slots_bitmap_mpmc_get_next_available_ptr_with_step(bitmap, 0, 1, &index) == true);
+            REQUIRE(index == 0);
+            REQUIRE(slots_bitmap_mpmc_get_next_available_ptr_with_step(bitmap, 0, 1, &index) == true);
+            REQUIRE(index == 1);
+            REQUIRE(slots_bitmap_mpmc_get_next_available_ptr_with_step(bitmap, 0, 1, &index) == true);
+            REQUIRE(index == 2);
+        }
+
+        SECTION("After a filled shard") {
+            for (uint64_t i = 0; i < 64; i++) {
+                *slots_bitmap_mpmc_get_shard_ptr(bitmap, i / 64) |= ((slots_bitmap_mpmc_shard_t)1 << i);
+                *slots_bitmap_mpmc_get_shard_used_count_ptr(bitmap, i / 64) += 1;
+            }
+
+            REQUIRE(slots_bitmap_mpmc_get_next_available_ptr_with_step(bitmap, 0, 1, &index) == true);
+            REQUIRE(index == 64);
+            REQUIRE(slots_bitmap_mpmc_get_next_available_ptr_with_step(bitmap, 0, 1, &index) == true);
+            REQUIRE(index == 65);
+            REQUIRE(slots_bitmap_mpmc_get_next_available_ptr_with_step(bitmap, 0, 1, &index) == true);
+            REQUIRE(index == 66);
+        }
+
+        SECTION("Start 1 step 1") {
+            REQUIRE(slots_bitmap_mpmc_get_next_available_ptr_with_step(bitmap, 1, 1, &index) == true);
+            REQUIRE(index == SLOTS_BITMAP_MPMC_SHARD_SIZE + 0);
+            REQUIRE(slots_bitmap_mpmc_get_next_available_ptr_with_step(bitmap, 1, 1, &index) == true);
+            REQUIRE(index == SLOTS_BITMAP_MPMC_SHARD_SIZE + 1);
+            REQUIRE(slots_bitmap_mpmc_get_next_available_ptr_with_step(bitmap, 1, 1, &index) == true);
+            REQUIRE(index == SLOTS_BITMAP_MPMC_SHARD_SIZE + 2);
+        }
+
+        SECTION("Start 1 step 2, shard 1 almost filled up") {
+            for (uint64_t i = SLOTS_BITMAP_MPMC_SHARD_SIZE; i < SLOTS_BITMAP_MPMC_SHARD_SIZE + 63; i++) {
+                *slots_bitmap_mpmc_get_shard_ptr(bitmap, i / 64) |= ((slots_bitmap_mpmc_shard_t)1 << i);
+                *slots_bitmap_mpmc_get_shard_used_count_ptr(bitmap, i / 64) += 1;
+            }
+            REQUIRE(slots_bitmap_mpmc_get_next_available_ptr_with_step(bitmap, 0, 1, &index) == true);
+            REQUIRE(index == 0);
+
+            REQUIRE(slots_bitmap_mpmc_get_next_available_ptr_with_step(bitmap, 1, 2, &index) == true);
+            REQUIRE(index == (SLOTS_BITMAP_MPMC_SHARD_SIZE * 1) + 63);
+            REQUIRE(slots_bitmap_mpmc_get_next_available_ptr_with_step(bitmap, 1, 2, &index) == true);
+            REQUIRE(index == (SLOTS_BITMAP_MPMC_SHARD_SIZE * 3) + 0);
+            REQUIRE(slots_bitmap_mpmc_get_next_available_ptr_with_step(bitmap, 1, 2, &index) == true);
+            REQUIRE(index == (SLOTS_BITMAP_MPMC_SHARD_SIZE * 3) + 1);
+        }
+    }
+
     SECTION("slots_bitmap_mpmc_get_next_available_ptr") {
         slots_bitmap_mpmc_t *bitmap = slots_bitmap_mpmc_init(128);
         uint64_t index;
@@ -175,6 +243,9 @@ TEST_CASE("data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.c", "[data_struct
 
         SECTION("When the shard bit is already set to 0") {
             uint64_t slots_bitmap_index = 0;
+            *slots_bitmap_mpmc_get_shard_ptr(bitmap, 0) = 0;
+            *slots_bitmap_mpmc_get_shard_used_count_ptr(bitmap, 0) = 0;
+
             slots_bitmap_mpmc_release(bitmap, slots_bitmap_index);
 
             REQUIRE(bitmap->shards_used_slots[0] == 0);
@@ -183,9 +254,8 @@ TEST_CASE("data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.c", "[data_struct
 
         SECTION("When the shard bit is set to 1") {
             uint64_t slots_bitmap_index = 0;
-            slots_bitmap_mpmc_shard_t *bitmap_shard_ptr = slots_bitmap_mpmc_get_shard_ptr(bitmap, 0);
-            *bitmap_shard_ptr = 1;
-            bitmap->shards_used_slots[0] = 1;
+            *slots_bitmap_mpmc_get_shard_ptr(bitmap, 0) = 1;
+            *slots_bitmap_mpmc_get_shard_used_count_ptr(bitmap, 0) = 1;
 
             slots_bitmap_mpmc_release(bitmap, slots_bitmap_index);
 
