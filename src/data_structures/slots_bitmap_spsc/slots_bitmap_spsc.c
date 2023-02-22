@@ -139,7 +139,7 @@ bool slots_bitmap_spsc_is_shard_full(
     return full;
 }
 
-uint8_t slots_bitmap_spsc_find_first_zero(
+uint8_t slots_bitmap_spsc_shard_find_first_zero(
         slots_bitmap_spsc_shard_t slots_bitmap_shard) {
     for(int16_t uint16_bytes_index = 0; uint16_bytes_index < 8; uint16_bytes_index += 2) {
         uint16_t uint16_bytes = (uint16_t)((slots_bitmap_shard >> (uint16_bytes_index * 8)) & 0xFFFF);
@@ -167,7 +167,7 @@ bool slots_bitmap_spsc_get_next_available_ptr(
         }
 
         slots_bitmap_spsc_shard_t *bitmap_shard_ptr = &bitmap_shard_base_ptr[shard_index];
-        int16_t bitmap_shard_bit_index = slots_bitmap_spsc_find_first_zero(*bitmap_shard_ptr);
+        int16_t bitmap_shard_bit_index = slots_bitmap_spsc_shard_find_first_zero(*bitmap_shard_ptr);
 
         // There should always be a bit available if the shard is not full
         assert(bitmap_shard_bit_index < UINT8_MAX);
