@@ -16,10 +16,10 @@
 //---------------------------------------------------------------------------------------------------------------
 //Benchmark                                                                     Time             CPU   Iterations
 //---------------------------------------------------------------------------------------------------------------
-//slots_bitmap_spsc_fill_sequential/iterations:51200/repeats:50_mean          181 ns          181 ns           50
-//slots_bitmap_spsc_fill_sequential/iterations:51200/repeats:50_median        178 ns          178 ns           50
-//slots_bitmap_spsc_fill_sequential/iterations:51200/repeats:50_stddev       8.33 ns         8.35 ns           50
-//slots_bitmap_spsc_fill_sequential/iterations:51200/repeats:50_cv           4.60 %          4.62 %            50
+//slots_bitmap_spsc_fill_sequential/iterations:51200/repeats:50_mean          877 ns          877 ns           50
+//slots_bitmap_spsc_fill_sequential/iterations:51200/repeats:50_median        876 ns          876 ns           50
+//slots_bitmap_spsc_fill_sequential/iterations:51200/repeats:50_stddev       3.17 ns         3.16 ns           50
+//slots_bitmap_spsc_fill_sequential/iterations:51200/repeats:50_cv           0.36 %          0.36 %            50
 
 #include <cstdio>
 #include <cstring>
@@ -34,10 +34,10 @@
 
 #include "benchmark-program-simple.hpp"
 
+#define BITS_PER_THREAD (((sizeof(uint64_t) * 8) * (64 / sizeof(uint64_t))) * 100)
+
 static void slots_bitmap_spsc_fill_sequential(benchmark::State& state) {
-    int current_thread = state.thread_index();
-    int total_threads = state.threads();
-    const uint64_t size = ((sizeof(uint64_t) * 8) * (64 / sizeof(uint64_t))) * 10;
+    const uint64_t size = BITS_PER_THREAD;
     slots_bitmap_spsc_t *bitmap = slots_bitmap_spsc_init(size);
 
     for (auto _ : state) {
@@ -51,7 +51,7 @@ static void BenchArguments(benchmark::internal::Benchmark* b) {
     // To run more than 131072 iterations is necessary to increase EPOCH_OPERATION_QUEUE_RING_SIZE in
     // epoch_operations_queue.h as there is no processing of the queue included with the test
     b
-            ->Iterations(((sizeof(uint64_t) * 8) * (64 / sizeof(uint64_t))) * 100)
+            ->Iterations(BITS_PER_THREAD)
             ->Repetitions(50)
             ->DisplayAggregatesOnly(true);
 }
