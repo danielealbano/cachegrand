@@ -8,7 +8,9 @@
 
 #include <catch2/catch.hpp>
 
+#include "misc.h"
 #include "exttypes.h"
+#include "memory_fences.h"
 
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 

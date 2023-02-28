@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdatomic.h>
+#include <stddef.h>
 #include <string.h>
 #include <math.h>
 #include <assert.h>

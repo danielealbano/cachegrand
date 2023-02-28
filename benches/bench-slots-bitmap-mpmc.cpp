@@ -72,6 +72,8 @@
 
 #include <benchmark/benchmark.h>
 
+#include "misc.h"
+#include "memory_fences.h"
 #include "exttypes.h"
 #include "utils_cpu.h"
 #include "thread.h"
