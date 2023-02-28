@@ -6,6 +6,21 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
+//Run on (32 X 4199.98 MHz CPU s)
+//CPU Caches:
+//L1 Data 32 KiB (x16)
+//L1 Instruction 32 KiB (x16)
+//L2 Unified 512 KiB (x16)
+//L3 Unified 16384 KiB (x4)
+//Load Average: 14.45, 7.05, 3.46
+//---------------------------------------------------------------------------------------------------------------
+//Benchmark                                                                     Time             CPU   Iterations
+//---------------------------------------------------------------------------------------------------------------
+//slots_bitmap_spsc_fill_sequential/iterations:51200/repeats:50_mean          181 ns          181 ns           50
+//slots_bitmap_spsc_fill_sequential/iterations:51200/repeats:50_median        178 ns          178 ns           50
+//slots_bitmap_spsc_fill_sequential/iterations:51200/repeats:50_stddev       8.33 ns         8.35 ns           50
+//slots_bitmap_spsc_fill_sequential/iterations:51200/repeats:50_cv           4.60 %          4.62 %            50
+
 #include <cstdio>
 #include <cstring>
 #include <cstdint>
