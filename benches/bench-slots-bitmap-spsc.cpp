@@ -29,15 +29,10 @@
 #include <benchmark/benchmark.h>
 
 #include "exttypes.h"
-#include "utils_cpu.h"
 
 #include "data_structures/slots_bitmap_spsc/slots_bitmap_spsc.h"
 
 #include "benchmark-program-simple.hpp"
-
-// It is possible to control the amount of threads used for the test tuning the two defines below
-#define TEST_THREADS_RANGE_BEGIN (1)
-#define TEST_THREADS_RANGE_END (utils_cpu_count())
 
 static void slots_bitmap_spsc_fill_sequential(benchmark::State& state) {
     int current_thread = state.thread_index();
