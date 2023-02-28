@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#define HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED (0)
+
 #define HASHTABLE_MPMC_HASH_SEED 42U
 #define HASHTABLE_MPMC_LINEAR_SEARCH_RANGE 256
 #define HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE (1024 * 16)
@@ -32,10 +34,27 @@ typedef uint64_t hashtable_mpmc_bucket_index_t;
 typedef uint64_t hashtable_mpmc_hash_t;
 typedef uint32_t hashtable_mpmc_hash_half_t;
 typedef uint16_t hashtable_mpmc_hash_quarter_t;
+typedef uint32_volatile_t hashtable_mpmc_transaction_id_t;
 
 typedef _Volatile(hashtable_mpmc_hash_t) hashtable_mpmc_hash_volatile_t;
 typedef _Volatile(hashtable_mpmc_hash_half_t) hashtable_mpmc_hash_half_volatile_t;
 typedef _Volatile(hashtable_mpmc_hash_quarter_t) hashtable_mpmc_hash_quarter_volatile_t;
+
+typedef struct hashtable_mpmc_transaction_bucket_key hashtable_mpmc_transaction_bucket_key_t;
+struct hashtable_mpmc_transaction_bucket_key {
+    hashtable_mpmc_key_length_t key_length;
+    char* key;
+};
+
+typedef struct hashtable_mpmc_transaction hashtable_mpmc_transaction_t;
+struct hashtable_mpmc_transaction {
+    hashtable_mpmc_transaction_id_t hashtable_mpmc_transaction_id;
+    struct {
+        uint32_t count;
+        uint32_t size;
+        hashtable_mpmc_transaction_bucket_key_t *list[];
+    } buckets_keys;
+};
 
 typedef struct hashtable_mpmc_data_key_value hashtable_mpmc_data_key_value_t;
 typedef _Volatile(hashtable_mpmc_data_key_value_t) hashtable_mpmc_data_key_value_volatile_t;
@@ -66,7 +85,7 @@ typedef union hashtable_mpmc_data_bucket hashtable_mpmc_bucket_t;
 union hashtable_mpmc_data_bucket {
     uint128_volatile_t _packed;
     struct {
-        transaction_id_t transaction_id;
+        hashtable_mpmc_transaction_id_t transaction_id;
         hashtable_mpmc_hash_half_volatile_t hash_half;
         hashtable_mpmc_data_key_value_volatile_t *key_value;
     } data;
@@ -122,6 +141,7 @@ struct hashtable_mpmc {
     uint64_t buckets_count_max;
     uint64_t upsize_preferred_block_size;
     hashtable_mpmc_upsize_info_t upsize;
+    slots_bitmap_mpmc_t transactions_free_slots_bitmap;
     struct {
         spinlock_lock_volatile_t lock;
         uint32_volatile_t size;
@@ -200,6 +220,7 @@ hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
         hashtable_mpmc_data_t *hashtable_mpmc_data,
         hashtable_mpmc_hash_t hash,
         hashtable_mpmc_hash_half_t hash_half,
+        hashtable_mpmc_transaction_id_t transaction_id,
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length,
         bool allow_temporary,
@@ -210,6 +231,7 @@ hashtable_mpmc_result_t hashtable_mpmc_support_acquire_empty_bucket_for_insert(
         hashtable_mpmc_data_t *hashtable_mpmc_data,
         hashtable_mpmc_hash_t hash,
         hashtable_mpmc_hash_half_t hash_half,
+        hashtable_mpmc_transaction_id_t transaction_id,
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length,
         uintptr_t value,
@@ -221,6 +243,7 @@ hashtable_mpmc_result_t hashtable_mpmc_support_validate_insert(
         hashtable_mpmc_data_t *hashtable_mpmc_data,
         hashtable_mpmc_hash_t hash,
         hashtable_mpmc_hash_half_t hash_half,
+        hashtable_mpmc_transaction_id_t transaction_id,
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length,
         hashtable_mpmc_bucket_index_t new_bucket_index);

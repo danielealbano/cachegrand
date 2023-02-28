@@ -24,6 +24,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "epoch_gc.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable_mpmc/hashtable_mpmc.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 
@@ -830,7 +831,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                 hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key_embed_hash);
 
         SECTION("bucket found") {
-            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id.id = 0;
+            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id = 0;
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value = key_value;
 
@@ -838,6 +839,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key_hash,
                     key_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key,
                     key_length,
                     false,
@@ -848,7 +850,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         }
 
         SECTION("bucket found - temporary") {
-            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id.id = 0;
+            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id = 0;
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value =
                     (hashtable_mpmc_data_key_value_volatile_t *) ((uintptr_t) (key_value) | 0x01);
@@ -857,6 +859,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key_hash,
                     key_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key,
                     key_length,
                     true,
@@ -871,7 +874,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             strncpy(key_value->key.embedded.key, key_embed, key_embed_length);
             key_value->key.embedded.key_length = key_embed_length;
             key_value->hash = key_embed_hash;
-            hashtable->data->buckets[hashtable_key_embed_bucket_index].data.transaction_id.id = 0;
+            hashtable->data->buckets[hashtable_key_embed_bucket_index].data.transaction_id = 0;
             hashtable->data->buckets[hashtable_key_embed_bucket_index].data.hash_half = key_embed_hash_half;
             hashtable->data->buckets[hashtable_key_embed_bucket_index].data.key_value = key_value;
 
@@ -879,6 +882,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key_embed_hash,
                     key_embed_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key_embed,
                     key_embed_length,
                     false,
@@ -889,7 +893,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         }
 
         SECTION("bucket not found - not existing") {
-            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id.id = 0;
+            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id = 0;
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value = key_value;
 
@@ -897,6 +901,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key2_hash,
                     key2_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key2,
                     key2_length,
                     false,
@@ -905,7 +910,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         }
 
         SECTION("bucket not found - temporary") {
-            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id.id = 0;
+            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id = 0;
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value =
                     (hashtable_mpmc_data_key_value_volatile_t *) ((uintptr_t) (key_value) | 0x01);
@@ -914,6 +919,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key_hash,
                     key_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key,
                     key_length,
                     false,
@@ -922,7 +928,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         }
 
         SECTION("bucket not found - not in range") {
-            hashtable->data->buckets[hashtable_key_bucket_index_max].data.transaction_id.id = 0;
+            hashtable->data->buckets[hashtable_key_bucket_index_max].data.transaction_id = 0;
             hashtable->data->buckets[hashtable_key_bucket_index_max].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index_max].data.key_value = key_value;
 
@@ -930,6 +936,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key_hash,
                     key_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key,
                     key_length,
                     false,
@@ -942,6 +949,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key_hash,
                     key_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key,
                     key_length,
                     false,
@@ -976,6 +984,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key_hash,
                     key_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key_copy,
                     key_length,
                     (uintptr_t) value1,
@@ -1001,6 +1010,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key_hash,
                     key_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key_copy,
                     key_length,
                     (uintptr_t) value1,
@@ -1038,6 +1048,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key_hash,
                     key_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key_copy,
                     key_length,
                     (uintptr_t) value1,
@@ -1086,6 +1097,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key_hash,
                     key_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key_copy,
                     key_length,
                     hashtable_key_bucket_index);
@@ -1110,6 +1122,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key_hash,
                     key_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key_copy,
                     key_length,
                     hashtable_key_bucket_index);
@@ -1424,7 +1437,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         hashtable_mpmc_thread_epoch_operation_queue_hashtable_data_init();
 
         SECTION("value found - existing key") {
-            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id.id = 0;
+            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id = 0;
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value = key_value;
 
@@ -1441,7 +1454,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             strncpy(key_value->key.embedded.key, key_embed, key_embed_length);
             key_value->key.embedded.key_length = key_embed_length;
             key_value->hash = key_embed_hash;
-            hashtable->data->buckets[hashtable_key_embed_bucket_index].data.transaction_id.id = 0;
+            hashtable->data->buckets[hashtable_key_embed_bucket_index].data.transaction_id = 0;
             hashtable->data->buckets[hashtable_key_embed_bucket_index].data.hash_half = key_embed_hash_half;
             hashtable->data->buckets[hashtable_key_embed_bucket_index].data.key_value = key_value;
 
@@ -1456,7 +1469,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         SECTION("value found - after tombstone key") {
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value =
                     (hashtable_mpmc_data_key_value_t *) HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE;
-            hashtable->data->buckets[hashtable_key_bucket_index + 1].data.transaction_id.id = 0;
+            hashtable->data->buckets[hashtable_key_bucket_index + 1].data.transaction_id = 0;
             hashtable->data->buckets[hashtable_key_bucket_index + 1].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index + 1].data.key_value = key_value;
 
@@ -1469,7 +1482,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         }
 
         SECTION("value not found - existing key with different case") {
-            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id.id = 0;
+            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id = 0;
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value = key_value;
 
@@ -1489,7 +1502,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         }
 
         SECTION("value not found - temporary") {
-            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id.id = 0;
+            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id = 0;
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value =
                     (hashtable_mpmc_data_key_value_volatile_t *) ((uintptr_t) (key_value) | 0x01);
@@ -1502,7 +1515,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         }
 
         SECTION("value not found - empty (without tombstone) before") {
-            hashtable->data->buckets[hashtable_key_bucket_index + 1].data.transaction_id.id = 0;
+            hashtable->data->buckets[hashtable_key_bucket_index + 1].data.transaction_id = 0;
             hashtable->data->buckets[hashtable_key_bucket_index + 1].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index + 1].data.key_value = key_value;
 
@@ -1544,13 +1557,13 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                 hashtable_mpmc_support_bucket_index_from_hash(hashtable->data, key_hash);
 
         SECTION("value deleted - existing key") {
-            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id.id = 0;
+            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id = 0;
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value = key_value;
 
             REQUIRE(hashtable_mpmc_op_delete(hashtable, key, key_length) == HASHTABLE_MPMC_RESULT_TRUE);
 
-            REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id.id == 0);
+            REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id == 0);
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half == 0);
             REQUIRE(hashtable->data->buckets[hashtable_key_bucket_index].data.key_value ==
                     (hashtable_mpmc_data_key_value_t *) HASHTABLE_MPMC_POINTER_TAG_TOMBSTONE);
@@ -1560,7 +1573,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         }
 
         SECTION("value not deleted - existing key with different case") {
-            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id.id = 0;
+            hashtable->data->buckets[hashtable_key_bucket_index].data.transaction_id = 0;
             hashtable->data->buckets[hashtable_key_bucket_index].data.hash_half = key_hash_half;
             hashtable->data->buckets[hashtable_key_bucket_index].data.key_value = key_value;
 
@@ -1629,6 +1642,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key_hash,
                     key_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key,
                     key_length,
                     false,
@@ -1646,6 +1660,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key_hash,
                     key_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key,
                     key_length,
                     false,
@@ -1676,6 +1691,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key_hash,
                     key_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key,
                     key_length,
                     false,
@@ -1685,6 +1701,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key2_hash,
                     key2_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key2,
                     key2_length,
                     false,
@@ -1706,6 +1723,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key_hash,
                     key_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key,
                     key_length,
                     false,
@@ -1715,6 +1733,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     hashtable->data,
                     key2_hash,
                     key2_hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key2,
                     key2_length,
                     false,
