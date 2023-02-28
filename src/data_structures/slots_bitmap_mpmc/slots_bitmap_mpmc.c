@@ -227,6 +227,26 @@ bool slots_bitmap_mpmc_get_next_available_ptr_with_step(
     return false;
 }
 
+uint64_t slots_bitmap_mpmc_get_next_available_with_step(
+        slots_bitmap_mpmc_t *slots_bitmap,
+        uint16_t shard_index_start,
+        uint16_t shard_index_step) {
+    uint64_t index;
+
+    // Try to get the next available slot
+    if (likely(slots_bitmap_mpmc_get_next_available_ptr_with_step(
+            slots_bitmap,
+            shard_index_start,
+            shard_index_step,
+            &index))) {
+        // Return the index
+        return index;
+    }
+
+    // No slot was found, return UINT64_MAX
+    return UINT64_MAX;
+}
+
 bool slots_bitmap_mpmc_get_next_available_ptr(
         slots_bitmap_mpmc_t *slots_bitmap,
         uint64_t *return_slots_bitmap_index) {

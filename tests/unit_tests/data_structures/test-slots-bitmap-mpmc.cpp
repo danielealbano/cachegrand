@@ -173,6 +173,58 @@ TEST_CASE("data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.c", "[data_struct
         }
     }
 
+    SECTION("slots_bitmap_mpmc_get_next_available_with_step") {
+        slots_bitmap_mpmc_t *bitmap = slots_bitmap_mpmc_init(512);
+
+        SECTION("No space available") {
+            for (uint64_t i = 0; i < bitmap->size; i++) {
+                *slots_bitmap_mpmc_get_shard_ptr(bitmap, i / 64) |= ((slots_bitmap_mpmc_shard_t)1 << i);
+                *slots_bitmap_mpmc_get_shard_used_count_ptr(bitmap, i / 64) += 1;
+            }
+
+            REQUIRE(slots_bitmap_mpmc_get_next_available_with_step(bitmap, 0, 1) == UINT64_MAX);
+        }
+
+        SECTION("Space available") {
+            REQUIRE(slots_bitmap_mpmc_get_next_available_with_step(bitmap, 0, 1) == 0);
+        }
+
+        SECTION("Multiple available") {
+            REQUIRE(slots_bitmap_mpmc_get_next_available_with_step(bitmap, 0, 1) == 0);
+            REQUIRE(slots_bitmap_mpmc_get_next_available_with_step(bitmap, 0, 1) == 1);
+            REQUIRE(slots_bitmap_mpmc_get_next_available_with_step(bitmap, 0, 1) == 2);
+        }
+
+        SECTION("After a filled shard") {
+            for (uint64_t i = 0; i < 64; i++) {
+                *slots_bitmap_mpmc_get_shard_ptr(bitmap, i / 64) |= ((slots_bitmap_mpmc_shard_t)1 << i);
+                *slots_bitmap_mpmc_get_shard_used_count_ptr(bitmap, i / 64) += 1;
+            }
+
+            REQUIRE(slots_bitmap_mpmc_get_next_available_with_step(bitmap, 0, 1) == 64);
+            REQUIRE(slots_bitmap_mpmc_get_next_available_with_step(bitmap, 0, 1) == 65);
+            REQUIRE(slots_bitmap_mpmc_get_next_available_with_step(bitmap, 0, 1) == 66);
+        }
+
+        SECTION("Start 1 step 1") {
+            REQUIRE(slots_bitmap_mpmc_get_next_available_with_step(bitmap, 1, 1) == SLOTS_BITMAP_MPMC_SHARD_SIZE + 0);
+            REQUIRE(slots_bitmap_mpmc_get_next_available_with_step(bitmap, 1, 1) == SLOTS_BITMAP_MPMC_SHARD_SIZE + 1);
+            REQUIRE(slots_bitmap_mpmc_get_next_available_with_step(bitmap, 1, 1) == SLOTS_BITMAP_MPMC_SHARD_SIZE + 2);
+        }
+
+        SECTION("Start 1 step 2, shard 1 almost filled up") {
+            for (uint64_t i = SLOTS_BITMAP_MPMC_SHARD_SIZE; i < SLOTS_BITMAP_MPMC_SHARD_SIZE + 63; i++) {
+                *slots_bitmap_mpmc_get_shard_ptr(bitmap, i / 64) |= ((slots_bitmap_mpmc_shard_t)1 << i);
+                *slots_bitmap_mpmc_get_shard_used_count_ptr(bitmap, i / 64) += 1;
+            }
+            REQUIRE(slots_bitmap_mpmc_get_next_available_with_step(bitmap, 0, 1) == 0);
+
+            REQUIRE(slots_bitmap_mpmc_get_next_available_with_step(bitmap, 1, 2) == (SLOTS_BITMAP_MPMC_SHARD_SIZE * 1) + 63);
+            REQUIRE(slots_bitmap_mpmc_get_next_available_with_step(bitmap, 1, 2) == (SLOTS_BITMAP_MPMC_SHARD_SIZE * 3) + 0);
+            REQUIRE(slots_bitmap_mpmc_get_next_available_with_step(bitmap, 1, 2) == (SLOTS_BITMAP_MPMC_SHARD_SIZE * 3) + 1);
+        }
+    }
+
     SECTION("slots_bitmap_mpmc_get_next_available_ptr") {
         slots_bitmap_mpmc_t *bitmap = slots_bitmap_mpmc_init(128);
         uint64_t index;

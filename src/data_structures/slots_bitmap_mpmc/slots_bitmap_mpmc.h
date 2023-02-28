@@ -108,6 +108,29 @@ bool slots_bitmap_mpmc_get_next_available_ptr_with_step(
         uint64_t *return_slots_bitmap_index);
 
 /**
+ * Get the first available slot in the bitmap, an index is returned to indicate the slot, in case of failure UINT64_MAX
+ * is returned.
+ * The main difference between slots_bitmap_mpmc_get_next_available_with_step and
+ * slots_bitmap_mpmc_get_next_available is that this function allows to specify the shard to start the search
+ * from and the step to use when searching for the next shard.
+ * This mechanism allows to implement a more efficient search strategy when using multiple threads, for example
+ * each thread can start the search from a different shard and use a step of 1, this way each thread will search
+ * a different shard and will clash less with other threads.
+ * When using this strategy though it's suggested to invoke the function again with start 0 and step 1 if the
+ * first invocation returns false, as this will allow to search the shards and handle the case in which all the shards
+ * of a thread are full.
+ *
+ * @param slots_bitmap Pointer to the bitmap
+ * @param shard_index_start Index of the shard to start the search from
+ * @param shard_index_step Step to use when searching for the next shard
+ * @return Index of the first available slot
+ */
+uint64_t slots_bitmap_mpmc_get_next_available_with_step(
+        slots_bitmap_mpmc_t *slots_bitmap,
+        uint16_t shard_index_start,
+        uint16_t shard_index_step);
+
+/**
  * Get the first available slot in the bitmap, the slot is returned as a pointer to the slot, a boolean is returned
  * to indicate if a slot was found or not.
  *
