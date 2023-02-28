@@ -16,54 +16,54 @@
 //--------------------------------------------------------------------------------------------------------------------------
 //Benchmark                                                                                Time             CPU   Iterations
 //--------------------------------------------------------------------------------------------------------------------------
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:1_mean             214 ns          214 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:1_median           213 ns          213 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:1_stddev          2.35 ns         2.35 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:1_cv              1.10 %          1.10 %            50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:2_mean             101 ns          199 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:2_median           101 ns          199 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:2_stddev         0.552 ns        0.944 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:2_cv              0.55 %          0.47 %            50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:4_mean            45.2 ns          176 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:4_median          45.1 ns          176 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:4_stddev         0.239 ns        0.868 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:4_cv              0.53 %          0.49 %            50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:8_mean            17.3 ns          133 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:8_median          17.3 ns          133 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:8_stddev         0.127 ns        0.714 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:8_cv              0.73 %          0.53 %            50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:16_mean           11.4 ns          108 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:16_median         11.4 ns          108 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:16_stddev        0.474 ns        0.478 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:16_cv             4.14 %          0.44 %            50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:32_mean           8.95 ns          101 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:32_median         8.89 ns          101 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:32_stddev        0.227 ns        0.589 ns           50
-//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:32_cv             2.53 %          0.58 %            50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:1_mean           210 ns          210 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:1_median         210 ns          210 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:1_stddev       0.358 ns        0.250 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:1_cv            0.17 %          0.12 %            50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:2_mean           297 ns          390 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:2_median         309 ns          390 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:2_stddev        31.5 ns        0.777 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:2_cv           10.59 %          0.20 %            50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:4_mean           555 ns          687 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:4_median         556 ns          686 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:4_stddev        16.4 ns         1.07 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:4_cv            2.96 %          0.16 %            50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:8_mean           946 ns         1027 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:8_median         947 ns         1027 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:8_stddev        5.93 ns        0.604 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:8_cv            0.63 %          0.06 %            50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:16_mean          992 ns         1073 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:16_median        991 ns         1072 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:16_stddev       3.98 ns         3.33 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:16_cv           0.40 %          0.31 %            50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:32_mean         1002 ns         1075 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:32_median       1001 ns         1075 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:32_stddev       3.53 ns         2.82 ns           50
-//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:32_cv           0.35 %          0.26 %            50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:1_mean             235 ns          235 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:1_median           231 ns          231 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:1_stddev          12.2 ns         12.1 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:1_cv              5.18 %          5.15 %            50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:2_mean             108 ns          216 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:2_median           108 ns          215 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:2_stddev          1.25 ns         2.51 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:2_cv              1.16 %          1.16 %            50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:4_mean            47.8 ns          191 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:4_median          47.7 ns          191 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:4_stddev         0.621 ns         2.46 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:4_cv              1.30 %          1.29 %            50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:8_mean            18.1 ns          145 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:8_median          18.0 ns          144 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:8_stddev         0.244 ns         1.96 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:8_cv              1.35 %          1.35 %            50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:16_mean           7.31 ns          117 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:16_median         7.29 ns          117 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:16_stddev        0.097 ns         1.55 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:16_cv             1.32 %          1.32 %            50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:32_mean           3.53 ns          112 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:32_median         3.51 ns          112 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:32_stddev        0.117 ns        0.534 ns           50
+//slots_bitmap_mpmc_fill_parallel/iterations:51200/repeats:50/threads:32_cv             3.31 %          0.48 %            50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:1_mean           230 ns          230 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:1_median         228 ns          228 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:1_stddev        7.43 ns         7.38 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:1_cv            3.23 %          3.21 %            50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:2_mean           212 ns          424 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:2_median         212 ns          424 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:2_stddev        1.36 ns         2.71 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:2_cv            0.64 %          0.64 %            50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:4_mean           187 ns          748 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:4_median         187 ns          747 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:4_stddev       0.720 ns         2.86 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:4_cv            0.38 %          0.38 %            50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:8_mean           140 ns         1122 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:8_median         140 ns         1119 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:8_stddev       0.631 ns         5.05 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:8_cv            0.45 %          0.45 %            50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:16_mean         74.1 ns         1185 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:16_median       73.2 ns         1171 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:16_stddev       1.99 ns         31.7 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:16_cv           2.68 %          2.67 %            50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:32_mean         49.1 ns         1549 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:32_median       48.9 ns         1551 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:32_stddev      0.635 ns         4.74 ns           50
+//slots_bitmap_mpmc_fill_sequential/iterations:51200/repeats:50/threads:32_cv           1.29 %          0.31 %            50
 
 #include <cstdio>
 #include <cstring>
@@ -74,6 +74,7 @@
 
 #include "exttypes.h"
 #include "utils_cpu.h"
+#include "thread.h"
 
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 
@@ -90,6 +91,8 @@ static void slots_bitmap_mpmc_fill_parallel(benchmark::State& state) {
     uint64_t start = (size / total_threads) * current_thread;
     slots_bitmap_mpmc_t *bitmap = slots_bitmap_mpmc_init(size);
 
+    thread_current_set_affinity(state.thread_index());
+
     for (auto _ : state) {
         benchmark::DoNotOptimize(slots_bitmap_mpmc_get_next_available_with_step(bitmap, start, 1));
     }
@@ -102,6 +105,8 @@ static void slots_bitmap_mpmc_fill_sequential(benchmark::State& state) {
     int total_threads = state.threads();
     const uint64_t size = ((sizeof(uint64_t) * 8) * (64 / sizeof(uint64_t))) * total_threads * 10;
     slots_bitmap_mpmc_t *bitmap = slots_bitmap_mpmc_init(size);
+
+    thread_current_set_affinity(state.thread_index());
 
     for (auto _ : state) {
         benchmark::DoNotOptimize(slots_bitmap_mpmc_get_next_available_with_step(bitmap, 1, 1));
