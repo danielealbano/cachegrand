@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdatomic.h>
 #include <string.h>
 #include <errno.h>
 #include <arpa/inet.h>
@@ -24,6 +23,7 @@
 #include "xalloc.h"
 #include "log/log.h"
 #include "fatal.h"
+#include "utils_cpu.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "memory_allocator/ffma.h"
@@ -42,7 +42,7 @@
 
 void config_internal_cyaml_log(
         cyaml_log_t level_cyaml,
-        void *ctx,
+        __attribute__((unused)) void *ctx,
         const char *fmt,
         va_list args) {
     log_level_t level;
@@ -94,67 +94,263 @@ cyaml_err_t config_internal_cyaml_load(
         char* config_path,
         cyaml_config_t* cyaml_config,
         cyaml_schema_value_t* schema) {
-    return cyaml_load_file(config_path, cyaml_config, schema, (cyaml_data_t **)config, NULL);
+    return cyaml_load_file(
+            config_path,
+            cyaml_config,
+            schema,
+            (cyaml_data_t **)config,
+            NULL);
+}
+
+bool config_validate_after_load_cpus(
+        config_t* config) {
+    bool return_result = true;
+    int max_cpu_count = utils_cpu_count();
+
+    // Validate that at least one CPU has been configured
+    if (config->cpus_count == 0) {
+        LOG_E(TAG, "No CPUs have been selected");
+        return false;
+    }
+
+    // Allocate the errors array
+    config_cpus_validate_error_t *errors = xalloc_alloc_zero(
+            sizeof(config_cpus_validate_error_t) * config->cpus_count);
+
+    // Validate the CPUs
+    if (config_cpus_validate(
+            max_cpu_count,
+            config->cpus,
+            config->cpus_count,
+            errors) == false) {
+        for(int cpu_index = 0; cpu_index < config->cpus_count; cpu_index++) {
+            if (errors[cpu_index] == CONFIG_CPUS_VALIDATE_OK) {
+                continue;
+            }
+
+            switch (errors[cpu_index]) {
+                default:
+                case CONFIG_CPUS_VALIDATE_ERROR_INVALID_CPU:
+                    LOG_E(TAG, "CPU(s) selector <%d> is invalid", cpu_index);
+                    break;
+
+                case CONFIG_CPUS_VALIDATE_ERROR_MULTIPLE_RANGES:
+                case CONFIG_CPUS_VALIDATE_ERROR_RANGE_TOO_SMALL:
+                    LOG_E(TAG, "CPU(s) selector <%d> has an invalid range", cpu_index);
+                    break;
+
+                case CONFIG_CPUS_VALIDATE_ERROR_UNEXPECTED_CHARACTER:
+                    LOG_E(TAG, "CPU(s) selector <%d> has an unexpected character", cpu_index);
+                    break;
+
+                case CONFIG_CPUS_VALIDATE_ERROR_NO_MULTI_CPUS_WITH_ALL:
+                    LOG_E(TAG, "CPU(s) selector <%d> is invalid, all the CPUs have already been selected", cpu_index);
+                    break;
+            }
+        }
+
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_database_backend(
+        config_t* config) {
+    bool return_result = true;
+
+    // Validates that if the backend is set to file than the file struct is present
+    if (config->database->backend == CONFIG_DATABASE_BACKEND_FILE
+        && config->database->file == NULL) {
+        LOG_E(TAG, "The database backend is set to <file> but the <file> settings are not present");
+        return_result = false;
+    }
+
+    // Validate that if the backend is set to memory than the file struct is not present
+    if (config->database->backend == CONFIG_DATABASE_BACKEND_MEMORY
+        && config->database->file != NULL) {
+        LOG_E(TAG, "The database backend is set to <memory> but the <file> settings are present");
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_database_memory_control(
+        config_t* config) {
+    bool return_result = true;
+
+    if (!config->database->memory_control) {
+        return return_result;
+    }
+
+    // Validate that the algorithm can't be set to ttl if ignore_ttl is set to true
+    if (config->database->memory_control->algorithm == CONFIG_DATABASE_MEMORY_CONTROL_ALGORITHM_TTL
+        && config->database->memory_control->ignore_ttl == true) {
+        LOG_E(TAG, "The memory control algorithm can't be set to <ttl> if <ignore_ttl> is set to <true>");
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_modules_network_timeout(
+        config_module_t *module) {
+    bool return_result = true;
+
+    if (module->network->timeout->read_ms < -1 || module->network->timeout->read_ms == 0) {
+        LOG_E(
+                TAG,
+                "In module <%s>, read_ms timeout can only be <-1> or a value greater than <0>",
+                config_module_type_schema_strings[module->type].str);
+        return_result = false;
+    }
+
+    if (module->network->timeout->write_ms < -1 || module->network->timeout->write_ms == 0) {
+        LOG_E(
+                TAG,
+                "In module <%s>, read_ms timeout can only be <-1> or a value greater than <0>",
+                config_module_type_schema_strings[module->type].str);
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_modules_network_bindings(
+        config_module_t *module) {
+    bool return_result = true;
+    bool tls_enabled = module->network->tls != NULL;
+
+    for(int binding_index = 0; binding_index < module->network->bindings_count; binding_index++) {
+        config_module_network_binding_t *binding = &module->network->bindings[binding_index];
+
+        // Ensure that if the binding requires tls than tls is enabled
+        if (binding->tls && tls_enabled == false) {
+            LOG_E(
+                    TAG,
+                    "In module <%s>, the binding <%s:%d> requires tls but tls is not configured",
+                    config_module_type_schema_strings[module->type].str,
+                    binding->host,
+                    binding->port);
+            return_result = false;
+        }
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_modules_network_tls(
+        config_module_t *module) {
+    bool return_result = true;
+
+    if (module->network->tls == NULL) {
+        return true;
+    }
+
+    if (!simple_file_io_exists(module->network->tls->certificate_path)) {
+        LOG_E(
+                TAG,
+                "In module <%s>, the certificate <%s> doesn't exist",
+                config_module_type_schema_strings[module->type].str,
+                module->network->tls->certificate_path);
+        return_result = false;
+    }
+
+    if (!simple_file_io_exists(module->network->tls->private_key_path)) {
+        LOG_E(
+                TAG,
+                "In module <%s>, the private key <%s> doesn't exist",
+                config_module_type_schema_strings[module->type].str,
+                module->network->tls->private_key_path);
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_modules_redis(
+        config_module_t *module) {
+    bool return_result = true;
+
+    if (module->type != CONFIG_MODULE_TYPE_REDIS) {
+        return true;
+    }
+
+    if (module->redis->max_key_length > FFMA_OBJECT_SIZE_MAX - 1) {
+        LOG_E(
+                TAG,
+                "In module <%s>, the allowed maximum value of max_key_length is <%u>",
+                config_module_type_schema_strings[module->type].str,
+                FFMA_OBJECT_SIZE_MAX - 1);
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_modules(
+        config_t* config) {
+    bool return_result = true;
+
+    for(int module_index = 0; module_index < config->modules_count; module_index++) {
+        config_module_t *module = &config->modules[module_index];
+
+        if (config_validate_after_load_modules_network_timeout(module) == false
+            || config_validate_after_load_modules_network_tls(module) == false
+            || config_validate_after_load_modules_network_bindings(module) == false
+            || config_validate_after_load_modules_redis(module) == false) {
+            return_result = false;
+        }
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_log_file(
+        config_log_t *log) {
+    bool return_result = true;
+
+    if (log->type != CONFIG_LOG_TYPE_FILE) {
+        return true;
+    }
+
+    if (log->file == NULL) {
+        LOG_E(
+                TAG,
+                "For log type <%s>, the <file> settings must be present",
+                config_log_type_schema_strings[log->type].str);
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_logs(
+        config_t* config) {
+    bool return_result = true;
+
+    for(int log_index = 0; log_index < config->logs_count; log_index++) {
+        config_log_t *log = &config->logs[log_index];
+
+        if (config_validate_after_load_log_file(log) == false) {
+            return_result = false;
+        }
+    }
+
+    return return_result;
 }
 
 bool config_validate_after_load(
         config_t* config) {
     bool return_result = true;
 
-    // TODO: validate the cpus list if present, if all is in the list anything else can be there
-
-    // TODO: if type == file in log sink, the file struct must be present (path will be present because of schema
-    //       validation)
-
-    // TODO: for log sinks, if all is set only negate flags can be set
-
-    for(int module_index = 0; module_index < config->modules_count; module_index++) {
-        // TODO: if keepalive struct is present, values must be allowed
-        config_module_t module = config->modules[module_index];
-
-        // Validate timeouts
-        if (module.network->timeout->read_ms < -1 || module.network->timeout->read_ms == 0) {
-            LOG_E(TAG, "read_ms timeout can only be <-1> or a value greater than <0>");
-            return_result = false;
-        }
-
-        if (module.network->timeout->write_ms < -1 || module.network->timeout->write_ms == 0) {
-            LOG_E(TAG, "read_ms timeout can only be <-1> or a value greater than <0>");
-            return_result = false;
-        }
-
-        // Validate TLS
-        if (module.network->tls != NULL) {
-            if (!simple_file_io_exists(module.network->tls->certificate_path)) {
-                LOG_E(TAG, "The certificate <%s> doesn't exist", module.network->tls->certificate_path);
-                return_result = false;
-            }
-
-            if (!simple_file_io_exists(module.network->tls->private_key_path)) {
-                LOG_E(TAG, "The private key <%s> doesn't exist", module.network->tls->private_key_path);
-                return_result = false;
-            }
-        }
-
-        // Validate ad-hoc protocol settings (redis)
-        if (module.type == CONFIG_MODULE_TYPE_REDIS) {
-            if (module.redis->max_key_length > FFMA_OBJECT_SIZE_MAX - 1) {
-                LOG_E(TAG, "The allowed maximum value of max_key_length is <%u>", FFMA_OBJECT_SIZE_MAX - 1);
-                return_result = false;
-            }
-        }
-
-        // Validate bindings
-        for(int binding_index = 0; binding_index < module.network->bindings_count; binding_index++) {
-            config_module_network_binding_t *binding = &module.network->bindings[binding_index];
-
-            if (binding->tls) {
-                if (module.network->tls == NULL) {
-                    LOG_E(TAG, "The binding <%s:%d> requires tls but tls is not configured", binding->host, binding->port);
-                    return_result = false;
-                }
-            }
-        }
+    if (config_validate_after_load_cpus(config) == false
+        || config_validate_after_load_database_backend(config) == false
+        || config_validate_after_load_database_memory_control(config) == false
+        || config_validate_after_load_modules(config) == false
+        || config_validate_after_load_logs(config) == false) {
+        return_result = false;
     }
 
     return return_result;
@@ -174,14 +370,28 @@ bool config_cpus_validate(
         config_cpus_validate_error_t* config_cpus_validate_errors) {
     bool error = false;
 
+    bool has_all = false;
     for(uint32_t cpu_index = 0; cpu_index < cpus_count; cpu_index++) {
         bool cpu_is_range = false;
-        long cpu_number = -1;
+        long cpu_number;
         long cpu_number_range_start = -1;
         char* cpu = cpus[cpu_index];
         char* cpu_end = NULL;
 
+        if (has_all) {
+            config_cpus_validate_errors[cpu_index] = CONFIG_CPUS_VALIDATE_ERROR_NO_MULTI_CPUS_WITH_ALL;
+            continue;
+        }
+
         if (strncasecmp(cpu, "all", 3) == 0) {
+            if (strlen(cpu) > 3) {
+                config_cpus_validate_errors[cpu_index] = CONFIG_CPUS_VALIDATE_ERROR_INVALID_CPU;
+            } else if (cpu_index > 0) {
+                config_cpus_validate_errors[cpu_index] = CONFIG_CPUS_VALIDATE_ERROR_NO_MULTI_CPUS_WITH_ALL;
+            } else {
+                has_all = true;
+            }
+
             continue;
         }
 
@@ -245,7 +455,7 @@ bool config_cpus_parse(
 
     for(uint32_t cpu_index = 0; cpu_index < cpus_count; cpu_index++) {
         bool cpu_is_range = false;
-        long cpu_number = -1;
+        long cpu_number;
         long cpu_number_range_start = -1;
         long cpu_number_range_end = -1;
         long cpu_number_range_len = -1;
@@ -254,7 +464,7 @@ bool config_cpus_parse(
 
         if (strncasecmp(cpu, "all", 3) == 0) {
             select_all_cpus = true;
-            break;
+            continue;
         }
 
         do {
@@ -342,7 +552,7 @@ bool config_cpus_parse(
 }
 
 void config_cpus_filter_duplicates(
-        uint16_t* cpus,
+        const uint16_t* cpus,
         uint16_t cpus_count,
         uint16_t** unique_cpus,
         uint16_t* unique_cpus_count) {

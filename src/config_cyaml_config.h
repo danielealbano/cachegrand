@@ -7,7 +7,7 @@ extern "C" {
 
 extern void config_internal_cyaml_log(
         cyaml_log_t level_cyaml,
-        void *ctx,
+        __attribute__((unused)) void *ctx,
         const char *fmt,
         va_list args);
 
