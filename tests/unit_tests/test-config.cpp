@@ -40,7 +40,7 @@ void test_config_cyaml_logger(
         void *ctx_raw,
         const char *fmt,
         va_list args) {
-    test_config_cyaml_logger_context_t* ctx = (test_config_cyaml_logger_context_t*)ctx_raw;
+    auto ctx = (test_config_cyaml_logger_context_t*)ctx_raw;
 
     // Calculate how much memory is needed
     va_list args_copy;
@@ -137,11 +137,19 @@ modules:
         time: 0
         interval: 0
         probes: 0
+      tls:
+        certificate_path: "/path/to/certificate.pem"
+        private_key_path: "/path/to/certificate.key"
+        min_version: tls1.2
+        max_version: any
+        cipher_suites:
+          - TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384
       bindings:
         - host: 0.0.0.0
           port: 6379
         - host: "::"
           port: 6379
+          tls: true
 database:
   max_keys: 10000
   backend: memory
@@ -277,7 +285,7 @@ TEST_CASE("config.c", "[config]") {
     config_t* config = nullptr;
 
     // Initialize the schema and the cyaml config
-    cyaml_schema_value_t* config_top_schema = (cyaml_schema_value_t*)config_cyaml_schema_get_top_schema();
+    auto config_top_schema = (cyaml_schema_value_t*)config_cyaml_schema_get_top_schema();
     cyaml_config_t * config_cyaml_config = config_cyaml_config_get_global();
 
     // Initialize the internal test logger context
@@ -367,10 +375,289 @@ TEST_CASE("config.c", "[config]") {
         }
     }
 
+
+    SECTION("config_validate_after_load_cpus") {
+        SECTION("valid") {
+             err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    nullptr);
+
+            REQUIRE(config != nullptr);
+            REQUIRE(err == CYAML_OK);
+
+            REQUIRE(config_validate_after_load_cpus(config));
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
+    }
+
+    SECTION("config_validate_after_load_database_backend") {
+        SECTION("valid") {
+             err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    nullptr);
+
+            REQUIRE(config != nullptr);
+            REQUIRE(err == CYAML_OK);
+
+            REQUIRE(config_validate_after_load_database_backend(config));
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
+    }
+
+    SECTION("config_validate_after_load_database_memory_control") {
+        SECTION("valid") {
+             err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    nullptr);
+
+            REQUIRE(config != nullptr);
+            REQUIRE(err == CYAML_OK);
+
+            REQUIRE(config_validate_after_load_database_memory_control(config));
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
+    }
+
+    SECTION("config_validate_after_load_modules_network_timeout") {
+        SECTION("valid") {
+             err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    nullptr);
+
+            REQUIRE(config != nullptr);
+            REQUIRE(err == CYAML_OK);
+
+            REQUIRE(config_validate_after_load_modules_network_timeout(&config->modules[0]));
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
+    }
+
+    SECTION("config_validate_after_load_modules_network_bindings") {
+        SECTION("valid") {
+             err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    nullptr);
+
+            REQUIRE(config != nullptr);
+            REQUIRE(err == CYAML_OK);
+
+            REQUIRE(config_validate_after_load_modules_network_bindings(&config->modules[0]));
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
+    }
+
+    SECTION("config_validate_after_load_modules_network_tls") {
+        SECTION("valid") {
+            // Create empty temporary files
+            int fixture_temp_path_suffix_len = 4;
+            char certificate_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+            char private_key_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+            close(mkstemps(certificate_temp_path, fixture_temp_path_suffix_len));
+            close(mkstemps(private_key_temp_path, fixture_temp_path_suffix_len));
+
+            // Replace the old paths with the new ones
+            std::string test_config_correct_all_fields_yaml_data_with_temp_paths = test_config_correct_all_fields_yaml_data;
+            test_config_correct_all_fields_yaml_data_with_temp_paths.replace(
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.find("/path/to/certificate.pem"),
+                    strlen("/path/to/certificate.pem"),
+                    certificate_temp_path);
+            test_config_correct_all_fields_yaml_data_with_temp_paths.replace(
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.find("/path/to/certificate.key"),
+                    strlen("/path/to/certificate.key"),
+                    private_key_temp_path);
+
+            // Load the new config
+            err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data_with_temp_paths.c_str()),
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    nullptr);
+
+            REQUIRE(config != nullptr);
+            REQUIRE(err == CYAML_OK);
+
+            REQUIRE(config_validate_after_load_modules_network_tls(&config->modules[0]));
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+
+            // Remove the temporary files
+            unlink(certificate_temp_path);
+            unlink(private_key_temp_path);
+        }
+    }
+
+    SECTION("config_validate_after_load_modules_redis") {
+        SECTION("valid") {
+             err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    nullptr);
+
+            REQUIRE(config != nullptr);
+            REQUIRE(err == CYAML_OK);
+
+            REQUIRE(config_validate_after_load_modules_redis(&config->modules[0]));
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
+    }
+
+    SECTION("config_validate_after_load_modules") {
+        SECTION("valid") {
+            // Create empty temporary files
+            int fixture_temp_path_suffix_len = 4;
+            char certificate_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+            char private_key_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+            close(mkstemps(certificate_temp_path, fixture_temp_path_suffix_len));
+            close(mkstemps(private_key_temp_path, fixture_temp_path_suffix_len));
+
+            // Replace the old paths with the new ones
+            std::string test_config_correct_all_fields_yaml_data_with_temp_paths = test_config_correct_all_fields_yaml_data;
+            test_config_correct_all_fields_yaml_data_with_temp_paths.replace(
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.find("/path/to/certificate.pem"),
+                    strlen("/path/to/certificate.pem"),
+                    certificate_temp_path);
+            test_config_correct_all_fields_yaml_data_with_temp_paths.replace(
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.find("/path/to/certificate.key"),
+                    strlen("/path/to/certificate.key"),
+                    private_key_temp_path);
+
+            // Load the new config
+            err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data_with_temp_paths.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    nullptr);
+
+            REQUIRE(config != nullptr);
+            REQUIRE(err == CYAML_OK);
+
+            REQUIRE(config_validate_after_load_modules(config));
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+
+            // Remove the temporary files
+            unlink(certificate_temp_path);
+            unlink(private_key_temp_path);
+        }
+    }
+
+    SECTION("config_validate_after_load_log_file") {
+        SECTION("valid") {
+             err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    nullptr);
+
+            REQUIRE(config != nullptr);
+            REQUIRE(err == CYAML_OK);
+
+            REQUIRE(config_validate_after_load_log_file(&config->logs[1]));
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
+    }
+
+    SECTION("config_validate_after_load_logs") {
+        SECTION("valid") {
+            // Create empty temporary files
+            int fixture_temp_path_suffix_len = 4;
+            char certificate_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+            char private_key_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+            close(mkstemps(certificate_temp_path, fixture_temp_path_suffix_len));
+            close(mkstemps(private_key_temp_path, fixture_temp_path_suffix_len));
+
+            // Replace the old paths with the new ones
+            std::string test_config_correct_all_fields_yaml_data_with_temp_paths = test_config_correct_all_fields_yaml_data;
+            test_config_correct_all_fields_yaml_data_with_temp_paths.replace(
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.find("/path/to/certificate.pem"),
+                    strlen("/path/to/certificate.pem"),
+                    certificate_temp_path);
+            test_config_correct_all_fields_yaml_data_with_temp_paths.replace(
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.find("/path/to/certificate.key"),
+                    strlen("/path/to/certificate.key"),
+                    private_key_temp_path);
+
+            // Load the new config
+            err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data_with_temp_paths.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    nullptr);
+
+            REQUIRE(config != nullptr);
+            REQUIRE(err == CYAML_OK);
+
+            REQUIRE(config_validate_after_load_logs(config));
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+
+            // Remove the temporary files
+            unlink(certificate_temp_path);
+            unlink(private_key_temp_path);
+        }
+    }
+
     SECTION("config_validate_after_load") {
+        // Create empty temporary files
+        int fixture_temp_path_suffix_len = 4;
+        char certificate_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+        char private_key_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+        close(mkstemps(certificate_temp_path, fixture_temp_path_suffix_len));
+        close(mkstemps(private_key_temp_path, fixture_temp_path_suffix_len));
+
+        // Replace the old paths with the new ones
+        std::string test_config_correct_all_fields_yaml_data_with_temp_paths = test_config_correct_all_fields_yaml_data;
+        test_config_correct_all_fields_yaml_data_with_temp_paths.replace(
+                test_config_correct_all_fields_yaml_data_with_temp_paths.find("/path/to/certificate.pem"),
+                strlen("/path/to/certificate.pem"),
+                certificate_temp_path);
+        test_config_correct_all_fields_yaml_data_with_temp_paths.replace(
+                test_config_correct_all_fields_yaml_data_with_temp_paths.find("/path/to/certificate.key"),
+                strlen("/path/to/certificate.key"),
+                private_key_temp_path);
+
+        // Load the new config
         err = cyaml_load_data(
-                (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
-                test_config_correct_all_fields_yaml_data.length(),
+                (const uint8_t *)(test_config_correct_all_fields_yaml_data_with_temp_paths.c_str()),
+                test_config_correct_all_fields_yaml_data_with_temp_paths.length(),
                 config_cyaml_config,
                 config_top_schema,
                 (cyaml_data_t **)&config,
@@ -445,9 +732,13 @@ TEST_CASE("config.c", "[config]") {
         }
 
         SECTION("broken - tls endpoint without no tls settings") {
+            config_module_network_tls_t* tls_temp = config->modules[0].network->tls;
+            config->modules[0].network->tls = nullptr;
             config->modules[0].network->bindings[0].tls = true;
 
             REQUIRE(config_validate_after_load(config) == false);
+
+            config->modules[0].network->tls = tls_temp;
         }
 
         SECTION("valid - tls endpoint with tls settings") {
@@ -464,13 +755,35 @@ TEST_CASE("config.c", "[config]") {
         }
 
         cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+
+        // Remove the temporary files
+        unlink(certificate_temp_path);
+        unlink(private_key_temp_path);
     }
 
     SECTION("config_internal_cyaml_load") {
         SECTION("correct - all fields") {
+            // Create empty temporary files
+            int fixture_temp_path_suffix_len = 4;
+            char certificate_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+            char private_key_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+            close(mkstemps(certificate_temp_path, fixture_temp_path_suffix_len));
+            close(mkstemps(private_key_temp_path, fixture_temp_path_suffix_len));
+
+            // Replace the old paths with the new ones
+            std::string test_config_correct_all_fields_yaml_data_with_temp_paths = test_config_correct_all_fields_yaml_data;
+            test_config_correct_all_fields_yaml_data_with_temp_paths.replace(
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.find("/path/to/certificate.pem"),
+                    strlen("/path/to/certificate.pem"),
+                    certificate_temp_path);
+            test_config_correct_all_fields_yaml_data_with_temp_paths.replace(
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.find("/path/to/certificate.key"),
+                    strlen("/path/to/certificate.key"),
+                    private_key_temp_path);
+
             TEST_SUPPORT_FIXTURE_FILE_FROM_DATA(
-                    test_config_correct_all_fields_yaml_data.c_str(),
-                    test_config_correct_all_fields_yaml_data.length(),
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.c_str(),
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.length(),
                     config_path,
                     {
                         err = config_internal_cyaml_load(
@@ -478,7 +791,11 @@ TEST_CASE("config.c", "[config]") {
                                 config_path,
                                 config_cyaml_config,
                                 config_top_schema);
-                    });
+                    })
+
+            // Remove the temporary files
+            unlink(certificate_temp_path);
+            unlink(private_key_temp_path);
 
             REQUIRE(config != nullptr);
             REQUIRE(config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING);
@@ -490,6 +807,10 @@ TEST_CASE("config.c", "[config]") {
             REQUIRE(err == CYAML_OK);
 
             cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+
+            // Remove the temporary files
+            unlink(certificate_temp_path);
+            unlink(private_key_temp_path);
         }
 
         SECTION("broken - missing field") {
@@ -506,7 +827,7 @@ TEST_CASE("config.c", "[config]") {
                                 config_path,
                                 config_cyaml_config,
                                 config_top_schema);
-                    });
+                    })
 
             REQUIRE(config == nullptr);
             REQUIRE(strcmp(str_cmp, cyaml_logger_context.data) == 0);
@@ -530,7 +851,7 @@ TEST_CASE("config.c", "[config]") {
                                 config_path,
                                 config_cyaml_config,
                                 config_top_schema);
-                    });
+                    })
 
             REQUIRE(config == nullptr);
             REQUIRE(strcmp(str_cmp, cyaml_logger_context.data) == 0);
@@ -543,13 +864,31 @@ TEST_CASE("config.c", "[config]") {
 
     SECTION("config_load") {
         SECTION("correct - all fields") {
+            // Create empty temporary files
+            int fixture_temp_path_suffix_len = 4;
+            char certificate_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+            char private_key_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+            close(mkstemps(certificate_temp_path, fixture_temp_path_suffix_len));
+            close(mkstemps(private_key_temp_path, fixture_temp_path_suffix_len));
+
+            // Replace the old paths with the new ones
+            std::string test_config_correct_all_fields_yaml_data_with_temp_paths = test_config_correct_all_fields_yaml_data;
+            test_config_correct_all_fields_yaml_data_with_temp_paths.replace(
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.find("/path/to/certificate.pem"),
+                    strlen("/path/to/certificate.pem"),
+                    certificate_temp_path);
+            test_config_correct_all_fields_yaml_data_with_temp_paths.replace(
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.find("/path/to/certificate.key"),
+                    strlen("/path/to/certificate.key"),
+                    private_key_temp_path);
+
             TEST_SUPPORT_FIXTURE_FILE_FROM_DATA(
-                    test_config_correct_all_fields_yaml_data.c_str(),
-                    test_config_correct_all_fields_yaml_data.length(),
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.c_str(),
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.length(),
                     config_path,
                     {
                         config = config_load(config_path);
-                    });
+                    })
 
             REQUIRE(config != nullptr);
             REQUIRE(config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING);
@@ -570,7 +909,7 @@ TEST_CASE("config.c", "[config]") {
                     config_path,
                     {
                         config = config_load(config_path);
-                    });
+                    })
 
             REQUIRE(config == nullptr);
 
@@ -589,7 +928,7 @@ TEST_CASE("config.c", "[config]") {
                             config_path,
                             config_cyaml_config,
                             config_top_schema);
-                });
+                })
 
         config_free(config);
     }
@@ -909,8 +1248,8 @@ TEST_CASE("config.c", "[config]") {
                     errors) == true);
 
             REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_OK);
-            REQUIRE(errors[1] == CONFIG_CPUS_VALIDATE_OK);
-            REQUIRE(errors[2] == CONFIG_CPUS_VALIDATE_OK);
+            REQUIRE(errors[1] == CONFIG_CPUS_VALIDATE_ERROR_NO_MULTI_CPUS_WITH_ALL);
+            REQUIRE(errors[2] == CONFIG_CPUS_VALIDATE_ERROR_NO_MULTI_CPUS_WITH_ALL);
         }
 
         SECTION("all cpus - after other") {
@@ -922,7 +1261,7 @@ TEST_CASE("config.c", "[config]") {
 
             REQUIRE(errors[0] == CONFIG_CPUS_VALIDATE_OK);
             REQUIRE(errors[1] == CONFIG_CPUS_VALIDATE_OK);
-            REQUIRE(errors[2] == CONFIG_CPUS_VALIDATE_OK);
+            REQUIRE(errors[2] == CONFIG_CPUS_VALIDATE_ERROR_NO_MULTI_CPUS_WITH_ALL);
         }
 
         SECTION("1 cpu over max") {
@@ -1056,7 +1395,7 @@ TEST_CASE("config.c", "[config]") {
     }
 
     SECTION("config_internal_cyaml_log") {
-        log_level_t level = (log_level_t)LOG_LEVEL_ALL;
+        auto level = (log_level_t)LOG_LEVEL_ALL;
         log_sink_settings_t settings = { false };
         log_sink_register(test_config_internal_log_sink_init(level, &settings));
 
