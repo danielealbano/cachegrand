@@ -11,6 +11,7 @@
 #include <cyaml/cyaml.h>
 
 #include "config.h"
+#include "config_cyaml_schema.h"
 
 // Generic schema for string pointers
 const cyaml_schema_value_t config_generic_string_schema = {
@@ -59,26 +60,6 @@ const cyaml_schema_field_t config_module_network_keepalive_schema[] = {
                 config_module_network_keepalive_t, probes),
         CYAML_FIELD_END
 };
-
-// Allowed strings for config -> modules -> module -> network -> tls -> min_version (config_module_network_tls_min_version_t)
-const cyaml_strval_t config_module_network_tls_min_version_schema_strings[] = {
-        { "tls1.0", CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_0 },
-        { "tls1.1", CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_1 },
-        { "tls1.2", CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_2 },
-        { "tls1.3", CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_3 },
-        { "any", CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY },
-};
-typedef enum config_module_network_tls_min_version config_module_network_tls_min_version_t;
-
-// Allowed strings for config -> modules -> module -> network -> tls -> max_version (config_module_network_tls_max_version_t)
-const cyaml_strval_t config_module_network_tls_max_version_schema_strings[] = {
-        { "tls1.0", CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_0 },
-        { "tls1.1", CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_1 },
-        { "tls1.2", CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2 },
-        { "tls1.3", CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_3 },
-        { "any", CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY },
-};
-typedef enum config_module_network_tls_max_version config_module_network_tls_max_version_t;
 
 // Schema for config -> modules -> module -> network -> tls
 const cyaml_schema_field_t config_module_network_tls_schema[] = {
@@ -143,13 +124,6 @@ const cyaml_schema_field_t config_module_network_fields_schema[] = {
         CYAML_FIELD_END
 };
 
-// Allowed strings for for config -> modules -> module -> type (config_module_type_t)
-const cyaml_strval_t config_module_type_schema_strings[] = {
-        { "redis",      CONFIG_MODULE_TYPE_REDIS },
-        { "prometheus", CONFIG_MODULE_TYPE_PROMETHEUS },
-};
-typedef enum config_module_type config_module_type_t;
-
 // Schema for config -> modules -> module -> protocol
 const cyaml_schema_field_t config_module_fields_schema[] = {
         CYAML_FIELD_ENUM(
@@ -199,12 +173,6 @@ const cyaml_schema_field_t config_network_schema[] = {
  * CONFIG -> database schema
  */
 
-// Allowed strings for for config -> database -> backend
-const cyaml_strval_t config_database_backend_schema_strings[] = {
-        { "memory", CONFIG_DATABASE_BACKEND_MEMORY },
-        { "file", CONFIG_DATABASE_BACKEND_FILE }
-};
-
 // Schema for config -> database -> file (with config.database.backend == file)
 const cyaml_schema_field_t config_storage_file_schema[] = {
         CYAML_FIELD_STRING_PTR(
@@ -243,27 +211,6 @@ const cyaml_schema_field_t config_log_file_schema[] = {
                 "path", CYAML_FLAG_POINTER,
                 config_log_file_t, path, 0, CYAML_UNLIMITED),
         CYAML_FIELD_END
-};
-
-// Allowed strings for for config -> logs -> log -> type (config_log_type_t)
-const cyaml_strval_t config_log_type_schema_strings[] = {
-        { "console", CONFIG_LOG_TYPE_CONSOLE },
-        { "file",    CONFIG_LOG_TYPE_FILE },
-};
-
-// Allowed strings for for config -> logs -> log -> level (config_log_level_t)
-const cyaml_strval_t config_log_level_schema_strings[] = {
-        { "error", CONFIG_LOG_LEVEL_ERROR },
-        { "warning", CONFIG_LOG_LEVEL_WARNING },
-        { "info", CONFIG_LOG_LEVEL_INFO },
-        { "verbose", CONFIG_LOG_LEVEL_VERBOSE },
-        { "debug", CONFIG_LOG_LEVEL_DEBUG },
-        { "all", CONFIG_LOG_LEVEL_ALL },
-        { "no-error", CONFIG_LOG_LEVEL_ERROR_NEGATE },
-        { "no-warning", CONFIG_LOG_LEVEL_WARNING_NEGATE },
-        { "no-info", CONFIG_LOG_LEVEL_INFO_NEGATE },
-        { "no-verbose", CONFIG_LOG_LEVEL_VERBOSE_NEGATE },
-        { "no-debug", CONFIG_LOG_LEVEL_DEBUG_NEGATE },
 };
 
 // Schema for config -> logs -> log
