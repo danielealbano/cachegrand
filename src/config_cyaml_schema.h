@@ -29,14 +29,6 @@ static cyaml_strval_t config_module_type_schema_strings[] = {
         { "prometheus", CONFIG_MODULE_TYPE_PROMETHEUS },
 };
 
-// Allowed strings for for config -> database -> max_memory_policy
-static cyaml_strval_t config_database_max_memory_policy_schema_strings[] = {
-        { "lru", CONFIG_DATABASE_MEMORY_CONTROL_ALGORITHM_LRU },
-        { "lfu", CONFIG_DATABASE_MEMORY_CONTROL_ALGORITHM_LFU },
-        { "random", CONFIG_DATABASE_MEMORY_CONTROL_ALGORITHM_RANDOM },
-        { "ttl", CONFIG_DATABASE_MEMORY_CONTROL_ALGORITHM_TTL },
-};
-
 // Allowed strings for for config -> database -> backend
 static cyaml_strval_t config_database_backend_schema_strings[] = {
         { "memory", CONFIG_DATABASE_BACKEND_MEMORY },
