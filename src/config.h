@@ -142,6 +142,14 @@ struct config_network {
     uint32_t listen_backlog;
 };
 
+enum config_database_memory_control_algorithm {
+    CONFIG_DATABASE_MEMORY_CONTROL_ALGORITHM_LRU,
+    CONFIG_DATABASE_MEMORY_CONTROL_ALGORITHM_LFU,
+    CONFIG_DATABASE_MEMORY_CONTROL_ALGORITHM_RANDOM,
+    CONFIG_DATABASE_MEMORY_CONTROL_ALGORITHM_TTL
+};
+typedef enum config_database_memory_control_algorithm config_database_memory_control_algorithm_t;
+
 enum config_database_backend {
     CONFIG_DATABASE_BACKEND_MEMORY,
     CONFIG_DATABASE_BACKEND_FILE
@@ -155,8 +163,15 @@ struct config_database_file {
     uint32_t shard_size_mb;
 };
 
+typedef struct config_database_memory_control config_database_memory_control_t;
+struct config_database_memory_control {
+    bool ignore_ttl;
+    config_database_memory_control_algorithm_t algorithm;
+};
+
 typedef struct config_database config_database_t;
 struct config_database {
+    config_database_memory_control_t *memory_control;
     uint32_t max_keys;
     config_database_backend_t backend;
     union {
@@ -189,6 +204,7 @@ enum config_cpus_validate_error {
     CONFIG_CPUS_VALIDATE_ERROR_MULTIPLE_RANGES,
     CONFIG_CPUS_VALIDATE_ERROR_RANGE_TOO_SMALL,
     CONFIG_CPUS_VALIDATE_ERROR_UNEXPECTED_CHARACTER,
+    CONFIG_CPUS_VALIDATE_ERROR_NO_MULTI_CPUS_WITH_ALL,
 
     CONFIG_CPUS_VALIDATE_MAX,
 };
@@ -199,6 +215,36 @@ config_t *config_load(
 
 void config_free(
         config_t *config);
+
+bool config_validate_after_load_cpus(
+        config_t* config);
+
+bool config_validate_after_load_database_backend(
+        config_t* config);
+
+bool config_validate_after_load_database_memory_control(
+        config_t* config);
+
+bool config_validate_after_load_modules_network_timeout(
+        config_module_t *module);
+
+bool config_validate_after_load_modules_network_bindings(
+        config_module_t *module);
+
+bool config_validate_after_load_modules_network_tls(
+        config_module_t *module);
+
+bool config_validate_after_load_modules_redis(
+        config_module_t *module);
+
+bool config_validate_after_load_modules(
+        config_t* config);
+
+bool config_validate_after_load_log_file(
+        config_log_t *log);
+
+bool config_validate_after_load_logs(
+        config_t* config);
 
 bool config_validate_after_load(
         config_t *config);
@@ -217,7 +263,7 @@ bool config_cpus_parse(
         uint16_t *cpus_map_count);
 
 void config_cpus_filter_duplicates(
-        uint16_t *cpus,
+        const uint16_t *cpus,
         uint16_t cpus_count,
         uint16_t **unique_cpus,
         uint16_t *unique_cpus_count);
