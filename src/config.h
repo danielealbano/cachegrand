@@ -141,14 +141,13 @@ struct config_network {
     uint32_t max_clients;
     uint32_t listen_backlog;
 };
-
-enum config_database_memory_control_algorithm {
-    CONFIG_DATABASE_MEMORY_CONTROL_ALGORITHM_LRU,
-    CONFIG_DATABASE_MEMORY_CONTROL_ALGORITHM_LFU,
-    CONFIG_DATABASE_MEMORY_CONTROL_ALGORITHM_RANDOM,
-    CONFIG_DATABASE_MEMORY_CONTROL_ALGORITHM_TTL
+enum config_database_keys_eviction_policy {
+    CONFIG_DATABASE_KEYS_EVICTION_POLICY_LRU,
+    CONFIG_DATABASE_KEYS_EVICTION_POLICY_LFU,
+    CONFIG_DATABASE_KEYS_EVICTION_POLICY_RANDOM,
+    CONFIG_DATABASE_KEYS_EVICTION_POLICY_TTL
 };
-typedef enum config_database_memory_control_algorithm config_database_memory_control_algorithm_t;
+typedef enum config_database_keys_eviction_policy config_database_keys_eviction_policy_t;
 
 enum config_database_backend {
     CONFIG_DATABASE_BACKEND_MEMORY,
@@ -156,30 +155,93 @@ enum config_database_backend {
 };
 typedef enum config_database_backend config_database_backend_t;
 
-typedef struct config_database_file config_database_file_t;
+struct config_database_file_limits_hard {
+    char *max_disk_usage_str;
+    uint32_t max_disk_usage;
+};
+typedef struct config_database_file_limits_hard config_database_file_limits_hard_t;
+
+struct config_database_file_limits_soft {
+    char *max_disk_usage_str;
+    uint64_t max_disk_usage;
+};
+typedef struct config_database_file_limits_soft config_database_file_limits_soft_t;
+
+struct config_database_file_limits {
+    config_database_file_limits_hard_t *hard;
+    config_database_file_limits_soft_t *soft;
+};
+typedef struct config_database_file_limits config_database_file_limits_t;
+
+struct config_database_file_garbage_collector {
+    uint32_t min_interval_s;
+};
+typedef struct config_database_file_garbage_collector config_database_file_garbage_collector_t;
+
 struct config_database_file {
     char *path;
     uint32_t max_opened_shards;
     uint32_t shard_size_mb;
+    config_database_file_garbage_collector_t *garbage_collector;
+    config_database_file_limits_t *limits;
 };
+typedef struct config_database_file config_database_file_t;
 
-typedef struct config_database_memory_control config_database_memory_control_t;
-struct config_database_memory_control {
+struct config_database_memory_limits_hard {
+    char *max_memory_usage_str;
+    uint64_t max_memory_usage;
+};
+typedef struct config_database_memory_limits_hard config_database_memory_limits_hard_t;
+
+struct config_database_memory_limits_soft {
+    char *max_memory_usage_str;
+    uint64_t max_memory_usage;
+};
+typedef struct config_database_memory_limits_soft config_database_memory_limits_soft_t;
+
+struct config_database_memory_limits {
+    config_database_memory_limits_hard_t *hard;
+    config_database_memory_limits_soft_t *soft;
+};
+typedef struct config_database_memory_limits config_database_memory_limits_t;
+
+struct config_database_memory {
+    config_database_memory_limits_t *limits;
+};
+typedef struct config_database_memory config_database_memory_t;
+
+typedef struct config_database_keys_eviction config_database_keys_eviction_t;
+struct config_database_keys_eviction {
     bool ignore_ttl;
-    config_database_memory_control_algorithm_t algorithm;
+    uint32_t batch_size;
+    config_database_keys_eviction_policy_t policy;
 };
 
-typedef struct config_database config_database_t;
+struct config_database_limits_hard {
+    uint64_t max_keys;
+};
+typedef struct config_database_limits_hard config_database_limits_hard_t;
+
+struct config_database_limits_soft {
+    uint64_t max_keys;
+};
+typedef struct config_database_limits_soft config_database_limits_soft_t;
+
+struct config_database_limits {
+    config_database_limits_hard_t *hard;
+    config_database_limits_soft_t *soft;
+};
+typedef struct config_database_limits config_database_limits_t;
+
 struct config_database {
-    config_database_memory_control_t *memory_control;
-    uint32_t max_keys;
+    config_database_limits_t *limits;
+    config_database_keys_eviction_t *keys_eviction;
     config_database_backend_t backend;
-    union {
-        config_database_file_t *file;
-    };
+    config_database_file_t *file;
+    config_database_memory_t *memory;
 };
+typedef struct config_database config_database_t;
 
-typedef struct config config_t;
 struct config {
     char **cpus;
     unsigned cpus_count;
@@ -197,6 +259,7 @@ struct config {
     config_log_t *logs;
     uint8_t logs_count;
 };
+typedef struct config config_t;
 
 enum config_cpus_validate_error {
     CONFIG_CPUS_VALIDATE_OK,
@@ -205,8 +268,6 @@ enum config_cpus_validate_error {
     CONFIG_CPUS_VALIDATE_ERROR_RANGE_TOO_SMALL,
     CONFIG_CPUS_VALIDATE_ERROR_UNEXPECTED_CHARACTER,
     CONFIG_CPUS_VALIDATE_ERROR_NO_MULTI_CPUS_WITH_ALL,
-
-    CONFIG_CPUS_VALIDATE_MAX,
 };
 typedef enum config_cpus_validate_error config_cpus_validate_error_t;
 
@@ -219,10 +280,13 @@ void config_free(
 bool config_validate_after_load_cpus(
         config_t* config);
 
-bool config_validate_after_load_database_backend(
+bool config_validate_after_load_database_backend_file(
         config_t* config);
 
-bool config_validate_after_load_database_memory_control(
+bool config_validate_after_load_database_backend_memory(
+        config_t* config);
+
+bool config_validate_after_load_database_keys_eviction(
         config_t* config);
 
 bool config_validate_after_load_modules_network_timeout(

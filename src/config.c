@@ -155,39 +155,95 @@ bool config_validate_after_load_cpus(
     return return_result;
 }
 
-bool config_validate_after_load_database_backend(
+bool config_validate_after_load_database_backend_file(
         config_t* config) {
     bool return_result = true;
 
-    // Validates that if the backend is set to file than the file struct is present
-    if (config->database->backend == CONFIG_DATABASE_BACKEND_FILE
-        && config->database->file == NULL) {
+    if (config->database->backend != CONFIG_DATABASE_BACKEND_FILE) {
+        return return_result;
+    }
+
+    if (config->database->file == NULL) {
         LOG_E(TAG, "The database backend is set to <file> but the <file> settings are not present");
         return_result = false;
     }
 
-    // Validate that if the backend is set to memory than the file struct is not present
-    if (config->database->backend == CONFIG_DATABASE_BACKEND_MEMORY
-        && config->database->file != NULL) {
-        LOG_E(TAG, "The database backend is set to <memory> but the <file> settings are present");
+    if (config->database->memory != NULL) {
+        LOG_E(TAG, "The database backend is set to <file> but the <memory> settings are present");
+        return_result = false;
+    }
+
+    if (config->database->file->limits && config->database->file->limits->soft
+        && config->database->file->limits->soft->max_disk_usage >=
+            config->database->file->limits->hard->max_disk_usage) {
+        LOG_E(TAG, "The soft limit for the maximum disk usage must be smaller than the hard limit");
         return_result = false;
     }
 
     return return_result;
 }
 
-bool config_validate_after_load_database_memory_control(
+bool config_validate_after_load_database_backend_memory(
         config_t* config) {
     bool return_result = true;
 
-    if (!config->database->memory_control) {
+    if (config->database->backend != CONFIG_DATABASE_BACKEND_MEMORY) {
         return return_result;
     }
 
-    // Validate that the algorithm can't be set to ttl if ignore_ttl is set to true
-    if (config->database->memory_control->algorithm == CONFIG_DATABASE_MEMORY_CONTROL_ALGORITHM_TTL
-        && config->database->memory_control->ignore_ttl == true) {
-        LOG_E(TAG, "The memory control algorithm can't be set to <ttl> if <ignore_ttl> is set to <true>");
+    if (config->database->memory == NULL) {
+        LOG_E(TAG, "The database backend is set to <memory> but the <memory> settings are not present");
+        return_result = false;
+    }
+
+    if (config->database->file != NULL) {
+        LOG_E(TAG, "The database backend is set to <memory> but the <file> settings are present");
+        return_result = false;
+    }
+
+    if (config->database->memory->limits && config->database->memory->limits->soft
+        && config->database->memory->limits->soft->max_memory_usage >=
+            config->database->memory->limits->hard->max_memory_usage) {
+        LOG_E(TAG, "The soft limit for the maximum disk usage must be smaller than the hard limit");
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_database_limits(
+        config_t* config) {
+    bool return_result = true;
+
+    if (!config->database->limits) {
+        return return_result;
+    }
+
+    if (config->database->limits->soft
+        && config->database->limits->soft->max_keys >= config->database->limits->hard->max_keys) {
+        LOG_E(TAG, "The soft limit for the maximum number of keys must be smaller than the hard limit");
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_database_keys_eviction(
+        config_t* config) {
+    bool return_result = true;
+
+    if (!config->database->keys_eviction) {
+        return return_result;
+    }
+
+    if (config->database->keys_eviction->policy == CONFIG_DATABASE_KEYS_EVICTION_POLICY_TTL
+        && config->database->keys_eviction->ignore_ttl == true) {
+        LOG_E(TAG, "The keys eviction policy can't be set to <ttl> if <ignore_ttl> is set to <true>");
+        return_result = false;
+    }
+
+    if (config->database->keys_eviction->batch_size < 1) {
+        LOG_E(TAG, "The keys eviction batch size must be greater than 0");
         return_result = false;
     }
 
@@ -346,8 +402,10 @@ bool config_validate_after_load(
     bool return_result = true;
 
     if (config_validate_after_load_cpus(config) == false
-        || config_validate_after_load_database_backend(config) == false
-        || config_validate_after_load_database_memory_control(config) == false
+        || config_validate_after_load_database_backend_file(config) == false
+        || config_validate_after_load_database_backend_memory(config) == false
+        || config_validate_after_load_database_limits(config) == false
+        || config_validate_after_load_database_keys_eviction(config) == false
         || config_validate_after_load_modules(config) == false
         || config_validate_after_load_logs(config) == false) {
         return_result = false;
