@@ -174,7 +174,7 @@ const cyaml_schema_field_t config_network_schema[] = {
  */
 
 // Schema for config -> database -> file (with config.database.backend == file)
-const cyaml_schema_field_t config_storage_file_schema[] = {
+const cyaml_schema_field_t config_database_backend_file_schema[] = {
         CYAML_FIELD_STRING_PTR(
                 "path", CYAML_FLAG_POINTER,
                 config_database_file_t, path, 0, CYAML_UNLIMITED),
@@ -197,7 +197,7 @@ const cyaml_schema_field_t config_database_schema[] = {
                 CYAML_ARRAY_LEN(config_database_backend_schema_strings)),
         CYAML_FIELD_MAPPING_PTR(
                 "file", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
-                config_database_t, file, config_storage_file_schema),
+                config_database_t, file, config_database_backend_file_schema),
         CYAML_FIELD_END
 };
 
