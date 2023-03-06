@@ -174,14 +174,28 @@ bool config_cpus_validate(
         config_cpus_validate_error_t* config_cpus_validate_errors) {
     bool error = false;
 
+    bool has_all = false;
     for(uint32_t cpu_index = 0; cpu_index < cpus_count; cpu_index++) {
         bool cpu_is_range = false;
-        long cpu_number = -1;
+        long cpu_number;
         long cpu_number_range_start = -1;
         char* cpu = cpus[cpu_index];
         char* cpu_end = NULL;
 
+        if (has_all) {
+            config_cpus_validate_errors[cpu_index] = CONFIG_CPUS_VALIDATE_ERROR_NO_MULTI_CPUS_WITH_ALL;
+            continue;
+        }
+
         if (strncasecmp(cpu, "all", 3) == 0) {
+            if (strlen(cpu) > 3) {
+                config_cpus_validate_errors[cpu_index] = CONFIG_CPUS_VALIDATE_ERROR_INVALID_CPU;
+            } else if (cpu_index > 0) {
+                config_cpus_validate_errors[cpu_index] = CONFIG_CPUS_VALIDATE_ERROR_NO_MULTI_CPUS_WITH_ALL;
+            } else {
+                has_all = true;
+            }
+
             continue;
         }
 
@@ -254,7 +268,7 @@ bool config_cpus_parse(
 
         if (strncasecmp(cpu, "all", 3) == 0) {
             select_all_cpus = true;
-            break;
+            continue;
         }
 
         do {
