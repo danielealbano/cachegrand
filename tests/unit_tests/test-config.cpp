@@ -151,8 +151,22 @@ modules:
           port: 6379
           tls: true
 database:
-  max_keys: 10000
+  limits:
+    hard:
+      max_keys: 1000000
+    soft:
+      max_keys: 999999
   backend: memory
+  memory:
+    limits:
+      hard:
+        max_memory_usage: 1000000
+      soft:
+        max_memory_usage: 999999
+  keys_eviction:
+    policy: lru
+    ignore_ttl: true
+    batch_size: 1000
 sentry:
   enable: true
 logs:
@@ -211,8 +225,22 @@ modules:
         - host: "::"
           port: 6379
 database:
-  max_keys: 10000
+  limits:
+    hard:
+      max_keys: 1000000
+    soft:
+      max_keys: 999999
   backend: memory
+  memory:
+    limits:
+      hard:
+        max_memory_usage: 1000000
+      soft:
+        max_memory_usage: 999999
+  keys_eviction:
+    policy: lru
+    ignore_ttl: true
+    batch_size: 1000
 sentry:
   enable: true
 logs:
@@ -358,8 +386,6 @@ TEST_CASE("config.c", "[config]") {
         }
 
         SECTION("broken - config_validate_after_load fails") {
-            const char* str_cmp =
-                    "Load: Missing required mapping field: max_clients\nLoad: Backtrace:\n  in mapping field 'backend' (line: 3, column: 12)\n  in mapping field 'network' (line: 3, column: 3)\n";
             err = cyaml_load_data(
                     (const uint8_t *)(test_config_broken_config_validate_after_load_fails.c_str()),
                     test_config_broken_config_validate_after_load_fails.length(),
@@ -374,7 +400,6 @@ TEST_CASE("config.c", "[config]") {
             cyaml_free(config_cyaml_config, config_top_schema, config, 0);
         }
     }
-
 
     SECTION("config_validate_after_load_cpus") {
         SECTION("valid") {
@@ -395,9 +420,9 @@ TEST_CASE("config.c", "[config]") {
         }
     }
 
-    SECTION("config_validate_after_load_database_backend") {
+    SECTION("config_validate_after_load_database_backend_file") {
         SECTION("valid") {
-             err = cyaml_load_data(
+            err = cyaml_load_data(
                     (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
                     test_config_correct_all_fields_yaml_data.length(),
                     config_cyaml_config,
@@ -408,7 +433,26 @@ TEST_CASE("config.c", "[config]") {
             REQUIRE(config != nullptr);
             REQUIRE(err == CYAML_OK);
 
-            REQUIRE(config_validate_after_load_database_backend(config));
+            REQUIRE(config_validate_after_load_database_backend_file(config));
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
+    }
+
+    SECTION("config_validate_after_load_database_backend_memory") {
+        SECTION("valid") {
+            err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    nullptr);
+
+            REQUIRE(config != nullptr);
+            REQUIRE(err == CYAML_OK);
+
+            REQUIRE(config_validate_after_load_database_backend_memory(config));
 
             cyaml_free(config_cyaml_config, config_top_schema, config, 0);
         }
@@ -427,7 +471,7 @@ TEST_CASE("config.c", "[config]") {
             REQUIRE(config != nullptr);
             REQUIRE(err == CYAML_OK);
 
-            REQUIRE(config_validate_after_load_database_memory_control(config));
+            REQUIRE(config_validate_after_load_database_keys_eviction(config));
 
             cyaml_free(config_cyaml_config, config_top_schema, config, 0);
         }

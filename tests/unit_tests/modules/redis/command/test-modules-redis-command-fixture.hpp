@@ -26,6 +26,11 @@ protected:
     config_module_network_t config_module_network{};
     config_module_t config_module{};
     config_network_t config_network{};
+    config_database_limits_hard_t config_database_limits_hard{};
+    config_database_limits_t config_database_limits{};
+    config_database_memory_limits_hard_t config_database_memory_limits_hard{};
+    config_database_memory_limits_t config_database_memory_limits{};
+    config_database_memory_t config_database_memory{};
     config_database_t config_database{};
     config_t config{};
 

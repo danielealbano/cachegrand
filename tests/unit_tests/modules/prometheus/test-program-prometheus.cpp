@@ -91,9 +91,26 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
             .max_clients = 10,
             .listen_backlog = 10,
     };
-    config_database_t config_database = {
+    config_database_limits_hard_t config_database_limits_hard = {
             .max_keys = 1000,
+    };
+    config_database_limits_t config_database_limits = {
+            .hard = &config_database_limits_hard,
+    };
+
+    config_database_memory_limits_hard_t config_database_memory_limits_hard = {
+            .max_memory_usage = 999999999999,
+    };
+    config_database_memory_limits_t config_database_memory_limits = {
+            .hard = &config_database_memory_limits_hard
+    };
+    config_database_memory_t config_database_memory = {
+            .limits = &config_database_memory_limits,
+    };
+    config_database_t config_database = {
+            .limits = &config_database_limits,
             .backend = CONFIG_DATABASE_BACKEND_MEMORY,
+            .memory = &config_database_memory
     };
     config_t config = {
             .cpus = cpus,

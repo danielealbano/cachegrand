@@ -2042,7 +2042,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                             test_keys,
                             test_keys_count,
                             test_key_length,
-                            utils_cpu_count() * 2,
+                            min(utils_cpu_count() * 2, 8),
                             test_duration);
                 }
             }
@@ -2069,7 +2069,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                             test_keys,
                             test_keys_count,
                             test_key_length,
-                            utils_cpu_count() * 2,
+                            min(utils_cpu_count() * 2, 8),
                             test_duration);
                 }
             }
@@ -2080,7 +2080,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         SECTION("random key count and multiple test runs") {
             uint32_t test_runs = 10;
             uint32_t test_duration = 5;
-            uint32_t test_threads = utils_cpu_count();
+            uint32_t test_threads = min(utils_cpu_count() * 2, 8);
             uint32_t test_hashtable_initial_size = 128 * 1024;
             uint32_t test_hashtable_upsize_block_size = HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE;
 
