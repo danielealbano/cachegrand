@@ -616,7 +616,7 @@ bool program_config_setup_storage_db(
         program_context_t* program_context) {
     storage_db_config_t *config = storage_db_config_new();
 
-    config->max_keys = program_context->config->database->max_keys;
+    config->max_keys = program_context->config->database->limits->hard->max_keys;
 
     if (program_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
         config->backend.file.shard_size_mb = program_context->config->database->file->shard_size_mb;
