@@ -60,6 +60,13 @@ enum config_module_network_tls_max_version {
 };
 typedef enum config_module_network_tls_max_version config_module_network_tls_max_version_t;
 
+enum config_parse_string_absolute_or_percent_return_value {
+    CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_ABSOLUTE,
+    CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT,
+};
+typedef enum config_parse_string_absolute_or_percent_return_value
+        config_parse_string_absolute_or_percent_return_value_t;
+
 typedef struct config_module_network_binding config_module_network_binding_t;
 struct config_module_network_binding {
     char *host;
@@ -270,6 +277,17 @@ enum config_cpus_validate_error {
     CONFIG_CPUS_VALIDATE_ERROR_NO_MULTI_CPUS_WITH_ALL,
 };
 typedef enum config_cpus_validate_error config_cpus_validate_error_t;
+
+bool config_parse_string_absolute_or_percent(
+        char *string,
+        size_t string_len,
+        bool allow_negative,
+        bool allow_zero,
+        bool allow_percent,
+        bool allow_absolute,
+        bool allow_size_suffix,
+        int64_t *return_value,
+        config_parse_string_absolute_or_percent_return_value_t *return_value_type);
 
 config_t *config_load(
         char *config_path);

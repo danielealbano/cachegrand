@@ -102,6 +102,131 @@ cyaml_err_t config_internal_cyaml_load(
             NULL);
 }
 
+bool config_parse_string_absolute_or_percent(
+        char *string,
+        size_t string_len,
+        bool allow_negative,
+        bool allow_zero,
+        bool allow_percent,
+        bool allow_absolute,
+        bool allow_size_suffix,
+        int64_t *return_value,
+        config_parse_string_absolute_or_percent_return_value_t *return_value_type) {
+    bool result = false;
+    char *string_end;
+    size_t string_end_len;
+    int64_t string_value;
+
+    // Skip any leading space
+    while (isspace(string[0]) && string_len > 0) {
+        string++;
+        string_len--;
+    }
+
+    // Skip any trailing space
+    while (isspace(string[string_len - 1]) && string_len > 0) {
+        string_len--;
+    }
+
+    // If there are only spaces, skip them
+    if (string_len == 0) {
+        return false;
+    }
+
+    // As strtoll doesn't support non-null terminated strings, duplicate the string and null terminate it using strndup
+    string = strndup(string, string_len);
+    if (string == NULL) {
+        return false;
+    }
+
+    // Try to parse the number
+    string_value = strtoll(string, &string_end, 10);
+    string_end_len = strlen(string_end);
+
+    // Skip any leading space after parsing string_end
+    while (isspace(string_end[0]) && string_end_len > 0) {
+        string_end++;
+        string_end_len--;
+    }
+
+    // Check if the end of the string matches the beginning of the string, if's true then the string is not a number
+    if (string_end == string) {
+        goto end;
+    }
+
+    // Check if string_value is negative
+    if (!allow_negative && string_value < 0) {
+        goto end;
+    }
+
+    // Check if string_value is zero
+    if (!allow_zero && string_value == 0) {
+        goto end;
+    }
+
+    // Check if the string is a percent
+    if (allow_percent && string_end[0] == '%' && string_end_len == 1) {
+        if (string_value > 100) {
+            goto end;
+        }
+
+        *return_value = string_value;
+        *return_value_type = CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT;
+        result = true;
+        goto end;
+    }
+
+    if (!allow_absolute && !allow_size_suffix) {
+        goto end;
+    }
+
+    // Check if string_end matches the end of the string, if's true and allow_absolute is true then the value
+    // is absolute
+    if (allow_absolute && string_end_len == 0) {
+        *return_value = string_value;
+        *return_value_type = CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_ABSOLUTE;
+        result = true;
+        goto end;
+    }
+
+    // Check if the string is followed by the b, kb, mb, gb, tb suffixes
+    if (allow_size_suffix && string_end_len > 0) {
+        int64_t string_value_multiplier;
+
+        // Ensure that string_end is lowercase
+        for (size_t i = 0; i < string_end_len; i++) {
+            string_end[i] = (char)tolower((unsigned char)string_end[i]);
+        }
+
+        if (string_end[0] == 'b' && string_end_len == 1) {
+            string_value_multiplier = 0;
+        } else if (string_end[0] == 'k' && string_end[1] == 'b' && string_end_len == 2) {
+            string_value_multiplier = 1;
+        } else if (string_end[0] == 'm' && string_end[1] == 'b' && string_end_len == 2) {
+            string_value_multiplier = 2;
+        } else if (string_end[0] == 'g' && string_end[1] == 'b' && string_end_len == 2) {
+            string_value_multiplier = 3;
+        } else if (string_end[0] == 't' && string_end[1] == 'b' && string_end_len == 2) {
+            string_value_multiplier = 4;
+        } else {
+            goto end;
+        }
+
+        for(int i = 0; i < string_value_multiplier; i++) {
+            string_value *= 1024;
+        }
+
+        *return_value = string_value;
+        *return_value_type = CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_ABSOLUTE;
+        result = true;
+        goto end;
+    }
+
+end:
+    free(string);
+    return result;
+}
+
 bool config_validate_after_load_cpus(
         config_t* config) {
     bool return_result = true;
