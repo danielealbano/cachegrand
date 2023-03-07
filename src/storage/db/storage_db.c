@@ -41,6 +41,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_op_get_random_key.h"
 #include "data_structures/hashtable/mcmp/hashtable_thread_counters.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "memory_allocator/ffma.h"
 #include "fiber/fiber.h"
 #include "fiber/fiber_scheduler.h"
@@ -55,6 +56,82 @@
 #include "storage_db.h"
 
 #define TAG "storage_db"
+
+pthread_key_t storage_db_counters_index_key;
+static pthread_once_t storage_db_counters_index_key_once = PTHREAD_ONCE_INIT;
+
+static void storage_db_counters_index_key_destroy(void *value) {
+    storage_db_counters_slots_bitmap_and_index_t *slot =
+            (storage_db_counters_slots_bitmap_and_index_t*)value;
+
+    slots_bitmap_mpmc_release(slot->slots_bitmap, slot->index);
+}
+
+void storage_db_counters_slot_key_init_once() {
+    pthread_key_create(
+            &storage_db_counters_index_key,
+            storage_db_counters_index_key_destroy);
+
+    pthread_setspecific(storage_db_counters_index_key, NULL);
+}
+
+void storage_db_counters_slot_key_ensure_init(
+        storage_db_t *storage_db) {
+    // ensure that storage_db_counters_index_key has been initialized once, if not set it up passing the
+    // storage_db down the line
+    pthread_once(
+            &storage_db_counters_index_key_once,
+            storage_db_counters_slot_key_init_once);
+
+    // If the value is set to null, it means that the current thread has not been assigned a slot yet
+    if (pthread_getspecific(storage_db_counters_index_key) == NULL) {
+        storage_db_counters_slots_bitmap_and_index_t *slot =
+            ffma_mem_alloc(sizeof(storage_db_counters_slots_bitmap_and_index_t));
+
+        slot->slots_bitmap = storage_db->counters_slots_bitmap;
+        slot->index = slots_bitmap_mpmc_get_next_available(slot->slots_bitmap);
+
+        if (slot->index == UINT64_MAX) {
+            FATAL(TAG, "No more slots available for worker counters");
+        }
+
+        pthread_setspecific(storage_db_counters_index_key, slot);
+    }
+}
+
+uint64_t storage_db_counters_get_current_thread_get_slot_index(
+        storage_db_t *storage_db) {
+    storage_db_counters_slot_key_ensure_init(storage_db);
+
+    void *value = pthread_getspecific(storage_db_counters_index_key);
+    storage_db_counters_slots_bitmap_and_index_t *slot =
+            (storage_db_counters_slots_bitmap_and_index_t*)value;
+
+    return slot->index;
+}
+
+storage_db_counters_t* storage_db_counters_get_current_thread_data(
+        storage_db_t *storage_db) {
+    return &storage_db->counters[storage_db_counters_get_current_thread_get_slot_index(storage_db)];
+}
+
+void storage_db_counters_sum(
+        storage_db_t *storage_db,
+        storage_db_counters_t *counters) {
+    uint64_t workers_to_find = storage_db->workers_count;
+    uint64_t found_slot_index;
+    uint64_t next_slot_index = 0;
+
+    counters->data_size = 0;
+    while(workers_to_find > 0 && (found_slot_index =
+            slots_bitmap_mpmc_iter(storage_db->counters_slots_bitmap, next_slot_index)) != UINT64_MAX) {
+        counters->data_size += storage_db->counters[found_slot_index].data_size;
+        next_slot_index = found_slot_index + 1;
+        workers_to_find--;
+    }
+
+    int a = 0;
+}
 
 char *storage_db_shard_build_path(
         char *basedir_path,
@@ -160,7 +237,9 @@ storage_db_t* storage_db_new(
     // Sets up all the db related information
     db->config = config;
     db->workers = workers;
+    db->workers_count = workers_count;
     db->hashtable = hashtable;
+    db->counters_slots_bitmap = slots_bitmap_mpmc_init(STORAGE_DB_WORKERS_MAX);
 
     // Sets up the shards only if it has to write to the disk
     if (config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
@@ -1069,8 +1148,16 @@ bool storage_db_set_entry_index(
             (uintptr_t)entry_index,
             (uintptr_t*)&previous_entry_index);
 
-    if (res && previous_entry_index != NULL) {
-        storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, previous_entry_index);
+
+    if (res) {
+        storage_db_counters_get_current_thread_data(db)->data_size += (int64_t)entry_index->value->size;
+
+        if (previous_entry_index != NULL) {
+            storage_db_counters_get_current_thread_data(db)->data_size -=
+                    (int64_t)previous_entry_index->value->size;
+
+            storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, previous_entry_index);
+        }
     }
 
     return res;
@@ -1256,7 +1343,13 @@ bool storage_db_op_rmw_commit_update(
             &rmw_status->hashtable,
             (uintptr_t)entry_index);
 
+    storage_db_counters_get_current_thread_data(db)->data_size +=
+            (int64_t)entry_index->value->size;
+
     if (rmw_status->hashtable.current_value != 0) {
+        storage_db_counters_get_current_thread_data(db)->data_size -=
+                (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value->size;
+
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
                 db,
                 (storage_db_entry_index_t *)rmw_status->hashtable.current_value);
@@ -1300,6 +1393,9 @@ void storage_db_op_rmw_commit_rename(
 void storage_db_op_rmw_commit_delete(
         storage_db_t *db,
         storage_db_op_rmw_status_t *rmw_status) {
+    storage_db_counters_get_current_thread_data(db)->data_size -=
+            (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value->size;
+
     storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
             db,
             (storage_db_entry_index_t *)rmw_status->hashtable.current_value);
@@ -1330,6 +1426,9 @@ bool storage_db_op_delete(
             (uintptr_t*)&current_entry_index);
 
     if (res && current_entry_index != NULL) {
+        storage_db_counters_get_current_thread_data(db)->data_size -=
+                (int64_t)current_entry_index->value->size;
+
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
     }
 

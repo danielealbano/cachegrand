@@ -11,6 +11,7 @@ extern "C" {
 
 #define STORAGE_DB_SHARD_VERSION 1
 #define STORAGE_DB_CHUNK_MAX_SIZE ((64 * 1024) - 1)
+#define STORAGE_DB_WORKERS_MAX 2048
 
 // This magic value defines the size of the ring buffer used to keep in memory data long enough to be sure they are not
 // being in use anymore.
@@ -25,6 +26,12 @@ typedef uint32_t storage_db_shard_index_t;
 typedef uint64_t storage_db_create_time_ms_t;
 typedef uint64_t storage_db_last_access_time_ms_t;
 typedef int64_t storage_db_expiry_time_ms_t;
+
+struct storage_db_counters_slots_bitmap_and_index {
+    slots_bitmap_mpmc_t *slots_bitmap;
+    uint64_t index;
+};
+typedef struct storage_db_counters_slots_bitmap_and_index storage_db_counters_slots_bitmap_and_index_t;
 
 enum storage_db_backend_type {
     STORAGE_DB_BACKEND_TYPE_UNKNOWN = 0,
@@ -74,6 +81,11 @@ struct storage_db_worker {
     double_linked_list_t *deleting_entry_index_list;
 };
 
+typedef struct storage_db_counters storage_db_counters_t;
+struct storage_db_counters {
+    int64_t data_size;
+};
+
 // contains the necessary information to manage the db, holds a pointer to storage_db_config required during the
 // the initialization
 typedef struct storage_db storage_db_t;
@@ -87,6 +99,9 @@ struct storage_db {
     hashtable_t *hashtable;
     storage_db_config_t *config;
     storage_db_worker_t *workers;
+    uint16_t workers_count;
+    slots_bitmap_mpmc_t *counters_slots_bitmap;
+    storage_db_counters_t counters[STORAGE_DB_WORKERS_MAX];
 };
 
 typedef struct storage_db_chunk_info storage_db_chunk_info_t;
@@ -143,6 +158,24 @@ struct storage_db_key_and_key_length {
     char *key;
     size_t key_size;
 };
+
+void storage_db_worker_counters_slot_key_init_once();
+
+void storage_db_worker_counters_slot_key_ensure_init(
+        storage_db_t *storage_db);
+
+uint64_t storage_db_worker_counters_get_slot_index(
+        storage_db_t *storage_db);
+
+uint64_t storage_db_counters_get_current_thread_get_slot_index(
+        storage_db_t *storage_db);
+
+storage_db_counters_t* storage_db_counters_get_current_thread_data(
+        storage_db_t *storage_db);
+
+void storage_db_counters_sum(
+        storage_db_t *storage_db,
+        storage_db_counters_t *counters);
 
 char *storage_db_shard_build_path(
         char *basedir_path,
