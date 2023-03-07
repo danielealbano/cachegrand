@@ -86,15 +86,27 @@ void worker_stats_publish(
     }
 }
 
-bool worker_stats_should_publish_after_interval(
-        worker_stats_volatile_t* worker_stats_public,
-        int interval) {
+bool worker_stats_should_publish_totals_after_interval(
+        worker_stats_volatile_t* worker_stats_public) {
     struct timespec last_update_timestamp;
 
     clock_realtime(&last_update_timestamp);
 
     bool res = last_update_timestamp.tv_sec >=
-        worker_stats_public->per_minute_last_update_timestamp.tv_sec + interval;
+               worker_stats_public->total_last_update_timestamp.tv_sec + 1;
+
+    return res;
+}
+
+bool worker_stats_should_publish_per_minute_after_interval(
+        worker_stats_volatile_t* worker_stats_public) {
+    struct timespec last_update_timestamp;
+
+    clock_realtime(&last_update_timestamp);
+
+    bool res = last_update_timestamp.tv_sec >=
+               worker_stats_public->per_minute_last_update_timestamp.tv_sec + 60;
+
     return res;
 }
 

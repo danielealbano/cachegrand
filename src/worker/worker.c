@@ -446,10 +446,9 @@ void* worker_thread_func(
             break;
         }
 
-        if (worker_stats_should_publish_after_interval(&worker_context->stats.shared, 1)) {
-            bool only_total = !worker_stats_should_publish_after_interval(
-                    &worker_context->stats.shared,
-                    WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC);
+        if (worker_stats_should_publish_totals_after_interval(&worker_context->stats.shared)) {
+            bool only_total = !worker_stats_should_publish_per_minute_after_interval(
+                    &worker_context->stats.shared);
             worker_stats_publish(
                     &worker_context->stats.internal,
                     &worker_context->stats.shared,
