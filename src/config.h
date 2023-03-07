@@ -164,13 +164,13 @@ typedef enum config_database_backend config_database_backend_t;
 
 struct config_database_file_limits_hard {
     char *max_disk_usage_str;
-    uint32_t max_disk_usage;
+    int64_t max_disk_usage;
 };
 typedef struct config_database_file_limits_hard config_database_file_limits_hard_t;
 
 struct config_database_file_limits_soft {
     char *max_disk_usage_str;
-    uint64_t max_disk_usage;
+    int64_t max_disk_usage;
 };
 typedef struct config_database_file_limits_soft config_database_file_limits_soft_t;
 
@@ -196,13 +196,13 @@ typedef struct config_database_file config_database_file_t;
 
 struct config_database_memory_limits_hard {
     char *max_memory_usage_str;
-    uint64_t max_memory_usage;
+    int64_t max_memory_usage;
 };
 typedef struct config_database_memory_limits_hard config_database_memory_limits_hard_t;
 
 struct config_database_memory_limits_soft {
     char *max_memory_usage_str;
-    uint64_t max_memory_usage;
+    int64_t max_memory_usage;
 };
 typedef struct config_database_memory_limits_soft config_database_memory_limits_soft_t;
 
