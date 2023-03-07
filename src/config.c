@@ -11,8 +11,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <ctype.h>
 #include <errno.h>
 #include <arpa/inet.h>
+#include <sys/statvfs.h>
+#include <sys/sysinfo.h>
 #include <cyaml/cyaml.h>
 
 #include "exttypes.h"
@@ -777,6 +780,7 @@ void config_cpus_filter_duplicates(
 
 config_t* config_load(
         char* config_path) {
+    config_parse_string_absolute_or_percent_return_value_t return_value_type;
     config_t* config = NULL;
 
     LOG_I(TAG, "Loading the configuration from %s", config_path);
@@ -791,12 +795,131 @@ config_t* config_load(
         config = NULL;
     }
 
-    if (config) {
-        if (config_validate_after_load(config) == false) {
-            LOG_E(TAG, "Failed to validate the configuration");
+    if (!config) {
+        return NULL;
+    }
+
+    // Parse string numeric values
+    if (config->database->memory) {
+        // Get the total system memory
+        struct sysinfo sys_info;
+
+        if (sysinfo(&sys_info) < 0) {
+            LOG_E(TAG, "Failed to get the system memory information");
             config_free(config);
-            config = NULL;
+            return NULL;
         }
+
+        bool result = config_parse_string_absolute_or_percent(
+                config->database->memory->limits->hard->max_memory_usage_str,
+                strlen(config->database->memory->limits->hard->max_memory_usage_str),
+                false,
+                false,
+                true,
+                true,
+                true,
+                &config->database->memory->limits->hard->max_memory_usage,
+                &return_value_type);
+
+        if (!result) {
+            LOG_E(TAG, "Failed to parse the hard memory limit");
+            config_free(config);
+            return NULL;
+        }
+
+        if (return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT) {
+            config->database->memory->limits->hard->max_memory_usage =
+                    (int64_t)((double)sys_info.totalram * ((double)config->database->memory->limits->hard->max_memory_usage / 100.0));
+        }
+
+        if (config->database->memory->limits->soft) {
+            result = config_parse_string_absolute_or_percent(
+                    config->database->memory->limits->soft->max_memory_usage_str,
+                    strlen(config->database->memory->limits->soft->max_memory_usage_str),
+                    false,
+                    false,
+                    true,
+                    true,
+                    true,
+                    &config->database->memory->limits->soft->max_memory_usage,
+                    &return_value_type);
+
+            if (!result) {
+                LOG_E(TAG, "Failed to parse the soft memory limit");
+                config_free(config);
+                return NULL;
+            }
+
+            if (return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT) {
+                config->database->memory->limits->soft->max_memory_usage =
+                        (int64_t)((double)sys_info.totalram * ((double)config->database->memory->limits->soft->max_memory_usage / 100.0));
+            }
+        }
+    }
+
+    if (config->database->file) {
+        size_t total_disk_size;
+        struct statvfs vfs;
+
+        if (statvfs(config->database->file->path, &vfs) == 0) {
+            total_disk_size = vfs.f_blocks * vfs.f_frsize;
+        } else {
+            LOG_E(TAG, "Failed to get the disk information");
+            config_free(config);
+            return NULL;
+        }
+
+        bool result = config_parse_string_absolute_or_percent(
+                config->database->file->limits->hard->max_disk_usage_str,
+                strlen(config->database->file->limits->hard->max_disk_usage_str),
+                false,
+                false,
+                true,
+                true,
+                true,
+                &config->database->file->limits->hard->max_disk_usage,
+                &return_value_type);
+
+        if (!result) {
+            LOG_E(TAG, "Failed to parse the hard disk usage limit");
+            config_free(config);
+            return NULL;
+        }
+
+        if (return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT) {
+            config->database->file->limits->hard->max_disk_usage =
+                    (int64_t)((double)total_disk_size * ((double)config->database->file->limits->hard->max_disk_usage / 100.0));
+        }
+
+        if (config->database->file->limits->soft) {
+            result = config_parse_string_absolute_or_percent(
+                    config->database->file->limits->soft->max_disk_usage_str,
+                    strlen(config->database->file->limits->soft->max_disk_usage_str),
+                    false,
+                    false,
+                    true,
+                    true,
+                    true,
+                    &config->database->file->limits->soft->max_disk_usage,
+                    &return_value_type);
+
+            if (!result) {
+                LOG_E(TAG, "Failed to parse the soft disk usage limit");
+                config_free(config);
+                return NULL;
+            }
+
+            if (return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT) {
+                config->database->file->limits->soft->max_disk_usage =
+                        (int64_t)((double)total_disk_size * ((double)config->database->file->limits->soft->max_disk_usage / 100.0));
+            }
+        }
+    }
+
+    if (config_validate_after_load(config) == false) {
+        LOG_E(TAG, "Failed to validate the configuration");
+        config_free(config);
+        config = NULL;
     }
 
     return config;
