@@ -1172,9 +1172,15 @@ bool storage_db_op_set(
         storage_db_entry_index_value_type_t value_type,
         storage_db_chunk_sequence_t *value_chunk_sequence,
         storage_db_expiry_time_ms_t expiry_time_ms) {
+    storage_db_entry_index_t *entry_index = NULL;
     bool result_res = false;
 
-    storage_db_entry_index_t *entry_index = storage_db_entry_index_ring_buffer_new(db);
+    if (storage_db_will_new_entry_hit_hard_limit(db, value_chunk_sequence->size)) {
+        LOG_V(TAG, "Unable to set the key because it would exceed the hard limit");
+        goto end;
+    }
+
+    entry_index = storage_db_entry_index_ring_buffer_new(db);
     if (!entry_index) {
         LOG_E(TAG, "Unable to allocate the database index entry in memory");
         goto end;
@@ -1301,9 +1307,15 @@ bool storage_db_op_rmw_commit_update(
         storage_db_entry_index_value_type_t value_type,
         storage_db_chunk_sequence_t *value_chunk_sequence,
         storage_db_expiry_time_ms_t expiry_time_ms) {
+    storage_db_entry_index_t *entry_index = NULL;
     bool result_res = false;
 
-    storage_db_entry_index_t *entry_index = storage_db_entry_index_ring_buffer_new(db);
+    if (storage_db_will_new_entry_hit_hard_limit(db, value_chunk_sequence->size)) {
+        LOG_V(TAG, "Unable to set the key because it would exceed the hard limit");
+        goto end;
+    }
+
+    entry_index = storage_db_entry_index_ring_buffer_new(db);
     if (!entry_index) {
         LOG_E(TAG, "Unable to allocate the database index entry in memory");
         goto end;
