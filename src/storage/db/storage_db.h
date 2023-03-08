@@ -27,6 +27,18 @@ typedef uint64_t storage_db_create_time_ms_t;
 typedef uint64_t storage_db_last_access_time_ms_t;
 typedef int64_t storage_db_expiry_time_ms_t;
 
+struct storage_db_keys_eviction_limits {
+    struct {
+        uint64_t soft_limit;
+        uint64_t hard_limit;
+    } data_size;
+    struct {
+        uint64_t soft_limit;
+        uint64_t hard_limit;
+    } keys_count;
+};
+typedef struct storage_db_keys_eviction_limits storage_db_keys_eviction_limits_t;
+
 struct storage_db_counters_slots_bitmap_and_index {
     slots_bitmap_mpmc_t *slots_bitmap;
     uint64_t index;
@@ -425,6 +437,23 @@ storage_db_key_and_key_length_t *storage_db_op_get_keys(
 void storage_db_free_key_and_key_length_list(
         storage_db_key_and_key_length_t *keys,
         uint64_t keys_count);
+
+bool storage_db_keys_eviction_run(
+        storage_db_t *db,
+        uint32_t worker_index,
+        storage_db_keys_eviction_limits_t *limits);
+
+static inline bool storage_db_keys_eviction_should_run(
+        storage_db_t *db,
+        storage_db_keys_eviction_limits_t *limits) {
+    uint64_t keys_count = storage_db_op_get_keys_count(db);
+    uint64_t data_size = storage_db_op_get_data_size(db);
+
+    return unlikely(unlikely(keys_count > limits->keys_count.hard_limit) ||
+                    (likely(limits->keys_count.soft_limit) > 0 && unlikely(keys_count > limits->keys_count.soft_limit)) ||
+                    unlikely(data_size > limits->data_size.hard_limit) ||
+                    (likely(limits->data_size.soft_limit) > 0 && unlikely(data_size > limits->data_size.soft_limit)));
+}
 
 #ifdef __cplusplus
 }

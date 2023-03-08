@@ -1583,3 +1583,12 @@ void storage_db_free_key_and_key_length_list(
     }
     xalloc_free(keys);
 }
+
+bool storage_db_keys_eviction_run(
+        storage_db_t *db,
+        uint32_t worker_index,
+        storage_db_keys_eviction_limits_t *limits) {
+    uint32_t workers_count = db->workers_count;
+
+    return true;
+}
