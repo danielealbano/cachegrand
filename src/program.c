@@ -617,8 +617,6 @@ bool program_config_setup_storage_db(
         program_context_t* program_context) {
     storage_db_config_t *config = storage_db_config_new();
 
-    config->max_keys = program_context->config->database->limits->hard->max_keys;
-
     if (program_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
         config->backend.file.shard_size_mb = program_context->config->database->file->shard_size_mb;
         config->backend.file.basedir_path = program_context->config->database->file->path;
@@ -627,6 +625,30 @@ bool program_config_setup_storage_db(
         config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY;
     }
 
+    // Initialize the hard and soft limits
+    int64_t data_size_hard_limit, data_size_soft_limit;
+
+    if (program_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
+        data_size_hard_limit = program_context->config->database->file->limits->hard->max_disk_usage;
+        data_size_soft_limit = program_context->config->database->file->limits->soft
+                               ? program_context->config->database->file->limits->soft->max_disk_usage
+                               : 0;
+    } else if (program_context->config->database->backend == CONFIG_DATABASE_BACKEND_MEMORY) {
+        data_size_hard_limit = program_context->config->database->memory->limits->hard->max_memory_usage;
+        data_size_soft_limit = program_context->config->database->memory->limits->soft
+                               ? program_context->config->database->memory->limits->soft->max_memory_usage
+                               : 0;
+    }
+
+    // Set the limits
+    config->limits.data_size.hard_limit = data_size_hard_limit;
+    config->limits.data_size.soft_limit = data_size_soft_limit;
+    config->limits.keys_count.hard_limit = program_context->config->database->limits->hard->max_keys;
+    config->limits.keys_count.soft_limit = program_context->config->database->limits->soft
+                                  ? program_context->config->database->limits->soft->max_keys
+                                  : 0;
+
+    // Initialize the database
     program_context->db = storage_db_new(config, program_context->workers_count);
     if (!program_context->db) {
         storage_db_config_free(config);

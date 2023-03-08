@@ -428,34 +428,6 @@ void* worker_thread_func(
 
     worker_set_running(worker_context, true);
 
-    // Initialize the hard and soft limits for the keys eviction
-    int64_t data_size_hard_limit, data_size_soft_limit;
-
-    if (worker_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
-        data_size_hard_limit = worker_context->config->database->file->limits->hard->max_disk_usage;
-        data_size_soft_limit = worker_context->config->database->file->limits->soft
-                     ? worker_context->config->database->file->limits->soft->max_disk_usage
-                     : 0;
-    } else if (worker_context->config->database->backend == CONFIG_DATABASE_BACKEND_MEMORY) {
-        data_size_hard_limit = worker_context->config->database->memory->limits->hard->max_memory_usage;
-        data_size_soft_limit = worker_context->config->database->memory->limits->soft
-                     ? worker_context->config->database->memory->limits->soft->max_memory_usage
-                     : 0;
-    }
-
-    storage_db_keys_eviction_limits_t limits = {
-            .data_size = {
-                    .hard_limit = data_size_hard_limit,
-                    .soft_limit = data_size_soft_limit,
-            },
-            .keys_count = {
-                    .hard_limit = worker_context->config->database->limits->hard->max_keys,
-                    .soft_limit = worker_context->config->database->limits->soft
-                                  ? worker_context->config->database->limits->soft->max_keys
-                                  : 0,
-            },
-    };
-
     // TODO: the current loop terminates immediately when requests but this can lead to data corruption while data are
     //       being written by the fibers. To ensure a proper flow of operations the worker should notify the fibers that
     //       they have to terminate the execution ASAP and therefore any network communication should be halted on the
@@ -477,15 +449,10 @@ void* worker_thread_func(
         // Check the database limits (max keys), if the limits are exceeded the eviction process will be started.
         // Although this check is going to be false most of the time, it doesn't impact the performance of the
         // worker because it's a really simple check so it makes sense to do it first.
-        if (unlikely(storage_db_keys_eviction_should_run(
-                worker_context->db,
-                &limits))) {
+        if (unlikely(storage_db_keys_eviction_should_run(worker_context->db))) {
             LOG_W(TAG, "The database limits have been exceeded, starting the eviction process");
 
-            if (!storage_db_keys_eviction_run(
-                    worker_context->db,
-                    worker_context->worker_index,
-                    &limits)) {
+            if (!storage_db_keys_eviction_run(worker_context->db, worker_context->worker_index)) {
                 LOG_E(TAG, "Unable to run the eviction process, terminating");
                 break;
             }

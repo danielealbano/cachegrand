@@ -188,7 +188,7 @@ storage_db_t* storage_db_new(
         goto fail;
     }
     hashtable_config->can_auto_resize = false;
-    hashtable_config->initial_size = pow2_next(config->max_keys);
+    hashtable_config->initial_size = pow2_next(config->limits.keys_count.hard_limit);
 
     // Initialize the hashtable
     hashtable = hashtable_mcmp_init(hashtable_config);
@@ -251,6 +251,9 @@ storage_db_t* storage_db_new(
             goto fail;
         }
     }
+
+    // Import the hard and soft limits for the keys eviction
+    memcpy(&db->limits, &config->limits, sizeof(storage_db_limits_t));
 
     return db;
 fail:
@@ -1586,8 +1589,7 @@ void storage_db_free_key_and_key_length_list(
 
 bool storage_db_keys_eviction_run(
         storage_db_t *db,
-        uint32_t worker_index,
-        storage_db_keys_eviction_limits_t *limits) {
+        uint32_t worker_index) {
     uint32_t workers_count = db->workers_count;
 
     return true;
