@@ -25,7 +25,6 @@
 #include "hashtable_op_rmw.h"
 #include "hashtable_support_hash.h"
 #include "hashtable_support_op.h"
-#include "hashtable_thread_counters.h"
 
 bool hashtable_mcmp_op_rmw_begin(
         hashtable_t *hashtable,
@@ -133,10 +132,6 @@ void hashtable_mcmp_op_rmw_commit_update(
         xalloc_free(rmw_status->key);
 
     }
-
-    // Decrement the size counter if deleted is true
-    hashtable_mcmp_thread_counters_get_current_thread(
-            rmw_status->hashtable)->size += rmw_status->created_new ? 1 : 0;
 }
 
 void hashtable_mcmp_op_rmw_commit_delete(
@@ -163,9 +158,6 @@ void hashtable_mcmp_op_rmw_commit_delete(
         }
 #endif
     }
-
-    // Decrement the size counter if deleted is true
-    hashtable_mcmp_thread_counters_get_current_thread(rmw_status->hashtable)->size--;
 }
 
 void hashtable_mcmp_op_rmw_abort(

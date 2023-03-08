@@ -39,7 +39,6 @@
 #include "data_structures/hashtable/mcmp/hashtable_op_iter.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_rmw.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_get_random_key.h"
-#include "data_structures/hashtable/mcmp/hashtable_thread_counters.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "memory_allocator/ffma.h"
@@ -127,11 +126,10 @@ void storage_db_counters_sum(
     while(workers_to_find > 0 && (found_slot_index =
             slots_bitmap_mpmc_iter(storage_db->counters_slots_bitmap, next_slot_index)) != UINT64_MAX) {
         counters->data_size += storage_db->counters[found_slot_index].data_size;
+        counters->keys_count += storage_db->counters[found_slot_index].keys_count;
         next_slot_index = found_slot_index + 1;
         workers_to_find--;
     }
-
-    int a = 0;
 }
 
 char *storage_db_shard_build_path(
@@ -1149,8 +1147,8 @@ bool storage_db_set_entry_index(
             (uintptr_t)entry_index,
             (uintptr_t*)&previous_entry_index);
 
-
     if (res) {
+        storage_db_counters_get_current_thread_data(db)->keys_count += previous_entry_index ? 0 : 1;
         storage_db_counters_get_current_thread_data(db)->data_size += (int64_t)entry_index->value->size;
 
         if (previous_entry_index != NULL) {
@@ -1344,8 +1342,8 @@ bool storage_db_op_rmw_commit_update(
             &rmw_status->hashtable,
             (uintptr_t)entry_index);
 
-    storage_db_counters_get_current_thread_data(db)->data_size +=
-            (int64_t)entry_index->value->size;
+    storage_db_counters_get_current_thread_data(db)->data_size += (int64_t)entry_index->value->size;
+    storage_db_counters_get_current_thread_data(db)->keys_count += rmw_status->hashtable.current_value ? 0 : 1;
 
     if (rmw_status->hashtable.current_value != 0) {
         storage_db_counters_get_current_thread_data(db)->data_size -=
@@ -1396,6 +1394,7 @@ void storage_db_op_rmw_commit_delete(
         storage_db_op_rmw_status_t *rmw_status) {
     storage_db_counters_get_current_thread_data(db)->data_size -=
             (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value->size;
+    storage_db_counters_get_current_thread_data(db)->keys_count--;
 
     storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
             db,
@@ -1429,6 +1428,7 @@ bool storage_db_op_delete(
     if (res && current_entry_index != NULL) {
         storage_db_counters_get_current_thread_data(db)->data_size -=
                 (int64_t)current_entry_index->value->size;
+        storage_db_counters_get_current_thread_data(db)->keys_count--;
 
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
     }
@@ -1436,14 +1436,20 @@ bool storage_db_op_delete(
     return res;
 }
 
-int64_t storage_db_op_get_size(
+int64_t storage_db_op_get_keys_count(
         storage_db_t *db) {
-    int64_t size = 0;
-    hashtable_counters_t *counters_sum = hashtable_mcmp_thread_counters_sum_fetch(db->hashtable);
-    size = counters_sum->size;
-    hashtable_mcmp_thread_counters_sum_free(counters_sum);
+    storage_db_counters_t counters = { 0 };
+    storage_db_counters_sum(db, &counters);
 
-    return size;
+    return counters.keys_count;
+}
+
+int64_t storage_db_op_get_data_size(
+        storage_db_t *db) {
+    storage_db_counters_t counters = { 0 };
+    storage_db_counters_sum(db, &counters);
+
+    return counters.data_size;
 }
 
 char *storage_db_op_random_key(
@@ -1451,8 +1457,8 @@ char *storage_db_op_random_key(
         hashtable_key_size_t *key_size) {
     char *key = NULL;
 
-    while(storage_db_op_get_size(db) > 0 &&
-        !hashtable_mcmp_op_get_random_key_try(db->hashtable, &key, key_size)) {
+    while(storage_db_op_get_keys_count(db) > 0 &&
+          !hashtable_mcmp_op_get_random_key_try(db->hashtable, &key, key_size)) {
         // do nothing
     }
 
@@ -1505,7 +1511,7 @@ storage_db_key_and_key_length_t *storage_db_op_get_keys(
     *keys_count = 0;
     *cursor_next = 0;
 
-    if (unlikely(storage_db_op_get_size(db)) == 0) {
+    if (unlikely(storage_db_op_get_keys_count(db)) == 0) {
         return NULL;
     }
 

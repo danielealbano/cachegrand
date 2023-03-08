@@ -83,6 +83,7 @@ struct storage_db_worker {
 
 typedef struct storage_db_counters storage_db_counters_t;
 struct storage_db_counters {
+    int64_t keys_count;
     int64_t data_size;
 };
 
@@ -403,7 +404,10 @@ char *storage_db_op_random_key(
         storage_db_t *db,
         hashtable_key_size_t *key_size);
 
-int64_t storage_db_op_get_size(
+int64_t storage_db_op_get_keys_count(
+        storage_db_t *db);
+
+int64_t storage_db_op_get_data_size(
         storage_db_t *db);
 
 bool storage_db_op_flush_sync(
