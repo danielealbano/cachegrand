@@ -120,10 +120,10 @@ database:
     hard:
       # The max amount of keys that can be stored in the database, 0 means no limit
       max_keys: 1000000
-#    # Optional
-#    soft:
-#      # When database.limit.hard.max_memory_usage is set to 0, this value will be ignored
-#      max_keys: 999999
+#  # Optional
+#  soft:
+#    # When database.limit.hard.max_memory_usage is set to 0, this value will be ignored
+#    max_keys: 999999
 
   backend: memory
   memory:
@@ -134,9 +134,9 @@ database:
     limits:
       hard:
         max_memory_usage: 1000000
-#      # Optional
-#      soft:
-#        max_memory_usage: 999999
+#     # Optional
+#     soft:
+#       max_memory_usage: 999999
 
 #  backend: file
 #  file:
@@ -155,9 +155,9 @@ database:
 #    limits:
 #      hard:
 #        max_disk_usage: 75%
-# #      # Optional
-# #      soft:
-# #        max_disk_usage: 70%
+# #    # Optional
+# #    soft:
+# #      max_disk_usage: 70%
 
   # Settings for the keys eviction when the database is full, comment out to disable
   keys_eviction:
