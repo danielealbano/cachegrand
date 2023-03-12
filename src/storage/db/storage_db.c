@@ -52,6 +52,7 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/storage.h"
+#include "libhwy_c_wrapper/vqsort_c_exports.h"
 
 #include "storage_db.h"
 
@@ -1666,10 +1667,10 @@ int storage_db_keys_eviction_list_entry_sort_random(const void *a, const void *b
     }
 }
 
-bool storage_db_keys_eviction_run_worker(
+void storage_db_keys_eviction_run_worker(
         storage_db_t *db,
         uint64_t batch_size,
-        bool ignore_ttl,
+        bool only_ttl,
         config_database_keys_eviction_policy_t policy,
         uint32_t worker_index) {
     uint32_t workers_count = db->workers_count;
@@ -1691,9 +1692,9 @@ bool storage_db_keys_eviction_run_worker(
         sample_size = STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MAX;
     }
 
-    // If the sample is 0, it means that the worker has nothing to do
-    if (sample_size == 0) {
-        return true;
+    // If the sample is smaller than STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MIN then the eviction is not worth it
+    if (sample_size < STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MIN) {
+        return;
     }
 
     // As the resizing has to be taken into account but not yet implemented, the assert will catch if the resizing is
@@ -1702,115 +1703,100 @@ bool storage_db_keys_eviction_run_worker(
 
     // As there are multiple policies to evict keys, the first thing that has to be done is to get a random sample of the
     // keys that have to be evicted and then apply the policy to the sample
-    uint64_t keys_eviction_list_count = 0;
-    uint64_t keys_eviction_list_size = buckets_end - buckets_start;
-    storage_db_keys_eviction_list_entry_t *keys =
-            xalloc_alloc(sizeof(storage_db_keys_eviction_list_entry_t) * keys_eviction_list_size);
+    uint64_t keys_eviction_candidates_list_count = 0;
+    uint64_t keys_eviction_candidates_list_size = buckets_end - buckets_start;
+    vqsort_kv64_t *keys_evitction_candidates_list =
+            xalloc_alloc(sizeof(vqsort_kv64_t) * keys_eviction_candidates_list_size);
 
     // Iterates over the hashtable to free up the entry index
-    hashtable_bucket_index_t bucket_index = buckets_start;
-    hashtable_bucket_index_t iter_step = 1;
+    hashtable_bucket_index_t bucket_index = buckets_start, current_bucket_index;
     void *data = NULL;
     for(
             data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index);
-            data;
+            data && keys_eviction_candidates_list_count <= sample_size;
             (data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index))) {
         hashtable_key_data_t *key;
         hashtable_key_size_t key_size;
         storage_db_entry_index_t *entry_index = data;
+        current_bucket_index = bucket_index;
+
+        // TODO: should be random, this is fixed
+        // Calculate the step taking into account the sample size still to extract to have a fair distribution of keys
+        // taken into account
+        hashtable_bucket_index_t iter_step =
+                (uint64_t)ceil(((double)(buckets_end - bucket_index) / (double)(sample_size - keys_eviction_candidates_list_count) / 0.75));
+        bucket_index += iter_step;
 
         // If the bucket index is out of the range of the current worker or if the entry index is NULL, as there are no
         // more buckets to iterate over, then stop the iteration
-        if (unlikely(bucket_index >= buckets_end || entry_index == NULL)) {
+        if (unlikely(current_bucket_index >= buckets_end || entry_index == NULL)) {
             break;
         }
 
         // If only the keys with expiry time have to be evicted and the current key has no expiry time, then skip it
-        if (unlikely(!ignore_ttl && entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY)) {
+        if (unlikely(only_ttl && entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY)) {
             continue;
         }
 
         // Fetch the key from the hashtable
-        if (unlikely(!hashtable_mcmp_op_get_key(db->hashtable, bucket_index, &key, &key_size))) {
+        if (unlikely(!hashtable_mcmp_op_get_key(db->hashtable, current_bucket_index, &key, &key_size))) {
             continue;
         }
 
-        assert(keys_eviction_list_count < keys_eviction_list_size);
+        assert(keys_eviction_candidates_list_count < keys_eviction_candidates_list_size);
 
-        // Fill up the eviction list with the keys that might be considered for eviction
-        keys[keys_eviction_list_count].key = key;
-        keys[keys_eviction_list_count].key_size = key_size;
-        keys[keys_eviction_list_count].accesses_counters = entry_index->status.accesses_counter;
-        keys[keys_eviction_list_count].last_access_time_ms = entry_index->last_access_time_ms;
-        keys[keys_eviction_list_count].expiry_time_ms = entry_index->expiry_time_ms;
-
-        keys_eviction_list_count++;
-
-        if (unlikely(keys_eviction_list_count >= sample_size)) {
-            break;
+        // Fetch the sorting key
+        uint64_t sort_key;
+        switch(policy) {
+            case CONFIG_DATABASE_KEYS_EVICTION_POLICY_RANDOM:
+                sort_key = random_generate();
+                break;
+            case CONFIG_DATABASE_KEYS_EVICTION_POLICY_LRU:
+                sort_key = entry_index->last_access_time_ms;
+                break;
+            case CONFIG_DATABASE_KEYS_EVICTION_POLICY_LFU:
+                sort_key = entry_index->status.accesses_counter;
+                break;
+            case CONFIG_DATABASE_KEYS_EVICTION_POLICY_TTL:
+                sort_key = entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY
+                        ? UINT64_MAX
+                        : entry_index->expiry_time_ms;
+                break;
+            default:
+                assert(false);
         }
 
-        // Calculate the step taking into account the sample size still to extract to have a fair distribution of keys
-        // taken into account
-        iter_step = (uint64_t)ceil(((double)(buckets_end - bucket_index) / (double)(sample_size - keys_eviction_list_count) / 0.75));
-        bucket_index += iter_step;
+        // Set the sort key and the value (the key of the entry)
+        keys_evitction_candidates_list[keys_eviction_candidates_list_count].key = sort_key;
+        keys_evitction_candidates_list[keys_eviction_candidates_list_count].value = (uint64_t)key;
+
+        // Increment the counter of the keys in the list
+        keys_eviction_candidates_list_count++;
     }
 
-    static storage_db_keys_eviction_list_sort_cb comparator_map[] = {
-            storage_db_keys_eviction_list_entry_sort_lru,
-            storage_db_keys_eviction_list_entry_sort_lfu,
-            storage_db_keys_eviction_list_entry_sort_ttl,
-            storage_db_keys_eviction_list_entry_sort_random
-    };
-
-    qsort(
-            keys,
-            keys_eviction_list_count,
-            sizeof(storage_db_keys_eviction_list_entry_t),
-            comparator_map[policy]);
-
-    fprintf(stdout, "> Found <%lu> potential keys to evict\n", keys_eviction_list_count);
-    fflush(stdout);
+    vqsort_u128_asc((uint128_t*)keys_evitction_candidates_list, keys_eviction_candidates_list_count);
 
     // Iterates over the keys to evict them, evicts not more than batch size
     uint64_t key_to_evict_index, keys_evicted_count = 0;
     for(
             key_to_evict_index = 0;
-            key_to_evict_index < keys_eviction_list_count
+            key_to_evict_index < keys_eviction_candidates_list_count
             && keys_evicted_count < batch_size
-            && storage_db_keys_eviction_should_run(db);
+            && ((key_to_evict_index % 128 == 0 && storage_db_keys_eviction_should_run(db)) || (key_to_evict_index % 128 != 0));
             key_to_evict_index++) {
-        storage_db_keys_eviction_list_entry_t *key_ti_evict = &keys[key_to_evict_index];
+        char *key = (char*)(keys_evitction_candidates_list[key_to_evict_index].value);
 
-        fprintf(
-                stdout,
-                "[%lu/%lu/%lu] Evicting key %.*s (accesses_counters=%u, last_access_time_ms=%lu, expiry_time_ms=%lu)\n",
-                key_to_evict_index,
-                keys_eviction_list_count,
-                batch_size,
-                (int)key_ti_evict->key_size,
-                (char *)key_ti_evict->key,
-                key_ti_evict->accesses_counters,
-                key_ti_evict->last_access_time_ms,
-                key_ti_evict->expiry_time_ms);
-        fflush(stdout);
-
-        if (!storage_db_op_delete(db, key_ti_evict->key, key_ti_evict->key_size)) {
+        if (!storage_db_op_delete(db, key, strlen(key))) {
             continue;
         }
 
         keys_evicted_count++;
     }
 
-    fprintf(stdout, "done\n");
-    fflush(stdout);
-
     // Free the memory
-    for(key_to_evict_index =0; key_to_evict_index < keys_eviction_list_count; key_to_evict_index++) {
-        storage_db_keys_eviction_list_entry_t *key_ti_evict = &keys[key_to_evict_index];
-        xalloc_free(key_ti_evict->key);
+    for(key_to_evict_index =0; key_to_evict_index < keys_eviction_candidates_list_count; key_to_evict_index++) {
+        char *key = (char*)keys_evitction_candidates_list[key_to_evict_index].value;
+        xalloc_free(key);
     }
-    xalloc_free(keys);
-
-    return true;
+    xalloc_free(keys_evitction_candidates_list);
 }

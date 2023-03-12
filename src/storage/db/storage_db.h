@@ -13,6 +13,7 @@ extern "C" {
 #define STORAGE_DB_CHUNK_MAX_SIZE ((64 * 1024) - 1)
 #define STORAGE_DB_WORKERS_MAX (2048)
 #define STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_PERC (0.10)
+#define STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MIN (10)
 #define STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MAX (100000)
 
 // This magic value defines the size of the ring buffer used to keep in memory data long enough to be sure they are not
@@ -453,10 +454,10 @@ void storage_db_free_key_and_key_length_list(
         storage_db_key_and_key_length_t *keys,
         uint64_t keys_count);
 
-bool storage_db_keys_eviction_run_worker(
+void storage_db_keys_eviction_run_worker(
         storage_db_t *db,
         uint64_t batch_size,
-        bool ignore_ttl,
+        bool only_ttl,
         config_database_keys_eviction_policy_t policy,
         uint32_t worker_index);
 
