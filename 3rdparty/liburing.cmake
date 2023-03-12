@@ -4,13 +4,13 @@ file(GLOB SRC_FILES_LIBURING "liburing/src/*.c")
 # The configure script generates a few files and expects an in-place build so we need to set the BUILD_INSOURCE flag
 # to 1 to make it work.
 # This will also allow the target_include_directories to work properly
-set(LIBURING_BUILD_PATH "${CMAKE_BINARY_DIR}/_deps/src/liburing-install-build")
+set(LIBURING_BUILD_PATH "${CMAKE_BINARY_DIR}/_deps/src/liburing-build-build")
 set(LIBURING_CONFIGURE_INCLUDE_PATH "${LIBURING_BUILD_PATH}/src/include")
 file(MAKE_DIRECTORY ${LIBURING_CONFIGURE_INCLUDE_PATH}/liburing)
 file(TOUCH ${LIBURING_CONFIGURE_INCLUDE_PATH}/liburing/config-host.h)
 
 ExternalProject_Add(
-        liburing-install
+        liburing-build
         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/liburing
         PREFIX ${CMAKE_BINARY_DIR}/_deps
         CONFIGURE_COMMAND chmod +x ${CMAKE_CURRENT_SOURCE_DIR}/liburing/configure && ${CMAKE_CURRENT_SOURCE_DIR}/liburing/configure --prefix=${CMAKE_BINARY_DIR}/_deps/liburing/install
@@ -23,7 +23,7 @@ add_library(
 
 add_dependencies(
         uring
-        liburing-install)
+        liburing-build)
 
 target_compile_options(
         uring
