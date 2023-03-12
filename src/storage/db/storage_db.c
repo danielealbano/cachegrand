@@ -1163,15 +1163,15 @@ bool storage_db_set_entry_index(
             (uintptr_t*)&previous_entry_index);
 
     if (res) {
-        storage_db_counters_get_current_thread_data(db)->keys_count += previous_entry_index ? 0 : 1;
-        storage_db_counters_get_current_thread_data(db)->data_size += (int64_t)entry_index->value->size;
-
+        int64_t counter_data_size_delta = (int64_t)entry_index->value->size;
         if (previous_entry_index != NULL) {
-            storage_db_counters_get_current_thread_data(db)->data_size -=
-                    (int64_t)previous_entry_index->value->size;
+            counter_data_size_delta -= (int64_t)previous_entry_index->value->size;
 
             storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, previous_entry_index);
         }
+
+        storage_db_counters_get_current_thread_data(db)->keys_count += previous_entry_index ? 0 : 1;
+        storage_db_counters_get_current_thread_data(db)->data_size += counter_data_size_delta;
     }
 
     return res;
@@ -1369,17 +1369,18 @@ bool storage_db_op_rmw_commit_update(
             &rmw_status->hashtable,
             (uintptr_t)entry_index);
 
-    storage_db_counters_get_current_thread_data(db)->data_size += (int64_t)entry_index->value->size;
-    storage_db_counters_get_current_thread_data(db)->keys_count += rmw_status->hashtable.current_value ? 0 : 1;
-
+    int64_t counter_data_size_delta = (int64_t)entry_index->value->size;
     if (rmw_status->hashtable.current_value != 0) {
-        storage_db_counters_get_current_thread_data(db)->data_size -=
+        counter_data_size_delta -=
                 (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value->size;
 
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
                 db,
                 (storage_db_entry_index_t *)rmw_status->hashtable.current_value);
     }
+
+    storage_db_counters_get_current_thread_data(db)->data_size += counter_data_size_delta;
+    storage_db_counters_get_current_thread_data(db)->keys_count += rmw_status->hashtable.current_value ? 0 : 1;
 
     result_res = true;
 
