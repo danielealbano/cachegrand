@@ -176,8 +176,8 @@ const cyaml_schema_field_t config_network_schema[] = {
 // Schema for config -> database -> keys_eviction
 const cyaml_schema_field_t config_database_keys_eviction_schema[] = {
         CYAML_FIELD_BOOL(
-                "ignore_ttl", CYAML_FLAG_DEFAULT,
-                config_database_keys_eviction_t, ignore_ttl),
+                "only_ttl", CYAML_FLAG_DEFAULT,
+                config_database_keys_eviction_t, only_ttl),
         CYAML_FIELD_ENUM(
                 "policy", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT,
                 config_database_keys_eviction_t , policy, config_database_keys_eviction_policy_schema_strings,

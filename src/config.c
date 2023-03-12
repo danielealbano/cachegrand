@@ -365,8 +365,8 @@ bool config_validate_after_load_database_keys_eviction(
     }
 
     if (config->database->keys_eviction->policy == CONFIG_DATABASE_KEYS_EVICTION_POLICY_TTL
-        && config->database->keys_eviction->ignore_ttl == true) {
-        LOG_E(TAG, "The keys eviction policy can't be set to <ttl> if <ignore_ttl> is set to <true>");
+        && config->database->keys_eviction->only_ttl == false) {
+        LOG_E(TAG, "The keys eviction policy <ttl> requires <only_ttl> set to <true>");
         return_result = false;
     }
 

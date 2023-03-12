@@ -167,9 +167,9 @@ database:
     # - random: evict a random key
     # - ttl: evict the key with the lowest TTL
     policy: lru
-    # If set to true, all the keys will be considered for evictions not only the ones that might expire. This setting
+    # If set to false, all the keys will be considered for evictions not only the ones that might expire. This setting
     # is useful to avoid the eviction of keys that are supposed to be kept forever.
-    ignore_ttl: true
+    only_ttl: false
     # Amount of keys to evict at once, if set to 0, all the keys will be evicted at once.
     batch_size: 1000
 

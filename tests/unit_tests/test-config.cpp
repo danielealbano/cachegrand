@@ -165,7 +165,7 @@ database:
         max_memory_usage: 999999
   keys_eviction:
     policy: lru
-    ignore_ttl: true
+    only_ttl: true
     batch_size: 1000
 sentry:
   enable: true
@@ -239,7 +239,7 @@ database:
         max_memory_usage: 999999
   keys_eviction:
     policy: lru
-    ignore_ttl: true
+    only_ttl: true
     batch_size: 1000
 sentry:
   enable: true
