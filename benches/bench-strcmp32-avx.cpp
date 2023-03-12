@@ -11,7 +11,7 @@
 
 #include <benchmark/benchmark.h>
 
-#include "benchmark-program.hpp"
+#include "benchmark-program-simple.hpp"
 
 #include "utils_string.h"
 
