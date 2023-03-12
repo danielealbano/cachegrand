@@ -9,9 +9,11 @@ extern "C" {
 //#define STORAGE_DB_SHARD_MAGIC_NUMBER_HIGH 0x4341434845475241
 //#define STORAGE_DB_SHARD_MAGIC_NUMBER_LOW  0x5241000000000000
 
-#define STORAGE_DB_SHARD_VERSION 1
+#define STORAGE_DB_SHARD_VERSION (1)
 #define STORAGE_DB_CHUNK_MAX_SIZE ((64 * 1024) - 1)
-#define STORAGE_DB_WORKERS_MAX 2048
+#define STORAGE_DB_WORKERS_MAX (2048)
+#define STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_PERC (0.10)
+#define STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MAX (100000)
 
 // This magic value defines the size of the ring buffer used to keep in memory data long enough to be sure they are not
 // being in use anymore.
@@ -38,6 +40,17 @@ struct storage_db_limits {
     } keys_count;
 };
 typedef struct storage_db_limits storage_db_limits_t;
+
+typedef int (*storage_db_keys_eviction_list_sort_cb)(const void *, const void*);
+
+struct storage_db_keys_eviction_list_entry {
+    uint16_t key_size;
+    uint32_t accesses_counters;
+    char *key;
+    storage_db_last_access_time_ms_t last_access_time_ms;
+    storage_db_expiry_time_ms_t expiry_time_ms;
+};
+typedef struct storage_db_keys_eviction_list_entry storage_db_keys_eviction_list_entry_t;
 
 struct storage_db_counters_slots_bitmap_and_index {
     slots_bitmap_mpmc_t *slots_bitmap;
@@ -134,10 +147,11 @@ struct storage_db_chunk_info {
 
 typedef union storage_db_entry_index_status storage_db_entry_index_status_t;
 union storage_db_entry_index_status {
-    uint32_volatile_t _cas_wrapper;
+    uint64_volatile_t _cas_wrapper;
     struct {
         uint32_volatile_t readers_counter:31;
         bool_volatile_t deleted:1;
+        uint32_volatile_t accesses_counter;
     };
 };
 
@@ -439,8 +453,11 @@ void storage_db_free_key_and_key_length_list(
         storage_db_key_and_key_length_t *keys,
         uint64_t keys_count);
 
-bool storage_db_keys_eviction_run(
+bool storage_db_keys_eviction_run_worker(
         storage_db_t *db,
+        uint64_t batch_size,
+        bool ignore_ttl,
+        config_database_keys_eviction_policy_t policy,
         uint32_t worker_index);
 
 static inline bool storage_db_keys_eviction_should_run(
@@ -449,9 +466,9 @@ static inline bool storage_db_keys_eviction_should_run(
     uint64_t data_size = storage_db_op_get_data_size(db);
 
     return unlikely(unlikely(keys_count >= db->limits.keys_count.hard_limit) ||
-                    (likely(db->limits.keys_count.soft_limit) > 0 && unlikely(keys_count >= db->limits.keys_count.soft_limit)) ||
+                    (likely(db->limits.keys_count.soft_limit) > 0 && unlikely(keys_count > db->limits.keys_count.soft_limit)) ||
                     unlikely(data_size >= db->limits.data_size.hard_limit) ||
-                    (likely(db->limits.data_size.soft_limit) > 0 && unlikely(data_size >= db->limits.data_size.soft_limit)));
+                    (likely(db->limits.data_size.soft_limit) > 0 && unlikely(data_size > db->limits.data_size.soft_limit)));
 }
 
 static inline bool storage_db_will_new_entry_hit_hard_limit(
@@ -462,6 +479,16 @@ static inline bool storage_db_will_new_entry_hit_hard_limit(
 
     return unlikely(unlikely(keys_count + 1 > db->limits.keys_count.hard_limit) ||
                     unlikely(data_size + new_entry_size > db->limits.data_size.hard_limit));
+}
+
+static inline bool storage_db_keys_eviction_soft_or_hard_limit_hit(
+        storage_db_t *db) {
+    uint64_t keys_count = storage_db_op_get_keys_count(db);
+    uint64_t data_size = storage_db_op_get_data_size(db);
+
+    return (keys_count >= db->limits.keys_count.hard_limit) || (data_size >= db->limits.data_size.hard_limit)
+        ? false
+        : true;
 }
 
 #ifdef __cplusplus

@@ -446,18 +446,6 @@ void* worker_thread_func(
             break;
         }
 
-        // Check the database limits (max keys), if the limits are exceeded the eviction process will be started.
-        // Although this check is going to be false most of the time, it doesn't impact the performance of the
-        // worker because it's a really simple check so it makes sense to do it first.
-        if (unlikely(storage_db_keys_eviction_should_run(worker_context->db))) {
-            LOG_W(TAG, "The database limits have been exceeded, starting the eviction process");
-
-            if (!storage_db_keys_eviction_run(worker_context->db, worker_context->worker_index)) {
-                LOG_E(TAG, "Unable to run the eviction process, terminating");
-                break;
-            }
-        }
-
         // Checks if the stats should be published with an interval of 1 second
         if (worker_stats_should_publish_totals_after_interval(&worker_context->stats.shared)) {
             // Check if the per_minute stats should be published too
@@ -467,6 +455,26 @@ void* worker_thread_func(
                     &worker_context->stats.internal,
                     &worker_context->stats.shared,
                     only_total);
+
+            // Check the database limits (max keys), if the limits are exceeded the eviction process will be started.
+            // Although this check is going to be false most of the time, it doesn't impact the performance of the
+            // worker because it's a really simple check so it makes sense to do it first.
+            if (unlikely(storage_db_keys_eviction_should_run(worker_context->db))) {
+                LOG_W(TAG, "The database limits have been exceeded, starting the eviction process");
+                LOG_W(TAG, "[pre-eviction] keys count: %" PRId64 ", data size: %" PRId64, storage_db_op_get_keys_count(worker_context->db), storage_db_op_get_data_size(worker_context->db));
+
+                if (!storage_db_keys_eviction_run_worker(
+                        worker_context->db,
+                        worker_context->config->database->keys_eviction->batch_size,
+                        worker_context->config->database->keys_eviction->ignore_ttl,
+                        worker_context->config->database->keys_eviction->policy,
+                        worker_context->worker_index)) {
+                    LOG_E(TAG, "Unable to run the eviction process, terminating");
+                    break;
+                }
+
+                LOG_W(TAG, "[post-eviction] keys count: %" PRId64 ", data size: %" PRId64, storage_db_op_get_keys_count(worker_context->db), storage_db_op_get_data_size(worker_context->db));
+            }
         }
     } while(!worker_should_terminate(worker_context));
 

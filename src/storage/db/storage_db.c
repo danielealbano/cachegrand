@@ -27,6 +27,7 @@
 #include "transaction_spinlock.h"
 #include "utils_string.h"
 #include "xalloc.h"
+#include "random.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -895,9 +896,26 @@ void storage_db_entry_index_status_increase_readers_counter(
         storage_db_entry_index_t* entry_index,
         storage_db_entry_index_status_t *old_status) {
     storage_db_entry_index_status_t old_status_internal;
-    uint32_t old_cas_wrapper_ret = __sync_fetch_and_add(
+    storage_db_entry_index_status_t new_status_internal;
+
+    // Use a CAS loop to increase the readers counters and the access counters
+    do {
+        MEMORY_FENCE_LOAD();
+        old_status_internal._cas_wrapper = entry_index->status._cas_wrapper;
+        new_status_internal._cas_wrapper = old_status_internal._cas_wrapper;
+
+        new_status_internal.readers_counter++;
+        new_status_internal.accesses_counter++;
+
+        // Keep the max access counter below UINT32_MAX to avoid a rollover
+        if (new_status_internal.accesses_counter == UINT32_MAX) {
+            new_status_internal.accesses_counter--;
+        }
+
+    } while (!__sync_bool_compare_and_swap(
             &entry_index->status._cas_wrapper,
-            (uint32_t)1);
+            old_status_internal._cas_wrapper,
+            new_status_internal._cas_wrapper));
 
     // The MSB bit of _cas_wrapper is used for the deleted flag, if the readers_counter gets to 0x7FFFFFFF another lock
     // request would implicitly set the "deleted" flag to true.
@@ -908,18 +926,17 @@ void storage_db_entry_index_status_increase_readers_counter(
     // risking that other worker threads would increase it further causing the overflow.
     // In general just keeping the second MSB "free" for that scenario, the amount of padding required depends on the
     // amount of hardware threads that the cpu(s) are able to run in parallel.
-    assert((old_cas_wrapper_ret & 0x7FFFFFFF) != 0x7FFFFFFF);
+    assert((old_status_internal._cas_wrapper & 0x7FFFFFFF) != 0x7FFFFFFF);
 
     // If the entry is marked as deleted reduce the readers counter to drop the lock
-    old_status_internal._cas_wrapper = old_cas_wrapper_ret;
     if (unlikely(old_status_internal.deleted)) {
-        old_cas_wrapper_ret = __sync_fetch_and_sub(
+        new_status_internal._cas_wrapper = __sync_fetch_and_sub(
                 &entry_index->status._cas_wrapper,
                 (uint32_t)1);
     }
 
     if (likely(old_status)) {
-        old_status->_cas_wrapper = old_cas_wrapper_ret;
+        old_status->_cas_wrapper = new_status_internal._cas_wrapper;
     }
 }
 
@@ -1000,13 +1017,7 @@ void storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
     // if there are readers, the entry index can't be freed or reused until readers_counter gets down to zero
 
     if (old_status.readers_counter == 0) {
-        storage_db_entry_index_status_set_deleted(
-                previous_entry_index,
-                true,
-                NULL);
-
         storage_db_entry_index_chunks_free(db, previous_entry_index);
-
         storage_db_entry_index_ring_buffer_free(db, previous_entry_index);
     } else {
         double_linked_list_item_t *item = double_linked_list_item_init();
@@ -1599,10 +1610,207 @@ void storage_db_free_key_and_key_length_list(
     xalloc_free(keys);
 }
 
-bool storage_db_keys_eviction_run(
+
+
+// Function to sort storage_db_keys_eviction_list_entry_t by last_access_time_ms (least recently used)
+int storage_db_keys_eviction_list_entry_sort_lru(const void *a, const void *b) {
+    storage_db_keys_eviction_list_entry_t *entry_a = (storage_db_keys_eviction_list_entry_t *)a;
+    storage_db_keys_eviction_list_entry_t *entry_b = (storage_db_keys_eviction_list_entry_t *)b;
+
+    if (entry_a->last_access_time_ms < entry_b->last_access_time_ms) {
+        return -1;
+    } else if (entry_a->last_access_time_ms > entry_b->last_access_time_ms) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+// Function to sort storage_db_keys_eviction_list_entry_t by accesses_counters (least frequently used)
+int storage_db_keys_eviction_list_entry_sort_lfu(const void *a, const void *b) {
+    storage_db_keys_eviction_list_entry_t *entry_a = (storage_db_keys_eviction_list_entry_t *)a;
+    storage_db_keys_eviction_list_entry_t *entry_b = (storage_db_keys_eviction_list_entry_t *)b;
+
+    if (entry_a->accesses_counters < entry_b->accesses_counters) {
+        return -1;
+    } else if (entry_a->accesses_counters > entry_b->accesses_counters) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+// Function to sort storage_db_keys_eviction_list_entry_t by expiry_time_ms (time to live)
+int storage_db_keys_eviction_list_entry_sort_ttl(const void *a, const void *b) {
+    storage_db_keys_eviction_list_entry_t *entry_a = (storage_db_keys_eviction_list_entry_t *)a;
+    storage_db_keys_eviction_list_entry_t *entry_b = (storage_db_keys_eviction_list_entry_t *)b;
+
+    if (entry_a->expiry_time_ms < entry_b->expiry_time_ms) {
+        return -1;
+    } else if (entry_a->expiry_time_ms > entry_b->expiry_time_ms) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+// Function to sort storage_db_keys_eviction_list_entry_t randomly
+int storage_db_keys_eviction_list_entry_sort_random(const void *a, const void *b) {
+    storage_db_keys_eviction_list_entry_t *entry_a = (storage_db_keys_eviction_list_entry_t *)a;
+    storage_db_keys_eviction_list_entry_t *entry_b = (storage_db_keys_eviction_list_entry_t *)b;
+
+    if (random_generate() % 2 == 0) {
+        return -1;
+    } else {
+        return 1;
+    }
+}
+
+bool storage_db_keys_eviction_run_worker(
         storage_db_t *db,
+        uint64_t batch_size,
+        bool ignore_ttl,
+        config_database_keys_eviction_policy_t policy,
         uint32_t worker_index) {
     uint32_t workers_count = db->workers_count;
+
+    // Calculate the segment of the hashtable that has to be covered by this worke
+    uint64_t buckets_count = db->hashtable->ht_current->buckets_count_real;
+    uint64_t buckets_per_worker = (uint64_t)ceil((double)buckets_count / (double)workers_count);
+    uint64_t buckets_start = buckets_per_worker * worker_index;
+    uint64_t buckets_end = buckets_start + buckets_per_worker;
+    if (worker_index == workers_count - 1) {
+        buckets_end = buckets_count;
+    }
+
+    // Calculate the size of the sample of keys to extract
+    uint64_t sample_size = (uint64_t)((double)(buckets_end - buckets_start) * STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_PERC);
+
+    // Check the size of the sample against an hard cap to avoid wasting too much memory for the keys eviction itself
+    if (unlikely(sample_size > STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MAX)) {
+        sample_size = STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MAX;
+    }
+
+    // If the sample is 0, it means that the worker has nothing to do
+    if (sample_size == 0) {
+        return true;
+    }
+
+    // As the resizing has to be taken into account but not yet implemented, the assert will catch if the resizing is
+    // implemented without having dealt with the flush
+    assert(db->hashtable->ht_old == NULL);
+
+    // As there are multiple policies to evict keys, the first thing that has to be done is to get a random sample of the
+    // keys that have to be evicted and then apply the policy to the sample
+    uint64_t keys_eviction_list_count = 0;
+    uint64_t keys_eviction_list_size = buckets_end - buckets_start;
+    storage_db_keys_eviction_list_entry_t *keys =
+            xalloc_alloc(sizeof(storage_db_keys_eviction_list_entry_t) * keys_eviction_list_size);
+
+    // Iterates over the hashtable to free up the entry index
+    hashtable_bucket_index_t bucket_index = buckets_start;
+    hashtable_bucket_index_t iter_step = 1;
+    void *data = NULL;
+    for(
+            data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index);
+            data;
+            (data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index))) {
+        hashtable_key_data_t *key;
+        hashtable_key_size_t key_size;
+        storage_db_entry_index_t *entry_index = data;
+
+        // If the bucket index is out of the range of the current worker or if the entry index is NULL, as there are no
+        // more buckets to iterate over, then stop the iteration
+        if (unlikely(bucket_index >= buckets_end || entry_index == NULL)) {
+            break;
+        }
+
+        // If only the keys with expiry time have to be evicted and the current key has no expiry time, then skip it
+        if (unlikely(!ignore_ttl && entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY)) {
+            continue;
+        }
+
+        // Fetch the key from the hashtable
+        if (unlikely(!hashtable_mcmp_op_get_key(db->hashtable, bucket_index, &key, &key_size))) {
+            continue;
+        }
+
+        assert(keys_eviction_list_count < keys_eviction_list_size);
+
+        // Fill up the eviction list with the keys that might be considered for eviction
+        keys[keys_eviction_list_count].key = key;
+        keys[keys_eviction_list_count].key_size = key_size;
+        keys[keys_eviction_list_count].accesses_counters = entry_index->status.accesses_counter;
+        keys[keys_eviction_list_count].last_access_time_ms = entry_index->last_access_time_ms;
+        keys[keys_eviction_list_count].expiry_time_ms = entry_index->expiry_time_ms;
+
+        keys_eviction_list_count++;
+
+        if (unlikely(keys_eviction_list_count >= sample_size)) {
+            break;
+        }
+
+        // Calculate the step taking into account the sample size still to extract to have a fair distribution of keys
+        // taken into account
+        iter_step = (uint64_t)ceil(((double)(buckets_end - bucket_index) / (double)(sample_size - keys_eviction_list_count) / 0.75));
+        bucket_index += iter_step;
+    }
+
+    static storage_db_keys_eviction_list_sort_cb comparator_map[] = {
+            storage_db_keys_eviction_list_entry_sort_lru,
+            storage_db_keys_eviction_list_entry_sort_lfu,
+            storage_db_keys_eviction_list_entry_sort_ttl,
+            storage_db_keys_eviction_list_entry_sort_random
+    };
+
+    qsort(
+            keys,
+            keys_eviction_list_count,
+            sizeof(storage_db_keys_eviction_list_entry_t),
+            comparator_map[policy]);
+
+    fprintf(stdout, "> Found <%lu> potential keys to evict\n", keys_eviction_list_count);
+    fflush(stdout);
+
+    // Iterates over the keys to evict them, evicts not more than batch size
+    uint64_t key_to_evict_index, keys_evicted_count = 0;
+    for(
+            key_to_evict_index = 0;
+            key_to_evict_index < keys_eviction_list_count
+            && keys_evicted_count < batch_size
+            && storage_db_keys_eviction_should_run(db);
+            key_to_evict_index++) {
+        storage_db_keys_eviction_list_entry_t *key_ti_evict = &keys[key_to_evict_index];
+
+        fprintf(
+                stdout,
+                "[%lu/%lu/%lu] Evicting key %.*s (accesses_counters=%u, last_access_time_ms=%lu, expiry_time_ms=%lu)\n",
+                key_to_evict_index,
+                keys_eviction_list_count,
+                batch_size,
+                (int)key_ti_evict->key_size,
+                (char *)key_ti_evict->key,
+                key_ti_evict->accesses_counters,
+                key_ti_evict->last_access_time_ms,
+                key_ti_evict->expiry_time_ms);
+        fflush(stdout);
+
+        if (!storage_db_op_delete(db, key_ti_evict->key, key_ti_evict->key_size)) {
+            continue;
+        }
+
+        keys_evicted_count++;
+    }
+
+    fprintf(stdout, "done\n");
+    fflush(stdout);
+
+    // Free the memory
+    for(key_to_evict_index =0; key_to_evict_index < keys_eviction_list_count; key_to_evict_index++) {
+        storage_db_keys_eviction_list_entry_t *key_ti_evict = &keys[key_to_evict_index];
+        xalloc_free(key_ti_evict->key);
+    }
+    xalloc_free(keys);
 
     return true;
 }
