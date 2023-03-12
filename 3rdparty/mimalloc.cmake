@@ -16,6 +16,5 @@ endif()
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/mimalloc/ EXCLUDE_FROM_ALL)
 
-
 list(APPEND DEPS_LIST_LIBRARIES "mimalloc-static")
 list(APPEND DEPS_LIST_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/mimalloc")
