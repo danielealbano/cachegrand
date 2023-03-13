@@ -141,7 +141,7 @@ void worker_module_context_free(
         config_t *config,
         worker_module_context_t *worker_module_context) {
     for (int module_index = 0; module_index < config->modules_count; module_index++) {
-        if (worker_module_context[module_index].network_tls_config == NULL) {
+        if (worker_module_context == NULL || worker_module_context[module_index].network_tls_config == NULL) {
             continue;
         }
         network_tls_config_free(worker_module_context[module_index].network_tls_config);

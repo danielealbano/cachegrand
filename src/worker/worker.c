@@ -216,7 +216,9 @@ void worker_cleanup_network(
         }
     }
 
-    worker_op_network_channel_free(listeners);
+    if (listeners) {
+        worker_op_network_channel_free(listeners);
+    }
 }
 
 void worker_cleanup_storage(
