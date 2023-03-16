@@ -280,6 +280,8 @@ bool config_validate_after_load_cpus(
         return_result = false;
     }
 
+    xalloc_free(errors);
+
     return return_result;
 }
 

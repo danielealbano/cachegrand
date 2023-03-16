@@ -87,12 +87,8 @@ static inline __attribute__((always_inline)) bool module_redis_command_process_e
             connection_context);
 }
 
-static inline __attribute__((always_inline)) bool module_redis_command_process_try_free(
+static inline __attribute__((always_inline)) void module_redis_command_process_free(
         module_redis_connection_context_t *connection_context) {
-    if (connection_context->command.info == NULL || connection_context->command.context == NULL) {
-        return true;
-    }
-
 #if CACHEGRAND_MODULE_REDIS_COMMAND_DUMP_CONTEXT == 1
     module_redis_command_dump_arguments(
             connection_context->db,
@@ -105,9 +101,17 @@ static inline __attribute__((always_inline)) bool module_redis_command_process_t
     connection_context->command.info->command_free_funcptr(
             connection_context);
 
+    ffma_mem_free(connection_context->command.context);
     connection_context->command.context = NULL;
+}
 
-    return true;
+static inline __attribute__((always_inline)) void module_redis_command_process_try_free(
+        module_redis_connection_context_t *connection_context) {
+    if (connection_context->command.info == NULL || connection_context->command.context == NULL) {
+        return;
+    }
+
+    module_redis_command_process_free(connection_context);
 }
 
 static inline __attribute__((always_inline)) bool module_redis_command_process_argument_stream_end(

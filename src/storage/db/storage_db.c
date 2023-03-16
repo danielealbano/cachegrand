@@ -581,6 +581,7 @@ void storage_db_free(
         storage_db_entry_index_free(db, data);
     }
 
+    slots_bitmap_mpmc_free(db->counters_slots_bitmap);
     hashtable_mcmp_free(db->hashtable);
     storage_db_config_free(db->config);
     ffma_mem_free(db->workers);

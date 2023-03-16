@@ -317,8 +317,7 @@ void program_epoch_gc_workers_cleanup(
 
     for(uint32_t index = 0; index < epoch_gc_workers_count; index++) {
         epoch_gc_worker_context_t *epoch_gc_worker_context = &epoch_gc_workers_context[index];
-
-        if (epoch_gc_worker_context->epoch_gc == NULL) {
+        if (epoch_gc_worker_context->pthread == 0) {
             continue;
         }
 
@@ -333,7 +332,9 @@ void program_epoch_gc_workers_cleanup(
             LOG_V(TAG, "Epoch gc worker for object type <%d> terminated", index);
         }
 
-        epoch_gc_free(epoch_gc_worker_context->epoch_gc);
+        if (epoch_gc_worker_context->epoch_gc != NULL) {
+            epoch_gc_free(epoch_gc_worker_context->epoch_gc);
+        }
     }
 
     LOG_V(TAG, "Epoch gc workers terminated");
