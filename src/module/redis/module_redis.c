@@ -272,7 +272,6 @@ bool module_redis_process_data(
                         continue;
                     }
 
-                    // Invoke the being function callback if it has been set
                     if (unlikely(!module_redis_command_process_begin(connection_context))) {
                         LOG_D(TAG, "[RECV][REDIS] Unable to allocate the command context, terminating connection");
                         goto end;
