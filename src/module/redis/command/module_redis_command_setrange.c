@@ -50,6 +50,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
     transaction_t transaction = { 0 };
     storage_db_op_rmw_status_t rmw_status = { 0 };
     storage_db_entry_index_t *current_entry_index = NULL;
+    storage_db_chunk_sequence_t destination_chunk_sequence = { 0 };
     storage_db_chunk_sequence_t *current_chunk_sequence = NULL;
     char *padding_memory_zeroed = NULL;
     size_t chunk_sequence_required_length = 0, requested_total_length = 0, current_chunk_sequence_length = 0;
@@ -99,7 +100,6 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
             ? requested_total_length
             : current_chunk_sequence_length;
 
-    storage_db_chunk_sequence_t destination_chunk_sequence = { 0 };
     if (unlikely(!storage_db_chunk_sequence_allocate(
             connection_context->db,
             &destination_chunk_sequence,
