@@ -708,6 +708,8 @@ end:
 
             ffma_mem_free(chunk_sequence->sequence);
             chunk_sequence->sequence = NULL;
+            chunk_sequence->size = 0;
+            chunk_sequence->count = 0;
         }
     }
 
