@@ -5,10 +5,8 @@
 extern "C" {
 #endif
 
-uint16_t network_tests_support_search_free_port_ipv4(
-        uint16_t start_port);
-uint16_t network_tests_support_search_free_port_ipv6(
-        uint16_t start_port);
+uint16_t network_tests_support_search_free_port_ipv4();
+uint16_t network_tests_support_search_free_port_ipv6();
 
 #ifdef __cplusplus
 }
