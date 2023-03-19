@@ -75,6 +75,10 @@ void* xalloc_alloc_zero(
 
     memptr = mi_zalloc(size);
 
+#if DISABLE_MIMALLOC == 1
+    memset(memptr, 0, size);
+#endif
+
     if (memptr == NULL) {
         FATAL(TAG, "Unable to allocate the requested memory %lu", size);
     }
