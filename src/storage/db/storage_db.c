@@ -628,13 +628,12 @@ void storage_db_entry_index_ring_buffer_free(
         storage_db_entry_index_t *entry_index) {
     ring_bounded_queue_spsc_voidptr_t *rb = storage_db_worker_deleted_entry_index_ring_buffer(db);
 
-    // If the queue is full, the entry in the head can be dequeued and freed because it means it has lived enough
     if (ring_bounded_queue_spsc_voidptr_is_full(rb)) {
         storage_db_entry_index_t *entry_index_to_free = ring_bounded_queue_spsc_voidptr_dequeue(rb);
         storage_db_entry_index_free(db, entry_index_to_free);
     }
 
-    ring_bounded_queue_spsc_voidptr_enqueue(rb, entry_index);
+    assert(ring_bounded_queue_spsc_voidptr_enqueue(rb, entry_index));
 }
 
 storage_db_entry_index_t *storage_db_entry_index_new() {
