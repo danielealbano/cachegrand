@@ -149,8 +149,7 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
             worker_stats_volatile_t stats = {0};
 
             REQUIRE(worker_stats_should_publish_totals_after_interval(
-                    &stats,
-                    WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC));
+                    &stats));
         }
 
         SECTION("should not") {
@@ -161,8 +160,7 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
             stats.per_minute_last_update_timestamp.tv_sec += WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC + 1;
 
             REQUIRE(!worker_stats_should_publish_totals_after_interval(
-                    &stats,
-                    WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC));
+                    &stats));
         }
     }
 
