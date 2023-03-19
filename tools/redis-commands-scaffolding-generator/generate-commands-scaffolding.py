@@ -661,20 +661,20 @@ class Program:
                     lines.append("{free_memory_func}(db, &context->{argument_name}.value);")
 
             elif argument["type"] in ["long_string"]:
-                free_memory_func = "storage_db_chunk_sequence_free"
+                free_memory_func = "storage_db_chunk_sequence_free_chunks"
 
                 if argument["has_multiple_occurrences"]:
                     lines.append("if (context->{argument_name}.list) {{")
                     lines.append("    for(int i = 0; i < context->{argument_name}.count; i++) {{")
-                    lines.append("        if (context->{argument_name}.list[i].chunk_sequence) {{")
-                    lines.append("            {free_memory_func}(db, context->{argument_name}.list[i].chunk_sequence);")
+                    lines.append("        if (context->{argument_name}.list[i].chunk_sequence.sequence) {{")
+                    lines.append("            {free_memory_func}(db, &context->{argument_name}.list[i].chunk_sequence);")
                     lines.append("        }}")
                     lines.append("    }}")
                     lines.append("    ffma_mem_free(context->{argument_name}.list);")
                     lines.append("}}")
                 else:
-                    lines.append("if (context->{argument_name}.value.chunk_sequence) {{")
-                    lines.append("    {free_memory_func}(db, context->{argument_name}.value.chunk_sequence);")
+                    lines.append("if (context->{argument_name}.value.chunk_sequence.sequence) {{")
+                    lines.append("    {free_memory_func}(db, &context->{argument_name}.value.chunk_sequence);")
                     lines.append("}}")
 
             elif argument["type"] in ["key", "pattern", "short_string"]:

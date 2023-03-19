@@ -308,11 +308,11 @@ bool module_redis_command_process_argument_begin(
                         connection_context->command.context);
 
         module_redis_long_string_t *string = command_parser_context->current_argument.member_context_addr;
-        string->chunk_sequence = storage_db_chunk_sequence_allocate(
-                connection_context->db,
-                argument_length);
 
-        if (!string->chunk_sequence) {
+        if (unlikely(!storage_db_chunk_sequence_allocate(
+                connection_context->db,
+                &string->chunk_sequence,
+                argument_length))) {
             LOG_E(TAG, "Failed to allocate chunks for the incoming data");
             return false;
         }
@@ -356,7 +356,7 @@ bool module_redis_command_process_argument_stream_data(
     }
 
     string = argument_member_context_addr;
-    chunk_sequence = string->chunk_sequence;
+    chunk_sequence = &string->chunk_sequence;
 
     size_t written_data = 0;
     do {
@@ -788,7 +788,7 @@ bool module_redis_command_stream_entry_range_with_one_chunk(
     network_channel_buffer_data_t *send_buffer = NULL, *send_buffer_start = NULL, *send_buffer_end = NULL;
     storage_db_chunk_info_t *chunk_info;
 
-    assert(entry_index->value->count == 1 && length + 32 <= NETWORK_CHANNEL_MAX_PACKET_SIZE);
+    assert(entry_index->value.count == 1 && length + 32 <= NETWORK_CHANNEL_MAX_PACKET_SIZE);
 
     // Acquires a slice long enough to stream the data and the protocol bits
     if (unlikely(!module_redis_command_acquire_slice_and_write_blob_start(
@@ -802,7 +802,7 @@ bool module_redis_command_stream_entry_range_with_one_chunk(
     }
 
     chunk_info = storage_db_chunk_sequence_get(
-            entry_index->value,
+            &entry_index->value,
             0);
 
     if (unlikely(!storage_db_chunk_read(
@@ -853,7 +853,7 @@ bool module_redis_command_stream_entry_range_with_multiple_chunks(
     storage_db_chunk_info_t *chunk_info = NULL;
     size_t slice_length = 32;
 
-    assert(entry_index->value->count > 1 || length + 32 > NETWORK_CHANNEL_MAX_PACKET_SIZE);
+    assert(entry_index->value.count > 1 || length + 32 > NETWORK_CHANNEL_MAX_PACKET_SIZE);
 
     if (unlikely(!module_redis_command_acquire_slice_and_write_blob_start(
             network_channel,
@@ -873,8 +873,8 @@ bool module_redis_command_stream_entry_range_with_multiple_chunks(
     storage_db_chunk_index_t chunk_index = 0;
 
     // Skip the chunks until it reaches one containing range_start
-    for (; chunk_index < entry_index->value->count; chunk_index++) {
-        chunk_info = storage_db_chunk_sequence_get(entry_index->value, chunk_index);
+    for (; chunk_index < entry_index->value.count; chunk_index++) {
+        chunk_info = storage_db_chunk_sequence_get(&entry_index->value, chunk_index);
 
         if (offset < chunk_info->chunk_length) {
             break;
@@ -887,10 +887,10 @@ bool module_redis_command_stream_entry_range_with_multiple_chunks(
     sent_data = offset;
 
     // Build the chunks for the value
-    for (; chunk_index < entry_index->value->count && length > 0; chunk_index++) {
+    for (; chunk_index < entry_index->value.count && length > 0; chunk_index++) {
         char *buffer_to_send;
         bool allocated_new_buffer = false;
-        chunk_info = storage_db_chunk_sequence_get(entry_index->value, chunk_index);
+        chunk_info = storage_db_chunk_sequence_get(&entry_index->value, chunk_index);
 
         if (unlikely((buffer_to_send = storage_db_get_chunk_data(
                 db,

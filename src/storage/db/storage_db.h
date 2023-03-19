@@ -170,8 +170,8 @@ struct storage_db_entry_index {
     storage_db_create_time_ms_t created_time_ms;
     storage_db_expiry_time_ms_t expiry_time_ms;
     storage_db_last_access_time_ms_t last_access_time_ms;
-    storage_db_chunk_sequence_t *key;
-    storage_db_chunk_sequence_t *value;
+    storage_db_chunk_sequence_t key;
+    storage_db_chunk_sequence_t value;
 };
 
 typedef struct storage_db_op_rmw_transaction storage_db_op_rmw_status_t;
@@ -320,8 +320,9 @@ size_t storage_db_chunk_sequence_allowed_max_size();
 bool storage_db_chunk_sequence_is_size_allowed(
         size_t size);
 
-storage_db_chunk_sequence_t *storage_db_chunk_sequence_allocate(
+bool storage_db_chunk_sequence_allocate(
         storage_db_t *db,
+        storage_db_chunk_sequence_t *chunk_sequence,
         size_t size);
 
 storage_db_chunk_info_t *storage_db_chunk_sequence_get(
@@ -333,7 +334,7 @@ char *storage_db_get_chunk_data(
         storage_db_chunk_info_t *chunk_info,
         bool *allocated_new_buffer);
 
-void storage_db_chunk_sequence_free(
+void storage_db_chunk_sequence_free_chunks(
         storage_db_t *db,
         storage_db_chunk_sequence_t *sequence);
 
@@ -466,10 +467,11 @@ static inline bool storage_db_keys_eviction_should_run(
     uint64_t keys_count = storage_db_op_get_keys_count(db);
     uint64_t data_size = storage_db_op_get_data_size(db);
 
-    return unlikely(unlikely(keys_count >= db->limits.keys_count.hard_limit) ||
-                    (likely(db->limits.keys_count.soft_limit) > 0 && unlikely(keys_count > db->limits.keys_count.soft_limit)) ||
-                    unlikely(data_size >= db->limits.data_size.hard_limit) ||
-                    (likely(db->limits.data_size.soft_limit) > 0 && unlikely(data_size > db->limits.data_size.soft_limit)));
+    return keys_count > 0 && (
+            (db->limits.keys_count.hard_limit > 0 && keys_count >= db->limits.keys_count.hard_limit) ||
+            (db->limits.keys_count.soft_limit > 0 && keys_count > db->limits.keys_count.soft_limit) ||
+            (db->limits.data_size.hard_limit > 0 && data_size >= db->limits.data_size.hard_limit) ||
+            (db->limits.data_size.soft_limit > 0 && data_size > db->limits.data_size.soft_limit));
 }
 
 static inline bool storage_db_will_new_entry_hit_hard_limit(
@@ -478,8 +480,9 @@ static inline bool storage_db_will_new_entry_hit_hard_limit(
     uint64_t keys_count = storage_db_op_get_keys_count(db);
     uint64_t data_size = storage_db_op_get_data_size(db);
 
-    return unlikely(unlikely(keys_count + 1 > db->limits.keys_count.hard_limit) ||
-                    unlikely(data_size + new_entry_size > db->limits.data_size.hard_limit));
+    return
+            (db->limits.keys_count.hard_limit > 0 && keys_count + 1 > db->limits.keys_count.hard_limit) ||
+            (db->limits.data_size.soft_limit > 0 && data_size + new_entry_size > db->limits.data_size.hard_limit);
 }
 
 static inline bool storage_db_keys_eviction_soft_or_hard_limit_hit(
@@ -487,9 +490,8 @@ static inline bool storage_db_keys_eviction_soft_or_hard_limit_hit(
     uint64_t keys_count = storage_db_op_get_keys_count(db);
     uint64_t data_size = storage_db_op_get_data_size(db);
 
-    return (keys_count >= db->limits.keys_count.hard_limit) || (data_size >= db->limits.data_size.hard_limit)
-        ? false
-        : true;
+    return
+            (keys_count >= db->limits.keys_count.hard_limit) || (data_size >= db->limits.data_size.hard_limit);
 }
 
 #ifdef __cplusplus

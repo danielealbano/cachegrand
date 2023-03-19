@@ -222,13 +222,13 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
         goto end;
     }
 
-    if (entry_index_1->value->size == 0 || entry_index_2->value->size == 0) {
+    if (entry_index_1->value.size == 0 || entry_index_2->value.size == 0) {
         goto end;
     }
 
     // Fetch the chunk sequences
-    storage_db_chunk_sequence_t *value_1 = entry_index_1->value;
-    storage_db_chunk_sequence_t *value_2 = entry_index_2->value;
+    storage_db_chunk_sequence_t *value_1 = &entry_index_1->value;
+    storage_db_chunk_sequence_t *value_2 = &entry_index_2->value;
 
     // Build the lcs map
     lcsmap = lcsmap_build(connection_context->db, value_1, value_2);

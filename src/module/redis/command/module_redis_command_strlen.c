@@ -49,7 +49,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(strlen) {
             context->key.value.length);
 
     if (likely(entry_index)) {
-        length = (int64_t)entry_index->value->size;
+        length = (int64_t)entry_index->value.size;
     }
 
     return module_redis_connection_send_number(

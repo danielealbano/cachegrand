@@ -662,22 +662,14 @@ bool storage_db_chunk_sequence_is_size_allowed(
     return !error;
 }
 
-storage_db_chunk_sequence_t *storage_db_chunk_sequence_allocate(
+bool storage_db_chunk_sequence_allocate(
         storage_db_t *db,
+        storage_db_chunk_sequence_t *chunk_sequence,
         size_t size) {
     bool return_result = false;
     storage_db_chunk_index_t allocated_chunks_count = 0;
     uint32_t chunk_count = storage_db_chunk_sequence_calculate_chunk_count(size);
     size_t remaining_length = size;
-
-    storage_db_chunk_sequence_t *chunk_sequence = ffma_mem_alloc(sizeof(storage_db_chunk_sequence_t));
-
-    if (unlikely(!chunk_sequence)) {
-        LOG_E(
-                TAG,
-                "Failed to allocate a chunk sequence");
-        goto end;
-    }
 
     chunk_sequence->size = size;
     chunk_sequence->count = chunk_count;
@@ -710,23 +702,20 @@ storage_db_chunk_sequence_t *storage_db_chunk_sequence_allocate(
 
 end:
     if (unlikely(!return_result)) {
-        if (chunk_sequence) {
-            if (chunk_sequence->sequence) {
-                for(storage_db_chunk_index_t chunk_index = 0; chunk_index < allocated_chunks_count; chunk_index++) {
-                    storage_db_chunk_data_free(db, storage_db_chunk_sequence_get(chunk_sequence, chunk_index));
-                }
-                ffma_mem_free(chunk_sequence->sequence);
+        if (chunk_sequence->sequence) {
+            for(storage_db_chunk_index_t chunk_index = 0; chunk_index < allocated_chunks_count; chunk_index++) {
+                storage_db_chunk_data_free(db, storage_db_chunk_sequence_get(chunk_sequence, chunk_index));
             }
 
-            ffma_mem_free(chunk_sequence);
-            chunk_sequence = NULL;
+            ffma_mem_free(chunk_sequence->sequence);
+            chunk_sequence->sequence = NULL;
         }
     }
 
-    return chunk_sequence;
+    return return_result;
 }
 
-void storage_db_chunk_sequence_free(
+void storage_db_chunk_sequence_free_chunks(
         storage_db_t *db,
         storage_db_chunk_sequence_t *sequence) {
     for (
@@ -745,16 +734,16 @@ void storage_db_chunk_sequence_free(
 void storage_db_entry_index_chunks_free(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index) {
-    if (entry_index->key) {
+    if (entry_index->key.size > 0) {
         // If the backend is only memory, the key is managed by the hashtable and the chunks are not stored
         // in memory, so it's necessary to free only the chunks of the values
         if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
-            storage_db_chunk_sequence_free(db, entry_index->key);
+            storage_db_chunk_sequence_free_chunks(db, &entry_index->key);
         }
     }
 
-    if (entry_index->value) {
-        storage_db_chunk_sequence_free(db, entry_index->value);
+    if (entry_index->value.size > 0) {
+        storage_db_chunk_sequence_free_chunks(db, &entry_index->value);
     }
 }
 
@@ -762,7 +751,6 @@ void storage_db_entry_index_free(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index) {
     storage_db_entry_index_chunks_free(db, entry_index);
-
     ffma_mem_free(entry_index);
 }
 
@@ -1164,9 +1152,9 @@ bool storage_db_set_entry_index(
             (uintptr_t*)&previous_entry_index);
 
     if (res) {
-        int64_t counter_data_size_delta = (int64_t)entry_index->value->size;
+        int64_t counter_data_size_delta = (int64_t)entry_index->value.size;
         if (previous_entry_index != NULL) {
-            counter_data_size_delta -= (int64_t)previous_entry_index->value->size;
+            counter_data_size_delta -= (int64_t)previous_entry_index->value.size;
 
             storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, previous_entry_index);
         }
@@ -1194,17 +1182,10 @@ bool storage_db_op_set(
     }
 
     entry_index = storage_db_entry_index_ring_buffer_new(db);
-    if (!entry_index) {
-        LOG_E(TAG, "Unable to allocate the database index entry in memory");
-        goto end;
-    }
 
     // Set up the key if necessary
-    entry_index->key = NULL;
     if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
-        entry_index->key = storage_db_chunk_sequence_allocate(db, key_length);
-
-        if (!entry_index->key) {
+        if (!storage_db_chunk_sequence_allocate(db, &entry_index->key, key_length)) {
             LOG_E(TAG, "Unable to allocate the chunks for the key");
             goto end;
         }
@@ -1213,7 +1194,7 @@ bool storage_db_op_set(
         if (!storage_db_chunk_write(
                 db,
                 storage_db_chunk_sequence_get(
-                        entry_index->key,
+                        &entry_index->key,
                         0),
                 0,
                 key,
@@ -1224,7 +1205,9 @@ bool storage_db_op_set(
     }
 
     // Fetch a new entry and assign the key and the value as needed
-    entry_index->value = value_chunk_sequence;
+    entry_index->value.size = value_chunk_sequence->size;
+    entry_index->value.count = value_chunk_sequence->count;
+    entry_index->value.sequence = value_chunk_sequence->sequence;
     entry_index->expiry_time_ms = expiry_time_ms;
 
     // Try to store the entry index in the database
@@ -1235,7 +1218,9 @@ bool storage_db_op_set(
             entry_index)) {
         // As the operation failed while getting ownership of the value, it gets set back to null as to let the caller
         // handle the memory free as necessary
-        entry_index->value = NULL;
+        entry_index->value.size = 0;
+        entry_index->value.count = 0;
+        entry_index->value.sequence = NULL;
         goto end;
     }
 
@@ -1329,19 +1314,10 @@ bool storage_db_op_rmw_commit_update(
     }
 
     entry_index = storage_db_entry_index_ring_buffer_new(db);
-    if (!entry_index) {
-        LOG_E(TAG, "Unable to allocate the database index entry in memory");
-        goto end;
-    }
 
     // Set up the key if necessary
-    entry_index->key = NULL;
     if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
-        entry_index->key = storage_db_chunk_sequence_allocate(
-                db,
-                rmw_status->hashtable.key_size);
-
-        if (!entry_index->key) {
+        if (!storage_db_chunk_sequence_allocate(db, &entry_index->key, rmw_status->hashtable.key_size)) {
             LOG_E(TAG, "Unable to allocate the chunks for the key");
             goto end;
         }
@@ -1350,7 +1326,7 @@ bool storage_db_op_rmw_commit_update(
         if (!storage_db_chunk_write(
                 db,
                 storage_db_chunk_sequence_get(
-                        entry_index->key,
+                        &entry_index->key,
                         0),
                 0,
                 rmw_status->hashtable.key,
@@ -1361,7 +1337,9 @@ bool storage_db_op_rmw_commit_update(
     }
 
     // Fetch a new entry and assign the key and the value as needed
-    entry_index->value = value_chunk_sequence;
+    entry_index->value.size = value_chunk_sequence->size;
+    entry_index->value.count = value_chunk_sequence->count;
+    entry_index->value.sequence = value_chunk_sequence->sequence;
     entry_index->expiry_time_ms = expiry_time_ms;
 
     storage_db_entry_index_touch(entry_index);
@@ -1370,10 +1348,10 @@ bool storage_db_op_rmw_commit_update(
             &rmw_status->hashtable,
             (uintptr_t)entry_index);
 
-    int64_t counter_data_size_delta = (int64_t)entry_index->value->size;
+    int64_t counter_data_size_delta = (int64_t)entry_index->value.size;
     if (rmw_status->hashtable.current_value != 0) {
         counter_data_size_delta -=
-                (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value->size;
+                (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value.size;
 
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
                 db,
@@ -1422,7 +1400,7 @@ void storage_db_op_rmw_commit_delete(
         storage_db_t *db,
         storage_db_op_rmw_status_t *rmw_status) {
     storage_db_counters_get_current_thread_data(db)->data_size -=
-            (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value->size;
+            (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value.size;
     storage_db_counters_get_current_thread_data(db)->keys_count--;
 
     storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
@@ -1456,7 +1434,7 @@ bool storage_db_op_delete(
 
     if (res && current_entry_index != NULL) {
         storage_db_counters_get_current_thread_data(db)->data_size -=
-                (int64_t)current_entry_index->value->size;
+                (int64_t)current_entry_index->value.size;
         storage_db_counters_get_current_thread_data(db)->keys_count--;
 
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);

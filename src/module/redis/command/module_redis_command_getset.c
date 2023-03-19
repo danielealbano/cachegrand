@@ -76,7 +76,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(getset) {
             connection_context->db,
             &rmw_status,
             STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
-            context->value.value.chunk_sequence,
+            &context->value.value.chunk_sequence,
             STORAGE_DB_ENTRY_NO_EXPIRY))) {
         transaction_release(&transaction);
         return_res = module_redis_connection_error_message_printf_noncritical(
@@ -104,7 +104,7 @@ end:
     }
 
     context->key.value.key = NULL;
-    context->value.value.chunk_sequence = NULL;
+    context->value.value.chunk_sequence.sequence = NULL;
 
     return return_res;
 }

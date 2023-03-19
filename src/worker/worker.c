@@ -463,17 +463,12 @@ void* worker_thread_func(
         // Although this check is going to be false most of the time, it doesn't impact the performance of the
         // worker because it's a really simple check so it makes sense to do it first.
         if (unlikely(storage_db_keys_eviction_should_run(worker_context->db))) {
-//                LOG_W(TAG, "The database limits have been exceeded, starting the eviction process");
-//                LOG_W(TAG, "[pre-eviction] keys count: %" PRId64 ", data size: %" PRId64, storage_db_op_get_keys_count(worker_context->db), storage_db_op_get_data_size(worker_context->db));
-
             storage_db_keys_eviction_run_worker(
                     worker_context->db,
                     worker_context->config->database->keys_eviction->batch_size,
                     worker_context->config->database->keys_eviction->only_ttl,
                     worker_context->config->database->keys_eviction->policy,
                     worker_context->worker_index);
-
-//                LOG_W(TAG, "[post-eviction] keys count: %" PRId64 ", data size: %" PRId64, storage_db_op_get_keys_count(worker_context->db), storage_db_op_get_data_size(worker_context->db));
         }
     } while(!worker_should_terminate(worker_context));
 

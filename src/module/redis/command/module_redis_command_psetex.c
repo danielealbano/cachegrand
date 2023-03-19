@@ -59,7 +59,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(psetex) {
             context->key.value.key,
             context->key.value.length,
             STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
-            context->value.value.chunk_sequence,
+            &context->value.value.chunk_sequence,
             expiry_time_ms))) {
         return_res = module_redis_connection_error_message_printf_noncritical(
                 connection_context,
@@ -76,7 +76,7 @@ end:
         // automatically freed at the end of the execution, especially the key as the hashtable might not need to hold
         // a reference to it, it might have already been freed
         context->key.value.key = NULL;
-        context->value.value.chunk_sequence = NULL;
+        context->value.value.chunk_sequence.sequence = NULL;
     }
 
     return return_res;

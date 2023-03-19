@@ -50,7 +50,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(mset) {
                 key_value->key.value.key,
                 key_value->key.value.length,
                 STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
-                key_value->value.value.chunk_sequence,
+                &key_value->value.value.chunk_sequence,
                 STORAGE_DB_ENTRY_NO_EXPIRY)) {
             return module_redis_connection_error_message_printf_noncritical(connection_context, "ERR mset failed");
         }
@@ -59,7 +59,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(mset) {
         // automatically freed at the end of the execution, especially the key as the hashtable might not need to hold
         // a reference to it, it might have already been freed
         key_value->key.value.key = NULL;
-        key_value->value.value.chunk_sequence = NULL;
+        key_value->value.value.chunk_sequence.sequence = NULL;
     }
 
     return module_redis_connection_send_ok(connection_context);
