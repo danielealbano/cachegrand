@@ -210,7 +210,7 @@ char *storage_db_shard_build_path(
         char *basedir_path,
         storage_db_shard_index_t shard_index);
 
-storage_db_config_t* storage_db_config_new() ;
+storage_db_config_t* storage_db_config_new();
 
 void storage_db_config_free(
         storage_db_config_t* config);
