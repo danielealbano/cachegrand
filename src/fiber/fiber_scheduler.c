@@ -13,7 +13,7 @@
 #include <errno.h>
 #include <string.h>
 
-#if __has_include(<valgrind/valgrind.h>)
+#if defined(DEBUG) &&  __has_include(<valgrind/valgrind.h>)
 #include <valgrind/valgrind.h>
 #define HAS_VALGRIND
 #endif
@@ -64,36 +64,14 @@ bool fiber_scheduler_stack_needs_growth() {
     return fiber_scheduler_stack.size == fiber_scheduler_stack.index + 1;
 }
 
-__attribute__((noreturn))
 void fiber_scheduler_new_fiber_entrypoint(
-        fiber_t *from,
-        fiber_t *to) {
-    // This fiber entry point is used as catch-all to avoid that an unterminated fiber is returned to this function or
-    // that a terminated fiber is invoked again.
-    // A while loop is implemented to ensure that the context is switched back.
-    fiber_scheduler_new_fiber_user_data_t *fiber_scheduler_new_fiber_user_data = to->start_fp_user_data;
+        void *fiber_scheduler_new_fiber_user_data_void) {
+    fiber_scheduler_new_fiber_user_data_t *fiber_scheduler_new_fiber_user_data = fiber_scheduler_new_fiber_user_data_void;
 
     fiber_scheduler_new_fiber_user_data->caller_entrypoint_fp(
             fiber_scheduler_new_fiber_user_data->caller_user_data);
 
-    if (to->terminate == false) {
-        LOG_E(TAG, "Internal error, the fiber <%s> is terminating but the termination hasn't been requested", to->name);
-        to->terminate = true;
-    }
-
-    while(true) {
-        fiber_scheduler_switch_back();
-        // Although a terminated fiber can't be switched back because the allocated memory is freed and therefore would
-        // normally be re-used, to avoid any risk of potential unnoticed bugs a FATAL is introduced here to catch any
-        // case where a terminated fiber where the related memory hasn't been reused gets switched to.
-        // In this case it's important to hard-fail as any execution would lead to a fatal crash anyway.
-        //
-        // TODO: to provide further context a full backtrace of the stack of fibers should be printed out to properly
-        //       investigate the issue at hand. libbacktrace can be used to iterate the stack, skipping the current
-        //       fiber and provide the necessary context.
-        //       This would also be helpful
-        FATAL(TAG, "Switched back to a terminated fiber, unable to continue");
-    }
+    fiber_scheduler_switch_back();
 }
 
 fiber_t* fiber_scheduler_new_fiber(
@@ -167,18 +145,10 @@ void fiber_scheduler_switch_to(
           fiber->switched_back_on.line,
           fiber->switched_back_on.func);
 
-#if defined(HAS_VALGRIND)
-    unsigned stack_id = VALGRIND_STACK_REGISTER(fiber->stack_base, fiber->stack_base + fiber->stack_size);
-#endif
-
     // Switch to the new fiber
     fiber_context_swap(
-            previous_fiber,
-            fiber);
-
-#if defined(HAS_VALGRIND)
-    VALGRIND_STACK_DEREGISTER(stack_id);
-#endif
+            &previous_fiber->stack_pointer,
+            &fiber->stack_pointer);
 
     LOG_D(TAG, "Switching back from fiber <%s>, file <%s:%d>, to fiber <%s>, file <%s:%d>",
           fiber->name,
@@ -219,8 +189,8 @@ void fiber_scheduler_switch_back() {
     // Switch back to the scheduler execution context, leaves in its hands to update the thread_current_fiber and
     // thread_scheduler_fiber tracking variables
     fiber_context_swap(
-            fiber_scheduler_stack.list[fiber_scheduler_stack.index],
-            fiber_scheduler_stack.list[fiber_scheduler_stack.index - 1]);
+            &fiber_scheduler_stack.list[fiber_scheduler_stack.index]->stack_pointer,
+            &fiber_scheduler_stack.list[fiber_scheduler_stack.index - 1]->stack_pointer);
 }
 
 fiber_t *fiber_scheduler_get_current() {
