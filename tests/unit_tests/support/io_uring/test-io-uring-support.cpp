@@ -269,21 +269,20 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
     }
 
     SECTION("io_uring_support_sqe_enqueue_link_timeout") {
-        int server_fd = -1;
-        int client_fd = -1;
         SECTION("trigger timeout") {
             io_uring_t *ring;
             io_uring_cqe_t *cqe = nullptr;
             struct __kernel_timespec ts = { 1, 0 };
+            int socket_port_free_ipv4 = network_tests_support_search_free_port_ipv4();
 
             // Setup the address to use with the server and client sockets
             struct sockaddr_in addr = {0};
             addr.sin_family = AF_INET;
-            addr.sin_port = htons(network_tests_support_search_free_port_ipv4(9999));
+            addr.sin_port = htons(socket_port_free_ipv4);
             addr.sin_addr.s_addr = loopback_ipv4.s_addr;
 
             // Setup a server socket which will not accept any connection even if listening to trigger the timeout
-            server_fd = network_io_common_socket_tcp4_new(0);
+            int server_fd = network_io_common_socket_tcp4_new(0);
             REQUIRE(server_fd > 0);
             REQUIRE(bind(server_fd, (struct sockaddr*)&addr, sizeof(addr)) == 0);
             REQUIRE(listen(server_fd, 0) == 0);
@@ -291,7 +290,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             // Setup a client socket which will try to connect to the server socket
             struct sockaddr_in client_address = {0};
             socklen_t client_address_len = 0;
-            client_fd = network_io_common_socket_tcp4_new(0);
+            int client_fd = network_io_common_socket_tcp4_new(0);
             REQUIRE(client_fd > 0);
 
             // Setup the queue
@@ -325,6 +324,9 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             REQUIRE(io_uring_peek_cqe(ring, &cqe) == 0);
 
             io_uring_support_free(ring);
+
+            close(server_fd);
+            close(client_fd);
         }
 
         SECTION("no timeout if ops processed") {
@@ -359,20 +361,10 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
             io_uring_support_free(ring);
         }
-
-        if (server_fd != -1) {
-            close(server_fd);
-        }
-
-        if (client_fd != -1) {
-            close(client_fd);
-        }
     }
     SECTION("io_uring_support_sqe_enqueue_accept") {
-        uint16_t socket_port_free_ipv4 =
-                network_tests_support_search_free_port_ipv4(9999);
-        uint16_t socket_port_free_ipv6 =
-                network_tests_support_search_free_port_ipv6(9999);
+        uint16_t socket_port_free_ipv4 = network_tests_support_search_free_port_ipv4();
+        uint16_t socket_port_free_ipv6 = network_tests_support_search_free_port_ipv6();
 
 //        SECTION("enqueue accept on valid socket ipv4") {
 //            io_uring_t *ring;
@@ -552,10 +544,8 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
     SECTION("io_uring_support_sqe_enqueue_recv") {
         int clientfd = -1, serverfd = -1, acceptedfd = -1;
-        uint16_t socket_port_free_ipv4 =
-                network_tests_support_search_free_port_ipv4(9999);
-        uint16_t socket_port_free_ipv6 =
-                network_tests_support_search_free_port_ipv6(9999);
+        uint16_t socket_port_free_ipv4 = network_tests_support_search_free_port_ipv4();
+        uint16_t socket_port_free_ipv6 = network_tests_support_search_free_port_ipv6();
 
         SECTION("receive message") {
             io_uring_t *ring;
@@ -763,10 +753,8 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
     }
 
     SECTION("io_uring_support_sqe_enqueue_send") {
-        uint16_t socket_port_free_ipv4 =
-                network_tests_support_search_free_port_ipv4(9999);
-        uint16_t socket_port_free_ipv6 =
-                network_tests_support_search_free_port_ipv6(9999);
+        uint16_t socket_port_free_ipv4 = network_tests_support_search_free_port_ipv4();
+        uint16_t socket_port_free_ipv6 = network_tests_support_search_free_port_ipv6();
 
         SECTION("send message") {
             io_uring_t *ring;
@@ -888,10 +876,8 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
     }
 
     SECTION("io_uring_support_sqe_enqueue_close") {
-        uint16_t socket_port_free_ipv4 =
-                network_tests_support_search_free_port_ipv4(9999);
-        uint16_t socket_port_free_ipv6 =
-                network_tests_support_search_free_port_ipv6(9999);
+        uint16_t socket_port_free_ipv4 = network_tests_support_search_free_port_ipv4();
+        uint16_t socket_port_free_ipv6 = network_tests_support_search_free_port_ipv6();
 
         SECTION("open and close socket") {
             io_uring_t *ring;
