@@ -79,9 +79,9 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
 
     SECTION("network_channel_listener_new_callback") {
         uint16_t socket_port_free_ipv4 =
-                network_tests_support_search_free_port_ipv4(9999);
+                network_tests_support_search_free_port_ipv4();
         uint16_t socket_port_free_ipv6 =
-                network_tests_support_search_free_port_ipv6(9999);
+                network_tests_support_search_free_port_ipv6();
 
         network_channel_t test_listeners[10] = { 0 };
         network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = { 0 };
@@ -276,10 +276,8 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
     }
 
     SECTION("network_channel_listener_new") {
-        uint16_t socket_port_free_ipv4 =
-                network_tests_support_search_free_port_ipv4(9999);
-        uint16_t socket_port_free_ipv6 =
-                network_tests_support_search_free_port_ipv6(9999);
+        uint16_t socket_port_free_ipv4 = network_tests_support_search_free_port_ipv4();
+        uint16_t socket_port_free_ipv6 = network_tests_support_search_free_port_ipv6();
         network_channel_t test_listeners[10] = { 0 };
 
         network_channel_listener_new_callback_user_data_t listener_new_cb_user_data = { 0 };
