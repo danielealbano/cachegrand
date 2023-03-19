@@ -8,22 +8,17 @@
 
 #include <catch2/catch.hpp>
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <string.h>
+#include <cstdbool>
 #include <pthread.h>
-#include <signal.h>
 #include <mcheck.h>
 #include <unistd.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 #include <sys/types.h>
-#include <sys/resource.h>
 
 #include "exttypes.h"
 #include "support/simple_file_io.h"
 #include "pidfile.h"
+#include "clock.h"
 #include "xalloc.h"
 #include "memory_fences.h"
 #include "spinlock.h"
@@ -31,7 +26,10 @@
 #include "transaction_spinlock.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "module/module.h"
@@ -45,6 +43,9 @@
 #include "signal_handler_thread.h"
 #include "epoch_gc.h"
 #include "epoch_gc_worker.h"
+#include "storage/io/storage_io_common.h"
+#include "storage/channel/storage_channel.h"
+#include "storage/db/storage_db.h"
 
 #include "program.h"
 
@@ -52,11 +53,11 @@
 
 void* test_program_wait_loop_wait(
         void* user_data) {
-    bool_volatile_t *terminate_event_loop = (bool_volatile_t*)user_data;
+    auto *terminate_event_loop = (bool_volatile_t*)user_data;
 
-    program_wait_loop(NULL, 0, terminate_event_loop);
+    program_wait_loop(nullptr, 0, terminate_event_loop);
 
-    return NULL;
+    return nullptr;
 }
 
 void* test_program_wait_loop_terminate(
@@ -65,8 +66,12 @@ void* test_program_wait_loop_terminate(
 
     program_request_terminate(terminate_event_loop);
 
-    return NULL;
+    return nullptr;
 }
+
+#define PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345_FREE() \
+    storage_db_close(db); \
+    storage_db_free(db, config.cpus_count);
 
 #define PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345() \
      char* cpus[] = { "0" }; \
@@ -103,8 +108,14 @@ void* test_program_wait_loop_terminate(
     config_database_memory_t config_database_memory = { \
             .limits = &config_database_memory_limits, \
     }; \
+    config_database_keys_eviction_t config_database_keys_eviction = { \
+            .only_ttl = false, \
+            .batch_size = 1024, \
+            .policy = CONFIG_DATABASE_KEYS_EVICTION_POLICY_RANDOM \
+    }; \
     config_database_t config_database = { \
             .limits = &config_database_limits, \
+            .keys_eviction = &config_database_keys_eviction, \
             .backend = CONFIG_DATABASE_BACKEND_MEMORY, \
             .memory = &config_database_memory \
     }; \
@@ -117,9 +128,18 @@ void* test_program_wait_loop_terminate(
             .modules_count = 1, \
             .database = &config_database, \
     }; \
+    \
+    storage_db_config_t *db_config = storage_db_config_new(); \
+    db_config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY; \
+    db_config->limits.keys_count.hard_limit = 1000; \
+    \
+    storage_db_t *db = storage_db_new(db_config, config.cpus_count); \
+    storage_db_open(db); \
+    \
     program_context_t program_context = { \
-            .config = &config \
-    };
+            .config = &config, \
+            .db = db, \
+    }; \
 
 #define PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(WORKER_CONTEXT, RUNNING) { \
     do { \
@@ -167,7 +187,7 @@ TEST_CASE("program.c", "[program]") {
         close(mkstemps(fixture_temp_path, fixture_temp_path_suffix_len));
 
         SECTION("valid pidfile path") {
-            PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345();
+            PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345()
 
             program_context.config->pidfile_path = fixture_temp_path;
 
@@ -178,17 +198,19 @@ TEST_CASE("program.c", "[program]") {
             REQUIRE(simple_file_io_read_uint32_return(program_context.config->pidfile_path) == (long)getpid());
 
             pidfile_close(pidfile_get_fd());
+
+            PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345_FREE()
         }
 
         SECTION("valid pidfile path cleanup") {
-            PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345();
+            PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345()
 
             program_context.config->pidfile_path = fixture_temp_path;
 
             REQUIRE(program_setup_pidfile(&program_context));
 
             // Has to be set back to null otherwise when cyaml will try to free up the memory will trigger a segfault
-            program_context.config = NULL;
+            program_context.config = nullptr;
 
             program_cleanup(&program_context);
 
@@ -197,12 +219,14 @@ TEST_CASE("program.c", "[program]") {
         }
 
         SECTION("null pidfile path") {
-            PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345();
+            PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345()
 
             REQUIRE(program_setup_pidfile(&program_context));
 
             REQUIRE(pidfile_get_fd() == -1);
             REQUIRE(!pidfile_is_owned());
+
+            PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345_FREE()
         }
 
         unlink(fixture_temp_path);
@@ -217,7 +241,7 @@ TEST_CASE("program.c", "[program]") {
 
         REQUIRE(pthread_create(
                 &pthread_wait,
-                NULL,
+                nullptr,
                 test_program_wait_loop_wait,
                 (void*)&terminate_event_loop) == 0);
 
@@ -226,27 +250,31 @@ TEST_CASE("program.c", "[program]") {
 
         REQUIRE(pthread_create(
                 &pthread_terminate,
-                NULL,
+                nullptr,
                 test_program_wait_loop_terminate,
                 (void*)&terminate_event_loop) == 0);
 
         usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
         sched_yield();
 
-        REQUIRE(pthread_join(pthread_terminate, NULL) == 0);
+        REQUIRE(pthread_join(pthread_terminate, nullptr) == 0);
 
-        REQUIRE(pthread_join(pthread_wait, NULL) == 0);
+        REQUIRE(pthread_join(pthread_wait, nullptr) == 0);
     }
 
     SECTION("program_workers_initialize_count") {
-        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345();
+        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345()
+
         program_config_thread_affinity_set_selected_cpus(&program_context);
         program_workers_initialize_count(&program_context);
         REQUIRE(program_context.workers_count == 1);
+
+        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345_FREE()
     }
 
     SECTION("program_workers_initialize_context") {
-        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345();
+        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345()
+
         worker_context_t* worker_context;
         volatile bool terminate_event_loop = false;
 
@@ -256,32 +284,34 @@ TEST_CASE("program.c", "[program]") {
                 &terminate_event_loop,
                 &program_context);
 
-        REQUIRE(worker_context != NULL);
+        REQUIRE(worker_context != nullptr);
         REQUIRE(worker_context->workers_count == 1);
         REQUIRE(worker_context->worker_index == 0);
         REQUIRE(worker_context->terminate_event_loop == &terminate_event_loop);
         REQUIRE(worker_context->config == &config);
         REQUIRE(worker_context->pthread != 0);
 
-        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true);
+        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true)
 
         // Terminate running thread
         terminate_event_loop = true;
         MEMORY_FENCE_STORE();
 
         // Wait for the thread to end
-        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false);
+        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false)
         usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
         sched_yield();
 
         // Cleanup
-        REQUIRE(pthread_join(worker_context->pthread, NULL) == 0);
+        REQUIRE(pthread_join(worker_context->pthread, nullptr) == 0);
         xalloc_free(worker_context);
+
+        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345_FREE()
     }
 
     SECTION("program_workers_cleanup") {
-        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345();
-        pthread_t worker_pthread;
+        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345()
+
         worker_context_t* worker_context;
         volatile bool terminate_event_loop = false;
 
@@ -291,13 +321,13 @@ TEST_CASE("program.c", "[program]") {
                 &terminate_event_loop,
                 &program_context);
 
-        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true);
+        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true)
 
         terminate_event_loop = true;
         MEMORY_FENCE_STORE();
 
         // Wait for the thread to end
-        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false);
+        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false)
         usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
         sched_yield();
 
@@ -306,5 +336,7 @@ TEST_CASE("program.c", "[program]") {
                 1);
 
         REQUIRE(mprobe(worker_context) == -MCHECK_FREE);
+
+        PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345_FREE()
     }
 }
