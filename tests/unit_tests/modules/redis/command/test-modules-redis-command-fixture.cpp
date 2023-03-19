@@ -125,7 +125,6 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
             .memory = &config_database_memory
     };
 
-
     config = {
             .cpus = cpus,
             .cpus_count = 1,
