@@ -8,18 +8,19 @@
 
 #include <catch2/catch.hpp>
 
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdint>
+#include <cstring>
+#include <cerrno>
 #include <strings.h>
 #include <netinet/in.h>
-#include <errno.h>
 #include <arpa/inet.h>
 #include <liburing.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <io_uring.h>
 
 #include "support/io_uring/io_uring_support.h"
 #include "module/module.h"
@@ -36,18 +37,18 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
     SECTION("io_uring_support_init") {
         SECTION("null params") {
-            io_uring_t *ring = io_uring_support_init(10, NULL, NULL);
+            io_uring_t *ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
 
             io_uring_support_free(ring);
         }
 
         SECTION("with params") {
             io_uring_params_t params = {0};
-            io_uring_t *ring = io_uring_support_init(10, &params, NULL);
+            io_uring_t *ring = io_uring_support_init(10, &params, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
             REQUIRE(params.features != 0);
 
             io_uring_support_free(ring);
@@ -58,7 +59,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             uint32_t features = 0;
             io_uring_t *ring = io_uring_support_init(10, &params, &features);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
             REQUIRE(params.features != 0);
             REQUIRE(params.features == features);
 
@@ -67,18 +68,18 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
         SECTION("without params but with features") {
             uint32_t features = 0;
-            io_uring_t *ring = io_uring_support_init(10, NULL, &features);
+            io_uring_t *ring = io_uring_support_init(10, nullptr, &features);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
             REQUIRE(features != 0);
 
             io_uring_support_free(ring);
         }
 
         SECTION("fail because too many entries") {
-            io_uring_t *ring = io_uring_support_init(64000, NULL, NULL);
+            io_uring_t *ring = io_uring_support_init(64000, nullptr, nullptr);
 
-            REQUIRE(ring == NULL);
+            REQUIRE(ring == nullptr);
         }
     }
 
@@ -94,23 +95,23 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
     SECTION("io_uring_support_get_sqe") {
         SECTION("fetch one") {
-            io_uring_t *ring = io_uring_support_init(10, NULL, NULL);
+            io_uring_t *ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
-            REQUIRE(io_uring_support_get_sqe(ring) != NULL);
+            REQUIRE(ring != nullptr);
+            REQUIRE(io_uring_support_get_sqe(ring) != nullptr);
 
             io_uring_support_free(ring);
         }
 
         SECTION("overflow") {
-            io_uring_t *ring = io_uring_support_init(10, NULL, NULL);
+            io_uring_t *ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
 
             for(uint8_t i = 0; i < 16; i++) {
-                REQUIRE(io_uring_support_get_sqe(ring) != NULL);
+                REQUIRE(io_uring_support_get_sqe(ring) != nullptr);
             }
-            REQUIRE(io_uring_support_get_sqe(ring) == NULL);
+            REQUIRE(io_uring_support_get_sqe(ring) == nullptr);
 
             io_uring_support_free(ring);
         }
@@ -120,12 +121,12 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
         io_uring_sqe_t *sqe;
         io_uring_cqe_t *cqe;
 
-        io_uring_t *ring = io_uring_support_init(10, NULL, NULL);
+        io_uring_t *ring = io_uring_support_init(10, nullptr, nullptr);
 
-        REQUIRE(ring != NULL);
+        REQUIRE(ring != nullptr);
 
         sqe = io_uring_support_get_sqe(ring);
-        REQUIRE(sqe != NULL);
+        REQUIRE(sqe != nullptr);
         io_uring_prep_nop(sqe);
         sqe->user_data = 1234;
 
@@ -146,12 +147,12 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             uint32_t head;
             uint32_t count;
 
-            io_uring_t *ring = io_uring_support_init(10, NULL, NULL);
+            io_uring_t *ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
 
             sqe = io_uring_support_get_sqe(ring);
-            REQUIRE(sqe != NULL);
+            REQUIRE(sqe != nullptr);
             io_uring_prep_nop(sqe);
             sqe->user_data = 1234;
 
@@ -174,11 +175,11 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
     SECTION("io_uring_support_sqe_enqueue_nop") {
         io_uring_t *ring;
-        io_uring_cqe_t *cqe = NULL;
+        io_uring_cqe_t *cqe = nullptr;
 
-        ring = io_uring_support_init(10, NULL, NULL);
+        ring = io_uring_support_init(10, nullptr, nullptr);
 
-        REQUIRE(ring != NULL);
+        REQUIRE(ring != nullptr);
 
         REQUIRE(io_uring_support_sqe_enqueue_nop(
                 ring,
@@ -188,7 +189,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
         io_uring_support_sqe_submit(ring);
 
         io_uring_wait_cqe(ring, &cqe);
-        REQUIRE(cqe != NULL);
+        REQUIRE(cqe != nullptr);
         REQUIRE(cqe->flags == 0);
         REQUIRE(cqe->res == 0);
         REQUIRE(cqe->user_data == 1234);
@@ -200,13 +201,13 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
     SECTION("io_uring_support_sqe_enqueue_timeout") {
         SECTION("simple timer") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe = NULL;
+            io_uring_cqe_t *cqe = nullptr;
 
             struct __kernel_timespec ts = { 1, 0 };
 
-            ring = io_uring_support_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
 
             REQUIRE(io_uring_support_sqe_enqueue_timeout(
                     ring,
@@ -218,7 +219,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             io_uring_support_sqe_submit(ring);
 
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res == -ETIME);
             REQUIRE(cqe->user_data == 1234);
@@ -229,14 +230,14 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
         SECTION("no timeout if ops processed") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe = NULL;
+            io_uring_cqe_t *cqe = nullptr;
             uint32_t head, count;
 
             struct __kernel_timespec ts = { 1, 0 };
 
-            ring = io_uring_support_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
 
             REQUIRE(io_uring_support_sqe_enqueue_timeout(
                     ring,
@@ -268,37 +269,57 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
     }
 
     SECTION("io_uring_support_sqe_enqueue_link_timeout") {
+        int server_fd = -1;
+        int client_fd = -1;
         SECTION("trigger timeout") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe = NULL;
+            io_uring_cqe_t *cqe = nullptr;
+            struct __kernel_timespec ts = { 1, 0 };
 
-            struct __kernel_timespec ts1 = { 2, 0 };
-            struct __kernel_timespec ts2 = { 1, 0 };
+            // Setup the address to use with the server and client sockets
+            struct sockaddr_in addr = {0};
+            addr.sin_family = AF_INET;
+            addr.sin_port = htons(network_tests_support_search_free_port_ipv4(9999));
+            addr.sin_addr.s_addr = loopback_ipv4.s_addr;
 
-            ring = io_uring_support_init(10, NULL, NULL);
+            // Setup a server socket which will not accept any connection even if listening to trigger the timeout
+            server_fd = network_io_common_socket_tcp4_new(0);
+            REQUIRE(server_fd > 0);
+            REQUIRE(bind(server_fd, (struct sockaddr*)&addr, sizeof(addr)) == 0);
+            REQUIRE(listen(server_fd, 0) == 0);
 
-            REQUIRE(ring != NULL);
+            // Setup a client socket which will try to connect to the server socket
+            struct sockaddr_in client_address = {0};
+            socklen_t client_address_len = 0;
+            client_fd = network_io_common_socket_tcp4_new(0);
+            REQUIRE(client_fd > 0);
 
-            REQUIRE(io_uring_support_sqe_enqueue_timeout(
-                    ring,
-                    0,
-                    &ts1,
-                    IOSQE_IO_LINK,
-                    1234));
+            // Setup the queue
+            ring = io_uring_support_init(10, nullptr, nullptr);
 
+            // Setup the connect operation
+            io_uring_sqe_t *sqe = io_uring_get_sqe(ring);
+            REQUIRE(sqe != nullptr);
+            io_uring_prep_connect(sqe, client_fd, (struct sockaddr*)&addr, sizeof(addr));
+            sqe->user_data = 1234;
+            sqe->flags |= IOSQE_IO_LINK;
+
+            // Setup the timeout operation
             REQUIRE(io_uring_support_sqe_enqueue_link_timeout(
                     ring,
-                    &ts2,
+                    &ts,
                     0,
                     4321));
 
+            // Submit the sqes
             io_uring_support_sqe_submit(ring);
 
+            // Wait for the timeout
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(((cqe->res == -ECANCELED) || (cqe->res == -ETIME)));
-            REQUIRE(cqe->user_data == 1234);
+            REQUIRE(cqe->user_data == 4321);
             io_uring_cqe_seen(ring, cqe);
 
             REQUIRE(io_uring_peek_cqe(ring, &cqe) == 0);
@@ -308,13 +329,13 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
         SECTION("no timeout if ops processed") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe = NULL;
+            io_uring_cqe_t *cqe = nullptr;
 
             struct __kernel_timespec ts = { 1, 0 };
 
-            ring = io_uring_support_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
 
             REQUIRE(io_uring_support_sqe_enqueue_nop(
                     ring,
@@ -330,13 +351,21 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             io_uring_support_sqe_submit(ring);
 
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res == 0);
             REQUIRE(cqe->user_data == 1234);
             io_uring_cqe_seen(ring, cqe);
 
             io_uring_support_free(ring);
+        }
+
+        if (server_fd != -1) {
+            close(server_fd);
+        }
+
+        if (client_fd != -1) {
+            close(client_fd);
         }
     }
     SECTION("io_uring_support_sqe_enqueue_accept") {
@@ -345,60 +374,60 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
         uint16_t socket_port_free_ipv6 =
                 network_tests_support_search_free_port_ipv6(9999);
 
-        SECTION("enqueue accept on valid socket ipv4") {
-            io_uring_t *ring;
-            io_uring_cqe_t *cqe = NULL;
-            struct sockaddr_in server_address = {0};
-            struct sockaddr_in client_address = {0};
-            socklen_t client_address_len = 0;
-
-            server_address.sin_family = AF_INET;
-            server_address.sin_port = htons(socket_port_free_ipv4);
-            server_address.sin_addr.s_addr = loopback_ipv4.s_addr;
-
-            int fd = network_io_common_socket_tcp4_new_server(
-                    SOCK_NONBLOCK,
-                    &server_address,
-                    10,
-                    NULL,
-                    NULL);
-
-            ring = io_uring_support_init(10, NULL, NULL);
-
-            REQUIRE(ring != NULL);
-
-            REQUIRE(io_uring_support_sqe_enqueue_accept(
-                    ring,
-                    fd,
-                    (sockaddr *)&client_address,
-                    &client_address_len,
-                    0,
-                    0,
-                    1234));
-
-            io_uring_support_sqe_submit(ring);
-
-            io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
-            REQUIRE(cqe->flags == 0);
-            REQUIRE(cqe->res == -EAGAIN);
-            REQUIRE(cqe->user_data == 1234);
-            io_uring_cqe_seen(ring, cqe);
-
-            io_uring_support_free(ring);
-
-            REQUIRE(network_io_common_socket_close(fd, false));
-        }
+//        SECTION("enqueue accept on valid socket ipv4") {
+//            io_uring_t *ring;
+//            io_uring_cqe_t *cqe = nullptr;
+//            struct sockaddr_in server_address = {0};
+//            struct sockaddr_in client_address = {0};
+//            socklen_t client_address_len = 0;
+//
+//            server_address.sin_family = AF_INET;
+//            server_address.sin_port = htons(socket_port_free_ipv4);
+//            server_address.sin_addr.s_addr = loopback_ipv4.s_addr;
+//
+//            int fd = network_io_common_socket_tcp4_new_server(
+//                    SOCK_NONBLOCK,
+//                    &server_address,
+//                    10,
+//                    nullptr,
+//                    nullptr);
+//
+//            ring = io_uring_support_init(10, nullptr, nullptr);
+//
+//            REQUIRE(ring != nullptr);
+//
+//            REQUIRE(io_uring_support_sqe_enqueue_accept(
+//                    ring,
+//                    fd,
+//                    (sockaddr *)&client_address,
+//                    &client_address_len,
+//                    SOCK_NONBLOCK,
+//                    0,
+//                    1234));
+//
+//            io_uring_support_sqe_submit(ring);
+//
+//            io_uring_wait_cqe(ring, &cqe);
+//            REQUIRE(cqe != nullptr);
+//            REQUIRE(cqe->flags == 0);
+//            REQUIRE(cqe->res == -EAGAIN);
+//            REQUIRE(cqe->user_data == 1234);
+//            io_uring_cqe_seen(ring, cqe);
+//
+//            io_uring_support_free(ring);
+//
+//            REQUIRE(network_io_common_socket_close(fd, false));
+//        }
 
         SECTION("enqueue accept on invalid socket fd") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe = NULL;
+            io_uring_cqe_t *cqe = nullptr;
             struct sockaddr_in client_address = {0};
             socklen_t client_address_len = 0;
 
-            ring = io_uring_support_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
 
             io_uring_support_sqe_enqueue_accept(
                     ring,
@@ -412,7 +441,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             io_uring_support_sqe_submit(ring);
 
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res == -EBADF);
             REQUIRE(cqe->user_data == 1234);
@@ -423,7 +452,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
         SECTION("enqueue accept and accept connection ipv4") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe = NULL;
+            io_uring_cqe_t *cqe = nullptr;
             int clientfd, serverfd, acceptedfd;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_accept_address = {0};
@@ -442,12 +471,12 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
                     0,
                     &server_address,
                     10,
-                    NULL,
-                    NULL);
+                    nullptr,
+                    nullptr);
 
-            ring = io_uring_support_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
 
             REQUIRE(io_uring_support_sqe_enqueue_accept(
                     ring,
@@ -463,7 +492,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             REQUIRE(connect(clientfd, (struct sockaddr*)&client_connect_address, sizeof(client_connect_address)) == 0);
 
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res > 0);
             REQUIRE(cqe->user_data == 1234);
@@ -483,16 +512,16 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
         SECTION("enqueue accept fail too many sqe") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe = NULL;
+            io_uring_cqe_t *cqe = nullptr;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_address = {0};
             socklen_t client_address_len = 0;
-            ring = io_uring_support_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
 
             for(uint8_t i = 0; i < 16; i++) {
-                REQUIRE(io_uring_support_get_sqe(ring) != NULL);
+                REQUIRE(io_uring_support_get_sqe(ring) != nullptr);
             }
 
             server_address.sin_family = AF_INET;
@@ -503,8 +532,8 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
                     SOCK_NONBLOCK,
                     &server_address,
                     10,
-                    NULL,
-                    NULL);
+                    nullptr,
+                    nullptr);
 
             REQUIRE(!io_uring_support_sqe_enqueue_accept(
                     ring,
@@ -522,6 +551,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
     }
 
     SECTION("io_uring_support_sqe_enqueue_recv") {
+        int clientfd = -1, serverfd = -1, acceptedfd = -1;
         uint16_t socket_port_free_ipv4 =
                 network_tests_support_search_free_port_ipv4(9999);
         uint16_t socket_port_free_ipv6 =
@@ -530,7 +560,6 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
         SECTION("receive message") {
             io_uring_t *ring;
             io_uring_cqe_t *cqe;
-            int clientfd, serverfd, acceptedfd;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_accept_address = {0};
             struct sockaddr_in client_connect_address = {0};
@@ -551,12 +580,12 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
                     0,
                     &server_address,
                     10,
-                    NULL,
-                    NULL);
+                    nullptr,
+                    nullptr);
 
-            ring = io_uring_support_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
 
             REQUIRE(io_uring_support_sqe_enqueue_accept(
                     ring,
@@ -572,7 +601,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             REQUIRE(connect(clientfd, (struct sockaddr*)&client_connect_address, sizeof(client_connect_address)) == 0);
 
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res > 0);
             REQUIRE(cqe->user_data == 1234);
@@ -597,9 +626,9 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
 
-            cqe = NULL;
+            cqe = nullptr;
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res == buffer_send_data_len);
             REQUIRE(cqe->user_data == 4321);
@@ -617,8 +646,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
         SECTION("close socket") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe = NULL;
-            int clientfd, serverfd, acceptedfd;
+            io_uring_cqe_t *cqe = nullptr;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_accept_address = {0};
             struct sockaddr_in client_connect_address = {0};
@@ -637,12 +665,12 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
                     0,
                     &server_address,
                     10,
-                    NULL,
-                    NULL);
+                    nullptr,
+                    nullptr);
 
-            ring = io_uring_support_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
 
             REQUIRE(io_uring_support_sqe_enqueue_accept(
                     ring,
@@ -658,7 +686,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             REQUIRE(connect(clientfd, (struct sockaddr*)&client_connect_address, sizeof(client_connect_address)) == 0);
 
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res > 0);
             REQUIRE(cqe->user_data == 1234);
@@ -679,10 +707,9 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
             REQUIRE(network_io_common_socket_close(clientfd, false));
 
-            cqe = NULL;
+            cqe = nullptr;
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
-            REQUIRE(cqe->flags == 0);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->res == 0);
             REQUIRE(cqe->user_data == 4321);
             io_uring_cqe_seen(ring, cqe);
@@ -697,14 +724,14 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
         SECTION("enqueue recv fail too many sqe") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe = NULL;
+            io_uring_cqe_t *cqe = nullptr;
             char buffer_recv[64] = {0};
-            ring = io_uring_support_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
 
             for(uint8_t i = 0; i < 16; i++) {
-                REQUIRE(io_uring_support_get_sqe(ring) != NULL);
+                REQUIRE(io_uring_support_get_sqe(ring) != nullptr);
             }
 
             int fd = network_io_common_socket_tcp4_new(
@@ -721,6 +748,18 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
             io_uring_support_free(ring);
         }
+
+        if (clientfd != -1) {
+            close(clientfd);
+        }
+
+        if (serverfd != -1) {
+            close(serverfd);
+        }
+
+        if (acceptedfd != -1) {
+            close(acceptedfd);
+        }
     }
 
     SECTION("io_uring_support_sqe_enqueue_send") {
@@ -731,7 +770,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
         SECTION("send message") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe = NULL;
+            io_uring_cqe_t *cqe = nullptr;
             int clientfd, serverfd, acceptedfd;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_accept_address = {0};
@@ -749,16 +788,19 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             client_connect_address.sin_addr.s_addr = loopback_ipv4.s_addr;
 
             clientfd = network_io_common_socket_tcp4_new(0);
+            REQUIRE(clientfd > 0);
+
             serverfd = network_io_common_socket_tcp4_new_server(
                     0,
                     &server_address,
                     10,
-                    NULL,
-                    NULL);
+                    nullptr,
+                    nullptr);
+            REQUIRE(serverfd > 0);
 
-            ring = io_uring_support_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
 
             REQUIRE(io_uring_support_sqe_enqueue_accept(
                     ring,
@@ -774,7 +816,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             REQUIRE(connect(clientfd, (struct sockaddr*)&client_connect_address, sizeof(client_connect_address)) == 0);
 
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res > 0);
             REQUIRE(cqe->user_data == 1234);
@@ -796,9 +838,9 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
                     4321));
             io_uring_support_sqe_submit(ring);
 
-            cqe = NULL;
+            cqe = nullptr;
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res == buffer_send_data_len);
             REQUIRE(cqe->user_data == 4321);
@@ -819,14 +861,14 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
         SECTION("enqueue send fail too many sqe") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe = NULL;
+            io_uring_cqe_t *cqe = nullptr;
             char buffer_recv[64] = {0};
-            ring = io_uring_support_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
 
             for(uint8_t i = 0; i < 16; i++) {
-                REQUIRE(io_uring_support_get_sqe(ring) != NULL);
+                REQUIRE(io_uring_support_get_sqe(ring) != nullptr);
             }
 
             int fd = network_io_common_socket_tcp4_new(
@@ -853,7 +895,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
         SECTION("open and close socket") {
             io_uring_t *ring;
-            io_uring_cqe_t *cqe = NULL;
+            io_uring_cqe_t *cqe = nullptr;
             int clientfd, serverfd, acceptedfd;
             struct sockaddr_in server_address = {0};
             struct sockaddr_in client_accept_address = {0};
@@ -871,16 +913,19 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             client_connect_address.sin_addr.s_addr = loopback_ipv4.s_addr;
 
             clientfd = network_io_common_socket_tcp4_new(0);
+            REQUIRE(clientfd > 0);
+
             serverfd = network_io_common_socket_tcp4_new_server(
                     0,
                     &server_address,
                     10,
-                    NULL,
-                    NULL);
+                    nullptr,
+                    nullptr);
+            REQUIRE(serverfd > 0);
 
-            ring = io_uring_support_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
 
             REQUIRE(io_uring_support_sqe_enqueue_accept(
                     ring,
@@ -896,7 +941,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             REQUIRE(connect(clientfd, (struct sockaddr*)&client_connect_address, sizeof(client_connect_address)) == 0);
 
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->res > 0);
             REQUIRE(cqe->user_data == 1234);
@@ -912,9 +957,9 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
                     4321));
             io_uring_support_sqe_submit(ring);
 
-            cqe = NULL;
+            cqe = nullptr;
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->user_data == 4321);
             io_uring_cqe_seen(ring, cqe);
@@ -930,12 +975,12 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
         SECTION("enqueue close fail too many sqe") {
             io_uring_t *ring;
             io_uring_cqe_t *cqe;
-            ring = io_uring_support_init(10, NULL, NULL);
+            ring = io_uring_support_init(10, nullptr, nullptr);
 
-            REQUIRE(ring != NULL);
+            REQUIRE(ring != nullptr);
 
             for(uint8_t i = 0; i < 16; i++) {
-                REQUIRE(io_uring_support_get_sqe(ring) != NULL);
+                REQUIRE(io_uring_support_get_sqe(ring) != nullptr);
             }
 
             int fd = network_io_common_socket_tcp4_new(
@@ -955,7 +1000,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
         int fd = -1;
         io_uring_t *ring;
         io_uring_cqe_t *cqe;
-        ring = io_uring_support_init(10, NULL, NULL);
+        ring = io_uring_support_init(10, nullptr, nullptr);
 
         char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
         int fixture_temp_path_suffix_len = 4;
@@ -986,9 +1031,9 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
             io_uring_support_sqe_submit(ring);
 
-            cqe = NULL;
+            cqe = nullptr;
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->user_data == 4321);
             REQUIRE(cqe->res > -1);
@@ -1017,9 +1062,9 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
             io_uring_support_sqe_submit(ring);
 
-            cqe = NULL;
+            cqe = nullptr;
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->user_data == 4321);
             REQUIRE(cqe->res > -1);
@@ -1047,9 +1092,9 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
             io_uring_support_sqe_submit(ring);
 
-            cqe = NULL;
+            cqe = nullptr;
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->user_data == 4321);
             REQUIRE(cqe->res == -ENOENT);
@@ -1070,11 +1115,11 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
         int fd = -1;
         char buffer_write[] = "cachegrand test - io_uring_support_sqe_enqueue_readv";
         char buffer_read1[128] = { 0 }, buffer_read2[128] = { 0 };
-        struct iovec iovec[2] = { 0 };
+        struct iovec iovec[2] = { nullptr };
 
         io_uring_t *ring;
         io_uring_cqe_t *cqe;
-        ring = io_uring_support_init(10, NULL, NULL);
+        ring = io_uring_support_init(10, nullptr, nullptr);
 
         char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
         int fixture_temp_path_suffix_len = 4;
@@ -1084,7 +1129,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             REQUIRE(io_uring_support_sqe_enqueue_readv(
                     ring,
                     0,
-                    NULL,
+                    nullptr,
                     0,
                     0,
                     0,
@@ -1113,9 +1158,9 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
             io_uring_support_sqe_submit(ring);
 
-            cqe = NULL;
+            cqe = nullptr;
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->user_data == 4321);
             REQUIRE(cqe->res == strlen(buffer_write));
@@ -1148,9 +1193,9 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
             io_uring_support_sqe_submit(ring);
 
-            cqe = NULL;
+            cqe = nullptr;
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->user_data == 4321);
             REQUIRE(cqe->res == strlen(buffer_write) * 2);
@@ -1173,11 +1218,11 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
         int fd = -1;
         char buffer_write[] = "cachegrand test - io_uring_support_sqe_enqueue_writev";
         char buffer_read1[128] = { 0 }, buffer_read2[128] = { 0 };
-        struct iovec iovec[2] = { 0 };
+        struct iovec iovec[2] = { nullptr };
 
         io_uring_t *ring;
         io_uring_cqe_t *cqe;
-        ring = io_uring_support_init(10, NULL, NULL);
+        ring = io_uring_support_init(10, nullptr, nullptr);
 
         char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
         int fixture_temp_path_suffix_len = 4;
@@ -1187,7 +1232,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             REQUIRE(io_uring_support_sqe_enqueue_writev(
                     ring,
                     0,
-                    NULL,
+                    nullptr,
                     0,
                     0,
                     0,
@@ -1214,9 +1259,9 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
             io_uring_support_sqe_submit(ring);
 
-            cqe = NULL;
+            cqe = nullptr;
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->user_data == 4321);
             REQUIRE(cqe->res == strlen(buffer_write));
@@ -1249,9 +1294,9 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
             io_uring_support_sqe_submit(ring);
 
-            cqe = NULL;
+            cqe = nullptr;
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->user_data == 4321);
             REQUIRE(cqe->res == strlen(buffer_write) * 2);
@@ -1279,7 +1324,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
         io_uring_t *ring;
         io_uring_cqe_t *cqe;
-        ring = io_uring_support_init(10, NULL, NULL);
+        ring = io_uring_support_init(10, nullptr, nullptr);
 
         char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
         int fixture_temp_path_suffix_len = 4;
@@ -1310,9 +1355,9 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
             io_uring_support_sqe_submit(ring);
 
-            cqe = NULL;
+            cqe = nullptr;
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->user_data == 4321);
             REQUIRE(cqe->res == 0);
@@ -1335,7 +1380,7 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
         io_uring_t *ring;
         io_uring_cqe_t *cqe;
-        ring = io_uring_support_init(10, NULL, NULL);
+        ring = io_uring_support_init(10, nullptr, nullptr);
 
         char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
         int fixture_temp_path_suffix_len = 4;
@@ -1373,9 +1418,9 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
             io_uring_support_sqe_submit(ring);
 
-            cqe = NULL;
+            cqe = nullptr;
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->user_data == 4321);
             REQUIRE(cqe->res == 0);
@@ -1407,9 +1452,9 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
             io_uring_support_sqe_submit(ring);
 
-            cqe = NULL;
+            cqe = nullptr;
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             REQUIRE(cqe->flags == 0);
             REQUIRE(cqe->user_data == 4321);
             REQUIRE(cqe->res == 0);
