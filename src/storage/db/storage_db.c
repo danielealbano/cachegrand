@@ -1591,62 +1591,6 @@ void storage_db_free_key_and_key_length_list(
     xalloc_free(keys);
 }
 
-
-
-// Function to sort storage_db_keys_eviction_list_entry_t by last_access_time_ms (least recently used)
-int storage_db_keys_eviction_list_entry_sort_lru(const void *a, const void *b) {
-    storage_db_keys_eviction_list_entry_t *entry_a = (storage_db_keys_eviction_list_entry_t *)a;
-    storage_db_keys_eviction_list_entry_t *entry_b = (storage_db_keys_eviction_list_entry_t *)b;
-
-    if (entry_a->last_access_time_ms < entry_b->last_access_time_ms) {
-        return -1;
-    } else if (entry_a->last_access_time_ms > entry_b->last_access_time_ms) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
-// Function to sort storage_db_keys_eviction_list_entry_t by accesses_counters (least frequently used)
-int storage_db_keys_eviction_list_entry_sort_lfu(const void *a, const void *b) {
-    storage_db_keys_eviction_list_entry_t *entry_a = (storage_db_keys_eviction_list_entry_t *)a;
-    storage_db_keys_eviction_list_entry_t *entry_b = (storage_db_keys_eviction_list_entry_t *)b;
-
-    if (entry_a->accesses_counters < entry_b->accesses_counters) {
-        return -1;
-    } else if (entry_a->accesses_counters > entry_b->accesses_counters) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
-// Function to sort storage_db_keys_eviction_list_entry_t by expiry_time_ms (time to live)
-int storage_db_keys_eviction_list_entry_sort_ttl(const void *a, const void *b) {
-    storage_db_keys_eviction_list_entry_t *entry_a = (storage_db_keys_eviction_list_entry_t *)a;
-    storage_db_keys_eviction_list_entry_t *entry_b = (storage_db_keys_eviction_list_entry_t *)b;
-
-    if (entry_a->expiry_time_ms < entry_b->expiry_time_ms) {
-        return -1;
-    } else if (entry_a->expiry_time_ms > entry_b->expiry_time_ms) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
-// Function to sort storage_db_keys_eviction_list_entry_t randomly
-int storage_db_keys_eviction_list_entry_sort_random(const void *a, const void *b) {
-    storage_db_keys_eviction_list_entry_t *entry_a = (storage_db_keys_eviction_list_entry_t *)a;
-    storage_db_keys_eviction_list_entry_t *entry_b = (storage_db_keys_eviction_list_entry_t *)b;
-
-    if (random_generate() % 2 == 0) {
-        return -1;
-    } else {
-        return 1;
-    }
-}
-
 void storage_db_keys_eviction_run_worker(
         storage_db_t *db,
         uint64_t batch_size,
