@@ -92,15 +92,11 @@ void* xalloc_alloc_aligned(
     void* memptr;
     bool failed = false;
 
-#if defined(__linux__)
     memptr = mi_malloc_aligned(size, alignment);
 
     if (memptr == NULL) {
         failed = true;
     }
-#else
-#error Platform not supported
-#endif
 
     if (failed) {
         FATAL(TAG, "Unable to allocate the requested memory %lu aligned to %lu", size, alignment);
