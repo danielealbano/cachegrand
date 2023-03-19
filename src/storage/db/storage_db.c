@@ -1697,6 +1697,7 @@ void storage_db_keys_eviction_run_worker(
         keys_eviction_candidates_list_count++;
     }
 
+    assert(keys_eviction_candidates_list_count > 0);
     vqsort_u128_asc((uint128_t*)keys_evitction_candidates_list, keys_eviction_candidates_list_count);
 
     // Iterates over the keys to evict them, evicts not more than batch size
