@@ -161,6 +161,23 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
         }
     }
 
+    SECTION("worker_stats_should_publish_per_minute_after_interval") {
+        SECTION("should") {
+            worker_stats_volatile_t stats = {0};
+
+            REQUIRE(worker_stats_should_publish_per_minute_after_interval(&stats));
+        }
+
+        SECTION("should not") {
+            worker_stats_volatile_t stats = {0};
+
+            clock_realtime((timespec_t*)&stats.per_minute_last_update_timestamp);
+            stats.per_minute_last_update_timestamp.tv_sec += WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC + 1;
+
+            REQUIRE(!worker_stats_should_publish_per_minute_after_interval(&stats));
+        }
+    }
+
     SECTION("worker_log_producer_set_early_prefix_thread") {
         worker_context_t worker_user_data = {0};
         char* str;
