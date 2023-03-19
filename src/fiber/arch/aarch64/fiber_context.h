@@ -3,9 +3,13 @@
 
 typedef struct fiber_context fiber_context_t;
 
-struct fiber_context {
-    char ragisters[176];
-    void *sp;
-};
+#if __ARM_PCS_VFP
+vpush {d8-d15}
+    #define FIBER_CONTEXT_NUM_REGISTRIES (9 + 8 * 2)
+#else
+#define FIBER_CONTEXT_NUM_REGISTRIES 9
+#endif
+
+#define FIBER_CONTEXT_NUM_REGISTRIES 6
 
 #endif //CACHEGRAND_FIBER_CONTEXT_H
