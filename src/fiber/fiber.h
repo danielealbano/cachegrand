@@ -13,8 +13,10 @@ extern "C" {
 #error "unsupported architecture"
 #endif
 
+#define FIBER_GUARD_PAGES_COUNT 4
+
 typedef struct fiber fiber_t;
-typedef void (fiber_start_fp_t)(fiber_t* fiber_from, fiber_t* fiber_to);
+typedef void (fiber_start_fp_t)(void *user_data);
 
 struct fiber {
     // The context has to be held at the beginning of the structure and the field have to be specifically kept in this
@@ -28,7 +30,6 @@ struct fiber {
     // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/arm/kernel/asm-offsets.c
     // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/linux/kbuild.h
     // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Kbuild
-    fiber_context_t context;
     void* stack_pointer;
     void* stack_base;
     size_t stack_size;
@@ -48,6 +49,7 @@ struct fiber {
         int32_t int32_value;
         int64_t int64_value;
     } ret;
+    unsigned int valgrind_stack_id;
 #if DEBUG == 1
     struct {
         int line;
@@ -58,14 +60,14 @@ struct fiber {
 } __attribute__((aligned(64)));
 
 extern void fiber_context_get(
-        fiber_t *fiber_context);
+        void **current);
 
 extern void fiber_context_set(
-        fiber_t *fiber_context);
+        void **to);
 
 extern void fiber_context_swap(
-        fiber_t *fiber_context_from,
-        fiber_t *fiber_context_to);
+        void **current,
+        void **to);
 
 void fiber_stack_protection(
         fiber_t* fiber,
