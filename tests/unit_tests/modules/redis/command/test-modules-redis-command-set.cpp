@@ -52,8 +52,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 "+OK\r\n"));
 
         storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
-        REQUIRE(entry_index->value->sequence[0].chunk_length == strlen(value));
-        REQUIRE(strncmp((char *) entry_index->value->sequence[0].memory.chunk_data, value, strlen(value)) == 0);
+        REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value));
+        REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value, strlen(value)) == 0);
     }
 
     SECTION("New key - long") {
@@ -65,8 +65,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 "+OK\r\n"));
 
         storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
-        REQUIRE(entry_index->value->sequence[0].chunk_length == strlen(value));
-        REQUIRE(strncmp((char *) entry_index->value->sequence[0].memory.chunk_data, value, strlen(value)) == 0);
+        REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value));
+        REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value, strlen(value)) == 0);
     }
 
     SECTION("Overwrite key") {
@@ -83,8 +83,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 "+OK\r\n"));
 
         storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
-        REQUIRE(entry_index->value->sequence[0].chunk_length == strlen(value2));
-        REQUIRE(strncmp((char *) entry_index->value->sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
+        REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value2));
+        REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
     }
 
     SECTION("Missing parameters - key and value") {
@@ -168,8 +168,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 "$7\r\nb_value\r\n"));
 
         storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
-        REQUIRE(entry_index->value->sequence[0].chunk_length == strlen(value1));
-        REQUIRE(strncmp((char *) entry_index->value->sequence[0].memory.chunk_data, value1, strlen(value1)) == 0);
+        REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value1));
+        REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value1, strlen(value1)) == 0);
 
         // Wait for 250 ms and then try to get the value and try to update the value keeping the same ttl
         // as the initial was in 500ms will expire after 250
@@ -184,8 +184,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 "+OK\r\n"));
 
         entry_index = storage_db_get_entry_index(db, key, strlen(key));
-        REQUIRE(entry_index->value->sequence[0].chunk_length == strlen(value2));
-        REQUIRE(strncmp((char *) entry_index->value->sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
+        REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value2));
+        REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", key},
