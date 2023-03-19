@@ -126,7 +126,7 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
 
     storage_db_config_t *db_config = storage_db_config_new();
     db_config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY;
-    db_config->max_keys = 1000;
+    db_config->limits.keys_count.hard_limit = 1000;
 
     storage_db_t *db = storage_db_new(db_config, workers_count);
     storage_db_open(db);

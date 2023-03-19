@@ -31,6 +31,7 @@ protected:
     config_database_memory_limits_hard_t config_database_memory_limits_hard{};
     config_database_memory_limits_t config_database_memory_limits{};
     config_database_memory_t config_database_memory{};
+    config_database_keys_eviction_t config_database_keys_eviction{};
     config_database_t config_database{};
     config_t config{};
 

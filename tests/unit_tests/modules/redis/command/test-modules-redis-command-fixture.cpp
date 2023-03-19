@@ -112,11 +112,19 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
             .limits = &config_database_memory_limits,
     };
 
+    config_database_keys_eviction = {
+            .only_ttl = false,
+            .batch_size = 1024,
+            .policy = CONFIG_DATABASE_KEYS_EVICTION_POLICY_RANDOM
+    };
+
     config_database = {
             .limits = &config_database_limits,
+            .keys_eviction = &config_database_keys_eviction,
             .backend = CONFIG_DATABASE_BACKEND_MEMORY,
             .memory = &config_database_memory
     };
+
 
     config = {
             .cpus = cpus,
@@ -132,7 +140,7 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
 
     db_config = storage_db_config_new();
     db_config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY;
-    db_config->max_keys = 1000;
+    db_config->limits.keys_count.hard_limit = 1000;
 
     db = storage_db_new(db_config, workers_count);
     storage_db_open(db);
