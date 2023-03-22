@@ -60,7 +60,7 @@ struct fiber {
 } __attribute__((aligned(64)));
 
 extern void fiber_context_swap(
-        void **current,
+        void **from,
         void **to);
 
 void fiber_stack_protection(
