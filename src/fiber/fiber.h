@@ -59,12 +59,6 @@ struct fiber {
 #endif
 } __attribute__((aligned(64)));
 
-extern void fiber_context_get(
-        void **current);
-
-extern void fiber_context_set(
-        void **to);
-
 extern void fiber_context_swap(
         void **current,
         void **to);

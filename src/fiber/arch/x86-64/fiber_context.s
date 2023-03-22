@@ -6,33 +6,6 @@
  * of the BSD license.  See the LICENSE file for details.
 */
 
-.type fiber_context_get, @function
-.global fiber_context_get
-fiber_context_get:
-    pushq %rbp
-    pushq %rbx
-    pushq %r12
-    pushq %r13
-    pushq %r14
-    pushq %r15
-
-    # Return
-    xorl %eax, %eax
-    ret
-
-.type fiber_context_set, @function
-.global fiber_context_set
-fiber_context_set:
-    movq (%rsi), %rdi
-    popq %r15
-    popq %r14
-    popq %r13
-    popq %r12
-    popq %rbx
-    popq %rbp
-    popq %rcx
-    jmpq *%rcx
-
 .type fiber_context_swap, @function
 .global fiber_context_swap
 fiber_context_swap:
