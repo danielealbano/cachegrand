@@ -71,7 +71,24 @@ void fiber_scheduler_new_fiber_entrypoint(
     fiber_scheduler_new_fiber_user_data->caller_entrypoint_fp(
             fiber_scheduler_new_fiber_user_data->caller_user_data);
 
-    fiber_scheduler_switch_back();
+    fiber_t *current = fiber_scheduler_get_current();
+
+    if (current->terminate == false) {
+        LOG_E(
+                TAG,
+                "Internal error, the fiber <%s> is terminating but the termination hasn't been requested",
+                current->name);
+        current->terminate = true;
+    }
+
+    while(true) {
+        fiber_scheduler_switch_back();
+        // Although a terminated fiber can't be switched back because the allocated memory is freed and therefore would
+        // normally be re-used, to avoid any risk of potential unnoticed bugs a FATAL is introduced here to catch any
+        // case where a terminated fiber where the related memory hasn't been reused gets switched to.
+        // In this case it's important to hard-fail as any execution would lead to a fatal crash anyway.
+        FATAL(TAG, "Switched back to a terminated fiber, unable to continue");
+    }
 }
 
 fiber_t* fiber_scheduler_new_fiber(
