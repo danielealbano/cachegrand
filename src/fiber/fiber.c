@@ -83,10 +83,10 @@ fiber_t *fiber_new(
         size_t stack_size,
         fiber_start_fp_t *fiber_start_fp,
         void *user_data) {
-    char temp_swap_stack[2048];
+    void *temp_swap_stack_ptr = NULL;
 
-    // Check if the fiber start function is valid
-    if (fiber_start_fp == NULL) {
+    // If user data are passed the start function must be passed too
+    if (fiber_start_fp == NULL && user_data != NULL) {
         return NULL;
     }
 
@@ -148,20 +148,26 @@ fiber_t *fiber_new(
     fiber->name = (char*)xalloc_alloc_zero(name_len + 1);
     strncpy(fiber->name, name, name_len);
 
-    // Do a fist swap to initialize the fiber stack content
-    fiber_new_first_run_fiber = fiber;
-    fiber_new_first_run_fiber_start_fp = fiber_start_fp;
-    fiber_new_first_run_func_user_data = user_data;
-    fiber_new_first_run_from = (void **)&temp_swap_stack;
-    fiber_new_first_run_to = (void **)&stack_pointer;
+    if (fiber_start_fp) {
+        // Do a fist swap to initialize the fiber stack content
+        fiber_new_first_run_fiber = fiber;
+        fiber_new_first_run_fiber_start_fp = fiber_start_fp;
+        fiber_new_first_run_func_user_data = user_data;
 
-    fiber_context_swap(fiber_new_first_run_from, fiber_new_first_run_to);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wreturn-local-addr"
+        fiber_new_first_run_from = &temp_swap_stack_ptr;
+        fiber_new_first_run_to = (void **)&stack_pointer;
+#pragma GCC diagnostic pop
 
-    fiber_new_first_run_fiber = NULL;
-    fiber_new_first_run_fiber_start_fp = NULL;
-    fiber_new_first_run_func_user_data = NULL;
-    fiber_new_first_run_from = NULL;
-    fiber_new_first_run_to = NULL;
+        fiber_context_swap(fiber_new_first_run_from, fiber_new_first_run_to);
+
+        fiber_new_first_run_fiber = NULL;
+        fiber_new_first_run_fiber_start_fp = NULL;
+        fiber_new_first_run_func_user_data = NULL;
+        fiber_new_first_run_from = NULL;
+        fiber_new_first_run_to = NULL;
+    }
 
     // The stack pointer HAS to be updated after fiber_context_swap because it will be updated with the new value
     // after the initial execution of the fiber
