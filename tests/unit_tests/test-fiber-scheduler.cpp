@@ -6,13 +6,12 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
+#include <cstring>
+#include <csignal>
+#include <csetjmp>
 #include <catch2/catch.hpp>
 #include <unistd.h>
-#include <sys/mman.h>
 #include <xalloc.h>
-#include <string.h>
-#include <signal.h>
-#include <setjmp.h>
 
 #include "signals_support.h"
 #include "fiber/fiber.h"
@@ -25,10 +24,10 @@ long test_fiber_scheduler_fixture_user_data = 42;
 extern thread_local fiber_scheduler_stack_t fiber_scheduler_stack;
 
 bool test_fiber_scheduler_switched_to_fiber = false;
-void *test_fiber_scheduler_caller_user_data = NULL;
+void *test_fiber_scheduler_caller_user_data = nullptr;
 int8_t test_fiber_scheduler_fiber_scheduler_stack_index = -1;
 int8_t test_fiber_scheduler_fiber_scheduler_stack_size = 0;
-fiber_t *test_fiber_scheduler_fiber_scheduler_stack_current_fiber = NULL;
+fiber_t *test_fiber_scheduler_fiber_scheduler_stack_current_fiber = nullptr;
 
 
 sigjmp_buf test_fiber_scheduler_jump_fp;
@@ -40,12 +39,12 @@ void test_fiber_scheduler_memory_stack_protection_setup_sigabrt_and_sigsegv_sign
     signals_support_register_signal_handler(
             SIGABRT,
             test_fiber_scheduler_memory_stack_protection_signal_sigabrt_and_sigsegv_handler_longjmp,
-            NULL);
+            nullptr);
 
     signals_support_register_signal_handler(
             SIGSEGV,
             test_fiber_scheduler_memory_stack_protection_signal_sigabrt_and_sigsegv_handler_longjmp,
-            NULL);
+            nullptr);
 }
 
 void test_fiber_scheduler_fiber_do_nothing(void *user_data) {
@@ -60,7 +59,7 @@ void test_fiber_scheduler_fiber_get_userdata_entrypoint(void *user_data) {
     fiber_scheduler_switch_back();
 }
 
-void test_fiber_scheduler_fiber_switch_to_test_entrypoint(fiber_t *from, fiber_t *to) {
+void test_fiber_scheduler_fiber_switch_to_test_entrypoint(void *user_data) {
     test_fiber_scheduler_switched_to_fiber = true;
 
     test_fiber_scheduler_fiber_scheduler_stack_index = fiber_scheduler_stack.index;
@@ -74,13 +73,13 @@ void test_fiber_scheduler_fiber_switch_to_test_entrypoint(fiber_t *from, fiber_t
 TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
     size_t page_size = getpagesize();
     size_t stack_size = page_size * 8;
-    test_fiber_scheduler_caller_user_data = NULL;
+    test_fiber_scheduler_caller_user_data = nullptr;
     test_fiber_scheduler_switched_to_fiber = false;
 
     SECTION("fiber_scheduler_get_current") {
         fiber_t fiber = {
-                .start_fp = NULL,
-                .start_fp_user_data = NULL,
+                .start_fp = nullptr,
+                .start_fp_user_data = nullptr,
                 .name = test_fiber_scheduler_fixture_fiber_name,
                 .terminate = false,
         };
@@ -93,15 +92,15 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
         REQUIRE(fiber_scheduler_get_current() == &fiber);
 
         xalloc_free(fiber_scheduler_stack.list);
-        fiber_scheduler_stack.list = NULL;
+        fiber_scheduler_stack.list = nullptr;
         fiber_scheduler_stack.index = -1;
         fiber_scheduler_stack.size = 0;
     }
 
     SECTION("fiber_scheduler_terminate_current_fiber") {
         fiber_t fiber = {
-                .start_fp = NULL,
-                .start_fp_user_data = NULL,
+                .start_fp = nullptr,
+                .start_fp_user_data = nullptr,
                 .name = test_fiber_scheduler_fixture_fiber_name,
                 .terminate = false,
         };
@@ -115,7 +114,7 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
         REQUIRE(fiber.terminate);
 
         xalloc_free(fiber_scheduler_stack.list);
-        fiber_scheduler_stack.list = NULL;
+        fiber_scheduler_stack.list = nullptr;
         fiber_scheduler_stack.index = -1;
         fiber_scheduler_stack.size = 0;
     }
@@ -135,7 +134,7 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
             REQUIRE(!fiber_scheduler_stack_needs_growth());
         }
 
-        fiber_scheduler_stack.list = NULL;
+        fiber_scheduler_stack.list = nullptr;
         fiber_scheduler_stack.index = -1;
         fiber_scheduler_stack.size = 0;
     }
@@ -175,9 +174,9 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
             REQUIRE(fatal_catched);
         }
 
-        if (fiber_scheduler_stack.list != NULL) {
+        if (fiber_scheduler_stack.list != nullptr) {
             xalloc_free(fiber_scheduler_stack.list);
-            fiber_scheduler_stack.list = NULL;
+            fiber_scheduler_stack.list = nullptr;
         }
         fiber_scheduler_stack.index = -1;
         fiber_scheduler_stack.size = 0;
@@ -186,13 +185,15 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
     SECTION("fiber_scheduler_new_fiber_entrypoint") {
         fiber_scheduler_new_fiber_user_data_t fiber_scheduler_new_fiber_entrypoint_user_data = {
                 .caller_entrypoint_fp = test_fiber_scheduler_fiber_do_nothing,
-                .caller_user_data = NULL,
+                .caller_user_data = nullptr,
         };
-        fiber_t fiber_1 = {
-                .start_fp = NULL,
-                .start_fp_user_data = NULL,
-                .name = test_fiber_scheduler_fixture_fiber_name,
-        };
+
+        fiber_t *fiber_1 = fiber_new(
+                test_fiber_scheduler_fixture_fiber_name,
+                strlen(test_fiber_scheduler_fixture_fiber_name),
+                stack_size,
+                nullptr,
+                nullptr);
         fiber_t *fiber_2 = fiber_new(
                 test_fiber_scheduler_fixture_fiber_name,
                 strlen(test_fiber_scheduler_fixture_fiber_name),
@@ -204,18 +205,18 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
         fiber_scheduler_stack.index = 1;
         fiber_scheduler_stack.size = 2;
 
-        fiber_scheduler_stack.list[0] = &fiber_1;
+        fiber_scheduler_stack.list[0] = fiber_1;
         fiber_scheduler_stack.list[1] = fiber_2;
 
         SECTION("test entrypoint invocation") {
-            fiber_context_swap(&fiber_1, fiber_2);
+            fiber_context_swap(&fiber_1->stack_pointer, &fiber_2->stack_pointer);
 
             REQUIRE(test_fiber_scheduler_switched_to_fiber);
             REQUIRE(fiber_2->terminate == true);
         }
 
         SECTION("test failure on switching to a terminated fiber") {
-            fiber_context_swap(&fiber_1, fiber_2);
+            fiber_context_swap(&fiber_1->stack_pointer, &fiber_2->stack_pointer);
 
             // Context switching to a terminated fiber should NEVER happen as the memory will be automatically free
             // and therefore may become garbage right after the context is switched back but to test out the expected
@@ -228,7 +229,7 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
             bool fatal_catched = false;
             if (sigsetjmp(test_fiber_scheduler_jump_fp, 1) == 0) {
                 test_fiber_scheduler_memory_stack_protection_setup_sigabrt_and_sigsegv_signal_handler();
-                fiber_context_swap(&fiber_1, fiber_2);
+                fiber_context_swap(&fiber_1->stack_pointer, &fiber_2->stack_pointer);
             } else {
                 fatal_catched = true;
             }
@@ -237,7 +238,7 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
         }
 
         xalloc_free(fiber_scheduler_stack.list);
-        fiber_scheduler_stack.list = NULL;
+        fiber_scheduler_stack.list = nullptr;
         fiber_scheduler_stack.index = -1;
         fiber_scheduler_stack.size = 0;
 
@@ -250,12 +251,12 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
                 test_fiber_scheduler_fixture_fiber_name_leb,
                 stack_size,
                 test_fiber_scheduler_fiber_switch_to_test_entrypoint,
-                NULL);
+                nullptr);
 
         fiber_scheduler_switch_to(fiber);
 
         REQUIRE(test_fiber_scheduler_switched_to_fiber);
-        REQUIRE(fiber_scheduler_stack.list != NULL);
+        REQUIRE(fiber_scheduler_stack.list != nullptr);
         REQUIRE(test_fiber_scheduler_fiber_scheduler_stack_index == 1);
         REQUIRE(test_fiber_scheduler_fiber_scheduler_stack_size == 2);
         REQUIRE(test_fiber_scheduler_fiber_scheduler_stack_current_fiber == fiber);
@@ -271,7 +272,7 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
         fiber_free(fiber);
 
         xalloc_free(fiber_scheduler_stack.list);
-        fiber_scheduler_stack.list = NULL;
+        fiber_scheduler_stack.list = nullptr;
         fiber_scheduler_stack.index = -1;
         fiber_scheduler_stack.size = 0;
     }
@@ -293,15 +294,15 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
         }
 
         xalloc_free(fiber_scheduler_stack.list);
-        fiber_scheduler_stack.list = NULL;
+        fiber_scheduler_stack.list = nullptr;
         fiber_scheduler_stack.index = -1;
         fiber_scheduler_stack.size = 0;
     }
 
     SECTION("fiber_scheduler_set_error") {
         fiber_t fiber = {
-                .start_fp = NULL,
-                .start_fp_user_data = NULL,
+                .start_fp = nullptr,
+                .start_fp_user_data = nullptr,
                 .name = test_fiber_scheduler_fixture_fiber_name,
                 .error_number = 0,
         };
@@ -317,15 +318,15 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
         REQUIRE(errno == 123);
 
         xalloc_free(fiber_scheduler_stack.list);
-        fiber_scheduler_stack.list = NULL;
+        fiber_scheduler_stack.list = nullptr;
         fiber_scheduler_stack.index = -1;
         fiber_scheduler_stack.size = 0;
     }
 
     SECTION("fiber_scheduler_get_error") {
         fiber_t fiber = {
-                .start_fp = NULL,
-                .start_fp_user_data = NULL,
+                .start_fp = nullptr,
+                .start_fp_user_data = nullptr,
                 .name = test_fiber_scheduler_fixture_fiber_name,
                 .error_number = 123,
         };
@@ -338,15 +339,15 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
         REQUIRE(fiber_scheduler_get_error() == 123);
 
         xalloc_free(fiber_scheduler_stack.list);
-        fiber_scheduler_stack.list = NULL;
+        fiber_scheduler_stack.list = nullptr;
         fiber_scheduler_stack.index = -1;
         fiber_scheduler_stack.size = 0;
     }
 
     SECTION("fiber_scheduler_has_error") {
         fiber_t fiber = {
-                .start_fp = NULL,
-                .start_fp_user_data = NULL,
+                .start_fp = nullptr,
+                .start_fp_user_data = nullptr,
                 .name = test_fiber_scheduler_fixture_fiber_name,
         };
         fiber_scheduler_stack.list = (fiber_t**)xalloc_alloc(sizeof(fiber_t*) * 1);
@@ -366,15 +367,15 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
         }
 
         xalloc_free(fiber_scheduler_stack.list);
-        fiber_scheduler_stack.list = NULL;
+        fiber_scheduler_stack.list = nullptr;
         fiber_scheduler_stack.index = -1;
         fiber_scheduler_stack.size = 0;
     }
 
     SECTION("fiber_scheduler_reset_error") {
         fiber_t fiber = {
-                .start_fp = NULL,
-                .start_fp_user_data = NULL,
+                .start_fp = nullptr,
+                .start_fp_user_data = nullptr,
                 .name = test_fiber_scheduler_fixture_fiber_name,
                 .error_number = 123,
         };
@@ -390,7 +391,7 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
         REQUIRE(errno == 0);
 
         xalloc_free(fiber_scheduler_stack.list);
-        fiber_scheduler_stack.list = NULL;
+        fiber_scheduler_stack.list = nullptr;
         fiber_scheduler_stack.index = -1;
         fiber_scheduler_stack.size = 0;
     }
