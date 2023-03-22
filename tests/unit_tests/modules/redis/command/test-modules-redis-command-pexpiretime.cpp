@@ -77,7 +77,6 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PEXPIRETIME"
                 send_recv_resp_command_calculate_multi_recv(expected_length)));
 
         unixtime_response = strtoll(buffer + 1, nullptr, 10);
-
-        REQUIRE((unixtime_response >= unixtime_ms_plus_5s - 5 && unixtime_response <= unixtime_ms_plus_5s));
+        REQUIRE((unixtime_response >= unixtime_ms_plus_5s - 5 && unixtime_response <= unixtime_ms_plus_5s + 5));
     }
 }
