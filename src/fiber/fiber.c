@@ -84,21 +84,14 @@ fiber_t *fiber_new(
         fiber_start_fp_t *fiber_start_fp,
         void *user_data) {
     void *temp_swap_stack_ptr = NULL;
+    size_t page_size = xalloc_get_page_size();
 
     // If user data are passed the start function must be passed too
     if (fiber_start_fp == NULL && user_data != NULL) {
         return NULL;
     }
 
-#if defined(HAS_VALGRIND)
-    // VALGRIND_STACK_REGISTER is not working as it should but valgrind automatically detects a stack change if the
-    // stack pointer changes at least 2MB, therefore the stack size is increased to 2MB to make sure that valgrind
-    // will detect the stack change
-    stack_size = 2000000;
-#endif
-
     // Get the page size and calculate the guard length
-    size_t page_size = xalloc_get_page_size();
     size_t guard_len = (FIBER_GUARD_PAGES_COUNT * page_size);
 
     // Round up the stack size to the nearest page size
@@ -110,6 +103,13 @@ fiber_t *fiber_new(
     if (stack_size < guard_len + (page_size * 4)) {
         return NULL;
     }
+
+#if defined(HAS_VALGRIND)
+    // VALGRIND_STACK_REGISTER is not working as it should but valgrind automatically detects a stack change if the
+    // stack pointer changes at least 2MB, therefore the stack size is increased to 2MB to make sure that valgrind
+    // will detect the stack change
+    stack_size = 2000000;
+#endif
 
     // Calculate the stack size with the guard pages and allocate the stack
     size_t stack_size_with_guard = stack_size + guard_len;
@@ -127,7 +127,6 @@ fiber_t *fiber_new(
     *--stack_pointer = (void *)fiber_abort;
     *--stack_pointer = (void *)fiber_new_first_run;
     stack_pointer -= FIBER_CONTEXT_NUM_REGISTRIES;
-
 
     LOG_D(
             TAG,
