@@ -467,11 +467,27 @@ static inline bool storage_db_keys_eviction_should_run(
     uint64_t keys_count = storage_db_op_get_keys_count(db);
     uint64_t data_size = storage_db_op_get_data_size(db);
 
-    return keys_count > 0 && (
-            (db->limits.keys_count.hard_limit > 0 && keys_count >= db->limits.keys_count.hard_limit) ||
-            (db->limits.keys_count.soft_limit > 0 && keys_count > db->limits.keys_count.soft_limit) ||
-            (db->limits.data_size.hard_limit > 0 && data_size >= db->limits.data_size.hard_limit) ||
-            (db->limits.data_size.soft_limit > 0 && data_size > db->limits.data_size.soft_limit));
+    if (keys_count == 0) {
+        return false;
+    }
+
+    if (db->limits.keys_count.hard_limit > 0 && keys_count >= db->limits.keys_count.hard_limit) {
+        return true;
+    }
+
+    if (db->limits.keys_count.soft_limit > 0 && keys_count > db->limits.keys_count.soft_limit) {
+        return true;
+    }
+
+    if (db->limits.data_size.hard_limit > 0 && data_size >= db->limits.data_size.hard_limit) {
+        return true;
+    }
+
+    if (db->limits.data_size.soft_limit > 0 && data_size > db->limits.data_size.soft_limit) {
+        return true;
+    }
+
+    return false;
 }
 
 static inline bool storage_db_will_new_entry_hit_hard_limit(
@@ -480,9 +496,15 @@ static inline bool storage_db_will_new_entry_hit_hard_limit(
     uint64_t keys_count = storage_db_op_get_keys_count(db);
     uint64_t data_size = storage_db_op_get_data_size(db);
 
-    return
-            (db->limits.keys_count.hard_limit > 0 && keys_count + 1 > db->limits.keys_count.hard_limit) ||
-            (db->limits.data_size.soft_limit > 0 && data_size + new_entry_size > db->limits.data_size.hard_limit);
+    if (db->limits.keys_count.hard_limit > 0 && keys_count + 1 > db->limits.keys_count.hard_limit) {
+        return true;
+    }
+
+    if (db->limits.data_size.hard_limit > 0 && data_size + new_entry_size > db->limits.data_size.hard_limit) {
+        return true;
+    }
+
+    return false;
 }
 
 static inline bool storage_db_keys_eviction_soft_or_hard_limit_hit(

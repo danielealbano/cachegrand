@@ -151,10 +151,15 @@ fiber_t *fiber_new(
         // Do a fist swap to initialize the fiber stack content
         fiber_new_first_run_fiber = fiber;
         fiber_new_first_run_fiber_start_fp = fiber_start_fp;
-        fiber_new_first_run_func_user_data = user_data;
-
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wreturn-local-addr"
+        // CodeQL reports the below assignments as potentially dangerous because it is possible that the address of
+        // assgined might be later overwritten, these are local (stack) variables and the address should never be used
+        // outside of this function.
+        // However, the address is used only to pass the address of the variable to the fiber_new_first_run function
+        // and the fiber_new_first_run function will never use the address after the swap. This is required for the
+        // fiber context (stack) swap implementation and can't be avoided.
+        fiber_new_first_run_func_user_data = user_data;
         fiber_new_first_run_from = &temp_swap_stack_ptr;
         fiber_new_first_run_to = (void **)&stack_pointer;
 #pragma GCC diagnostic pop

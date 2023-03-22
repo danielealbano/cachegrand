@@ -79,18 +79,11 @@ uint64_t slots_bitmap_mpmc_iter(
     // Calculate the initial bit index
     uint64_t bit_index_start = from % SLOTS_BITMAP_MPMC_SHARD_SIZE;
 
-    // Get a pointer to the first shard
-    slots_bitmap_mpmc_shard_t *bitmap_shard_base_ptr =
-            slots_bitmap_mpmc_get_shard_ptr(slots_bitmap, 0);
-
     // Iterate over the shards
     for(
             uint64_t shard_index = shard_index_start;
             shard_index < slots_bitmap->shards_count;
             shard_index++) {
-        // Get a pointer to the current shard
-        slots_bitmap_mpmc_shard_t *bitmap_shard_ptr = slots_bitmap_mpmc_get_shard_ptr(slots_bitmap, shard_index);
-
         // Iterate over all bits in the shard
         for(
                 uint64_t bit_index = bit_index_start;

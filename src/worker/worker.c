@@ -350,7 +350,6 @@ void* worker_thread_func(
         void* user_data) {
     bool aborted = true;
     bool res = false;
-    int64_t limits_max_disk_size = 0, limits_max_memory_size = 0;
     worker_module_context_t *worker_module_contexts = NULL;
     network_channel_t *listeners = NULL;
     uint8_t listeners_count = 0;

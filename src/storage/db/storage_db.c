@@ -89,6 +89,9 @@ void storage_db_counters_slot_key_ensure_init(
     if (pthread_getspecific(storage_db_counters_index_key) == NULL) {
         storage_db_counters_slots_bitmap_and_index_t *slot =
             ffma_mem_alloc(sizeof(storage_db_counters_slots_bitmap_and_index_t));
+        if (!slot) {
+            FATAL(TAG, "Unable to allocate memory for storage db counters");
+        }
 
         slot->slots_bitmap = storage_db->counters_slots_bitmap;
         slot->index = slots_bitmap_mpmc_get_next_available(slot->slots_bitmap);

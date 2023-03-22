@@ -6,7 +6,6 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-//#define DISABLE_MIMALLOC 0
 #ifndef DISABLE_MIMALLOC
 #define DISABLE_MIMALLOC 0
 #endif

@@ -627,7 +627,7 @@ bool program_config_setup_storage_db(
     }
 
     // Initialize the hard and soft limits
-    int64_t data_size_hard_limit, data_size_soft_limit;
+    int64_t data_size_hard_limit = 0, data_size_soft_limit = 0;
 
     if (program_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
         data_size_hard_limit = program_context->config->database->file->limits->hard->max_disk_usage;
