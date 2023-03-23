@@ -156,7 +156,7 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
             &terminate_event_loop,
             program_context);
 
-    PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true);
+    PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true)
 
     address = {0};
 
@@ -166,7 +166,7 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
     address.sin_addr.s_addr = inet_addr(config_module_network_binding.host);
 
     REQUIRE(connect(client_fd, (struct sockaddr *) &address, sizeof(address)) == 0);
-};
+}
 
 TestModulesRedisCommandFixture::~TestModulesRedisCommandFixture() {
     close(client_fd);
@@ -296,14 +296,14 @@ size_t TestModulesRedisCommandFixture::send_recv_resp_command_calculate_multi_re
 
 bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
         const std::vector<std::string>& arguments,
-        char *buffer_recv,
+        char *buffer_recv_int,
         size_t buffer_recv_length,
         size_t *out_buffer_recv_length,
-        int max_recv_count,
+        size_t max_recv_count,
         size_t expected_len) const {
     size_t total_send_length, total_recv_length;
     *out_buffer_recv_length = 0;
-    memset(buffer_recv, 0, buffer_recv_length);
+    memset(buffer_recv_int, 0, buffer_recv_length);
 
     // Build the resp command
     size_t buffer_send_length = build_resp_command(nullptr, 0, arguments);
@@ -335,10 +335,12 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
         }
 
         total_send_length += send_length;
+        sched_yield();
     } while(total_send_length < buffer_send_length);
 
     total_recv_length = 0;
     for(int i = 0; i < max_recv_count && total_recv_length < expected_len; i++) {
+        sched_yield();
         size_t allowed_buffer_recv_size = buffer_recv_length - total_recv_length;
         allowed_buffer_recv_size = allowed_buffer_recv_size > recv_packet_size
                 ? recv_packet_size
@@ -348,7 +350,7 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
 
         ssize_t recv_length = recv(
                 client_fd,
-                buffer_recv + total_recv_length,
+                buffer_recv_int + total_recv_length,
                 allowed_buffer_recv_size,
                 0);
 
@@ -376,7 +378,7 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv_and_valid
         const std::vector<std::string>& arguments,
         char *expected,
         size_t expected_length,
-        int max_recv_count) {
+        size_t max_recv_count) {
     size_t buffer_recv_length = (max_recv_count * recv_packet_size) + 1;
     size_t out_buffer_recv_length = 0;
     char *buffer_recv_internal = (char *)malloc(buffer_recv_length);
