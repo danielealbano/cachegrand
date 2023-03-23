@@ -110,7 +110,7 @@ TEST_CASE("fiber.c", "[fiber]") {
 
             REQUIRE(protection_flags == PROT_NONE);
 
-            mprotect(fiber.stack_base, page_size, PROT_READ | PROT_WRITE);
+            mprotect(fiber.stack_base, page_size * FIBER_GUARD_PAGES_COUNT, PROT_READ | PROT_WRITE);
         }
 
         SECTION("test disabling the memory protection") {
