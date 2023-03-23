@@ -159,19 +159,19 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
             fiber_scheduler_stack.index = 4;
             fiber_scheduler_stack.size = 5;
 
-            bool fatal_catched = false;
+            bool fatal_caught = false;
             if (sigsetjmp(test_fiber_scheduler_jump_fp, 1) == 0) {
                 test_fiber_scheduler_memory_stack_protection_setup_sigabrt_and_sigsegv_signal_handler();
                 fiber_scheduler_grow_stack();
             } else {
-                fatal_catched = true;
+                fatal_caught = true;
             }
 
-            // The fatal_catched variable has to be set to true as sigsetjmp on the second execution will return a value
+            // The fatal_caught variable has to be set to true as sigsetjmp on the second execution will return a value
             // different from zero.
             // A sigsegv raised by the kernel because of the memory protection means that the stack overflow protection
             // is working as intended
-            REQUIRE(fatal_catched);
+            REQUIRE(fatal_caught);
         }
 
         if (fiber_scheduler_stack.list != nullptr) {
@@ -226,15 +226,15 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
             // like this operation.
             // Intercepting the SIGSEGV will let the test to pass even if the fiber doesn't get to invoke FATAL, can't
             // really be avoided as the memory gets freed.
-            bool fatal_catched = false;
+            bool fatal_caught = false;
             if (sigsetjmp(test_fiber_scheduler_jump_fp, 1) == 0) {
                 test_fiber_scheduler_memory_stack_protection_setup_sigabrt_and_sigsegv_signal_handler();
                 fiber_context_swap(&fiber_1->stack_pointer, &fiber_2->stack_pointer);
             } else {
-                fatal_catched = true;
+                fatal_caught = true;
             }
 
-            REQUIRE(fatal_catched);
+            REQUIRE(fatal_caught);
         }
 
         xalloc_free(fiber_scheduler_stack.list);

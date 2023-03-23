@@ -245,14 +245,16 @@ TEST_CASE("fiber.c", "[fiber]") {
 
         // NOTE: will trigger a sigsegv, it's expected
         SECTION("alter protected memory") {
-            bool fatal_catched = false;
+            bool fatal_caught;
 
+            fatal_caught = false;
             if (sigsetjmp(test_fiber_jump_fp, 1) == 0) {
                 test_fiber_memory_stack_protection_setup_sigsegv_signal_handler();
                 *(uint64_t*)fiber->stack_base = 0;
             } else {
-                fatal_catched = true;
+                fatal_caught = true;
             }
+            REQUIRE(fatal_caught);
 
             // The fatal_catched variable has to be set to true as sigsetjmp on the second execution will return a value
             // different from zero.
