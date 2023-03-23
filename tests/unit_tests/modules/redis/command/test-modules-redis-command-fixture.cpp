@@ -291,7 +291,7 @@ size_t TestModulesRedisCommandFixture::send_recv_resp_command_calculate_multi_re
         return 1;
     }
 
-    return 1 + (size_t)ceil((float)expected_length / (float)recv_packet_size) + 1;
+    return 1 + (size_t)ceil((float)expected_length / (float)recv_packet_size) + 3;
 }
 
 bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
