@@ -240,7 +240,7 @@ TEST_CASE("fiber.c", "[fiber]") {
 
         SECTION("alter non protected memory") {
             *(uint64_t*)fiber->stack_pointer = 0;
-            *(uint64_t*)((char*)fiber->stack_base + (page_size * FIBER_GUARD_PAGES_COUNT)) = 0;
+            *(uint64_t*)((uintptr_t)fiber->stack_base + (page_size * FIBER_GUARD_PAGES_COUNT)) = 0;
         }
 
         // NOTE: will trigger a sigsegv, it's expected
@@ -256,11 +256,14 @@ TEST_CASE("fiber.c", "[fiber]") {
             }
             REQUIRE(fatal_caught);
 
-            // The fatal_catched variable has to be set to true as sigsetjmp on the second execution will return a value
-            // different from zero.
-            // A sigsegv raised by the kernel because of the memory protection means that the stack overflow protection
-            // is working as intended
-            REQUIRE(fatal_catched);
+            fatal_caught = false;
+            if (sigsetjmp(test_fiber_jump_fp, 1) == 0) {
+                test_fiber_memory_stack_protection_setup_sigsegv_signal_handler();
+                *(uint64_t*)((uintptr_t)fiber->stack_base + (page_size * FIBER_GUARD_PAGES_COUNT) - 1) = 0;
+            } else {
+                fatal_caught = true;
+            }
+            REQUIRE(fatal_caught);
         }
 
         fiber_free(fiber);
