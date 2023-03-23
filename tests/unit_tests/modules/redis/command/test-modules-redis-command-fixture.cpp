@@ -176,8 +176,7 @@ TestModulesRedisCommandFixture::~TestModulesRedisCommandFixture() {
 
     // Wait for the thread to end
     if (worker_context->running) {
-        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false);
-        usleep(10000);
+        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false)
     }
     sched_yield();
 

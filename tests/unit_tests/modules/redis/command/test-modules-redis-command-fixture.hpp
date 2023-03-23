@@ -1,7 +1,7 @@
 #define PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(WORKER_CONTEXT, RUNNING) { \
     do { \
         sched_yield(); \
-        usleep(10000); \
+        usleep(1000); \
         MEMORY_FENCE_LOAD(); \
     } while((WORKER_CONTEXT)->running == !(RUNNING)); \
 }
