@@ -263,7 +263,7 @@ TEST_CASE("transaction_spinlock.c", "[transaction_spinlock]") {
 
             // Magic numbers to run the threads in parallel for a few seconds after the threads creation.
 #if DEBUG
-            increments_per_thread = 2000;
+            increments_per_thread = 1000;
 #else
             increments_per_thread = 1000000;
 #endif

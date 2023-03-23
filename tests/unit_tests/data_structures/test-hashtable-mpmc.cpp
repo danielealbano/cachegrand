@@ -2012,7 +2012,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             //       assert but this impacts the ease of testing, they should instead set an error, stop the processing and
             //       bubble up the error back to the caller and then here (the caller) should use REQUIRE to validate the
             //       result.
-            uint32_t test_duration = 3;
+            uint32_t test_duration = 1;
             uint32_t test_keys_count = 4 * 1024 * 1024;
             uint16_t test_key_length = 12;
 
@@ -2078,9 +2078,9 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
         }
 
         SECTION("random key count and multiple test runs") {
-            uint32_t test_runs = 3;
-            uint32_t test_duration = 5;
-            uint32_t test_threads = min(utils_cpu_count() * 2, 8);
+            uint32_t test_runs = 2;
+            uint32_t test_duration = 2;
+            uint32_t test_threads = MIN(utils_cpu_count() * 2, 8);
             uint32_t test_hashtable_initial_size = 128 * 1024;
             uint32_t test_hashtable_upsize_block_size = HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE;
 

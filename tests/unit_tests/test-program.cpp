@@ -299,7 +299,6 @@ TEST_CASE("program.c", "[program]") {
 
         // Wait for the thread to end
         PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false)
-        usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
         sched_yield();
 
         // Cleanup
@@ -328,7 +327,6 @@ TEST_CASE("program.c", "[program]") {
 
         // Wait for the thread to end
         PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false)
-        usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
         sched_yield();
 
         program_workers_cleanup(
