@@ -290,18 +290,25 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             // Setup a client socket which will try to connect to the server socket
             struct sockaddr_in client_address = {0};
             socklen_t client_address_len = 0;
-            int client_fd = network_io_common_socket_tcp4_new(0);
-            REQUIRE(client_fd > 0);
+            int client_fd1 = network_io_common_socket_tcp4_new(0);
+            REQUIRE(client_fd1 > 0);
+            int client_fd2 = network_io_common_socket_tcp4_new(0);
+            REQUIRE(client_fd2 > 0);
 
             // Setup the queue
             ring = io_uring_support_init(10, nullptr, nullptr);
 
-            // Setup the connect operation
-            io_uring_sqe_t *sqe = io_uring_get_sqe(ring);
-            REQUIRE(sqe != nullptr);
-            io_uring_prep_connect(sqe, client_fd, (struct sockaddr*)&addr, sizeof(addr));
-            sqe->user_data = 1234;
-            sqe->flags |= IOSQE_IO_LINK;
+            // Setup two connect operations, one to fail and one to be successful
+            io_uring_sqe_t *sqe1 = io_uring_get_sqe(ring);
+            REQUIRE(sqe1 != nullptr);
+            io_uring_prep_connect(sqe1, client_fd1, (struct sockaddr*)&addr, sizeof(addr));
+            sqe1->user_data = 9999;
+
+            io_uring_sqe_t *sqe2 = io_uring_get_sqe(ring);
+            REQUIRE(sqe2 != nullptr);
+            io_uring_prep_connect(sqe2, client_fd2, (struct sockaddr*)&addr, sizeof(addr));
+            sqe2->user_data = 1234;
+            sqe2->flags |= IOSQE_IO_LINK;
 
             // Setup the timeout operation
             REQUIRE(io_uring_support_sqe_enqueue_link_timeout(
@@ -312,6 +319,10 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
 
             // Submit the sqes
             io_uring_support_sqe_submit(ring);
+
+            // Wait for the first connect
+            io_uring_wait_cqe(ring, &cqe);
+            io_uring_cqe_seen(ring, cqe);
 
             // Wait for the timeout
             io_uring_wait_cqe(ring, &cqe);
@@ -326,7 +337,8 @@ TEST_CASE("support/io_uring/io_uring_support.c", "[support][io_uring][io_uring_s
             io_uring_support_free(ring);
 
             close(server_fd);
-            close(client_fd);
+            close(client_fd1);
+            close(client_fd2);
         }
 
         SECTION("no timeout if ops processed") {
