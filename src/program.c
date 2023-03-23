@@ -63,6 +63,7 @@
 #include "memory_allocator/ffma.h"
 #include "support/sentry/sentry_support.h"
 #include "signal_handler_thread.h"
+#include "version.h"
 
 #include "program.h"
 #include "program_arguments.h"
@@ -728,6 +729,20 @@ void program_cleanup(
     sentry_support_shutdown();
 }
 
+bool program_ensure_min_kernel_version() {
+    long kernel_version[4] = {0};
+
+    version_parse(
+            (char*)CACHEGRAND_MIN_KERNEL_VERSION,
+            (long*)kernel_version,
+            sizeof(kernel_version));
+    if (!version_kernel_min(kernel_version, 3)) {
+        return false;
+    }
+
+    return true;
+}
+
 int program_main(
         int argc,
         char** argv) {
@@ -782,18 +797,27 @@ int program_main(
             "> Clock resolution: %ld ms",
             clock_realtime_coarse_get_resolution_ms());
 
+    // Ensure the minimum kernel version is supported
+    if (program_ensure_min_kernel_version() == false) {
+        LOG_E(TAG, "Kernel version not supported, the minimum required is <%s>", CACHEGRAND_MIN_KERNEL_VERSION);
+        goto end;
+    }
+
     // Initialize the log sinks defined in the configuration, if any is defined. The function will take care of dropping
     // the temporary log sink defined initially
     program_config_setup_log_sinks(program_context->config);
 
+    // Setup the ulimit
     program_ulimit_setup();
 
+    // Setup sentry to report crashes if enabled in the config
     program_setup_sentry(program_context);
 
     // If it fails to create the pidfile reports an error and continues the execution, no need to check for the result
     // of the operation
     program_setup_pidfile(program_context);
 
+    // Setup the cpu affinity
     if (program_config_thread_affinity_set_selected_cpus(program_context) == false) {
         LOG_E(TAG, "Unable to setup cpu affinity");
         goto end;
@@ -809,33 +833,39 @@ int program_main(
     // Calculate workers count
     program_workers_initialize_count(program_context);
 
+    // Initialize the fast memory allocator if hugepages are enabled
     if (program_context->use_huge_pages) {
         program_context->fast_memory_allocator_initialized = true;
     }
 
+    // Initialize the epoch gc workers
     if (program_config_setup_storage_db(program_context) == false) {
         LOG_E(TAG, "Unable to initialize the database");
         goto end;
     }
 
+    // Initialize the epoch gc workers
     if (program_signal_handler_thread_initialize(
             &program_terminate_event_loop,
             program_context) == NULL) {
         goto end;
     }
 
+    // Initialize the epoch gc workers
     if (program_epoch_gc_workers_initialize(
             &program_terminate_event_loop,
             program_context) == false) {
         goto end;
     }
 
+    // Initialize the workers
     if (program_workers_initialize_context(
             &program_terminate_event_loop,
             program_context) == NULL) {
         goto end;
     }
 
+    // Ensure that all the workers started correctly
     if (!program_workers_ensure_started(program_context)) {
         LOG_E(TAG, "One or more workers didn't start correctly, can't continue");
         goto end;
@@ -843,6 +873,7 @@ int program_main(
 
     LOG_I(TAG, "Ready to accept connections");
 
+    // Wait for the termination event loop to be triggered
     program_wait_loop(
             program_context->workers_context,
             program_context->workers_count,
@@ -857,6 +888,7 @@ end:
 
     LOG_V(TAG, "Terminating");
 
+    // Final cleanup
     program_cleanup(program_context);
 
 #if FFMA_DEBUG_ALLOCS_FREES == 1
