@@ -125,6 +125,23 @@ database:
 #    # When database.limit.hard.max_memory_usage is set to 0, this value will be ignored
 #    max_keys: 999999
 
+  # The snapshot settings, optional, if missing the snapshots will be disabled. Snapshots are compatible with the Redis
+  # RDB format and can be used to restore the database state or import it from/to another instance.
+  snapshots:
+    # The path where the snapshot file will be stored, if the rotation is enabled, the path will be used as prefix and
+    # the timestamp of the start of the snapshot will be appended to the file name.
+    path: /var/lib/cachegrand/snapshot
+    # The interval between the snapshots, the allowed units are s, m, h, if not specified the default is seconds.
+    interval: 5m
+    # The number of keys that must be changed before a snapshot is taken, 0 means no limit
+    min_keys_changed: 1000
+    # The amount of data that must be changed before a snapshot is taken, the allowed units are b, k, m, g, if not
+    min_data_changed: 100mb
+    # Rotation settings, optional, if missing the snapshots rotation will be disabled
+    rotation:
+      # The max number of snapshots files to keep, 0 means no limit
+      max_files: 10
+
   backend: memory
   memory:
     # Limits:
