@@ -105,6 +105,98 @@ cyaml_err_t config_internal_cyaml_load(
             NULL);
 }
 
+bool config_parse_string_time(
+        char *string,
+        size_t string_len,
+        bool allow_negative,
+        bool allow_zero,
+        bool allow_time_suffix,
+        int64_t *return_value) {
+    bool result = false;
+    char *string_end;
+    size_t string_end_len;
+    int64_t string_value;
+
+    // Skip any leading space
+    while (isspace(string[0]) && string_len > 0) {
+        string++;
+        string_len--;
+    }
+
+    // Skip any trailing space
+    while (isspace(string[string_len - 1]) && string_len > 0) {
+        string_len--;
+    }
+
+    // If there are only spaces, skip them
+    if (string_len == 0) {
+        return false;
+    }
+
+    // As strtoll doesn't support non-null terminated strings, duplicate the string and null terminate it using strndup
+    string = strndup(string, string_len);
+    if (string == NULL) {
+        return false;
+    }
+
+    // Try to parse the number
+    string_value = strtoll(string, &string_end, 10);
+    string_end_len = strlen(string_end);
+
+    // Skip any leading space after parsing string_end
+    while (isspace(string_end[0]) && string_end_len > 0) {
+        string_end++;
+        string_end_len--;
+    }
+
+    // Check if the end of the string matches the beginning of the string, if's true then the string is not a number
+    if (string_end == string) {
+        goto end;
+    }
+
+    // Check if string_value is negative
+    if (!allow_negative && string_value < 0) {
+        goto end;
+    }
+
+    // Check if string_value is zero
+    if (!allow_zero && string_value == 0) {
+        goto end;
+    }
+
+    if (!allow_time_suffix && string_end_len == 0) {
+        *return_value = string_value;
+        result = true;
+        goto end;
+    }
+
+    // Check if the string is a size suffix
+    if (allow_time_suffix && string_end_len == 1) {
+        switch (string_end[0]) {
+            case 's':
+                string_value *= 1;
+                break;
+            case 'm':
+                string_value *= 60;
+                break;
+            case 'h':
+                string_value *= 60 * 60;
+                break;
+            case 'd':
+                string_value *= 60 * 60 * 24;
+                break;
+        }
+
+        *return_value = string_value;
+        result = true;
+        goto end;
+    }
+
+end:
+    free(string);
+    return result;
+}
+
 bool config_parse_string_absolute_or_percent(
         char *string,
         size_t string_len,

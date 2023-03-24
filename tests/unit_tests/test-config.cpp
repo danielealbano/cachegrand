@@ -322,6 +322,183 @@ TEST_CASE("config.c", "[config]") {
     config_cyaml_config->log_fn = test_config_cyaml_logger;
     config_cyaml_config->log_ctx = (void*)&cyaml_logger_context;
 
+    bool config_parse_string_time(
+            char *string,
+            size_t string_len,
+            bool allow_negative,
+            bool allow_zero,
+            bool allow_time_suffix,
+            int64_t *return_value);
+
+    SECTION("config_parse_string_time") {
+        int64_t return_value;
+
+        SECTION("absolute") {
+                bool result = config_parse_string_time(
+                    (char*)"123",
+                    3,
+                    false,
+                    false,
+                    false,
+                    &return_value);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 123);
+        }
+
+        SECTION("absolute with spaces") {
+            bool result = config_parse_string_time(
+                    (char*)" 123 ",
+                    5,
+                    false,
+                    false,
+                    false,
+                    &return_value);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 123);
+        }
+
+        SECTION("absolute with time suffix s") {
+            bool result = config_parse_string_time(
+                    (char*)"123s",
+                    4,
+                    false,
+                    false,
+                    true,
+                    &return_value);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 123);
+        }
+
+        SECTION("absolute with time suffix m") {
+            bool result = config_parse_string_time(
+                    (char*)"123m",
+                    4,
+                    false,
+                    false,
+                    true,
+                    &return_value);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 123 * 60);
+        }
+
+        SECTION("absolute with time suffix h") {
+            bool result = config_parse_string_time(
+                    (char*)"123h",
+                    4,
+                    false,
+                    false,
+                    true,
+                    &return_value);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 123 * 60 * 60);
+        }
+
+        SECTION("absolute with time suffix d") {
+            bool result = config_parse_string_time(
+                    (char*)"123d",
+                    4,
+                    false,
+                    false,
+                    true,
+                    &return_value);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 123 * 60 * 60 * 24);
+        }
+
+        SECTION("absolute with time suffix m with spaces") {
+            bool result = config_parse_string_time(
+                    (char*)"123 m ",
+                    6,
+                    false,
+                    false,
+                    true,
+                    &return_value);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 123 * 60);
+        }
+
+        SECTION("negative value") {
+            bool result = config_parse_string_time(
+                    (char*)"-123",
+                    4,
+                    true,
+                    false,
+                    false,
+                    &return_value);
+            REQUIRE(result == true);
+            REQUIRE(return_value == -123);
+        }
+
+        SECTION("negative value with time suffix m") {
+            bool result = config_parse_string_time(
+                    (char*)"-123m",
+                    5,
+                    true,
+                    false,
+                    true,
+                    &return_value);
+            REQUIRE(result == true);
+            REQUIRE(return_value == -123 * 60);
+        }
+
+        SECTION("zero value") {
+            bool result = config_parse_string_time(
+                    (char*)"0",
+                    1,
+                    false,
+                    true,
+                    false,
+                    &return_value);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 0);
+        }
+
+        SECTION("zero value with time suffix m") {
+            bool result = config_parse_string_time(
+                    (char*)"0m",
+                    2,
+                    false,
+                    true,
+                    true,
+                    &return_value);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 0);
+        }
+
+        SECTION("zero not allowed") {
+            bool result = config_parse_string_time(
+                    (char*)"0",
+                    1,
+                    false,
+                    false,
+                    false,
+                    &return_value);
+            REQUIRE(result == false);
+        }
+
+        SECTION("negative not allowed") {
+            bool result = config_parse_string_time(
+                    (char*)"-123",
+                    4,
+                    false,
+                    false,
+                    false,
+                    &return_value);
+            REQUIRE(result == false);
+        }
+
+        SECTION("time suffix not allowed") {
+            bool result = config_parse_string_time(
+                    (char*)"123s",
+                    4,
+                    false,
+                    false,
+                    false,
+                    &return_value);
+            REQUIRE(result == false);
+        }
+    }
+
     SECTION("config_parse_string_absolute_or_percent") {
         int64_t return_value;
         config_parse_string_absolute_or_percent_return_value_t return_value_type;

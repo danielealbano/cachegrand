@@ -298,6 +298,14 @@ enum config_cpus_validate_error {
 };
 typedef enum config_cpus_validate_error config_cpus_validate_error_t;
 
+bool config_parse_string_time(
+        char *string,
+        size_t string_len,
+        bool allow_negative,
+        bool allow_zero,
+        bool allow_time_suffix,
+        int64_t *return_value);
+
 bool config_parse_string_absolute_or_percent(
         char *string,
         size_t string_len,
