@@ -240,10 +240,30 @@ struct config_database_limits {
 };
 typedef struct config_database_limits config_database_limits_t;
 
+struct config_database_snapshots_rotation {
+    uint64_t max_files;
+    char *max_size_str;
+    size_t max_size;
+};
+typedef struct config_database_snapshots_rotation config_database_snapshots_rotation_t;
+
+struct config_database_snapshots {
+    char *path;
+    char *interval_str;
+    char *min_keys_changed_str;
+    char *min_data_changed_str;
+    uint64_t interval_s;
+    uint64_t min_keys_changed;
+    size_t min_data_changed;
+    config_database_snapshots_rotation_t *rotation;
+};
+typedef struct config_database_snapshots config_database_snapshots_t;
+
 struct config_database {
     config_database_limits_t *limits;
     config_database_keys_eviction_t *keys_eviction;
     config_database_backend_t backend;
+    config_database_snapshots_t *snapshots;
     config_database_file_t *file;
     config_database_memory_t *memory;
 };
