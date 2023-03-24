@@ -48,7 +48,7 @@ jobs:
       - name: Build cpp
         run: |
           cd build
-          make cachegrand-server
+          make cachegrand-server -j $(nproc)
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v2
