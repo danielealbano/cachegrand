@@ -31,7 +31,7 @@ jobs:
       - name: Install Packages
         run: |
           sudo apt-get update
-          sudo apt-get install --yes curl ca-certificates build-essential cmake git pkg-config libmbedtls-dev libnuma1 libnuma-dev libyaml-0-2 libyaml-dev libcurl4-openssl-dev libcurl4 libpcre2-8-0 libpcre2-dev libjson-c-dev lcov gcovr
+          sudo apt-get install --yes curl ca-certificates build-essential cmake git pkg-config libmbedtls-dev libnuma1 libnuma-dev libyaml-0-2 libyaml-dev libcurl4-openssl-dev libcurl4 libpcre2-8-0 libpcre2-dev libjson-c-dev lcov gcovr libhiredis-dev
 
       - name: Configure
         run: |
