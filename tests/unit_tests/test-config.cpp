@@ -12,6 +12,8 @@
 #include <cstring>
 #include <unistd.h>
 #include <cyaml/cyaml.h>
+#include <fstream>
+#include <sstream>
 
 #include "xalloc.h"
 #include "log/log.h"
@@ -156,6 +158,13 @@ database:
       max_keys: 1000000
     soft:
       max_keys: 999999
+  snapshots:
+    path: "/path/to/snapshot"
+    interval: 5m
+    min_keys_changed: 1000
+    min_data_changed: 100mb
+    rotation:
+      max_files: 10
   backend: memory
   memory:
     limits:
@@ -840,6 +849,33 @@ TEST_CASE("config.c", "[config]") {
         }
     }
 
+    SECTION("config_validate_after_load_database_snapshots") {
+        SECTION("valid") {
+            char shapshot_temp_path[] = "/tmp/cachegrand-snapshot.rdb";
+
+            // Replace the old paths with the new ones
+            std::string test_config_correct_all_fields_yaml_data_with_temp_paths = test_config_correct_all_fields_yaml_data;
+            test_config_correct_all_fields_yaml_data_with_temp_paths.replace(
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.find("/path/to/snapshot"),
+                    strlen("/path/to/snapshot"),
+                    shapshot_temp_path);
+            err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data_with_temp_paths.c_str()),
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    nullptr);
+
+            REQUIRE(config != nullptr);
+            REQUIRE(err == CYAML_OK);
+
+            REQUIRE(config_validate_after_load_database_snapshots(config));
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
+    }
+
     SECTION("config_validate_after_load_database_backend_file") {
         SECTION("valid") {
             err = cyaml_load_data(
@@ -1109,6 +1145,8 @@ TEST_CASE("config.c", "[config]") {
         int fixture_temp_path_suffix_len = 4;
         char certificate_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
         char private_key_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+        char snapshots_path[] = "/tmp/cachegrand-snapshot.rdb";
+        char *snapshots_path_orig = nullptr;
         close(mkstemps(certificate_temp_path, fixture_temp_path_suffix_len));
         close(mkstemps(private_key_temp_path, fixture_temp_path_suffix_len));
 
@@ -1138,14 +1176,14 @@ TEST_CASE("config.c", "[config]") {
         // The check on the soft / hard limits requires the soft limit being less than the hard limit.
         config->database->memory->limits->hard->max_memory_usage = 1;
 
+        // Set the snapshot path to /tmp/cachegrand-snapshot.rdb to ensure the validation will not fail
+        // because of the snapshot path not existing or being writable
+        snapshots_path_orig = config->database->snapshots->path;
+        config->database->snapshots->path = snapshots_path;
+
         SECTION("valid") {
             REQUIRE(config_validate_after_load(config) == true);
         }
-
-//        SECTION("broken - network redis max_key_length > object size max") {
-//            config->modules[0].redis->max_key_length = 64 * 1024 + 1;
-//            REQUIRE(config_validate_after_load(config) == false);
-//        }
 
         SECTION("broken - network.timeout.read_ms < -1") {
             config->modules[0].network->timeout->read_ms = -2;
@@ -1225,6 +1263,9 @@ TEST_CASE("config.c", "[config]") {
 
             config->modules[0].network->tls = nullptr;
         }
+
+        // Restore the snapshot path before invoking cyaml_free
+        config->database->snapshots->path = snapshots_path_orig;
 
         cyaml_free(config_cyaml_config, config_top_schema, config, 0);
 
@@ -1340,6 +1381,7 @@ TEST_CASE("config.c", "[config]") {
             int fixture_temp_path_suffix_len = 4;
             char certificate_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
             char private_key_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
+            char snapshots_path[] = "/tmp/cachegrand-snapshots.rdb";
             close(mkstemps(certificate_temp_path, fixture_temp_path_suffix_len));
             close(mkstemps(private_key_temp_path, fixture_temp_path_suffix_len));
 
@@ -1353,6 +1395,10 @@ TEST_CASE("config.c", "[config]") {
                     test_config_correct_all_fields_yaml_data_with_temp_paths.find("/path/to/certificate.key"),
                     strlen("/path/to/certificate.key"),
                     private_key_temp_path);
+            test_config_correct_all_fields_yaml_data_with_temp_paths.replace(
+                    test_config_correct_all_fields_yaml_data_with_temp_paths.find("/path/to/snapshot"),
+                    strlen("/path/to/snapshot"),
+                    snapshots_path);
 
             TEST_SUPPORT_FIXTURE_FILE_FROM_DATA(
                     test_config_correct_all_fields_yaml_data_with_temp_paths.c_str(),
@@ -1935,8 +1981,9 @@ TEST_CASE("config.c", "[config]") {
         ssize_t tests_executable_path_len;
         char tests_executable_path[256] = { 0 };
         char config_file_path_rel[] = "../../../etc/cachegrand.yaml.skel";
+        char shapshot_temp_path[] = "/tmp/cachegrand-snapshot.rdb";
 
-        // Build the path to the config file dinamically
+        // Build the path to the config file dynamically
         REQUIRE((tests_executable_path_len = readlink(
                 "/proc/self/exe", tests_executable_path, sizeof(tests_executable_path))) > 0);
         strncpy(
@@ -1944,8 +1991,25 @@ TEST_CASE("config.c", "[config]") {
                 config_file_path_rel,
                 strlen(config_file_path_rel));
 
-        err = cyaml_load_file(
-                tests_executable_path,
+        // Load the content of the file in memory
+        std::ifstream cachegrand_yaml_skel_stream(tests_executable_path);
+        std::stringstream cachegrand_yaml_skel_buffer;
+        cachegrand_yaml_skel_buffer << cachegrand_yaml_skel_stream.rdbuf();
+
+        // Replace the old paths with the new ones
+        std::string cachegrand_yaml_skel_stream_with_fixed_paths = cachegrand_yaml_skel_buffer.str();
+        cachegrand_yaml_skel_stream_with_fixed_paths.replace(
+                cachegrand_yaml_skel_stream_with_fixed_paths.find("/var/lib/cachegrand/snapshot"),
+                strlen("/var/lib/cachegrand/snapshot"),
+                shapshot_temp_path);
+
+        // Close the file
+        cachegrand_yaml_skel_stream.close();
+
+        // Load the yaml
+        err = cyaml_load_data(
+                (const uint8_t *)(cachegrand_yaml_skel_stream_with_fixed_paths.c_str()),
+                cachegrand_yaml_skel_stream_with_fixed_paths.length(),
                 config_cyaml_config,
                 config_top_schema,
                 (cyaml_data_t **)&config,
