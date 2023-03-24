@@ -43,6 +43,15 @@
 
 #define TAG "xalloc"
 
+#if DISABLE_MIMALLOC == 0
+FUNCTION_CTOR(xalloc_init, {
+    mi_option_enable(mi_option_page_reset);
+    mi_option_enable(mi_option_allow_decommit);
+    mi_option_enable(mi_option_abandoned_page_decommit);
+    mi_option_set(mi_option_decommit_delay, 0);
+})
+#endif
+
 void* xalloc_alloc(
         size_t size) {
     void* memptr;

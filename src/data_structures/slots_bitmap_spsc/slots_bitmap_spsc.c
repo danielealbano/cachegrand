@@ -18,9 +18,7 @@
 #include "exttypes.h"
 #include "memory_fences.h"
 #include "fatal.h"
-#include "data_structures/double_linked_list/double_linked_list.h"
-#include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
+#include "xalloc.h"
 
 #include "slots_bitmap_spsc_first_free_bit_table.h"
 #include "slots_bitmap_spsc.h"
@@ -53,7 +51,7 @@ slots_bitmap_spsc_t *slots_bitmap_spsc_init(
             (sizeof(uint8_t) * shards_count) +
             (sizeof(uint64_t) * (size_t)slots_bitmap_spsc_calculate_shard_full_count(shards_count));
 
-    slots_bitmap_spsc_t *slots_bitmap = (slots_bitmap_spsc_t *)ffma_mem_alloc(allocation_size);
+    slots_bitmap_spsc_t *slots_bitmap = (slots_bitmap_spsc_t *)xalloc_alloc(allocation_size);
 
     // If memory allocation fails, return NULL
     if (slots_bitmap == NULL) {
@@ -72,7 +70,7 @@ slots_bitmap_spsc_t *slots_bitmap_spsc_init(
 void slots_bitmap_spsc_free(
         slots_bitmap_spsc_t *slots_bitmap) {
     // Free the memory allocated for the bitmap
-    ffma_mem_free(slots_bitmap);
+    xalloc_free(slots_bitmap);
 }
 
 slots_bitmap_spsc_shard_t* slots_bitmap_spsc_get_shard_ptr(
