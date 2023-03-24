@@ -242,19 +242,16 @@ typedef struct config_database_limits config_database_limits_t;
 
 struct config_database_snapshots_rotation {
     uint64_t max_files;
-    char *max_size_str;
-    size_t max_size;
 };
 typedef struct config_database_snapshots_rotation config_database_snapshots_rotation_t;
 
 struct config_database_snapshots {
     char *path;
     char *interval_str;
-    char *min_keys_changed_str;
     char *min_data_changed_str;
-    uint64_t interval_s;
-    uint64_t min_keys_changed;
-    size_t min_data_changed;
+    int64_t interval;
+    int64_t min_keys_changed;
+    int64_t min_data_changed;
     config_database_snapshots_rotation_t *rotation;
 };
 typedef struct config_database_snapshots config_database_snapshots_t;
