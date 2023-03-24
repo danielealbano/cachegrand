@@ -14,6 +14,8 @@
 #include <string>
 #include <cstdarg>
 #include <cmath>
+#include <functional>
+#include <algorithm>
 
 #include <pthread.h>
 #include <mcheck.h>
