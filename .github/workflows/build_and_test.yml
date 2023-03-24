@@ -61,12 +61,12 @@ jobs:
       - name: Build cachegrand-tests
         working-directory: ${{github.workspace}}/build
         shell: bash
-        run: cmake --build . --target cachegrand-tests -- -j 4
+        run: cmake --build . --target cachegrand-tests -- -j $(nproc)
 
       - name: Build cachegrand-server
         working-directory: ${{github.workspace}}/build
         shell: bash
-        run: cmake --build . --target cachegrand-server -- -j 4
+        run: cmake --build . --target cachegrand-server -- -j $(nproc)
 
       - name: Tests - Unit Tests
         working-directory: ${{github.workspace}}/build
