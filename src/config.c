@@ -17,6 +17,8 @@
 #include <sys/statvfs.h>
 #include <sys/sysinfo.h>
 #include <cyaml/cyaml.h>
+#include <libgen.h>
+#include <sys/stat.h>
 
 #include "exttypes.h"
 #include "misc.h"
@@ -433,6 +435,55 @@ bool config_validate_after_load_database_backend_memory(
     return return_result;
 }
 
+bool config_validate_after_load_database_snapshots(
+        config_t* config) {
+    struct stat parent_path_stat;
+    bool return_result = true;
+
+    if (!config->database->snapshots) {
+        return return_result;
+    }
+
+    // Get the dirname out of the database snapshots path and validates that it exists and it's readable / writable
+    char* parent_path = dirname(config->database->snapshots->path);
+    if(stat(parent_path, &parent_path_stat) == -1) {
+        return_result = false;
+        if(ENOENT == errno) {
+            LOG_E(TAG, "The folder for the snapshots path <%s> does not exist", parent_path);
+        } else {
+            LOG_E(TAG, "Unable to check the folder for the snapshots path <%s>", parent_path);
+        }
+    } else {
+        if (!S_ISDIR(parent_path_stat.st_mode)) {
+            LOG_E(TAG, "The folder for the snapshots path <%s> is not a folder", parent_path);
+            return_result = false;
+        } else if(access(parent_path, R_OK | W_OK) == -1) {
+            LOG_E(TAG, "The folder for the snapshots path <%s> is not readable or writable", parent_path);
+            return_result = false;
+        }
+    }
+
+    // Check that the maximum allowed interval is 7 days
+    if (config->database->snapshots->interval > 7 * 24 * 60 * 60) {
+        LOG_E(TAG, "The maximum allowed interval for the snapshots is <7> days");
+        return_result = false;
+    }
+
+    // Ensure that min_keys is equal or greater than 0
+    if (config->database->snapshots->min_keys_changed < 0) {
+        LOG_E(TAG, "The minimum number of keys changes to trigger the snapshots must be greater or equal to <0>");
+        return_result = false;
+    }
+
+    // Ensure that if rotation is enabled, the maximum number of max_files is equal or greater than 0
+    if (config->database->snapshots->rotation && config->database->snapshots->rotation->max_files < 0) {
+        LOG_E(TAG, "The maximum number of days for the snapshots rotation must be greater or equal to <0>");
+        return_result = false;
+    }
+
+    return return_result;
+}
+
 bool config_validate_after_load_database_limits(
         config_t* config) {
     bool return_result = true;
@@ -626,6 +677,7 @@ bool config_validate_after_load(
     if (config_validate_after_load_cpus(config) == false
         || config_validate_after_load_database_backend_file(config) == false
         || config_validate_after_load_database_backend_memory(config) == false
+        || config_validate_after_load_database_snapshots(config) == false
         || config_validate_after_load_database_limits(config) == false
         || config_validate_after_load_database_keys_eviction(config) == false
         || config_validate_after_load_modules(config) == false
