@@ -6,13 +6,16 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 #include <cstdbool>
 #include <cstring>
 #include <memory>
 #include <string>
 #include <cstdarg>
+#include <cmath>
+#include <functional>
+#include <algorithm>
 
 #include <pthread.h>
 #include <mcheck.h>

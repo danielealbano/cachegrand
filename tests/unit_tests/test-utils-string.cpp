@@ -8,7 +8,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 #include "misc.h"
 #include "utils_string.h"

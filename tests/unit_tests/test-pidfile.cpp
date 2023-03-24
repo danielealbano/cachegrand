@@ -8,7 +8,7 @@
 
 #include <fcntl.h>
 #include <unistd.h>
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 #include "support/simple_file_io.h"
 #include "pidfile.h"

@@ -7,7 +7,7 @@
  **/
 
 #include <string.h>
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 #include <unistd.h>
 #include <sys/syscall.h>
