@@ -322,14 +322,6 @@ TEST_CASE("config.c", "[config]") {
     config_cyaml_config->log_fn = test_config_cyaml_logger;
     config_cyaml_config->log_ctx = (void*)&cyaml_logger_context;
 
-    bool config_parse_string_time(
-            char *string,
-            size_t string_len,
-            bool allow_negative,
-            bool allow_zero,
-            bool allow_time_suffix,
-            int64_t *return_value);
-
     SECTION("config_parse_string_time") {
         int64_t return_value;
 
