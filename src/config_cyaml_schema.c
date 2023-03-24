@@ -305,6 +305,34 @@ const cyaml_schema_field_t config_database_limits_schema[] = {
         CYAML_FIELD_END
 };
 
+// Schema for config -> database -> snapshots -> rotation
+const cyaml_schema_field_t config_database_snapshots_rotation_schema[] = {
+        CYAML_FIELD_UINT(
+                "max_files", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
+                config_database_snapshots_rotation_t, max_files),
+        CYAML_FIELD_END
+};
+
+// Schema for config -> database -> snapshots
+const cyaml_schema_field_t config_database_snapshots_schema[] = {
+        CYAML_FIELD_STRING_PTR(
+                "path", CYAML_FLAG_DEFAULT,
+                config_database_snapshots_t, path, 0, CYAML_UNLIMITED),
+        CYAML_FIELD_STRING_PTR(
+                "interval", CYAML_FLAG_DEFAULT,
+                config_database_snapshots_t, interval_str, 0, 20),
+        CYAML_FIELD_STRING_PTR(
+                "min_keys_changed", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
+                config_database_snapshots_t, min_keys_changed_str, 0, 20),
+        CYAML_FIELD_STRING_PTR(
+                "min_data_changed", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
+                config_database_snapshots_t, min_data_changed_str, 0, 20),
+        CYAML_FIELD_MAPPING_PTR(
+                "rotation", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_database_snapshots_t, rotation, config_database_snapshots_rotation_schema),
+        CYAML_FIELD_END
+};
+
 // Schema for config -> database
 const cyaml_schema_field_t config_database_schema[] = {
         CYAML_FIELD_MAPPING_PTR(
