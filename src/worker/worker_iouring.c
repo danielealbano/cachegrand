@@ -35,7 +35,7 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
+#include "xalloc.h"
 #include "support/io_uring/io_uring_support.h"
 #include "support/io_uring/io_uring_capabilities.h"
 #include "module/module.h"

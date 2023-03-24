@@ -31,7 +31,7 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "config.h"
 #include "support/simple_file_io.h"
-#include "memory_allocator/ffma.h"
+#include "xalloc.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
@@ -275,7 +275,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
         }
 
         if (!cipher_suites_ids) {
-            ffma_mem_free(cipher_suites_ids);
+            xalloc_free(cipher_suites_ids);
         }
     }
 
@@ -499,7 +499,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
 
             REQUIRE(network_tls_config);
 
-            ffma_mem_free(cipher_suites_ids);
+            xalloc_free(cipher_suites_ids);
         }
 
         SECTION("invalid certificate file") {
@@ -557,7 +557,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
             mbedtls_entropy_free(&network_tls_config->entropy);
             mbedtls_ssl_config_free(&network_tls_config->config);
 
-            ffma_mem_free(network_tls_config);
+            xalloc_free(network_tls_config);
         }
     }
 
@@ -645,7 +645,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
         REQUIRE(cipher_suites_info[0].offloading ==
             network_tls_does_ulp_tls_support_mbedtls_cipher_suite(mbedtls_ssl_ciphersuite_first->cipher));
 
-        ffma_mem_free(cipher_suites_info);
+        xalloc_free(cipher_suites_info);
     }
 
     SECTION("network_tls_min_version_to_string") {

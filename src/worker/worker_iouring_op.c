@@ -27,7 +27,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
+#include "xalloc.h"
 #include "support/io_uring/io_uring_support.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"

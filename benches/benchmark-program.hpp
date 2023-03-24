@@ -20,7 +20,7 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "thread.h"
 #include "hugepage_cache.h"
-#include "memory_allocator/ffma.h"
+#include "xalloc.h"
 #include "log/log.h"
 #include "log/sink/log_sink.h"
 #include "log/sink/log_sink_console.h"
