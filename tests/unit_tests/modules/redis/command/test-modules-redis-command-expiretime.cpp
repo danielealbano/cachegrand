@@ -71,10 +71,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - EXPIRETIME",
         REQUIRE(send_recv_resp_command_multi_recv(
                 std::vector<std::string>{"EXPIRETIME", "a_key"},
                 buffer,
-                sizeof(buffer),
                 &out_buffer_length,
-                expected_length,
-                send_recv_resp_command_calculate_multi_recv(expected_length)));
+                expected_length));
 
         unixtime_response = strtoll(buffer + 1, nullptr, 10);
 

@@ -55,8 +55,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - generic test
         snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$5\r\nUNKNOWN COMMAND\r\n");
         buffer_send_data_len = strlen(buffer_send);
 
-        REQUIRE(send(client_fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-        REQUIRE(recv(client_fd, buffer_recv, sizeof(buffer_recv), 0) == 24);
+        REQUIRE(send(this->c->fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+        REQUIRE(recv(this->c->fd, buffer_recv, sizeof(buffer_recv), 0) == 24);
         REQUIRE(strncmp(buffer_recv, "-ERR parsing error '8'\r\n",
                         strlen("-ERR parsing error '8'\r\n")) == 0);
     }
@@ -73,7 +73,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - generic test
         usleep((config.modules[0].network->timeout->read_ms * 1000) + (100 * 1000));
 
         // The socket should be closed so recv should return 0
-        REQUIRE(recv(client_fd, buffer_recv, sizeof(buffer_recv), 0) == 0);
+        REQUIRE(recv(this->c->fd, buffer_recv, sizeof(buffer_recv), 0) == 0);
     }
 
     SECTION("Command too long") {
@@ -94,8 +94,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - generic test
                 0);
         buffer_send_data_len = strlen(allocated_buffer_send);
 
-        REQUIRE(send(client_fd, allocated_buffer_send, strlen(allocated_buffer_send), 0) == buffer_send_data_len);
-        REQUIRE(recv(client_fd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
+        REQUIRE(send(this->c->fd, allocated_buffer_send, strlen(allocated_buffer_send), 0) == buffer_send_data_len);
+        REQUIRE(recv(this->c->fd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
         REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
 
         free(allocated_buffer_send);
@@ -119,8 +119,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - generic test
                 0);
         buffer_send_data_len = strlen(buffer_send);
 
-        REQUIRE(send(client_fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-        REQUIRE(recv(client_fd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
+        REQUIRE(send(this->c->fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+        REQUIRE(recv(this->c->fd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
         REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
     }
 
@@ -142,8 +142,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - generic test
                 0);
         buffer_send_data_len = strlen(buffer_send);
 
-        REQUIRE(send(client_fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-        REQUIRE(recv(client_fd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
+        REQUIRE(send(this->c->fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+        REQUIRE(recv(this->c->fd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
         REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
     }
 
@@ -174,8 +174,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - generic test
                 arguments_count,
                 (int)config.modules->redis->max_command_arguments);
 
-        REQUIRE(send(client_fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-        REQUIRE(recv(client_fd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
+        REQUIRE(send(this->c->fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+        REQUIRE(recv(this->c->fd, buffer_recv, sizeof(buffer_recv), 0) == strlen(expected_error));
         REQUIRE(strncmp(buffer_recv, expected_error, strlen(expected_error)) == 0);
     }
 }

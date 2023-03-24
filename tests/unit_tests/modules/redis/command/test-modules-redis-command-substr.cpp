@@ -150,8 +150,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SUBSTR", "[r
             REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"SUBSTR", "a_key", "0", end},
                     expected_response,
-                    expected_response_length,
-                    send_recv_resp_command_calculate_multi_recv(long_value_length)));
+                    expected_response_length));
         }
 
         SECTION("first char") {

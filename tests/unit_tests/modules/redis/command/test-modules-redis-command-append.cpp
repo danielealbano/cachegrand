@@ -110,8 +110,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - APPEND", "[r
             REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     (char *) expected,
-                    expected_length,
-                    send_recv_resp_command_calculate_multi_recv(expected_length)));
+                    expected_length));
         }
 
         SECTION("Append once - 4MB") {
@@ -146,8 +145,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - APPEND", "[r
             REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
-                    expected_response_length,
-                    send_recv_resp_command_calculate_multi_recv(long_value_length) + 1));
+                    expected_response_length));
 
             free(expected_response);
         }
@@ -184,8 +182,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - APPEND", "[r
             REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
-                    expected_response_length,
-                    send_recv_resp_command_calculate_multi_recv(expected_response_length)));
+                    expected_response_length));
 
             free(expected_response);
         }
@@ -250,9 +247,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - APPEND", "[r
                     value);
             REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
-                    (char *) expected,
-                    expected_length,
-                    send_recv_resp_command_calculate_multi_recv(expected_length)));
+                    (char *)expected,
+                    expected_length));
         }
 
         SECTION("Append once - 4MB") {
@@ -289,8 +285,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - APPEND", "[r
             REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
-                    expected_response_length,
-                    send_recv_resp_command_calculate_multi_recv(expected_response_length)));
+                    expected_response_length));
 
             free(expected_response);
         }
@@ -343,8 +338,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - APPEND", "[r
             REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
-                    expected_response_length,
-                    send_recv_resp_command_calculate_multi_recv(expected_response_length)));
+                    expected_response_length));
 
             free(expected_response);
         }

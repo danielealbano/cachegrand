@@ -106,14 +106,12 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - COPY", "[red
         REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
                 expected_response,
-                expected_response_length,
-                send_recv_resp_command_calculate_multi_recv(long_value_length)));
+                expected_response_length));
 
         REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                 std::vector<std::string>{"GET", "b_key"},
                 expected_response,
-                expected_response_length,
-                send_recv_resp_command_calculate_multi_recv(long_value_length)));
+                expected_response_length));
 
         free(expected_response);
     }
