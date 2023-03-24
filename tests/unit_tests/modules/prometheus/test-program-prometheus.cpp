@@ -33,6 +33,7 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
 #include "protocol/redis/protocol_redis.h"
@@ -64,6 +65,12 @@
     } while((WORKER_CONTEXT)->running == !RUNNING); \
 }
 
+struct test_metric_entry {
+    char* name;
+    bool metric_per_worker;
+};
+typedef struct test_metric_entry test_metric_entry_t;
+
 TEST_CASE("program.c-prometheus", "[program-prometheus]") {
     worker_context_t *worker_context;
     volatile bool terminate_event_loop = false;
@@ -91,9 +98,26 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
             .max_clients = 10,
             .listen_backlog = 10,
     };
-    config_database_t config_database = {
+    config_database_limits_hard_t config_database_limits_hard = {
             .max_keys = 1000,
+    };
+    config_database_limits_t config_database_limits = {
+            .hard = &config_database_limits_hard,
+    };
+
+    config_database_memory_limits_hard_t config_database_memory_limits_hard = {
+            .max_memory_usage = 999999999999,
+    };
+    config_database_memory_limits_t config_database_memory_limits = {
+            .hard = &config_database_memory_limits_hard
+    };
+    config_database_memory_t config_database_memory = {
+            .limits = &config_database_memory_limits,
+    };
+    config_database_t config_database = {
+            .limits = &config_database_limits,
             .backend = CONFIG_DATABASE_BACKEND_MEMORY,
+            .memory = &config_database_memory
     };
     config_t config = {
             .cpus = cpus,
@@ -108,7 +132,7 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
 
     storage_db_config_t *db_config = storage_db_config_new();
     db_config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY;
-    db_config->max_keys = 1000;
+    db_config->limits.keys_count.hard_limit = 1000;
 
     storage_db_t *db = storage_db_new(db_config, workers_count);
     storage_db_open(db);
@@ -123,7 +147,7 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
             &terminate_event_loop,
             program_context);
 
-    PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true);
+    PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true)
 
     struct sockaddr_in address = {0};
     size_t buffer_send_data_len;
@@ -139,34 +163,38 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
 
     SECTION("Prometheus - /metrics endpoint") {
         // Build up the list of the fields in the response
-        char *metrics_names[] = {
-                "cachegrand_network_total_received_packets",
-                "cachegrand_network_total_received_data",
-                "cachegrand_network_total_sent_packets",
-                "cachegrand_network_total_sent_data",
-                "cachegrand_network_total_accepted_connections",
-                "cachegrand_network_total_active_connections",
-                "cachegrand_network_total_accepted_tls_connections",
-                "cachegrand_network_total_active_tls_connections",
-                "cachegrand_storage_total_written_data",
-                "cachegrand_storage_total_write_iops",
-                "cachegrand_storage_total_read_data",
-                "cachegrand_storage_total_read_iops",
-                "cachegrand_storage_total_open_files",
+        test_metric_entry_t test_metrics[] = {
 
-                "cachegrand_network_per_minute_received_packets",
-                "cachegrand_network_per_minute_received_data",
-                "cachegrand_network_per_minute_sent_packets",
-                "cachegrand_network_per_minute_sent_data",
-                "cachegrand_network_per_minute_accepted_connections",
-                "cachegrand_network_per_minute_accepted_tls_connections",
-                "cachegrand_storage_per_minute_written_data",
-                "cachegrand_storage_per_minute_write_iops",
-                "cachegrand_storage_per_minute_read_data",
-                "cachegrand_storage_per_minute_read_iops",
+                { "cachegrand_uptime", false },
+                { "cachegrand_db_keys_count", false },
+                { "cachegrand_db_size", false },
 
-                "cachegrand_uptime",
-                NULL,
+                { "cachegrand_network_total_received_packets", true },
+                { "cachegrand_network_total_received_data", true },
+                { "cachegrand_network_total_sent_packets", true },
+                { "cachegrand_network_total_sent_data", true },
+                { "cachegrand_network_total_accepted_connections", true },
+                { "cachegrand_network_total_active_connections", true },
+                { "cachegrand_network_total_accepted_tls_connections", true },
+                { "cachegrand_network_total_active_tls_connections", true },
+                { "cachegrand_storage_total_written_data", true },
+                { "cachegrand_storage_total_write_iops", true },
+                { "cachegrand_storage_total_read_data", true },
+                { "cachegrand_storage_total_read_iops", true },
+                { "cachegrand_storage_total_open_files", true },
+
+                { "cachegrand_network_per_minute_received_packets", true },
+                { "cachegrand_network_per_minute_received_data", true },
+                { "cachegrand_network_per_minute_sent_packets", true },
+                { "cachegrand_network_per_minute_sent_data", true },
+                { "cachegrand_network_per_minute_accepted_connections", true },
+                { "cachegrand_network_per_minute_accepted_tls_connections", true },
+                { "cachegrand_storage_per_minute_written_data", true },
+                { "cachegrand_storage_per_minute_write_iops", true },
+                { "cachegrand_storage_per_minute_read_data", true },
+                { "cachegrand_storage_per_minute_read_iops", true },
+
+                nullptr,
         };
 
         char request_template[] =
@@ -185,7 +213,7 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
         buffer_send_data_len = strlen(buffer_send);
 
         SECTION("No env vars") {
-            char *new_line_ptr = NULL;
+            char *new_line_ptr;
             int buffer_recv_length;
             REQUIRE(send(clientfd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
             REQUIRE((buffer_recv_length = recv(clientfd, buffer_recv, sizeof(buffer_recv), 0)) > 0);
@@ -208,28 +236,34 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
             }
 
             // Ensure that has found the double new line at the end of the HTTP header
-            REQUIRE(new_line_ptr != NULL);
+            REQUIRE(new_line_ptr != nullptr);
 
-            for (char **metric_name = metrics_names; *metric_name; ++metric_name) {
+            for (int test_metric_index = 0; test_metrics[test_metric_index].name != nullptr; test_metric_index++) {
+                test_metric_entry_t *test_metric = &test_metrics[test_metric_index];
+
                 // Ensure that there is enough content in the buffer to contain the metric name, "{} ", at least 1 digit
                 // and then \n
-                REQUIRE((buffer_recv_length - ((new_line_ptr + 1) - buffer_recv)) >= strlen(*metric_name) + 3 + 1 + 1);
+                REQUIRE((buffer_recv_length - ((new_line_ptr + 1) - buffer_recv)) >= strlen(test_metric->name) + 3 + 1 + 1);
                 new_line_ptr++;
 
                 // Ensure that the next metric is the expected one
-                REQUIRE(strncmp(new_line_ptr, *metric_name, strlen(*metric_name)) == 0);
+                REQUIRE(strncmp(new_line_ptr, test_metric->name, strlen(test_metric->name)) == 0);
 
                 // As there are no env labels, ensure that the metric name is followed by "{worker="0"} "
-                REQUIRE(strncmp(new_line_ptr + strlen(*metric_name), "{worker=\"0\"} ", 3) == 0);
+                if (test_metric->metric_per_worker) {
+                    REQUIRE(strncmp(new_line_ptr + strlen(test_metric->name), "{worker=\"0\"} ", 13) == 0);
+                } else {
+                    REQUIRE(strncmp(new_line_ptr + strlen(test_metric->name), "{} ", 3) == 0);
+                }
 
                 // THere is always a new line at the end of the line, even the last line
-                REQUIRE((new_line_ptr = (char*)memchr(new_line_ptr, '\n', buffer_recv_length)) != NULL);
+                REQUIRE((new_line_ptr = (char*)memchr(new_line_ptr, '\n', buffer_recv_length)) != nullptr);
             }
         }
 
         SECTION("With env vars") {
             int buffer_recv_length;
-            char *new_line_ptr = NULL, *expected_env_labels = "label_1=\"value 1\",another_label=\"another value\"";
+            char *new_line_ptr, *expected_env_labels = R"(label_1="value 1",another_label="another value")";
 
             // Set 2 env vars to use them as lables in the metrics
             setenv("CACHEGRAND_METRIC_ENV_LABEL_1", "value 1", 1);
@@ -260,32 +294,59 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
             }
 
             // Ensure that has found the double new line at the end of the HTTP header
-            REQUIRE(new_line_ptr != NULL);
+            REQUIRE(new_line_ptr != nullptr);
 
+            char expected_labels_global[255] = { 0 };
+            snprintf(
+                    expected_labels_global,
+                    sizeof(expected_labels_global),
+                    "{%s}",
+                    expected_env_labels);
             for (int worker_index = 0; worker_index <= 1; worker_index++) {
-                for (char **metric_name = metrics_names; *metric_name; ++metric_name) {
-                    char expected_labels[255] = { 0 };
-                    snprintf(
-                            expected_labels,
-                            sizeof(expected_labels),
-                            "{worker=\"%s\",%s}",
-                            worker_index == 0 ? "0" : "aggregated",
-                            expected_env_labels);
+                char expected_labels_per_worker[255] = { 0 };
+                snprintf(
+                        expected_labels_per_worker,
+                        sizeof(expected_labels_per_worker),
+                        "{worker=\"%s\",%s}",
+                        worker_index == 0 ? "0" : "aggregated",
+                        expected_env_labels);
+
+                for (int test_metric_index = 0; test_metrics[test_metric_index].name != nullptr; ++test_metric_index) {
+                    if (worker_index > 0 && !test_metrics[test_metric_index].metric_per_worker) {
+                        continue;
+                    }
+
+                    test_metric_entry_t *test_metric = &test_metrics[test_metric_index];
 
                     // Ensure that there is enough content in the buffer to contain the metric name, the labels, a space, at
                     // least 1 digit and then \n
                     REQUIRE((buffer_recv_length - ((new_line_ptr + 1) - buffer_recv)) >=
-                        strlen(*metric_name) + strlen(expected_labels) + 1 + 1 + 1);
+                            strlen(test_metric->name) + strlen(expected_labels_per_worker) + 1 + 1 + 1);
                     new_line_ptr++;
 
                     // Ensure that the next metric is the expected one
-                    REQUIRE(strncmp(new_line_ptr, *metric_name, strlen(*metric_name)) == 0);
+                    REQUIRE(strncmp(new_line_ptr, test_metric->name, strlen(test_metric->name)) == 0);
 
-                    // Ensure that the metric name is followed by expected_labels
-                    REQUIRE(strncmp(new_line_ptr + strlen(*metric_name), expected_labels, strlen(expected_labels)) == 0);
+                    // As there are no env labels, ensure that the metric name is followed by "{worker="0"} "
+                    if (test_metric->metric_per_worker)
+                    {
+                        // Ensure that the metric name is followed by expected_labels_per_worker
+                        REQUIRE(strncmp(
+                                new_line_ptr + strlen(test_metric->name),
+                                expected_labels_per_worker,
+                                strlen(expected_labels_per_worker)) == 0);
+                    }
+                    else
+                    {
+                        // Ensure that the metric name is followed by expected_labels
+                        REQUIRE(strncmp(
+                                new_line_ptr + strlen(test_metric->name),
+                                expected_labels_global,
+                                strlen(expected_labels_global)) == 0);
+                    }
 
                     // THere is always a new line at the end of the line, even the last line
-                    REQUIRE((new_line_ptr = (char*)memchr(new_line_ptr, '\n', buffer_recv_length)) != NULL);
+                    REQUIRE((new_line_ptr = (char*)memchr(new_line_ptr, '\n', buffer_recv_length)) != nullptr);
                 }
             }
         }
@@ -320,8 +381,8 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
 
     // Wait for the thread to end
     if (worker_context->running) {
-        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false);
-        usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
+        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false)
+        usleep(10000);
     }
     sched_yield();
 

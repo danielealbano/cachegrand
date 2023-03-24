@@ -21,6 +21,7 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
 #include "fiber/fiber.h"
@@ -70,10 +71,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - EXPIRETIME",
         REQUIRE(send_recv_resp_command_multi_recv(
                 std::vector<std::string>{"EXPIRETIME", "a_key"},
                 buffer,
-                sizeof(buffer),
                 &out_buffer_length,
-                expected_length,
-                send_recv_resp_command_calculate_multi_recv(expected_length)));
+                expected_length));
 
         unixtime_response = strtoll(buffer + 1, nullptr, 10);
 

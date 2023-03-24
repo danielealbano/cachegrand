@@ -13,6 +13,7 @@
 #include <clock.h>
 #include <pthread.h>
 #include <arpa/inet.h>
+#include <stddef.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -25,6 +26,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "memory_allocator/ffma.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "module/module.h"
@@ -84,15 +86,27 @@ void worker_stats_publish(
     }
 }
 
-bool worker_stats_should_publish_after_interval(
-        worker_stats_volatile_t* worker_stats_public,
-        int interval) {
+bool worker_stats_should_publish_totals_after_interval(
+        worker_stats_volatile_t* worker_stats_public) {
     struct timespec last_update_timestamp;
 
     clock_realtime(&last_update_timestamp);
 
     bool res = last_update_timestamp.tv_sec >=
-        worker_stats_public->per_minute_last_update_timestamp.tv_sec + interval;
+               worker_stats_public->total_last_update_timestamp.tv_sec + 1;
+
+    return res;
+}
+
+bool worker_stats_should_publish_per_minute_after_interval(
+        worker_stats_volatile_t* worker_stats_public) {
+    struct timespec last_update_timestamp;
+
+    clock_realtime(&last_update_timestamp);
+
+    bool res = last_update_timestamp.tv_sec >=
+               worker_stats_public->per_minute_last_update_timestamp.tv_sec + 60;
+
     return res;
 }
 

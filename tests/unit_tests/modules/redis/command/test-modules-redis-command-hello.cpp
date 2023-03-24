@@ -23,6 +23,7 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
 #include "fiber/fiber.h"
@@ -77,8 +78,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - HELLO", "[re
         snprintf(buffer_send, sizeof(buffer_send) - 1, "*1\r\n$5\r\nHELLO\r\n");
         buffer_send_data_len = strlen(buffer_send);
 
-        REQUIRE(send(client_fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-        size_t len = recv(client_fd, buffer_recv, sizeof(buffer_recv), 0);
+        REQUIRE(send(this->c->fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+        size_t len = recv(this->c->fd, buffer_recv, sizeof(buffer_recv), 0);
 
         REQUIRE(len > strlen(hello_v2_expected_response_start) + strlen(hello_v2_expected_response_end));
 
@@ -93,8 +94,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - HELLO", "[re
         snprintf(buffer_send, sizeof(buffer_send) - 1, "*2\r\n$5\r\nHELLO\r\n$1\r\n2\r\n");
         buffer_send_data_len = strlen(buffer_send);
 
-        REQUIRE(send(client_fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-        size_t len = recv(client_fd, buffer_recv, sizeof(buffer_recv), 0);
+        REQUIRE(send(this->c->fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+        size_t len = recv(this->c->fd, buffer_recv, sizeof(buffer_recv), 0);
 
         REQUIRE(len > strlen(hello_v2_expected_response_start) + strlen(hello_v2_expected_response_end));
 
@@ -109,8 +110,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - HELLO", "[re
         snprintf(buffer_send, sizeof(buffer_send) - 1, "*2\r\n$5\r\nHELLO\r\n$1\r\n3\r\n");
         buffer_send_data_len = strlen(buffer_send);
 
-        REQUIRE(send(client_fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-        size_t len = recv(client_fd, buffer_recv, sizeof(buffer_recv), 0);
+        REQUIRE(send(this->c->fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+        size_t len = recv(this->c->fd, buffer_recv, sizeof(buffer_recv), 0);
 
         REQUIRE(len > strlen(hello_v3_expected_response_start) + strlen(hello_v3_expected_response_end));
 

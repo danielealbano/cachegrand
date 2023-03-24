@@ -23,6 +23,7 @@
 #include "transaction_spinlock.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -221,13 +222,13 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
         goto end;
     }
 
-    if (entry_index_1->value->size == 0 || entry_index_2->value->size == 0) {
+    if (entry_index_1->value.size == 0 || entry_index_2->value.size == 0) {
         goto end;
     }
 
     // Fetch the chunk sequences
-    storage_db_chunk_sequence_t *value_1 = entry_index_1->value;
-    storage_db_chunk_sequence_t *value_2 = entry_index_2->value;
+    storage_db_chunk_sequence_t *value_1 = &entry_index_1->value;
+    storage_db_chunk_sequence_t *value_2 = &entry_index_2->value;
 
     // Build the lcs map
     lcsmap = lcsmap_build(connection_context->db, value_1, value_2);

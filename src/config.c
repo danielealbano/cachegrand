@@ -10,10 +10,12 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdatomic.h>
 #include <string.h>
+#include <ctype.h>
 #include <errno.h>
 #include <arpa/inet.h>
+#include <sys/statvfs.h>
+#include <sys/sysinfo.h>
 #include <cyaml/cyaml.h>
 
 #include "exttypes.h"
@@ -24,6 +26,7 @@
 #include "xalloc.h"
 #include "log/log.h"
 #include "fatal.h"
+#include "utils_cpu.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "memory_allocator/ffma.h"
@@ -42,7 +45,7 @@
 
 void config_internal_cyaml_log(
         cyaml_log_t level_cyaml,
-        void *ctx,
+        __attribute__((unused)) void *ctx,
         const char *fmt,
         va_list args) {
     log_level_t level;
@@ -94,67 +97,448 @@ cyaml_err_t config_internal_cyaml_load(
         char* config_path,
         cyaml_config_t* cyaml_config,
         cyaml_schema_value_t* schema) {
-    return cyaml_load_file(config_path, cyaml_config, schema, (cyaml_data_t **)config, NULL);
+    return cyaml_load_file(
+            config_path,
+            cyaml_config,
+            schema,
+            (cyaml_data_t **)config,
+            NULL);
+}
+
+bool config_parse_string_absolute_or_percent(
+        char *string,
+        size_t string_len,
+        bool allow_negative,
+        bool allow_zero,
+        bool allow_percent,
+        bool allow_absolute,
+        bool allow_size_suffix,
+        int64_t *return_value,
+        config_parse_string_absolute_or_percent_return_value_t *return_value_type) {
+    bool result = false;
+    char *string_end;
+    size_t string_end_len;
+    int64_t string_value;
+
+    // Skip any leading space
+    while (isspace(string[0]) && string_len > 0) {
+        string++;
+        string_len--;
+    }
+
+    // Skip any trailing space
+    while (isspace(string[string_len - 1]) && string_len > 0) {
+        string_len--;
+    }
+
+    // If there are only spaces, skip them
+    if (string_len == 0) {
+        return false;
+    }
+
+    // As strtoll doesn't support non-null terminated strings, duplicate the string and null terminate it using strndup
+    string = strndup(string, string_len);
+    if (string == NULL) {
+        return false;
+    }
+
+    // Try to parse the number
+    string_value = strtoll(string, &string_end, 10);
+    string_end_len = strlen(string_end);
+
+    // Skip any leading space after parsing string_end
+    while (isspace(string_end[0]) && string_end_len > 0) {
+        string_end++;
+        string_end_len--;
+    }
+
+    // Check if the end of the string matches the beginning of the string, if's true then the string is not a number
+    if (string_end == string) {
+        goto end;
+    }
+
+    // Check if string_value is negative
+    if (!allow_negative && string_value < 0) {
+        goto end;
+    }
+
+    // Check if string_value is zero
+    if (!allow_zero && string_value == 0) {
+        goto end;
+    }
+
+    // Check if the string is a percent
+    if (allow_percent && string_end[0] == '%' && string_end_len == 1) {
+        if (string_value > 100) {
+            goto end;
+        }
+
+        *return_value = string_value;
+        *return_value_type = CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT;
+        result = true;
+        goto end;
+    }
+
+    if (!allow_absolute && !allow_size_suffix) {
+        goto end;
+    }
+
+    // Check if string_end matches the end of the string, if's true and allow_absolute is true then the value
+    // is absolute
+    if (allow_absolute && string_end_len == 0) {
+        *return_value = string_value;
+        *return_value_type = CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_ABSOLUTE;
+        result = true;
+        goto end;
+    }
+
+    // Check if the string is followed by the b, kb, mb, gb, tb suffixes
+    if (allow_size_suffix && string_end_len > 0) {
+        int64_t string_value_multiplier;
+
+        // Ensure that string_end is lowercase
+        for (size_t i = 0; i < string_end_len; i++) {
+            string_end[i] = (char)tolower((unsigned char)string_end[i]);
+        }
+
+        if (string_end[0] == 'b' && string_end_len == 1) {
+            string_value_multiplier = 0;
+        } else if (string_end[0] == 'k' && string_end[1] == 'b' && string_end_len == 2) {
+            string_value_multiplier = 1;
+        } else if (string_end[0] == 'm' && string_end[1] == 'b' && string_end_len == 2) {
+            string_value_multiplier = 2;
+        } else if (string_end[0] == 'g' && string_end[1] == 'b' && string_end_len == 2) {
+            string_value_multiplier = 3;
+        } else if (string_end[0] == 't' && string_end[1] == 'b' && string_end_len == 2) {
+            string_value_multiplier = 4;
+        } else {
+            goto end;
+        }
+
+        for(int i = 0; i < string_value_multiplier; i++) {
+            string_value *= 1024;
+        }
+
+        *return_value = string_value;
+        *return_value_type = CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_ABSOLUTE;
+        result = true;
+        goto end;
+    }
+
+end:
+    free(string);
+    return result;
+}
+
+bool config_validate_after_load_cpus(
+        config_t* config) {
+    bool return_result = true;
+    int max_cpu_count = utils_cpu_count();
+
+    // Validate that at least one CPU has been configured
+    if (config->cpus_count == 0) {
+        LOG_E(TAG, "No CPUs have been selected");
+        return false;
+    }
+
+    // Allocate the errors array
+    config_cpus_validate_error_t *errors = xalloc_alloc_zero(
+            sizeof(config_cpus_validate_error_t) * config->cpus_count);
+
+    // Validate the CPUs
+    if (config_cpus_validate(
+            max_cpu_count,
+            config->cpus,
+            config->cpus_count,
+            errors) == false) {
+        for(int cpu_index = 0; cpu_index < config->cpus_count; cpu_index++) {
+            if (errors[cpu_index] == CONFIG_CPUS_VALIDATE_OK) {
+                continue;
+            }
+
+            switch (errors[cpu_index]) {
+                default:
+                case CONFIG_CPUS_VALIDATE_ERROR_INVALID_CPU:
+                    LOG_E(TAG, "CPU(s) selector <%d> is invalid", cpu_index);
+                    break;
+
+                case CONFIG_CPUS_VALIDATE_ERROR_MULTIPLE_RANGES:
+                case CONFIG_CPUS_VALIDATE_ERROR_RANGE_TOO_SMALL:
+                    LOG_E(TAG, "CPU(s) selector <%d> has an invalid range", cpu_index);
+                    break;
+
+                case CONFIG_CPUS_VALIDATE_ERROR_UNEXPECTED_CHARACTER:
+                    LOG_E(TAG, "CPU(s) selector <%d> has an unexpected character", cpu_index);
+                    break;
+
+                case CONFIG_CPUS_VALIDATE_ERROR_NO_MULTI_CPUS_WITH_ALL:
+                    LOG_E(TAG, "CPU(s) selector <%d> is invalid, all the CPUs have already been selected", cpu_index);
+                    break;
+            }
+        }
+
+        return_result = false;
+    }
+
+    xalloc_free(errors);
+
+    return return_result;
+}
+
+bool config_validate_after_load_database_backend_file(
+        config_t* config) {
+    bool return_result = true;
+
+    if (config->database->backend != CONFIG_DATABASE_BACKEND_FILE) {
+        return return_result;
+    }
+
+    if (config->database->file == NULL) {
+        LOG_E(TAG, "The database backend is set to <file> but the <file> settings are not present");
+        return_result = false;
+    }
+
+    if (config->database->memory != NULL) {
+        LOG_E(TAG, "The database backend is set to <file> but the <memory> settings are present");
+        return_result = false;
+    }
+
+    if (config->database->file->limits && config->database->file->limits->soft
+        && config->database->file->limits->soft->max_disk_usage >=
+            config->database->file->limits->hard->max_disk_usage) {
+        LOG_E(TAG, "The soft limit for the maximum disk usage must be smaller than the hard limit");
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_database_backend_memory(
+        config_t* config) {
+    bool return_result = true;
+
+    if (config->database->backend != CONFIG_DATABASE_BACKEND_MEMORY) {
+        return return_result;
+    }
+
+    if (config->database->memory == NULL) {
+        LOG_E(TAG, "The database backend is set to <memory> but the <memory> settings are not present");
+        return_result = false;
+    }
+
+    if (config->database->file != NULL) {
+        LOG_E(TAG, "The database backend is set to <memory> but the <file> settings are present");
+        return_result = false;
+    }
+
+    if (config->database->memory->limits && config->database->memory->limits->soft
+        && config->database->memory->limits->soft->max_memory_usage >=
+            config->database->memory->limits->hard->max_memory_usage) {
+        LOG_E(TAG, "The soft limit for the maximum disk usage must be smaller than the hard limit");
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_database_limits(
+        config_t* config) {
+    bool return_result = true;
+
+    if (!config->database->limits) {
+        return return_result;
+    }
+
+    if (config->database->limits->soft
+        && config->database->limits->soft->max_keys >= config->database->limits->hard->max_keys) {
+        LOG_E(TAG, "The soft limit for the maximum number of keys must be smaller than the hard limit");
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_database_keys_eviction(
+        config_t* config) {
+    bool return_result = true;
+
+    if (!config->database->keys_eviction) {
+        return return_result;
+    }
+
+    if (config->database->keys_eviction->policy == CONFIG_DATABASE_KEYS_EVICTION_POLICY_TTL
+        && config->database->keys_eviction->only_ttl == false) {
+        LOG_E(TAG, "The keys eviction policy <ttl> requires <only_ttl> set to <true>");
+        return_result = false;
+    }
+
+    if (config->database->keys_eviction->batch_size < 1) {
+        LOG_E(TAG, "The keys eviction batch size must be greater than 0");
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_modules_network_timeout(
+        config_module_t *module) {
+    bool return_result = true;
+
+    if (module->network->timeout->read_ms < -1 || module->network->timeout->read_ms == 0) {
+        LOG_E(
+                TAG,
+                "In module <%s>, read_ms timeout can only be <-1> or a value greater than <0>",
+                config_module_type_schema_strings[module->type].str);
+        return_result = false;
+    }
+
+    if (module->network->timeout->write_ms < -1 || module->network->timeout->write_ms == 0) {
+        LOG_E(
+                TAG,
+                "In module <%s>, read_ms timeout can only be <-1> or a value greater than <0>",
+                config_module_type_schema_strings[module->type].str);
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_modules_network_bindings(
+        config_module_t *module) {
+    bool return_result = true;
+    bool tls_enabled = module->network->tls != NULL;
+
+    for(int binding_index = 0; binding_index < module->network->bindings_count; binding_index++) {
+        config_module_network_binding_t *binding = &module->network->bindings[binding_index];
+
+        // Ensure that if the binding requires tls than tls is enabled
+        if (binding->tls && tls_enabled == false) {
+            LOG_E(
+                    TAG,
+                    "In module <%s>, the binding <%s:%d> requires tls but tls is not configured",
+                    config_module_type_schema_strings[module->type].str,
+                    binding->host,
+                    binding->port);
+            return_result = false;
+        }
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_modules_network_tls(
+        config_module_t *module) {
+    bool return_result = true;
+
+    if (module->network->tls == NULL) {
+        return true;
+    }
+
+    if (!simple_file_io_exists(module->network->tls->certificate_path)) {
+        LOG_E(
+                TAG,
+                "In module <%s>, the certificate <%s> doesn't exist",
+                config_module_type_schema_strings[module->type].str,
+                module->network->tls->certificate_path);
+        return_result = false;
+    }
+
+    if (!simple_file_io_exists(module->network->tls->private_key_path)) {
+        LOG_E(
+                TAG,
+                "In module <%s>, the private key <%s> doesn't exist",
+                config_module_type_schema_strings[module->type].str,
+                module->network->tls->private_key_path);
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_modules_redis(
+        config_module_t *module) {
+    bool return_result = true;
+
+    if (module->type != CONFIG_MODULE_TYPE_REDIS) {
+        return true;
+    }
+
+    if (module->redis->max_key_length > FFMA_OBJECT_SIZE_MAX - 1) {
+        LOG_E(
+                TAG,
+                "In module <%s>, the allowed maximum value of max_key_length is <%u>",
+                config_module_type_schema_strings[module->type].str,
+                FFMA_OBJECT_SIZE_MAX - 1);
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_modules(
+        config_t* config) {
+    bool return_result = true;
+
+    for(int module_index = 0; module_index < config->modules_count; module_index++) {
+        config_module_t *module = &config->modules[module_index];
+
+        if (config_validate_after_load_modules_network_timeout(module) == false
+            || config_validate_after_load_modules_network_tls(module) == false
+            || config_validate_after_load_modules_network_bindings(module) == false
+            || config_validate_after_load_modules_redis(module) == false) {
+            return_result = false;
+        }
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_log_file(
+        config_log_t *log) {
+    bool return_result = true;
+
+    if (log->type != CONFIG_LOG_TYPE_FILE) {
+        return true;
+    }
+
+    if (log->file == NULL) {
+        LOG_E(
+                TAG,
+                "For log type <%s>, the <file> settings must be present",
+                config_log_type_schema_strings[log->type].str);
+        return_result = false;
+    }
+
+    return return_result;
+}
+
+bool config_validate_after_load_logs(
+        config_t* config) {
+    bool return_result = true;
+
+    for(int log_index = 0; log_index < config->logs_count; log_index++) {
+        config_log_t *log = &config->logs[log_index];
+
+        if (config_validate_after_load_log_file(log) == false) {
+            return_result = false;
+        }
+    }
+
+    return return_result;
 }
 
 bool config_validate_after_load(
         config_t* config) {
     bool return_result = true;
 
-    // TODO: validate the cpus list if present, if all is in the list anything else can be there
-
-    // TODO: if type == file in log sink, the file struct must be present (path will be present because of schema
-    //       validation)
-
-    // TODO: for log sinks, if all is set only negate flags can be set
-
-    for(int module_index = 0; module_index < config->modules_count; module_index++) {
-        // TODO: if keepalive struct is present, values must be allowed
-        config_module_t module = config->modules[module_index];
-
-        // Validate timeouts
-        if (module.network->timeout->read_ms < -1 || module.network->timeout->read_ms == 0) {
-            LOG_E(TAG, "read_ms timeout can only be <-1> or a value greater than <0>");
-            return_result = false;
-        }
-
-        if (module.network->timeout->write_ms < -1 || module.network->timeout->write_ms == 0) {
-            LOG_E(TAG, "read_ms timeout can only be <-1> or a value greater than <0>");
-            return_result = false;
-        }
-
-        // Validate TLS
-        if (module.network->tls != NULL) {
-            if (!simple_file_io_exists(module.network->tls->certificate_path)) {
-                LOG_E(TAG, "The certificate <%s> doesn't exist", module.network->tls->certificate_path);
-                return_result = false;
-            }
-
-            if (!simple_file_io_exists(module.network->tls->private_key_path)) {
-                LOG_E(TAG, "The private key <%s> doesn't exist", module.network->tls->private_key_path);
-                return_result = false;
-            }
-        }
-
-        // Validate ad-hoc protocol settings (redis)
-        if (module.type == CONFIG_MODULE_TYPE_REDIS) {
-            if (module.redis->max_key_length > FFMA_OBJECT_SIZE_MAX - 1) {
-                LOG_E(TAG, "The allowed maximum value of max_key_length is <%u>", FFMA_OBJECT_SIZE_MAX - 1);
-                return_result = false;
-            }
-        }
-
-        // Validate bindings
-        for(int binding_index = 0; binding_index < module.network->bindings_count; binding_index++) {
-            config_module_network_binding_t *binding = &module.network->bindings[binding_index];
-
-            if (binding->tls) {
-                if (module.network->tls == NULL) {
-                    LOG_E(TAG, "The binding <%s:%d> requires tls but tls is not configured", binding->host, binding->port);
-                    return_result = false;
-                }
-            }
-        }
+    if (config_validate_after_load_cpus(config) == false
+        || config_validate_after_load_database_backend_file(config) == false
+        || config_validate_after_load_database_backend_memory(config) == false
+        || config_validate_after_load_database_limits(config) == false
+        || config_validate_after_load_database_keys_eviction(config) == false
+        || config_validate_after_load_modules(config) == false
+        || config_validate_after_load_logs(config) == false) {
+        return_result = false;
     }
 
     return return_result;
@@ -174,14 +558,28 @@ bool config_cpus_validate(
         config_cpus_validate_error_t* config_cpus_validate_errors) {
     bool error = false;
 
+    bool has_all = false;
     for(uint32_t cpu_index = 0; cpu_index < cpus_count; cpu_index++) {
         bool cpu_is_range = false;
-        long cpu_number = -1;
+        long cpu_number;
         long cpu_number_range_start = -1;
         char* cpu = cpus[cpu_index];
         char* cpu_end = NULL;
 
+        if (has_all) {
+            config_cpus_validate_errors[cpu_index] = CONFIG_CPUS_VALIDATE_ERROR_NO_MULTI_CPUS_WITH_ALL;
+            continue;
+        }
+
         if (strncasecmp(cpu, "all", 3) == 0) {
+            if (strlen(cpu) > 3) {
+                config_cpus_validate_errors[cpu_index] = CONFIG_CPUS_VALIDATE_ERROR_INVALID_CPU;
+            } else if (cpu_index > 0) {
+                config_cpus_validate_errors[cpu_index] = CONFIG_CPUS_VALIDATE_ERROR_NO_MULTI_CPUS_WITH_ALL;
+            } else {
+                has_all = true;
+            }
+
             continue;
         }
 
@@ -245,7 +643,7 @@ bool config_cpus_parse(
 
     for(uint32_t cpu_index = 0; cpu_index < cpus_count; cpu_index++) {
         bool cpu_is_range = false;
-        long cpu_number = -1;
+        long cpu_number;
         long cpu_number_range_start = -1;
         long cpu_number_range_end = -1;
         long cpu_number_range_len = -1;
@@ -254,7 +652,7 @@ bool config_cpus_parse(
 
         if (strncasecmp(cpu, "all", 3) == 0) {
             select_all_cpus = true;
-            break;
+            continue;
         }
 
         do {
@@ -342,7 +740,7 @@ bool config_cpus_parse(
 }
 
 void config_cpus_filter_duplicates(
-        uint16_t* cpus,
+        const uint16_t* cpus,
         uint16_t cpus_count,
         uint16_t** unique_cpus,
         uint16_t* unique_cpus_count) {
@@ -384,6 +782,7 @@ void config_cpus_filter_duplicates(
 
 config_t* config_load(
         char* config_path) {
+    config_parse_string_absolute_or_percent_return_value_t return_value_type;
     config_t* config = NULL;
 
     LOG_I(TAG, "Loading the configuration from %s", config_path);
@@ -398,12 +797,131 @@ config_t* config_load(
         config = NULL;
     }
 
-    if (config) {
-        if (config_validate_after_load(config) == false) {
-            LOG_E(TAG, "Failed to validate the configuration");
+    if (!config) {
+        return NULL;
+    }
+
+    // Parse string numeric values
+    if (config->database->memory) {
+        // Get the total system memory
+        struct sysinfo sys_info;
+
+        if (sysinfo(&sys_info) < 0) {
+            LOG_E(TAG, "Failed to get the system memory information");
             config_free(config);
-            config = NULL;
+            return NULL;
         }
+
+        bool result = config_parse_string_absolute_or_percent(
+                config->database->memory->limits->hard->max_memory_usage_str,
+                strlen(config->database->memory->limits->hard->max_memory_usage_str),
+                false,
+                false,
+                true,
+                true,
+                true,
+                &config->database->memory->limits->hard->max_memory_usage,
+                &return_value_type);
+
+        if (!result) {
+            LOG_E(TAG, "Failed to parse the hard memory limit");
+            config_free(config);
+            return NULL;
+        }
+
+        if (return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT) {
+            config->database->memory->limits->hard->max_memory_usage =
+                    (int64_t)((double)sys_info.totalram * ((double)config->database->memory->limits->hard->max_memory_usage / 100.0));
+        }
+
+        if (config->database->memory->limits->soft) {
+            result = config_parse_string_absolute_or_percent(
+                    config->database->memory->limits->soft->max_memory_usage_str,
+                    strlen(config->database->memory->limits->soft->max_memory_usage_str),
+                    false,
+                    false,
+                    true,
+                    true,
+                    true,
+                    &config->database->memory->limits->soft->max_memory_usage,
+                    &return_value_type);
+
+            if (!result) {
+                LOG_E(TAG, "Failed to parse the soft memory limit");
+                config_free(config);
+                return NULL;
+            }
+
+            if (return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT) {
+                config->database->memory->limits->soft->max_memory_usage =
+                        (int64_t)((double)sys_info.totalram * ((double)config->database->memory->limits->soft->max_memory_usage / 100.0));
+            }
+        }
+    }
+
+    if (config->database->file) {
+        size_t total_disk_size;
+        struct statvfs vfs;
+
+        if (statvfs(config->database->file->path, &vfs) == 0) {
+            total_disk_size = vfs.f_blocks * vfs.f_frsize;
+        } else {
+            LOG_E(TAG, "Failed to get the disk information");
+            config_free(config);
+            return NULL;
+        }
+
+        bool result = config_parse_string_absolute_or_percent(
+                config->database->file->limits->hard->max_disk_usage_str,
+                strlen(config->database->file->limits->hard->max_disk_usage_str),
+                false,
+                false,
+                true,
+                true,
+                true,
+                &config->database->file->limits->hard->max_disk_usage,
+                &return_value_type);
+
+        if (!result) {
+            LOG_E(TAG, "Failed to parse the hard disk usage limit");
+            config_free(config);
+            return NULL;
+        }
+
+        if (return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT) {
+            config->database->file->limits->hard->max_disk_usage =
+                    (int64_t)((double)total_disk_size * ((double)config->database->file->limits->hard->max_disk_usage / 100.0));
+        }
+
+        if (config->database->file->limits->soft) {
+            result = config_parse_string_absolute_or_percent(
+                    config->database->file->limits->soft->max_disk_usage_str,
+                    strlen(config->database->file->limits->soft->max_disk_usage_str),
+                    false,
+                    false,
+                    true,
+                    true,
+                    true,
+                    &config->database->file->limits->soft->max_disk_usage,
+                    &return_value_type);
+
+            if (!result) {
+                LOG_E(TAG, "Failed to parse the soft disk usage limit");
+                config_free(config);
+                return NULL;
+            }
+
+            if (return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT) {
+                config->database->file->limits->soft->max_disk_usage =
+                        (int64_t)((double)total_disk_size * ((double)config->database->file->limits->soft->max_disk_usage / 100.0));
+            }
+        }
+    }
+
+    if (config_validate_after_load(config) == false) {
+        LOG_E(TAG, "Failed to validate the configuration");
+        config_free(config);
+        config = NULL;
     }
 
     return config;

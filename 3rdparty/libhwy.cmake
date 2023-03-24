@@ -1,0 +1,24 @@
+include(ProcessorCount)
+include(ExternalProject)
+
+set(LIBHWY_SRC_PATH "${CMAKE_BINARY_DIR}/_deps/src/hwy-build")
+set(LIBHWY_BUILD_PATH "${LIBHWY_SRC_PATH}-build")
+set(LIBHWY_INCLUDE_PATH "${LIBHWY_SRC_PATH}")
+
+ProcessorCount(BUILD_CPU_CORES)
+ExternalProject_Add(
+        hwy-build
+        GIT_REPOSITORY    https://github.com/google/highway
+        GIT_TAG           1.0.3
+        PREFIX            ${CMAKE_BINARY_DIR}/_deps
+        PATCH_COMMAND     ""
+        CONFIGURE_COMMAND ${CMAKE_COMMAND} -S ${LIBHWY_SRC_PATH} -B ${LIBHWY_BUILD_PATH} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DBUILD_SHARED_LIBS=1 -DHWY_ENABLE_EXAMPLES=0 -DHWY_ENABLE_INSTALL=0 -DHWY_ENABLE_TESTS=0
+        BUILD_COMMAND     CFLAGS="-fPIC" make -C ${LIBHWY_BUILD_PATH} -j ${BUILD_CPU_CORES} hwy/fast hwy_contrib/fast
+        BUILD_BYPRODUCTS  ${LIBHWY_BUILD_PATH}/libhwy.a ${LIBHWY_BUILD_PATH}/libhwy_contrib.a
+        INSTALL_COMMAND   "")
+
+set(LIBHWY_INCLUDE_DIRS "${LIBHWY_INCLUDE_PATH}")
+set(LIBHWY_LIBRARY_DIRS "${LIBHWY_BUILD_PATH}")
+
+list(APPEND DEPS_LIST_INCLUDE_DIRS "${LIBHWY_INCLUDE_DIRS}")
+list(APPEND DEPS_LIST_LIBRARY_DIRS "${LIBHWY_LIBRARY_DIRS}")

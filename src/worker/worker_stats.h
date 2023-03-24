@@ -55,9 +55,11 @@ void worker_stats_publish(
         worker_stats_volatile_t* worker_stats_public,
         bool only_total);
 
-bool worker_stats_should_publish_after_interval(
-        worker_stats_volatile_t* worker_stats_public,
-        int interval);
+bool worker_stats_should_publish_totals_after_interval(
+        worker_stats_volatile_t* worker_stats_public);
+
+bool worker_stats_should_publish_per_minute_after_interval(
+        worker_stats_volatile_t* worker_stats_public);
 
 worker_stats_t *worker_stats_get_internal_current();
 

@@ -23,6 +23,7 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
 #include "fiber/fiber.h"
@@ -60,8 +61,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GET", "[redi
         snprintf(buffer_send, sizeof(buffer_send) - 1, "*3\r\n$3\r\nSET\r\n$5\r\na_key\r\n$7\r\nb_value\r\n");
         buffer_send_data_len = strlen(buffer_send);
 
-        REQUIRE(send(client_fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
-        REQUIRE(recv(client_fd, buffer_recv, sizeof(buffer_recv), 0) == 5);
+        REQUIRE(send(this->c->fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+        REQUIRE(recv(this->c->fd, buffer_recv, sizeof(buffer_recv), 0) == 5);
         REQUIRE(strncmp(buffer_recv, "+OK\r\n", strlen("+OK\r\n")) == 0);
 
         for(int index = 0; index < 10; index++) {
@@ -77,11 +78,11 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GET", "[redi
         }
         buffer_send_data_len = strlen(buffer_send);
 
-        REQUIRE(send(client_fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
+        REQUIRE(send(this->c->fd, buffer_send, buffer_send_data_len, 0) == buffer_send_data_len);
 
         size_t recv_len = 0;
         do {
-            recv_len += recv(client_fd, buffer_recv, sizeof(buffer_recv), 0);
+            recv_len += recv(this->c->fd, buffer_recv, sizeof(buffer_recv), 0);
         } while(recv_len < 130);
 
         REQUIRE(strncmp(buffer_recv, buffer_recv_expected_start, strlen(buffer_recv_expected_start)) == 0);
@@ -134,8 +135,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GET", "[redi
         REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
                 expected_response,
-                expected_response_length,
-                send_recv_resp_command_calculate_multi_recv(long_value_length)));
+                expected_response_length));
 
         free(expected_response);
     }

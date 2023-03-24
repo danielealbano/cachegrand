@@ -22,6 +22,7 @@
 #include "transaction_spinlock.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "memory_allocator/ffma.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -49,7 +50,8 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
     transaction_t transaction = { 0 };
     storage_db_op_rmw_status_t rmw_status = { 0 };
     storage_db_entry_index_t *current_entry_index = NULL;
-    storage_db_chunk_sequence_t *destination_chunk_sequence = NULL, *current_chunk_sequence = NULL;
+    storage_db_chunk_sequence_t destination_chunk_sequence = { 0 };
+    storage_db_chunk_sequence_t *current_chunk_sequence = NULL;
     char *padding_memory_zeroed = NULL;
     size_t chunk_sequence_required_length = 0, requested_total_length = 0, current_chunk_sequence_length = 0;
 
@@ -89,18 +91,19 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
     }
 
     if (likely(current_entry_index)) {
-        current_chunk_sequence = current_entry_index->value;
+        current_chunk_sequence = &current_entry_index->value;
         current_chunk_sequence_length = current_chunk_sequence->size;
     }
 
-    requested_total_length = context->offset.value + context->value.value.chunk_sequence->size;
+    requested_total_length = context->offset.value + context->value.value.chunk_sequence.size;
     chunk_sequence_required_length =  requested_total_length > current_chunk_sequence_length
             ? requested_total_length
             : current_chunk_sequence_length;
 
-    if (unlikely((destination_chunk_sequence = storage_db_chunk_sequence_allocate(
+    if (unlikely(!storage_db_chunk_sequence_allocate(
             connection_context->db,
-            chunk_sequence_required_length)) == NULL)) {
+            &destination_chunk_sequence,
+            chunk_sequence_required_length))) {
         return_res = module_redis_connection_error_message_printf_noncritical(
                 connection_context,
                 "ERR setrange failed");
@@ -113,13 +116,13 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
     size_t destination_offset = 0, destination_chunk_offset = 0, range_value_chunk_offset = 0;
 
     destination_chunk_info = storage_db_chunk_sequence_get(
-            destination_chunk_sequence,
+            &destination_chunk_sequence,
             destination_chunk_index);
     current_chunk_info = storage_db_chunk_sequence_get(
             current_chunk_sequence,
             current_chunk_index);
     range_value_chunk_info = storage_db_chunk_sequence_get(
-            context->value.value.chunk_sequence,
+            &context->value.value.chunk_sequence,
             range_value_chunk_index);
 
     do {
@@ -163,7 +166,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
                 range_value_chunk_index++;
 
                 range_value_chunk_info = storage_db_chunk_sequence_get(
-                        context->value.value.chunk_sequence,
+                        &context->value.value.chunk_sequence,
                         range_value_chunk_index);
 
                 range_value_chunk_offset = 0;
@@ -246,7 +249,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
             current_chunk_index++;
 
             destination_chunk_info = storage_db_chunk_sequence_get(
-                    destination_chunk_sequence,
+                    &destination_chunk_sequence,
                     destination_chunk_index);
             current_chunk_info = storage_db_chunk_sequence_get(
                     current_chunk_sequence,
@@ -261,13 +264,13 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
                     current_chunk_sequence,
                     current_chunk_index);
         }
-    } while(destination_chunk_index < destination_chunk_sequence->count);
+    } while(destination_chunk_index < destination_chunk_sequence.count);
 
     if (unlikely(!storage_db_op_rmw_commit_update(
             connection_context->db,
             &rmw_status,
             STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
-            destination_chunk_sequence,
+            &destination_chunk_sequence,
             STORAGE_DB_ENTRY_NO_EXPIRY))) {
         return_res = module_redis_connection_error_message_printf_noncritical(
                 connection_context,
@@ -283,9 +286,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
 
     return_res = module_redis_connection_send_number(
             connection_context,
-            (int64_t)destination_chunk_sequence->size);
+            (int64_t)destination_chunk_sequence.size);
 
-    destination_chunk_sequence = NULL;
+    destination_chunk_sequence.sequence = NULL;
 
 end:
 
@@ -301,8 +304,8 @@ end:
         storage_db_entry_index_status_decrease_readers_counter(current_entry_index, NULL);
     }
 
-    if (unlikely(destination_chunk_sequence)) {
-        storage_db_chunk_sequence_free(connection_context->db, destination_chunk_sequence);
+    if (unlikely(destination_chunk_sequence.sequence)) {
+        storage_db_chunk_sequence_free_chunks(connection_context->db, &destination_chunk_sequence);
     }
 
     return return_res;

@@ -42,16 +42,16 @@ TEST_CASE("xalloc.c", "[xalloc]") {
         }
         SECTION("invalid size") {
             char *data;
-            bool fatal_catched = false;
+            bool fatal_caught = false;
 
             if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                 test_xalloc_setup_sigabrt_signal_handler();
                 data = (char*)xalloc_alloc(-1);
             } else {
-                fatal_catched = true;
+                fatal_caught = true;
             }
 
-            REQUIRE(fatal_catched);
+            REQUIRE(fatal_caught);
         }
     }
 
@@ -70,16 +70,16 @@ TEST_CASE("xalloc.c", "[xalloc]") {
         }
         SECTION("invalid size") {
             char *data = (char*)xalloc_alloc(16);
-            bool fatal_catched = false;
+            bool fatal_caught = false;
 
             if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                 test_xalloc_setup_sigabrt_signal_handler();
                 data = (char*)xalloc_realloc(data, -1);
             } else {
-                fatal_catched = true;
+                fatal_caught = true;
             }
 
-            REQUIRE(fatal_catched);
+            REQUIRE(fatal_caught);
 
             xalloc_free(data);
         }
@@ -106,16 +106,16 @@ TEST_CASE("xalloc.c", "[xalloc]") {
         }
         SECTION("invalid size") {
             char *data = NULL;
-            bool fatal_catched = false;
+            bool fatal_caught = false;
 
             if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                 test_xalloc_setup_sigabrt_signal_handler();
                 data = (char*)xalloc_alloc_zero(-1);
             } else {
-                fatal_catched = true;
+                fatal_caught = true;
             }
 
-            REQUIRE(fatal_catched);
+            REQUIRE(fatal_caught);
         }
     }
 
@@ -131,30 +131,30 @@ TEST_CASE("xalloc.c", "[xalloc]") {
 
         SECTION("invalid size") {
             uintptr_t data = 0;
-            bool fatal_catched = false;
+            bool fatal_caught = false;
 
             if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                 test_xalloc_setup_sigabrt_signal_handler();
                 data = (uintptr_t)xalloc_alloc_aligned(64, -1);
             } else {
-                fatal_catched = true;
+                fatal_caught = true;
             }
 
-            REQUIRE(fatal_catched);
+            REQUIRE(fatal_caught);
         }
 
         SECTION("invalid alignment") {
             uintptr_t data = 0;
-            bool fatal_catched = false;
+            bool fatal_caught = false;
 
             if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                 test_xalloc_setup_sigabrt_signal_handler();
                 data = (uintptr_t)xalloc_alloc_aligned(-1, 16);
             } else {
-                fatal_catched = true;
+                fatal_caught = true;
             }
 
-            REQUIRE(fatal_catched);
+            REQUIRE(fatal_caught);
         }
     }
 
@@ -173,30 +173,30 @@ TEST_CASE("xalloc.c", "[xalloc]") {
 
         SECTION("invalid size") {
             uintptr_t data = 0;
-            bool fatal_catched = false;
+            bool fatal_caught = false;
 
             if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                 test_xalloc_setup_sigabrt_signal_handler();
                 data = (uintptr_t)xalloc_alloc_aligned_zero(64, -1);
             } else {
-                fatal_catched = true;
+                fatal_caught = true;
             }
 
-            REQUIRE(fatal_catched);
+            REQUIRE(fatal_caught);
         }
 
         SECTION("invalid alignment") {
             uintptr_t data = 0;
-            bool fatal_catched = false;
+            bool fatal_caught = false;
 
             if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                 test_xalloc_setup_sigabrt_signal_handler();
                 data = (uintptr_t)xalloc_alloc_aligned_zero(-1, 16);
             } else {
-                fatal_catched = true;
+                fatal_caught = true;
             }
 
-            REQUIRE(fatal_catched);
+            REQUIRE(fatal_caught);
         }
     }
 
@@ -243,16 +243,16 @@ TEST_CASE("xalloc.c", "[xalloc]") {
         }
         SECTION("invalid size") {
             uintptr_t data = 0;
-            bool fatal_catched = false;
+            bool fatal_caught = false;
 
             if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                 test_xalloc_setup_sigabrt_signal_handler();
                 data = (uintptr_t)xalloc_mmap_alloc(-1);
             } else {
-                fatal_catched = true;
+                fatal_caught = true;
             }
 
-            REQUIRE(fatal_catched);
+            REQUIRE(fatal_caught);
         }
     }
 

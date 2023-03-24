@@ -66,9 +66,10 @@ bool hashtable_mcmp_op_get_key(
     assert(source_key != NULL);
     assert(source_key_size > 0);
 
-    *key = xalloc_alloc(source_key_size);
-    memcpy(*key, source_key, source_key_size);
     *key_size = source_key_size;
+    *key = xalloc_alloc(source_key_size + 1);
+    memcpy(*key, source_key, source_key_size);
+    (*key)[source_key_size] = 0;
 
     // Validate that the hash and the key length in the bucket haven't changed or that the bucket has been deleted in
     // the meantime

@@ -1,3 +1,4 @@
+include(ProcessorCount)
 include(ExternalProject)
 
 set(LIBCYAML_BUILD_PATH_REL "build/release")
@@ -10,6 +11,7 @@ set(LIBCYAML_INCLUDE_PATH "${LIBCYAML_SRC_PATH}/include")
 #   documents are not being reported correctly.
 # - because it's not a release version, enforce VERSION_DEVEL to 0
 # - build the dynamic version of the library for the tests (check tests/CMakeLists.txt for more details)
+ProcessorCount(BUILD_CPU_CORES)
 ExternalProject_Add(
         cyaml
         GIT_REPOSITORY    https://github.com/tlsa/libcyaml.git
@@ -19,7 +21,7 @@ ExternalProject_Add(
         BUILD_BYPRODUCTS ${CMAKE_BINARY_DIR}/_deps/src/cyaml/build/release/libcyaml.so.1
         BUILD_COMMAND
         sed -e "s/VERSION_DEVEL = 1/VERSION_DEVEL = 0/" -i ${LIBCYAML_SRC_PATH}/Makefile &&
-        CFLAGS="-fPIC" make -C ${LIBCYAML_SRC_PATH} ${LIBCYAML_BUILD_PATH_REL}/libcyaml.a ${LIBCYAML_BUILD_PATH_REL}/libcyaml.so.1
+        CFLAGS="-fPIC" make -C ${LIBCYAML_SRC_PATH} -j ${BUILD_CPU_CORES} ${LIBCYAML_BUILD_PATH_REL}/libcyaml.a ${LIBCYAML_BUILD_PATH_REL}/libcyaml.so.1
         INSTALL_COMMAND "")
 
 find_library(LIBCYAML_LIBRARY_DIRS NAMES yaml NAMES_PER_DIR)

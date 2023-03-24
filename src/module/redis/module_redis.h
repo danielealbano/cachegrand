@@ -96,7 +96,7 @@ struct module_redis_pattern {
 
 typedef struct module_redis_long_string module_redis_long_string_t;
 struct module_redis_long_string {
-    storage_db_chunk_sequence_t *chunk_sequence;
+    storage_db_chunk_sequence_t chunk_sequence;
     struct {
         storage_db_chunk_index_t index;
         off_t offset;

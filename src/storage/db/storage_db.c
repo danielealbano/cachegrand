@@ -27,6 +27,7 @@
 #include "transaction_spinlock.h"
 #include "utils_string.h"
 #include "xalloc.h"
+#include "random.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -39,8 +40,8 @@
 #include "data_structures/hashtable/mcmp/hashtable_op_iter.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_rmw.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_get_random_key.h"
-#include "data_structures/hashtable/mcmp/hashtable_thread_counters.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "memory_allocator/ffma.h"
 #include "fiber/fiber.h"
 #include "fiber/fiber_scheduler.h"
@@ -51,10 +52,90 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/storage.h"
+#include "libhwy_c_wrapper/vqsort_c_exports.h"
 
 #include "storage_db.h"
 
 #define TAG "storage_db"
+
+pthread_key_t storage_db_counters_index_key;
+static pthread_once_t storage_db_counters_index_key_once = PTHREAD_ONCE_INIT;
+
+static void storage_db_counters_index_key_destroy(void *value) {
+    storage_db_counters_slots_bitmap_and_index_t *slot =
+            (storage_db_counters_slots_bitmap_and_index_t*)value;
+
+    slots_bitmap_mpmc_release(slot->slots_bitmap, slot->index);
+    ffma_mem_free(slot);
+}
+
+void storage_db_counters_slot_key_init_once() {
+    pthread_key_create(
+            &storage_db_counters_index_key,
+            storage_db_counters_index_key_destroy);
+
+    pthread_setspecific(storage_db_counters_index_key, NULL);
+}
+
+void storage_db_counters_slot_key_ensure_init(
+        storage_db_t *storage_db) {
+    // ensure that storage_db_counters_index_key has been initialized once, if not set it up passing the
+    // storage_db down the line
+    pthread_once(
+            &storage_db_counters_index_key_once,
+            storage_db_counters_slot_key_init_once);
+
+    // If the value is set to null, it means that the current thread has not been assigned a slot yet
+    if (pthread_getspecific(storage_db_counters_index_key) == NULL) {
+        storage_db_counters_slots_bitmap_and_index_t *slot =
+            ffma_mem_alloc(sizeof(storage_db_counters_slots_bitmap_and_index_t));
+        if (!slot) {
+            FATAL(TAG, "Unable to allocate memory for storage db counters");
+        }
+
+        slot->slots_bitmap = storage_db->counters_slots_bitmap;
+        slot->index = slots_bitmap_mpmc_get_next_available(slot->slots_bitmap);
+
+        if (slot->index == UINT64_MAX) {
+            FATAL(TAG, "No more slots available for worker counters");
+        }
+
+        pthread_setspecific(storage_db_counters_index_key, slot);
+    }
+}
+
+uint64_t storage_db_counters_get_current_thread_get_slot_index(
+        storage_db_t *storage_db) {
+    storage_db_counters_slot_key_ensure_init(storage_db);
+
+    void *value = pthread_getspecific(storage_db_counters_index_key);
+    storage_db_counters_slots_bitmap_and_index_t *slot =
+            (storage_db_counters_slots_bitmap_and_index_t*)value;
+
+    return slot->index;
+}
+
+storage_db_counters_t* storage_db_counters_get_current_thread_data(
+        storage_db_t *storage_db) {
+    return &storage_db->counters[storage_db_counters_get_current_thread_get_slot_index(storage_db)];
+}
+
+void storage_db_counters_sum(
+        storage_db_t *storage_db,
+        storage_db_counters_t *counters) {
+    uint64_t workers_to_find = storage_db->workers_count;
+    uint64_t found_slot_index;
+    uint64_t next_slot_index = 0;
+
+    counters->data_size = 0;
+    while(workers_to_find > 0 && (found_slot_index =
+            slots_bitmap_mpmc_iter(storage_db->counters_slots_bitmap, next_slot_index)) != UINT64_MAX) {
+        counters->data_size += storage_db->counters[found_slot_index].data_size;
+        counters->keys_count += storage_db->counters[found_slot_index].keys_count;
+        next_slot_index = found_slot_index + 1;
+        workers_to_find--;
+    }
+}
 
 char *storage_db_shard_build_path(
         char *basedir_path,
@@ -112,7 +193,7 @@ storage_db_t* storage_db_new(
         goto fail;
     }
     hashtable_config->can_auto_resize = false;
-    hashtable_config->initial_size = pow2_next(config->max_keys);
+    hashtable_config->initial_size = pow2_next(config->limits.keys_count.hard_limit);
 
     // Initialize the hashtable
     hashtable = hashtable_mcmp_init(hashtable_config);
@@ -160,7 +241,9 @@ storage_db_t* storage_db_new(
     // Sets up all the db related information
     db->config = config;
     db->workers = workers;
+    db->workers_count = workers_count;
     db->hashtable = hashtable;
+    db->counters_slots_bitmap = slots_bitmap_mpmc_init(STORAGE_DB_WORKERS_MAX);
 
     // Sets up the shards only if it has to write to the disk
     if (config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
@@ -173,6 +256,9 @@ storage_db_t* storage_db_new(
             goto fail;
         }
     }
+
+    // Import the hard and soft limits for the keys eviction
+    memcpy(&db->limits, &config->limits, sizeof(storage_db_limits_t));
 
     return db;
 fail:
@@ -498,6 +584,7 @@ void storage_db_free(
         storage_db_entry_index_free(db, data);
     }
 
+    slots_bitmap_mpmc_free(db->counters_slots_bitmap);
     hashtable_mcmp_free(db->hashtable);
     storage_db_config_free(db->config);
     ffma_mem_free(db->workers);
@@ -544,13 +631,12 @@ void storage_db_entry_index_ring_buffer_free(
         storage_db_entry_index_t *entry_index) {
     ring_bounded_queue_spsc_voidptr_t *rb = storage_db_worker_deleted_entry_index_ring_buffer(db);
 
-    // If the queue is full, the entry in the head can be dequeued and freed because it means it has lived enough
     if (ring_bounded_queue_spsc_voidptr_is_full(rb)) {
         storage_db_entry_index_t *entry_index_to_free = ring_bounded_queue_spsc_voidptr_dequeue(rb);
         storage_db_entry_index_free(db, entry_index_to_free);
     }
 
-    ring_bounded_queue_spsc_voidptr_enqueue(rb, entry_index);
+    assert(ring_bounded_queue_spsc_voidptr_enqueue(rb, entry_index));
 }
 
 storage_db_entry_index_t *storage_db_entry_index_new() {
@@ -578,22 +664,14 @@ bool storage_db_chunk_sequence_is_size_allowed(
     return !error;
 }
 
-storage_db_chunk_sequence_t *storage_db_chunk_sequence_allocate(
+bool storage_db_chunk_sequence_allocate(
         storage_db_t *db,
+        storage_db_chunk_sequence_t *chunk_sequence,
         size_t size) {
     bool return_result = false;
     storage_db_chunk_index_t allocated_chunks_count = 0;
     uint32_t chunk_count = storage_db_chunk_sequence_calculate_chunk_count(size);
     size_t remaining_length = size;
-
-    storage_db_chunk_sequence_t *chunk_sequence = ffma_mem_alloc(sizeof(storage_db_chunk_sequence_t));
-
-    if (unlikely(!chunk_sequence)) {
-        LOG_E(
-                TAG,
-                "Failed to allocate a chunk sequence");
-        goto end;
-    }
 
     chunk_sequence->size = size;
     chunk_sequence->count = chunk_count;
@@ -626,23 +704,22 @@ storage_db_chunk_sequence_t *storage_db_chunk_sequence_allocate(
 
 end:
     if (unlikely(!return_result)) {
-        if (chunk_sequence) {
-            if (chunk_sequence->sequence) {
-                for(storage_db_chunk_index_t chunk_index = 0; chunk_index < allocated_chunks_count; chunk_index++) {
-                    storage_db_chunk_data_free(db, storage_db_chunk_sequence_get(chunk_sequence, chunk_index));
-                }
-                ffma_mem_free(chunk_sequence->sequence);
+        if (chunk_sequence->sequence) {
+            for(storage_db_chunk_index_t chunk_index = 0; chunk_index < allocated_chunks_count; chunk_index++) {
+                storage_db_chunk_data_free(db, storage_db_chunk_sequence_get(chunk_sequence, chunk_index));
             }
 
-            ffma_mem_free(chunk_sequence);
-            chunk_sequence = NULL;
+            ffma_mem_free(chunk_sequence->sequence);
+            chunk_sequence->sequence = NULL;
+            chunk_sequence->size = 0;
+            chunk_sequence->count = 0;
         }
     }
 
-    return chunk_sequence;
+    return return_result;
 }
 
-void storage_db_chunk_sequence_free(
+void storage_db_chunk_sequence_free_chunks(
         storage_db_t *db,
         storage_db_chunk_sequence_t *sequence) {
     for (
@@ -661,16 +738,16 @@ void storage_db_chunk_sequence_free(
 void storage_db_entry_index_chunks_free(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index) {
-    if (entry_index->key) {
+    if (entry_index->key.size > 0) {
         // If the backend is only memory, the key is managed by the hashtable and the chunks are not stored
         // in memory, so it's necessary to free only the chunks of the values
         if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
-            storage_db_chunk_sequence_free(db, entry_index->key);
+            storage_db_chunk_sequence_free_chunks(db, &entry_index->key);
         }
     }
 
-    if (entry_index->value) {
-        storage_db_chunk_sequence_free(db, entry_index->value);
+    if (entry_index->value.size > 0) {
+        storage_db_chunk_sequence_free_chunks(db, &entry_index->value);
     }
 }
 
@@ -678,7 +755,6 @@ void storage_db_entry_index_free(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index) {
     storage_db_entry_index_chunks_free(db, entry_index);
-
     ffma_mem_free(entry_index);
 }
 
@@ -814,9 +890,26 @@ void storage_db_entry_index_status_increase_readers_counter(
         storage_db_entry_index_t* entry_index,
         storage_db_entry_index_status_t *old_status) {
     storage_db_entry_index_status_t old_status_internal;
-    uint32_t old_cas_wrapper_ret = __sync_fetch_and_add(
+    storage_db_entry_index_status_t new_status_internal;
+
+    // Use a CAS loop to increase the readers counters and the access counters
+    do {
+        MEMORY_FENCE_LOAD();
+        old_status_internal._cas_wrapper = entry_index->status._cas_wrapper;
+        new_status_internal._cas_wrapper = old_status_internal._cas_wrapper;
+
+        new_status_internal.readers_counter++;
+        new_status_internal.accesses_counter++;
+
+        // Keep the max access counter below UINT32_MAX to avoid a rollover
+        if (new_status_internal.accesses_counter == UINT32_MAX) {
+            new_status_internal.accesses_counter--;
+        }
+
+    } while (!__sync_bool_compare_and_swap(
             &entry_index->status._cas_wrapper,
-            (uint32_t)1);
+            old_status_internal._cas_wrapper,
+            new_status_internal._cas_wrapper));
 
     // The MSB bit of _cas_wrapper is used for the deleted flag, if the readers_counter gets to 0x7FFFFFFF another lock
     // request would implicitly set the "deleted" flag to true.
@@ -827,18 +920,17 @@ void storage_db_entry_index_status_increase_readers_counter(
     // risking that other worker threads would increase it further causing the overflow.
     // In general just keeping the second MSB "free" for that scenario, the amount of padding required depends on the
     // amount of hardware threads that the cpu(s) are able to run in parallel.
-    assert((old_cas_wrapper_ret & 0x7FFFFFFF) != 0x7FFFFFFF);
+    assert((old_status_internal._cas_wrapper & 0x7FFFFFFF) != 0x7FFFFFFF);
 
     // If the entry is marked as deleted reduce the readers counter to drop the lock
-    old_status_internal._cas_wrapper = old_cas_wrapper_ret;
     if (unlikely(old_status_internal.deleted)) {
-        old_cas_wrapper_ret = __sync_fetch_and_sub(
+        new_status_internal._cas_wrapper = __sync_fetch_and_sub(
                 &entry_index->status._cas_wrapper,
                 (uint32_t)1);
     }
 
     if (likely(old_status)) {
-        old_status->_cas_wrapper = old_cas_wrapper_ret;
+        old_status->_cas_wrapper = new_status_internal._cas_wrapper;
     }
 }
 
@@ -919,13 +1011,7 @@ void storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
     // if there are readers, the entry index can't be freed or reused until readers_counter gets down to zero
 
     if (old_status.readers_counter == 0) {
-        storage_db_entry_index_status_set_deleted(
-                previous_entry_index,
-                true,
-                NULL);
-
         storage_db_entry_index_chunks_free(db, previous_entry_index);
-
         storage_db_entry_index_ring_buffer_free(db, previous_entry_index);
     } else {
         double_linked_list_item_t *item = double_linked_list_item_init();
@@ -1069,8 +1155,16 @@ bool storage_db_set_entry_index(
             (uintptr_t)entry_index,
             (uintptr_t*)&previous_entry_index);
 
-    if (res && previous_entry_index != NULL) {
-        storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, previous_entry_index);
+    if (res) {
+        int64_t counter_data_size_delta = (int64_t)entry_index->value.size;
+        if (previous_entry_index != NULL) {
+            counter_data_size_delta -= (int64_t)previous_entry_index->value.size;
+
+            storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, previous_entry_index);
+        }
+
+        storage_db_counters_get_current_thread_data(db)->keys_count += previous_entry_index ? 0 : 1;
+        storage_db_counters_get_current_thread_data(db)->data_size += counter_data_size_delta;
     }
 
     return res;
@@ -1083,20 +1177,19 @@ bool storage_db_op_set(
         storage_db_entry_index_value_type_t value_type,
         storage_db_chunk_sequence_t *value_chunk_sequence,
         storage_db_expiry_time_ms_t expiry_time_ms) {
+    storage_db_entry_index_t *entry_index = NULL;
     bool result_res = false;
 
-    storage_db_entry_index_t *entry_index = storage_db_entry_index_ring_buffer_new(db);
-    if (!entry_index) {
-        LOG_E(TAG, "Unable to allocate the database index entry in memory");
+    if (storage_db_will_new_entry_hit_hard_limit(db, value_chunk_sequence->size)) {
+        LOG_V(TAG, "Unable to set the key because it would exceed the hard limit");
         goto end;
     }
 
-    // Set up the key if necessary
-    entry_index->key = NULL;
-    if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
-        entry_index->key = storage_db_chunk_sequence_allocate(db, key_length);
+    entry_index = storage_db_entry_index_ring_buffer_new(db);
 
-        if (!entry_index->key) {
+    // Set up the key if necessary
+    if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
+        if (!storage_db_chunk_sequence_allocate(db, &entry_index->key, key_length)) {
             LOG_E(TAG, "Unable to allocate the chunks for the key");
             goto end;
         }
@@ -1105,7 +1198,7 @@ bool storage_db_op_set(
         if (!storage_db_chunk_write(
                 db,
                 storage_db_chunk_sequence_get(
-                        entry_index->key,
+                        &entry_index->key,
                         0),
                 0,
                 key,
@@ -1116,7 +1209,9 @@ bool storage_db_op_set(
     }
 
     // Fetch a new entry and assign the key and the value as needed
-    entry_index->value = value_chunk_sequence;
+    entry_index->value.size = value_chunk_sequence->size;
+    entry_index->value.count = value_chunk_sequence->count;
+    entry_index->value.sequence = value_chunk_sequence->sequence;
     entry_index->expiry_time_ms = expiry_time_ms;
 
     // Try to store the entry index in the database
@@ -1127,7 +1222,9 @@ bool storage_db_op_set(
             entry_index)) {
         // As the operation failed while getting ownership of the value, it gets set back to null as to let the caller
         // handle the memory free as necessary
-        entry_index->value = NULL;
+        entry_index->value.size = 0;
+        entry_index->value.count = 0;
+        entry_index->value.sequence = NULL;
         goto end;
     }
 
@@ -1212,22 +1309,19 @@ bool storage_db_op_rmw_commit_update(
         storage_db_entry_index_value_type_t value_type,
         storage_db_chunk_sequence_t *value_chunk_sequence,
         storage_db_expiry_time_ms_t expiry_time_ms) {
+    storage_db_entry_index_t *entry_index = NULL;
     bool result_res = false;
 
-    storage_db_entry_index_t *entry_index = storage_db_entry_index_ring_buffer_new(db);
-    if (!entry_index) {
-        LOG_E(TAG, "Unable to allocate the database index entry in memory");
+    if (storage_db_will_new_entry_hit_hard_limit(db, value_chunk_sequence->size)) {
+        LOG_V(TAG, "Unable to set the key because it would exceed the hard limit");
         goto end;
     }
 
-    // Set up the key if necessary
-    entry_index->key = NULL;
-    if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
-        entry_index->key = storage_db_chunk_sequence_allocate(
-                db,
-                rmw_status->hashtable.key_size);
+    entry_index = storage_db_entry_index_ring_buffer_new(db);
 
-        if (!entry_index->key) {
+    // Set up the key if necessary
+    if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
+        if (!storage_db_chunk_sequence_allocate(db, &entry_index->key, rmw_status->hashtable.key_size)) {
             LOG_E(TAG, "Unable to allocate the chunks for the key");
             goto end;
         }
@@ -1236,7 +1330,7 @@ bool storage_db_op_rmw_commit_update(
         if (!storage_db_chunk_write(
                 db,
                 storage_db_chunk_sequence_get(
-                        entry_index->key,
+                        &entry_index->key,
                         0),
                 0,
                 rmw_status->hashtable.key,
@@ -1247,7 +1341,9 @@ bool storage_db_op_rmw_commit_update(
     }
 
     // Fetch a new entry and assign the key and the value as needed
-    entry_index->value = value_chunk_sequence;
+    entry_index->value.size = value_chunk_sequence->size;
+    entry_index->value.count = value_chunk_sequence->count;
+    entry_index->value.sequence = value_chunk_sequence->sequence;
     entry_index->expiry_time_ms = expiry_time_ms;
 
     storage_db_entry_index_touch(entry_index);
@@ -1256,11 +1352,18 @@ bool storage_db_op_rmw_commit_update(
             &rmw_status->hashtable,
             (uintptr_t)entry_index);
 
+    int64_t counter_data_size_delta = (int64_t)entry_index->value.size;
     if (rmw_status->hashtable.current_value != 0) {
+        counter_data_size_delta -=
+                (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value.size;
+
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
                 db,
                 (storage_db_entry_index_t *)rmw_status->hashtable.current_value);
     }
+
+    storage_db_counters_get_current_thread_data(db)->data_size += counter_data_size_delta;
+    storage_db_counters_get_current_thread_data(db)->keys_count += rmw_status->hashtable.current_value ? 0 : 1;
 
     result_res = true;
 
@@ -1300,6 +1403,10 @@ void storage_db_op_rmw_commit_rename(
 void storage_db_op_rmw_commit_delete(
         storage_db_t *db,
         storage_db_op_rmw_status_t *rmw_status) {
+    storage_db_counters_get_current_thread_data(db)->data_size -=
+            (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value.size;
+    storage_db_counters_get_current_thread_data(db)->keys_count--;
+
     storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
             db,
             (storage_db_entry_index_t *)rmw_status->hashtable.current_value);
@@ -1330,20 +1437,30 @@ bool storage_db_op_delete(
             (uintptr_t*)&current_entry_index);
 
     if (res && current_entry_index != NULL) {
+        storage_db_counters_get_current_thread_data(db)->data_size -=
+                (int64_t)current_entry_index->value.size;
+        storage_db_counters_get_current_thread_data(db)->keys_count--;
+
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
     }
 
     return res;
 }
 
-int64_t storage_db_op_get_size(
+int64_t storage_db_op_get_keys_count(
         storage_db_t *db) {
-    int64_t size = 0;
-    hashtable_counters_t *counters_sum = hashtable_mcmp_thread_counters_sum_fetch(db->hashtable);
-    size = counters_sum->size;
-    hashtable_mcmp_thread_counters_sum_free(counters_sum);
+    storage_db_counters_t counters = { 0 };
+    storage_db_counters_sum(db, &counters);
 
-    return size;
+    return counters.keys_count;
+}
+
+int64_t storage_db_op_get_data_size(
+        storage_db_t *db) {
+    storage_db_counters_t counters = { 0 };
+    storage_db_counters_sum(db, &counters);
+
+    return counters.data_size;
 }
 
 char *storage_db_op_random_key(
@@ -1351,8 +1468,8 @@ char *storage_db_op_random_key(
         hashtable_key_size_t *key_size) {
     char *key = NULL;
 
-    while(storage_db_op_get_size(db) > 0 &&
-        !hashtable_mcmp_op_get_random_key_try(db->hashtable, &key, key_size)) {
+    while(storage_db_op_get_keys_count(db) > 0 &&
+          !hashtable_mcmp_op_get_random_key_try(db->hashtable, &key, key_size)) {
         // do nothing
     }
 
@@ -1405,7 +1522,7 @@ storage_db_key_and_key_length_t *storage_db_op_get_keys(
     *keys_count = 0;
     *cursor_next = 0;
 
-    if (unlikely(storage_db_op_get_size(db)) == 0) {
+    if (unlikely(storage_db_op_get_keys_count(db)) == 0) {
         return NULL;
     }
 
@@ -1476,4 +1593,139 @@ void storage_db_free_key_and_key_length_list(
         xalloc_free(keys[index].key);
     }
     xalloc_free(keys);
+}
+
+void storage_db_keys_eviction_run_worker(
+        storage_db_t *db,
+        uint64_t batch_size,
+        bool only_ttl,
+        config_database_keys_eviction_policy_t policy,
+        uint32_t worker_index) {
+    uint32_t workers_count = db->workers_count;
+
+    // Calculate the segment of the hashtable that has to be covered by this worke
+    uint64_t buckets_count = db->hashtable->ht_current->buckets_count_real;
+    uint64_t buckets_per_worker = (uint64_t)ceil((double)buckets_count / (double)workers_count);
+    uint64_t buckets_start = buckets_per_worker * worker_index;
+    uint64_t buckets_end = buckets_start + buckets_per_worker;
+    if (worker_index == workers_count - 1) {
+        buckets_end = buckets_count;
+    }
+
+    // Calculate the size of the sample of keys to extract
+    uint64_t sample_size = (uint64_t)((double)(buckets_end - buckets_start) * STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_PERC);
+
+    // Check the size of the sample against an hard cap to avoid wasting too much memory for the keys eviction itself
+    if (unlikely(sample_size > STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MAX)) {
+        sample_size = STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MAX;
+    }
+
+    // If the sample is smaller than STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MIN then the eviction is not worth it
+    if (sample_size < STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MIN) {
+        return;
+    }
+
+    // As the resizing has to be taken into account but not yet implemented, the assert will catch if the resizing is
+    // implemented without having dealt with the flush
+    assert(db->hashtable->ht_old == NULL);
+
+    // As there are multiple policies to evict keys, the first thing that has to be done is to get a random sample of the
+    // keys that have to be evicted and then apply the policy to the sample
+    uint64_t keys_eviction_candidates_list_count = 0;
+    uint64_t keys_eviction_candidates_list_size = buckets_end - buckets_start;
+    vqsort_kv64_t *keys_evitction_candidates_list =
+            xalloc_alloc(sizeof(vqsort_kv64_t) * keys_eviction_candidates_list_size);
+
+    // Iterates over the hashtable to free up the entry index
+    hashtable_bucket_index_t bucket_index = buckets_start, current_bucket_index;
+    void *data = NULL;
+    for(
+            data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index);
+            data && keys_eviction_candidates_list_count <= sample_size;
+            (data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index))) {
+        hashtable_key_data_t *key;
+        hashtable_key_size_t key_size;
+        storage_db_entry_index_t *entry_index = data;
+        current_bucket_index = bucket_index;
+
+        // TODO: should be random, this is fixed
+        // Calculate the step taking into account the sample size still to extract to have a fair distribution of keys
+        // taken into account
+        hashtable_bucket_index_t iter_step =
+                (uint64_t)ceil(((double)(buckets_end - bucket_index) / (double)(sample_size - keys_eviction_candidates_list_count) / 0.75));
+        bucket_index += iter_step;
+
+        // If the bucket index is out of the range of the current worker or if the entry index is NULL, as there are no
+        // more buckets to iterate over, then stop the iteration
+        if (unlikely(current_bucket_index >= buckets_end || entry_index == NULL)) {
+            break;
+        }
+
+        // If only the keys with expiry time have to be evicted and the current key has no expiry time, then skip it
+        if (unlikely(only_ttl && entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY)) {
+            continue;
+        }
+
+        // Fetch the key from the hashtable
+        if (unlikely(!hashtable_mcmp_op_get_key(db->hashtable, current_bucket_index, &key, &key_size))) {
+            continue;
+        }
+
+        assert(keys_eviction_candidates_list_count < keys_eviction_candidates_list_size);
+
+        // Fetch the sorting key
+        uint64_t sort_key;
+        switch(policy) {
+            case CONFIG_DATABASE_KEYS_EVICTION_POLICY_RANDOM:
+                sort_key = random_generate();
+                break;
+            case CONFIG_DATABASE_KEYS_EVICTION_POLICY_LRU:
+                sort_key = entry_index->last_access_time_ms;
+                break;
+            case CONFIG_DATABASE_KEYS_EVICTION_POLICY_LFU:
+                sort_key = entry_index->status.accesses_counter;
+                break;
+            case CONFIG_DATABASE_KEYS_EVICTION_POLICY_TTL:
+                sort_key = entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY
+                        ? UINT64_MAX
+                        : entry_index->expiry_time_ms;
+                break;
+            default:
+                assert(false);
+        }
+
+        // Set the sort key and the value (the key of the entry)
+        keys_evitction_candidates_list[keys_eviction_candidates_list_count].key = sort_key;
+        keys_evitction_candidates_list[keys_eviction_candidates_list_count].value = (uint64_t)key;
+
+        // Increment the counter of the keys in the list
+        keys_eviction_candidates_list_count++;
+    }
+
+    assert(keys_eviction_candidates_list_count > 0);
+    vqsort_u128_asc((uint128_t*)keys_evitction_candidates_list, keys_eviction_candidates_list_count);
+
+    // Iterates over the keys to evict them, evicts not more than batch size
+    uint64_t key_to_evict_index, keys_evicted_count = 0;
+    for(
+            key_to_evict_index = 0;
+            key_to_evict_index < keys_eviction_candidates_list_count
+            && keys_evicted_count < batch_size
+            && ((key_to_evict_index % 128 == 0 && storage_db_keys_eviction_should_run(db)) || (key_to_evict_index % 128 != 0));
+            key_to_evict_index++) {
+        char *key = (char*)(keys_evitction_candidates_list[key_to_evict_index].value);
+
+        if (!storage_db_op_delete(db, key, strlen(key))) {
+            continue;
+        }
+
+        keys_evicted_count++;
+    }
+
+    // Free the memory
+    for(key_to_evict_index =0; key_to_evict_index < keys_eviction_candidates_list_count; key_to_evict_index++) {
+        char *key = (char*)keys_evitction_candidates_list[key_to_evict_index].value;
+        xalloc_free(key);
+    }
+    xalloc_free(keys_evitction_candidates_list);
 }
