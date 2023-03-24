@@ -28,7 +28,7 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
+#include "xalloc.h"
 
 #include "network/channel/network_channel.h"
 
@@ -92,7 +92,7 @@ bool network_channel_init(
 
     if (channel->type == NETWORK_CHANNEL_TYPE_CLIENT) {
         channel->buffers.send.length = NETWORK_CHANNEL_SEND_BUFFER_SIZE;
-        channel->buffers.send.data = ffma_mem_alloc(channel->buffers.send.length);
+        channel->buffers.send.data = xalloc_alloc(channel->buffers.send.length);
     }
 
     return true;
@@ -101,7 +101,7 @@ bool network_channel_init(
 void network_channel_cleanup(
         network_channel_t *channel) {
     if (channel->type == NETWORK_CHANNEL_TYPE_CLIENT) {
-        ffma_mem_free(channel->buffers.send.data);
+        xalloc_free(channel->buffers.send.data);
         channel->buffers.send.data = NULL;
     }
 }

@@ -22,7 +22,7 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
+#include "xalloc.h"
 
 #include "transaction.h"
 #include "transaction_spinlock.h"
@@ -48,11 +48,9 @@ bool transaction_expand_locks_list(
     size_t current_mem_size = sizeof(transaction_spinlock_lock_volatile_t*) * transaction->locks.size;
 
     transaction->locks.size = transaction->locks.size * 2;
-    transaction->locks.list = ffma_mem_realloc(
+    transaction->locks.list = xalloc_realloc(
             transaction->locks.list,
-            current_mem_size,
-            sizeof(transaction_spinlock_lock_volatile_t*) * transaction->locks.size,
-            false);
+            sizeof(transaction_spinlock_lock_volatile_t*) * transaction->locks.size);
 
     return transaction->locks.list != NULL;
 }
@@ -77,7 +75,7 @@ bool transaction_acquire(
 
     transaction->locks.count = 0;
     transaction->locks.size = 8;
-    transaction->locks.list = ffma_mem_alloc(
+    transaction->locks.list = xalloc_alloc(
             sizeof(transaction_spinlock_lock_volatile_t*) * transaction->locks.size);
 
     if (transaction->locks.list == NULL) {
@@ -99,7 +97,7 @@ void transaction_release(
 #endif
     }
 
-    ffma_mem_free(transaction->locks.list);
+    xalloc_free(transaction->locks.list);
 
     transaction->locks.list = NULL;
     transaction->transaction_id.id = TRANSACTION_ID_NOT_ACQUIRED;

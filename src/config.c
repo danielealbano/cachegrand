@@ -29,7 +29,7 @@
 #include "utils_cpu.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
+#include "xalloc.h"
 #include "support/simple_file_io.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
@@ -463,14 +463,14 @@ bool config_validate_after_load_modules_redis(
         return true;
     }
 
-    if (module->redis->max_key_length > FFMA_OBJECT_SIZE_MAX - 1) {
-        LOG_E(
-                TAG,
-                "In module <%s>, the allowed maximum value of max_key_length is <%u>",
-                config_module_type_schema_strings[module->type].str,
-                FFMA_OBJECT_SIZE_MAX - 1);
-        return_result = false;
-    }
+//    if (module->redis->max_key_length > FFMA_OBJECT_SIZE_MAX - 1) {
+//        LOG_E(
+//                TAG,
+//                "In module <%s>, the allowed maximum value of max_key_length is <%u>",
+//                config_module_type_schema_strings[module->type].str,
+//                FFMA_OBJECT_SIZE_MAX - 1);
+//        return_result = false;
+//    }
 
     return return_result;
 }

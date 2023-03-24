@@ -42,7 +42,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_op_get_random_key.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
-#include "memory_allocator/ffma.h"
+#include "xalloc.h"
 #include "fiber/fiber.h"
 #include "fiber/fiber_scheduler.h"
 #include "log/log.h"
@@ -66,7 +66,7 @@ static void storage_db_counters_index_key_destroy(void *value) {
             (storage_db_counters_slots_bitmap_and_index_t*)value;
 
     slots_bitmap_mpmc_release(slot->slots_bitmap, slot->index);
-    ffma_mem_free(slot);
+    xalloc_free(slot);
 }
 
 void storage_db_counters_slot_key_init_once() {
@@ -88,10 +88,7 @@ void storage_db_counters_slot_key_ensure_init(
     // If the value is set to null, it means that the current thread has not been assigned a slot yet
     if (pthread_getspecific(storage_db_counters_index_key) == NULL) {
         storage_db_counters_slots_bitmap_and_index_t *slot =
-            ffma_mem_alloc(sizeof(storage_db_counters_slots_bitmap_and_index_t));
-        if (!slot) {
-            FATAL(TAG, "Unable to allocate memory for storage db counters");
-        }
+            xalloc_alloc(sizeof(storage_db_counters_slots_bitmap_and_index_t));
 
         slot->slots_bitmap = storage_db->counters_slots_bitmap;
         slot->index = slots_bitmap_mpmc_get_next_available(slot->slots_bitmap);
@@ -156,7 +153,7 @@ char *storage_db_shard_build_path(
             basedir_path_len,
             basedir_path,
             shard_index);
-    path = ffma_mem_alloc(required_length + 1);
+    path = xalloc_alloc(required_length + 1);
 
     snprintf(
             path,
@@ -170,12 +167,12 @@ char *storage_db_shard_build_path(
 }
 
 storage_db_config_t* storage_db_config_new() {
-    return ffma_mem_alloc_zero(sizeof(storage_db_config_t));
+    return xalloc_alloc_zero(sizeof(storage_db_config_t));
 }
 
 void storage_db_config_free(
         storage_db_config_t* config) {
-    ffma_mem_free(config);
+    xalloc_free(config);
 }
 
 storage_db_t* storage_db_new(
@@ -203,7 +200,7 @@ storage_db_t* storage_db_new(
     }
 
     // Initialize the per-worker set of information
-    workers = ffma_mem_alloc_zero(sizeof(storage_db_worker_t) * workers_count);
+    workers = xalloc_alloc_zero(sizeof(storage_db_worker_t) * workers_count);
     if (!workers) {
         LOG_E(TAG, "Unable to allocate memory for the per worker configurations");
         goto fail;
@@ -232,7 +229,7 @@ storage_db_t* storage_db_new(
     }
 
     // Initialize the db wrapper structure
-    db = ffma_mem_alloc_zero(sizeof(storage_db_t));
+    db = xalloc_alloc_zero(sizeof(storage_db_t));
     if (!db) {
         LOG_E(TAG, "Unable to allocate memory for the storage db");
         goto fail;
@@ -282,7 +279,7 @@ fail:
             }
         }
 
-        ffma_mem_free(workers);
+        xalloc_free(workers);
     }
 
     if (db) {
@@ -292,7 +289,7 @@ fail:
             double_linked_list_free(db->shards.opened_shards);
         }
 
-        ffma_mem_free(db);
+        xalloc_free(db);
     }
 
     return NULL;
@@ -352,7 +349,7 @@ bool storage_db_chunk_data_pre_allocate(
     chunk_info->chunk_length = chunk_length;
 
     if (db->config->backend_type == STORAGE_DB_BACKEND_TYPE_MEMORY) {
-        chunk_info->memory.chunk_data = ffma_mem_alloc(chunk_length);
+        chunk_info->memory.chunk_data = xalloc_alloc(chunk_length);
         if (!chunk_info->memory.chunk_data) {
             LOG_E(
                     TAG,
@@ -407,7 +404,7 @@ void storage_db_chunk_data_free(
         storage_db_t *db,
         storage_db_chunk_info_t *chunk_info) {
     if (db->config->backend_type == STORAGE_DB_BACKEND_TYPE_MEMORY) {
-        ffma_mem_free(chunk_info->memory.chunk_data);
+        xalloc_free(chunk_info->memory.chunk_data);
     } else {
         // TODO: currently not implemented, the data on the disk should be collected by a garbage collector
     }
@@ -439,7 +436,7 @@ storage_db_shard_t* storage_db_shard_new(
         return NULL;
     }
 
-    storage_db_shard_t *shard = ffma_mem_alloc_zero(sizeof(storage_db_shard_t));
+    storage_db_shard_t *shard = xalloc_alloc_zero(sizeof(storage_db_shard_t));
 
     shard->storage_channel = storage_channel;
     shard->index = index;
@@ -497,7 +494,7 @@ void storage_db_shard_free(
     // TODO: should also ensure that all the in-flight data being written are actually written
     // TODO: should close the shards properly writing the footer to be able to carry out a quick read
     storage_close(shard->storage_channel);
-    ffma_mem_free(shard);
+    xalloc_free(shard);
 }
 
 storage_db_shard_t *storage_db_new_active_shard_per_current_worker(
@@ -587,8 +584,8 @@ void storage_db_free(
     slots_bitmap_mpmc_free(db->counters_slots_bitmap);
     hashtable_mcmp_free(db->hashtable);
     storage_db_config_free(db->config);
-    ffma_mem_free(db->workers);
-    ffma_mem_free(db);
+    xalloc_free(db->workers);
+    xalloc_free(db);
 }
 
 storage_db_entry_index_t *storage_db_entry_index_ring_buffer_new(
@@ -640,7 +637,7 @@ void storage_db_entry_index_ring_buffer_free(
 }
 
 storage_db_entry_index_t *storage_db_entry_index_new() {
-    return ffma_mem_alloc_zero(sizeof(storage_db_entry_index_t));
+    return xalloc_alloc_zero(sizeof(storage_db_entry_index_t));
 }
 
 size_t storage_db_chunk_sequence_calculate_chunk_count(
@@ -648,18 +645,18 @@ size_t storage_db_chunk_sequence_calculate_chunk_count(
     return ceil((double)size / (double)STORAGE_DB_CHUNK_MAX_SIZE);
 }
 
-size_t storage_db_chunk_sequence_allowed_max_size() {
-    return ((int)(FFMA_OBJECT_SIZE_MAX / sizeof(storage_db_chunk_info_t))) * STORAGE_DB_CHUNK_MAX_SIZE;
-}
+//size_t storage_db_chunk_sequence_allowed_max_size() {
+//    return ((int)(FFMA_OBJECT_SIZE_MAX / sizeof(storage_db_chunk_info_t))) * STORAGE_DB_CHUNK_MAX_SIZE;
+//}
 
 bool storage_db_chunk_sequence_is_size_allowed(
         size_t size) {
     bool error = false;
 
-    // TODO: should check if the other limits (e.g. number of chunks allowed) are broken
-    if (ffma_is_enabled()) {
-        error |= size > storage_db_chunk_sequence_allowed_max_size();
-    }
+//    // TODO: should check if the other limits (e.g. number of chunks allowed) are broken
+//    if (ffma_is_enabled()) {
+//        error |= size > storage_db_chunk_sequence_allowed_max_size();
+//    }
 
     return !error;
 }
@@ -677,7 +674,7 @@ bool storage_db_chunk_sequence_allocate(
     chunk_sequence->count = chunk_count;
 
     if (likely(size > 0)) {
-        chunk_sequence->sequence = ffma_mem_alloc(sizeof(storage_db_chunk_info_t) * chunk_count);
+        chunk_sequence->sequence = xalloc_alloc(sizeof(storage_db_chunk_info_t) * chunk_count);
 
         if (unlikely(!chunk_sequence->sequence)) {
             goto end;
@@ -709,7 +706,7 @@ end:
                 storage_db_chunk_data_free(db, storage_db_chunk_sequence_get(chunk_sequence, chunk_index));
             }
 
-            ffma_mem_free(chunk_sequence->sequence);
+            xalloc_free(chunk_sequence->sequence);
             chunk_sequence->sequence = NULL;
             chunk_sequence->size = 0;
             chunk_sequence->count = 0;
@@ -722,6 +719,12 @@ end:
 void storage_db_chunk_sequence_free_chunks(
         storage_db_t *db,
         storage_db_chunk_sequence_t *sequence) {
+    if (unlikely(!sequence->sequence)) {
+        return;
+    }
+
+     // assert(sequence->sequence);
+
     for (
             storage_db_chunk_index_t chunk_index = 0;
             chunk_index < sequence->count;
@@ -730,8 +733,9 @@ void storage_db_chunk_sequence_free_chunks(
         storage_db_chunk_data_free(db, chunk_info);
     }
 
-    ffma_mem_free(sequence->sequence);
+    xalloc_free(sequence->sequence);
     sequence->count = 0;
+    sequence->size = 0;
     sequence->sequence = NULL;
 }
 
@@ -755,7 +759,7 @@ void storage_db_entry_index_free(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index) {
     storage_db_entry_index_chunks_free(db, entry_index);
-    ffma_mem_free(entry_index);
+    xalloc_free(entry_index);
 }
 
 bool storage_db_entry_chunk_can_read_from_memory(
@@ -871,7 +875,7 @@ char *storage_db_get_chunk_data(
                 chunk_info);
     } else {
         *allocated_new_buffer = true;
-        buffer = ffma_mem_alloc(chunk_info->chunk_length);
+        buffer = xalloc_alloc(chunk_info->chunk_length);
 
         if (unlikely(!storage_db_chunk_read(
                 db,
@@ -1595,6 +1599,22 @@ void storage_db_free_key_and_key_length_list(
     xalloc_free(keys);
 }
 
+// Write a sorting function for qsort that takes in input 2 128bit numbers and sorts them using the first 64 bits
+int vqsort_kv64_t_cmp_asc(
+        const void *a,
+        const void *b) {
+    const vqsort_kv64_t *ia = a;
+    const vqsort_kv64_t *ib = b;
+
+    if (ia->key < ib->key) {
+        return -1;
+    } else if (ia->key > ib->key) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
 void storage_db_keys_eviction_run_worker(
         storage_db_t *db,
         uint64_t batch_size,
@@ -1624,6 +1644,27 @@ void storage_db_keys_eviction_run_worker(
     if (sample_size < STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MIN) {
         return;
     }
+
+//    hashtable_bucket_index_t bucket_index = buckets_start, current_bucket_index;
+//    void *data = NULL;
+//    for(
+//            data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index);
+//            data && storage_db_keys_eviction_should_run(db);
+//            (data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index))) {
+//        hashtable_key_data_t *key;
+//        hashtable_key_size_t key_size;
+//        storage_db_entry_index_t *entry_index = data;
+//        current_bucket_index = bucket_index;
+//        bucket_index++;
+//
+//        if (unlikely(!hashtable_mcmp_op_get_key(db->hashtable, current_bucket_index, &key, &key_size))) {
+//            continue;
+//        }
+//
+//        if (!storage_db_op_delete(db, key, strlen(key))) {
+//            continue;
+//        }
+//    }
 
     // As the resizing has to be taken into account but not yet implemented, the assert will catch if the resizing is
     // implemented without having dealt with the flush
@@ -1703,7 +1744,14 @@ void storage_db_keys_eviction_run_worker(
     }
 
     assert(keys_eviction_candidates_list_count > 0);
-    vqsort_u128_asc((uint128_t*)keys_evitction_candidates_list, keys_eviction_candidates_list_count);
+//    vqsort_u128_asc((uint128_t*)keys_evitction_candidates_list, keys_eviction_candidates_list_count);
+
+    // Sort the keys to evict
+    qsort(
+            keys_evitction_candidates_list,
+            keys_eviction_candidates_list_count,
+            sizeof(vqsort_kv64_t),
+            vqsort_kv64_t_cmp_asc);
 
     // Iterates over the keys to evict them, evicts not more than batch size
     uint64_t key_to_evict_index, keys_evicted_count = 0;

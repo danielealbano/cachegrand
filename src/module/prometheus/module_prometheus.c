@@ -30,7 +30,7 @@
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
+#include "xalloc.h"
 #include "config.h"
 #include "fiber/fiber.h"
 #include "module/module.h"
@@ -100,7 +100,7 @@ void module_prometheus_client_new(
         module_prometheus_client_t *module_prometheus_client,
         config_module_t *config_module) {
     module_prometheus_client->read_buffer.data =
-            (char *)ffma_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
+            (char *)xalloc_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
     module_prometheus_client->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE;
 }
 
@@ -109,22 +109,22 @@ void module_prometheus_client_cleanup(
     client_http_request_data_t *http_request_data = &module_prometheus_client->http_request_data;
 
     if (http_request_data->url) {
-        ffma_mem_free(http_request_data->url);
+        xalloc_free(http_request_data->url);
     }
 
     if (http_request_data->headers.current_header_name) {
-        ffma_mem_free(http_request_data->headers.current_header_name);
+        xalloc_free(http_request_data->headers.current_header_name);
     }
 
     if (http_request_data->headers.list) {
         for(uint16_t index = 0; index < http_request_data->headers.count; index++) {
-            ffma_mem_free(http_request_data->headers.list[index].name);
-            ffma_mem_free(http_request_data->headers.list[index].value);
+            xalloc_free(http_request_data->headers.list[index].name);
+            xalloc_free(http_request_data->headers.list[index].value);
         }
-        ffma_mem_free(http_request_data->headers.list);
+        xalloc_free(http_request_data->headers.list);
     }
 
-    ffma_mem_free(module_prometheus_client->read_buffer.data);
+    xalloc_free(module_prometheus_client->read_buffer.data);
 }
 
 int module_prometheus_http_parser_on_message_complete(
@@ -146,7 +146,7 @@ int module_prometheus_http_parser_on_url(
         return -1;
     }
 
-    char *url = ffma_mem_alloc_zero(length + 1);
+    char *url = xalloc_alloc_zero(length + 1);
 
     if (url == NULL) {
         return -1;
@@ -171,7 +171,7 @@ int module_prometheus_http_parser_on_header_field(
         return -1;
     }
 
-    char *header_name = ffma_mem_alloc_zero(length + 1);
+    char *header_name = xalloc_alloc_zero(length + 1);
 
     if (header_name == NULL) {
         return -1;
@@ -204,16 +204,11 @@ int module_prometheus_http_parser_on_header_value(
         size_t headers_list_new_size =
                 headers_list_current_size +
                 (sizeof(client_http_header_t) * MODULE_PROMETHEUS_HTTP_HEADERS_SIZE_INCREASE);
-        http_request_data->headers.list =
-                ffma_mem_realloc(
-                        http_request_data->headers.list,
-                        headers_list_current_size,
-                        headers_list_new_size,
-                        true);
+        http_request_data->headers.list = xalloc_realloc(http_request_data->headers.list, headers_list_new_size);
         http_request_data->headers.size += MODULE_PROMETHEUS_HTTP_HEADERS_SIZE_INCREASE;
     }
 
-    char *header_value = ffma_mem_alloc_zero(length + 1);
+    char *header_value = xalloc_alloc_zero(length + 1);
 
     if (header_value == NULL) {
         return -1;
@@ -274,7 +269,7 @@ bool module_prometheus_http_send_response(
             CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME,
             content_length);
 
-    http_response = ffma_mem_alloc(http_response_len + 1);
+    http_response = xalloc_alloc(http_response_len + 1);
     if (!http_response) {
         goto end;
     }
@@ -301,7 +296,7 @@ bool module_prometheus_http_send_response(
 
 end:
     if (http_response) {
-        ffma_mem_free(http_response);
+        xalloc_free(http_response);
     }
 
     return result_ret;
@@ -332,7 +327,7 @@ bool module_prometheus_http_send_error(
     va_end(args_copy);
 
     // Build up the error message with the arguments
-    error_message_with_args = ffma_mem_alloc(error_message_with_args_len + 1);
+    error_message_with_args = xalloc_alloc(error_message_with_args_len + 1);
     if (!error_message_with_args) {
         va_end(args);
         goto end;
@@ -349,7 +344,7 @@ bool module_prometheus_http_send_error(
             error_title,
             error_message_with_args);
 
-    error_html_template = ffma_mem_alloc(error_html_template_len + 1);
+    error_html_template = xalloc_alloc(error_html_template_len + 1);
     if (!error_html_template) {
         goto end;
     }
@@ -370,11 +365,11 @@ bool module_prometheus_http_send_error(
 
 end:
     if (error_message_with_args) {
-        ffma_mem_free(error_message_with_args);
+        xalloc_free(error_message_with_args);
     }
 
     if (error_html_template) {
-        ffma_mem_free(error_html_template);
+        xalloc_free(error_html_template);
     }
 
     return result_ret;
@@ -407,11 +402,7 @@ char *module_prometheus_fetch_extra_metrics_from_env() {
                 env_separator);
 
         if (extra_env_content_length + metric_env_line_length + 1 > extra_env_content_size) {
-            extra_env_content = ffma_mem_realloc(
-                    extra_env_content,
-                    extra_env_content_size,
-                    extra_env_content_size + 512,
-                    false);
+            extra_env_content = xalloc_realloc(extra_env_content, extra_env_content_size + 512);
             if (!extra_env_content) {
                 break;
             }
@@ -478,11 +469,7 @@ bool module_prometheus_process_metrics_request_add_metric(
             value);
 
     if (*length + metric_length + 1 > *size) {
-        *buffer = ffma_mem_realloc(
-                *buffer,
-                *size,
-                *size + 128,
-                false);
+        *buffer = xalloc_realloc(*buffer, *size + 128);
 
         if (!*buffer) {
             return false;
@@ -553,7 +540,7 @@ bool module_prometheus_process_metrics_request(
     // Send out the stats for each worker plus the aggregated one
     do {
         size_t tags_len = (tags_from_env ? strlen(tags_from_env) : 0) + 128;
-        tags = ffma_mem_alloc(tags_len);
+        tags = xalloc_alloc(tags_len);
 
         // Try to fetch the stats for a worker, if it fails it builds up the aggregate, the while will later terminate
         // the loop
@@ -625,7 +612,7 @@ bool module_prometheus_process_metrics_request(
             }
         }
 
-        ffma_mem_free(tags);
+        xalloc_free(tags);
         tags = NULL;
         worker_index++;
     } while(found_worker);
@@ -639,15 +626,15 @@ bool module_prometheus_process_metrics_request(
 
 end:
     if (content) {
-        ffma_mem_free(content);
+        xalloc_free(content);
     }
 
     if (tags_from_env) {
-        ffma_mem_free(tags_from_env);
+        xalloc_free(tags_from_env);
     }
 
     if (tags) {
-        ffma_mem_free(tags);
+        xalloc_free(tags);
     }
 
     return result_ret;
