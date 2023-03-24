@@ -893,7 +893,46 @@ config_t* config_load(
         return NULL;
     }
 
-    // Parse string numeric values
+    // Check if snapshots are enabled
+    if (config->database->snapshots) {
+        config->database->snapshots->min_data_changed = 0;
+        config->database->snapshots->min_keys_changed = 0;
+
+        bool result = config_parse_string_time(
+                config->database->snapshots->interval_str,
+                strlen(config->database->snapshots->interval_str),
+                false,
+                false,
+                true,
+                &config->database->snapshots->interval);
+
+        if (!result) {
+            LOG_E(TAG, "Failed to parse the snapshot interval");
+            config_free(config);
+            return NULL;
+        }
+
+        if (config->database->snapshots->min_data_changed_str) {
+            result = config_parse_string_absolute_or_percent(
+                    config->database->snapshots->min_data_changed_str,
+                    strlen(config->database->snapshots->min_data_changed_str),
+                    false,
+                    false,
+                    false,
+                    true,
+                    true,
+                    &config->database->snapshots->min_data_changed,
+                    &return_value_type);
+
+            if (!result) {
+                LOG_E(TAG, "Failed to parse the snapshot minimum data changed");
+                config_free(config);
+                return NULL;
+            }
+        }
+    }
+
+    // Check if the memory section of the config file is present
     if (config->database->memory) {
         // Get the total system memory
         struct sysinfo sys_info;
