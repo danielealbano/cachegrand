@@ -1,3 +1,5 @@
+#include <hiredis/hiredis.h>
+
 #define PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(WORKER_CONTEXT, RUNNING) { \
     do { \
         sched_yield(); \
@@ -11,9 +13,8 @@ public:
     TestModulesRedisCommandFixture();
     ~TestModulesRedisCommandFixture();
 protected:
-    int client_fd;
+    redisContext *c;
     volatile bool terminate_event_loop;
-    struct sockaddr_in address = {0};
 
     size_t buffer_send_data_len{};
     char buffer_send[16 * 1024] = {0};
@@ -62,16 +63,13 @@ protected:
     bool send_recv_resp_command_multi_recv(
             const std::vector<std::string>& arguments,
             char *buffer_recv_int,
-            size_t buffer_recv_length,
             size_t *out_buffer_recv_length,
-            size_t max_recv_count,
             size_t expected_len) const;
 
     bool send_recv_resp_command_multi_recv_and_validate_recv(
             const std::vector<std::string>& arguments,
             char *expected,
-            size_t expected_length,
-            size_t max_recv_count);
+            size_t expected_length);
 
     bool send_recv_resp_command_and_validate_recv(
             const std::vector<std::string>& arguments,
