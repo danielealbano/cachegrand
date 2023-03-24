@@ -9,8 +9,12 @@ extern "C" {
 //#define STORAGE_DB_SHARD_MAGIC_NUMBER_HIGH 0x4341434845475241
 //#define STORAGE_DB_SHARD_MAGIC_NUMBER_LOW  0x5241000000000000
 
-#define STORAGE_DB_SHARD_VERSION 1
+#define STORAGE_DB_SHARD_VERSION (1)
 #define STORAGE_DB_CHUNK_MAX_SIZE ((64 * 1024) - 1)
+#define STORAGE_DB_WORKERS_MAX (2048)
+#define STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_PERC (0.10)
+#define STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MIN (10)
+#define STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MAX (100000)
 
 // This magic value defines the size of the ring buffer used to keep in memory data long enough to be sure they are not
 // being in use anymore.
@@ -25,6 +29,35 @@ typedef uint32_t storage_db_shard_index_t;
 typedef uint64_t storage_db_create_time_ms_t;
 typedef uint64_t storage_db_last_access_time_ms_t;
 typedef int64_t storage_db_expiry_time_ms_t;
+
+struct storage_db_limits {
+    struct {
+        uint64_t soft_limit;
+        uint64_t hard_limit;
+    } data_size;
+    struct {
+        hashtable_bucket_count_t soft_limit;
+        hashtable_bucket_count_t hard_limit;
+    } keys_count;
+};
+typedef struct storage_db_limits storage_db_limits_t;
+
+typedef int (*storage_db_keys_eviction_list_sort_cb)(const void *, const void*);
+
+struct storage_db_keys_eviction_list_entry {
+    uint16_t key_size;
+    uint32_t accesses_counters;
+    char *key;
+    storage_db_last_access_time_ms_t last_access_time_ms;
+    storage_db_expiry_time_ms_t expiry_time_ms;
+};
+typedef struct storage_db_keys_eviction_list_entry storage_db_keys_eviction_list_entry_t;
+
+struct storage_db_counters_slots_bitmap_and_index {
+    slots_bitmap_mpmc_t *slots_bitmap;
+    uint64_t index;
+};
+typedef struct storage_db_counters_slots_bitmap_and_index storage_db_counters_slots_bitmap_and_index_t;
 
 enum storage_db_backend_type {
     STORAGE_DB_BACKEND_TYPE_UNKNOWN = 0,
@@ -47,7 +80,7 @@ typedef enum storage_db_entry_index_value_type storage_db_entry_index_value_type
 typedef struct storage_db_config storage_db_config_t;
 struct storage_db_config {
     storage_db_backend_type_t backend_type;
-    hashtable_bucket_count_t max_keys;
+    storage_db_limits_t limits;
     union {
         struct {
             char *basedir_path;
@@ -74,6 +107,12 @@ struct storage_db_worker {
     double_linked_list_t *deleting_entry_index_list;
 };
 
+typedef struct storage_db_counters storage_db_counters_t;
+struct storage_db_counters {
+    int64_t keys_count;
+    int64_t data_size;
+};
+
 // contains the necessary information to manage the db, holds a pointer to storage_db_config required during the
 // the initialization
 typedef struct storage_db storage_db_t;
@@ -87,6 +126,10 @@ struct storage_db {
     hashtable_t *hashtable;
     storage_db_config_t *config;
     storage_db_worker_t *workers;
+    uint16_t workers_count;
+    storage_db_limits_t limits;
+    slots_bitmap_mpmc_t *counters_slots_bitmap;
+    storage_db_counters_t counters[STORAGE_DB_WORKERS_MAX];
 };
 
 typedef struct storage_db_chunk_info storage_db_chunk_info_t;
@@ -105,10 +148,11 @@ struct storage_db_chunk_info {
 
 typedef union storage_db_entry_index_status storage_db_entry_index_status_t;
 union storage_db_entry_index_status {
-    uint32_volatile_t _cas_wrapper;
+    uint64_volatile_t _cas_wrapper;
     struct {
         uint32_volatile_t readers_counter:31;
         bool_volatile_t deleted:1;
+        uint32_volatile_t accesses_counter;
     };
 };
 
@@ -126,8 +170,8 @@ struct storage_db_entry_index {
     storage_db_create_time_ms_t created_time_ms;
     storage_db_expiry_time_ms_t expiry_time_ms;
     storage_db_last_access_time_ms_t last_access_time_ms;
-    storage_db_chunk_sequence_t *key;
-    storage_db_chunk_sequence_t *value;
+    storage_db_chunk_sequence_t key;
+    storage_db_chunk_sequence_t value;
 };
 
 typedef struct storage_db_op_rmw_transaction storage_db_op_rmw_status_t;
@@ -144,11 +188,29 @@ struct storage_db_key_and_key_length {
     size_t key_size;
 };
 
+void storage_db_worker_counters_slot_key_init_once();
+
+void storage_db_worker_counters_slot_key_ensure_init(
+        storage_db_t *storage_db);
+
+uint64_t storage_db_worker_counters_get_slot_index(
+        storage_db_t *storage_db);
+
+uint64_t storage_db_counters_get_current_thread_get_slot_index(
+        storage_db_t *storage_db);
+
+storage_db_counters_t* storage_db_counters_get_current_thread_data(
+        storage_db_t *storage_db);
+
+void storage_db_counters_sum(
+        storage_db_t *storage_db,
+        storage_db_counters_t *counters);
+
 char *storage_db_shard_build_path(
         char *basedir_path,
         storage_db_shard_index_t shard_index);
 
-storage_db_config_t* storage_db_config_new() ;
+storage_db_config_t* storage_db_config_new();
 
 void storage_db_config_free(
         storage_db_config_t* config);
@@ -258,8 +320,9 @@ size_t storage_db_chunk_sequence_allowed_max_size();
 bool storage_db_chunk_sequence_is_size_allowed(
         size_t size);
 
-storage_db_chunk_sequence_t *storage_db_chunk_sequence_allocate(
+bool storage_db_chunk_sequence_allocate(
         storage_db_t *db,
+        storage_db_chunk_sequence_t *chunk_sequence,
         size_t size);
 
 storage_db_chunk_info_t *storage_db_chunk_sequence_get(
@@ -271,7 +334,7 @@ char *storage_db_get_chunk_data(
         storage_db_chunk_info_t *chunk_info,
         bool *allocated_new_buffer);
 
-void storage_db_chunk_sequence_free(
+void storage_db_chunk_sequence_free_chunks(
         storage_db_t *db,
         storage_db_chunk_sequence_t *sequence);
 
@@ -370,7 +433,10 @@ char *storage_db_op_random_key(
         storage_db_t *db,
         hashtable_key_size_t *key_size);
 
-int64_t storage_db_op_get_size(
+int64_t storage_db_op_get_keys_count(
+        storage_db_t *db);
+
+int64_t storage_db_op_get_data_size(
         storage_db_t *db);
 
 bool storage_db_op_flush_sync(
@@ -388,6 +454,67 @@ storage_db_key_and_key_length_t *storage_db_op_get_keys(
 void storage_db_free_key_and_key_length_list(
         storage_db_key_and_key_length_t *keys,
         uint64_t keys_count);
+
+void storage_db_keys_eviction_run_worker(
+        storage_db_t *db,
+        uint64_t batch_size,
+        bool only_ttl,
+        config_database_keys_eviction_policy_t policy,
+        uint32_t worker_index);
+
+static inline bool storage_db_keys_eviction_should_run(
+        storage_db_t *db) {
+    uint64_t keys_count = storage_db_op_get_keys_count(db);
+    uint64_t data_size = storage_db_op_get_data_size(db);
+
+    if (keys_count == 0) {
+        return false;
+    }
+
+    if (db->limits.keys_count.hard_limit > 0 && keys_count >= db->limits.keys_count.hard_limit) {
+        return true;
+    }
+
+    if (db->limits.keys_count.soft_limit > 0 && keys_count > db->limits.keys_count.soft_limit) {
+        return true;
+    }
+
+    if (db->limits.data_size.hard_limit > 0 && data_size >= db->limits.data_size.hard_limit) {
+        return true;
+    }
+
+    if (db->limits.data_size.soft_limit > 0 && data_size > db->limits.data_size.soft_limit) {
+        return true;
+    }
+
+    return false;
+}
+
+static inline bool storage_db_will_new_entry_hit_hard_limit(
+        storage_db_t *db,
+        uint64_t new_entry_size) {
+    uint64_t keys_count = storage_db_op_get_keys_count(db);
+    uint64_t data_size = storage_db_op_get_data_size(db);
+
+    if (db->limits.keys_count.hard_limit > 0 && keys_count + 1 > db->limits.keys_count.hard_limit) {
+        return true;
+    }
+
+    if (db->limits.data_size.hard_limit > 0 && data_size + new_entry_size > db->limits.data_size.hard_limit) {
+        return true;
+    }
+
+    return false;
+}
+
+static inline bool storage_db_keys_eviction_soft_or_hard_limit_hit(
+        storage_db_t *db) {
+    uint64_t keys_count = storage_db_op_get_keys_count(db);
+    uint64_t data_size = storage_db_op_get_data_size(db);
+
+    return
+            (keys_count >= db->limits.keys_count.hard_limit) || (data_size >= db->limits.data_size.hard_limit);
+}
 
 #ifdef __cplusplus
 }

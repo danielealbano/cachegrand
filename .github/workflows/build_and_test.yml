@@ -48,7 +48,7 @@ jobs:
           fetch-depth: 2
 
       - name: Install required dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config git libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev libmbedtls-dev libpcre2-8-0 libpcre2-dev libjson-c-dev valgrind
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config git libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev libmbedtls-dev libpcre2-8-0 libpcre2-dev libjson-c-dev valgrind libhiredis-dev
 
       - name: Create Build Environment
         run: cmake -E make_directory ${{github.workspace}}/build
@@ -61,12 +61,12 @@ jobs:
       - name: Build cachegrand-tests
         working-directory: ${{github.workspace}}/build
         shell: bash
-        run: cmake --build . --target cachegrand-tests -- -j 4
+        run: cmake --build . --target cachegrand-tests -- -j $(nproc)
 
       - name: Build cachegrand-server
         working-directory: ${{github.workspace}}/build
         shell: bash
-        run: cmake --build . --target cachegrand-server -- -j 4
+        run: cmake --build . --target cachegrand-server -- -j $(nproc)
 
       - name: Tests - Unit Tests
         working-directory: ${{github.workspace}}/build

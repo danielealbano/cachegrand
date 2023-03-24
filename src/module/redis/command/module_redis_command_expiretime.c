@@ -20,6 +20,7 @@
 #include "transaction_spinlock.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "protocol/redis/protocol_redis.h"
@@ -38,7 +39,6 @@
 #define TAG "module_redis_command_expiretime"
 
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(expiretime) {
-    bool return_res = false;
     storage_db_entry_index_t *current_entry_index = NULL;
     transaction_t transaction = { 0 };
     storage_db_op_rmw_status_t rmw_status = { 0 };

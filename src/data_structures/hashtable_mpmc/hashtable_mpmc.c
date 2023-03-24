@@ -1,6 +1,15 @@
+/**
+ * Copyright (C) 2018-2023 Daniele Salvatore Albano
+ * All rights reserved.
+ *
+ * This software may be modified and distributed under the terms
+ * of the BSD license. See the LICENSE file for details.
+ **/
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdatomic.h>
+#include <stddef.h>
 #include <string.h>
 #include <math.h>
 #include <assert.h>
@@ -15,8 +24,8 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint64.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "spinlock.h"
-#include "transaction.h"
 #include "epoch_operation_queue.h"
 #include "epoch_gc.h"
 
@@ -313,6 +322,7 @@ bool hashtable_mpmc_upsize_migrate_bucket(
             to,
             key_value->hash,
             bucket_to_migrate.data.hash_half,
+            bucket_to_migrate.data.transaction_id,
             key,
             key_length,
             key_value->value,
@@ -421,6 +431,7 @@ hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
         hashtable_mpmc_data_t *hashtable_mpmc_data,
         hashtable_mpmc_hash_t hash,
         hashtable_mpmc_hash_half_t hash_half,
+        hashtable_mpmc_transaction_id_t transaction_id,
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length,
         bool allow_temporary,
@@ -450,6 +461,10 @@ hashtable_mpmc_result_t hashtable_mpmc_support_find_bucket_and_key_value(
         }
 
         if (likely(return_bucket->data.hash_half != hash_half || HASHTABLE_MPMC_BUCKET_IS_TOMBSTONE(*return_bucket))) {
+            continue;
+        }
+
+        if (unlikely(return_bucket->data.transaction_id != transaction_id)) {
             continue;
         }
 
@@ -498,6 +513,7 @@ hashtable_mpmc_result_t hashtable_mpmc_support_acquire_empty_bucket_for_insert(
         hashtable_mpmc_data_t *hashtable_mpmc_data,
         hashtable_mpmc_hash_t hash,
         hashtable_mpmc_hash_half_t hash_half,
+        hashtable_mpmc_transaction_id_t transaction_id,
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length,
         uintptr_t value,
@@ -564,7 +580,7 @@ hashtable_mpmc_result_t hashtable_mpmc_support_acquire_empty_bucket_for_insert(
         // initialized separately.
         if (unlikely(new_bucket._packed == 0)) {
             // Prepare the new bucket marking it as temporary
-            new_bucket.data.transaction_id.id = 0;
+            new_bucket.data.transaction_id = transaction_id;
             new_bucket.data.hash_half = hash_half;
             new_bucket.data.key_value = (void *)((uintptr_t)(*new_key_value) | HASHTABLE_MPMC_POINTER_TAG_TEMPORARY);
         }
@@ -592,6 +608,7 @@ hashtable_mpmc_result_t hashtable_mpmc_support_validate_insert(
         hashtable_mpmc_data_t *hashtable_mpmc_data,
         hashtable_mpmc_hash_t hash,
         hashtable_mpmc_hash_half_t hash_half,
+        hashtable_mpmc_transaction_id_t transaction_id,
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length,
         hashtable_mpmc_bucket_index_t new_bucket_index) {
@@ -618,7 +635,10 @@ hashtable_mpmc_result_t hashtable_mpmc_support_validate_insert(
             break;
         }
 
-        if (likely(bucket.data.hash_half != hash_half || HASHTABLE_MPMC_BUCKET_IS_TOMBSTONE(bucket))) {
+        if (likely(
+                bucket.data.transaction_id != transaction_id ||
+                bucket.data.hash_half != hash_half ||
+                HASHTABLE_MPMC_BUCKET_IS_TOMBSTONE(bucket))) {
             continue;
         }
 
@@ -689,6 +709,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
                     hashtable_mpmc_data_upsize,
                     hash,
                     hashtable_mpmc_support_hash_half(hash),
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key,
                     key_length,
                     false,
@@ -715,6 +736,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_get(
             hashtable_mpmc_data_current,
             hash,
             hashtable_mpmc_support_hash_half(hash),
+            HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
             key,
             key_length,
             false,
@@ -787,6 +809,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
                     hashtable_mpmc_data_upsize,
                     hash,
                     hashtable_mpmc_support_hash_half(hash),
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key,
                     key_length,
                     false,
@@ -832,6 +855,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_delete(
             hashtable_mpmc_data_current,
             hash,
             hashtable_mpmc_support_hash_half(hash),
+            HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
             key,
             key_length,
             false,
@@ -894,6 +918,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set_update_value_if_key_exists(
         hashtable_mpmc_data_t *hashtable_mpmc_data,
         hashtable_mpmc_hash_t hash,
         hashtable_mpmc_hash_t hash_half,
+        hashtable_mpmc_transaction_id_t transaction_id,
         hashtable_mpmc_key_t *key,
         hashtable_mpmc_key_length_t key_length,
         uintptr_t value,
@@ -906,6 +931,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set_update_value_if_key_exists(
             hashtable_mpmc_data,
             hash,
             hash_half,
+            transaction_id,
             key,
             key_length,
             true,
@@ -915,7 +941,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set_update_value_if_key_exists(
     if (return_result != HASHTABLE_MPMC_RESULT_TRUE) {
         // If no bucket is found or if it's necessary to retry later jump to tne end
         goto end;
-    } else if (unlikely(HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(found_bucket) || found_bucket.data.transaction_id.id != 0)) {
+    } else if (unlikely(HASHTABLE_MPMC_BUCKET_IS_TEMPORARY(found_bucket) || found_bucket.data.transaction_id != 0)) {
         // If the value found is temporary or if there is a transaction in progress it means that another thread is
         // writing the data so the flow can just wait for it to complete before carrying out the operations.
         return_result = HASHTABLE_MPMC_RESULT_TRY_LATER;
@@ -1013,6 +1039,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
                     hashtable_mpmc_data_upsize,
                     hash,
                     hash_half,
+                    HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
                     key,
                     key_length,
                     value,
@@ -1030,6 +1057,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
             hashtable_mpmc_data_current,
             hash,
             hash_half,
+            HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
             key,
             key_length,
             value,
@@ -1049,6 +1077,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
             hashtable_mpmc_data_current,
             hash,
             hash_half,
+            HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
             key,
             key_length,
             value,
@@ -1068,6 +1097,7 @@ hashtable_mpmc_result_t hashtable_mpmc_op_set(
             hashtable_mpmc_data_current,
             hash,
             hash_half,
+            HASHTABLE_MPMC_TRANSACTION_ID_NOT_ACQUIRED,
             key,
             key_length,
             new_bucket_index);

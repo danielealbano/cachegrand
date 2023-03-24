@@ -81,7 +81,16 @@ add_dependencies(
 target_link_libraries(
         cachegrand-tests
         PRIVATE
-        cachegrand-internal Catch2::Catch2 ${LIBCYAML_DYNAMIC_PATH_LIBRARY})
+        cachegrand-internal Catch2::Catch2 ${LIBCYAML_DYNAMIC_PATH_LIBRARY} ${TESTSDEPS_LIST_LIBRARIES})
+target_link_directories(
+        cachegrand-tests
+        PRIVATE
+        ${TESTSDEPS_LIST_LIBRARY_DIRS})
+target_include_directories(
+        cachegrand-tests
+        PRIVATE
+        ${TESTSDEPS_LIST_LIBRARIES})
+
 add_test(
         NAME
         cachegrand-tests

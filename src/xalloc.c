@@ -6,6 +6,10 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
+#ifndef DISABLE_MIMALLOC
+#define DISABLE_MIMALLOC 0
+#endif
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -21,7 +25,17 @@
 #include "misc.h"
 #include "log/log.h"
 #include "fatal.h"
+
+#if DISABLE_MIMALLOC == 0
 #include "mimalloc.h"
+#else
+#define mi_malloc malloc
+#define mi_realloc realloc
+#define mi_zalloc(size) (calloc(1, size))
+#define mi_free free
+#define mi_malloc_aligned(SIZE, ALIGNMENT) (aligned_alloc(ALIGNMENT, SIZE))
+#define mi_zalloc_aligned(SIZE, ALIGNMENT) (aligned_alloc(ALIGNMENT, SIZE))
+#endif
 
 #include "xalloc.h"
 
@@ -60,6 +74,10 @@ void* xalloc_alloc_zero(
 
     memptr = mi_zalloc(size);
 
+#if DISABLE_MIMALLOC == 1
+    memset(memptr, 0, size);
+#endif
+
     if (memptr == NULL) {
         FATAL(TAG, "Unable to allocate the requested memory %lu", size);
     }
@@ -77,15 +95,11 @@ void* xalloc_alloc_aligned(
     void* memptr;
     bool failed = false;
 
-#if defined(__linux__)
     memptr = mi_malloc_aligned(size, alignment);
 
     if (memptr == NULL) {
         failed = true;
     }
-#else
-#error Platform not supported
-#endif
 
     if (failed) {
         FATAL(TAG, "Unable to allocate the requested memory %lu aligned to %lu", size, alignment);
@@ -100,6 +114,10 @@ void* xalloc_alloc_aligned_zero(
     void* memptr;
 
     memptr = mi_zalloc_aligned(size, alignment);
+
+#if DISABLE_MIMALLOC == 1
+    memset(memptr, 0, size);
+#endif
 
     if (memptr == NULL) {
         FATAL(TAG, "Unable to allocate the requested memory %lu", size);

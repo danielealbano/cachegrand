@@ -10,6 +10,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "misc.h"
 #include "log/log.h"
@@ -25,13 +27,18 @@ log_sink_t *log_sink_file_init(
         log_level_t levels,
         log_sink_settings_t* settings) {
 
-    FILE* fp = fopen(settings->file.path, "a");
-    if (fp == NULL) {
+    int fd = open(
+            settings->file.path,
+            O_CLOEXEC | O_CREAT | O_APPEND | O_WRONLY,
+            S_IRUSR | S_IWUSR | S_IRGRP);
+
+    if (fd < 0) {
         LOG_W(TAG, "Unable to open <%s> for logging", settings->file.path);
+        LOG_E_OS_ERROR(TAG);
         return NULL;
     }
 
-    settings->file.internal.fp = fp;
+    settings->file.internal.fd = fd;
 
     return log_sink_init(
             LOG_SINK_TYPE_FILE,
@@ -43,9 +50,9 @@ log_sink_t *log_sink_file_init(
 
 void log_sink_file_free(
         log_sink_settings_t* settings) {
-    if (settings->file.internal.fp) {
-        fclose(settings->file.internal.fp);
-        settings->file.internal.fp = NULL;
+    if (settings->file.internal.fd > 0) {
+        close(settings->file.internal.fd);
+        settings->file.internal.fd = 0;
     }
 }
 
@@ -83,8 +90,7 @@ void log_sink_file_printer(
             message,
             message_len);
 
-    fwrite(log_message, log_message_size, 1, settings->file.internal.fp);
-    fflush(settings->file.internal.fp);
+    write(settings->file.internal.fd, log_message, log_message_size);
 
     if (!log_message_static_buffer_selected) {
         xalloc_free(log_message);

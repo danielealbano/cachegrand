@@ -24,7 +24,6 @@
 #include "hashtable_op_set.h"
 #include "hashtable_support_hash.h"
 #include "hashtable_support_op.h"
-#include "hashtable_thread_counters.h"
 
 bool hashtable_mcmp_op_set(
         hashtable_t *hashtable,
@@ -137,9 +136,6 @@ bool hashtable_mcmp_op_set(
     if (!created_new || key_inlined) {
         xalloc_free(key);
     }
-
-    // Increment the size counter
-    hashtable_mcmp_thread_counters_get_current_thread(hashtable)->size += created_new ? 1 : 0;
 
     return true;
 }

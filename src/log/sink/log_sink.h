@@ -25,7 +25,7 @@ union log_sink_settings {
     struct {
         char* path;
         struct {
-            FILE* fp;
+            int fd;
         } internal;
     } file;
 };

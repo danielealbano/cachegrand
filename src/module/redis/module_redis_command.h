@@ -87,12 +87,8 @@ static inline __attribute__((always_inline)) bool module_redis_command_process_e
             connection_context);
 }
 
-static inline __attribute__((always_inline)) bool module_redis_command_process_try_free(
+static inline __attribute__((always_inline)) void module_redis_command_process_free(
         module_redis_connection_context_t *connection_context) {
-    if (connection_context->command.info == NULL || connection_context->command.context == NULL) {
-        return true;
-    }
-
 #if CACHEGRAND_MODULE_REDIS_COMMAND_DUMP_CONTEXT == 1
     module_redis_command_dump_arguments(
             connection_context->db,
@@ -105,9 +101,17 @@ static inline __attribute__((always_inline)) bool module_redis_command_process_t
     connection_context->command.info->command_free_funcptr(
             connection_context);
 
+    ffma_mem_free(connection_context->command.context);
     connection_context->command.context = NULL;
+}
 
-    return true;
+static inline __attribute__((always_inline)) void module_redis_command_process_try_free(
+        module_redis_connection_context_t *connection_context) {
+    if (connection_context->command.info == NULL || connection_context->command.context == NULL) {
+        return;
+    }
+
+    module_redis_command_process_free(connection_context);
 }
 
 static inline __attribute__((always_inline)) bool module_redis_command_process_argument_stream_end(
@@ -228,14 +232,14 @@ static inline __attribute__((always_inline)) bool module_redis_command_stream_en
         storage_db_entry_index_t *entry_index,
         off_t offset,
         size_t length) {
-    if (unlikely(offset + length > entry_index->value->size)) {
+    if (unlikely(offset + length > entry_index->value.size)) {
         return false;
     }
 
     // Check if the value is small enough to be contained in 1 single chunk and if it would fit in a memory single
     // memory allocation leaving enough space for the protocol begin and end signatures themselves.
     // The 32 bytes extra are required for the protocol data
-    if (likely(entry_index->value->count == 1 && entry_index->value->size + 32 <= NETWORK_CHANNEL_MAX_PACKET_SIZE)) {
+    if (likely(entry_index->value.count == 1 && entry_index->value.size + 32 <= NETWORK_CHANNEL_MAX_PACKET_SIZE)) {
         return module_redis_command_stream_entry_range_with_one_chunk(
                 network_channel,
                 db,
@@ -261,7 +265,7 @@ static inline __attribute__((always_inline)) bool module_redis_command_stream_en
             db,
             entry_index,
             0,
-            entry_index->value->size);
+            entry_index->value.size);
 }
 
 #if CACHEGRAND_MODULE_REDIS_COMMAND_DUMP_CONTEXT == 1

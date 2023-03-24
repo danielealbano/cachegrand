@@ -23,6 +23,8 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
 #include "fiber/fiber.h"
@@ -108,8 +110,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
             REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
-                    expected_response_length,
-                    send_recv_resp_command_calculate_multi_recv(expected_response_length)));
+                    expected_response_length));
 
             free(expected_response);
         }
@@ -171,8 +172,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
             REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     (char *) expected,
-                    header_len + offset + strlen("b_value\r\n"),
-                    send_recv_resp_command_calculate_multi_recv(header_len + offset + strlen("b_value\r\n"))));
+                    header_len + offset + strlen("b_value\r\n")));
         }
     }
 
@@ -227,8 +227,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
             REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
-                    expected_response_length,
-                    send_recv_resp_command_calculate_multi_recv(expected_response_length)));
+                    expected_response_length));
 
             free(expected_response);
         }
@@ -278,8 +277,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
             REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     expected_response,
-                    expected_response_length,
-                    send_recv_resp_command_calculate_multi_recv(expected_response_length)));
+                    expected_response_length));
 
             free(expected_response);
         }
@@ -346,8 +344,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETRANGE", "
             REQUIRE(send_recv_resp_command_multi_recv_and_validate_recv(
                     std::vector<std::string>{"GET", "a_key"},
                     (char *) expected,
-                    expected_len,
-                    send_recv_resp_command_calculate_multi_recv(expected_len)));
+                    expected_len));
         }
     }
 

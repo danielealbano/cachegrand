@@ -21,6 +21,7 @@
 #include "transaction_spinlock.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "memory_allocator/ffma.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -96,7 +97,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(msetnx) {
                     connection_context->db,
                     &rmw_statuses[index],
                     STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
-                    key_value->value.value.chunk_sequence,
+                    &key_value->value.value.chunk_sequence,
                     STORAGE_DB_ENTRY_NO_EXPIRY))) {
                 return_res = module_redis_connection_error_message_printf_noncritical(
                         connection_context,
@@ -109,7 +110,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(msetnx) {
             // automatically freed at the end of the execution, especially the key as the hashtable might not need to hold
             // a reference to it, it might have already been freed
             key_value->key.value.key = NULL;
-            key_value->value.value.chunk_sequence = NULL;
+            key_value->value.value.chunk_sequence.sequence = NULL;
 
             rmw_statuses_processed_up_to++;
         }

@@ -1,11 +1,6 @@
 #ifndef CACHEGRAND_FIBER_CONTEXT_H
 #define CACHEGRAND_FIBER_CONTEXT_H
 
-typedef struct fiber_context fiber_context_t;
-
-struct fiber_context {
-    char ragisters[176];
-    void *sp;
-};
+#define FIBER_CONTEXT_NUM_REGISTRIES (9 + 8 * 2)
 
 #endif //CACHEGRAND_FIBER_CONTEXT_H

@@ -27,6 +27,7 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "module/module.h"
@@ -143,25 +144,37 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
         }
     }
 
-    SECTION("worker_stats_should_publish_after_interval") {
+    SECTION("worker_stats_should_publish_totals_after_interval") {
         SECTION("should") {
             worker_stats_volatile_t stats = {0};
 
-            REQUIRE(worker_stats_should_publish_after_interval(
-                    &stats,
-                    WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC));
+            REQUIRE(worker_stats_should_publish_totals_after_interval(&stats));
         }
 
         SECTION("should not") {
             worker_stats_volatile_t stats = {0};
 
-            REQUIRE(clock_gettime(CLOCK_REALTIME, (struct timespec*)&stats.per_minute_last_update_timestamp) == 0);
+            clock_realtime((timespec_t*)&stats.total_last_update_timestamp);
+            stats.total_last_update_timestamp.tv_sec += WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC + 1;
 
+            REQUIRE(!worker_stats_should_publish_totals_after_interval(&stats));
+        }
+    }
+
+    SECTION("worker_stats_should_publish_per_minute_after_interval") {
+        SECTION("should") {
+            worker_stats_volatile_t stats = {0};
+
+            REQUIRE(worker_stats_should_publish_per_minute_after_interval(&stats));
+        }
+
+        SECTION("should not") {
+            worker_stats_volatile_t stats = {0};
+
+            clock_realtime((timespec_t*)&stats.per_minute_last_update_timestamp);
             stats.per_minute_last_update_timestamp.tv_sec += WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC + 1;
 
-            REQUIRE(!worker_stats_should_publish_after_interval(
-                    &stats,
-                    WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC));
+            REQUIRE(!worker_stats_should_publish_per_minute_after_interval(&stats));
         }
     }
 

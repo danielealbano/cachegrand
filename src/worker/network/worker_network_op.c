@@ -33,6 +33,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "memory_allocator/ffma.h"
 #include "config.h"
 #include "log/log.h"
@@ -140,7 +141,7 @@ void worker_module_context_free(
         config_t *config,
         worker_module_context_t *worker_module_context) {
     for (int module_index = 0; module_index < config->modules_count; module_index++) {
-        if (worker_module_context[module_index].network_tls_config == NULL) {
+        if (worker_module_context == NULL || worker_module_context[module_index].network_tls_config == NULL) {
             continue;
         }
         network_tls_config_free(worker_module_context[module_index].network_tls_config);

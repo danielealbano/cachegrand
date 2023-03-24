@@ -46,6 +46,7 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "support/simple_file_io.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
@@ -198,7 +199,7 @@ void worker_cleanup_network(
         uint8_t listeners_count) {
     // TODO: should use a struct with fp pointers, not ifs
     if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING) {
-        worker_network_iouring_cleanup(listeners, listeners_count); // lgtm [cpp/useless-expression]
+        worker_network_iouring_cleanup(listeners, listeners_count);
     }
 
     for(
@@ -215,7 +216,9 @@ void worker_cleanup_network(
         }
     }
 
-    worker_op_network_channel_free(listeners);
+    if (listeners) {
+        worker_op_network_channel_free(listeners);
+    }
 }
 
 void worker_cleanup_storage(
@@ -347,7 +350,6 @@ void* worker_thread_func(
         void* user_data) {
     bool aborted = true;
     bool res = false;
-
     worker_module_context_t *worker_module_contexts = NULL;
     network_channel_t *listeners = NULL;
     uint8_t listeners_count = 0;
@@ -445,14 +447,27 @@ void* worker_thread_func(
             break;
         }
 
-        if (worker_stats_should_publish_after_interval(&worker_context->stats.shared, 1)) {
-            bool only_total = !worker_stats_should_publish_after_interval(
-                    &worker_context->stats.shared,
-                    WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC);
+        // Checks if the stats should be published with an interval of 1 second
+        if (worker_stats_should_publish_totals_after_interval(&worker_context->stats.shared)) {
+            // Check if the per_minute stats should be published too
+            bool only_total = !worker_stats_should_publish_per_minute_after_interval(
+                    &worker_context->stats.shared);
             worker_stats_publish(
                     &worker_context->stats.internal,
                     &worker_context->stats.shared,
                     only_total);
+        }
+
+        // Check the database limits (max keys), if the limits are exceeded the eviction process will be started.
+        // Although this check is going to be false most of the time, it doesn't impact the performance of the
+        // worker because it's a really simple check so it makes sense to do it first.
+        if (unlikely(storage_db_keys_eviction_should_run(worker_context->db))) {
+            storage_db_keys_eviction_run_worker(
+                    worker_context->db,
+                    worker_context->config->database->keys_eviction->batch_size,
+                    worker_context->config->database->keys_eviction->only_ttl,
+                    worker_context->config->database->keys_eviction->policy,
+                    worker_context->worker_index);
         }
     } while(!worker_should_terminate(worker_context));
 

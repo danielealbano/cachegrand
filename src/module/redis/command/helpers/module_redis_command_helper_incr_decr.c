@@ -24,6 +24,7 @@
 #include "utils_string.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "memory_allocator/ffma.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -55,7 +56,7 @@ bool module_redis_command_helper_incr_decr(
     transaction_t transaction = { 0 };
     storage_db_op_rmw_status_t rmw_status = { 0 };
     storage_db_entry_index_t *current_entry_index = NULL;
-    storage_db_chunk_sequence_t *chunk_sequence_new = NULL;
+    storage_db_chunk_sequence_t chunk_sequence_new = { 0 };
 
     int64_t number = 0, new_number;
     storage_db_expiry_time_ms_t expiry_time_ms = STORAGE_DB_ENTRY_NO_EXPIRY;
@@ -80,7 +81,7 @@ bool module_redis_command_helper_incr_decr(
         expiry_time_ms = current_entry_index->expiry_time_ms;
 
         storage_db_chunk_info_t *chunk_info = storage_db_chunk_sequence_get(
-                current_entry_index->value,
+                &current_entry_index->value,
                 0);
         current_string = storage_db_get_chunk_data(
                 connection_context->db,
@@ -119,10 +120,17 @@ bool module_redis_command_helper_incr_decr(
     char buffer[32] = { 0 };
     size_t buffer_length = snprintf(buffer, sizeof(buffer), "%ld", new_number);
 
-    chunk_sequence_new = storage_db_chunk_sequence_allocate(connection_context->db, buffer_length);
+    if (unlikely(!storage_db_chunk_sequence_allocate(connection_context->db, &chunk_sequence_new, buffer_length))) {
+        return_res = module_redis_connection_error_message_printf_noncritical(
+                connection_context,
+                "ERR operation failed");
+
+        goto end;
+    }
+
     if (unlikely(!storage_db_chunk_write(
             connection_context->db,
-            storage_db_chunk_sequence_get(chunk_sequence_new, 0),
+            storage_db_chunk_sequence_get(&chunk_sequence_new, 0),
             0,
             buffer,
             buffer_length))) {
@@ -137,7 +145,7 @@ bool module_redis_command_helper_incr_decr(
             connection_context->db,
             &rmw_status,
             STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
-            chunk_sequence_new,
+            &chunk_sequence_new,
             expiry_time_ms)) {
         return_res = module_redis_connection_error_message_printf_noncritical(
                 connection_context,
@@ -151,7 +159,7 @@ bool module_redis_command_helper_incr_decr(
 
     *key = NULL;
     *key_length = 0;
-    chunk_sequence_new = NULL;
+    chunk_sequence_new.sequence = NULL;
     abort_rmw = false;
 
     if ((return_res = module_redis_connection_send_number(
@@ -176,8 +184,8 @@ end:
         transaction_release(&transaction);
     }
 
-    if (unlikely(chunk_sequence_new)) {
-        storage_db_chunk_sequence_free(connection_context->db, chunk_sequence_new);
+    if (unlikely(chunk_sequence_new.sequence)) {
+        storage_db_chunk_sequence_free_chunks(connection_context->db, &chunk_sequence_new);
     }
 
     return return_res;
@@ -200,7 +208,7 @@ bool module_redis_command_helper_incr_decr_float(
     transaction_t transaction = { 0 };
     storage_db_op_rmw_status_t rmw_status = { 0 };
     storage_db_entry_index_t *current_entry_index = NULL;
-    storage_db_chunk_sequence_t *chunk_sequence_new = NULL;
+    storage_db_chunk_sequence_t chunk_sequence_new = { 0 };
 
     long double number = 0, new_number;
     storage_db_expiry_time_ms_t expiry_time_ms = STORAGE_DB_ENTRY_NO_EXPIRY;
@@ -225,7 +233,7 @@ bool module_redis_command_helper_incr_decr_float(
         expiry_time_ms = current_entry_index->expiry_time_ms;
 
         storage_db_chunk_info_t *chunk_info = storage_db_chunk_sequence_get(
-                current_entry_index->value,
+                &current_entry_index->value,
                 0);
         current_string = storage_db_get_chunk_data(
                 connection_context->db,
@@ -314,10 +322,17 @@ bool module_redis_command_helper_incr_decr_float(
 
     new_number_buffer[new_number_buffer_length] = 0;
 
-    chunk_sequence_new = storage_db_chunk_sequence_allocate(connection_context->db, new_number_buffer_length);
+    if (unlikely(!storage_db_chunk_sequence_allocate(connection_context->db, &chunk_sequence_new, new_number_buffer_length))) {
+        return_res = module_redis_connection_error_message_printf_noncritical(
+                connection_context,
+                "ERR operation failed");
+
+        goto end;
+    }
+
     if (unlikely(!storage_db_chunk_write(
             connection_context->db,
-            storage_db_chunk_sequence_get(chunk_sequence_new, 0),
+            storage_db_chunk_sequence_get(&chunk_sequence_new, 0),
             0,
             new_number_buffer,
             new_number_buffer_length))) {
@@ -332,7 +347,7 @@ bool module_redis_command_helper_incr_decr_float(
             connection_context->db,
             &rmw_status,
             STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
-            chunk_sequence_new,
+            &chunk_sequence_new,
             expiry_time_ms)) {
         return_res = module_redis_connection_error_message_printf_noncritical(
                 connection_context,
@@ -346,7 +361,7 @@ bool module_redis_command_helper_incr_decr_float(
 
     *key = NULL;
     *key_length = 0;
-    chunk_sequence_new = NULL;
+    chunk_sequence_new.sequence = NULL;
     abort_rmw = false;
 
     if ((return_res = module_redis_connection_send_blob_string(
@@ -376,8 +391,8 @@ end:
         transaction_release(&transaction);
     }
 
-    if (unlikely(chunk_sequence_new)) {
-        storage_db_chunk_sequence_free(connection_context->db, chunk_sequence_new);
+    if (unlikely(chunk_sequence_new.sequence)) {
+        storage_db_chunk_sequence_free_chunks(connection_context->db, &chunk_sequence_new);
     }
 
     return return_res;

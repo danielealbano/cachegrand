@@ -15,17 +15,18 @@ Example output
 
 ## Required packages
 
-| Package       | Min. Version |               |
-|---------------|--------------|---------------|
-| pkg-config    |              | **mandatory** |
-| libnuma       | \>= 1.1      | **mandatory** |
-| libyaml       | \>= 1.1      | **mandatory** |
-| libmbedtls    | \>= 2.28     | **mandatory** |
-| libatomic1    |              | **mandatory** |
-| openssl       | \>= 2.0      | **mandatory** |
-| curl          | \>= 7.0      | **mandatory** |
-| libpcre2      |              | **mandatory** |
-| libjson-c-dev |              | **mandatory** |
+| Package       | Min. Version |                  |
+|---------------|--------------|------------------|
+| pkg-config    |              | **mandatory**    |
+| libnuma       | \>= 1.1      | **mandatory**    |
+| libyaml       | \>= 1.1      | **mandatory**    |
+| libmbedtls    | \>= 2.28     | **mandatory**    |
+| libatomic1    |              | **mandatory**    |
+| openssl       | \>= 2.0      | **mandatory**    |
+| curl          | \>= 7.0      | **mandatory**    |
+| libpcre2      |              | **mandatory**    |
+| libjson-c-dev |              | **mandatory**    |
+| libhiredis    | \>= 0.14     | only for testing |
 
 ## Install the required packages
 
@@ -42,7 +43,7 @@ sudo apt install \
     libyaml-0-2 libyaml-dev \
     libmbedtls-dev libmbedtls14 \
     libpcre2-8-0 libpcre2-dev \
-    libjson-c-dev
+    libjson-c-dev libhiredis-dev
 ```
 
 ### Ubuntu 20.04
@@ -58,7 +59,7 @@ sudo apt install \
     libyaml-0-2 libyaml-dev \
     libmbedtls-dev libmbedtls12 \
     libpcre2-8-0 libpcre2-dev \
-    libjson-c-dev
+    libjson-c-dev libhiredis-dev
 ```
 
 ### Debian 11
@@ -74,7 +75,7 @@ sudo apt install \
     libyaml-0-2 libyaml-dev \
     libmbedtls-dev libmbedtls12 \
     libpcre2-8-0 libpcre2-dev \
-    libjson-c-dev
+    libjson-c-dev libhiredis-dev
 ```
 
 ### Fedora 36
@@ -87,7 +88,7 @@ sudo dnf install \
     libcurl libcurl-devel \
     libyaml libyaml-devel \
     mbedtls mbedtls-devel \
-    libatomic
+    libatomic hiredis-devel
 ```
 
 ## How to build it

@@ -27,6 +27,7 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "memory_allocator/ffma.h"
 #include "config.h"
 #include "fiber/fiber.h"
@@ -150,8 +151,6 @@ bool module_redis_process_data(
     protocol_redis_reader_op_t ops[8] = { 0 };
     uint8_t ops_size = (sizeof(ops) / sizeof(protocol_redis_reader_op_t));
 
-    worker_context_t *worker_context = worker_context_get();
-
     // The loops below terminate if data_size is equals to zero, it should never happen that this function is invoked
     // with the read buffer empty.
     assert(read_buffer->data_size > 0);
@@ -273,7 +272,6 @@ bool module_redis_process_data(
                         continue;
                     }
 
-                    // Invoke the being function callback if it has been set
                     if (unlikely(!module_redis_command_process_begin(connection_context))) {
                         LOG_D(TAG, "[RECV][REDIS] Unable to allocate the command context, terminating connection");
                         goto end;

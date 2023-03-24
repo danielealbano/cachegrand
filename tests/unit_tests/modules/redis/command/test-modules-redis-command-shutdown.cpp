@@ -23,6 +23,7 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
 #include "fiber/fiber.h"
@@ -46,9 +47,16 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SHUTDOWN", "
             std::vector<std::string>{"SHUTDOWN"},
             "+OK\r\n"));
 
-    // Wait 5 seconds in addition to the max duration of the wait time in the loop to ensure that the worker has
-    // plenty of time to shut-down
-    usleep((5000 + (WORKER_LOOP_MAX_WAIT_TIME_MS + 100)) * 1000);
+    // Wait up to 5 seconds for the worker to stop
+    for(int i = 0; i < 5100; i++) {
+        MEMORY_FENCE_LOAD();
+        if(!worker_context->running) {
+            break;
+        }
+
+        usleep(1000);
+    }
+
     MEMORY_FENCE_LOAD();
     REQUIRE(!worker_context->running);
 }

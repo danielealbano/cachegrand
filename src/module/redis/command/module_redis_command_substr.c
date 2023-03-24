@@ -21,6 +21,7 @@
 #include "transaction_spinlock.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "protocol/redis/protocol_redis.h"
@@ -58,11 +59,11 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(substr) {
     off_t range_end = context->end.value;
 
     if (range_start < 0) {
-        range_start += (off_t)entry_index->value->size;
+        range_start += (off_t)entry_index->value.size;
     }
 
     if (range_end < 0) {
-        range_end += (off_t)entry_index->value->size;
+        range_end += (off_t)entry_index->value.size;
     }
 
     if (unlikely(range_end < range_start)) {
@@ -72,13 +73,13 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(substr) {
 
     off_t range_length = range_end - range_start + 1;
 
-    if (unlikely(range_start > entry_index->value->size || range_length <= 0)) {
+    if (unlikely(range_start > entry_index->value.size || range_length <= 0)) {
         return_res = module_redis_connection_send_blob_string(connection_context, "", 0);
         goto end;
     }
 
-    if (unlikely(range_start + range_length > entry_index->value->size)) {
-        range_length = (off_t)entry_index->value->size - range_start;
+    if (unlikely(range_start + range_length > entry_index->value.size)) {
+        range_length = (off_t)entry_index->value.size - range_start;
     }
 
     return_res = module_redis_command_stream_entry_range(

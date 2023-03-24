@@ -27,7 +27,6 @@
 
 #include "hashtable.h"
 #include "hashtable_data.h"
-#include "hashtable_thread_counters.h"
 
 hashtable_data_t* hashtable_mcmp_data_init(
         hashtable_bucket_count_t buckets_count) {
@@ -58,8 +57,6 @@ hashtable_data_t* hashtable_mcmp_data_init(
             (hashtable_half_hashes_chunk_volatile_t *)xalloc_mmap_alloc(hashtable_data->half_hashes_chunk_size);
     hashtable_data->keys_values =
             (hashtable_key_value_volatile_t *)xalloc_mmap_alloc(hashtable_data->keys_values_size);
-
-    hashtable_mcmp_thread_counters_init(hashtable_data, 0);
 
     return hashtable_data;
 }
@@ -120,7 +117,6 @@ void hashtable_mcmp_data_keys_free(
 void hashtable_mcmp_data_free(
         hashtable_data_t* hashtable_data) {
     hashtable_mcmp_data_keys_free(hashtable_data);
-    hashtable_mcmp_thread_counters_free(hashtable_data);
 
     xalloc_mmap_free((void*)hashtable_data->half_hashes_chunk, hashtable_data->half_hashes_chunk_size);
     xalloc_mmap_free((void*)hashtable_data->keys_values, hashtable_data->keys_values_size);

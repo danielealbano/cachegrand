@@ -21,6 +21,7 @@
 #include "transaction_spinlock.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "protocol/redis/protocol_redis.h"
@@ -39,8 +40,6 @@
 #define TAG "module_redis_command_pttl"
 
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(pttl) {
-    network_channel_buffer_data_t *send_buffer, *send_buffer_start;
-    size_t slice_length = 48;
     int64_t response = -2;
     storage_db_entry_index_t *entry_index = NULL;
     module_redis_command_pttl_context_t *context = connection_context->command.context;

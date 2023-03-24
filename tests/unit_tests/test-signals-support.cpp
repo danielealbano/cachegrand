@@ -128,16 +128,16 @@ TEST_CASE("signals_support.c", "[signals_support]") {
     }
 
     SECTION("signals_support_handler_sigsegv_fatal") {
-        bool fatal_catched = false;
+        bool fatal_caught = false;
 
         if (sigsetjmp(jump_fp_signals_support, 1) == 0) {
             test_signals_support_setup_sigabrt_signal_handler();
             signals_support_handler_sigsegv_fatal(SIGINT);
         } else {
-            fatal_catched = true;
+            fatal_caught = true;
         }
 
-        REQUIRE(fatal_catched);
+        REQUIRE(fatal_caught);
     }
 
     SECTION("signals_support_register_sigsegv_fatal_handler") {

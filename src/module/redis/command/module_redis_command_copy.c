@@ -23,6 +23,7 @@
 #include "transaction_spinlock.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "memory_allocator/ffma.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -54,7 +55,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
     storage_db_entry_index_t *entry_index_source = NULL;
     storage_db_entry_index_t *entry_index_destination_current = NULL;
     storage_db_chunk_sequence_t *chunk_sequence_source = NULL;
-    storage_db_chunk_sequence_t *chunk_sequence_destination = NULL;
+    storage_db_chunk_sequence_t chunk_sequence_destination = { 0 };
     bool allocated_new_buffer = false;
     char *source_chunk_data = NULL;
 
@@ -103,15 +104,21 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
         goto end;
     }
 
-    chunk_sequence_source = entry_index_source->value;
-    chunk_sequence_destination = storage_db_chunk_sequence_allocate(
+    chunk_sequence_source = &entry_index_source->value;
+    if (unlikely(!storage_db_chunk_sequence_allocate(
             connection_context->db,
-            entry_index_source->value->size);
+            &chunk_sequence_destination,
+            entry_index_source->value.size))) {
+        return_res = module_redis_connection_error_message_printf_noncritical(
+                connection_context,
+                "ERR copy failed");
+        goto end;
+    }
 
     off_t destination_chunk_offset = 0;
     storage_db_chunk_index_t destination_chunk_index = 0;
     storage_db_chunk_info_t *destination_chunk_info = storage_db_chunk_sequence_get(
-            chunk_sequence_destination,
+            &chunk_sequence_destination,
             destination_chunk_index);
     for(storage_db_chunk_index_t source_chunk_index = 0; source_chunk_index < chunk_sequence_source->count; source_chunk_index++) {
         size_t source_chunk_written_data = 0;
@@ -166,7 +173,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
                 destination_chunk_index++;
                 destination_chunk_offset = 0;
                 destination_chunk_info = storage_db_chunk_sequence_get(
-                        chunk_sequence_destination,
+                        &chunk_sequence_destination,
                         destination_chunk_index);
             }
         } while(source_chunk_written_data < source_chunk_info->chunk_length);
@@ -181,11 +188,11 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
             connection_context->db,
             &rmw_status,
             entry_index_source->value_type,
-            chunk_sequence_destination,
+            &chunk_sequence_destination,
             STORAGE_DB_ENTRY_NO_EXPIRY))) {
         // entry_index_destination_new is freed by storage_db_op_rmw_commit_update if the operation fails
         error_found = true;
-        chunk_sequence_destination = NULL;
+        chunk_sequence_destination.sequence = NULL;
         return_res = module_redis_connection_error_message_printf_noncritical(
                 connection_context,
                 "ERR copy failed");
@@ -201,7 +208,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
     // The key is now owned by the storage db and the entry index is assigned
     context->destination.value.key = NULL;
     context->destination.value.length = 0;
-    chunk_sequence_destination = NULL;
+    chunk_sequence_destination.sequence = NULL;
 
 end:
 
@@ -223,9 +230,9 @@ end:
         entry_index_source = NULL;
     }
 
-    if (unlikely(chunk_sequence_destination)) {
-        storage_db_chunk_sequence_free(connection_context->db, chunk_sequence_destination);
-        chunk_sequence_destination = NULL;
+    if (unlikely(chunk_sequence_destination.sequence)) {
+        storage_db_chunk_sequence_free_chunks(connection_context->db, &chunk_sequence_destination);
+        chunk_sequence_destination.sequence = NULL;
     }
 
     if (unlikely(!error_found)) {
