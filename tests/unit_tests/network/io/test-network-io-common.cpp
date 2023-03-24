@@ -439,10 +439,8 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
     }
 
     SECTION("network_io_common_socket_bind") {
-        uint16_t socket_port_free_ipv4 =
-                network_tests_support_search_free_port_ipv4(9999);
-        uint16_t socket_port_free_ipv6 =
-                network_tests_support_search_free_port_ipv6(9999);
+        uint16_t socket_port_free_ipv4 = network_tests_support_search_free_port_ipv4();
+        uint16_t socket_port_free_ipv6 = network_tests_support_search_free_port_ipv6();
 
         SECTION("valid ipv4 address and port") {
             int val = 1;
@@ -518,10 +516,8 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
     }
 
     SECTION("network_io_common_socket_listen") {
-        uint16_t socket_port_free_ipv4 =
-                network_tests_support_search_free_port_ipv4(9999);
-        uint16_t socket_port_free_ipv6 =
-                network_tests_support_search_free_port_ipv6(9999);
+        uint16_t socket_port_free_ipv4 = network_tests_support_search_free_port_ipv4();
+        uint16_t socket_port_free_ipv6 = network_tests_support_search_free_port_ipv6();
 
         SECTION("valid ipv4 address and port") {
             int val = 1;
@@ -604,10 +600,8 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
     }
 
     SECTION("network_io_common_socket_setup_server") {
-        uint16_t socket_port_free_ipv4 =
-                network_tests_support_search_free_port_ipv4(9999);
-        uint16_t socket_port_free_ipv6 =
-                network_tests_support_search_free_port_ipv6(9999);
+        uint16_t socket_port_free_ipv4 = network_tests_support_search_free_port_ipv4();
+        uint16_t socket_port_free_ipv6 = network_tests_support_search_free_port_ipv6();
 
         SECTION("valid ipv4 address and port") {
             struct sockaddr_in address = {0};
@@ -681,10 +675,8 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
     }
 
     SECTION("network_io_common_socket_tcp4_new_server") {
-        uint16_t socket_port_free_ipv4 =
-                network_tests_support_search_free_port_ipv4(9999);
-        uint16_t socket_port_free_ipv6 =
-                network_tests_support_search_free_port_ipv6(9999);
+        uint16_t socket_port_free_ipv4 = network_tests_support_search_free_port_ipv4();
+        uint16_t socket_port_free_ipv6 = network_tests_support_search_free_port_ipv6();
 
         int fd;
         struct sockaddr_in address = {0};
@@ -718,10 +710,8 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
     }
 
     SECTION("network_io_common_socket_tcp6_new_server") {
-        uint16_t socket_port_free_ipv4 =
-                network_tests_support_search_free_port_ipv4(9999);
-        uint16_t socket_port_free_ipv6 =
-                network_tests_support_search_free_port_ipv6(9999);
+        uint16_t socket_port_free_ipv4 = network_tests_support_search_free_port_ipv4();
+        uint16_t socket_port_free_ipv6 = network_tests_support_search_free_port_ipv6();
 
         int fd;
         struct sockaddr_in6 address = {0};
@@ -743,10 +733,8 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
     }
 
     SECTION("network_io_common_socket_new_server") {
-        uint16_t socket_port_free_ipv4 =
-                network_tests_support_search_free_port_ipv4(9999);
-        uint16_t socket_port_free_ipv6 =
-                network_tests_support_search_free_port_ipv6(9999);
+        uint16_t socket_port_free_ipv4 = network_tests_support_search_free_port_ipv4();
+        uint16_t socket_port_free_ipv6 = network_tests_support_search_free_port_ipv6();
 
         SECTION("valid ipv4 address and port") {
             int fd;
@@ -805,10 +793,8 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
     }
 
     SECTION("network_io_common_socket_close") {
-        uint16_t socket_port_free_ipv4 =
-                network_tests_support_search_free_port_ipv4(9999);
-        uint16_t socket_port_free_ipv6 =
-                network_tests_support_search_free_port_ipv6(9999);
+        uint16_t socket_port_free_ipv4 = network_tests_support_search_free_port_ipv4();
+        uint16_t socket_port_free_ipv6 = network_tests_support_search_free_port_ipv6();
 
         SECTION("valid socket") {
             int fd;

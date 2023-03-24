@@ -70,6 +70,40 @@ void slots_bitmap_mpmc_free(
     ffma_mem_free(bitmap);
 }
 
+uint64_t slots_bitmap_mpmc_iter(
+        slots_bitmap_mpmc_t *slots_bitmap,
+        uint64_t from) {
+    // Calculate the initial shard
+    uint64_t shard_index_start = from / SLOTS_BITMAP_MPMC_SHARD_SIZE;
+
+    // Calculate the initial bit index
+    uint64_t bit_index_start = from % SLOTS_BITMAP_MPMC_SHARD_SIZE;
+
+    // Iterate over the shards
+    for(
+            uint64_t shard_index = shard_index_start;
+            shard_index < slots_bitmap->shards_count;
+            shard_index++) {
+        // Iterate over all bits in the shard
+        for(
+                uint64_t bit_index = bit_index_start;
+                bit_index < SLOTS_BITMAP_MPMC_SHARD_SIZE;
+                bit_index++) {
+
+            // Check if the bit is set
+            if (slots_bitmap_mpmc_shard_is_bit_set(slots_bitmap, shard_index, bit_index)) {
+                return from;
+            }
+
+            from++;
+        }
+
+        bit_index_start = 0;
+    }
+
+    return UINT64_MAX;
+}
+
 bool slots_bitmap_mpmc_get_next_available_ptr_with_step(
         slots_bitmap_mpmc_t *slots_bitmap,
         uint16_t shard_index_start,

@@ -32,8 +32,7 @@ void fiber_scheduler_grow_stack();
 bool fiber_scheduler_stack_needs_growth();
 
 void fiber_scheduler_new_fiber_entrypoint(
-        fiber_t *from,
-        fiber_t *to);
+        void *user_data);
 
 fiber_t* fiber_scheduler_new_fiber(
         char *name,

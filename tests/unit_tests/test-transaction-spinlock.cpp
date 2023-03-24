@@ -259,49 +259,51 @@ TEST_CASE("transaction_spinlock.c", "[transaction_spinlock]") {
             pthread_attr_t attr;
             uint64_t increments_per_thread_sum = 0, increments_per_thread;
 
-            uint32_t cores_count = utils_cpu_count();
-            uint32_t threads_count = cores_count * 2;
+            uint32_t cores_count = MIN(utils_cpu_count(), 8);
 
-            // Magic numbers to run enough thread in parallel for 1-2s after the thread creation.
-            // The test can be quite time-consuming when with an attached debugger.
-            increments_per_thread = (uint64_t)(20000 /  ((float)threads_count / 48.0));
+            // Magic numbers to run the threads in parallel for a few seconds after the threads creation.
+#if DEBUG
+            increments_per_thread = 1000;
+#else
+            increments_per_thread = 1000000;
+#endif
 
             REQUIRE(pthread_attr_init(&attr) == 0);
 
             struct test_transaction_spinlock_lock_counter_thread_func_data* threads_info =
                     (struct test_transaction_spinlock_lock_counter_thread_func_data*)calloc(
-                            threads_count,
+                            cores_count,
                             sizeof(test_transaction_spinlock_lock_counter_thread_func_data));
 
             REQUIRE(threads_info != NULL);
 
             start_flag = false;
             transaction_spinlock_init(&lock);
-            for(uint32_t thread_num = 0; thread_num < threads_count; thread_num++) {
-                threads_info[thread_num].thread_num = thread_num;
-                threads_info[thread_num].start_flag = &start_flag;
-                threads_info[thread_num].lock = &lock;
-                threads_info[thread_num].increments = increments_per_thread;
-                threads_info[thread_num].counter = &increments_per_thread_sum;
+            for(uint32_t core_num = 0; core_num < cores_count; core_num++) {
+                threads_info[core_num].thread_num = core_num;
+                threads_info[core_num].start_flag = &start_flag;
+                threads_info[core_num].lock = &lock;
+                threads_info[core_num].increments = increments_per_thread;
+                threads_info[core_num].counter = &increments_per_thread_sum;
 
                 REQUIRE(pthread_create(
-                        &threads_info[thread_num].thread_id,
+                        &threads_info[core_num].thread_id,
                         &attr,
                         &test_transaction_spinlock_lock_counter_thread_func,
-                        &threads_info[thread_num]) == 0);
+                        &threads_info[core_num]) == 0);
             }
 
             start_flag = true;
             MEMORY_FENCE_STORE();
 
             // Wait for all the threads to finish
-            for(uint32_t thread_num = 0; thread_num < threads_count; thread_num++) {
-                REQUIRE(pthread_join(threads_info[thread_num].thread_id, &ret) == 0);
+            for(uint32_t core_num = 0; core_num < cores_count; core_num++) {
+                REQUIRE(pthread_join(threads_info[core_num].thread_id, &ret) == 0);
             }
 
             free(threads_info);
 
-            REQUIRE(increments_per_thread_sum == increments_per_thread * threads_count);
+            REQUIRE(increments_per_thread_sum == increments_per_thread * cores_count);
         }
     }
 }

@@ -23,6 +23,7 @@
 #include "transaction_spinlock.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "memory_allocator/ffma.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -51,7 +52,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(append) {
     storage_db_op_rmw_status_t rmw_status = { 0 };
     storage_db_entry_index_t *current_entry_index = NULL;
     size_t destination_chunk_sequence_length = 0;
-    storage_db_chunk_sequence_t *destination_chunk_sequence = NULL;
+    storage_db_chunk_sequence_t destination_chunk_sequence = { 0 };
     storage_db_chunk_info_t *destination_chunk_info = NULL;
     storage_db_chunk_offset_t destination_chunk_offset = 0;
     storage_db_chunk_index_t destination_chunk_index = 0;
@@ -85,19 +86,25 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(append) {
     }
 
     if (likely(current_entry_index)) {
-        destination_chunk_sequence_length += current_entry_index->value->size;
-        chunk_sequences_to_splice[0] = current_entry_index->value;
+        destination_chunk_sequence_length += current_entry_index->value.size;
+        chunk_sequences_to_splice[0] = &current_entry_index->value;
         expiry_time_ms = current_entry_index->expiry_time_ms;
     }
 
-    chunk_sequences_to_splice[1] = context->value.value.chunk_sequence;
-    destination_chunk_sequence_length += context->value.value.chunk_sequence->size;
+    chunk_sequences_to_splice[1] = &context->value.value.chunk_sequence;
+    destination_chunk_sequence_length += context->value.value.chunk_sequence.size;
 
-    destination_chunk_sequence = storage_db_chunk_sequence_allocate(
+    if (unlikely(!storage_db_chunk_sequence_allocate(
             connection_context->db,
-            destination_chunk_sequence_length);
+            &destination_chunk_sequence,
+            destination_chunk_sequence_length))) {
+        return_res = module_redis_connection_error_message_printf_noncritical(
+                connection_context,
+                "ERR append failed");
+        goto end;
+    }
     destination_chunk_info = storage_db_chunk_sequence_get(
-            destination_chunk_sequence,
+            &destination_chunk_sequence,
             destination_chunk_index);
 
     for(int index = 0; index < ARRAY_SIZE(chunk_sequences_to_splice); index++) {
@@ -152,7 +159,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(append) {
                     destination_chunk_index++;
 
                     destination_chunk_info = storage_db_chunk_sequence_get(
-                            destination_chunk_sequence,
+                            &destination_chunk_sequence,
                             destination_chunk_index);
 
                     destination_chunk_offset = 0;
@@ -171,7 +178,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(append) {
             connection_context->db,
             &rmw_status,
             STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
-            destination_chunk_sequence,
+            &destination_chunk_sequence,
             expiry_time_ms))) {
         return_res = module_redis_connection_error_message_printf_noncritical(
                 connection_context,
@@ -187,9 +194,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(append) {
 
     return_res = module_redis_connection_send_number(
             connection_context,
-            (int64_t)destination_chunk_sequence->size);
+            (int64_t)destination_chunk_sequence.size);
 
-    destination_chunk_sequence = NULL;
+    destination_chunk_sequence.sequence = NULL;
 
 end:
 
@@ -199,9 +206,9 @@ end:
         allocated_new_buffer = false;
     }
 
-    if (unlikely(destination_chunk_sequence)) {
-        storage_db_chunk_sequence_free(connection_context->db, destination_chunk_sequence);
-        destination_chunk_sequence = NULL;
+    if (unlikely(destination_chunk_sequence.sequence)) {
+        storage_db_chunk_sequence_free_chunks(connection_context->db, &destination_chunk_sequence);
+        destination_chunk_sequence.sequence = NULL;
     }
 
     if (unlikely(abort_rmw)) {

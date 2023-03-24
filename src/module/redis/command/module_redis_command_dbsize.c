@@ -21,6 +21,7 @@
 #include "transaction_spinlock.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "protocol/redis/protocol_redis.h"
@@ -41,6 +42,6 @@
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(dbsize) {
     return module_redis_connection_send_number(
             connection_context,
-            storage_db_op_get_size(
+            storage_db_op_get_keys_count(
                     connection_context->db));
 }

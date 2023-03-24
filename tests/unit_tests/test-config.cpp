@@ -151,8 +151,22 @@ modules:
           port: 6379
           tls: true
 database:
-  max_keys: 10000
+  limits:
+    hard:
+      max_keys: 1000000
+    soft:
+      max_keys: 999999
   backend: memory
+  memory:
+    limits:
+      hard:
+        max_memory_usage: 1000000
+      soft:
+        max_memory_usage: 999999
+  keys_eviction:
+    policy: lru
+    only_ttl: true
+    batch_size: 1000
 sentry:
   enable: true
 logs:
@@ -211,8 +225,22 @@ modules:
         - host: "::"
           port: 6379
 database:
-  max_keys: 10000
+  limits:
+    hard:
+      max_keys: 1000000
+    soft:
+      max_keys: 999999
   backend: memory
+  memory:
+    limits:
+      hard:
+        max_memory_usage: 1000000
+      soft:
+        max_memory_usage: 999999
+  keys_eviction:
+    policy: lru
+    only_ttl: true
+    batch_size: 1000
 sentry:
   enable: true
 logs:
@@ -294,6 +322,257 @@ TEST_CASE("config.c", "[config]") {
     config_cyaml_config->log_fn = test_config_cyaml_logger;
     config_cyaml_config->log_ctx = (void*)&cyaml_logger_context;
 
+    SECTION("config_parse_string_absolute_or_percent") {
+        int64_t return_value;
+        config_parse_string_absolute_or_percent_return_value_t return_value_type;
+
+        SECTION("absolute") {
+            bool result = config_parse_string_absolute_or_percent(
+                    (char*)"123",
+                    3,
+                    false,
+                    false,
+                    false,
+                    true,
+                    false,
+                    &return_value,
+                    &return_value_type);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 123);
+            REQUIRE(return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_ABSOLUTE);
+        }
+
+        SECTION("absolute with spaces") {
+            bool result = config_parse_string_absolute_or_percent(
+                    (char*)" 123 ",
+                    5,
+                    false,
+                    false,
+                    false,
+                    true,
+                    false,
+                    &return_value,
+                    &return_value_type);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 123);
+            REQUIRE(return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_ABSOLUTE);
+        }
+
+        SECTION("percent") {
+            bool result = config_parse_string_absolute_or_percent(
+                    (char*)"99%",
+                    4,
+                    false,
+                    false,
+                    true,
+                    false,
+                    false,
+                    &return_value,
+                    &return_value_type);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 99);
+            REQUIRE(return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT);
+        }
+
+        SECTION("percent with space") {
+            bool result = config_parse_string_absolute_or_percent(
+                    (char*)" 99 % ",
+                    6,
+                    false,
+                    false,
+                    true,
+                    false,
+                    false,
+                    &return_value,
+                    &return_value_type);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 99);
+            REQUIRE(return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT);
+        }
+
+        SECTION("absolute with bytes suffix") {
+            bool result = config_parse_string_absolute_or_percent(
+                    (char*)"123B",
+                    4,
+                    false,
+                    false,
+                    false,
+                    true,
+                    true,
+                    &return_value,
+                    &return_value_type);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 123);
+            REQUIRE(return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_ABSOLUTE);
+        }
+
+        SECTION("absolute with kb suffix") {
+            bool result = config_parse_string_absolute_or_percent(
+                    (char*)"123KB",
+                    5,
+                    false,
+                    false,
+                    false,
+                    true,
+                    true,
+                    &return_value,
+                    &return_value_type);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 123 * 1024);
+            REQUIRE(return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_ABSOLUTE);
+        }
+
+        SECTION("absolute with mb suffix") {
+            bool result = config_parse_string_absolute_or_percent(
+                    (char*)"123MB",
+                    5,
+                    false,
+                    false,
+                    false,
+                    true,
+                    true,
+                    &return_value,
+                    &return_value_type);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 123 * 1024 * 1024);
+            REQUIRE(return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_ABSOLUTE);
+        }
+
+        SECTION("absolute with gb suffix") {
+            bool result = config_parse_string_absolute_or_percent(
+                    (char*)"123GB",
+                    5,
+                    false,
+                    false,
+                    false,
+                    true,
+                    true,
+                    &return_value,
+                    &return_value_type);
+            REQUIRE(result == true);
+            REQUIRE(return_value == (int64_t)123 * (int64_t)1024 * (int64_t)1024 * (int64_t)1024);
+            REQUIRE(return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_ABSOLUTE);
+        }
+
+        SECTION("absolute with tb suffix") {
+            bool result = config_parse_string_absolute_or_percent(
+                    (char*)"123TB",
+                    5,
+                    false,
+                    false,
+                    false,
+                    true,
+                    true,
+                    &return_value,
+                    &return_value_type);
+            REQUIRE(result == true);
+            REQUIRE(return_value == (int64_t)123 * (int64_t)1024 * (int64_t)1024 * (int64_t)1024 * (int64_t)1024);
+            REQUIRE(return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_ABSOLUTE);
+        }
+
+        SECTION("absolute negative") {
+            bool result = config_parse_string_absolute_or_percent(
+                    (char*)"-123",
+                    4,
+                    true,
+                    false,
+                    false,
+                    true,
+                    false,
+                    &return_value,
+                    &return_value_type);
+            REQUIRE(result == true);
+            REQUIRE(return_value == -123);
+            REQUIRE(return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_ABSOLUTE);
+        }
+
+        SECTION("absolute zero") {
+            bool result = config_parse_string_absolute_or_percent(
+                    (char*)"0",
+                    1,
+                    false,
+                    true,
+                    false,
+                    true,
+                    false,
+                    &return_value,
+                    &return_value_type);
+            REQUIRE(result == true);
+            REQUIRE(return_value == 0);
+            REQUIRE(return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_ABSOLUTE);
+        }
+
+        SECTION("zero not allowed") {
+            bool result = config_parse_string_absolute_or_percent(
+                    (char*)"0",
+                    1,
+                    true,
+                    false,
+                    true,
+                    true,
+                    true,
+                    &return_value,
+                    &return_value_type);
+            REQUIRE(result == false);
+        }
+
+        SECTION("negative not allowed") {
+            bool result = config_parse_string_absolute_or_percent(
+                    (char*)"-123",
+                    4,
+                    false,
+                    true,
+                    true,
+                    true,
+                    true,
+                    &return_value,
+                    &return_value_type);
+            REQUIRE(result == false);
+        }
+
+        SECTION("absolute not allowed") {
+            bool result = config_parse_string_absolute_or_percent(
+                    (char*)"123",
+                    3,
+                    false,
+                    false,
+                    true,
+                    false,
+                    true,
+                    &return_value,
+                    &return_value_type);
+            REQUIRE(result == false);
+        }
+
+        SECTION("percent not allowed") {
+            bool result = config_parse_string_absolute_or_percent(
+                    (char*)"123%",
+                    4,
+                    false,
+                    false,
+                    true,
+                    false,
+                    true,
+                    &return_value,
+                    &return_value_type);
+            REQUIRE(result == false);
+        }
+
+        SECTION("sizes not allowed") {
+            bool result = config_parse_string_absolute_or_percent(
+                    (char*)"123MB",
+                    5,
+                    false,
+                    false,
+                    true,
+                    true,
+                    false,
+                    &return_value,
+                    &return_value_type);
+            REQUIRE(result == false);
+        }
+    }
+
     SECTION("validate config schema") {
         SECTION("correct - all fields") {
             err = cyaml_load_data(
@@ -358,8 +637,6 @@ TEST_CASE("config.c", "[config]") {
         }
 
         SECTION("broken - config_validate_after_load fails") {
-            const char* str_cmp =
-                    "Load: Missing required mapping field: max_clients\nLoad: Backtrace:\n  in mapping field 'backend' (line: 3, column: 12)\n  in mapping field 'network' (line: 3, column: 3)\n";
             err = cyaml_load_data(
                     (const uint8_t *)(test_config_broken_config_validate_after_load_fails.c_str()),
                     test_config_broken_config_validate_after_load_fails.length(),
@@ -374,7 +651,6 @@ TEST_CASE("config.c", "[config]") {
             cyaml_free(config_cyaml_config, config_top_schema, config, 0);
         }
     }
-
 
     SECTION("config_validate_after_load_cpus") {
         SECTION("valid") {
@@ -395,9 +671,9 @@ TEST_CASE("config.c", "[config]") {
         }
     }
 
-    SECTION("config_validate_after_load_database_backend") {
+    SECTION("config_validate_after_load_database_backend_file") {
         SECTION("valid") {
-             err = cyaml_load_data(
+            err = cyaml_load_data(
                     (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
                     test_config_correct_all_fields_yaml_data.length(),
                     config_cyaml_config,
@@ -408,7 +684,31 @@ TEST_CASE("config.c", "[config]") {
             REQUIRE(config != nullptr);
             REQUIRE(err == CYAML_OK);
 
-            REQUIRE(config_validate_after_load_database_backend(config));
+            REQUIRE(config_validate_after_load_database_backend_file(config));
+
+            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
+        }
+    }
+
+    SECTION("config_validate_after_load_database_backend_memory") {
+        SECTION("valid") {
+            int64_t return_value;
+            config_parse_string_absolute_or_percent_return_value_t return_value_type;
+
+            err = cyaml_load_data(
+                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
+                    test_config_correct_all_fields_yaml_data.length(),
+                    config_cyaml_config,
+                    config_top_schema,
+                    (cyaml_data_t **)&config,
+                    nullptr);
+
+            REQUIRE(config != nullptr);
+            REQUIRE(err == CYAML_OK);
+
+            // The check on the soft / hard limits requires the soft limit being less than the hard limit.
+            config->database->memory->limits->hard->max_memory_usage = 1;
+            REQUIRE(config_validate_after_load_database_backend_memory(config));
 
             cyaml_free(config_cyaml_config, config_top_schema, config, 0);
         }
@@ -427,7 +727,7 @@ TEST_CASE("config.c", "[config]") {
             REQUIRE(config != nullptr);
             REQUIRE(err == CYAML_OK);
 
-            REQUIRE(config_validate_after_load_database_memory_control(config));
+            REQUIRE(config_validate_after_load_database_keys_eviction(config));
 
             cyaml_free(config_cyaml_config, config_top_schema, config, 0);
         }
@@ -665,6 +965,9 @@ TEST_CASE("config.c", "[config]") {
 
         REQUIRE(config != nullptr);
         REQUIRE(err == CYAML_OK);
+
+        // The check on the soft / hard limits requires the soft limit being less than the hard limit.
+        config->database->memory->limits->hard->max_memory_usage = 1;
 
         SECTION("valid") {
             REQUIRE(config_validate_after_load(config) == true);

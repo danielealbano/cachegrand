@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#define CACHEGRAND_MIN_KERNEL_VERSION "5.7.0"
+
 typedef struct program_context program_context_t;
 struct program_context {
     bool use_huge_pages;

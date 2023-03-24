@@ -37,7 +37,7 @@ TEST_CASE("network/io/network_io_common_tls.c", "[network][network_io][network_i
     int listener_fd, server_fd, client_fd;
 
     inet_pton(AF_INET, "127.0.0.1", &loopback_ipv4);
-    uint16_t socket_port_free_ipv4 = network_tests_support_search_free_port_ipv4(9999);
+    uint16_t socket_port_free_ipv4 = network_tests_support_search_free_port_ipv4();
 
     listener_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     listener_address.sin_family = AF_INET;
@@ -59,7 +59,7 @@ TEST_CASE("network/io/network_io_common_tls.c", "[network][network_io][network_i
     client_address.sin_addr.s_addr = loopback_ipv4.s_addr;
     REQUIRE(connect(client_fd, (sockaddr*)&client_address, sizeof(client_address)) != -1);
 
-    server_fd = accept(listener_fd, NULL, NULL);
+    server_fd = accept(listener_fd, nullptr, nullptr);
     REQUIRE(network_io_common_socket_set_linger(server_fd, true, 0));
 
     SECTION("network_io_common_tls_socket_set_ulp") {
@@ -99,7 +99,7 @@ TEST_CASE("network/io/network_io_common_tls.c", "[network][network_io][network_i
             }
 
             SECTION("invalid option") {
-                REQUIRE(network_io_common_tls_socket_set_tls_rx(server_fd, NULL, 0) == false);
+                REQUIRE(network_io_common_tls_socket_set_tls_rx(server_fd, nullptr, 0) == false);
             }
         } else {
             WARN("Can't test kTLS, tls ulp not available, try to load the tls kernel module");
@@ -129,7 +129,7 @@ TEST_CASE("network/io/network_io_common_tls.c", "[network][network_io][network_i
             }
 
             SECTION("invalid option") {
-                REQUIRE(network_io_common_tls_socket_set_tls_tx(server_fd, NULL, 0) == false);
+                REQUIRE(network_io_common_tls_socket_set_tls_tx(server_fd, nullptr, 0) == false);
             }
         } else {
             WARN("Can't test kTLS, tls ulp not available, try to load the tls kernel module");

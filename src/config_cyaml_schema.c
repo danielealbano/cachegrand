@@ -149,7 +149,7 @@ const cyaml_schema_value_t config_module_list_schema = {
  * CONFIG -> NETWORK schemas
  */
 
-// Allowed strings for for config -> network -> backend
+// Allowed strings for config -> network -> backend
 const cyaml_strval_t config_network_backend_schema_strings[] = {
         { "io_uring", CONFIG_NETWORK_BACKEND_IO_URING },
 };
@@ -173,6 +173,56 @@ const cyaml_schema_field_t config_network_schema[] = {
  * CONFIG -> database schema
  */
 
+// Schema for config -> database -> keys_eviction
+const cyaml_schema_field_t config_database_keys_eviction_schema[] = {
+        CYAML_FIELD_BOOL(
+                "only_ttl", CYAML_FLAG_DEFAULT,
+                config_database_keys_eviction_t, only_ttl),
+        CYAML_FIELD_ENUM(
+                "policy", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT,
+                config_database_keys_eviction_t , policy, config_database_keys_eviction_policy_schema_strings,
+                CYAML_ARRAY_LEN(config_database_keys_eviction_policy_schema_strings)),
+        CYAML_FIELD_UINT(
+                "batch_size", CYAML_FLAG_DEFAULT,
+                config_database_keys_eviction_t, batch_size),
+        CYAML_FIELD_END
+};
+
+// Schema for config -> database -> file -> limits -> hard
+const cyaml_schema_field_t config_database_file_limits_hard_schema[] = {
+        CYAML_FIELD_STRING_PTR(
+                "max_disk_usage", CYAML_FLAG_DEFAULT,
+                config_database_file_limits_hard_t, max_disk_usage_str, 0, 20),
+        CYAML_FIELD_END
+};
+
+// Schema for config -> database -> file -> limits -> soft
+const cyaml_schema_field_t config_database_file_limits_soft_schema[] = {
+        CYAML_FIELD_STRING_PTR(
+                "max_disk_usage", CYAML_FLAG_DEFAULT,
+                config_database_file_limits_soft_t, max_disk_usage_str, 0, 20),
+        CYAML_FIELD_END
+};
+
+// Schema for config -> database -> limits
+const cyaml_schema_field_t config_database_file_limits_schema[] = {
+        CYAML_FIELD_MAPPING_PTR(
+                "hard", CYAML_FLAG_POINTER,
+                config_database_file_limits_t, hard, config_database_file_limits_hard_schema),
+        CYAML_FIELD_MAPPING_PTR(
+                "soft", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_database_file_limits_t, soft, config_database_file_limits_soft_schema),
+        CYAML_FIELD_END
+};
+
+// Schema for config -> database -> keys_eviction
+const cyaml_schema_field_t config_database_file_garbage_collector_schema[] = {
+        CYAML_FIELD_UINT(
+                "min_interval_s", CYAML_FLAG_DEFAULT,
+                config_database_file_garbage_collector_t, min_interval_s),
+        CYAML_FIELD_END
+};
+
 // Schema for config -> database -> file (with config.database.backend == file)
 const cyaml_schema_field_t config_database_backend_file_schema[] = {
         CYAML_FIELD_STRING_PTR(
@@ -184,13 +234,85 @@ const cyaml_schema_field_t config_database_backend_file_schema[] = {
         CYAML_FIELD_UINT(
                 "shard_size_mb", CYAML_FLAG_POINTER,
                 config_database_file_t, shard_size_mb),
+        CYAML_FIELD_MAPPING_PTR(
+                "garbage_collector", CYAML_FLAG_POINTER,
+                config_database_file_t, garbage_collector, config_database_file_garbage_collector_schema),
+        CYAML_FIELD_MAPPING_PTR(
+                "limits", CYAML_FLAG_POINTER,
+                config_database_file_t, limits, config_database_file_limits_schema),
         CYAML_FIELD_END
 };
-// Schema for config -> storage
-const cyaml_schema_field_t config_database_schema[] = {
+
+// Schema for config -> database -> memory -> limits -> hard
+const cyaml_schema_field_t config_database_memory_limits_hard_schema[] = {
+        CYAML_FIELD_STRING_PTR(
+                "max_memory_usage", CYAML_FLAG_DEFAULT,
+                config_database_memory_limits_hard_t, max_memory_usage_str, 0, 20),
+        CYAML_FIELD_END
+};
+
+// Schema for config -> database -> memory -> limits -> soft
+const cyaml_schema_field_t config_database_memory_limits_soft_schema[] = {
+        CYAML_FIELD_STRING_PTR(
+                "max_memory_usage", CYAML_FLAG_DEFAULT,
+                config_database_memory_limits_soft_t, max_memory_usage_str, 0, 20),
+        CYAML_FIELD_END
+};
+
+// Schema for config -> database -> limits
+const cyaml_schema_field_t config_database_memory_limits_schema[] = {
+        CYAML_FIELD_MAPPING_PTR(
+                "hard", CYAML_FLAG_POINTER,
+                config_database_memory_limits_t, hard, config_database_memory_limits_hard_schema),
+        CYAML_FIELD_MAPPING_PTR(
+                "soft", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_database_memory_limits_t, soft, config_database_memory_limits_soft_schema),
+        CYAML_FIELD_END
+};
+
+// Schema for config -> database -> memory (with config.database.backend == memory)
+const cyaml_schema_field_t config_database_backend_memory_schema[] = {
+        CYAML_FIELD_MAPPING_PTR(
+                "limits", CYAML_FLAG_POINTER,
+                config_database_memory_t, limits, config_database_memory_limits_schema),
+        CYAML_FIELD_END
+};
+
+// Schema for config -> database -> limits -> hard
+const cyaml_schema_field_t config_database_limits_hard_schema[] = {
         CYAML_FIELD_UINT(
-                "max_keys", CYAML_FLAG_POINTER,
-                config_database_t, max_keys),
+                "max_keys", CYAML_FLAG_DEFAULT,
+                config_database_limits_hard_t, max_keys),
+        CYAML_FIELD_END
+};
+
+// Schema for config -> database -> limits -> soft
+const cyaml_schema_field_t config_database_limits_soft_schema[] = {
+        CYAML_FIELD_UINT(
+                "max_keys", CYAML_FLAG_DEFAULT,
+                config_database_limits_soft_t, max_keys),
+        CYAML_FIELD_END
+};
+
+// Schema for config -> database -> limits
+const cyaml_schema_field_t config_database_limits_schema[] = {
+        CYAML_FIELD_MAPPING_PTR(
+                "hard", CYAML_FLAG_POINTER,
+                config_database_limits_t, hard, config_database_limits_hard_schema),
+        CYAML_FIELD_MAPPING_PTR(
+                "soft", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_database_limits_t, soft, config_database_limits_soft_schema),
+        CYAML_FIELD_END
+};
+
+// Schema for config -> database
+const cyaml_schema_field_t config_database_schema[] = {
+        CYAML_FIELD_MAPPING_PTR(
+                "limits", CYAML_FLAG_POINTER,
+                config_database_t, limits, config_database_limits_schema),
+        CYAML_FIELD_MAPPING_PTR(
+                "keys_eviction", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_database_t, keys_eviction, config_database_keys_eviction_schema),
         CYAML_FIELD_ENUM(
                 "backend", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT,
                 config_database_t, backend, config_database_backend_schema_strings,
@@ -198,6 +320,9 @@ const cyaml_schema_field_t config_database_schema[] = {
         CYAML_FIELD_MAPPING_PTR(
                 "file", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
                 config_database_t, file, config_database_backend_file_schema),
+        CYAML_FIELD_MAPPING_PTR(
+                "memory", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_database_t, memory, config_database_backend_memory_schema),
         CYAML_FIELD_END
 };
 

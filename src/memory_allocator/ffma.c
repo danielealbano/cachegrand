@@ -21,7 +21,7 @@
 #include <stdatomic.h>
 #include <pthread.h>
 
-#if __has_include(<valgrind/valgrind.h>)
+#if defined(DEBUG) &&  __has_include(<valgrind/valgrind.h>)
 #include <valgrind/valgrind.h>
 
 #define HAS_VALGRIND
@@ -57,7 +57,7 @@
  */
 
 size_t ffma_os_page_size;
-bool ffma_enabled = false;
+bool_volatile_t ffma_enabled = false;
 static pthread_key_t ffma_thread_cache_key;
 
 #if FFMA_DEBUG_ALLOCS_FREES == 1
@@ -176,14 +176,16 @@ bool ffma_thread_cache_has() {
 
 void ffma_enable(
         bool enable) {
-    if (unlikely(!ffma_thread_cache_has())) {
+    if (enable && unlikely(!ffma_thread_cache_has())) {
         ffma_thread_cache_set(ffma_thread_cache_init());
     }
 
     ffma_enabled = enable;
+    MEMORY_FENCE_STORE();
 }
 
 bool ffma_is_enabled() {
+    MEMORY_FENCE_LOAD();
     return ffma_enabled;
 }
 

@@ -27,6 +27,7 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "memory_allocator/ffma.h"
@@ -510,7 +511,7 @@ bool module_prometheus_process_metrics_request(
     timespec_t now = { 0 }, uptime = { 0 };
     uint32_t worker_index = 0;
     bool found_worker = false, result_ret = false;
-    char *content = NULL, *tags_from_env, *tags;
+    char *content = NULL, *tags_from_env = NULL, *tags = NULL;
     size_t content_length = 0, content_size = 0;
 
     // Calculate the uptime
@@ -524,6 +525,32 @@ bool module_prometheus_process_metrics_request(
     // Fetch the extra metrics from the env variables
     tags_from_env = module_prometheus_fetch_extra_metrics_from_env();
 
+    storage_db_counters_t storage_db_counters = { 0 };
+    storage_db_counters_sum(program_context->db, &storage_db_counters);
+
+    // Send out the global fields
+    response_metric_field_t global_stats_fields[] = {
+            { "uptime", "%lu", uptime.tv_sec },
+            { "db_keys_count", "%lu", storage_db_counters.keys_count },
+            { "db_size", "%lu", storage_db_counters.data_size },
+            { NULL },
+    };
+
+    for(response_metric_field_t *stat_field = global_stats_fields; stat_field->name; stat_field++) {
+        // Build the metrics
+        if (!module_prometheus_process_metrics_request_add_metric(
+                &content,
+                &content_length,
+                &content_size,
+                stat_field->name,
+                stat_field->value,
+                stat_field->value_formatter,
+                tags_from_env)) {
+            goto end;
+        }
+    }
+
+    // Send out the stats for each worker plus the aggregated one
     do {
         size_t tags_len = (tags_from_env ? strlen(tags_from_env) : 0) + 128;
         tags = ffma_mem_alloc(tags_len);
@@ -581,7 +608,6 @@ bool module_prometheus_process_metrics_request(
             { "storage_per_minute_read_data", "%lu", worker_stats.storage.per_minute.read_data },
             { "storage_per_minute_read_iops", "%lu", worker_stats.storage.per_minute.read_iops },
 
-            { "uptime", "%lu", uptime.tv_sec },
             { NULL },
         };
 

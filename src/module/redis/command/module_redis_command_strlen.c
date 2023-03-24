@@ -21,6 +21,7 @@
 #include "transaction_spinlock.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "protocol/redis/protocol_redis.h"
@@ -48,7 +49,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(strlen) {
             context->key.value.length);
 
     if (likely(entry_index)) {
-        length = (int64_t)entry_index->value->size;
+        length = (int64_t)entry_index->value.size;
     }
 
     return module_redis_connection_send_number(

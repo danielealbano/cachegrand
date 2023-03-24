@@ -20,6 +20,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
+#include <hiredis/hiredis.h>
 
 #include "clock.h"
 #include "exttypes.h"
@@ -32,6 +33,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
+#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
@@ -91,9 +93,37 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
             .listen_backlog = 10,
     };
 
-    config_database = {
+    config_database_limits_hard = {
             .max_keys = 1000,
+    };
+
+    config_database_limits = {
+            .hard = &config_database_limits_hard,
+    };
+
+    config_database_memory_limits_hard = {
+            .max_memory_usage = 999999999999,
+    };
+
+    config_database_memory_limits = {
+            .hard = &config_database_memory_limits_hard
+    };
+
+    config_database_memory = {
+            .limits = &config_database_memory_limits,
+    };
+
+    config_database_keys_eviction = {
+            .only_ttl = false,
+            .batch_size = 1024,
+            .policy = CONFIG_DATABASE_KEYS_EVICTION_POLICY_RANDOM
+    };
+
+    config_database = {
+            .limits = &config_database_limits,
+            .keys_eviction = &config_database_keys_eviction,
             .backend = CONFIG_DATABASE_BACKEND_MEMORY,
+            .memory = &config_database_memory
     };
 
     config = {
@@ -110,7 +140,7 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
 
     db_config = storage_db_config_new();
     db_config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY;
-    db_config->max_keys = 1000;
+    db_config->limits.keys_count.hard_limit = 1000;
 
     db = storage_db_new(db_config, workers_count);
     storage_db_open(db);
@@ -127,28 +157,36 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
             &terminate_event_loop,
             program_context);
 
-    PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true);
+    PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true)
 
-    address = {0};
+    this->c = redisConnect(config_module_network_binding.host, config_module_network_binding.port);
 
-    client_fd = network_io_common_socket_tcp4_new(0);
-    address.sin_family = AF_INET;
-    address.sin_port = htons(config_module_network_binding.port);
-    address.sin_addr.s_addr = inet_addr(config_module_network_binding.host);
+    REQUIRE(this->c != nullptr);
 
-    REQUIRE(connect(client_fd, (struct sockaddr *) &address, sizeof(address)) == 0);
-};
+    if (this->c->err) {
+        fprintf(stderr, "Unable to connect to cachegrand: %s\n", this->c->errstr);
+        fflush(stderr);
+        REQUIRE(this->c->err == 0);
+    }
+
+    // Will be recreated each time during the tests
+    redisReaderFree(this->c->reader);
+    this->c->reader = nullptr;
+}
 
 TestModulesRedisCommandFixture::~TestModulesRedisCommandFixture() {
-    close(client_fd);
+    // Necessary to avoid a double free
+    if (this->c->reader == nullptr) {
+        this->c->reader = redisReaderCreate();
+    }
+    redisFree(this->c);
 
     terminate_event_loop = true;
     MEMORY_FENCE_STORE();
 
     // Wait for the thread to end
     if (worker_context->running) {
-        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false);
-        usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
+        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false)
     }
     sched_yield();
 
@@ -263,64 +301,56 @@ size_t TestModulesRedisCommandFixture::send_recv_resp_command_calculate_multi_re
         return 1;
     }
 
-    return 1 + (size_t)ceil((float)expected_length / (float)recv_packet_size) + 1;
+    return 1 + (size_t)ceil((float)expected_length / (float)recv_packet_size) + 3;
 }
 
 bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
         const std::vector<std::string>& arguments,
-        char *buffer_recv,
-        size_t buffer_recv_length,
-        size_t *out_buffer_recv_length,
-        int max_recv_count,
+        char *buffer_recv_internal,
+        size_t *out_buffer_recv_internal_length,
         size_t expected_len) const {
-    size_t total_send_length, total_recv_length;
-    *out_buffer_recv_length = 0;
-    memset(buffer_recv, 0, buffer_recv_length);
+    size_t total_recv_length;
+    redisReply *reply = nullptr;
+    *out_buffer_recv_internal_length = 0;
 
-    // Build the resp command
-    size_t buffer_send_length = build_resp_command(nullptr, 0, arguments);
-    char *buffer_send_internal = (char *) malloc(buffer_send_length + 1);
-    build_resp_command(buffer_send_internal, buffer_send_length + 1, arguments);
+    // Converts the arguments to a C array of C strings
+    std::vector<const char*> c_strs;
+    std::transform(std::begin(arguments), std::end(arguments),
+                   std::back_inserter(c_strs), std::mem_fn(&std::string::c_str));
 
-    // Send the data
-    total_send_length = 0;
+    // Sets up the reader
+    this->c->reader = redisReaderCreate();
+//    this->c->reader->maxbuf = SIZE_MAX;
+
+    // Prepares the command and write it to the internal buffer
+    redisAppendCommandArgv(
+            this->c,
+            (int)arguments.size(),
+            c_strs.data(),
+            nullptr);
+
+    // Sends the data out
+    int done = 0;
     do {
-        size_t allowed_buffer_send_length =
-                buffer_send_length - total_send_length > NETWORK_CHANNEL_MAX_PACKET_SIZE
-                ? NETWORK_CHANNEL_MAX_PACKET_SIZE
-                : buffer_send_length - total_send_length;
+        REQUIRE(redisBufferWrite(this->c, &done) == REDIS_OK);
+    } while(done == 0);
 
-        assert(allowed_buffer_send_length > 0);
-        assert(allowed_buffer_send_length <= NETWORK_CHANNEL_MAX_PACKET_SIZE);
-
-        ssize_t send_length = send(client_fd, buffer_send_internal + total_send_length, allowed_buffer_send_length, MSG_NOSIGNAL);
-        if (send_length <= 0) {
-            if (send_length < 0) {
-                fprintf(stderr, "[ SEND - ERROR %d AFTER %lu BYTES SENT ]\n", errno, total_send_length);
-                perror("[ SEND - ERROR ]");
-            } else {
-                fprintf(stderr, "[ SEND - SOCKET CLOSED ]\n");
-            }
-
-            fflush(stderr);
-            return false;
-        }
-
-        total_send_length += send_length;
-    } while(total_send_length < buffer_send_length);
-
+    // As the redisReaderGetReply discards the reader buffer and we need it entirely instead, the code below handles
+    // the receive of the data, store them in an internal buffer and passes them to the reader for processing.
+    // Once an element is found the loop terminates, the total length is passed outside and the reply and the reader are
+    // freed up.
     total_recv_length = 0;
-    for(int i = 0; i < max_recv_count && total_recv_length < expected_len; i++) {
-        size_t allowed_buffer_recv_size = buffer_recv_length - total_recv_length;
+    do {
+        size_t allowed_buffer_recv_size = expected_len - total_recv_length;
         allowed_buffer_recv_size = allowed_buffer_recv_size > recv_packet_size
-                ? recv_packet_size
-                : allowed_buffer_recv_size;
+                                   ? recv_packet_size
+                                   : allowed_buffer_recv_size;
 
         assert(allowed_buffer_recv_size > 0);
 
         ssize_t recv_length = recv(
-                client_fd,
-                buffer_recv + total_recv_length,
+                this->c->fd,
+                buffer_recv_internal + total_recv_length,
                 allowed_buffer_recv_size,
                 0);
 
@@ -337,9 +367,19 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
         }
 
         total_recv_length += recv_length;
-    }
 
-    *out_buffer_recv_length = total_recv_length;
+        REQUIRE(total_recv_length <= expected_len);
+        REQUIRE(redisReaderFeed(this->c->reader, buffer_recv_internal, recv_length) == REDIS_OK);
+        REQUIRE(redisReaderGetReply(this->c->reader, (void**)&reply) == REDIS_OK);
+    } while(reply == nullptr);
+
+    // Return the total length of the received buffer
+    *out_buffer_recv_internal_length = total_recv_length;
+
+    // Free up the memory and the reader to reset it for the next test
+    freeReplyObject(reply);
+    redisReaderFree(this->c->reader);
+    this->c->reader = nullptr;
 
     return true;
 }
@@ -347,21 +387,15 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
 bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv_and_validate_recv(
         const std::vector<std::string>& arguments,
         char *expected,
-        size_t expected_length,
-        int max_recv_count) {
-    size_t buffer_recv_length = (max_recv_count * recv_packet_size) + 1;
+        size_t expected_length) {
     size_t out_buffer_recv_length = 0;
-    char *buffer_recv_internal = (char *)malloc(buffer_recv_length);
+    char *buffer_recv_internal = (char *)calloc(1, expected_length);
 
-    if (!send_recv_resp_command_multi_recv(
+    send_recv_resp_command_multi_recv(
             arguments,
             buffer_recv_internal,
-            buffer_recv_length,
             &out_buffer_recv_length,
-            max_recv_count,
-            expected_length)) {
-        return false;
-    }
+            expected_length);
 
     bool recv_matches_expected = memcmp(buffer_recv_internal, expected, min(expected_length, out_buffer_recv_length)) == 0;
     bool return_res = out_buffer_recv_length == expected_length && recv_matches_expected;
@@ -451,7 +485,7 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_and_validate_recv(
         const std::vector<std::string>& arguments,
         char *expected,
         size_t expected_length) {
-    return send_recv_resp_command_multi_recv_and_validate_recv(arguments, expected, expected_length, 1);
+    return send_recv_resp_command_multi_recv_and_validate_recv(arguments, expected, expected_length);
 }
 
 bool TestModulesRedisCommandFixture::send_recv_resp_command_text_and_validate_recv(

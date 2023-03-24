@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include <stddef.h>
 #include "slots_bitmap_mpmc_first_free_bit_table.h"
 
 #define SLOTS_BITMAP_MPMC_SHARD_DATA_TYPE           uint64_t
@@ -160,6 +161,26 @@ static inline void slots_bitmap_mpmc_shard_decrease_used_count(
 }
 
 /**
+ * Check if the given bit is set in the given shard
+ *
+ * @param slots_bitmap Pointer to the bitmap
+ * @param shard_index Index of the shard
+ * @param bit_index Index of the bit
+ * @return
+ */
+static inline bool slots_bitmap_mpmc_shard_is_bit_set(
+        slots_bitmap_mpmc_t *slots_bitmap,
+        uint16_t shard_index,
+        uint16_t bit_index) {
+    // Get a pointer to the shard
+    slots_bitmap_mpmc_shard_t *bitmap_shard = slots_bitmap_mpmc_get_shard_ptr(slots_bitmap, shard_index);
+
+    // Check if the bit is set
+    MEMORY_FENCE_LOAD();
+    return (*bitmap_shard & (1ULL << bit_index)) != 0;
+}
+
+/**
  * Calculate the number of shards needed to store the given size
  *
  * @param size Size of the bitmap
@@ -184,6 +205,17 @@ slots_bitmap_mpmc_t *slots_bitmap_mpmc_init(
  */
 void slots_bitmap_mpmc_free(
         slots_bitmap_mpmc_t *slots_bitmap);
+
+/**
+ * Iterate over the bitmap and return the index of the first slot that is set
+ *
+ * @param slots_bitmap Pointer to the bitmap
+ * @param from The index of the first slot to check
+ * @return
+ */
+uint64_t slots_bitmap_mpmc_iter(
+        slots_bitmap_mpmc_t *slots_bitmap,
+        uint64_t from);
 
 /**
  * Get the first available slot in the bitmap, the slot is returned as a pointer to the slot, a boolean is returned

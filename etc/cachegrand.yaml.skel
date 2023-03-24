@@ -110,19 +110,68 @@ modules:
 #      bindings:
 #        - host: 127.0.0.1
 #          port: 9090
-
 database:
-  # Currently the internal cachegrand hashtable doesn't support the automatic resizing, if there isn't enough room the
-  # SET command will just fail with a generic error.
-  # For performance reason, the max amount of keys is always rounded up to the next power of 2 of max_keys, in this case
-  # 1000000 is rounded up to 1048576
-  max_keys: 1000000
+  # Limits for the database to prevent it from using too much system resources, optional.
+  # The hard limit will prevent any operation that would exceed the limit, the soft limit will allow the operation but
+  # will run the keys eviction process to try to free up some space.
+  # When an hard limit is disabled, the corresponding soft limit will be ignored.
+  # These below are general limits but there are backend limits as well in their specific section.
+  limits:
+    hard:
+      # The max amount of keys that can be stored in the database, 0 means no limit
+      max_keys: 1000000
+#  # Optional
+#  soft:
+#    # When database.limit.hard.max_memory_usage is set to 0, this value will be ignored
+#    max_keys: 999999
+
   backend: memory
+  memory:
+    # Limits:
+    # - max_memory_usage: The max amount of memory that can be used by the database, can be expressed in bytes,
+    #                     kilobytes, megabytes, gigabytes, using the suffixes b, k, m, g, or in percentage of the total
+    #                     system memory.
+    limits:
+      hard:
+        max_memory_usage: 1000000
+#     # Optional
+#     soft:
+#       max_memory_usage: 999999
+
 #  backend: file
 #  file:
 #    path: /var/lib/cachegrand
 #    shard_size_mb: 100
 #    max_opened_shards: 1000
+#    garbage_collector:
+#      min_interval_s: 60
+#
+#    # Limits:
+#    # - max_disk_usage: the max amount of disk space that can be used by the database, can be expressed in bytes,
+#    #                    kilobytes, megabytes, gigabytes, using the suffixes b, k, m, g, or in percentage of the total
+#    #                    disk space.
+#    #                    When setting the limit please take into account that the garbage collection will need some
+#    #                    space to run, so the actual space used by the database can be higher than the limit.
+#    limits:
+#      hard:
+#        max_disk_usage: 75%
+# #    # Optional
+# #    soft:
+# #      max_disk_usage: 70%
+
+  # Settings for the keys eviction when the database is full, comment out to disable
+  keys_eviction:
+    # The eviction policy to use when the database is full, can be one of the following:
+    # - lru: evict the least recently used key
+    # - lfu: evict the least frequently used key
+    # - random: evict a random key
+    # - ttl: evict the key with the lowest TTL
+    policy: lru
+    # If set to false, all the keys will be considered for evictions not only the ones that might expire. This setting
+    # is useful to avoid the eviction of keys that are supposed to be kept forever.
+    only_ttl: false
+    # Amount of keys to evict at once, if set to 0, all the keys will be evicted at once.
+    batch_size: 1000
 
 # The sentry.io service is used to automatically collect minidumps in case of crashes, it doesn't store them after that
 # they are processed but be aware that minidumps will contain memory regions used by cachegrand and therefore may they

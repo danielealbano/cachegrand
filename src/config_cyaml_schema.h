@@ -23,25 +23,33 @@ static cyaml_strval_t config_module_network_tls_max_version_schema_strings[] = {
         { "any", CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY },
 };
 
-// Allowed strings for for config -> modules -> module -> type (config_module_type_t)
+// Allowed strings for config -> modules -> module -> type (config_module_type_t)
 static cyaml_strval_t config_module_type_schema_strings[] = {
         { "redis",      CONFIG_MODULE_TYPE_REDIS },
         { "prometheus", CONFIG_MODULE_TYPE_PROMETHEUS },
 };
 
-// Allowed strings for for config -> database -> backend
+// Allowed strings for config -> database -> keys_eviction -> policy (config_database_keys_eviction_policy_t)
+static cyaml_strval_t config_database_keys_eviction_policy_schema_strings[] = {
+        { "lru", CONFIG_DATABASE_KEYS_EVICTION_POLICY_LRU },
+        { "lfu", CONFIG_DATABASE_KEYS_EVICTION_POLICY_LFU },
+        { "random", CONFIG_DATABASE_KEYS_EVICTION_POLICY_RANDOM },
+        { "ttl", CONFIG_DATABASE_KEYS_EVICTION_POLICY_TTL },
+};
+
+// Allowed strings for config -> database -> backend
 static cyaml_strval_t config_database_backend_schema_strings[] = {
         { "memory", CONFIG_DATABASE_BACKEND_MEMORY },
         { "file", CONFIG_DATABASE_BACKEND_FILE }
 };
 
-// Allowed strings for for config -> logs -> log -> type (config_log_type_t)
+// Allowed strings for config -> logs -> log -> type (config_log_type_t)
 static cyaml_strval_t config_log_type_schema_strings[] = {
         { "console", CONFIG_LOG_TYPE_CONSOLE },
         { "file",    CONFIG_LOG_TYPE_FILE },
 };
 
-// Allowed strings for for config -> logs -> log -> level (config_log_level_t)
+// Allowed strings for config -> logs -> log -> level (config_log_level_t)
 static cyaml_strval_t config_log_level_schema_strings[] = {
         { "error", CONFIG_LOG_LEVEL_ERROR },
         { "warning", CONFIG_LOG_LEVEL_WARNING },
