@@ -339,6 +339,9 @@ const cyaml_schema_field_t config_database_schema[] = {
                 "limits", CYAML_FLAG_POINTER,
                 config_database_t, limits, config_database_limits_schema),
         CYAML_FIELD_MAPPING_PTR(
+                "snapshots", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_database_t, snapshots, config_database_snapshots_schema),
+        CYAML_FIELD_MAPPING_PTR(
                 "keys_eviction", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
                 config_database_t, keys_eviction, config_database_keys_eviction_schema),
         CYAML_FIELD_ENUM(
