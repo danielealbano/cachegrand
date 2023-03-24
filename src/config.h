@@ -323,6 +323,9 @@ void config_free(
 bool config_validate_after_load_cpus(
         config_t* config);
 
+bool config_validate_after_load_database_snapshots(
+        config_t* config);
+
 bool config_validate_after_load_database_backend_file(
         config_t* config);
 
