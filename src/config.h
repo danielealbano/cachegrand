@@ -220,7 +220,6 @@ typedef struct config_database_memory config_database_memory_t;
 typedef struct config_database_keys_eviction config_database_keys_eviction_t;
 struct config_database_keys_eviction {
     bool only_ttl;
-    uint32_t batch_size;
     config_database_keys_eviction_policy_t policy;
 };
 
