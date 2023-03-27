@@ -12,9 +12,7 @@ extern "C" {
 #define STORAGE_DB_SHARD_VERSION (1)
 #define STORAGE_DB_CHUNK_MAX_SIZE ((64 * 1024) - 1)
 #define STORAGE_DB_WORKERS_MAX (2048)
-#define STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_PERC (0.10)
-#define STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MIN (10)
-#define STORAGE_DB_KEYS_EVICTION_SAMPLE_SIZE_MAX (100000)
+#define STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH (16)
 
 // This magic value defines the size of the ring buffer used to keep in memory data long enough to be sure they are not
 // being in use anymore.
@@ -29,6 +27,12 @@ typedef uint32_t storage_db_shard_index_t;
 typedef uint64_t storage_db_create_time_ms_t;
 typedef uint64_t storage_db_last_access_time_ms_t;
 typedef int64_t storage_db_expiry_time_ms_t;
+
+struct storage_db_keys_eviction_kv_list_entry {
+    uint64_t value;
+    uint64_t key;
+} __attribute__((__aligned__(16)));
+typedef struct storage_db_keys_eviction_kv_list_entry storage_db_keys_eviction_kv_list_entry_t;
 
 struct storage_db_limits {
     struct {
@@ -455,9 +459,11 @@ void storage_db_free_key_and_key_length_list(
         storage_db_key_and_key_length_t *keys,
         uint64_t keys_count);
 
-void storage_db_keys_eviction_run_worker(
+void storage_db_keys_eviction_bitonic_sort_16_elements(
+        storage_db_keys_eviction_kv_list_entry_t *kv);
+
+uint8_t storage_db_keys_eviction_run_worker(
         storage_db_t *db,
-        uint64_t batch_size,
         bool only_ttl,
         config_database_keys_eviction_policy_t policy,
         uint32_t worker_index);
