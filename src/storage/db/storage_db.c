@@ -1688,7 +1688,6 @@ uint8_t storage_db_keys_eviction_run_worker(
             goto end;
         }
 
-        hashtable_key_size_t key_size;
         storage_db_entry_index_t *entry_index = data;
         current_bucket_index = bucket_index;
 
@@ -1739,17 +1738,6 @@ uint8_t storage_db_keys_eviction_run_worker(
     if (!storage_db_op_delete_by_index(db, keys_evitction_candidates_list[0].value)) {
         keys_evicted_count++;
     }
-
-end:
-
-    // Free the memory
-    for(
-            uint64_t key_index = 0;
-            key_index < STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH;
-            key_index++) {
-        xalloc_free((char*)keys_evitction_candidates_list[key_index].value);
-    }
-    xalloc_free(keys_evitction_candidates_list);
 
     return keys_evicted_count;
 }
