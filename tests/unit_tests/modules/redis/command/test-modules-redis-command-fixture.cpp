@@ -118,7 +118,6 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
 
     config_database_keys_eviction = {
             .only_ttl = false,
-            .batch_size = 1024,
             .policy = CONFIG_DATABASE_KEYS_EVICTION_POLICY_RANDOM
     };
 

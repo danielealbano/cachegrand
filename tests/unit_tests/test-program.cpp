@@ -110,7 +110,6 @@ void* test_program_wait_loop_terminate(
     }; \
     config_database_keys_eviction_t config_database_keys_eviction = { \
             .only_ttl = false, \
-            .batch_size = 1024, \
             .policy = CONFIG_DATABASE_KEYS_EVICTION_POLICY_RANDOM \
     }; \
     config_database_t config_database = { \

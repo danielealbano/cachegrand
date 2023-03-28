@@ -515,11 +515,6 @@ bool config_validate_after_load_database_keys_eviction(
         return_result = false;
     }
 
-    if (config->database->keys_eviction->batch_size < 1) {
-        LOG_E(TAG, "The keys eviction batch size must be greater than 0");
-        return_result = false;
-    }
-
     return return_result;
 }
 

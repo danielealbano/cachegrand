@@ -33,13 +33,15 @@ bool hashtable_mcmp_op_delete(
         hashtable_key_size_t key_size,
         hashtable_value_data_t *current_value) {
     hashtable_hash_t hash;
-    hashtable_key_value_flags_t key_value_flags = 0;
     hashtable_chunk_index_t chunk_index = 0;
     hashtable_chunk_slot_index_t chunk_slot_index = 0;
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
     hashtable_key_value_volatile_t* key_value;
     transaction_t transaction = { 0 };
     bool deleted = false;
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
+    hashtable_key_value_flags_t key_value_flags = 0;
+#endif
 
     // TODO: the deletion algorithm needs to be updated to compact the keys stored in further away slots relying on the
     //       distance.
@@ -109,7 +111,9 @@ bool hashtable_mcmp_op_delete(
 
             MEMORY_FENCE_STORE();
 
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
             key_value_flags = key_value->flags;
+#endif
             key_value->flags = HASHTABLE_KEY_VALUE_FLAG_DELETED;
 
             MEMORY_FENCE_STORE();
@@ -117,9 +121,9 @@ bool hashtable_mcmp_op_delete(
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
             if (!HASHTABLE_KEY_VALUE_HAS_FLAG(key_value_flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
 #endif
-                xalloc_free(key_value->external_key.data);
-                key_value->external_key.data = NULL;
-                key_value->external_key.size = 0;
+            xalloc_free(key_value->external_key.data);
+            key_value->external_key.data = NULL;
+            key_value->external_key.size = 0;
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
             }
 #endif
@@ -128,6 +132,97 @@ bool hashtable_mcmp_op_delete(
         }
 
         transaction_release(&transaction);
+
+        if (likely(deleted)) {
+            break;
+        }
+    }
+
+    LOG_DI("deleted = %s", deleted ? "YES" : "NO");
+    LOG_DI("chunk_index = 0x%016x", chunk_index);
+    LOG_DI("chunk_slot_index = 0x%016x", chunk_slot_index);
+
+    return deleted;
+}
+
+bool hashtable_mcmp_op_delete_by_index(
+        hashtable_t* hashtable,
+        hashtable_bucket_index_t bucket_index,
+        hashtable_value_data_t *current_value) {
+    hashtable_chunk_index_t chunk_index = 0;
+    hashtable_chunk_slot_index_t chunk_slot_index = 0;
+    hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
+    hashtable_key_value_volatile_t* key_value;
+    transaction_t transaction = { 0 };
+    bool deleted = false;
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
+    hashtable_key_value_flags_t key_value_flags = 0;
+#endif
+
+    volatile hashtable_data_t* hashtable_data_list[] = {
+            hashtable->ht_current,
+            hashtable->ht_old
+    };
+    uint8_t hashtable_data_list_size = 2;
+
+    for (
+            uint8_t hashtable_data_index = 0;
+            hashtable_data_index < hashtable_data_list_size;
+            hashtable_data_index++) {
+        volatile hashtable_data_t *hashtable_data = hashtable_data_list[hashtable_data_index];
+
+        LOG_DI("hashtable_data_index = %u", hashtable_data_index);
+        LOG_DI("hashtable_data = 0x%016x", hashtable_data);
+
+        if (hashtable_data_index > 0 && (!hashtable->is_resizing || hashtable_data == NULL)) {
+            LOG_DI("not resizing, skipping check on the current hashtable_data");
+            continue;
+        }
+
+        chunk_index = bucket_index / HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
+        chunk_slot_index = bucket_index % HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
+
+        half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
+
+        transaction_acquire(&transaction);
+        if (unlikely(!transaction_spinlock_lock(&half_hashes_chunk->write_lock, &transaction))) {
+            return false;
+        }
+
+        key_value = &hashtable_data->keys_values[bucket_index];
+
+        if (current_value != NULL) {
+            *current_value = key_value->data;
+        }
+
+        half_hashes_chunk->metadata.is_full = 0;
+        half_hashes_chunk->half_hashes[chunk_slot_index].slot_id = 0;
+
+        MEMORY_FENCE_STORE();
+
+
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
+        key_value_flags = key_value->flags;
+#endif
+        key_value->flags = HASHTABLE_KEY_VALUE_FLAG_DELETED;
+
+        MEMORY_FENCE_STORE();
+
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
+        if (!HASHTABLE_KEY_VALUE_HAS_FLAG(key_value_flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
+#endif
+        xalloc_free(key_value->external_key.data);
+        key_value->external_key.data = NULL;
+        key_value->external_key.size = 0;
+#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
+        }
+#endif
+
+        deleted = true;
+
+        transaction_release(&transaction);
+
+        break;
     }
 
     LOG_DI("deleted = %s", deleted ? "YES" : "NO");

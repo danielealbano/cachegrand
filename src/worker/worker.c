@@ -464,7 +464,6 @@ void* worker_thread_func(
         if (unlikely(storage_db_keys_eviction_should_run(worker_context->db))) {
             storage_db_keys_eviction_run_worker(
                     worker_context->db,
-                    worker_context->config->database->keys_eviction->batch_size,
                     worker_context->config->database->keys_eviction->only_ttl,
                     worker_context->config->database->keys_eviction->policy,
                     worker_context->worker_index);

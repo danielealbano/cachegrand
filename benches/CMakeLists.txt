@@ -82,7 +82,7 @@ foreach(SRC_CACHEGRAND_BENCH ${SRC_CACHEGRAND_BENCHES})
     target_link_libraries(
             ${CACHEGRAND_BENCH_EXEC_NAME}
             PUBLIC
-            cachegrand-internal benchmark::benchmark ${LIBCYAML_DYNAMIC_PATH_LIBRARY} hwy_c_wrapper)
+            cachegrand-internal benchmark::benchmark ${LIBCYAML_DYNAMIC_PATH_LIBRARY})
 
     target_include_directories(
             ${CACHEGRAND_BENCH_EXEC_NAME}

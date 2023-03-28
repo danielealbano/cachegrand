@@ -182,9 +182,6 @@ const cyaml_schema_field_t config_database_keys_eviction_schema[] = {
                 "policy", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT,
                 config_database_keys_eviction_t , policy, config_database_keys_eviction_policy_schema_strings,
                 CYAML_ARRAY_LEN(config_database_keys_eviction_policy_schema_strings)),
-        CYAML_FIELD_UINT(
-                "batch_size", CYAML_FLAG_DEFAULT,
-                config_database_keys_eviction_t, batch_size),
         CYAML_FIELD_END
 };
 

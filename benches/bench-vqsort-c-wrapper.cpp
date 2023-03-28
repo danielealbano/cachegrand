@@ -14,8 +14,6 @@
 #include <array>
 #include <memory>
 
-#include "libhwy_c_wrapper/vqsort_c_exports.h"
-
 #include "benchmark-program-simple.hpp"
 
 template<typename T>
