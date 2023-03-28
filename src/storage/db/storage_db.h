@@ -433,6 +433,10 @@ bool storage_db_op_delete(
         char *key,
         size_t key_length);
 
+bool storage_db_op_delete_by_index(
+        storage_db_t *db,
+        hashtable_bucket_index_t bucket_index);
+
 char *storage_db_op_random_key(
         storage_db_t *db,
         hashtable_key_size_t *key_size);

@@ -1434,6 +1434,27 @@ bool storage_db_op_delete(
     return res;
 }
 
+bool storage_db_op_delete_by_index(
+        storage_db_t *db,
+        hashtable_bucket_index_t bucket_index) {
+    storage_db_entry_index_t *current_entry_index = NULL;
+
+    bool res = hashtable_mcmp_op_delete_by_index(
+            db->hashtable,
+            bucket_index,
+            (uintptr_t*)&current_entry_index);
+
+    if (res && current_entry_index != NULL) {
+        storage_db_counters_get_current_thread_data(db)->data_size -=
+                (int64_t)current_entry_index->value.size;
+        storage_db_counters_get_current_thread_data(db)->keys_count--;
+
+        storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
+    }
+
+    return res;
+}
+
 int64_t storage_db_op_get_keys_count(
         storage_db_t *db) {
     storage_db_counters_t counters = { 0 };
@@ -1682,11 +1703,6 @@ uint8_t storage_db_keys_eviction_run_worker(
             continue;
         }
 
-        // Fetch the key from the hashtable
-        if (unlikely(!hashtable_mcmp_op_get_key(db->hashtable, current_bucket_index, &key, &key_size))) {
-            continue;
-        }
-
         // Fetch the sorting key
         uint64_t sort_key;
         switch(policy) {
@@ -1710,7 +1726,7 @@ uint8_t storage_db_keys_eviction_run_worker(
 
         // Set the sort key and the value (the key of the entry)
         keys_evitction_candidates_list[keys_eviction_candidates_list_count].key = sort_key;
-        keys_evitction_candidates_list[keys_eviction_candidates_list_count].value = (uint64_t)key;
+        keys_evitction_candidates_list[keys_eviction_candidates_list_count].value = current_bucket_index;
 
         // Increment the counter of the keys in the list
         keys_eviction_candidates_list_count++;
@@ -1720,8 +1736,7 @@ uint8_t storage_db_keys_eviction_run_worker(
     storage_db_keys_eviction_bitonic_sort_16_elements(keys_evitction_candidates_list);
 
     // Delete the first key from the array
-    key = (char*)(keys_evitction_candidates_list[0].value);
-    if (!storage_db_op_delete(db, key, strlen(key))) {
+    if (!storage_db_op_delete_by_index(db, keys_evitction_candidates_list[0].value)) {
         keys_evicted_count++;
     }
 
