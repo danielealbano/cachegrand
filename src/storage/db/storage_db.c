@@ -52,7 +52,6 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/storage.h"
-#include "libhwy_c_wrapper/vqsort_c_exports.h"
 
 #include "storage_db.h"
 

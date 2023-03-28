@@ -12,7 +12,6 @@ if (BUILD_TESTS)
 endif()
 
 # Dependencies built as part of the build process
-include("libhwy")
 include("mimalloc")
 include("liburing")
 include("libcyaml")
