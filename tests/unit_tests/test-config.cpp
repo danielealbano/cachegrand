@@ -166,7 +166,6 @@ database:
   keys_eviction:
     policy: lru
     only_ttl: true
-    batch_size: 1000
 sentry:
   enable: true
 logs:
@@ -240,7 +239,6 @@ database:
   keys_eviction:
     policy: lru
     only_ttl: true
-    batch_size: 1000
 sentry:
   enable: true
 logs:
