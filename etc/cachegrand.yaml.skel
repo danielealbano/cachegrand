@@ -170,8 +170,6 @@ database:
     # If set to false, all the keys will be considered for evictions not only the ones that might expire. This setting
     # is useful to avoid the eviction of keys that are supposed to be kept forever.
     only_ttl: false
-    # Amount of keys to evict at once, if set to 0, all the keys will be evicted at once.
-    batch_size: 1000
 
 # The sentry.io service is used to automatically collect minidumps in case of crashes, it doesn't store them after that
 # they are processed but be aware that minidumps will contain memory regions used by cachegrand and therefore may they
