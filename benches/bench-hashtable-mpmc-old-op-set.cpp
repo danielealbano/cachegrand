@@ -27,7 +27,7 @@
 #include "fiber/fiber_scheduler.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "xalloc.h"
+#include "memory_allocator/ffma.h"
 
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "worker/worker_stats.h"

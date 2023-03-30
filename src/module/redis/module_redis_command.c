@@ -33,7 +33,7 @@
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
-#include "xalloc.h"
+#include "memory_allocator/ffma.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "protocol/redis/protocol_redis_writer.h"
@@ -56,7 +56,7 @@ bool module_redis_command_process_begin(
     module_redis_command_parser_context_t *command_parser_context = &connection_context->command.parser_context;
 
     if (connection_context->command.info->context_size > 0) {
-        if ((connection_context->command.context = xalloc_alloc_zero(
+        if ((connection_context->command.context = ffma_mem_alloc_zero(
                 connection_context->command.info->context_size)) == NULL) {
             LOG_D(TAG, "Unable to allocate the command context, terminating connection");
             return false;
@@ -146,14 +146,14 @@ void *module_redis_command_context_list_expand_and_get_new_entry(
 
     // If the list_count is zero it's not necessary to get the current pointer
     if (list_count == 0) {
-        list = xalloc_alloc_zero(list_count_new * argument->argument_context_member_size);
+        list = ffma_mem_alloc_zero(list_count_new * argument->argument_context_member_size);
     } else {
         list = module_redis_command_context_list_get_list(argument, base_addr);
-        list = xalloc_realloc(list, list_count_new * argument->argument_context_member_size);
-        memset(
-                (void *)((uintptr_t) list + (list_count * argument->argument_context_member_size)),
-                0,
-                (list_count_new - list_count) * argument->argument_context_member_size);
+        list = ffma_mem_realloc(
+                list,
+                list_count * argument->argument_context_member_size,
+                list_count_new * argument->argument_context_member_size,
+                true);
 
         if (!list) {
             return NULL;
@@ -293,12 +293,12 @@ bool module_redis_command_process_argument_begin(
     }
 
     if (expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_LONG_STRING) {
-//        if (!storage_db_chunk_sequence_is_size_allowed(argument_length)) {
-//            return module_redis_connection_error_message_printf_noncritical(
-//                    connection_context,
-//                    "ERR The argument length has exceeded the allowed size of '%lu'",
-//                    storage_db_chunk_sequence_allowed_max_size());
-//        }
+        if (!storage_db_chunk_sequence_is_size_allowed(argument_length)) {
+            return module_redis_connection_error_message_printf_noncritical(
+                    connection_context,
+                    "ERR The argument length has exceeded the allowed size of '%lu'",
+                    storage_db_chunk_sequence_allowed_max_size());
+        }
 
         command_parser_context->current_argument.member_context_addr =
                 module_redis_command_context_get_argument_member_context_addr(
@@ -916,7 +916,7 @@ bool module_redis_command_stream_entry_range_with_multiple_chunks(
                     buffer_to_send + sent_data,
                     data_to_send_length) != NETWORK_OP_RESULT_OK) {
                 if (allocated_new_buffer) {
-                    xalloc_free(buffer_to_send);
+                    ffma_mem_free(buffer_to_send);
                 }
 
                 return false;
@@ -929,7 +929,7 @@ bool module_redis_command_stream_entry_range_with_multiple_chunks(
         assert(sent_data == chunk_length_to_send);
 
         if (allocated_new_buffer) {
-            xalloc_free(buffer_to_send);
+            ffma_mem_free(buffer_to_send);
         }
 
         // Resets sent data at the end of the loop
