@@ -971,10 +971,10 @@ TEST_CASE("config.c", "[config]") {
             REQUIRE(config_validate_after_load(config) == true);
         }
 
-//        SECTION("broken - network redis max_key_length > object size max") {
-//            config->modules[0].redis->max_key_length = 64 * 1024 + 1;
-//            REQUIRE(config_validate_after_load(config) == false);
-//        }
+        SECTION("broken - network redis max_key_length > object size max") {
+            config->modules[0].redis->max_key_length = 64 * 1024 + 1;
+            REQUIRE(config_validate_after_load(config) == false);
+        }
 
         SECTION("broken - network.timeout.read_ms < -1") {
             config->modules[0].network->timeout->read_ms = -2;

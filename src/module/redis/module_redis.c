@@ -28,7 +28,7 @@
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
-#include "xalloc.h"
+#include "memory_allocator/ffma.h"
 #include "config.h"
 #include "fiber/fiber.h"
 #include "protocol/redis/protocol_redis.h"

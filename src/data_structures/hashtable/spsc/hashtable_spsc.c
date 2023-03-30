@@ -17,7 +17,7 @@
 #include "pow2.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "xalloc.h"
+#include "memory_allocator/ffma.h"
 
 #include "hashtable_spsc.h"
 
@@ -66,7 +66,7 @@ void hashtable_spsc_free(
                 continue;
             }
 
-            xalloc_free((void*)buckets[bucket_index].key);
+            ffma_mem_free((void*)buckets[bucket_index].key);
         }
     }
 
@@ -134,7 +134,7 @@ bool hashtable_spsc_op_delete_ci(
 
     if (hashtable->free_keys_on_deallocation) {
         hashtable_spsc_bucket_t *buckets = hashtable_spsc_get_buckets(hashtable);
-        xalloc_free((void*)buckets[bucket_index].key);
+        ffma_mem_free((void*)buckets[bucket_index].key);
     }
 
     return true;
@@ -201,7 +201,7 @@ bool hashtable_spsc_op_delete_cs(
 
     if (hashtable->free_keys_on_deallocation) {
         hashtable_spsc_bucket_t *buckets = hashtable_spsc_get_buckets(hashtable);
-        xalloc_free((void*)buckets[bucket_index].key);
+        ffma_mem_free((void*)buckets[bucket_index].key);
     }
 
     return true;

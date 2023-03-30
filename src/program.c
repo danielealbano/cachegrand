@@ -60,7 +60,7 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "thread.h"
 #include "hugepage_cache.h"
-#include "xalloc.h"
+#include "memory_allocator/ffma.h"
 #include "support/sentry/sentry_support.h"
 #include "signal_handler_thread.h"
 #include "version.h"
@@ -522,12 +522,12 @@ bool program_use_huge_pages(
         LOG_W(TAG, "Fast fixed memory allocator disabled in config, performances will be degraded");
     }
 
-//    if (use_huge_pages) {
-//        hugepage_cache_init();
-//        ffma_enable(use_huge_pages);
-//    } else {
-//        ffma_enable(false);
-//    }
+    if (use_huge_pages) {
+        hugepage_cache_init();
+        ffma_enable(use_huge_pages);
+    } else {
+        ffma_enable(false);
+    }
 
     program_context->use_huge_pages = use_huge_pages;
 
@@ -894,8 +894,6 @@ end:
 #if FFMA_DEBUG_ALLOCS_FREES == 1
     ffma_debug_allocs_frees_end();
 #endif
-
-    mi_collect(true);
 
     return return_res;
 }

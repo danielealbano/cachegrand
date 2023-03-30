@@ -18,7 +18,10 @@
 #include "misc.h"
 #include "exttypes.h"
 #include "memory_fences.h"
-#include "xalloc.h"
+#include "fatal.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
+#include "memory_allocator/ffma.h"
 
 #include "slots_bitmap_mpmc_first_free_bit_table.h"
 #include "slots_bitmap_mpmc.h"
@@ -46,7 +49,7 @@ slots_bitmap_mpmc_t *slots_bitmap_mpmc_init(
             (sizeof(slots_bitmap_mpmc_shard_t) * shards_count) +
             (sizeof(uint8_t) * shards_count);
 
-    slots_bitmap_mpmc_t *slots_bitmap = (slots_bitmap_mpmc_t *)xalloc_alloc(allocation_size);
+    slots_bitmap_mpmc_t *slots_bitmap = (slots_bitmap_mpmc_t *)ffma_mem_alloc(allocation_size);
 
     // If memory allocation fails, return NULL
     if (slots_bitmap == NULL) {
@@ -64,7 +67,7 @@ slots_bitmap_mpmc_t *slots_bitmap_mpmc_init(
 void slots_bitmap_mpmc_free(
         slots_bitmap_mpmc_t *bitmap) {
     // Free the memory allocated for the concurrent bitmap
-    xalloc_free(bitmap);
+    ffma_mem_free(bitmap);
 }
 
 uint64_t slots_bitmap_mpmc_iter(

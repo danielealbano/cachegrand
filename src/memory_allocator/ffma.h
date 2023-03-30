@@ -10,9 +10,6 @@ extern "C" {
 #endif
 
 #if FFMA_DEBUG_ALLOCS_FREES == 1
-#include <unistd.h>
-#include <sys/types.h>
-
 #warning "the fast fixed memory allocator built with allocs/frees debugging, will cause issues with valgrind and might hide bugs, use with caution!"
 #endif
 
