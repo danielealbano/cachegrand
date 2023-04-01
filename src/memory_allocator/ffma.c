@@ -532,6 +532,10 @@ void ffma_mem_free_page_different_thread(
 
 void ffma_mem_free(
         void* memptr) {
+    if (unlikely(!ffma_thread_cache_has())) {
+        ffma_thread_cache_set(ffma_thread_cache_init());
+    }
+
     // Acquire the ffma_slice, the ffma, the ffma_slot and the thread_metadata related to the memory to be
     // freed. The slice holds a pointer to the memory allocator so the slot will always be put back into the correct thread
     ffma_slice_t* ffma_slice =
