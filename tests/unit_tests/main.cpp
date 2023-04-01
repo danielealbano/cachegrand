@@ -12,7 +12,15 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "misc.h"
+#include "exttypes.h"
 #include "thread.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
+#include "memory_allocator/ffma_page_cache.h"
+#include "memory_allocator/ffma_page_cache.h"
+#include "memory_allocator/ffma.h"
+#include "memory_allocator/ffma_thread_cache.h"
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
@@ -20,6 +28,9 @@
 // the default main function provided by Catch2
 int main(int argc, char* argv[]) {
     Catch::Session session;
+
+    // Setup the ffma page cache
+    ffma_page_cache_init(10, false);
 
     // Switch to it's own process process group to avoid propagating the signals to the parent
     setpgid(getpid(), getpid());
