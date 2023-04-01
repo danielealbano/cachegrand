@@ -39,8 +39,8 @@ extern "C" {
 
 static const uint32_t ffma_predefined_object_sizes[] = { FFMA_PREDEFINED_OBJECT_SIZES };
 
-typedef struct fast_memory_allocator ffma_t;
-struct fast_memory_allocator {
+typedef struct ffma ffma_t;
+struct ffma {
     // The slots and the slices are sorted per availability
     double_linked_list_t *slots;
     double_linked_list_t *slices;
@@ -50,7 +50,7 @@ struct fast_memory_allocator {
     // initialized and therefore some support is needed there.
     // When a thread sends back memory to a thread it has to check if it has been terminated and if yes, process the
     // free_ffma_slots_queue, free up the  slots, check if the slice owning the
-    // ffma_slot is then empty, and in case return the hugepage.
+    // ffma_slot is then empty, and in case return the addres sof the page.
     // All these operations have to be carried out under the external_thread_lock spinlock to avoid contention.
     bool_volatile_t ffma_freed;
 
@@ -108,11 +108,6 @@ typedef union {
 void ffma_debug_allocs_frees_end();
 #endif
 
-void ffma_enable(
-        bool enable);
-
-bool ffma_is_enabled();
-
 ffma_t* ffma_thread_cache_get_ffma_by_size(
         size_t object_size);
 
@@ -125,7 +120,7 @@ bool ffma_free(
 uint8_t ffma_index_by_object_size(
         size_t object_size);
 
-size_t ffma_slice_calculate_usable_hugepage_size();
+size_t ffma_slice_calculate_usable_page_size();
 
 uint32_t ffma_slice_calculate_data_offset(
         size_t usable_hugepage_size,
@@ -165,28 +160,18 @@ void ffma_grow(
         void *memptr);
 
 __attribute__((malloc))
-void* ffma_mem_alloc_hugepages(
+void* ffma_mem_alloc_internal(
         ffma_t* ffma,
         size_t size);
 
-void ffma_mem_free_hugepages_current_thread(
+void ffma_mem_free_page_current_thread(
         ffma_t* ffma,
         ffma_slice_t* ffma_slice,
         ffma_slot_t* ffma_slot);
 
-void ffma_mem_free_hugepages_different_thread(
+void ffma_mem_free_page_different_thread(
         ffma_t* ffma,
         ffma_slot_t* ffma_slot);
-
-void ffma_mem_free_hugepages(
-        void *memptr);
-
-__attribute__((malloc))
-void* ffma_mem_alloc_xalloc(
-        size_t size);
-
-void ffma_mem_free_xalloc(
-        void *memptr);
 
 __attribute__((malloc))
 void* ffma_mem_alloc(
