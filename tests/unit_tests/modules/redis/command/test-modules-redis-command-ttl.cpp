@@ -70,8 +70,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - TTL", "[redi
         REQUIRE(send_recv_resp_command_multi_recv(
                 std::vector<std::string>{"TTL", "a_key"},
                 buffer,
-                &out_buffer_length,
-                expected_length));
+                &out_buffer_length));
 
         unixtime_response = strtoll(buffer + 1, nullptr, 10);
 

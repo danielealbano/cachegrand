@@ -532,6 +532,10 @@ void ffma_mem_free_page_different_thread(
 
 void ffma_mem_free(
         void* memptr) {
+    if (unlikely(memptr == NULL)) {
+        return;
+    }
+
     if (unlikely(!ffma_thread_cache_has())) {
         ffma_thread_cache_set(ffma_thread_cache_init());
     }
