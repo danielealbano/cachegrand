@@ -10,7 +10,6 @@
 #define DISABLE_MIMALLOC 0
 #endif
 
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -18,13 +17,18 @@
 
 #if defined(__linux__)
 #include <sys/mman.h>
+#include <assert.h>
+#include <errno.h>
+
 #else
 #error Platform not supported
 #endif
 
 #include "misc.h"
+#include "clock.h"
 #include "log/log.h"
 #include "fatal.h"
+#include "random.h"
 
 #if DISABLE_MIMALLOC == 0
 #include "mimalloc.h"
@@ -171,6 +175,24 @@ size_t xalloc_mmap_align_size(
     return size;
 }
 
+void* xalloc_random_aligned_addr(
+        size_t alignment) {
+#if defined(__linux__)
+#if __aarch64__
+#define XALLOC_ADDR_ALLOWED_BITS (0x7FFFFFFFFF)
+#elif __x86_64__
+#define XALLOC_ADDR_ALLOWED_BITS (0x7FFFFFFFFFFF)
+#else
+#error Platform not supported
+#endif
+#else
+#error Platform not supported
+#endif
+
+    uintptr_t random_addr = random_generate();
+    return (void*)((random_addr - (random_addr % alignment)) & XALLOC_ADDR_ALLOWED_BITS);
+}
+
 void* xalloc_mmap_alloc(
         size_t size) {
     void* memptr;
@@ -199,6 +221,52 @@ void* xalloc_mmap_alloc(
     }
 
     return memptr;
+}
+
+xalloc_mmap_try_alloc_fixed_addr_result_t xalloc_mmap_try_alloc_fixed_addr(
+        void *requested_addr,
+        size_t size,
+        void **out_addr) {
+    xalloc_mmap_try_alloc_fixed_addr_result_t result = XALLOC_MMAP_TRY_ALLOC_FIXED_ADDR_RESULT_SUCCESS;
+
+    assert((uintptr_t)requested_addr % xalloc_get_page_size() == 0);
+
+    size = xalloc_mmap_align_size(size);
+
+#if defined(__linux__)
+    *out_addr = mmap(
+            requested_addr,
+            size,
+            PROT_READ | PROT_WRITE,
+            MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE,
+            -1,
+            0);
+
+    if (unlikely(*out_addr == (void*)-1)) {
+        if (errno == EEXIST) {
+            result = XALLOC_MMAP_TRY_ALLOC_FIXED_ADDR_RESULT_FAILED_ALREADY_ALLOCATED;
+        } else if (errno == ENOMEM) {
+            result = XALLOC_MMAP_TRY_ALLOC_FIXED_ADDR_RESULT_FAILED_NO_FREE_MEM;
+        } else {
+            result = XALLOC_MMAP_TRY_ALLOC_FIXED_ADDR_RESULT_FAILED_UNKNOWN;
+        }
+    }
+
+#if DEBUG == 1
+    // Not really needed, only pre 4.17 kernels will return a different address but cachegrand requires a 5.7 or newer
+    // kernel but it's better to have a check here to be sure. The check though is only done in debug mode to avoid
+    // a performance hit in production.
+    if (*out_addr != (void*)-1 && *out_addr != requested_addr) {
+        result = XALLOC_MMAP_TRY_ALLOC_FIXED_ADDR_RESULT_FAILED_DIFFERENT_ADDR;
+        munmap(*out_addr, size);
+    }
+#endif
+
+#else
+#error Platform not supported
+#endif
+
+    return result;
 }
 
 int xalloc_mmap_free(
