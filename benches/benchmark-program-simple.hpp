@@ -39,6 +39,9 @@ public:
     int Main(int argc, char** argv) {
         signals_support_register_sigsegv_fatal_handler();
 
+        // Setup ffma
+        ffma_page_cache_init(10, false);
+
         // Setup the log sink
         BenchmarkProgramSimple::setup_initial_log_sink_console();
 
