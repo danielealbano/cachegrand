@@ -59,7 +59,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "thread.h"
-#include "hugepage_cache.h"
+#include "memory_allocator/ffma_page_cache.h"
 #include "memory_allocator/ffma.h"
 #include "support/sentry/sentry_support.h"
 #include "signal_handler_thread.h"
@@ -515,20 +515,12 @@ bool program_use_huge_pages(
 
     if (use_huge_pages) {
         if (!hugepages_2mb_is_available(requested_hugepages)) {
-            LOG_W(TAG, "Not enough 2mb hugepages, disabling fast fixed memory allocator, performances will be degraded");
+            LOG_W(TAG, "Not enough 2mb hugepages, the fast fixed memory allocator wil not use them");
             use_huge_pages = false;
         }
-    } else {
-        LOG_W(TAG, "Fast fixed memory allocator disabled in config, performances will be degraded");
     }
 
-    if (use_huge_pages) {
-        hugepage_cache_init();
-        ffma_enable(use_huge_pages);
-    } else {
-        ffma_enable(false);
-    }
-
+    ffma_page_cache_init(20, use_huge_pages);
     program_context->use_huge_pages = use_huge_pages;
 
     return use_huge_pages;
@@ -708,7 +700,7 @@ void program_cleanup(
     }
 
     if (program_context->fast_memory_allocator_initialized) {
-        hugepage_cache_free();
+        ffma_page_cache_free();
     }
 
     if (program_context->selected_cpus) {
