@@ -120,7 +120,7 @@ bool ffma_free(
 uint8_t ffma_index_by_object_size(
         size_t object_size);
 
-size_t ffma_slice_calculate_usable_page_size();
+size_t ffma_slice_calculate_usable_memory_size();
 
 uint32_t ffma_slice_calculate_data_offset(
         size_t usable_hugepage_size,
