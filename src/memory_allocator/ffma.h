@@ -108,18 +108,6 @@ typedef union {
 void ffma_debug_allocs_frees_end();
 #endif
 
-ffma_t **ffma_thread_cache_init();
-
-void ffma_thread_cache_free(
-        void *data);
-
-ffma_t** ffma_thread_cache_get();
-
-void ffma_thread_cache_set(
-        ffma_t** ffmas);
-
-bool ffma_thread_cache_has();
-
 void ffma_enable(
         bool enable);
 
