@@ -232,7 +232,6 @@ void test_ffma_fuzzy_multi_thread_single_size(
         ffma_mem_free(data);
     }
 
-    REQUIRE(queue_mpmc->head.data.node == nullptr);
     REQUIRE(queue_mpmc->head.data.length == 0);
 
     queue_mpmc_free(queue_mpmc);
@@ -325,7 +324,6 @@ void test_ffma_fuzzy_single_thread_single_size(
         ffma_mem_free(data);
     }
 
-    REQUIRE(queue_mpmc->head.data.node == nullptr);
     REQUIRE(queue_mpmc->head.data.length == 0);
 
     queue_mpmc_free(queue_mpmc);
@@ -429,7 +427,7 @@ TEST_CASE("ffma.c", "[ffma]") {
     }
 
     SECTION("ffma_slice_calculate_usable_memory_size") {
-        REQUIRE(ffma_slice_calculate_usable_memory_size() ==
+        REQUIRE(ffma_slice_calculate_usable_memory_size(xalloc_get_page_size()) ==
                 HUGEPAGE_SIZE_2MB - xalloc_get_page_size() - sizeof(ffma_slice_t));
     }
 
@@ -441,6 +439,7 @@ TEST_CASE("ffma.c", "[ffma]") {
         data_offset += xalloc_get_page_size() - (data_offset % xalloc_get_page_size());
 
         REQUIRE(ffma_slice_calculate_data_offset(
+                xalloc_get_page_size(),
                 usable_hugepage_size,
                 object_size) == data_offset);
     }
@@ -460,8 +459,9 @@ TEST_CASE("ffma.c", "[ffma]") {
         ffma_t* ffma = ffma_init(256);
         ffma_slice_t* ffma_slice = ffma_slice_init(ffma, memptr);
 
-        size_t usable_hugepage_size = ffma_slice_calculate_usable_memory_size();
+        size_t usable_hugepage_size = ffma_slice_calculate_usable_memory_size(xalloc_get_page_size());
         uint32_t data_offset = ffma_slice_calculate_data_offset(
+                xalloc_get_page_size(),
                 usable_hugepage_size,
                 ffma->object_size);
         uint32_t slots_count = ffma_slice_calculate_slots_count(
@@ -588,8 +588,9 @@ TEST_CASE("ffma.c", "[ffma]") {
         }
 
         SECTION("fill one page") {
-            size_t usable_hugepage_size = ffma_slice_calculate_usable_memory_size();
+            size_t usable_hugepage_size = ffma_slice_calculate_usable_memory_size(xalloc_get_page_size());
             uint32_t data_offset = ffma_slice_calculate_data_offset(
+                    xalloc_get_page_size(),
                     usable_hugepage_size,
                     ffma->object_size);
             uint32_t slots_count = ffma_slice_calculate_slots_count(
@@ -611,8 +612,9 @@ TEST_CASE("ffma.c", "[ffma]") {
         }
 
         SECTION("trigger second page creation") {
-            size_t usable_hugepage_size = ffma_slice_calculate_usable_memory_size();
+            size_t usable_hugepage_size = ffma_slice_calculate_usable_memory_size(xalloc_get_page_size());
             uint32_t data_offset = ffma_slice_calculate_data_offset(
+                    xalloc_get_page_size(),
                     usable_hugepage_size,
                     ffma->object_size);
             uint32_t slots_count = ffma_slice_calculate_slots_count(
@@ -683,8 +685,9 @@ TEST_CASE("ffma.c", "[ffma]") {
         }
 
         SECTION("fill and free one hugepage") {
-            size_t usable_hugepage_size = ffma_slice_calculate_usable_memory_size();
+            size_t usable_hugepage_size = ffma_slice_calculate_usable_memory_size(xalloc_get_page_size());
             uint32_t data_offset = ffma_slice_calculate_data_offset(
+                    xalloc_get_page_size(),
                     usable_hugepage_size,
                     ffma->object_size);
             uint32_t slots_count = ffma_slice_calculate_slots_count(
@@ -715,8 +718,9 @@ TEST_CASE("ffma.c", "[ffma]") {
         }
 
         SECTION("fill and free one hugepage and one element") {
-            size_t usable_hugepage_size = ffma_slice_calculate_usable_memory_size();
+            size_t usable_hugepage_size = ffma_slice_calculate_usable_memory_size(xalloc_get_page_size());
             uint32_t data_offset = ffma_slice_calculate_data_offset(
+                    xalloc_get_page_size(),
                     usable_hugepage_size,
                     ffma->object_size);
             uint32_t slots_count = ffma_slice_calculate_slots_count(
@@ -767,8 +771,9 @@ TEST_CASE("ffma.c", "[ffma]") {
 
             // slots from the queue are used if all the items in the hugepages have been used so it's necessary to
             // fill the hugepage allocated
-            size_t usable_hugepage_size = ffma_slice_calculate_usable_memory_size();
+            size_t usable_hugepage_size = ffma_slice_calculate_usable_memory_size(xalloc_get_page_size());
             uint32_t data_offset = ffma_slice_calculate_data_offset(
+                    xalloc_get_page_size(),
                     usable_hugepage_size,
                     ffma->object_size);
             uint32_t slots_count = ffma_slice_calculate_slots_count(
