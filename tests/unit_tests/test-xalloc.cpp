@@ -283,7 +283,6 @@ TEST_CASE("xalloc.c", "[xalloc]") {
         }
 
         SECTION("invalid size") {
-            uintptr_t data = 0;
             REQUIRE(xalloc_hugepage_alloc(0) == NULL);
         }
     }

@@ -656,9 +656,7 @@ bool storage_db_chunk_sequence_is_size_allowed(
     bool error = false;
 
     // TODO: should check if the other limits (e.g. number of chunks allowed) are broken
-    if (ffma_is_enabled()) {
-        error |= size > storage_db_chunk_sequence_allowed_max_size();
-    }
+    error |= size > storage_db_chunk_sequence_allowed_max_size();
 
     return !error;
 }

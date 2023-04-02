@@ -58,7 +58,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_iter.c", "[hashtable][hashtable_op][hasht
 
             HASHTABLE(0x7FFF, false, {
                 // Not necessary to free, the key(s) is owned by the hashtable
-                char *test_key_1_copy = (char*)ffma_mem_alloc(test_key_1_len + 1);
+                char *test_key_1_copy = (char*)xalloc_alloc(test_key_1_len + 1);
                 strcpy(test_key_1_copy, test_key_1);
 
                 hashtable_chunk_index_t chunk_index1 = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(

@@ -62,7 +62,6 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PEXPIRETIME"
         size_t out_buffer_length = 0;
         int64_t unixtime_response;
         int64_t unixtime_ms_plus_5s = clock_realtime_coarse_int64_ms() + 5000;
-        size_t expected_length = snprintf(nullptr, 0, ":%ld\r\n", unixtime_ms_plus_5s);
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
@@ -71,8 +70,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PEXPIRETIME"
         REQUIRE(send_recv_resp_command_multi_recv(
                 std::vector<std::string>{"PEXPIRETIME", "a_key"},
                 buffer,
-                &out_buffer_length,
-                expected_length));
+                &out_buffer_length));
 
         unixtime_response = strtoll(buffer + 1, nullptr, 10);
 

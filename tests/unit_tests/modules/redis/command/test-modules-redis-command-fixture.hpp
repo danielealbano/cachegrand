@@ -63,8 +63,7 @@ protected:
     bool send_recv_resp_command_multi_recv(
             const std::vector<std::string>& arguments,
             char *buffer_recv_int,
-            size_t *out_buffer_recv_length,
-            size_t expected_len) const;
+            size_t *out_buffer_recv_length) const;
 
     bool send_recv_resp_command_multi_recv_and_validate_recv(
             const std::vector<std::string>& arguments,
