@@ -74,15 +74,9 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PTTL", "[red
 
         unixtime_response = strtoll(buffer + 1, nullptr, 10);
 
-
-        if (!(unixtime_response >= 5000 - 5 && unixtime_response <= 5000 + 5)) {
-            fprintf(stdout, "unixtime_response: %ld\n", unixtime_response);
-            fprintf(stdout, "unixtime_now: %ld\n", unixtime_now);
-            fprintf(stdout, "difference: %ld\n", abs(unixtime_response - unixtime_now));
-            fflush(stdout);
-        }
-
-
-        REQUIRE((unixtime_response >= 5000 - 5 && unixtime_response <= 5000 + 5));
+        // Sometime this tests fails because the server takes more than a few milliseconds to process the command
+        // therefore the value returned by PTTL is not exactly 5000 but it's a bit less so we need to account for that
+        // in the test and include 25 milliseconds of margin
+        REQUIRE((unixtime_response >= 5000 - 25 && unixtime_response <= 5000));
     }
 }
