@@ -33,6 +33,7 @@
 #if DISABLE_MIMALLOC == 0
 #include "mimalloc.h"
 #else
+#include <stdlib.h>
 #define mi_malloc malloc
 #define mi_realloc realloc
 #define mi_zalloc(size) (calloc(1, size))
