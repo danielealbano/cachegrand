@@ -60,8 +60,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PTTL", "[red
     SECTION("Key with 5 second expire") {
         char buffer[32] = { 0 };
         size_t out_buffer_length = 0;
+        int64_t unixtime_now = clock_realtime_coarse_int64_ms();
         int64_t unixtime_response;
-        size_t expected_length = snprintf(nullptr, 0, ":%d\r\n", 5000);
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
@@ -74,6 +74,15 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PTTL", "[red
 
         unixtime_response = strtoll(buffer + 1, nullptr, 10);
 
-        REQUIRE((unixtime_response >= 5000 - 5 && unixtime_response <= 5000));
+
+        if (!(unixtime_response >= 5000 - 5 && unixtime_response <= 5000 + 5)) {
+            fprintf(stdout, "unixtime_response: %ld\n", unixtime_response);
+            fprintf(stdout, "unixtime_now: %ld\n", unixtime_now);
+            fprintf(stdout, "difference: %ld\n", abs(unixtime_response - unixtime_now));
+            fflush(stdout);
+        }
+
+
+        REQUIRE((unixtime_response >= 5000 - 5 && unixtime_response <= 5000 + 5));
     }
 }
