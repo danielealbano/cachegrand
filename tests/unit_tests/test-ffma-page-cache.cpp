@@ -22,6 +22,7 @@ TEST_CASE("ffma_page_cache.c", "[ffma][ffma_page_cache]") {
         SECTION("no hugepages") {
             int numa_node_count = utils_numa_node_configured_count();
 
+            ffma_page_cache_free();
             ffma_page_cache_t* page_cache = ffma_page_cache_init(10, false);
 
             REQUIRE(page_cache != nullptr);
@@ -34,20 +35,31 @@ TEST_CASE("ffma_page_cache.c", "[ffma][ffma_page_cache]") {
             }
 
             ffma_page_cache_free();
+
+            // To ensure that the other tests aren't affected by the page cache being freed for thist test, we re-initialize
+            // it to some generic settings
+            ffma_page_cache_init(10, false);
         }
 
         SECTION("with hugepages") {
+            ffma_page_cache_free();
             ffma_page_cache_t* page_cache = ffma_page_cache_init(10, true);
 
             REQUIRE(page_cache != nullptr);
             REQUIRE(page_cache->use_hugepages == true);
 
             ffma_page_cache_free();
+
+            // To ensure that the other tests aren't affected by the page cache being freed for thist test, we re-initialize
+            // it to some generic settings
+            ffma_page_cache_init(10, false);
         }
     }
 
     SECTION("ffma_page_cache_pop") {
         uint32_t numa_node_index = thread_get_current_numa_node_index();
+
+        ffma_page_cache_free();
         ffma_page_cache_t* page_cache = ffma_page_cache_init(10, false);
 
         SECTION("pop one page from cache") {
@@ -90,10 +102,16 @@ TEST_CASE("ffma_page_cache.c", "[ffma][ffma_page_cache]") {
         }
 
         ffma_page_cache_free();
+
+        // To ensure that the other tests aren't affected by the page cache being freed for thist test, we re-initialize
+        // it to some generic settings
+        ffma_page_cache_init(10, false);
     }
 
     SECTION("ffma_page_cache_push") {
         uint32_t numa_node_index = thread_get_current_numa_node_index();
+
+        ffma_page_cache_free();
         ffma_page_cache_t* page_cache = ffma_page_cache_init(10, false);
 
         SECTION("pop and push one page from cache") {
@@ -169,5 +187,9 @@ TEST_CASE("ffma_page_cache.c", "[ffma][ffma_page_cache]") {
         }
 
         ffma_page_cache_free();
+
+        // To ensure that the other tests aren't affected by the page cache being freed for thist test, we re-initialize
+        // it to some generic settings
+        ffma_page_cache_init(10, false);
     }
 }
