@@ -45,6 +45,7 @@
 #define TEST_THREADS_RANGE_END (utils_cpu_count())
 
 static void memory_allocation_ffma_hugepages_warmup_cache(benchmark::State& state) {
+    void **hugepages = (void**) malloc(sizeof(void*) * TEST_WARMPUP_HUGEPAGES_CACHE_COUNT);
     size_t os_page_size = xalloc_get_page_size();
     for(int hugepage_index = 0; hugepage_index < TEST_WARMPUP_HUGEPAGES_CACHE_COUNT; hugepage_index++) {
         char *addr;
@@ -58,11 +59,11 @@ static void memory_allocation_ffma_hugepages_warmup_cache(benchmark::State& stat
                     hugepage_index);
         }
 
-        for(addr = start_addr; (uintptr_t)(addr - start_addr) < HUGEPAGE_SIZE_2MB; addr += os_page_size) {
-            *addr = 0;
-        }
+        hugepages[hugepage_index] = start_addr;
+    }
 
-        ffma_page_cache_push(start_addr);
+    for(int hugepage_index = 0; hugepage_index < TEST_WARMPUP_HUGEPAGES_CACHE_COUNT; hugepage_index++) {
+        ffma_page_cache_push(hugepages[hugepage_index]);
     }
 
     state.SkipWithError("Not a test");
