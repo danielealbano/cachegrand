@@ -330,6 +330,7 @@ void test_ffma_fuzzy_single_thread_single_size(
 }
 
 TEST_CASE("ffma.c", "[ffma]") {
+    ffma_page_cache_free();
     ffma_page_cache_init(10, false);
 
     SECTION("ffma_init") {
@@ -1045,4 +1046,8 @@ TEST_CASE("ffma.c", "[ffma]") {
     }
 
     ffma_page_cache_free();
+
+    // To ensure that the other tests aren't affected by the page cache being freed for thist test, we re-initialize
+    // it to some generic settings
+    ffma_page_cache_init(10, false);
 }
