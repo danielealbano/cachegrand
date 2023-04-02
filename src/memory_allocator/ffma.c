@@ -71,7 +71,6 @@
  */
 
 static size_t ffma_os_page_size;
-thread_local bool ffma_thread_cache_is_set = false;
 
 #if FFMA_DEBUG_ALLOCS_FREES == 1
 // When in debug mode, allow the allocated memory allocators are tracked in a queue for later checks at shutdown
@@ -148,7 +147,9 @@ void ffma_debug_allocs_frees_end() {
 
 ffma_t* ffma_thread_cache_get_ffma_by_size(
         size_t object_size) {
-    return ffma_thread_cache_get()[ffma_index_by_object_size(object_size)];
+    ffma_t **ffma_list = ffma_thread_cache_get();
+
+    return ffma_list[ffma_index_by_object_size(object_size)];
 }
 
 ffma_t* ffma_init(
@@ -453,9 +454,8 @@ void ffma_mem_free(
         return;
     }
 
-    if (unlikely(ffma_thread_cache_is_set == false)) {
+    if (unlikely(!ffma_thread_cache_has())) {
         ffma_thread_cache_set(ffma_thread_cache_init());
-        ffma_thread_cache_is_set = true;
     }
 
     // Acquire the ffma_slice, the ffma, the ffma_slot and the thread_metadata related to the memory to be
@@ -499,9 +499,8 @@ void* ffma_mem_alloc(
 
     assert(size > 0);
 
-    if (unlikely(ffma_thread_cache_is_set == false)) {
+    if (unlikely(!ffma_thread_cache_has())) {
         ffma_thread_cache_set(ffma_thread_cache_init());
-        ffma_thread_cache_is_set = true;
     }
 
     uint64_t index = ffma_index_by_object_size(size);
