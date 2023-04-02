@@ -48,7 +48,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         hashtable,
                         test_key_1,
                         test_key_1_len,
-                        NULL));
+                        nullptr));
             })
         }
 
@@ -73,7 +73,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
-                        NULL));
+                        nullptr));
 
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
                 REQUIRE(key_value->flags != HASHTABLE_KEY_VALUE_FLAG_DELETED);
@@ -82,7 +82,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         hashtable,
                         test_key_1,
                         test_key_1_len,
-                        NULL));
+                        nullptr));
 
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
@@ -110,7 +110,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
-                        NULL));
+                        nullptr));
 
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
                 REQUIRE(key_value->flags != HASHTABLE_KEY_VALUE_FLAG_DELETED);
@@ -147,7 +147,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
-                        NULL));
+                        nullptr));
 
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
                 REQUIRE(key_value->flags != HASHTABLE_KEY_VALUE_FLAG_DELETED);
@@ -156,7 +156,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         hashtable,
                         test_key_1,
                         test_key_1_len,
-                        NULL));
+                        nullptr));
 
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
@@ -169,7 +169,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
-                        NULL));
+                        nullptr));
 
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].distance == 0);
@@ -180,7 +180,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         hashtable,
                         test_key_1,
                         test_key_1_len,
-                        NULL));
+                        nullptr));
 
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
@@ -204,7 +204,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                             test_key_same_bucket_alloc,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
-                            NULL));
+                            nullptr));
                 }
 
                 hashtable_chunk_slot_index_t random_slot_index = random_generate() % slots_to_fill;
@@ -213,7 +213,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         hashtable,
                         test_key_same_bucket[random_slot_index].key,
                         test_key_same_bucket[random_slot_index].key_len,
-                        NULL));
+                        nullptr));
 
                 hashtable_chunk_index_t chunk_index_base =
                         HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
@@ -250,7 +250,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                             test_key_same_bucket_alloc,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
-                            NULL));
+                            nullptr));
                 }
 
                 hashtable_chunk_slot_index_t random_slot_index = random_generate() % (slots_to_fill - 1);
@@ -259,7 +259,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         hashtable,
                         test_key_same_bucket[random_slot_index].key,
                         test_key_same_bucket[random_slot_index].key_len,
-                        NULL));
+                        nullptr));
 
                 hashtable_chunk_index_t chunk_index_base =
                         HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
@@ -282,7 +282,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         test_key_same_bucket_alloc,
                         test_key_same_bucket[slots_to_fill - 1].key_len,
                         test_value_1 + slots_to_fill - 1,
-                        NULL));
+                        nullptr));
 
                 REQUIRE(half_hashes_chunk->half_hashes[random_slot_index].filled == true);
                 REQUIRE(half_hashes_chunk->half_hashes[random_slot_index].distance == 0);

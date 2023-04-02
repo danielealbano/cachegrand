@@ -52,6 +52,8 @@
 #include "epoch_gc.h"
 #include "epoch_gc_worker.h"
 
+#include "../../../network/network_tests_support.h"
+
 #include "program.h"
 
 #include "test-modules-redis-command-fixture.hpp"
@@ -64,7 +66,7 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
 
     config_module_network_binding = {
             .host = "127.0.0.1",
-            .port = 12345,
+            .port = network_tests_support_search_free_port_ipv4(),
     };
 
     config_module_redis = {
@@ -321,7 +323,6 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
 
     // Sets up the reader
     this->c->reader = redisReaderCreate();
-//    this->c->reader->maxbuf = SIZE_MAX;
 
     // Prepares the command and write it to the internal buffer
     redisAppendCommandArgv(
