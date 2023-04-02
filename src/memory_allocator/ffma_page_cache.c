@@ -70,10 +70,11 @@ void ffma_page_cache_free() {
 
 void ffma_page_cache_push(
         void* addr) {
-    assert(page_cache != NULL);
-    assert(addr != NULL);
-
     uint32_t numa_node_index = thread_get_current_numa_node_index();
+
+    assert(addr != NULL);
+    assert(page_cache != NULL);
+    assert(page_cache->numa_nodes[numa_node_index].free_queue != NULL);
 
     // If the queue is full free the memory
     if (queue_mpmc_get_length(page_cache->numa_nodes[numa_node_index].free_queue) >= page_cache->cache_size) {
