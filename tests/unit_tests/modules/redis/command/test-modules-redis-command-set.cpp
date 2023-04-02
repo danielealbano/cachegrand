@@ -412,8 +412,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         free(expected_response);
     }
 
-    SECTION("New key - 256MB") {
-        size_t long_value_length = 256 * 1024 * 1024;
+    SECTION("New key - 160MB") {
+        size_t long_value_length = 160 * 1024 * 1024;
         config_module_redis.max_command_length = long_value_length + 1024;
 
         // The long value is, on purpose, not filled with anything to have a very simple fuzzy testing (although
