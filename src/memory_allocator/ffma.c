@@ -71,7 +71,7 @@
  */
 
 static size_t ffma_os_page_size;
-static size_t ffma_2mb_page_offset = 0;
+thread_local bool ffma_thread_cache_is_set = false;
 
 #if FFMA_DEBUG_ALLOCS_FREES == 1
 // When in debug mode, allow the allocated memory allocators are tracked in a queue for later checks at shutdown
@@ -145,28 +145,6 @@ void ffma_debug_allocs_frees_end() {
             "-------------------------------", "-------------------------------");
 }
 #endif
-
-
-uint8_t ffma_index_by_object_size(
-        size_t object_size) {
-    assert(object_size <= FFMA_OBJECT_SIZE_MAX);
-
-    if (object_size < FFMA_OBJECT_SIZE_MIN) {
-        object_size = FFMA_OBJECT_SIZE_MIN;
-    }
-
-    // Round up the object_size to the next power of 2
-    size_t rounded_up_object_size = object_size;
-    rounded_up_object_size--;
-    rounded_up_object_size |= rounded_up_object_size >> 1;
-    rounded_up_object_size |= rounded_up_object_size >> 2;
-    rounded_up_object_size |= rounded_up_object_size >> 4;
-    rounded_up_object_size |= rounded_up_object_size >> 8;
-    rounded_up_object_size |= rounded_up_object_size >> 16;
-    rounded_up_object_size++;
-
-    return 32 - __builtin_clz(rounded_up_object_size) - (32 - __builtin_clz(FFMA_OBJECT_SIZE_MIN));
-}
 
 ffma_t* ffma_thread_cache_get_ffma_by_size(
         size_t object_size) {
@@ -244,41 +222,14 @@ bool ffma_free(
     return true;
 }
 
-size_t ffma_slice_calculate_usable_memory_size() {
-    size_t hugepage_size = HUGEPAGE_SIZE_2MB;
-    size_t ffma_slice_size = sizeof(ffma_slice_t);
-    size_t usable_memory_size = hugepage_size - ffma_os_page_size - ffma_slice_size;
-
-    return usable_memory_size;
-}
-
-uint32_t ffma_slice_calculate_data_offset(
-        size_t usable_memory_size,
-        size_t object_size) {
-    uint32_t slots_count = (int)(usable_memory_size / (object_size + sizeof(ffma_slot_t)));
-    size_t data_offset = sizeof(ffma_slice_t) + (slots_count * sizeof(ffma_slot_t));
-    data_offset += ffma_os_page_size - (data_offset % ffma_os_page_size);
-
-    return data_offset;
-}
-
-uint32_t ffma_slice_calculate_slots_count(
-        size_t usable_memory_size,
-        size_t data_offset,
-        size_t object_size) {
-    size_t data_size = usable_memory_size - data_offset;
-    uint32_t slots_count = data_size / object_size;
-
-    return slots_count;
-}
-
 ffma_slice_t* ffma_slice_init(
         ffma_t* ffma,
         void* memptr) {
     ffma_slice_t* ffma_slice = (ffma_slice_t*)memptr;
 
-    size_t usable_memory_size = ffma_slice_calculate_usable_memory_size();
+    size_t usable_memory_size = ffma_slice_calculate_usable_memory_size(ffma_os_page_size);
     uint32_t data_offset = ffma_slice_calculate_data_offset(
+            ffma_os_page_size,
             usable_memory_size,
             ffma->object_size);
     uint32_t slots_count = ffma_slice_calculate_slots_count(
@@ -328,15 +279,6 @@ void ffma_slice_remove_slots_from_per_thread_metadata_slots(
     }
 }
 
-ffma_slice_t* ffma_slice_from_memptr(
-        void* memptr) {
-    uintptr_t memptr_uintptr = (uintptr_t)memptr;
-    uintptr_t memptr_with_offset = (memptr_uintptr - ffma_2mb_page_offset);
-    ffma_slice_t* ffma_slice = (ffma_slice_t*)(memptr_uintptr - (memptr_with_offset % HUGEPAGE_SIZE_2MB));
-
-    return ffma_slice;
-}
-
 void ffma_slice_make_available(
         ffma_t* ffma,
         ffma_slice_t* ffma_slice) {
@@ -349,16 +291,6 @@ void ffma_slice_make_available(
     double_linked_list_remove_item(
             ffma->slices,
             &ffma_slice->double_linked_list_item);
-}
-
-ffma_slot_t* ffma_slot_from_memptr(
-        ffma_t* ffma,
-        ffma_slice_t* ffma_slice,
-        void* memptr) {
-    uint16_t object_index = ((uintptr_t)memptr - (uintptr_t)ffma_slice->data.data_addr) / ffma->object_size;
-    ffma_slot_t* slot = &ffma_slice->data.slots[object_index];
-
-    return slot;
 }
 
 void ffma_grow(
@@ -421,11 +353,6 @@ void* ffma_mem_alloc_internal(
     if (ffma_slot == NULL || ffma_slot->data.available == false) {
         void* addr = ffma_page_cache_pop();
 
-#if DEBUG == 1
-        size_t temp_offset = (uintptr_t)addr % HUGEPAGE_SIZE_2MB;
-        assert(temp_offset == ffma_2mb_page_offset);
-#endif
-
 #if defined(HAS_VALGRIND)
         VALGRIND_CREATE_MEMPOOL(addr, 0, false);
 #endif
@@ -464,16 +391,6 @@ void* ffma_mem_alloc_internal(
     MEMORY_FENCE_STORE();
 
     return ffma_slot->data.memptr;
-}
-
-void* ffma_mem_alloc_zero(
-        size_t size) {
-    void* memptr = ffma_mem_alloc(size);
-    if (memptr) {
-        memset(memptr, 0, size);
-    }
-
-    return memptr;
 }
 
 void ffma_mem_free_page_current_thread(
@@ -536,8 +453,9 @@ void ffma_mem_free(
         return;
     }
 
-    if (unlikely(!ffma_thread_cache_has())) {
+    if (unlikely(ffma_thread_cache_is_set == false)) {
         ffma_thread_cache_set(ffma_thread_cache_init());
+        ffma_thread_cache_is_set = true;
     }
 
     // Acquire the ffma_slice, the ffma, the ffma_slot and the thread_metadata related to the memory to be
@@ -581,8 +499,9 @@ void* ffma_mem_alloc(
 
     assert(size > 0);
 
-    if (unlikely(!ffma_thread_cache_has())) {
+    if (unlikely(ffma_thread_cache_is_set == false)) {
         ffma_thread_cache_set(ffma_thread_cache_init());
+        ffma_thread_cache_is_set = true;
     }
 
     uint64_t index = ffma_index_by_object_size(size);

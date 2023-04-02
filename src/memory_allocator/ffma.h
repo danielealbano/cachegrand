@@ -1,6 +1,14 @@
 #ifndef CACHEGRAND_FFMA_H
 #define CACHEGRAND_FFMA_H
 
+// For optimization purposes a number of functions are in this header as static inline and they need certain headers,
+// so we need to include them here to avoid having to include them in every file that includes this header.
+#ifdef __cplusplus
+#include <cstring>
+#else
+#include <string.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -12,6 +20,8 @@ extern "C" {
 #if FFMA_DEBUG_ALLOCS_FREES == 1
 #warning "the fast fixed memory allocator built with allocs/frees debugging, will cause issues with valgrind and might hide bugs, use with caution!"
 #endif
+
+#define FFMA_SLICE_SIZE         (2 * 1024 * 1024)
 
 #define FFMA_OBJECT_SIZE_16     0x00000010
 #define FFMA_OBJECT_SIZE_32     0x00000020
@@ -117,20 +127,6 @@ ffma_t* ffma_init(
 bool ffma_free(
         ffma_t *ffma);
 
-uint8_t ffma_index_by_object_size(
-        size_t object_size);
-
-size_t ffma_slice_calculate_usable_memory_size();
-
-uint32_t ffma_slice_calculate_data_offset(
-        size_t usable_hugepage_size,
-        size_t object_size);
-
-uint32_t ffma_slice_calculate_slots_count(
-        size_t usable_hugepage_size,
-        size_t data_offset,
-        size_t object_size);
-
 ffma_slice_t* ffma_slice_init(
         ffma_t *ffma,
         void *memptr);
@@ -143,17 +139,9 @@ void ffma_slice_remove_slots_from_per_thread_metadata_slots(
         ffma_t *ffma,
         ffma_slice_t *ffma_slice);
 
-ffma_slice_t* ffma_slice_from_memptr(
-        void *memptr);
-
 void ffma_slice_make_available(
         ffma_t *ffma,
         ffma_slice_t *ffma_slice);
-
-ffma_slot_t* ffma_slot_from_memptr(
-        ffma_t *ffma,
-        ffma_slice_t *ffma_slice,
-        void *memptr);
 
 void ffma_grow(
         ffma_t *ffma,
@@ -177,9 +165,6 @@ __attribute__((malloc))
 void* ffma_mem_alloc(
         size_t size);
 
-void* ffma_mem_alloc_zero(
-        size_t size);
-
 void* ffma_mem_realloc(
         void *memptr,
         size_t current_size,
@@ -188,6 +173,85 @@ void* ffma_mem_realloc(
 
 void ffma_mem_free(
         void *memptr);
+
+static inline uint8_t ffma_index_by_object_size(
+        size_t object_size) {
+    assert(object_size <= FFMA_OBJECT_SIZE_MAX);
+
+    if (object_size < FFMA_OBJECT_SIZE_MIN) {
+        object_size = FFMA_OBJECT_SIZE_MIN;
+    }
+
+    // Round up the object_size to the next power of 2
+    size_t rounded_up_object_size = object_size;
+    rounded_up_object_size--;
+    rounded_up_object_size |= rounded_up_object_size >> 1;
+    rounded_up_object_size |= rounded_up_object_size >> 2;
+    rounded_up_object_size |= rounded_up_object_size >> 4;
+    rounded_up_object_size |= rounded_up_object_size >> 8;
+    rounded_up_object_size |= rounded_up_object_size >> 16;
+    rounded_up_object_size++;
+
+    return 32 - __builtin_clz(rounded_up_object_size) - (32 - __builtin_clz(FFMA_OBJECT_SIZE_MIN));
+}
+
+static inline ffma_slice_t* ffma_slice_from_memptr(
+        void* memptr) {
+    uintptr_t memptr_uintptr = (uintptr_t)memptr;
+    ffma_slice_t* ffma_slice = (ffma_slice_t*)(memptr_uintptr - (memptr_uintptr % FFMA_SLICE_SIZE));
+
+    return ffma_slice;
+}
+
+static inline size_t ffma_slice_calculate_usable_memory_size(
+        size_t ffma_os_page_size) {
+    size_t page_size = FFMA_SLICE_SIZE;
+    size_t ffma_slice_size = sizeof(ffma_slice_t);
+    size_t usable_memory_size = page_size - ffma_os_page_size - ffma_slice_size;
+
+    return usable_memory_size;
+}
+
+static inline uint32_t ffma_slice_calculate_data_offset(
+        size_t ffma_os_page_size,
+        size_t usable_memory_size,
+        size_t object_size) {
+    uint32_t slots_count = (int)(usable_memory_size / (object_size + sizeof(ffma_slot_t)));
+    size_t data_offset = sizeof(ffma_slice_t) + (slots_count * sizeof(ffma_slot_t));
+    data_offset += ffma_os_page_size - (data_offset % ffma_os_page_size);
+
+    return data_offset;
+}
+
+static inline uint32_t ffma_slice_calculate_slots_count(
+        size_t usable_memory_size,
+        size_t data_offset,
+        size_t object_size) {
+    size_t data_size = usable_memory_size - data_offset;
+    uint32_t slots_count = data_size / object_size;
+
+    return slots_count;
+}
+
+static inline ffma_slot_t* ffma_slot_from_memptr(
+        ffma_t* ffma,
+        ffma_slice_t* ffma_slice,
+        void* memptr) {
+    uint16_t object_index = ((uintptr_t)memptr - (uintptr_t)ffma_slice->data.data_addr) / ffma->object_size;
+    ffma_slot_t* slot = &ffma_slice->data.slots[object_index];
+
+    return slot;
+}
+
+static inline void* ffma_mem_alloc_zero(
+        size_t size) {
+    void* memptr = ffma_mem_alloc(size);
+    if (memptr) {
+        memset(memptr, 0, size);
+    }
+
+    return memptr;
+}
 
 #ifdef __cplusplus
 }
