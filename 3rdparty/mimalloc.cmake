@@ -11,7 +11,6 @@ else()
     set(MI_SECURE FALSE CACHE BOOL "mimalloc option overridden" FORCE)
     set(MI_DEBUG_FULL FALSE CACHE BOOL "mimalloc option overridden" FORCE)
     set(MI_PADDING FALSE CACHE BOOL "mimalloc option overridden" FORCE)
-    set(MI_PADDING FALSE CACHE BOOL "mimalloc option overridden" FORCE)
 endif()
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/mimalloc/ EXCLUDE_FROM_ALL)
