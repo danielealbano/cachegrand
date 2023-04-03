@@ -141,24 +141,25 @@ void xalloc_free(
 }
 
 size_t xalloc_get_page_size() {
+    static bool page_size_read;
     static size_t page_size;
 
-    if (page_size > 0) {
-        return page_size;
-    }
-
+    if (unlikely(!page_size_read)) {
+        page_size_read = true;
 #if defined(__linux__)
-    page_size = getpagesize();
+        page_size = getpagesize();
 #else
 #error Platform not supported
 #endif
+    }
+
 
     return page_size;
 }
 
 void* xalloc_mmap_align_addr(
         void* memaddr) {
-    long alignment = xalloc_get_page_size();
+    size_t alignment = xalloc_get_page_size();
 
     memaddr -= 1;
     memaddr = memaddr - ((uintptr_t)memaddr % alignment) + alignment;
@@ -168,7 +169,7 @@ void* xalloc_mmap_align_addr(
 
 size_t xalloc_mmap_align_size(
         size_t size) {
-    long alignment = xalloc_get_page_size();
+    size_t alignment = xalloc_get_page_size();
 
     size -= 1;
     size = size - (size % alignment) + alignment;
