@@ -8,9 +8,10 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include <string.h>
-#include <signal.h>
-#include <setjmp.h>
+#include <cstring>
+#include <csignal>
+#include <csetjmp>
+#include <fcntl.h>
 
 #include "signals_support.h"
 
@@ -32,6 +33,9 @@ void test_signals_support_signal_handler(int signal_number) {
 }
 
 TEST_CASE("signals_support.c", "[signals_support]") {
+    int internal_stderr = dup(STDERR_FILENO);
+    int internal_nullfd = open("/dev/null", O_RDWR);
+
     SECTION("signals_support_name") {
         SECTION("valid signal") {
             char *signal_name;
@@ -130,12 +134,16 @@ TEST_CASE("signals_support.c", "[signals_support]") {
     SECTION("signals_support_handler_sigsegv_fatal") {
         bool fatal_caught = false;
 
+        dup2(internal_nullfd, STDERR_FILENO);
+
         if (sigsetjmp(jump_fp_signals_support, 1) == 0) {
             test_signals_support_setup_sigabrt_signal_handler();
             signals_support_handler_sigsegv_fatal(SIGINT);
         } else {
             fatal_caught = true;
         }
+
+        dup2(internal_stderr, STDERR_FILENO);
 
         REQUIRE(fatal_caught);
     }
@@ -157,4 +165,7 @@ TEST_CASE("signals_support.c", "[signals_support]") {
         // Restore the original action
         REQUIRE(sigaction(SIGSEGV, &original_action, NULL) == 0);
     }
+
+    close(internal_stderr);
+    close(internal_nullfd);
 }
