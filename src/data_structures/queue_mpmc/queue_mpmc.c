@@ -130,7 +130,7 @@ bool queue_mpmc_push(
 
     // If there is a newly allocated page but at the end wasn't used, free it
     if (unlikely(nodes_page_new != NULL && head_new.data.nodes_page != nodes_page_new)) {
-//        xalloc_mmap_free((void*)nodes_page_new, queue_mpmc_os_page_size);
+        xalloc_mmap_free((void*)nodes_page_new, queue_mpmc_os_page_size);
     }
 
     return true;
@@ -216,7 +216,7 @@ void *queue_mpmc_pop(
 
     // Free up the page if it empty but ensure that it's not the head
     if (nodes_page_to_free != NULL && nodes_page_to_free->prev != NULL) {
-//        xalloc_mmap_free((void*)nodes_page_to_free, queue_mpmc_os_page_size);
+        xalloc_mmap_free((void*)nodes_page_to_free, queue_mpmc_os_page_size);
     }
 
     return data;
