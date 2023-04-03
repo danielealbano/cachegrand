@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 #include <assert.h>
+#include <stdio.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -26,14 +27,13 @@
  * queue nodes.
  */
 
-static int16_t queue_mpmc_os_page_size = 0;
-
-FUNCTION_CTOR(queue_mpmc_init_ctor, {
-    // Get the OS page size
-    queue_mpmc_os_page_size = xalloc_get_page_size();
-})
+static size_t queue_mpmc_os_page_size = 0;
 
 queue_mpmc_t *queue_mpmc_init() {
+    if (unlikely(queue_mpmc_os_page_size == 0)) {
+        queue_mpmc_os_page_size = xalloc_get_page_size();
+    }
+
     // Allocate the first page for the queue nodes and force the initialization setting the first byte to 0
     queue_mpmc_page_volatile_t *nodes_page = xalloc_mmap_alloc(queue_mpmc_os_page_size);
     nodes_page->prev = 0;
