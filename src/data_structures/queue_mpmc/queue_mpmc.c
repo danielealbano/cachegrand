@@ -140,7 +140,7 @@ void *queue_mpmc_pop(
         queue_mpmc_t *queue_mpmc) {
     queue_mpmc_versioned_head_t head_expected, head_new;
     queue_mpmc_page_volatile_t *nodes_page_to_read = NULL, *nodes_page_to_free = NULL;
-    uint16_t node_index_to_read;
+    uint16_t node_index_to_read = 0;
     void *data = NULL;
 
     assert(queue_mpmc != NULL);
