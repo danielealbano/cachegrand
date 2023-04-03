@@ -18,9 +18,6 @@
 
 #include "queue_mpmc.h"
 
-//#define mmap(size) calloc(1, size)
-//#define munmap(addr, size) free(addr)
-
 /**
  * The queue_mpmc is basilar data structure, to avoid relying on the system (or mimalloc) memory allocator (as it's
  * also used by FFMA) it internally uses mmap to allocate memory for the queue nodes.
