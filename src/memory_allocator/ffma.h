@@ -5,8 +5,10 @@
 // so we need to include them here to avoid having to include them in every file that includes this header.
 #ifdef __cplusplus
 #include <cstring>
+#include <cassert>
 #else
 #include <string.h>
+#include <assert.h>
 #endif
 
 #ifdef __cplusplus

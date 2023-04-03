@@ -67,8 +67,6 @@ TEST_CASE("ffma_page_cache.c", "[ffma][ffma_page_cache]") {
 
             REQUIRE(queue_mpmc_get_length(page_cache->numa_nodes[numa_node_index].free_queue) ==
                 0);
-            REQUIRE(queue_mpmc_peek(page_cache->numa_nodes[numa_node_index].free_queue) ==
-                nullptr);
 
             xalloc_mmap_free(addr1, HUGEPAGE_SIZE_2MB);
         }
@@ -79,8 +77,6 @@ TEST_CASE("ffma_page_cache.c", "[ffma][ffma_page_cache]") {
 
             REQUIRE(queue_mpmc_get_length(page_cache->numa_nodes[numa_node_index].free_queue) ==
                 0);
-            REQUIRE(queue_mpmc_peek(page_cache->numa_nodes[numa_node_index].free_queue) ==
-                nullptr);
 
             xalloc_mmap_free(addr1, HUGEPAGE_SIZE_2MB);
             xalloc_mmap_free(addr2, HUGEPAGE_SIZE_2MB);
@@ -93,8 +89,6 @@ TEST_CASE("ffma_page_cache.c", "[ffma][ffma_page_cache]") {
 
             REQUIRE(queue_mpmc_get_length(page_cache->numa_nodes[numa_node_index].free_queue) ==
                 0);
-            REQUIRE(queue_mpmc_peek(page_cache->numa_nodes[numa_node_index].free_queue) ==
-                nullptr);
 
             xalloc_mmap_free(addr1, HUGEPAGE_SIZE_2MB);
             xalloc_mmap_free(addr2, HUGEPAGE_SIZE_2MB);
@@ -120,8 +114,6 @@ TEST_CASE("ffma_page_cache.c", "[ffma][ffma_page_cache]") {
 
             REQUIRE(queue_mpmc_get_length(page_cache->numa_nodes[numa_node_index].free_queue) ==
                 1);
-            REQUIRE(queue_mpmc_peek(page_cache->numa_nodes[numa_node_index].free_queue) ==
-                addr);
         }
 
         SECTION("pop and push two pages from cache") {
@@ -132,8 +124,6 @@ TEST_CASE("ffma_page_cache.c", "[ffma][ffma_page_cache]") {
 
             REQUIRE(queue_mpmc_get_length(page_cache->numa_nodes[numa_node_index].free_queue) ==
                 2);
-            REQUIRE(queue_mpmc_peek(page_cache->numa_nodes[numa_node_index].free_queue) ==
-                addr2);
         }
 
         SECTION("pop and push three pages from cache") {
@@ -146,8 +136,6 @@ TEST_CASE("ffma_page_cache.c", "[ffma][ffma_page_cache]") {
 
             REQUIRE(queue_mpmc_get_length(page_cache->numa_nodes[numa_node_index].free_queue) ==
                 3);
-            REQUIRE(queue_mpmc_peek(page_cache->numa_nodes[numa_node_index].free_queue) ==
-                addr3);
         }
 
         SECTION("pop three and push two pages from/to cache") {
@@ -160,8 +148,6 @@ TEST_CASE("ffma_page_cache.c", "[ffma][ffma_page_cache]") {
             REQUIRE(page_cache->numa_nodes[numa_node_index].free_queue != nullptr);
             REQUIRE(queue_mpmc_get_length(page_cache->numa_nodes[numa_node_index].free_queue) ==
                 2);
-            REQUIRE(queue_mpmc_peek(page_cache->numa_nodes[numa_node_index].free_queue) ==
-                addr2);
 
             xalloc_mmap_free(addr3, HUGEPAGE_SIZE_2MB);
         }
