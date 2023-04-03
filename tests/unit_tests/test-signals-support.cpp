@@ -11,6 +11,7 @@
 #include <cstring>
 #include <csignal>
 #include <csetjmp>
+#include <unistd.h>
 #include <fcntl.h>
 
 #include "signals_support.h"
