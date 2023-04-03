@@ -7,11 +7,13 @@
  **/
 
 #include <catch2/catch_test_macros.hpp>
-#include <unistd.h>
-#include <sys/mman.h>
+
 #include <cstring>
 #include <csignal>
 #include <csetjmp>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/mman.h>
 
 #include "signals_support.h"
 #include "fiber/fiber.h"
@@ -93,6 +95,8 @@ int test_fiber_stack_protection_find_memory_protection(void *start_address, void
 TEST_CASE("fiber.c", "[fiber]") {
     size_t page_size = getpagesize();
     size_t stack_size = 2000000;
+    int internal_stderr = dup(STDERR_FILENO);
+    int internal_nullfd = open("/dev/null", O_RDWR);
 
     SECTION("fiber_stack_protection") {
         int protection_flags;
@@ -247,6 +251,8 @@ TEST_CASE("fiber.c", "[fiber]") {
         SECTION("alter protected memory") {
             bool fatal_caught;
 
+            dup2(internal_nullfd, STDERR_FILENO);
+
             fatal_caught = false;
             if (sigsetjmp(test_fiber_jump_fp, 1) == 0) {
                 test_fiber_memory_stack_protection_setup_sigsegv_signal_handler();
@@ -254,7 +260,12 @@ TEST_CASE("fiber.c", "[fiber]") {
             } else {
                 fatal_caught = true;
             }
+
+            dup2(internal_stderr, STDERR_FILENO);
+
             REQUIRE(fatal_caught);
+
+            dup2(internal_nullfd, STDERR_FILENO);
 
             fatal_caught = false;
             if (sigsetjmp(test_fiber_jump_fp, 1) == 0) {
@@ -263,9 +274,15 @@ TEST_CASE("fiber.c", "[fiber]") {
             } else {
                 fatal_caught = true;
             }
+
+            dup2(internal_stderr, STDERR_FILENO);
+
             REQUIRE(fatal_caught);
         }
 
         fiber_free(fiber);
     }
+
+    close(internal_stderr);
+    close(internal_nullfd);
 }
