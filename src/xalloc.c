@@ -234,6 +234,7 @@ void* xalloc_mmap_alloc(
 xalloc_mmap_try_alloc_fixed_addr_result_t xalloc_mmap_try_alloc_fixed_addr(
         void *requested_addr,
         size_t size,
+        bool use_hugepages,
         void **out_addr) {
     xalloc_mmap_try_alloc_fixed_addr_result_t result = XALLOC_MMAP_TRY_ALLOC_FIXED_ADDR_RESULT_SUCCESS;
 
@@ -246,7 +247,7 @@ xalloc_mmap_try_alloc_fixed_addr_result_t xalloc_mmap_try_alloc_fixed_addr(
             requested_addr,
             size,
             PROT_READ | PROT_WRITE,
-            MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE,
+            MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE | (use_hugepages ? MAP_HUGETLB | MAP_HUGE_2MB : 0),
             -1,
             0);
 
