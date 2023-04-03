@@ -520,7 +520,7 @@ bool program_use_huge_pages(
         }
     }
 
-    ffma_page_cache_init(20, use_huge_pages);
+    ffma_set_use_hugepages(use_hugepages);
     program_context->use_huge_pages = use_huge_pages;
 
     return use_huge_pages;
@@ -697,10 +697,6 @@ void program_cleanup(
                 program_context->epoch_gc_workers_context,
                 program_context->epoch_gc_workers_count);
         xalloc_free(program_context->epoch_gc_workers_context);
-    }
-
-    if (program_context->fast_memory_allocator_initialized) {
-        ffma_page_cache_free();
     }
 
     if (program_context->selected_cpus) {
