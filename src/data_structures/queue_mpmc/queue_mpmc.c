@@ -18,9 +18,6 @@
 
 #include "queue_mpmc.h"
 
-//#define mmap(size) calloc(1, size)
-//#define munmap(addr, size) free(addr)
-
 /**
  * The queue_mpmc is basilar data structure, to avoid relying on the system (or mimalloc) memory allocator (as it's
  * also used by FFMA) it internally uses mmap to allocate memory for the queue nodes.
@@ -130,7 +127,7 @@ bool queue_mpmc_push(
 
     // If there is a newly allocated page but at the end wasn't used, free it
     if (unlikely(nodes_page_new != NULL && head_new.data.nodes_page != nodes_page_new)) {
-//        xalloc_mmap_free((void*)nodes_page_new, queue_mpmc_os_page_size);
+        xalloc_mmap_free((void*)nodes_page_new, queue_mpmc_os_page_size);
     }
 
     return true;
@@ -140,7 +137,7 @@ void *queue_mpmc_pop(
         queue_mpmc_t *queue_mpmc) {
     queue_mpmc_versioned_head_t head_expected, head_new;
     queue_mpmc_page_volatile_t *nodes_page_to_read = NULL, *nodes_page_to_free = NULL;
-    uint16_t node_index_to_read;
+    uint16_t node_index_to_read = 0;
     void *data = NULL;
 
     assert(queue_mpmc != NULL);
@@ -216,7 +213,7 @@ void *queue_mpmc_pop(
 
     // Free up the page if it empty but ensure that it's not the head
     if (nodes_page_to_free != NULL && nodes_page_to_free->prev != NULL) {
-//        xalloc_mmap_free((void*)nodes_page_to_free, queue_mpmc_os_page_size);
+        xalloc_mmap_free((void*)nodes_page_to_free, queue_mpmc_os_page_size);
     }
 
     return data;
