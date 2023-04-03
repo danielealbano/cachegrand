@@ -136,7 +136,7 @@ TEST_CASE("xalloc.c", "[xalloc]") {
 
     SECTION("xalloc_alloc_aligned") {
         SECTION("valid size") {
-            uintptr_t data = (uintptr_t)xalloc_alloc_aligned(64, 16);
+            auto data = (uintptr_t)xalloc_alloc_aligned(64, 16);
 
             REQUIRE(data != 0);
             REQUIRE(data % 64 == 0);
@@ -183,7 +183,7 @@ TEST_CASE("xalloc.c", "[xalloc]") {
 
     SECTION("xalloc_alloc_aligned_zero") {
         SECTION("valid size") {
-            uintptr_t data = (uintptr_t)xalloc_alloc_aligned_zero(64, 16);
+            auto data = (uintptr_t)xalloc_alloc_aligned_zero(64, 16);
 
             REQUIRE(data != 0);
             REQUIRE(data % 64 == 0);
@@ -262,7 +262,7 @@ TEST_CASE("xalloc.c", "[xalloc]") {
         SECTION("valid size") {
             size_t size = 64;
             long alignment = sysconf(_SC_PAGESIZE);
-            uintptr_t data = (uintptr_t)xalloc_mmap_alloc(size);
+            auto data = (uintptr_t)xalloc_mmap_alloc(size);
 
             REQUIRE(data != 0);
             REQUIRE(data % alignment == 0);
@@ -294,7 +294,7 @@ TEST_CASE("xalloc.c", "[xalloc]") {
     SECTION("xalloc_mmap_free") {
         size_t size = 64;
         long alignment = sysconf(_SC_PAGESIZE);
-        uintptr_t data = (uintptr_t)xalloc_mmap_alloc(size);
+        auto data = (uintptr_t)xalloc_mmap_alloc(size);
 
         REQUIRE(data != 0);
         REQUIRE(data % alignment == 0);
@@ -306,7 +306,7 @@ TEST_CASE("xalloc.c", "[xalloc]") {
         SECTION("valid size") {
             if (hugepages_2mb_is_available(1)) {
                 size_t hugepage_2mb_size = 2 * 1024 * 1024;
-                uintptr_t data = (uintptr_t) xalloc_hugepage_alloc(hugepage_2mb_size);
+                auto data = (uintptr_t)xalloc_hugepage_alloc(hugepage_2mb_size);
 
                 REQUIRE(data != 0);
                 REQUIRE((data % (hugepage_2mb_size)) == 0);
