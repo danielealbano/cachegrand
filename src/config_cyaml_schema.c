@@ -393,8 +393,8 @@ const cyaml_schema_field_t config_fields_schema[] = {
                 "pidfile_path", CYAML_FLAG_POINTER,
                 config_t, pidfile_path, 0, CYAML_UNLIMITED | CYAML_FLAG_OPTIONAL),
         CYAML_FIELD_BOOL_PTR(
-                "use_huge_pages", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
-                config_t, use_huge_pages),
+                "use_hugepages", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
+                config_t, use_hugepages),
 
         CYAML_FIELD_MAPPING_PTR(
                 "network", CYAML_FLAG_POINTER,

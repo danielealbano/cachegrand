@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+typedef struct ffma ffma_t;
+
 ffma_t **ffma_thread_cache_init();
 
 void ffma_thread_cache_free(
@@ -14,8 +16,6 @@ ffma_t **ffma_thread_cache_get();
 
 void ffma_thread_cache_set(
         ffma_t **ffmas);
-
-void ffma_thread_cache_ensure_init();
 
 bool ffma_thread_cache_has();
 

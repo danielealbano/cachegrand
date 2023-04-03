@@ -48,7 +48,8 @@ size_t xalloc_mmap_align_size(
         size_t size);
 
 void* xalloc_random_aligned_addr(
-        size_t alignment);
+        size_t alignment,
+        size_t size);
 
 __attribute__((malloc))
 void* xalloc_mmap_alloc(
@@ -57,6 +58,7 @@ void* xalloc_mmap_alloc(
 xalloc_mmap_try_alloc_fixed_addr_result_t xalloc_mmap_try_alloc_fixed_addr(
         void *requested_addr,
         size_t size,
+        bool use_hugepages,
         void **out_addr);
 
 int xalloc_mmap_free(

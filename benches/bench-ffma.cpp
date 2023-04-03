@@ -8,66 +8,32 @@
 
 #include <random>
 #include <algorithm>
-#include <iterator>
 
 #include <cstring>
 #include <benchmark/benchmark.h>
 
 #include "mimalloc.h"
 
-#include "misc.h"
 #include "exttypes.h"
-#include "log/log.h"
-#include "fatal.h"
-#include "spinlock.h"
 #include "thread.h"
-#include "hugepages.h"
 #include "utils_cpu.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma_page_cache.h"
 #include "memory_allocator/ffma.h"
-#include "memory_allocator/ffma_thread_cache.h"
 #include "xalloc.h"
 
 #include "benchmark-program-simple.hpp"
 
-// This test requires about 67gb (33856) of hugepages to test up to 64 threads, to reduce the amount of memory required
-// reduce the defined value below and also the TEST_ALLOCATIONS_COUNT_PER_THREAD, currently set to 16 * 1024
-// allocations.
-// If a machine with a lot of threads is used it's strongly suggested to reduce the TEST_ALLOCATIONS_COUNT_PER_THREAD to
-// 4096 or 8192 as that will be the amount of allocations carried out per thread.
-#define TEST_WARMPUP_HUGEPAGES_CACHE_COUNT 20000
-#define TEST_ALLOCATIONS_COUNT_PER_THREAD (16 * 1024)
+// This benchmark requires TEST_ALLOCATIONS_COUNT_PER_THREAD * 64kb per thread plus some extra memory for the internal
+// data structures, therefore a machine with 32 cores and 64 threads and with TEST_ALLOCATIONS_COUNT_PER_THREAD set to
+// 16 * 1024 will require up to ~64GB of memory
+#define TEST_ALLOCATIONS_COUNT_PER_THREAD (32 * 1024)
 
 // It is possible to control the amount of threads used for the test tuning the two defines below
 #define TEST_THREADS_RANGE_BEGIN (1)
 #define TEST_THREADS_RANGE_END (utils_cpu_count())
 
-static void memory_allocation_ffma_hugepages_warmup_cache(benchmark::State& state) {
-    void **hugepages = (void**) malloc(sizeof(void*) * TEST_WARMPUP_HUGEPAGES_CACHE_COUNT);
-    size_t os_page_size = xalloc_get_page_size();
-    for(int hugepage_index = 0; hugepage_index < TEST_WARMPUP_HUGEPAGES_CACHE_COUNT; hugepage_index++) {
-        char *addr;
-        char *start_addr = (char*) ffma_page_cache_pop();
-
-        if (start_addr == nullptr) {
-            FATAL(
-                    "bench-slab-allocator",
-                    "Not enough hugepages, needed %d but available %d",
-                    TEST_WARMPUP_HUGEPAGES_CACHE_COUNT,
-                    hugepage_index);
-        }
-
-        hugepages[hugepage_index] = start_addr;
-    }
-
-    for(int hugepage_index = 0; hugepage_index < TEST_WARMPUP_HUGEPAGES_CACHE_COUNT; hugepage_index++) {
-        ffma_page_cache_push(hugepages[hugepage_index]);
-    }
-
-    state.SkipWithError("Not a test");
-}
+static size_t bench_ffma_os_page_size = xalloc_get_page_size();
 
 static void memory_allocation_ffma_only_alloc(benchmark::State& state) {
     size_t object_size = state.range(0);
@@ -209,6 +175,7 @@ static void memory_allocation_ffma_fragment_memory(benchmark::State& state) {
             benchmark::DoNotOptimize((memptrs[i] = ffma_mem_alloc(object_size)));
 #endif
         }
+
         for(long int i = 0; i < objects_count; i++) {
             ffma_mem_free(memptrs[i]);
         }
@@ -325,6 +292,7 @@ static void memory_allocation_os_malloc_fragment_memory(benchmark::State& state)
         for(long int i = 0; i < objects_count; i++) {
             benchmark::DoNotOptimize((memptrs[i] = malloc(object_size)));
         }
+
         for(long int i = 0; i < objects_count; i++) {
             free(memptrs[i]);
         }
@@ -439,6 +407,7 @@ static void memory_allocation_mimalloc_fragment_memory(benchmark::State& state) 
         for(long int i = 0; i < objects_count; i++) {
             benchmark::DoNotOptimize((memptrs[i] = mi_malloc(object_size)));
         }
+
         for(long int i = 0; i < objects_count; i++) {
             mi_free(memptrs[i]);
         }
@@ -458,11 +427,6 @@ static void BenchArguments(benchmark::internal::Benchmark* b) {
             ->Repetitions(25)
             ->DisplayAggregatesOnly(true);
 }
-
-// Warmup the hugepages cache, has to be done only once, forces iterations and repetitions to 1 to do not waste time
-BENCHMARK(memory_allocation_ffma_hugepages_warmup_cache)
-        ->Iterations(1)
-        ->Repetitions(1);
 
 BENCHMARK(memory_allocation_ffma_only_alloc)
         ->Apply(BenchArguments);

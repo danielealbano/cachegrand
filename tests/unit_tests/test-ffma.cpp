@@ -19,11 +19,12 @@
 #include "clock.h"
 #include "random.h"
 #include "hugepages.h"
-#include "memory_allocator/ffma_page_cache.h"
+#include "memory_allocator/ffma_region_cache.h"
 #include "thread.h"
 #include "utils_cpu.h"
 #include "fatal.h"
 
+#include "memory_allocator/ffma_region_cache.h"
 #include "memory_allocator/ffma.h"
 #include "memory_allocator/ffma_thread_cache.h"
 
@@ -330,9 +331,6 @@ void test_ffma_fuzzy_single_thread_single_size(
 }
 
 TEST_CASE("ffma.c", "[ffma]") {
-    ffma_page_cache_free();
-    ffma_page_cache_init(10, false);
-
     SECTION("ffma_init") {
         ffma_t* ffma = ffma_init(128);
 
@@ -429,7 +427,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
     SECTION("ffma_slice_calculate_usable_memory_size") {
         REQUIRE(ffma_slice_calculate_usable_memory_size(xalloc_get_page_size()) ==
-                HUGEPAGE_SIZE_2MB - xalloc_get_page_size() - sizeof(ffma_slice_t));
+                FFMA_SLICE_SIZE - xalloc_get_page_size() - sizeof(ffma_slice_t));
     }
 
     SECTION("ffma_slice_calculate_data_offset") {
@@ -481,7 +479,7 @@ TEST_CASE("ffma.c", "[ffma]") {
     }
 
     SECTION("ffma_slice_add_slots_to_per_thread_metadata_slots") {
-        size_t slice_size = HUGEPAGE_SIZE_2MB;
+        size_t slice_size = FFMA_SLICE_SIZE;
         void* memptr = malloc(slice_size);
 
         ffma_t* ffma = ffma_init(256);
@@ -533,7 +531,11 @@ TEST_CASE("ffma.c", "[ffma]") {
     }
 
     SECTION("ffma_grow") {
-        void* addr = ffma_page_cache_pop();
+        ffma_region_cache_t *ffma_region_cache = ffma_region_cache_init(
+                FFMA_SLICE_SIZE,
+                10,
+                false);
+        void* addr = ffma_region_cache_pop(ffma_region_cache);
         auto ffma_slice = (ffma_slice_t*)addr;
 
         ffma_t* ffma = ffma_init(256);
@@ -547,6 +549,7 @@ TEST_CASE("ffma.c", "[ffma]") {
         REQUIRE(ffma->slots->head ==
                 &ffma_slice->data.slots[ffma_slice->data.metrics.objects_total_count - 1].double_linked_list_item);
 
+        ffma_region_cache_free(ffma_region_cache);
         ffma_free(ffma);
     }
 
@@ -1044,10 +1047,4 @@ TEST_CASE("ffma.c", "[ffma]") {
         ffma_thread_cache_free(ffma_thread_cache_get());
         ffma_thread_cache_set(nullptr);
     }
-
-    ffma_page_cache_free();
-
-    // To ensure that the other tests aren't affected by the page cache being freed for thist test, we re-initialize
-    // it to some generic settings
-    ffma_page_cache_init(10, false);
 }

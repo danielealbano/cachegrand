@@ -141,24 +141,25 @@ void xalloc_free(
 }
 
 size_t xalloc_get_page_size() {
+    static bool page_size_read;
     static size_t page_size;
 
-    if (page_size > 0) {
-        return page_size;
-    }
-
+    if (unlikely(!page_size_read)) {
+        page_size_read = true;
 #if defined(__linux__)
-    page_size = getpagesize();
+        page_size = getpagesize();
 #else
 #error Platform not supported
 #endif
+    }
+
 
     return page_size;
 }
 
 void* xalloc_mmap_align_addr(
         void* memaddr) {
-    long alignment = xalloc_get_page_size();
+    size_t alignment = xalloc_get_page_size();
 
     memaddr -= 1;
     memaddr = memaddr - ((uintptr_t)memaddr % alignment) + alignment;
@@ -168,7 +169,7 @@ void* xalloc_mmap_align_addr(
 
 size_t xalloc_mmap_align_size(
         size_t size) {
-    long alignment = xalloc_get_page_size();
+    size_t alignment = xalloc_get_page_size();
 
     size -= 1;
     size = size - (size % alignment) + alignment;
@@ -177,12 +178,15 @@ size_t xalloc_mmap_align_size(
 }
 
 void* xalloc_random_aligned_addr(
-        size_t alignment) {
+        size_t alignment,
+        size_t size) {
 #if defined(__linux__)
 #if __aarch64__
-#define XALLOC_ADDR_ALLOWED_BITS (0x7FFFFFFFFF)
+    size_t max_addr = 0x7FFFFFFFFF;
+    size_t min_addr = 0x1000000000;
 #elif __x86_64__
-#define XALLOC_ADDR_ALLOWED_BITS (0x7FFFFFFFFFFF)
+    size_t max_addr = 0x7FFFFFFFFFFF;
+    size_t min_addr = 0x20000000000;
 #else
 #error Platform not supported
 #endif
@@ -190,8 +194,12 @@ void* xalloc_random_aligned_addr(
 #error Platform not supported
 #endif
 
-    uintptr_t random_addr = random_generate();
-    return (void*)((random_addr - (random_addr % alignment)) & XALLOC_ADDR_ALLOWED_BITS);
+    // Calculates a random address in range between the allowed one, ensures it's far enough to be able to allocate size
+    // and aligns it to the requested alignment
+    uintptr_t random_addr = (random_generate() % (max_addr - (min_addr + size))) - size;
+    uintptr_t aligned_random_addr = random_addr - (random_addr % alignment);
+
+    return (void*)aligned_random_addr;
 }
 
 void* xalloc_mmap_alloc(
@@ -227,6 +235,7 @@ void* xalloc_mmap_alloc(
 xalloc_mmap_try_alloc_fixed_addr_result_t xalloc_mmap_try_alloc_fixed_addr(
         void *requested_addr,
         size_t size,
+        bool use_hugepages,
         void **out_addr) {
     xalloc_mmap_try_alloc_fixed_addr_result_t result = XALLOC_MMAP_TRY_ALLOC_FIXED_ADDR_RESULT_SUCCESS;
 
@@ -239,7 +248,7 @@ xalloc_mmap_try_alloc_fixed_addr_result_t xalloc_mmap_try_alloc_fixed_addr(
             requested_addr,
             size,
             PROT_READ | PROT_WRITE,
-            MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE,
+            MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE | (use_hugepages ? MAP_HUGETLB | MAP_HUGE_2MB : 0),
             -1,
             0);
 
