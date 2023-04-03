@@ -177,12 +177,15 @@ size_t xalloc_mmap_align_size(
 }
 
 void* xalloc_random_aligned_addr(
-        size_t alignment) {
+        size_t alignment,
+        size_t size) {
 #if defined(__linux__)
 #if __aarch64__
-#define XALLOC_ADDR_ALLOWED_BITS (0x7FFFFFFFFF)
+    size_t max_addr = 0x7FFFFFFFFF;
+    size_t min_addr = 0x1000000000;
 #elif __x86_64__
-#define XALLOC_ADDR_ALLOWED_BITS (0x7FFFFFFFFFFF)
+    size_t max_addr = 0x7FFFFFFFFFFF;
+    size_t min_addr = 0x20000000000;
 #else
 #error Platform not supported
 #endif
@@ -190,8 +193,12 @@ void* xalloc_random_aligned_addr(
 #error Platform not supported
 #endif
 
-    uintptr_t random_addr = random_generate();
-    return (void*)((random_addr - (random_addr % alignment)) & XALLOC_ADDR_ALLOWED_BITS);
+    // Calculates a random address in range between the allowed one, ensures it's far enough to be able to allocate size
+    // and aligns it to the requested alignment
+    uintptr_t random_addr = (random_generate() % (max_addr - (min_addr + size))) - size;
+    uintptr_t aligned_random_addr = random_addr - (random_addr % alignment);
+
+    return (void*)aligned_random_addr;
 }
 
 void* xalloc_mmap_alloc(
