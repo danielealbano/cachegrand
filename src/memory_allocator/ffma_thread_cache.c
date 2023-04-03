@@ -67,14 +67,6 @@ void ffma_thread_cache_set(
     }
 }
 
-void ffma_thread_cache_ensure_init() {
-    ffma_t **thread_ffmas = pthread_getspecific(ffma_thread_cache_key);
-    if (unlikely(thread_ffmas == NULL)) {
-        thread_ffmas = ffma_thread_cache_init();
-        ffma_thread_cache_set(thread_ffmas);
-    }
-}
-
 bool ffma_thread_cache_has() {
     return ffma_thread_cache_get() != NULL;
 }
