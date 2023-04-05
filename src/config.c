@@ -775,38 +775,24 @@ void config_cpus_filter_duplicates(
     *unique_cpus_count = int_unique_cpus_count;
 }
 
-config_t* config_load(
-        char* config_path) {
+bool config_process_string_values(
+        config_t *config) {
     config_parse_string_absolute_or_percent_return_value_t return_value_type;
-    config_t* config = NULL;
 
-    LOG_I(TAG, "Loading the configuration from %s", config_path);
-
-    cyaml_err_t err = config_internal_cyaml_load(
-            &config,
-            config_path,
-            config_cyaml_config_get_global(),
-            (cyaml_schema_value_t*)config_cyaml_schema_get_top_schema());
-    if (err != CYAML_OK) {
-        LOG_E(TAG, "Failed to load the configuration: %s", cyaml_strerror(err));
-        config = NULL;
-    }
-
-    if (!config) {
-        return NULL;
-    }
-
-    // Parse string numeric values
+    // Check if the memory backend for the database is defined in the config, if yes process the hard and soft memory
+    // limits, the latter is optional
     if (config->database->memory) {
         // Get the total system memory
         struct sysinfo sys_info;
 
+        // Get the system memory information
         if (sysinfo(&sys_info) < 0) {
             LOG_E(TAG, "Failed to get the system memory information");
-            config_free(config);
-            return NULL;
+            return false;
         }
 
+        // Convert the string value of the hard memory limit into a numeric value, it allows absolute values,
+        // percentages and size suffixes (e.g. GB, MB, KB, etc.)
         bool result = config_parse_string_absolute_or_percent(
                 config->database->memory->limits->hard->max_memory_usage_str,
                 strlen(config->database->memory->limits->hard->max_memory_usage_str),
@@ -820,16 +806,20 @@ config_t* config_load(
 
         if (!result) {
             LOG_E(TAG, "Failed to parse the hard memory limit");
-            config_free(config);
-            return NULL;
+            return false;
         }
 
+        // If the value is a percentage, convert it to an absolute value by multiplying it with the total system memory
         if (return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT) {
-            config->database->memory->limits->hard->max_memory_usage =
-                    (int64_t)((double)sys_info.totalram * ((double)config->database->memory->limits->hard->max_memory_usage / 100.0));
+            config->database->memory->limits->hard->max_memory_usage = (int64_t)(
+                    (double)sys_info.totalram *
+                    ((double)config->database->memory->limits->hard->max_memory_usage / 100.0));
         }
 
+        // Check if the soft limit is defined, if yes process it
         if (config->database->memory->limits->soft) {
+            // Convert the string value of the hard memory limit into a numeric value, it allows absolute values,
+            // percentages and size suffixes (e.g. GB, MB, KB, etc.)
             result = config_parse_string_absolute_or_percent(
                     config->database->memory->limits->soft->max_memory_usage_str,
                     strlen(config->database->memory->limits->soft->max_memory_usage_str),
@@ -843,29 +833,34 @@ config_t* config_load(
 
             if (!result) {
                 LOG_E(TAG, "Failed to parse the soft memory limit");
-                config_free(config);
-                return NULL;
+                return false;
             }
 
+            // If the value is a percentage, convert it to an absolute value by multiplying it with the total system
+            // memory
             if (return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT) {
                 config->database->memory->limits->soft->max_memory_usage =
-                        (int64_t)((double)sys_info.totalram * ((double)config->database->memory->limits->soft->max_memory_usage / 100.0));
+                        (int64_t)((double)sys_info.totalram *
+                        ((double)config->database->memory->limits->soft->max_memory_usage / 100.0));
             }
         }
     }
 
+    // Check if the file backend for the database is defined in the config, if yes process the hard and soft disk
+    // limits, the latter is optional
     if (config->database->file) {
         size_t total_disk_size;
         struct statvfs vfs;
 
+        // Read the total disk size for the path where the database file is supposed to be stored
         if (statvfs(config->database->file->path, &vfs) == 0) {
             total_disk_size = vfs.f_blocks * vfs.f_frsize;
         } else {
             LOG_E(TAG, "Failed to get the disk information");
-            config_free(config);
-            return NULL;
+            return false;
         }
 
+        // Convert the string value of the hard disk usage limit into a numeric value, it allows absolute values,
         bool result = config_parse_string_absolute_or_percent(
                 config->database->file->limits->hard->max_disk_usage_str,
                 strlen(config->database->file->limits->hard->max_disk_usage_str),
@@ -879,16 +874,20 @@ config_t* config_load(
 
         if (!result) {
             LOG_E(TAG, "Failed to parse the hard disk usage limit");
-            config_free(config);
-            return NULL;
+            return false;
         }
 
+        // If the value is a percentage, convert it to an absolute value by multiplying it with the total disk size
         if (return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT) {
-            config->database->file->limits->hard->max_disk_usage =
-                    (int64_t)((double)total_disk_size * ((double)config->database->file->limits->hard->max_disk_usage / 100.0));
+            config->database->file->limits->hard->max_disk_usage = (int64_t)(
+                    (double)total_disk_size *
+                    ((double)config->database->file->limits->hard->max_disk_usage / 100.0));
         }
 
+        // Check if the soft limit is defined, if yes process it
         if (config->database->file->limits->soft) {
+            // Convert the string value of the hard disk usage limit into a numeric value, it allows absolute values,
+            // percentages and size suffixes (e.g. GB, MB, KB, etc.)
             result = config_parse_string_absolute_or_percent(
                     config->database->file->limits->soft->max_disk_usage_str,
                     strlen(config->database->file->limits->soft->max_disk_usage_str),
@@ -902,21 +901,58 @@ config_t* config_load(
 
             if (!result) {
                 LOG_E(TAG, "Failed to parse the soft disk usage limit");
-                config_free(config);
-                return NULL;
+                return false;
             }
 
+            // If the value is a percentage, convert it to an absolute value by multiplying it with the total disk size
             if (return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT) {
                 config->database->file->limits->soft->max_disk_usage =
-                        (int64_t)((double)total_disk_size * ((double)config->database->file->limits->soft->max_disk_usage / 100.0));
+                        (int64_t)((double)total_disk_size *
+                        ((double)config->database->file->limits->soft->max_disk_usage / 100.0));
             }
         }
     }
 
+    return true;
+}
+
+config_t* config_load(
+        char* config_path) {
+    cyaml_err_t err;
+    config_t* config = NULL;
+
+    LOG_I(TAG, "Loading the configuration from %s", config_path);
+
+    // Load the configuration from the yaml file
+    if ((err = config_internal_cyaml_load(
+            &config,
+            config_path,
+            config_cyaml_config_get_global(),
+            (cyaml_schema_value_t*)config_cyaml_schema_get_top_schema()))!= CYAML_OK) {
+        // The operation failed, log the error
+        LOG_E(TAG, "Failed to load the configuration: %s", cyaml_strerror(err));
+        config = NULL;
+    }
+
+    // Potentially config_internal_cyaml_load can return NULL even when parsing the yaml file was successful, so we
+    // need to check for that
+    if (!config) {
+        return NULL;
+    }
+
+    // Before we start to validate the configuration it's necessary to convert the values that are stored as strings
+    // into the appropriate types, e.g. to convert the string "1G" into the uint64_t value 1073741824 or to convert the
+    // string "50%" for the memory limits to 50% of the total system memory, etc.
+    if (config_process_string_values(config) == false) {
+        config_free(config);
+        return NULL;
+    }
+
+    // Tries to validate the configuration
     if (config_validate_after_load(config) == false) {
         LOG_E(TAG, "Failed to validate the configuration");
         config_free(config);
-        config = NULL;
+        return NULL;
     }
 
     return config;
