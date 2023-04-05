@@ -91,7 +91,7 @@ bool test_module_redis_snapshot_serialize_primitive_vaidate_rdb(
     REQUIRE(exit_status != -1);
 
     // If the test failed print out the command output
-    if (true || exit_status != 0) {
+    if (exit_status != 0) {
         fprintf(stderr, "Command: %s\n", command);
         fprintf(stderr, "Output:\n%s\n", command_output);
         fflush(stderr);
@@ -1045,7 +1045,6 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             WARN("Can't test RDB compatibility as redis-check-rdb is not available");
             return;
         }
-
         SECTION("generate an empty rdb") {
             uint8_t buffer[1024];
             size_t buffer_size = sizeof(buffer);
@@ -1328,8 +1327,6 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
 
             // Write the data
             REQUIRE(test_module_redis_snapshot_serialize_primitive_vaidate_rdb((char*)buffer, buffer_offset_out));
-
-
         }
     }
 }
