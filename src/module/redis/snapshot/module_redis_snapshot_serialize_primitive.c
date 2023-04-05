@@ -330,28 +330,30 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
         size_t buffer_size,
         size_t buffer_offset,
         size_t *buffer_offset_out) {
-    assert(string_length > 0);
+    assert(string_length < 64 * 1024);
 
     *buffer_offset_out = buffer_offset;
     module_redis_snapshot_serialize_primitive_result_t result;
-    size_t required_buffer_space = 1 + 4 + 4 + LZF_MAX_COMPRESSED_SIZE(string_length);
+
+    // Ensure that the buffer is big enough to hold the compressed data for the largest possible string, it uses the
+    // stack to avoid memory allocations
+    char *compressed_string_buffer[LZF_MAX_COMPRESSED_SIZE(64*1024)] = { 0 };
+
+    // Calculate the maximum required buffer space
+    size_t max_required_buffer_space = 1 + 5 + 5 + LZF_MAX_COMPRESSED_SIZE(string_length);
 
     // Check if the buffer is big enough
-    if (*buffer_offset_out + required_buffer_space > buffer_size) {
+    if (*buffer_offset_out + max_required_buffer_space > buffer_size) {
         result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
         goto end;
     }
-
-    // Calculate the offset for the compressed data and the space available for them
-    uint8_t *compressed_data_ptr = buffer + *buffer_offset_out + 9;
-    size_t compressed_data_maxsize = buffer_size - *buffer_offset_out - 9;
 
     // Try to compress the data
     size_t compressed_string_length = lzf_compress(
             string,
             string_length,
-            compressed_data_ptr,
-            compressed_data_maxsize);
+            compressed_string_buffer,
+            sizeof(compressed_string_buffer));
 
     // Check if the compression was successful, if not, return an error
     if (compressed_string_length == 0) {
@@ -389,9 +391,11 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
         goto end;
     }
 
+    // Copy the compressed data
+    memcpy(buffer + *buffer_offset_out, compressed_string_buffer, compressed_string_length);
     *buffer_offset_out += compressed_string_length;
 
-    end:
+end:
     return result;
 }
 
