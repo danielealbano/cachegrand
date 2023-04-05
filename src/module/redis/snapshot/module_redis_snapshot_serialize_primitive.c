@@ -399,6 +399,66 @@ end:
     return result;
 }
 
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_small_string(
+        char *string,
+        size_t string_length,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out) {
+    assert(string_length < 64 * 1024);
+    module_redis_snapshot_serialize_primitive_result_t result;
+
+    int64_t string_integer = 0;
+    if (module_redis_snapshot_serialize_primitive_can_encode_string_int(
+            string,
+            string_length,
+            &string_integer)) {
+        return module_redis_snapshot_serialize_primitive_encode_small_string_int(
+                string_integer,
+                buffer,
+                buffer_size,
+                buffer_offset,
+                buffer_offset_out);
+    }
+
+    // cachegrand stores strings that are bigger than 64kb in different memory locations but the LZF library doesn't
+    // support compressing streams therefore the compression can be applied only if the string is smaller than 64kb.
+    // Also, because the LZF isn't capable of compressing small blocks of data, if the string is shorter than 32 bytes
+    // the compression is not applied.
+    if (string_length > 32 && string_length < 64 * 1024) {
+        result = module_redis_snapshot_serialize_primitive_encode_small_string_lzf(
+                string,
+                string_length,
+                buffer,
+                buffer_size,
+                buffer_offset,
+                buffer_offset_out);
+
+        if (result != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_COMPRESSION_RATIO_TOO_LOW) {
+            return result;
+        }
+    }
+
+    // If it gets here, it means that the compression was not applied, so encode the string as a plain string
+    if ((result = module_redis_snapshot_serialize_primitive_encode_string_length(
+            string_length,
+            buffer,
+            buffer_size,
+            buffer_offset,
+            buffer_offset_out)) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK) {
+        return result;
+    }
+
+    return module_redis_snapshot_serialize_primitive_encode_string_data_plain(
+            string,
+            string_length,
+            buffer,
+            buffer_size,
+            *buffer_offset_out,
+            buffer_offset_out);
+}
+
 module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_opcode_aux(
         char *key,
         size_t key_length,
