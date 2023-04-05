@@ -1665,7 +1665,7 @@ uint8_t storage_db_keys_eviction_run_worker(
             STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH];
     uint64_t keys_eviction_candidates_list_count;
     uint8_t keys_evicted_count = 0;
-    
+
     // Calculate the segment of the hashtable that has to be covered by this worker
     uint64_t buckets_end = db->hashtable->ht_current->buckets_count_real;
 
