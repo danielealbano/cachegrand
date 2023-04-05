@@ -21,6 +21,88 @@
 #include "module/redis/snapshot/module_redis_snapshot.h"
 #include "module/redis/snapshot/module_redis_snapshot_serialize_primitive.h"
 
+bool test_module_redis_snapshot_serialize_primitive_redis_check_rdb_available() {
+    char command[256];
+
+    snprintf(command, sizeof(command), "which %s > /dev/null", "redis-check-rdb");
+
+    return system(command) == 0;
+}
+
+bool test_module_redis_snapshot_serialize_primitive_vaidate_rdb(
+        char *buffer,
+        size_t buffer_length) {
+    char temp_test_snapshot_fd_path[255];
+    char temp_test_snapshot_path[255];
+    char temp_test_snapshot_template[] =  "/tmp/cachegrand-tests-XXXXXX";
+
+    // Generate a temporary file
+    int temp_test_snapshot_fd = mkstemp(temp_test_snapshot_template);
+
+    // Get the path to the file descriptor
+    sprintf(temp_test_snapshot_fd_path, "/proc/self/fd/%d", temp_test_snapshot_fd);
+    REQUIRE(readlink(
+            temp_test_snapshot_fd_path,
+            temp_test_snapshot_path,
+            sizeof(temp_test_snapshot_path)) != -1);
+
+    // Write the buffer to the disk
+    size_t written_data = 0;
+    while (written_data < buffer_length) {
+        ssize_t written_data_chunk = write(
+                temp_test_snapshot_fd,
+                buffer + written_data,
+                buffer_length - written_data);
+        REQUIRE(written_data_chunk != -1);
+        written_data += written_data_chunk;
+    }
+
+    // Sync and close the file descriptor
+    fsync(temp_test_snapshot_fd);
+    close(temp_test_snapshot_fd);
+
+    // Run redis-check-rdb on the file to ensure it can be read, if the operation fails print out the command output
+    char command[1024];
+    char command_temp_buffer[1024];
+    char command_output[64 * 1024];
+    char *command_output_ptr = command_output;
+    size_t command_output_offset = 0;
+
+    // Build the command
+    sprintf(command, "redis-check-rdb %s 2>&1", temp_test_snapshot_path);
+
+    // Open the command for reading
+    FILE* fp = popen(command, "r");
+    REQUIRE(fp != NULL);
+
+    // Read the output of the command
+    while (fgets(command_temp_buffer, sizeof(command_temp_buffer), fp) != nullptr) {
+        size_t command_temp_buffer_length = strlen(command_temp_buffer);
+
+        REQUIRE(command_output_offset + command_temp_buffer_length < sizeof(command_output));
+
+        memcpy(command_output_ptr, command_temp_buffer, command_temp_buffer_length);
+        command_output_ptr += command_temp_buffer_length;
+        command_output_offset += command_temp_buffer_length;
+    }
+
+    // Close the pipe and get the exit status of the command
+    int exit_status = pclose(fp);
+    REQUIRE(exit_status != -1);
+
+    // If the test failed print out the command output
+    if (true || exit_status != 0) {
+        fprintf(stderr, "Command: %s\n", command);
+        fprintf(stderr, "Output:\n%s\n", command_output);
+        fflush(stderr);
+    }
+
+    // Remove the file before checking if the test failed
+    unlink(temp_test_snapshot_path);
+
+    return exit_status == 0;
+}
+
 TEST_CASE("module_redis_snapshot_serialize_primitive") {
     SECTION("module_redis_snapshot_serialize_primitive_encode_length_required_buffer_space") {
         SECTION("length <= 63") {
@@ -769,11 +851,19 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             size_t buffer_offset;
             module_redis_snapshot_serialize_primitive_result_t result =
                     module_redis_snapshot_serialize_primitive_encode_opcode_eof(
-                            buffer, sizeof(buffer), 0, &buffer_offset);
+                            0, buffer, sizeof(buffer), 0, &buffer_offset);
 
             REQUIRE(result == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
-            REQUIRE(buffer_offset == 1);
+            REQUIRE(buffer_offset == 9);
             REQUIRE(buffer[0] == MODULE_REDIS_SNAPSHOT_OPCODE_EOF);
+            REQUIRE(buffer[1] == 0);
+            REQUIRE(buffer[2] == 0);
+            REQUIRE(buffer[3] == 0);
+            REQUIRE(buffer[4] == 0);
+            REQUIRE(buffer[5] == 0);
+            REQUIRE(buffer[6] == 0);
+            REQUIRE(buffer[7] == 0);
+            REQUIRE(buffer[8] == 0);
         }
 
         SECTION("buffer overflow") {
@@ -781,7 +871,7 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             size_t buffer_offset;
             module_redis_snapshot_serialize_primitive_result_t result =
                     module_redis_snapshot_serialize_primitive_encode_opcode_eof(
-                            buffer, 0, 0, &buffer_offset);
+                            0, buffer, 0, 0, &buffer_offset);
 
             REQUIRE(result == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW);
         }
@@ -950,27 +1040,11 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
         }
     }
 
-
-
-
-
-
-
     SECTION("file format compatibility") {
-        char temp_test_snapshot_fd_path[255];
-        char temp_test_snapshot_path[255];
-        char temp_test_snapshot_template[] =  "/tmp/cachegrand-tests-XXXXXX";
-        int temp_test_snapshot_fd = mkstemp(temp_test_snapshot_template);
-
-        sprintf(temp_test_snapshot_fd_path, "/proc/self/fd/%d", temp_test_snapshot_fd);
-        ssize_t len = readlink(
-                temp_test_snapshot_fd_path,
-                temp_test_snapshot_path,
-                sizeof(temp_test_snapshot_path));
-
-        fprintf(stdout, "temp_test_snapshot_path: %s\n", temp_test_snapshot_path);
-        fflush(stdout);
-
+        if (test_module_redis_snapshot_serialize_primitive_redis_check_rdb_available() == false) {
+            WARN("Can't test RDB compatibility as redis-check-rdb is not available");
+            return;
+        }
 
         SECTION("generate an empty rdb") {
             uint8_t buffer[1024];
@@ -993,13 +1067,57 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
                     &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
 
             REQUIRE(module_redis_snapshot_serialize_primitive_encode_opcode_eof(
+                    0,
                     buffer,
                     buffer_size,
                     buffer_offset_out,
                     &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
 
             // Write the data
-            write(temp_test_snapshot_fd, buffer, buffer_offset_out);
+            REQUIRE(test_module_redis_snapshot_serialize_primitive_vaidate_rdb((char*)buffer, buffer_offset_out));
+        }
+
+        SECTION("generate an empty rdb with aux") {
+            const char aux_key[] = "cachegrand-version";
+            const char *aux_value = CACHEGRAND_CMAKE_CONFIG_VERSION_GIT;
+            uint8_t buffer[1024];
+            size_t buffer_size = sizeof(buffer);
+            size_t buffer_offset_out = 0;
+            module_redis_snapshot_header_t module_redis_snapshot_header = { .version = 10 };
+
+            REQUIRE(module_redis_snapshot_serialize_primitive_encode_header(
+                    &module_redis_snapshot_header,
+                    buffer,
+                    buffer_size,
+                    buffer_offset_out,
+                    &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+            REQUIRE(module_redis_snapshot_serialize_primitive_encode_opcode_aux(
+                    (char*)aux_key,
+                    sizeof(aux_key),
+                    (char*)aux_value,
+                    sizeof(aux_value),
+                    buffer,
+                    buffer_size,
+                    buffer_offset_out,
+                    &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+            REQUIRE(module_redis_snapshot_serialize_primitive_encode_opcode_db_number(
+                    0,
+                    buffer,
+                    buffer_size,
+                    buffer_offset_out,
+                    &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+            REQUIRE(module_redis_snapshot_serialize_primitive_encode_opcode_eof(
+                    0,
+                    buffer,
+                    buffer_size,
+                    buffer_offset_out,
+                    &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+            // Write the data
+            REQUIRE(test_module_redis_snapshot_serialize_primitive_vaidate_rdb((char*)buffer, buffer_offset_out));
         }
 
         SECTION("generate an rdb with 5 random strings without expiration, without string integers and compression") {
@@ -1062,13 +1180,14 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             }
 
             REQUIRE(module_redis_snapshot_serialize_primitive_encode_opcode_eof(
+                    0,
                     buffer,
                     buffer_size,
                     buffer_offset_out,
                     &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
 
             // Write the data
-            write(temp_test_snapshot_fd, buffer, buffer_offset_out);
+            REQUIRE(test_module_redis_snapshot_serialize_primitive_vaidate_rdb((char*)buffer, buffer_offset_out));
         }
 
         SECTION("generate an rdb with 3 random strings using integers (<=INT8_MAX, <=INT16_MAX and <= INT32_MAX)") {
@@ -1135,13 +1254,14 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             }
 
             REQUIRE(module_redis_snapshot_serialize_primitive_encode_opcode_eof(
+                    0,
                     buffer,
                     buffer_size,
                     buffer_offset_out,
                     &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
 
             // Write the data
-            write(temp_test_snapshot_fd, buffer, buffer_offset_out);
+            REQUIRE(test_module_redis_snapshot_serialize_primitive_vaidate_rdb((char*)buffer, buffer_offset_out));
         }
 
         SECTION("generate an rdb with strings with a random length between 32 and 65535") {
@@ -1200,15 +1320,16 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             }
 
             REQUIRE(module_redis_snapshot_serialize_primitive_encode_opcode_eof(
+                    0,
                     buffer,
                     buffer_size,
                     buffer_offset_out,
                     &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
 
             // Write the data
-            write(temp_test_snapshot_fd, buffer, buffer_offset_out);
-        }
+            REQUIRE(test_module_redis_snapshot_serialize_primitive_vaidate_rdb((char*)buffer, buffer_offset_out));
 
-        close(temp_test_snapshot_fd);
+
+        }
     }
 }
