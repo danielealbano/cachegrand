@@ -10,7 +10,6 @@
 #include <cstring>
 #include <cstdio>
 #include <unistd.h>
-#include <fcntl.h>
 #include <arpa/inet.h>
 #include <liblzf/lzf.h>
 
