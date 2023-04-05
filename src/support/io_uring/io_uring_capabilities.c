@@ -24,8 +24,10 @@ const char* kallsyms_path = "/proc/kallsyms";
 const char* expected_symbol_name = "io_uring_setup";
 const char* minimum_kernel_version_IORING_FEAT_FAST_POLL = "5.7.0";
 const char* minimum_kernel_version_IORING_SQPOLL = "5.11.0";
+const char* minimum_kernel_version_IORING_SETUP_COOP_TASKRUN = "5.19.0";
+const char* minimum_kernel_version_IORING_SETUP_SINGLE_ISSURE = "6.0.0";
 
-#define TAG "io_uring_capabilities_is_fast_poll_supported"
+#define TAG "io_uring_capabilities"
 
 bool io_uring_capabilities_kallsyms_fetch_symbol_name(
         FILE* fd,
@@ -168,15 +170,44 @@ bool io_uring_capabilities_is_sqpoll_supported() {
     long kernel_version[4] = {0};
 
     // SQPOLL requires the kernel 5.11 to work properly on the sockets
-    version_parse((char*)minimum_kernel_version_IORING_SQPOLL, (long*)kernel_version, sizeof(kernel_version));
+    version_parse(
+            (char*)minimum_kernel_version_IORING_SQPOLL,
+            (long*)kernel_version,
+            sizeof(kernel_version));
     if (!version_kernel_min(kernel_version, 3)) {
-        return false;
-    }
-
-    // Check if the kernel has been compiled with io_uring support
-    if (!io_uring_capabilities_kallsyms_ensure_iouring_available()) {
         return false;
     }
 
     return true;
 }
+
+bool io_uring_capabilities_is_setup_taskrun_supported() {
+    long kernel_version[4] = {0};
+
+    // SETUP_COOP_TASKRUN and SETUP_TASKRUN_FLAG require the kernel 5.19
+    version_parse(
+            (char*)minimum_kernel_version_IORING_SETUP_COOP_TASKRUN,
+            (long*)kernel_version,
+            sizeof(kernel_version));
+    if (!version_kernel_min(kernel_version, 3)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool io_uring_capabilities_is_single_issuer_supported() {
+    long kernel_version[4] = {0};
+
+    // IORING_SETUP_SINGLE_ISSURE requires the kernel 6.0
+    version_parse(
+            (char*)minimum_kernel_version_IORING_SETUP_SINGLE_ISSURE,
+            (long*)kernel_version,
+            sizeof(kernel_version));
+    if (!version_kernel_min(kernel_version, 3)) {
+        return false;
+    }
+
+    return true;
+}
+

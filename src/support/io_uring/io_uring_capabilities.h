@@ -24,6 +24,10 @@ bool io_uring_capabilities_is_fast_poll_supported();
 
 bool io_uring_capabilities_is_sqpoll_supported();
 
+bool io_uring_capabilities_is_setup_taskrun_supported();
+
+bool io_uring_capabilities_is_single_issuer_supported();
+
 #ifdef __cplusplus
 }
 #endif
