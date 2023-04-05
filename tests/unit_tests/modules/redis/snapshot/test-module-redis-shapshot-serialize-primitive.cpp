@@ -879,7 +879,6 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
     SECTION("module_redis_snapshot_serialize_primitive_encode_small_string") {
         SECTION("encoding small string as integer") {
             uint8_t buffer[100];
-            size_t buffer_size = sizeof(buffer);
             size_t buffer_offset = 0;
 
             char string[] = "1234";
@@ -903,7 +902,6 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
 
         SECTION("encoding small string as plain data (<32 bytes)") {
             uint8_t buffer[100];
-            size_t buffer_size = sizeof(buffer);
             size_t buffer_offset = 0;
 
             char string[] = "This is a small string";
@@ -926,7 +924,6 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
 
         SECTION("encoding small string as plain data (compression ratio too low)") {
             uint8_t buffer[100];
-            size_t buffer_size = sizeof(buffer);
             size_t buffer_offset = 0;
 
             char *string = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
@@ -995,6 +992,26 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             REQUIRE(decompressed_length == string_length);
             REQUIRE(memcmp(decompressed, string, string_length) == 0);
         }
+
+        SECTION("string too long") {
+            uint8_t buffer[100];
+            size_t buffer_size = sizeof(buffer);
+            size_t buffer_offset = 0;
+
+            char string[64 * 1024] = { 0 };
+            size_t string_length = 64 * 1024;
+
+            module_redis_snapshot_serialize_primitive_result_t result =
+                    module_redis_snapshot_serialize_primitive_encode_small_string(
+                            string,
+                            string_length,
+                            buffer,
+                            buffer_size,
+                            0,
+                            &buffer_offset);
+
+            REQUIRE(result == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_TOO_LARGE);
+        }
     }
 
     SECTION("module_redis_snapshot_serialize_primitive_encode_opcode_aux") {
@@ -1024,7 +1041,7 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             REQUIRE(memcmp(buffer + 1 + + 1 + key_length + 1, value, value_length) == 0);
         }
 
-        SECTION("buffer_overflow") {
+        SECTION("buffer overflow") {
             buffer_offset = 1020;
             result = module_redis_snapshot_serialize_primitive_encode_opcode_aux(
                     key,
