@@ -152,6 +152,12 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
         size_t buffer_offset,
         size_t *buffer_offset_out);
 
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_opcode_eof(
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out);
+
 #ifdef __cplusplus
 }
 #endif
