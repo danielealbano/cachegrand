@@ -454,8 +454,15 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
             compressed_data_ptr,
             compressed_data_maxsize);
 
+    // Check if the compression was successful, if not, return an error
     if (compressed_string_length == 0) {
         result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_COMPRESSION_FAILED;
+        goto end;
+    }
+
+    // If the compression ratio is too low (the compressed string is greater than the raw string), don't use compression
+    if (compressed_string_length > string_length) {
+        result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_COMPRESSION_RATIO_TOO_LOW;
         goto end;
     }
 
