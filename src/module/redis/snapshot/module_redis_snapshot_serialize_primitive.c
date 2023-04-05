@@ -85,7 +85,7 @@ bool module_redis_snapshot_serialize_primitive_can_encode_string_as_integer(
         }
     }
 
-    end:
+end:
     // Free the duplicated string
     xalloc_free(string_dup);
 
@@ -181,7 +181,6 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
         size_t buffer_size,
         size_t buffer_offset,
         size_t *buffer_offset_out) {
-
     *buffer_offset_out = buffer_offset;
     module_redis_snapshot_serialize_primitive_result_t result;
 
