@@ -379,7 +379,7 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
         // Store the number
         buffer[*buffer_offset_out] = string_integer & 0xFF;
         (*buffer_offset_out)++;
-    } else if (string_integer >= INT16_MIN && string_integer <= INT16_MIN) {
+    } else if (string_integer >= INT16_MIN && string_integer <= INT16_MAX) {
         // Numbers between INT16_MIN and INT16_MAX are encoded in three bytes, the first byte is set to 0xC0 | 0x01 and
         // the second and third bytes are set to the number
         if (*buffer_offset_out + 3 > buffer_size) {
