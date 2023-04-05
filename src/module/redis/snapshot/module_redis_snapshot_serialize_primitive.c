@@ -606,6 +606,7 @@ end:
 }
 
 module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_opcode_eof(
+        uint64_t checksum,
         uint8_t *buffer,
         size_t buffer_size,
         size_t buffer_offset,
@@ -613,13 +614,18 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
     *buffer_offset_out = buffer_offset;
     module_redis_snapshot_serialize_primitive_result_t result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK;
 
-    if (*buffer_offset_out + 5 > buffer_size) {
+    if (*buffer_offset_out + 9 > buffer_size) {
         result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
         goto end;
     }
 
     buffer[*buffer_offset_out] = MODULE_REDIS_SNAPSHOT_OPCODE_EOF;
     (*buffer_offset_out)++;
+
+    // Write the checksum
+    uint64_t checksum_le = int64_htole(checksum);
+    memcpy(buffer + *buffer_offset_out, &checksum_le, sizeof(checksum_le));
+    *buffer_offset_out += sizeof(checksum_le);
 
 end:
     return result;
