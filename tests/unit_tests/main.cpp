@@ -12,7 +12,15 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "misc.h"
+#include "exttypes.h"
 #include "thread.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
+#include "memory_allocator/ffma_region_cache.h"
+#include "memory_allocator/ffma_region_cache.h"
+#include "memory_allocator/ffma.h"
+#include "memory_allocator/ffma_thread_cache.h"
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 

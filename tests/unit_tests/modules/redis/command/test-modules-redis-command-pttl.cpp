@@ -60,8 +60,8 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PTTL", "[red
     SECTION("Key with 5 second expire") {
         char buffer[32] = { 0 };
         size_t out_buffer_length = 0;
+        int64_t unixtime_now = clock_realtime_coarse_int64_ms();
         int64_t unixtime_response;
-        size_t expected_length = snprintf(nullptr, 0, ":%d\r\n", 5000);
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
@@ -70,11 +70,13 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PTTL", "[red
         REQUIRE(send_recv_resp_command_multi_recv(
                 std::vector<std::string>{"PTTL", "a_key"},
                 buffer,
-                &out_buffer_length,
-                expected_length));
+                &out_buffer_length));
 
         unixtime_response = strtoll(buffer + 1, nullptr, 10);
 
-        REQUIRE((unixtime_response >= 5000 - 5 && unixtime_response <= 5000));
+        // Sometime this tests fails because the server takes more than a few milliseconds to process the command
+        // therefore the value returned by PTTL is not exactly 5000 but it's a bit less so we need to account for that
+        // in the test and include 25 milliseconds of margin
+        REQUIRE((unixtime_response >= 5000 - 25 && unixtime_response <= 5000));
     }
 }

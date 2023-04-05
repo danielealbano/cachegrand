@@ -19,8 +19,8 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "thread.h"
-#include "hugepage_cache.h"
-#include "xalloc.h"
+#include "memory_allocator/ffma_region_cache.h"
+#include "memory_allocator/ffma.h"
 #include "log/log.h"
 #include "log/sink/log_sink.h"
 #include "log/sink/log_sink_console.h"
@@ -44,10 +44,6 @@ public:
 
     int Main(int argc, char** argv) {
         signals_support_register_sigsegv_fatal_handler();
-
-        // Enable the hugepage cache and the slab allocator
-        hugepage_cache_init();
-        ffma_enable(true);
 
         // Setup the log sink
         BenchmarkProgram::setup_initial_log_sink_console();

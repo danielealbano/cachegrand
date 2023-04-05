@@ -544,7 +544,6 @@ void test_hashtable_mpmc_fuzzy_testing_run(
         epoch_gc_thread_register_global(epoch_gc_data, epoch_gc_data_thread);
         epoch_gc_thread_register_local(epoch_gc_data_thread);
 
-        fprintf(stdout, "[%lu] > VALIDATING INSERTED KEYS\n", intrinsics_tsc());
         for (uint32_t key_index = 0; key_index < keys_count; key_index++) {
             test_hashtable_mpmc_fuzzy_test_key_status_info_t *key_info = &keys_info[key_index];
 
@@ -600,15 +599,6 @@ void test_hashtable_mpmc_fuzzy_testing_run(
         epoch_gc_thread_unregister_local(epoch_gc_data_thread);
     }
     // Keys Validation - End
-
-    fprintf(stdout, "[%lu] > SUMMARY\n", intrinsics_tsc());
-    fprintf(stdout, "[%lu] >   hashtable current size = %lu\n", intrinsics_tsc(), hashtable->data->buckets_count);
-    fprintf(stdout, "[%lu] >   ops_counter_total = %lu\n", intrinsics_tsc(), ops_counter_total);
-    fprintf(stdout, "[%lu] >   ops_counter_read = %lu\n", intrinsics_tsc(), ops_counter_read);
-    fprintf(stdout, "[%lu] >   ops_counter_insert = %lu\n", intrinsics_tsc(), ops_counter_insert);
-    fprintf(stdout, "[%lu] >   ops_counter_update = %lu\n", intrinsics_tsc(), ops_counter_update);
-    fprintf(stdout, "[%lu] >   ops_counter_delete = %lu\n", intrinsics_tsc(), ops_counter_delete);
-    fflush(stdout);
 
     hashtable_mpmc_free(hashtable);
     xalloc_free(ti_list);
@@ -2090,19 +2080,9 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                     uint16_t test_key_length = 8;
                     uint32_t test_hashtable_max_size = test_keys_count * 2;
 
-                    fprintf(
-                            stdout,
-                            "[%lu] > test_run <%u/%u>\n",
-                            intrinsics_tsc(),
-                            test_run + 1,
-                            test_runs);
-                    fflush(stdout);
-
-                    fprintf(stdout, "[%lu] >   generating <%u> keys\n", intrinsics_tsc(), test_keys_count);
                     char *test_keys = test_hashtable_mpmc_fuzzy_testing_keys_generate(
                             test_keys_count,
                             test_key_length);
-                    fprintf(stdout, "[%lu] >   keys generated\n", intrinsics_tsc());
 
                     hashtable_mpmc_t *test_hashtable = hashtable_mpmc_init(
                             test_hashtable_initial_size,
@@ -2118,9 +2098,6 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                             test_duration);
 
                     test_hashtable_mpmc_fuzzy_testing_keys_free(test_keys);
-
-                    fprintf(stdout, "[%lu] >   test run completed\n", intrinsics_tsc());
-                    fflush(stdout);
                 }
             }
         }

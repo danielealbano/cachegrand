@@ -36,10 +36,10 @@ jobs:
       - name: Setup cmake
         uses: lukka/get-cmake@latest
 
-      - name: Ensure 350 2MB Hugepages free (required for comprehensive testing)
+      - name: Ensure 20 2MB Hugepages free (required for comprehensive testing)
         shell: bash
         timeout-minutes: 5
-        run: while [ $(cat /proc/meminfo | grep HugePages_Free | awk '{ printf $2 }') -lt 350 ]; do echo "Requesting 350 2MB hugepages"; echo 350 | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages; cat /proc/meminfo | grep HugePages_; done; free -m;
+        run: while [ $(cat /proc/meminfo | grep HugePages_Free | awk '{ printf $2 }') -lt 20 ]; do echo "Requesting 20 2MB hugepages"; echo 350 | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages; cat /proc/meminfo | grep HugePages_; done; free -m;
 
       - name: Checkout
         uses: actions/checkout@v2
@@ -48,7 +48,7 @@ jobs:
           fetch-depth: 2
 
       - name: Install required dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config git libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev libmbedtls-dev libpcre2-8-0 libpcre2-dev libjson-c-dev valgrind libhiredis-dev
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config git libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev libmbedtls-dev libpcre2-8-0 libpcre2-dev libjson-c-dev valgrind libhiredis-dev liblzf-dev redis-tools
 
       - name: Create Build Environment
         run: cmake -E make_directory ${{github.workspace}}/build

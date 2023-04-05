@@ -59,8 +59,8 @@
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "thread.h"
-#include "hugepage_cache.h"
-#include "xalloc.h"
+#include "memory_allocator/ffma_region_cache.h"
+#include "memory_allocator/ffma.h"
 #include "support/sentry/sentry_support.h"
 #include "signal_handler_thread.h"
 #include "version.h"
@@ -498,40 +498,32 @@ config_t* program_parse_arguments_and_load_config(
     return config;
 }
 
-bool program_use_huge_pages(
+bool program_use_hugepages(
         program_context_t* program_context) {
     // TODO: estimate how much 2mb hugepages should be available to properly work with the current settings, just
     //       having 2mb hugepages is not enough to guarantee that memory will be available during the execution, it
     //       should be reserved
     int requested_hugepages = 0;
-    bool use_huge_pages;
+    bool use_hugepages;
 
-    // use_huge_pages is optional
-    if (program_context->config->use_huge_pages == NULL) {
-        use_huge_pages = false;
+    // use_hugepages is optional
+    if (program_context->config->use_hugepages == NULL) {
+        use_hugepages = false;
     } else {
-        use_huge_pages = *program_context->config->use_huge_pages;
+        use_hugepages = *program_context->config->use_hugepages;
     }
 
-    if (use_huge_pages) {
+    if (use_hugepages) {
         if (!hugepages_2mb_is_available(requested_hugepages)) {
-            LOG_W(TAG, "Not enough 2mb hugepages, disabling fast fixed memory allocator, performances will be degraded");
-            use_huge_pages = false;
+            LOG_W(TAG, "Not enough 2mb hugepages, the fast fixed memory allocator wil not use them");
+            use_hugepages = false;
         }
-    } else {
-        LOG_W(TAG, "Fast fixed memory allocator disabled in config, performances will be degraded");
     }
 
-//    if (use_huge_pages) {
-//        hugepage_cache_init();
-//        ffma_enable(use_huge_pages);
-//    } else {
-//        ffma_enable(false);
-//    }
+    ffma_set_use_hugepages(use_hugepages);
+    program_context->use_hugepages = use_hugepages;
 
-    program_context->use_huge_pages = use_huge_pages;
-
-    return use_huge_pages;
+    return use_hugepages;
 }
 
 void program_setup_initial_log_sink_console() {
@@ -707,10 +699,6 @@ void program_cleanup(
         xalloc_free(program_context->epoch_gc_workers_context);
     }
 
-    if (program_context->fast_memory_allocator_initialized) {
-        hugepage_cache_free();
-    }
-
     if (program_context->selected_cpus) {
         xalloc_free(program_context->selected_cpus);
         program_context->selected_cpus_count = 0;
@@ -828,13 +816,13 @@ int program_main(
 
     // If enabled in the config and if the hugepages are available enables the usage of hugepages to take advantage, for
     // example, of the fast fixed memory allocator and to run the code from the hugepages after relocating it there
-    program_use_huge_pages(program_context);
+    program_use_hugepages(program_context);
 
     // Calculate workers count
     program_workers_initialize_count(program_context);
 
     // Initialize the fast memory allocator if hugepages are enabled
-    if (program_context->use_huge_pages) {
+    if (program_context->use_hugepages) {
         program_context->fast_memory_allocator_initialized = true;
     }
 
@@ -894,8 +882,6 @@ end:
 #if FFMA_DEBUG_ALLOCS_FREES == 1
     ffma_debug_allocs_frees_end();
 #endif
-
-    mi_collect(true);
 
     return return_res;
 }

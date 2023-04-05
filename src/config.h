@@ -271,7 +271,7 @@ struct config {
     uint32_t workers_per_cpus;
     bool run_in_foreground;
     char *pidfile_path;
-    bool *use_huge_pages;
+    bool *use_hugepages;
 
     config_network_t *network;
     config_module_t *modules;

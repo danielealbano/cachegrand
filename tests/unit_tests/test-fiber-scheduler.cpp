@@ -11,6 +11,7 @@
 #include <cstring>
 #include <csignal>
 #include <csetjmp>
+#include <fcntl.h>
 #include <unistd.h>
 #include <xalloc.h>
 
@@ -76,6 +77,8 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
     size_t stack_size = page_size * 8;
     test_fiber_scheduler_caller_user_data = nullptr;
     test_fiber_scheduler_switched_to_fiber = false;
+    int internal_stderr = dup(STDERR_FILENO);
+    int internal_nullfd = open("/dev/null", O_RDWR);
 
     SECTION("fiber_scheduler_get_current") {
         fiber_t fiber = {
@@ -160,6 +163,8 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
             fiber_scheduler_stack.index = 4;
             fiber_scheduler_stack.size = 5;
 
+            dup2(internal_nullfd, STDERR_FILENO);
+
             bool fatal_caught = false;
             if (sigsetjmp(test_fiber_scheduler_jump_fp, 1) == 0) {
                 test_fiber_scheduler_memory_stack_protection_setup_sigabrt_and_sigsegv_signal_handler();
@@ -167,6 +172,8 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
             } else {
                 fatal_caught = true;
             }
+
+            dup2(internal_stderr, STDERR_FILENO);
 
             // The fatal_caught variable has to be set to true as sigsetjmp on the second execution will return a value
             // different from zero.
@@ -219,6 +226,8 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
         SECTION("test failure on switching to a terminated fiber") {
             fiber_context_swap(&fiber_1->stack_pointer, &fiber_2->stack_pointer);
 
+            dup2(internal_nullfd, STDERR_FILENO);
+
             // Context switching to a terminated fiber should NEVER happen as the memory will be automatically free
             // and therefore may become garbage right after the context is switched back but to test out the expected
             // behaviour of the fiber scheduler entrypoint the test does it ANYWAY.
@@ -234,6 +243,8 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
             } else {
                 fatal_caught = true;
             }
+
+            dup2(internal_stderr, STDERR_FILENO);
 
             REQUIRE(fatal_caught);
         }
@@ -396,4 +407,7 @@ TEST_CASE("fiber_scheduler.c", "[fiber_scheduler]") {
         fiber_scheduler_stack.index = -1;
         fiber_scheduler_stack.size = 0;
     }
+
+    close(internal_stderr);
+    close(internal_nullfd);
 }

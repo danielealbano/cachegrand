@@ -195,7 +195,8 @@ void test_queue_mpmc_fuzzy_multi_thread(
         free(data);
     }
 
-    REQUIRE(queue_mpmc->head.data.node == nullptr);
+    REQUIRE(queue_mpmc->head.data.nodes_page != nullptr);
+    REQUIRE(queue_mpmc->head.data.node_index == -1);
     REQUIRE(queue_mpmc->head.data.length == 0);
 
     queue_mpmc_free(queue_mpmc);
@@ -251,7 +252,8 @@ void test_queue_mpmc_fuzzy_single_thread(
         free(data);
     }
 
-    REQUIRE(queue_mpmc->head.data.node == nullptr);
+    REQUIRE(queue_mpmc->head.data.nodes_page != nullptr);
+    REQUIRE(queue_mpmc->head.data.node_index == -1);
     REQUIRE(queue_mpmc->head.data.length == 0);
 
     queue_mpmc_free(queue_mpmc);
@@ -262,10 +264,11 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
         queue_mpmc_t *queue = queue_mpmc_init();
 
         REQUIRE(queue != NULL);
-        REQUIRE(queue->head._packed == 0);
+        REQUIRE(queue->head._packed != 0);
         REQUIRE(queue->head.data.length == 0);
         REQUIRE(queue->head.data.version == 0);
-        REQUIRE(queue->head.data.node == NULL);
+        REQUIRE(queue->head.data.node_index == -1);
+        REQUIRE(queue->head.data.nodes_page != NULL);
 
         queue_mpmc_free(queue);
     }
@@ -277,8 +280,9 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
             REQUIRE(queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value1));
             REQUIRE(queue_mpmc->head.data.length == 1);
             REQUIRE(queue_mpmc->head.data.version == 1);
-            REQUIRE(queue_mpmc->head.data.node != NULL);
-            REQUIRE(queue_mpmc->head.data.node->data == &test_queue_mpmc_value1);
+            REQUIRE(queue_mpmc->head.data.node_index == 0);
+            REQUIRE(queue_mpmc->head.data.nodes_page != NULL);
+            REQUIRE(queue_mpmc->head.data.nodes_page->nodes[0] == (uintptr_t)&test_queue_mpmc_value1);
         }
 
         SECTION("two values") {
@@ -287,10 +291,28 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
 
             REQUIRE(queue_mpmc->head.data.length == 2);
             REQUIRE(queue_mpmc->head.data.version == 2);
-            REQUIRE(queue_mpmc->head.data.node != nullptr);
-            REQUIRE(queue_mpmc->head.data.node->data == &test_queue_mpmc_value2);
-            REQUIRE((queue_mpmc->head.data.node->next != nullptr));
-            REQUIRE(queue_mpmc->head.data.node->next->data == &test_queue_mpmc_value1);
+            REQUIRE(queue_mpmc->head.data.node_index == 1);
+            REQUIRE(queue_mpmc->head.data.nodes_page != NULL);
+            REQUIRE(queue_mpmc->head.data.nodes_page->nodes[0] == (uintptr_t)&test_queue_mpmc_value1);
+            REQUIRE(queue_mpmc->head.data.nodes_page->nodes[1] == (uintptr_t)&test_queue_mpmc_value2);
+        }
+
+        SECTION("entire page plus one") {
+            auto nodes_page_initial = queue_mpmc->head.data.nodes_page;
+
+            for(uint64_t i = 0; i < queue_mpmc->max_nodes_per_page + 1; i++) {
+                REQUIRE(queue_mpmc_push(queue_mpmc, (void*)(i + 1)));
+            }
+
+            REQUIRE(queue_mpmc->head.data.length == queue_mpmc->max_nodes_per_page + 1);
+            REQUIRE(queue_mpmc->head.data.version == queue_mpmc->max_nodes_per_page + 1);
+            REQUIRE(queue_mpmc->head.data.node_index == 0);
+            REQUIRE(queue_mpmc->head.data.nodes_page != nodes_page_initial);
+
+            for(uint64_t i = 0; i < queue_mpmc->max_nodes_per_page; i++) {
+                REQUIRE(nodes_page_initial->nodes[i] == (uintptr_t)(i + 1));
+            }
+            REQUIRE(queue_mpmc->head.data.nodes_page->nodes[0] == (uintptr_t)(queue_mpmc->max_nodes_per_page + 1));
         }
 
         queue_mpmc_free(queue_mpmc);
@@ -304,7 +326,8 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
 
             REQUIRE(queue_mpmc->head.data.length == 0);
             REQUIRE(queue_mpmc->head.data.version == 0);
-            REQUIRE(queue_mpmc->head.data.node == NULL);
+            REQUIRE(queue_mpmc->head.data.node_index == -1);
+            REQUIRE(queue_mpmc->head.data.nodes_page != NULL);
             REQUIRE(value_pop == NULL);
         }
 
@@ -314,7 +337,9 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
 
             REQUIRE(queue_mpmc->head.data.length == 0);
             REQUIRE(queue_mpmc->head.data.version == 2);
-            REQUIRE(queue_mpmc->head.data.node == NULL);
+            REQUIRE(queue_mpmc->head.data.node_index == -1);
+            REQUIRE(queue_mpmc->head.data.nodes_page != NULL);
+            REQUIRE(queue_mpmc->head.data.nodes_page->nodes[0] == 0);
             REQUIRE(value_pop == &test_queue_mpmc_value1);
         }
 
@@ -326,47 +351,33 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
 
             REQUIRE(queue_mpmc->head.data.length == 0);
             REQUIRE(queue_mpmc->head.data.version == 4);
-            REQUIRE(queue_mpmc->head.data.node == NULL);
+            REQUIRE(queue_mpmc->head.data.node_index == -1);
+            REQUIRE(queue_mpmc->head.data.nodes_page != NULL);
+            REQUIRE(queue_mpmc->head.data.nodes_page->nodes[0] == 0);
+            REQUIRE(queue_mpmc->head.data.nodes_page->nodes[1] == 0);
             REQUIRE(value1_pop == &test_queue_mpmc_value1);
             REQUIRE(value2_pop == &test_queue_mpmc_value2);
         }
 
-        queue_mpmc_free(queue_mpmc);
-    }
+        SECTION("entire page plus one") {
+            auto nodes_page_initial = queue_mpmc->head.data.nodes_page;
 
-    SECTION("queue_mpmc_peek") {
-        queue_mpmc_t *queue_mpmc = queue_mpmc_init();
+            for(uint64_t i = 0; i < queue_mpmc->max_nodes_per_page + 1; i++) {
+                REQUIRE(queue_mpmc_push(queue_mpmc, (void*)(i + 1)));
+            }
 
-        SECTION("no values") {
-            int *value_pop = (int*)queue_mpmc_peek(queue_mpmc);
+            for(int64_t i = queue_mpmc->max_nodes_per_page; i >= 0; i--) {
+                REQUIRE(queue_mpmc_pop(queue_mpmc) == (void*)(i + 1));
+            }
 
             REQUIRE(queue_mpmc->head.data.length == 0);
-            REQUIRE(queue_mpmc->head.data.version == 0);
-            REQUIRE(queue_mpmc->head.data.node == NULL);
-            REQUIRE(value_pop == NULL);
-        }
+            REQUIRE(queue_mpmc->head.data.version == (queue_mpmc->max_nodes_per_page + 1) * 2);
+            REQUIRE(queue_mpmc->head.data.node_index == -1);
+            REQUIRE(queue_mpmc->head.data.nodes_page == nodes_page_initial);
 
-        SECTION("one value") {
-            queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value1);
-            int *value_pop = (int*)queue_mpmc_peek(queue_mpmc);
-
-            REQUIRE(queue_mpmc->head.data.length == 1);
-            REQUIRE(queue_mpmc->head.data.version == 1);
-            REQUIRE(queue_mpmc->head.data.node != NULL);
-            REQUIRE(queue_mpmc->head.data.node->data == &test_queue_mpmc_value1);
-            REQUIRE(value_pop == &test_queue_mpmc_value1);
-        }
-
-        SECTION("two values") {
-            queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value1);
-            queue_mpmc_push(queue_mpmc, &test_queue_mpmc_value2);
-            int *value_pop = (int*)queue_mpmc_peek(queue_mpmc);
-
-            REQUIRE(queue_mpmc->head.data.length == 2);
-            REQUIRE(queue_mpmc->head.data.version == 2);
-            REQUIRE(queue_mpmc->head.data.node != NULL);
-            REQUIRE(queue_mpmc->head.data.node->data == &test_queue_mpmc_value2);
-            REQUIRE(value_pop == &test_queue_mpmc_value2);
+            for(uint64_t i = 0; i < queue_mpmc->max_nodes_per_page; i++) {
+                REQUIRE(nodes_page_initial->nodes[i] == 0);
+            }
         }
 
         queue_mpmc_free(queue_mpmc);

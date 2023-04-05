@@ -9,7 +9,7 @@ extern "C" {
 
 typedef struct program_context program_context_t;
 struct program_context {
-    bool use_huge_pages;
+    bool use_hugepages;
     bool fast_memory_allocator_initialized;
     config_t *config;
     uint16_t *selected_cpus;

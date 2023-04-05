@@ -10,7 +10,6 @@
 #define DISABLE_MIMALLOC 0
 #endif
 
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -18,17 +17,23 @@
 
 #if defined(__linux__)
 #include <sys/mman.h>
+#include <assert.h>
+#include <errno.h>
+
 #else
 #error Platform not supported
 #endif
 
 #include "misc.h"
+#include "clock.h"
 #include "log/log.h"
 #include "fatal.h"
+#include "random.h"
 
 #if DISABLE_MIMALLOC == 0
 #include "mimalloc.h"
 #else
+#include <stdlib.h>
 #define mi_malloc malloc
 #define mi_realloc realloc
 #define mi_zalloc(size) (calloc(1, size))
@@ -42,15 +47,6 @@
 #define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)   /* 2 MB hugepages */
 
 #define TAG "xalloc"
-
-#if DISABLE_MIMALLOC == 0
-FUNCTION_CTOR(xalloc_init, {
-    mi_option_enable(mi_option_page_reset);
-    mi_option_enable(mi_option_allow_decommit);
-    mi_option_enable(mi_option_abandoned_page_decommit);
-    mi_option_set(mi_option_decommit_delay, 0);
-})
-#endif
 
 void* xalloc_alloc(
         size_t size) {
@@ -145,24 +141,25 @@ void xalloc_free(
 }
 
 size_t xalloc_get_page_size() {
+    static bool page_size_read;
     static size_t page_size;
 
-    if (page_size > 0) {
-        return page_size;
-    }
-
+    if (unlikely(!page_size_read)) {
+        page_size_read = true;
 #if defined(__linux__)
-    page_size = getpagesize();
+        page_size = getpagesize();
 #else
 #error Platform not supported
 #endif
+    }
+
 
     return page_size;
 }
 
 void* xalloc_mmap_align_addr(
         void* memaddr) {
-    long alignment = xalloc_get_page_size();
+    size_t alignment = xalloc_get_page_size();
 
     memaddr -= 1;
     memaddr = memaddr - ((uintptr_t)memaddr % alignment) + alignment;
@@ -172,12 +169,37 @@ void* xalloc_mmap_align_addr(
 
 size_t xalloc_mmap_align_size(
         size_t size) {
-    long alignment = xalloc_get_page_size();
+    size_t alignment = xalloc_get_page_size();
 
     size -= 1;
     size = size - (size % alignment) + alignment;
 
     return size;
+}
+
+void* xalloc_random_aligned_addr(
+        size_t alignment,
+        size_t size) {
+#if defined(__linux__)
+#if __aarch64__
+    size_t max_addr = 0x7FFFFFFFFF;
+    size_t min_addr = 0x1000000000;
+#elif __x86_64__
+    size_t max_addr = 0x7FFFFFFFFFFF;
+    size_t min_addr = 0x20000000000;
+#else
+#error Platform not supported
+#endif
+#else
+#error Platform not supported
+#endif
+
+    // Calculates a random address in range between the allowed one, ensures it's far enough to be able to allocate size
+    // and aligns it to the requested alignment
+    uintptr_t random_addr = (random_generate() % (max_addr - (min_addr + size))) - size;
+    uintptr_t aligned_random_addr = random_addr - (random_addr % alignment);
+
+    return (void*)aligned_random_addr;
 }
 
 void* xalloc_mmap_alloc(
@@ -208,6 +230,53 @@ void* xalloc_mmap_alloc(
     }
 
     return memptr;
+}
+
+xalloc_mmap_try_alloc_fixed_addr_result_t xalloc_mmap_try_alloc_fixed_addr(
+        void *requested_addr,
+        size_t size,
+        bool use_hugepages,
+        void **out_addr) {
+    xalloc_mmap_try_alloc_fixed_addr_result_t result = XALLOC_MMAP_TRY_ALLOC_FIXED_ADDR_RESULT_SUCCESS;
+
+    assert((uintptr_t)requested_addr % xalloc_get_page_size() == 0);
+
+    size = xalloc_mmap_align_size(size);
+
+#if defined(__linux__)
+    *out_addr = mmap(
+            requested_addr,
+            size,
+            PROT_READ | PROT_WRITE,
+            MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE | (use_hugepages ? MAP_HUGETLB | MAP_HUGE_2MB : 0),
+            -1,
+            0);
+
+    if (unlikely(*out_addr == (void*)-1)) {
+        if (errno == EEXIST) {
+            result = XALLOC_MMAP_TRY_ALLOC_FIXED_ADDR_RESULT_FAILED_ALREADY_ALLOCATED;
+        } else if (errno == ENOMEM) {
+            result = XALLOC_MMAP_TRY_ALLOC_FIXED_ADDR_RESULT_FAILED_NO_FREE_MEM;
+        } else {
+            result = XALLOC_MMAP_TRY_ALLOC_FIXED_ADDR_RESULT_FAILED_UNKNOWN;
+        }
+    }
+
+#if DEBUG == 1
+    // Not really needed, only pre 4.17 kernels will return a different address but cachegrand requires a 5.7 or newer
+    // kernel but it's better to have a check here to be sure. The check though is only done in debug mode to avoid
+    // a performance hit in production.
+    if (*out_addr != (void*)-1 && *out_addr != requested_addr) {
+        result = XALLOC_MMAP_TRY_ALLOC_FIXED_ADDR_RESULT_FAILED_DIFFERENT_ADDR;
+        munmap(*out_addr, size);
+    }
+#endif
+
+#else
+#error Platform not supported
+#endif
+
+    return result;
 }
 
 int xalloc_mmap_free(

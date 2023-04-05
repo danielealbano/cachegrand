@@ -8,12 +8,12 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include <string.h>
+#include <cstring>
+#include <csetjmp>
+#include <csignal>
 #include <unistd.h>
-#include <signal.h>
-#include <setjmp.h>
-#include <signal.h>
 #include <sys/mman.h>
+#include <fcntl.h>
 
 #include "hugepages.h"
 #include "signals_support.h"
@@ -28,15 +28,18 @@ void test_xalloc_setup_sigabrt_signal_handler() {
     signals_support_register_signal_handler(
             SIGABRT,
             test_xalloc_signal_sigabrt_handler_longjmp,
-            NULL);
+            nullptr);
 }
 
 TEST_CASE("xalloc.c", "[xalloc]") {
+    int internal_stderr = dup(STDERR_FILENO);
+    int internal_nullfd = open("/dev/null", O_RDWR);
+
     SECTION("xalloc_alloc") {
         SECTION("valid size") {
             char *data = (char*)xalloc_alloc(16);
 
-            REQUIRE(data != NULL);
+            REQUIRE(data != nullptr);
 
             xalloc_free(data);
         }
@@ -44,12 +47,16 @@ TEST_CASE("xalloc.c", "[xalloc]") {
             char *data;
             bool fatal_caught = false;
 
+            dup2(internal_nullfd, STDERR_FILENO);
+
             if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                 test_xalloc_setup_sigabrt_signal_handler();
                 data = (char*)xalloc_alloc(-1);
             } else {
                 fatal_caught = true;
             }
+
+            dup2(internal_stderr, STDERR_FILENO);
 
             REQUIRE(fatal_caught);
         }
@@ -63,7 +70,7 @@ TEST_CASE("xalloc.c", "[xalloc]") {
 
             data = (char*)xalloc_realloc(data, 32);
 
-            REQUIRE(data != NULL);
+            REQUIRE(data != nullptr);
             REQUIRE(strncmp(data, short_test_string, strlen(short_test_string)) == 0);
 
             xalloc_free(data);
@@ -72,12 +79,16 @@ TEST_CASE("xalloc.c", "[xalloc]") {
             char *data = (char*)xalloc_alloc(16);
             bool fatal_caught = false;
 
+            dup2(internal_nullfd, STDERR_FILENO);
+
             if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                 test_xalloc_setup_sigabrt_signal_handler();
                 data = (char*)xalloc_realloc(data, -1);
             } else {
                 fatal_caught = true;
             }
+
+            dup2(internal_stderr, STDERR_FILENO);
 
             REQUIRE(fatal_caught);
 
@@ -88,7 +99,7 @@ TEST_CASE("xalloc.c", "[xalloc]") {
     SECTION("xalloc_free") {
         char *data = (char*)xalloc_alloc(16);
 
-        REQUIRE(data != NULL);
+        REQUIRE(data != nullptr);
 
         xalloc_free(data);
     }
@@ -97,7 +108,7 @@ TEST_CASE("xalloc.c", "[xalloc]") {
         SECTION("valid size") {
             char *data = (char*)xalloc_alloc_zero(16);
 
-            REQUIRE(data != NULL);
+            REQUIRE(data != nullptr);
             for(uint8_t i = 0; i < 16; i++) {
                 REQUIRE(data[i] == 0);
             }
@@ -105,8 +116,10 @@ TEST_CASE("xalloc.c", "[xalloc]") {
             xalloc_free(data);
         }
         SECTION("invalid size") {
-            char *data = NULL;
+            char *data = nullptr;
             bool fatal_caught = false;
+
+            dup2(internal_nullfd, STDERR_FILENO);
 
             if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                 test_xalloc_setup_sigabrt_signal_handler();
@@ -115,13 +128,15 @@ TEST_CASE("xalloc.c", "[xalloc]") {
                 fatal_caught = true;
             }
 
+            dup2(internal_stderr, STDERR_FILENO);
+
             REQUIRE(fatal_caught);
         }
     }
 
     SECTION("xalloc_alloc_aligned") {
         SECTION("valid size") {
-            uintptr_t data = (uintptr_t)xalloc_alloc_aligned(64, 16);
+            auto data = (uintptr_t)xalloc_alloc_aligned(64, 16);
 
             REQUIRE(data != 0);
             REQUIRE(data % 64 == 0);
@@ -133,12 +148,16 @@ TEST_CASE("xalloc.c", "[xalloc]") {
             uintptr_t data = 0;
             bool fatal_caught = false;
 
+            dup2(internal_nullfd, STDERR_FILENO);
+
             if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                 test_xalloc_setup_sigabrt_signal_handler();
                 data = (uintptr_t)xalloc_alloc_aligned(64, -1);
             } else {
                 fatal_caught = true;
             }
+
+            dup2(internal_stderr, STDERR_FILENO);
 
             REQUIRE(fatal_caught);
         }
@@ -147,6 +166,8 @@ TEST_CASE("xalloc.c", "[xalloc]") {
             uintptr_t data = 0;
             bool fatal_caught = false;
 
+            dup2(internal_nullfd, STDERR_FILENO);
+
             if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                 test_xalloc_setup_sigabrt_signal_handler();
                 data = (uintptr_t)xalloc_alloc_aligned(-1, 16);
@@ -154,13 +175,15 @@ TEST_CASE("xalloc.c", "[xalloc]") {
                 fatal_caught = true;
             }
 
+            dup2(internal_stderr, STDERR_FILENO);
+
             REQUIRE(fatal_caught);
         }
     }
 
     SECTION("xalloc_alloc_aligned_zero") {
         SECTION("valid size") {
-            uintptr_t data = (uintptr_t)xalloc_alloc_aligned_zero(64, 16);
+            auto data = (uintptr_t)xalloc_alloc_aligned_zero(64, 16);
 
             REQUIRE(data != 0);
             REQUIRE(data % 64 == 0);
@@ -175,12 +198,16 @@ TEST_CASE("xalloc.c", "[xalloc]") {
             uintptr_t data = 0;
             bool fatal_caught = false;
 
+            dup2(internal_nullfd, STDERR_FILENO);
+
             if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                 test_xalloc_setup_sigabrt_signal_handler();
                 data = (uintptr_t)xalloc_alloc_aligned_zero(64, -1);
             } else {
                 fatal_caught = true;
             }
+
+            dup2(internal_stderr, STDERR_FILENO);
 
             REQUIRE(fatal_caught);
         }
@@ -189,12 +216,16 @@ TEST_CASE("xalloc.c", "[xalloc]") {
             uintptr_t data = 0;
             bool fatal_caught = false;
 
+            dup2(internal_nullfd, STDERR_FILENO);
+
             if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                 test_xalloc_setup_sigabrt_signal_handler();
                 data = (uintptr_t)xalloc_alloc_aligned_zero(-1, 16);
             } else {
                 fatal_caught = true;
             }
+
+            dup2(internal_stderr, STDERR_FILENO);
 
             REQUIRE(fatal_caught);
         }
@@ -231,7 +262,7 @@ TEST_CASE("xalloc.c", "[xalloc]") {
         SECTION("valid size") {
             size_t size = 64;
             long alignment = sysconf(_SC_PAGESIZE);
-            uintptr_t data = (uintptr_t)xalloc_mmap_alloc(size);
+            auto data = (uintptr_t)xalloc_mmap_alloc(size);
 
             REQUIRE(data != 0);
             REQUIRE(data % alignment == 0);
@@ -245,12 +276,16 @@ TEST_CASE("xalloc.c", "[xalloc]") {
             uintptr_t data = 0;
             bool fatal_caught = false;
 
+            dup2(internal_nullfd, STDERR_FILENO);
+
             if (sigsetjmp(jump_fp_xalloc, 1) == 0) {
                 test_xalloc_setup_sigabrt_signal_handler();
                 data = (uintptr_t)xalloc_mmap_alloc(-1);
             } else {
                 fatal_caught = true;
             }
+
+            dup2(internal_stderr, STDERR_FILENO);
 
             REQUIRE(fatal_caught);
         }
@@ -259,7 +294,7 @@ TEST_CASE("xalloc.c", "[xalloc]") {
     SECTION("xalloc_mmap_free") {
         size_t size = 64;
         long alignment = sysconf(_SC_PAGESIZE);
-        uintptr_t data = (uintptr_t)xalloc_mmap_alloc(size);
+        auto data = (uintptr_t)xalloc_mmap_alloc(size);
 
         REQUIRE(data != 0);
         REQUIRE(data % alignment == 0);
@@ -271,7 +306,7 @@ TEST_CASE("xalloc.c", "[xalloc]") {
         SECTION("valid size") {
             if (hugepages_2mb_is_available(1)) {
                 size_t hugepage_2mb_size = 2 * 1024 * 1024;
-                uintptr_t data = (uintptr_t) xalloc_hugepage_alloc(hugepage_2mb_size);
+                auto data = (uintptr_t)xalloc_hugepage_alloc(hugepage_2mb_size);
 
                 REQUIRE(data != 0);
                 REQUIRE((data % (hugepage_2mb_size)) == 0);
@@ -283,8 +318,10 @@ TEST_CASE("xalloc.c", "[xalloc]") {
         }
 
         SECTION("invalid size") {
-            uintptr_t data = 0;
-            REQUIRE(xalloc_hugepage_alloc(0) == NULL);
+            REQUIRE(xalloc_hugepage_alloc(0) == nullptr);
         }
     }
+
+    close(internal_stderr);
+    close(internal_nullfd);
 }

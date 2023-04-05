@@ -18,6 +18,7 @@
 #include "log/log.h"
 #include "log/sink/log_sink.h"
 #include "log/sink/log_sink_console.h"
+#include "memory_allocator/ffma_region_cache.h"
 
 class BenchmarkProgramSimple {
 private:
