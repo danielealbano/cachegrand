@@ -1044,11 +1044,13 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             WARN("Can't test RDB compatibility as redis-check-rdb is not available");
             return;
         }
+        uint8_t rdb_version = 9;
+
         SECTION("generate an empty rdb") {
             uint8_t buffer[1024];
             size_t buffer_size = sizeof(buffer);
             size_t buffer_offset_out = 0;
-            module_redis_snapshot_header_t module_redis_snapshot_header = { .version = 10 };
+            module_redis_snapshot_header_t module_redis_snapshot_header = { .version = rdb_version };
 
             REQUIRE(module_redis_snapshot_serialize_primitive_encode_header(
                     &module_redis_snapshot_header,
@@ -1081,7 +1083,7 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             uint8_t buffer[1024];
             size_t buffer_size = sizeof(buffer);
             size_t buffer_offset_out = 0;
-            module_redis_snapshot_header_t module_redis_snapshot_header = { .version = 10 };
+            module_redis_snapshot_header_t module_redis_snapshot_header = { .version = rdb_version };
 
             REQUIRE(module_redis_snapshot_serialize_primitive_encode_header(
                     &module_redis_snapshot_header,
@@ -1122,7 +1124,7 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             uint8_t buffer[1024];
             size_t buffer_size = sizeof(buffer);
             size_t buffer_offset_out = 0;
-            module_redis_snapshot_header_t module_redis_snapshot_header = { .version = 10 };
+            module_redis_snapshot_header_t module_redis_snapshot_header = { .version = rdb_version };
 
             REQUIRE(module_redis_snapshot_serialize_primitive_encode_header(
                     &module_redis_snapshot_header,
@@ -1192,7 +1194,7 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             uint8_t buffer[1024];
             size_t buffer_size = sizeof(buffer);
             size_t buffer_offset_out = 0;
-            module_redis_snapshot_header_t module_redis_snapshot_header = { .version = 10 };
+            module_redis_snapshot_header_t module_redis_snapshot_header = { .version = rdb_version };
 
             REQUIRE(module_redis_snapshot_serialize_primitive_encode_header(
                     &module_redis_snapshot_header,
@@ -1267,7 +1269,7 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             uint8_t buffer[65535 * 6];
             size_t buffer_size = sizeof(buffer);
             size_t buffer_offset_out = 0;
-            module_redis_snapshot_header_t module_redis_snapshot_header = { .version = 10 };
+            module_redis_snapshot_header_t module_redis_snapshot_header = { .version = rdb_version };
 
             REQUIRE(module_redis_snapshot_serialize_primitive_encode_header(
                     &module_redis_snapshot_header,
