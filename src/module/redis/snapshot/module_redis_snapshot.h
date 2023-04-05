@@ -73,7 +73,7 @@ static const uint32_t module_snapshot_rdb_values_types[] = { MODULE_REDIS_SNAPSH
 static const uint32_t module_redis_snapshot_rdb_values_types_supported[] = {MODULE_REDIS_SNAPSHOT_VALUES_TYPES_SUPPORTED };
 
 // List of possible opcodes in RDB snapshots
-enum module_snapshot_rdb_opcode {
+enum module_redis_snapshot_opcode {
     MODULE_REDIS_SNAPSHOT_OPCODE_FUNCTION = 0xF5,
     MODULE_REDIS_SNAPSHOT_OPCODE_FUNCTION_PRE_7 = 0xF6,
     MODULE_REDIS_SNAPSHOT_OPCODE_MODULE_AUX = 0xF7,

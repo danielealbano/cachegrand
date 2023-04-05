@@ -66,7 +66,7 @@ typedef enum module_redis_snapshot_serialize_primitive_result module_redis_snaps
 size_t module_redis_snapshot_serialize_primitive_encode_length_required_buffer_space(
         uint64_t length);
 
-bool module_redis_snapshot_serialize_primitive_can_encode_string_as_integer(
+bool module_redis_snapshot_serialize_primitive_can_encode_string_int(
         char *string,
         size_t string_length,
         int64_t *string_integer_out);

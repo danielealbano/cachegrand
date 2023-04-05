@@ -39,7 +39,7 @@ size_t module_redis_snapshot_serialize_primitive_encode_length_required_buffer_s
     return required_buffer_space;
 }
 
-bool module_redis_snapshot_serialize_primitive_can_encode_string_as_integer(
+bool module_redis_snapshot_serialize_primitive_can_encode_string_int(
         char *string,
         size_t string_length,
         int64_t *string_integer_out) {
@@ -224,7 +224,7 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
     memcpy(buffer + *buffer_offset_out, &expire_time_s_be, sizeof(expire_time_s_be));
     *buffer_offset_out += sizeof(expire_time_s_be);
 
-    end:
+end:
     return result;
 }
 
