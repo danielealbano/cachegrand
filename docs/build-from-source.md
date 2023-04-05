@@ -26,6 +26,7 @@ Example output
 | curl          | \>= 7.0      | **mandatory**    |
 | libpcre2      |              | **mandatory**    |
 | libjson-c-dev |              | **mandatory**    |
+| liblzf        |              | **mandatory**    |
 | libhiredis    | \>= 0.14     | only for testing |
 
 ## Install the required packages
@@ -43,7 +44,9 @@ sudo apt install \
     libyaml-0-2 libyaml-dev \
     libmbedtls-dev libmbedtls14 \
     libpcre2-8-0 libpcre2-dev \
-    libjson-c-dev libhiredis-dev
+    libjson-c-dev \
+    libhiredis-dev \
+    liblzf-dev
 ```
 
 ### Ubuntu 20.04
@@ -59,7 +62,9 @@ sudo apt install \
     libyaml-0-2 libyaml-dev \
     libmbedtls-dev libmbedtls12 \
     libpcre2-8-0 libpcre2-dev \
-    libjson-c-dev libhiredis-dev
+    libjson-c-dev \
+    libhiredis-dev \
+    liblzf-dev
 ```
 
 ### Debian 11
@@ -75,7 +80,9 @@ sudo apt install \
     libyaml-0-2 libyaml-dev \
     libmbedtls-dev libmbedtls12 \
     libpcre2-8-0 libpcre2-dev \
-    libjson-c-dev libhiredis-dev
+    libjson-c-dev \
+    libhiredis-dev \
+    liblzf-dev
 ```
 
 ### Fedora 36
@@ -88,7 +95,10 @@ sudo dnf install \
     libcurl libcurl-devel \
     libyaml libyaml-devel \
     mbedtls mbedtls-devel \
-    libatomic hiredis-devel
+    libatomic \
+    json-c-devel \
+    hiredis-devel \
+    liblzf-devel
 ```
 
 ## How to build it
