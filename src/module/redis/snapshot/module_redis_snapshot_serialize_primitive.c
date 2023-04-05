@@ -261,9 +261,6 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
     *buffer_offset_out = buffer_offset;
     module_redis_snapshot_serialize_primitive_result_t result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK;
 
-    // Set the base value of the type of encoding (first 2 bits set to 1)
-    buffer[*buffer_offset_out] = 0xC0;
-
     if (string_integer >= INT8_MIN && string_integer <= INT8_MAX) {
         // Numbers between INT8_MIN and INT8_MAX are encoded in two bytes, the first byte is set to 0xC0 and the
         // second byte is set to the number
@@ -273,7 +270,7 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
         }
 
         // Set the type of encoding
-        buffer[*buffer_offset_out] |= 0x00;
+        buffer[*buffer_offset_out] = 0xC0 | 0x00;
         (*buffer_offset_out)++;
 
         // Store the number
@@ -288,7 +285,7 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
         }
 
         // Set the type of encoding
-        buffer[*buffer_offset_out] |= 0x01;
+        buffer[*buffer_offset_out] = 0xC0 | 0x01;
         (*buffer_offset_out)++;
 
         // Store the number in little endian format
@@ -306,7 +303,7 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
         }
 
         // Set the type of encoding
-        buffer[*buffer_offset_out] |= 0x02;
+        buffer[*buffer_offset_out] = 0xC0 | 0x02;
         (*buffer_offset_out)++;
 
         // Store the number in little endian format
