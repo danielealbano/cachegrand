@@ -86,34 +86,6 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
         size_t buffer_offset,
         size_t *buffer_offset_out);
 
-module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_opcode_db_number(
-        uint64_t db_number,
-        uint8_t *buffer,
-        size_t buffer_size,
-        size_t buffer_offset,
-        size_t *buffer_offset_out);
-
-module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_opcode_expire_time_s(
-        uint32_t expire_time_s,
-        uint8_t *buffer,
-        size_t buffer_size,
-        size_t buffer_offset,
-        size_t *buffer_offset_out);
-
-module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_opcode_expire_time_ms(
-        uint64_t expire_time_ms,
-        uint8_t *buffer,
-        size_t buffer_size,
-        size_t buffer_offset,
-        size_t *buffer_offset_out);
-
-module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_opcode_value_type(
-        module_snapshot_value_type_t value_type,
-        uint8_t *buffer,
-        size_t buffer_size,
-        size_t buffer_offset,
-        size_t *buffer_offset_out);
-
 module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_key(
         char *string,
         size_t string_length,
@@ -147,6 +119,52 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
 module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_small_string_lzf(
         char *string,
         size_t string_length,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out);
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_small_string(
+        char *string,
+        size_t string_length,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out);
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_opcode_db_number(
+        uint64_t db_number,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out);
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_opcode_aux(
+        char *key,
+        size_t key_length,
+        char *value,
+        size_t value_length,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out);
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_opcode_expire_time_s(
+        uint32_t expire_time_s,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out);
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_opcode_expire_time_ms(
+        uint64_t expire_time_ms,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out);
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_opcode_value_type(
+        module_snapshot_value_type_t value_type,
         uint8_t *buffer,
         size_t buffer_size,
         size_t buffer_offset,
