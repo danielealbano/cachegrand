@@ -12,6 +12,7 @@ enum module_redis_snapshot_serialize_primitive_result {
     MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_COMPRESSION_FAILED,
     MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_COMPRESSION_RATIO_TOO_LOW,
     MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_INVALID_VALUE_TYPE,
+    MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_TOO_LARGE,
 };
 typedef enum module_redis_snapshot_serialize_primitive_result module_redis_snapshot_serialize_primitive_result_t;
 
