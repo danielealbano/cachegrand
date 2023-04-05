@@ -330,10 +330,12 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
         size_t buffer_size,
         size_t buffer_offset,
         size_t *buffer_offset_out) {
-    assert(string_length < 64 * 1024);
-
     *buffer_offset_out = buffer_offset;
     module_redis_snapshot_serialize_primitive_result_t result;
+
+    if (unlikely(string_length >= 64 * 1024)) {
+        return MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_TOO_LARGE;
+    }
 
     // Ensure that the buffer is big enough to hold the compressed data for the largest possible string, it uses the
     // stack to avoid memory allocations
@@ -406,8 +408,11 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
         size_t buffer_size,
         size_t buffer_offset,
         size_t *buffer_offset_out) {
-    assert(string_length < 64 * 1024);
     module_redis_snapshot_serialize_primitive_result_t result;
+
+    if (unlikely(string_length >= 64 * 1024)) {
+        return MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_TOO_LARGE;
+    }
 
     int64_t string_integer = 0;
     if (module_redis_snapshot_serialize_primitive_can_encode_string_int(
@@ -426,7 +431,7 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
     // support compressing streams therefore the compression can be applied only if the string is smaller than 64kb.
     // Also, because the LZF isn't capable of compressing small blocks of data, if the string is shorter than 32 bytes
     // the compression is not applied.
-    if (string_length > 32 && string_length < 64 * 1024) {
+    if (string_length > 32) {
         result = module_redis_snapshot_serialize_primitive_encode_small_string_lzf(
                 string,
                 string_length,
