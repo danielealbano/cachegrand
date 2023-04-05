@@ -6,6 +6,7 @@ list(APPEND DEPS_LIST_LIBRARIES "pthread")
 include("libyaml")
 include("mbedtls")
 include("libnuma")
+include("liblzf")
 
 if (BUILD_TESTS)
     include("libhiredis")

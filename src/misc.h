@@ -65,6 +65,38 @@ extern "C" {
 #define FUNCTION_CTOR(NAME, ...) FUNCTION_CTOR_DTOR(ctors, ".ctors", NAME, __VA_ARGS__)
 #define FUNCTION_DTOR(NAME, ...) FUNCTION_CTOR_DTOR(dtors, ".dtors", NAME, __VA_ARGS__)
 
+#if (BYTE_ORDER == BIG_ENDIAN)
+#define int16_hton(v) (v)
+#define int16_ntoh(v) (v)
+#define int16_htole(v) htole16(v)
+#define int16_letoh(v) le16toh(v)
+
+#define int32_hton(v) (v)
+#define int32_ntoh(v) (v)
+#define int32_htole(v) htole32(v)
+#define int32_letoh(v) le32toh(v)
+
+#define int64_hton(v) (v)
+#define int64_ntoh(v) (v)
+#define int64_htole(v) htole64(v)
+#define int64_letoh(v) le64toh(v)
+#else
+#define int16_hton(v) htobe16(v)
+#define int16_ntoh(v) be16toh(v)
+#define int16_htole(v) (v)
+#define int16_letoh(v) (v)
+
+#define int32_hton(v) htobe32(v)
+#define int32_ntoh(v) be32toh(v)
+#define int32_htole(v) (v)
+#define int32_letoh(v) (v)
+
+#define int64_hton(v) htobe64(v)
+#define int64_ntoh(v) be64toh(v)
+#define int64_htole(v) (v)
+#define int64_letoh(v) (v)
+#endif
+
 #ifdef __cplusplus
 }
 #endif
