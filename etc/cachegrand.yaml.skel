@@ -130,7 +130,7 @@ database:
   snapshots:
     # The path where the snapshot file will be stored, if the rotation is enabled, the path will be used as prefix and
     # the timestamp of the start of the snapshot will be appended to the file name.
-    path: /var/lib/cachegrand/snapshot
+    path: /var/lib/cachegrand/snapshot.rdb
     # The interval between the snapshots, the allowed units are s, m, h, if not specified the default is seconds.
     interval: 5m
     # The number of keys that must be changed before a snapshot is taken, 0 means no limit
