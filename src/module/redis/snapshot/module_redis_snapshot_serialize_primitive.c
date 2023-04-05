@@ -175,6 +175,229 @@ end:
     return result;
 }
 
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_key(
+        char *string,
+        size_t string_length,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out) {
+    assert(string_length > 0);
+
+    *buffer_offset_out = buffer_offset;
+    module_redis_snapshot_serialize_primitive_result_t result;
+    size_t required_buffer_space =
+            module_redis_snapshot_serialize_primitive_encode_length_required_buffer_space(string_length) +
+            string_length;
+
+    // Check if the buffer is big enough
+    if (*buffer_offset_out + required_buffer_space > buffer_size) {
+        result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
+        goto end;
+    }
+
+    // Encode the length
+    if ((result = module_redis_snapshot_serialize_primitive_encode_length(
+            string_length,
+            buffer,
+            buffer_size,
+            *buffer_offset_out,
+            buffer_offset_out)) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK) {
+        goto end;
+    }
+
+    // Copy the string
+    memcpy(buffer + *buffer_offset_out, string, string_length);
+    *buffer_offset_out += string_length;
+
+    end:
+    return result;
+}
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_string_length(
+        size_t string_length,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out) {
+    return module_redis_snapshot_serialize_primitive_encode_length(
+            string_length,
+            buffer,
+            buffer_size,
+            buffer_offset,
+            buffer_offset_out);
+}
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_string_data_plain(
+        char *string,
+        size_t string_length,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out) {
+    *buffer_offset_out = buffer_offset;
+    module_redis_snapshot_serialize_primitive_result_t result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK;
+
+    // Check if the buffer is big enough
+    if (*buffer_offset_out + string_length > buffer_size) {
+        result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
+        goto end;
+    }
+
+    // Copy the string
+    memcpy(buffer + *buffer_offset_out, string, string_length);
+    *buffer_offset_out += string_length;
+
+    end:
+    return result;
+}
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_small_string_int(
+        int64_t string_integer,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out) {
+    *buffer_offset_out = buffer_offset;
+    module_redis_snapshot_serialize_primitive_result_t result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK;
+
+    // Set the base value of the type of encoding (first 2 bits set to 1)
+    buffer[*buffer_offset_out] = 0xC0;
+
+    if (string_integer >= INT8_MIN && string_integer <= INT8_MAX) {
+        // Numbers between INT8_MIN and INT8_MAX are encoded in two bytes, the first byte is set to 0xC0 and the
+        // second byte is set to the number
+        if (*buffer_offset_out + 2 > buffer_size) {
+            result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
+            goto end;
+        }
+
+        // Set the type of encoding
+        buffer[*buffer_offset_out] |= 0x00;
+        (*buffer_offset_out)++;
+
+        // Store the number
+        buffer[*buffer_offset_out] = string_integer & 0xFF;
+        (*buffer_offset_out)++;
+    } else if (string_integer >= INT16_MIN && string_integer <= INT16_MAX) {
+        // Numbers between INT16_MIN and INT16_MAX are encoded in three bytes, the first byte is set to 0xC0 | 0x01 and
+        // the second and third bytes are set to the number
+        if (*buffer_offset_out + 3 > buffer_size) {
+            result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
+            goto end;
+        }
+
+        // Set the type of encoding
+        buffer[*buffer_offset_out] |= 0x01;
+        (*buffer_offset_out)++;
+
+        // Store the number in little endian format
+        buffer[*buffer_offset_out] = string_integer & 0xFF;
+        (*buffer_offset_out)++;
+        buffer[*buffer_offset_out] = (string_integer >> 8) & 0xFF;
+        (*buffer_offset_out)++;
+    } else if (string_integer >= INT32_MIN && string_integer <= INT32_MAX) {
+        // Numbers between INT32_MIN and INT32_MAX are encoded in five bytes, the first byte is set to 0xC0 | 0x02 and
+        // the second, third, fourth and fifth bytes are set to the number.
+        // The number is stored in little endian format
+        if (*buffer_offset_out + 5 > buffer_size) {
+            result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
+            goto end;
+        }
+
+        // Set the type of encoding
+        buffer[*buffer_offset_out] |= 0x02;
+        (*buffer_offset_out)++;
+
+        // Store the number in little endian format
+        buffer[*buffer_offset_out] = string_integer & 0xFF;
+        (*buffer_offset_out)++;
+        buffer[*buffer_offset_out] = (string_integer >> 8) & 0xFF;
+        (*buffer_offset_out)++;
+        buffer[*buffer_offset_out] = (string_integer >> 16) & 0xFF;
+        (*buffer_offset_out)++;
+        buffer[*buffer_offset_out] = (string_integer >> 24) & 0xFF;
+        (*buffer_offset_out)++;
+    } else {
+        result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_INVALID_INTEGER;
+    }
+
+    end:
+    return result;
+}
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_small_string_lzf(
+        char *string,
+        size_t string_length,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out) {
+    assert(string_length > 0);
+
+    *buffer_offset_out = buffer_offset;
+    module_redis_snapshot_serialize_primitive_result_t result;
+    size_t required_buffer_space = 1 + 4 + 4 + LZF_MAX_COMPRESSED_SIZE(string_length);
+
+    // Check if the buffer is big enough
+    if (*buffer_offset_out + required_buffer_space > buffer_size) {
+        result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
+        goto end;
+    }
+
+    // Calculate the offset for the compressed data and the space available for them
+    uint8_t *compressed_data_ptr = buffer + *buffer_offset_out + 9;
+    size_t compressed_data_maxsize = buffer_size - *buffer_offset_out - 9;
+
+    // Try to compress the data
+    size_t compressed_string_length = lzf_compress(
+            string,
+            string_length,
+            compressed_data_ptr,
+            compressed_data_maxsize);
+
+    // Check if the compression was successful, if not, return an error
+    if (compressed_string_length == 0) {
+        result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_COMPRESSION_FAILED;
+        goto end;
+    }
+
+    // If the compression ratio is too low (the compressed string is greater than the raw string), don't use compression
+    if (compressed_string_length > string_length) {
+        result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_COMPRESSION_RATIO_TOO_LOW;
+        goto end;
+    }
+
+    // Set the type of encoding
+    buffer[*buffer_offset_out] = 0xC0 | 0x03;
+    (*buffer_offset_out)++;
+
+    // Encode the length of the string
+    if ((result = module_redis_snapshot_serialize_primitive_encode_length(
+            compressed_string_length,
+            buffer,
+            buffer_size,
+            *buffer_offset_out,
+            buffer_offset_out)) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK) {
+        goto end;
+    }
+
+    // Encode the length of the string
+    if ((result = module_redis_snapshot_serialize_primitive_encode_length(
+            string_length,
+            buffer,
+            buffer_size,
+            *buffer_offset_out,
+            buffer_offset_out)) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK) {
+        goto end;
+    }
+
+    *buffer_offset_out += compressed_string_length;
+
+    end:
+    return result;
+}
+
 module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_opcode_db_number(
         uint64_t db_number,
         uint8_t *buffer,
@@ -253,7 +476,7 @@ end:
     return result;
 }
 
-module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_value_type_id(
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_opcode_value_type(
         module_snapshot_value_type_t value_type,
         uint8_t *buffer,
         size_t buffer_size,
@@ -272,229 +495,6 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
 
     buffer[*buffer_offset_out] = value_type;
     (*buffer_offset_out)++;
-
-end:
-    return result;
-}
-
-module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_key(
-        char *string,
-        size_t string_length,
-        uint8_t *buffer,
-        size_t buffer_size,
-        size_t buffer_offset,
-        size_t *buffer_offset_out) {
-    assert(string_length > 0);
-
-    *buffer_offset_out = buffer_offset;
-    module_redis_snapshot_serialize_primitive_result_t result;
-    size_t required_buffer_space =
-            module_redis_snapshot_serialize_primitive_encode_length_required_buffer_space(string_length) +
-            string_length;
-
-    // Check if the buffer is big enough
-    if (*buffer_offset_out + required_buffer_space > buffer_size) {
-        result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
-        goto end;
-    }
-
-    // Encode the length
-    if ((result = module_redis_snapshot_serialize_primitive_encode_length(
-            string_length,
-            buffer,
-            buffer_size,
-            *buffer_offset_out,
-            buffer_offset_out)) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK) {
-        goto end;
-    }
-
-    // Copy the string
-    memcpy(buffer + *buffer_offset_out, string, string_length);
-    *buffer_offset_out += string_length;
-
-end:
-    return result;
-}
-
-module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_string_length(
-        size_t string_length,
-        uint8_t *buffer,
-        size_t buffer_size,
-        size_t buffer_offset,
-        size_t *buffer_offset_out) {
-    return module_redis_snapshot_serialize_primitive_encode_length(
-            string_length,
-            buffer,
-            buffer_size,
-            buffer_offset,
-            buffer_offset_out);
-}
-
-module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_string_data_plain(
-        char *string,
-        size_t string_length,
-        uint8_t *buffer,
-        size_t buffer_size,
-        size_t buffer_offset,
-        size_t *buffer_offset_out) {
-    *buffer_offset_out = buffer_offset;
-    module_redis_snapshot_serialize_primitive_result_t result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK;
-
-    // Check if the buffer is big enough
-    if (*buffer_offset_out + string_length > buffer_size) {
-        result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
-        goto end;
-    }
-
-    // Copy the string
-    memcpy(buffer + *buffer_offset_out, string, string_length);
-    *buffer_offset_out += string_length;
-
-end:
-    return result;
-}
-
-module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_small_string_int(
-        int64_t string_integer,
-        uint8_t *buffer,
-        size_t buffer_size,
-        size_t buffer_offset,
-        size_t *buffer_offset_out) {
-    *buffer_offset_out = buffer_offset;
-    module_redis_snapshot_serialize_primitive_result_t result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK;
-
-    // Set the base value of the type of encoding (first 2 bits set to 1)
-    buffer[*buffer_offset_out] = 0xC0;
-
-    if (string_integer >= INT8_MIN && string_integer <= INT8_MAX) {
-        // Numbers between INT8_MIN and INT8_MAX are encoded in two bytes, the first byte is set to 0xC0 and the
-        // second byte is set to the number
-        if (*buffer_offset_out + 2 > buffer_size) {
-            result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
-            goto end;
-        }
-
-        // Set the type of encoding
-        buffer[*buffer_offset_out] |= 0x00;
-        (*buffer_offset_out)++;
-
-        // Store the number
-        buffer[*buffer_offset_out] = string_integer & 0xFF;
-        (*buffer_offset_out)++;
-    } else if (string_integer >= INT16_MIN && string_integer <= INT16_MAX) {
-        // Numbers between INT16_MIN and INT16_MAX are encoded in three bytes, the first byte is set to 0xC0 | 0x01 and
-        // the second and third bytes are set to the number
-        if (*buffer_offset_out + 3 > buffer_size) {
-            result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
-            goto end;
-        }
-
-        // Set the type of encoding
-        buffer[*buffer_offset_out] |= 0x01;
-        (*buffer_offset_out)++;
-
-        // Store the number in little endian format
-        buffer[*buffer_offset_out] = string_integer & 0xFF;
-        (*buffer_offset_out)++;
-        buffer[*buffer_offset_out] = (string_integer >> 8) & 0xFF;
-        (*buffer_offset_out)++;
-    } else if (string_integer >= INT32_MIN && string_integer <= INT32_MAX) {
-        // Numbers between INT32_MIN and INT32_MAX are encoded in five bytes, the first byte is set to 0xC0 | 0x02 and
-        // the second, third, fourth and fifth bytes are set to the number.
-        // The number is stored in little endian format
-        if (*buffer_offset_out + 5 > buffer_size) {
-            result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
-            goto end;
-        }
-
-        // Set the type of encoding
-        buffer[*buffer_offset_out] |= 0x02;
-        (*buffer_offset_out)++;
-
-        // Store the number in little endian format
-        buffer[*buffer_offset_out] = string_integer & 0xFF;
-        (*buffer_offset_out)++;
-        buffer[*buffer_offset_out] = (string_integer >> 8) & 0xFF;
-        (*buffer_offset_out)++;
-        buffer[*buffer_offset_out] = (string_integer >> 16) & 0xFF;
-        (*buffer_offset_out)++;
-        buffer[*buffer_offset_out] = (string_integer >> 24) & 0xFF;
-        (*buffer_offset_out)++;
-    } else {
-        result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_INVALID_INTEGER;
-    }
-
-end:
-    return result;
-}
-
-module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_small_string_lzf(
-        char *string,
-        size_t string_length,
-        uint8_t *buffer,
-        size_t buffer_size,
-        size_t buffer_offset,
-        size_t *buffer_offset_out) {
-    assert(string_length > 0);
-
-    *buffer_offset_out = buffer_offset;
-    module_redis_snapshot_serialize_primitive_result_t result;
-    size_t required_buffer_space = 1 + 4 + 4 + LZF_MAX_COMPRESSED_SIZE(string_length);
-
-    // Check if the buffer is big enough
-    if (*buffer_offset_out + required_buffer_space > buffer_size) {
-        result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
-        goto end;
-    }
-
-    // Calculate the offset for the compressed data and the space available for them
-    uint8_t *compressed_data_ptr = buffer + *buffer_offset_out + 9;
-    size_t compressed_data_maxsize = buffer_size - *buffer_offset_out - 9;
-
-    // Try to compress the data
-    size_t compressed_string_length = lzf_compress(
-            string,
-            string_length,
-            compressed_data_ptr,
-            compressed_data_maxsize);
-
-    // Check if the compression was successful, if not, return an error
-    if (compressed_string_length == 0) {
-        result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_COMPRESSION_FAILED;
-        goto end;
-    }
-
-    // If the compression ratio is too low (the compressed string is greater than the raw string), don't use compression
-    if (compressed_string_length > string_length) {
-        result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_COMPRESSION_RATIO_TOO_LOW;
-        goto end;
-    }
-
-    // Set the type of encoding
-    buffer[*buffer_offset_out] = 0xC0 | 0x03;
-    (*buffer_offset_out)++;
-
-    // Encode the length of the string
-    if ((result = module_redis_snapshot_serialize_primitive_encode_length(
-            compressed_string_length,
-            buffer,
-            buffer_size,
-            *buffer_offset_out,
-            buffer_offset_out)) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK) {
-        goto end;
-    }
-
-    // Encode the length of the string
-    if ((result = module_redis_snapshot_serialize_primitive_encode_length(
-            string_length,
-            buffer,
-            buffer_size,
-            *buffer_offset_out,
-            buffer_offset_out)) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK) {
-        goto end;
-    }
-
-    *buffer_offset_out += compressed_string_length;
 
 end:
     return result;
