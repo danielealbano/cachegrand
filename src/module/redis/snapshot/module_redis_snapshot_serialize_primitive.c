@@ -495,3 +495,23 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
 end:
     return result;
 }
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_opcode_eof(
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out) {
+    *buffer_offset_out = buffer_offset;
+    module_redis_snapshot_serialize_primitive_result_t result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK;
+
+    if (*buffer_offset_out + 5 > buffer_size) {
+        result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
+        goto end;
+    }
+
+    buffer[*buffer_offset_out] = MODULE_REDIS_SNAPSHOT_OPCODE_EOF;
+    (*buffer_offset_out)++;
+
+end:
+    return result;
+}
