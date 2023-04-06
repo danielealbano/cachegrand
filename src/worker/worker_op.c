@@ -6,44 +6,10 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
-#include <stdint.h>
 #include <stdbool.h>
-#include <arpa/inet.h>
-#include <stddef.h>
 
-#include "exttypes.h"
-#include "misc.h"
-#include "clock.h"
-#include "fiber/fiber.h"
-#include "log/log.h"
-#include "spinlock.h"
-#include "transaction.h"
-#include "transaction_spinlock.h"
-#include "data_structures/hashtable/mcmp/hashtable.h"
-#include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
-#include "data_structures/double_linked_list/double_linked_list.h"
-#include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
-#include "config.h"
-#include "module/module.h"
-#include "network/io/network_io_common.h"
-#include "network/channel/network_channel.h"
-#include "storage/io/storage_io_common.h"
-#include "storage/channel/storage_channel.h"
-#include "storage/db/storage_db.h"
-#include "worker/worker_stats.h"
-#include "worker/worker_context.h"
-#include "fiber/fiber_scheduler.h"
 #include "worker/worker_op.h"
 
 #define TAG "worker_op"
 
 worker_op_timer_fp_t* worker_op_timer;
-
-void worker_timer_setup(
-        worker_context_t* worker_context) {
-    worker_context->fibers.timer_fiber = fiber_scheduler_new_fiber(
-            "worker-timer",
-            sizeof("worker-timer") - 1,
-            worker_timer_fiber_entrypoint,
-            NULL);
-}
