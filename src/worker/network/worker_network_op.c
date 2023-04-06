@@ -38,6 +38,7 @@
 #include "config.h"
 #include "log/log.h"
 #include "fiber/fiber.h"
+#include "fiber/fiber_scheduler.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
@@ -48,6 +49,7 @@
 #include "worker/worker_context.h"
 #include "worker/worker.h"
 #include "worker/worker_op.h"
+#include "worker/worker_fiber.h"
 #include "memory_allocator/ffma.h"
 #include "support/simple_file_io.h"
 #include "fiber/fiber_scheduler.h"
@@ -268,20 +270,21 @@ end:
     return return_res;
 }
 
-void worker_network_listeners_listen(
-        fiber_t **listeners_fibers,
+bool worker_network_listeners_listen(
+        worker_context_t *worker_context,
         network_channel_t *listeners,
         uint8_t listeners_count) {
     for (int listener_index = 0; listener_index < listeners_count; listener_index++) {
-        network_channel_t *listener_channel = worker_op_network_channel_multi_get(
-                listeners,
-                listener_index);
-
-        listeners_fibers[listener_index] = fiber_scheduler_new_fiber(
-                "worker-listener",
-                sizeof("worker-listener") - 1,
+        if (!worker_fiber_register(
+                worker_context,
+                "worker-fiber-listener",
                 worker_network_listeners_fiber_entrypoint,
-                (void *)listener_channel);
+                (void *)worker_op_network_channel_multi_get(
+                        listeners,
+                        listener_index))) {
+            LOG_E(TAG, "Failed to register listener fiber");
+            return false;
+        }
     }
 }
 
@@ -324,7 +327,6 @@ void worker_network_new_client_fiber_entrypoint(
                     new_channel);
             break;
     }
-
 
     // TODO: when ti gets here new_channel might have been already freed, the flow should always close the connection
     //       the connection here and not from within the module
