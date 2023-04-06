@@ -25,6 +25,7 @@
 #include "transaction_spinlock.h"
 #include "fiber/fiber.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
 #include "support/io_uring/io_uring_support.h"
 #include "config.h"
 #include "clock.h"

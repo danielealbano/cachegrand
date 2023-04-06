@@ -69,6 +69,9 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "memory_allocator/ffma.h"
 #include "worker.h"
+#include "worker/worker_fiber.h"
+#include "worker/fiber/worker_fiber_storage_db_gc_deleted_entries.h"
+#include "worker/fiber/worker_fiber_storage_db_initialize.h"
 
 #define TAG "worker"
 
@@ -132,6 +135,10 @@ uint32_t worker_thread_set_affinity(
 
 bool worker_initialize_general(
         worker_context_t* worker_context) {
+    if (!worker_fiber_init(worker_context)) {
+        return false;
+    }
+
     // TODO: the backends should map the their funcs in a struct and these should be used below, can't keep doing ifs :/
     if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
         worker_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
@@ -194,7 +201,6 @@ bool worker_initialize_storage(
 
 void worker_cleanup_network(
         worker_context_t* worker_context,
-        fiber_t **listeners_fibers,
         network_channel_t *listeners,
         uint8_t listeners_count) {
     // TODO: should use a struct with fp pointers, not ifs
@@ -210,10 +216,6 @@ void worker_cleanup_network(
         network_io_common_socket_close(
                 listener_channel->fd,
                 true);
-
-        if (listeners_fibers) {
-            fiber_free(listeners_fibers[listener_index]);
-        }
     }
 
     if (listeners) {
@@ -240,18 +242,6 @@ void worker_cleanup_general(
     if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
         worker_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
         worker_iouring_cleanup(worker_context);
-    }
-
-    if (worker_context->fibers.worker_storage_db_one_shot) {
-        fiber_free(worker_context->fibers.worker_storage_db_one_shot);
-    }
-
-    if (worker_context->fibers.timer_fiber) {
-        fiber_free(worker_context->fibers.timer_fiber);
-    }
-
-    if (worker_context->fibers.listeners_fibers) {
-        ffma_mem_free(worker_context->fibers.listeners_fibers);
     }
 }
 
@@ -295,26 +285,23 @@ void worker_set_aborted(
     MEMORY_FENCE_STORE();
 }
 
-void worker_initialize_storage_db_fiber_entrypoint(
-        void* user_data) {
-    worker_context_t *worker_context = worker_context_get();
-
-    if (!storage_db_open(worker_context->db)) {
-        // TODO: execution has to terminate
-        LOG_E(TAG, "Failed to open the database, terminating");
+bool worker_initialize_storage_db(
+        worker_context_t *worker_context) {
+    if (!worker_fiber_register(
+            worker_context,
+            "worker-fiber-storage-db-initialize",
+            worker_fiber_storage_db_initialize_fiber_entrypoint,
+            NULL)) {
+        return false;
     }
 
-    // Switch back to the scheduler, as the lister has been closed this fiber will never be invoked and will get freed
-    fiber_scheduler_switch_back();
-}
-
-bool worker_initialize_storage_db(
-        worker_context_t *worker_context_t) {
-    worker_context_t->fibers.worker_storage_db_one_shot = fiber_scheduler_new_fiber(
-            "worker-storage-db-one-shot",
-            sizeof("worker-storage-db-one-shot") - 1,
-            worker_initialize_storage_db_fiber_entrypoint,
-            NULL);
+    if (!worker_fiber_register(
+            worker_context,
+            "worker-fiber-storage-db-gc-deleted-entries",
+            worker_fiber_storage_db_gc_deleted_entries_fiber_entrypoint,
+            NULL)) {
+        return false;
+    }
 
     return true;
 }
@@ -326,17 +313,24 @@ void worker_cleanup(
         uint8_t listeners_count,
         worker_module_context_t *worker_module_contexts,
         bool aborted) {
+    worker_fiber_free(
+            worker_context);
 
     worker_module_context_free(
             worker_context->config,
             worker_module_contexts);
+
     worker_cleanup_network(
             worker_context,
-            worker_context->fibers.listeners_fibers,
             listeners,
             listeners_count);
-    worker_cleanup_storage(worker_context);
-    worker_cleanup_general(worker_context);
+
+    worker_cleanup_storage(
+            worker_context);
+
+    worker_cleanup_general(
+            worker_context);
+
     fiber_scheduler_free();
 
     xalloc_free(log_producer_early_prefix_thread);
@@ -357,7 +351,6 @@ void* worker_thread_func(
 
     worker_context->core_index = worker_thread_set_affinity(
             worker_context->worker_index);
-    worker_context->fibers.listeners_fibers = NULL;
     worker_context_set(worker_context);
 
     char* log_producer_early_prefix_thread =
@@ -416,14 +409,10 @@ void* worker_thread_func(
             listeners,
             listeners_count);
 
-    // TODO: cleanup implementation
-    worker_context->fibers.listeners_fibers = ffma_mem_alloc(sizeof(fiber_t*) * listeners_count);
     worker_network_listeners_listen(
-            worker_context->fibers.listeners_fibers,
+            worker_context,
             listeners,
             listeners_count);
-
-    worker_timer_setup(worker_context);
 
     LOG_V(TAG, "Starting events loop");
 
