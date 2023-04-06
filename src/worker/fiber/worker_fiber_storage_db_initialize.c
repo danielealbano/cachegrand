@@ -1,11 +1,10 @@
 /**
- * Copyright (C) 2018-2022 Daniele Salvatore Albano
+ * Copyright (C) 2018-2023 Daniele Salvatore Albano
  * All rights reserved.
  *
  * This software may be modified and distributed under the terms
  * of the BSD license.  See the LICENSE file for details.
  **/
-
 #include <stdint.h>
 #include <stdbool.h>
 #include <arpa/inet.h>
@@ -35,15 +34,19 @@
 #include "fiber/fiber_scheduler.h"
 #include "worker/worker_op.h"
 
-#define TAG "worker_op"
+#include "worker_fiber_storage_db_initialize.h"
 
-worker_op_timer_fp_t* worker_op_timer;
+#define TAG "worker_fiber_storage_db_initialize"
 
-void worker_timer_setup(
-        worker_context_t* worker_context) {
-    worker_context->fibers.timer_fiber = fiber_scheduler_new_fiber(
-            "worker-timer",
-            sizeof("worker-timer") - 1,
-            worker_timer_fiber_entrypoint,
-            NULL);
+void worker_fiber_storage_db_initialize_fiber_entrypoint(
+        void* user_data) {
+    worker_context_t *worker_context = worker_context_get();
+
+    if (!storage_db_open(worker_context->db)) {
+        // TODO: execution has to terminate
+        LOG_E(TAG, "Failed to open the database, terminating");
+    }
+
+    // Switch back to the scheduler, as the lister has been closed this fiber will never be invoked and will get freed
+    fiber_scheduler_switch_back();
 }

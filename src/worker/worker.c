@@ -308,14 +308,6 @@ void worker_initialize_storage_db_fiber_entrypoint(
     fiber_scheduler_switch_back();
 }
 
-bool worker_initialize_storage_db(
-        worker_context_t *worker_context_t) {
-    worker_context_t->fibers.worker_storage_db_one_shot = fiber_scheduler_new_fiber(
-            "worker-storage-db-one-shot",
-            sizeof("worker-storage-db-one-shot") - 1,
-            worker_initialize_storage_db_fiber_entrypoint,
-            NULL);
-
     return true;
 }
 

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2018-2022 Daniele Salvatore Albano
+ * Copyright (C) 2018-2023 Daniele Salvatore Albano
  * All rights reserved.
  *
  * This software may be modified and distributed under the terms
@@ -35,15 +35,19 @@
 #include "fiber/fiber_scheduler.h"
 #include "worker/worker_op.h"
 
-#define TAG "worker_op"
+#include "worker_fiber_storage_db_gc_deleted_entries.h"
 
-worker_op_timer_fp_t* worker_op_timer;
+#define TAG "worker_fiber_gc_deleted_storage_db_entries"
 
-void worker_timer_setup(
-        worker_context_t* worker_context) {
-    worker_context->fibers.timer_fiber = fiber_scheduler_new_fiber(
-            "worker-timer",
-            sizeof("worker-timer") - 1,
-            worker_timer_fiber_entrypoint,
-            NULL);
+void worker_fiber_storage_db_gc_deleted_entries_fiber_entrypoint(
+        void *user_data) {
+    worker_context_t* worker_context = worker_context_get();
+
+    while(worker_op_timer(0, WORKER_FIBER_GC_DELETED_STORAGE_DB_ENTRIES_TIMER_LOOP_MS * 1000000l)) {
+        // The condition checked below is mostly for the tests, as there are some simple tests that should setup the
+        // storage_db otherwise
+        if (likely(worker_context->db)) {
+            storage_db_worker_garbage_collect_deleting_entry_index_when_no_readers(worker_context->db);
+        }
+    }
 }
