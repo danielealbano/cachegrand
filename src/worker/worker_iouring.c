@@ -64,6 +64,8 @@ static thread_local uint32_t fds_map_mask = 0;
 static thread_local uint32_t fds_map_last_free = 0;
 
 static thread_local bool io_uring_supports_op_files_update_link = false;
+static thread_local bool io_uring_supports_setup_taskrun = false;
+static thread_local bool io_uring_supports_single_issuer = false;
 
 #define TAG "worker_iouring"
 
@@ -316,6 +318,8 @@ void worker_iouring_check_capabilities() {
     LOG_V(TAG, "Checking io_uring supported features");
     io_uring_supports_op_files_update_link =
             io_uring_capabilities_is_linked_op_files_update_supported();
+    io_uring_supports_setup_taskrun = io_uring_capabilities_is_setup_taskrun_supported();
+    io_uring_supports_single_issuer = io_uring_capabilities_is_single_issuer_supported();
 }
 
 bool worker_iouring_initialize(
@@ -344,6 +348,16 @@ bool worker_iouring_initialize(
                     TAG,
                     "io_uring linking not supported, accepting new connections will incur in a"
                         " performance penalty");
+        }
+
+        if (io_uring_supports_setup_taskrun) {
+            LOG_V(TAG, "io_uring coop taskrun supported and enabled");
+            params->flags |= IORING_SETUP_TASKRUN_FLAG | IORING_SETUP_COOP_TASKRUN;
+        }
+
+        if (io_uring_supports_single_issuer) {
+            LOG_V(TAG, "io_uring single issuer supported and enabled");
+            params->flags |= IORING_SETUP_SINGLE_ISSUER;
         }
     }
 

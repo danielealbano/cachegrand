@@ -20,7 +20,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <io_uring.h>
 
 #include "support/io_uring/io_uring_support.h"
 #include "module/module.h"

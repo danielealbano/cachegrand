@@ -1,38 +1,31 @@
+include(ProcessorCount)
 include(ExternalProject)
-file(GLOB SRC_FILES_LIBURING "liburing/src/*.c")
 
-# The configure script generates a few files and expects an in-place build so we need to set the BUILD_INSOURCE flag
-# to 1 to make it work.
-# This will also allow the target_include_directories to work properly
-set(LIBURING_BUILD_PATH "${CMAKE_BINARY_DIR}/_deps/src/liburing-build-build")
-set(LIBURING_CONFIGURE_INCLUDE_PATH "${LIBURING_BUILD_PATH}/src/include")
-file(MAKE_DIRECTORY ${LIBURING_CONFIGURE_INCLUDE_PATH}/liburing)
-file(TOUCH ${LIBURING_CONFIGURE_INCLUDE_PATH}/liburing/config-host.h)
+# As cmake will run the build from a different folder, the configure needs have a specific folder already existing for
+# it to work as expected so here it gets pre-created
+set(LIBURING_SRC_PATH "${CMAKE_BINARY_DIR}/_deps/src/liburing")
+set(LIBURING_BUILD_PATH "${CMAKE_BINARY_DIR}/_deps/src/liburing-build")
+set(LIBURING_INCLUDE_PATH "${LIBURING_SRC_PATH}/src/include")
+file(MAKE_DIRECTORY "${LIBURING_BUILD_PATH}/src/include/liburing")
 
+# Setup the buid
+ProcessorCount(BUILD_CPU_CORES)
 ExternalProject_Add(
-        liburing-build
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/liburing
+        liburing
+        GIT_REPOSITORY https://github.com/axboe/liburing.git
+        GIT_TAG 4915f2af869876d892a1f591ee2c21be21c6fc5c # tag liburing-2.3
         PREFIX ${CMAKE_BINARY_DIR}/_deps
-        CONFIGURE_COMMAND chmod +x ${CMAKE_CURRENT_SOURCE_DIR}/liburing/configure && ${CMAKE_CURRENT_SOURCE_DIR}/liburing/configure --prefix=${CMAKE_BINARY_DIR}/_deps/liburing/install
-        INSTALL_COMMAND cmake -E echo "Skipping install step."
-        BUILD_COMMAND cmake -E echo "Skipping build step.")
+        BUILD_BYPRODUCTS ${LIBURING_SRC_PATH}/src/liburing.a
+        CONFIGURE_COMMAND
+        chmod +x ${LIBURING_SRC_PATH}/configure && ${LIBURING_SRC_PATH}/configure --prefix=${CMAKE_BINARY_DIR}/_deps/liburing/install
+        BUILD_COMMAND
+        make -C ${LIBURING_SRC_PATH} -j ${BUILD_CPU_CORES}
+        INSTALL_COMMAND "")
 
-add_library(
-        uring
-        ${SRC_FILES_LIBURING})
+set(LIBURING_LIBRARY_DIRS "${LIBURING_SRC_PATH}/src")
+set(LIBURING_INCLUDE_DIRS "${LIBURING_INCLUDE_PATH}")
+set(LIBURING_LIBRARIES_STATIC "liburing.a")
 
-add_dependencies(
-        uring
-        liburing-build)
-
-target_compile_options(
-        uring
-        PRIVATE
-        -include ${LIBURING_CONFIGURE_INCLUDE_PATH}/liburing/config-host.h -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare)
-
-target_include_directories(
-        uring
-        PUBLIC
-        liburing/src/include liburing/src/include/liburing ${LIBURING_CONFIGURE_INCLUDE_PATH} ${LIBURING_BUILD_PATH})
-
-list(APPEND DEPS_LIST_LIBRARIES "uring")
+list(APPEND DEPS_LIST_LIBRARIES_PRIVATE "${LIBURING_LIBRARIES_STATIC}")
+list(APPEND DEPS_LIST_INCLUDE_DIRS "${LIBURING_INCLUDE_DIRS}")
+list(APPEND DEPS_LIST_LIBRARY_DIRS "${LIBURING_LIBRARY_DIRS}")
