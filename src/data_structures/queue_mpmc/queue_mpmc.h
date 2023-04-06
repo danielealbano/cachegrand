@@ -20,7 +20,8 @@ typedef _Volatile(queue_mpmc_node_t) queue_mpmc_node_volatile_t;
 typedef struct queue_mpmc_page queue_mpmc_page_t;
 typedef _Volatile(queue_mpmc_page_t) queue_mpmc_page_volatile_t;
 struct queue_mpmc_page {
-    queue_mpmc_page_volatile_t *prev;
+    queue_mpmc_page_volatile_t *prev_page;
+    queue_mpmc_page_volatile_t *next_page;
     queue_mpmc_node_volatile_t nodes[];
 };
 
