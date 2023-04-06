@@ -18,6 +18,7 @@
 #include "clock.h"
 #include "config.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "worker/worker.h"
