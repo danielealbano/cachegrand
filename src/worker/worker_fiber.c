@@ -34,6 +34,8 @@ bool worker_fiber_init(
         LOG_E(TAG, "Failed to initialize the fibers list");
         return false;
     }
+
+    return true;
 }
 
 bool worker_fiber_register(
@@ -78,4 +80,7 @@ void worker_fiber_free(
         fiber_free(fiber);
         double_linked_list_item_free(item);
     }
+
+    double_linked_list_free(worker_context->fibers);
+    worker_context->fibers = NULL;
 }
