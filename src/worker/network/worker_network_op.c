@@ -314,7 +314,6 @@ void worker_network_new_client_fiber_entrypoint(
                     "[FD:%5d][ACCEPT] Channel unknown protocol <%d>",
                     new_channel->fd,
                     new_channel->protocol);
-            break;
 
         case MODULE_TYPE_REDIS:
             module_redis_accept(
@@ -326,7 +325,6 @@ void worker_network_new_client_fiber_entrypoint(
             break;
     }
 
-end:
 
     // TODO: when ti gets here new_channel might have been already freed, the flow should always close the connection
     //       the connection here and not from within the module

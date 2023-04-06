@@ -325,8 +325,13 @@ void worker_cleanup(
             worker_context,
             listeners,
             listeners_count);
-    worker_cleanup_storage(worker_context);
-    worker_cleanup_general(worker_context);
+
+    worker_cleanup_storage(
+            worker_context);
+
+    worker_cleanup_general(
+            worker_context);
+
     fiber_scheduler_free();
 
     xalloc_free(log_producer_early_prefix_thread);
