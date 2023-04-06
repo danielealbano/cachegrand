@@ -72,7 +72,6 @@
 #include "worker/worker_fiber.h"
 #include "worker/fiber/worker_fiber_storage_db_gc_deleted_entries.h"
 #include "worker/fiber/worker_fiber_storage_db_initialize.h"
-#include "worker/fiber/worker_fiber_storage_db_keys_eviction.h"
 
 #define TAG "worker"
 
