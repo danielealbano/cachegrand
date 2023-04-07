@@ -5,6 +5,16 @@
 extern "C" {
 #endif
 
+extern uint64_t intrinsics_cycles_per_second;
+
+void intrinsics_cycles_per_second_calibrate();
+
+uint64_t intrinsics_cycles_per_second_calculate();
+
+static inline  uint64_t intrinsics_cycles_per_second_get() {
+    return intrinsics_cycles_per_second;
+}
+
 static inline uint64_t intrinsics_tsc() {
 #if defined(__x86_64__)
     uint64_t rax, rdx;
