@@ -35,8 +35,6 @@
 
 #define TAG "worker_fiber_storage_db_initialize"
 
-#define STORAGE_DB_KEYS_EVICTION_CLOSE_TO_HARD_LIMIT_PERCENTAGE_THRESHOLD 0.95
-
 void worker_fiber_storage_db_keys_eviction_fiber_entrypoint(
         void* user_data) {
     worker_context_t *worker_context = worker_context_get();
@@ -61,7 +59,7 @@ void worker_fiber_storage_db_keys_eviction_fiber_entrypoint(
 
             // Upscale close_to_hard_limit to take into account the threshold
             close_to_hard_limit =
-                    close_to_hard_limit * (1 + (1 - STORAGE_DB_KEYS_EVICTION_CLOSE_TO_HARD_LIMIT_PERCENTAGE_THRESHOLD));
+                    close_to_hard_limit * (1 + (1 - WORKER_FIBER_STORAGE_DB_KEYS_EVICTION_CLOSE_TO_HARD_LIMIT_PERCENTAGE_THRESHOLD));
 
             // Ensure that close_to_hard_limit isn't greater than 1
             if (unlikely(close_to_hard_limit > 1)) {
@@ -88,7 +86,7 @@ void worker_fiber_storage_db_keys_eviction_fiber_entrypoint(
             eviction_run = true;
 
         } while(storage_db_keys_eviction_calculate_close_to_hard_limit_percentage(worker_context->db) >
-                STORAGE_DB_KEYS_EVICTION_CLOSE_TO_HARD_LIMIT_PERCENTAGE_THRESHOLD);
+                WORKER_FIBER_STORAGE_DB_KEYS_EVICTION_CLOSE_TO_HARD_LIMIT_PERCENTAGE_THRESHOLD);
 
         if (eviction_run) {
             last_run = clock_monotonic_coarse_int64_ms();
