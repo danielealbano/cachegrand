@@ -159,4 +159,49 @@ TEST_CASE("hashtable/hashtable_mcmp_op_iter.c", "[hashtable][hashtable_op][hasht
             })
         }
     }
+
+    SECTION("hashtable_mcmp_op_iter_max_distance") {
+        SECTION("hashtable empty") {
+            hashtable_bucket_index_t bucket_index = 0;
+
+            HASHTABLE(0x7FFF, false, {
+                REQUIRE(!hashtable_mcmp_op_iter_max_distance(hashtable, &bucket_index, 100));
+                REQUIRE(bucket_index + 1== 100 - (100 % HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT);
+            })
+        }
+
+        SECTION("Chunk within distance") {
+            hashtable_bucket_index_t bucket_index = 0;
+
+            HASHTABLE(0x7FFF, false, {
+                // Not necessary to free, the key(s) is owned by the hashtable
+                char *test_key_1_copy = (char*)xalloc_alloc(test_key_1_len + 1);
+                strcpy(test_key_1_copy, test_key_1);
+
+                hashtable_chunk_index_t chunk_index1 = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
+                        hashtable->ht_current->buckets_count,
+                        test_key_1_hash));
+                HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(
+                        chunk_index1,
+                        0,
+                        test_key_1_hash,
+                        test_key_1_copy,
+                        test_key_1_len,
+                        test_value_1);
+
+                hashtable_mcmp_op_iter_max_distance(hashtable,&bucket_index, HASHTABLE_TO_BUCKET_INDEX(chunk_index1, 0) + 1);
+                REQUIRE(bucket_index == HASHTABLE_TO_BUCKET_INDEX(chunk_index1, 0));
+
+                bucket_index++;
+                REQUIRE(!hashtable_mcmp_op_iter_max_distance(hashtable, &bucket_index, 2000));
+
+                hashtable_bucket_index_t expected_bucket_index =
+                        HASHTABLE_TO_BUCKET_INDEX(chunk_index1, 0) +
+                        2000 - (2000 % HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) +
+                            HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT +
+                        HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
+                REQUIRE(bucket_index + 1 == expected_bucket_index);
+            })
+        }
+    }
 }

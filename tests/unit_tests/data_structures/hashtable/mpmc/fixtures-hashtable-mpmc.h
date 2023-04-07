@@ -125,6 +125,7 @@ hashtable_hash_quarter_t test_key_long_1_hash_quarter = test_key_long_1_hash_hal
     hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index)]
 
 #define HASHTABLE_SET_INDEX_SHARED(chunk_index, chunk_slot_index, hash, value) \
+    HASHTABLE_HALF_HASHES_CHUNK(chunk_index).metadata.changes_counter++; \
     HASHTABLE_HALF_HASHES_CHUNK(chunk_index).half_hashes[chunk_slot_index].quarter_hash = \
         (hash >> 32u) & 0xFFFFu; \
     HASHTABLE_HALF_HASHES_CHUNK(chunk_index).half_hashes[chunk_slot_index].distance = 0; \
