@@ -125,7 +125,7 @@ struct hashtable_half_hashes_chunk {
         uint32_t padding;
         struct {
             uint8_volatile_t overflowed_chunks_counter;
-            uint8_volatile_t changes_counter;
+            uint8_volatile_t slots_occupied;
             uint8_volatile_t is_full;
         };
     } metadata;

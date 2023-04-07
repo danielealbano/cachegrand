@@ -72,7 +72,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
     LOG_DI("hashtable_data->buckets_count_real = %lu", hashtable_data->buckets_count_real);
     LOG_DI("half_hashes_chunk->write_lock.lock = %d", half_hashes_chunk->write_lock.transaction_id);
     LOG_DI("half_hashes_chunk->metadata.is_full = %lu", half_hashes_chunk->metadata.is_full);
-    LOG_DI("half_hashes_chunk->metadata.changes_counter = %lu", half_hashes_chunk->metadata.changes_counter);
+    LOG_DI("half_hashes_chunk->metadata.slots_occupied = %lu", half_hashes_chunk->metadata.slots_occupied);
     LOG_DI("half_hashes_chunk->metadata.overflowed_chunks_counter = %lu", overflowed_chunks_counter);
 
     slot_id_wrapper.filled = 1;
@@ -93,6 +93,11 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
         LOG_DI("> chunk_index = %lu", chunk_index);
 
         half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
+
+        if (half_hashes_chunk->metadata.slots_occupied == 0) {
+            LOG_DI(">> skipping chunk because it's empty");
+            continue;
+        }
 
         skip_indexes_mask = 0;
 
@@ -266,7 +271,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
 
     LOG_DI("half_hashes_chunk->write_lock.lock = %lu", half_hashes_chunk->write_lock.transaction_id);
     LOG_DI("half_hashes_chunk->metadata.is_full = %lu", half_hashes_chunk->metadata.is_full);
-    LOG_DI("half_hashes_chunk->metadata.changes_counter = %lu", half_hashes_chunk->metadata.changes_counter);
+    LOG_DI("half_hashes_chunk->metadata.slots_occupied = %lu", half_hashes_chunk->metadata.slots_occupied);
     LOG_DI("half_hashes_chunk->metadata.overflowed_chunks_counter = %lu", overflowed_chunks_counter);
 
     slot_id_wrapper.filled = 1;
@@ -336,6 +341,11 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                         LOG_DI(">> found chunk with free space");
                         found_chunk_with_freespace = true;
                     }
+                }
+
+                if (half_hashes_chunk->metadata.slots_occupied == 0) {
+                    LOG_DI(">> skipping chunk because it's empty");
+                    continue;
                 }
             }
 
@@ -410,9 +420,10 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                     LOG_DI(">>> empty slot found, updating the half_hashes in the chunk with the hash");
                 }
 
-                // Update the changes counter to the current chunk
-                half_hashes_chunk->metadata.changes_counter++;
-                LOG_DI(">>> incrementing the changes counter to %d", half_hashes_chunk->metadata.changes_counter);
+                // Update the counter for the occupied slots
+                half_hashes_chunk->metadata.slots_occupied++;
+                assert(half_hashes_chunk->metadata.slots_occupied <= HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT);
+                LOG_DI(">>> incrementing the slots_occupied to %d", half_hashes_chunk->metadata.slots_occupied);
 
                 *found_half_hashes_chunk = half_hashes_chunk;
                 *found_key_value = key_value;
