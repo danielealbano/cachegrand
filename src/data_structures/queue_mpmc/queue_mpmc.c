@@ -94,6 +94,7 @@ bool queue_mpmc_push(
         if (unlikely(head_new.data.node_index == queue_mpmc->max_nodes_per_page - 1)) {
             // Check if the current page has a next page
             if (likely(head_new.data.nodes_page->next_page)) {
+                // Fetch the next page and update the head to point to it
                 head_new.data.nodes_page = head_new.data.nodes_page->next_page;
             } else {
                 // Allocate a new page for the queue nodes and force the initialization setting the first byte to 0
@@ -175,13 +176,17 @@ void *queue_mpmc_pop(
         // Checks if the current page is full
         if (unlikely(head_new.data.node_index == -1)) {
             if (likely(head_new.data.nodes_page->prev_page)) {
-                // The next_page on the prev_page might still have to be set so before switching back we wait to ensure
-                // that next_page of the prev_page points to the current page
-
                 // The nodes page has to be updated to point to the previous one and node_index has to point at the end
                 // of the page.
                 head_new.data.nodes_page = head_new.data.nodes_page->prev_page;
                 head_new.data.node_index = (int16_volatile_t)(queue_mpmc->max_nodes_per_page - 1);
+
+                // Wait if next_page is null for consistency, potentially another thread will try to push causing the
+                // next_page to be read as null and a new page to be allocated de-facto breaking the chain and leading
+                // to a memory loss
+                while(unlikely(head_new.data.nodes_page->next_page == NULL)) {
+                    MEMORY_FENCE_LOAD();
+                }
             }
         }
 
