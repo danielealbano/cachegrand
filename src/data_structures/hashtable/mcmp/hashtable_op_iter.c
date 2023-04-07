@@ -53,7 +53,7 @@ void *hashtable_mcmp_op_data_iter(
         }
 
         // If a chunk has no changes it can be skipped
-        if (half_hashes_chunk->metadata.changes_counter == 0) {
+        if (half_hashes_chunk->metadata.slots_occupied == 0) {
             distance += HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT - chunk_slot_index;
             *bucket_index = (chunk_index * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT - 1;
             chunk_slot_index = 0;
