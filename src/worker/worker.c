@@ -373,23 +373,23 @@ void* worker_thread_func(
     }
 
     if (!worker_initialize_network(worker_context)) {
-        LOG_E(TAG, "Unable to initialize the network, can't continue!");
+        LOG_E(TAG, "Unable to initialize the network subsystem!");
         goto end;
     }
 
     if (!worker_initialize_storage(worker_context)) {
-        LOG_E(TAG, "Unable to initialize the storage, can't continue!");
+        LOG_E(TAG, "Unable to initialize the storage subsystem!");
         goto end;
     }
 
     if (worker_initialize_storage_db(worker_context) == false) {
-        LOG_E(TAG, "Unable to initialize the database, can't continue!");
+        LOG_E(TAG, "Unable to initialize the database!");
         goto end;
     }
 
     if ((worker_module_contexts = worker_module_contexts_initialize(
             worker_context->config)) == NULL) {
-        LOG_E(TAG, "Unable to initialize the listeners, can't continue!");
+        LOG_E(TAG, "Unable to initialize the listeners!");
         goto end;
     }
 
@@ -400,7 +400,7 @@ void* worker_thread_func(
             worker_module_contexts,
             &listeners,
             &listeners_count)) {
-        LOG_E(TAG, "Unable to initialize the listeners, can't continue!");
+        LOG_E(TAG, "Unable to initialize the listeners!");
         goto end;
     }
 
