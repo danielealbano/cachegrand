@@ -41,6 +41,7 @@ void worker_fiber_storage_db_keys_eviction_fiber_entrypoint(
 
     uint64_t last_run = clock_monotonic_coarse_int64_ms();
     while(worker_op_wait_ms(WORKER_FIBER_STORAGE_DB_KEYS_EVICTION_WAIT_LOOP_MS)) {
+        uint64_t iterations = 0;
         bool eviction_run = false;
 
         // Check if limits have been passed
@@ -84,9 +85,10 @@ void worker_fiber_storage_db_keys_eviction_fiber_entrypoint(
                     worker_context->config->database->keys_eviction->policy);
 
             eviction_run = true;
-
-        } while(storage_db_keys_eviction_calculate_close_to_hard_limit_percentage(worker_context->db) >
-                WORKER_FIBER_STORAGE_DB_KEYS_EVICTION_CLOSE_TO_HARD_LIMIT_PERCENTAGE_THRESHOLD);
+            iterations++;
+        } while(iterations < 100 &&
+                storage_db_keys_eviction_calculate_close_to_hard_limit_percentage(worker_context->db) >
+                    WORKER_FIBER_STORAGE_DB_KEYS_EVICTION_CLOSE_TO_HARD_LIMIT_PERCENTAGE_THRESHOLD);
 
         if (eviction_run) {
             last_run = clock_monotonic_coarse_int64_ms();
