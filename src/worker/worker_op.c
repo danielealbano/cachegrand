@@ -7,9 +7,11 @@
  **/
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "worker/worker_op.h"
 
 #define TAG "worker_op"
 
-worker_op_timer_fp_t* worker_op_timer;
+worker_op_wait_fp_t* worker_op_wait;
+worker_op_wait_ms_fp_t* worker_op_wait_ms;
