@@ -171,7 +171,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         &prev_value2));
 
                 // Check if the first slot of the chain ring contains the correct key/value
-                REQUIRE(half_hashes_chunk->metadata.slots_occupied == 2);
+                REQUIRE(half_hashes_chunk->metadata.slots_occupied == 1);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].distance == 0);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
