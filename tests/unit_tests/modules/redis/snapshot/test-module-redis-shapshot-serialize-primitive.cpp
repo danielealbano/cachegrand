@@ -16,6 +16,7 @@
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 #include "random.h"
+#include "clock.h"
 
 #include "module/redis/snapshot/module_redis_snapshot.h"
 #include "module/redis/snapshot/module_redis_snapshot_serialize_primitive.h"
@@ -1164,6 +1165,160 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
                 size_t key_length = strlen(key);
                 sprintf(string, "value%d", i);
                 size_t string_length = strlen(string);
+
+                REQUIRE(module_redis_snapshot_serialize_primitive_encode_opcode_value_type(
+                        MODULE_REDIS_SNAPSHOT_VALUE_TYPE_STRING,
+                        buffer,
+                        buffer_size,
+                        buffer_offset_out,
+                        &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+                REQUIRE(module_redis_snapshot_serialize_primitive_encode_key(
+                        key,
+                        key_length,
+                        buffer,
+                        buffer_size,
+                        buffer_offset_out,
+                        &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+                REQUIRE(module_redis_snapshot_serialize_primitive_encode_string_length(
+                        string_length,
+                        buffer,
+                        buffer_size,
+                        buffer_offset_out,
+                        &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+                REQUIRE(module_redis_snapshot_serialize_primitive_encode_string_data_plain(
+                        string,
+                        string_length,
+                        buffer,
+                        buffer_size,
+                        buffer_offset_out,
+                        &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+            }
+
+            REQUIRE(module_redis_snapshot_serialize_primitive_encode_opcode_eof(
+                    0,
+                    buffer,
+                    buffer_size,
+                    buffer_offset_out,
+                    &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+            // Write the data
+            REQUIRE(test_module_redis_snapshot_serialize_primitive_vaidate_rdb((char*)buffer, buffer_offset_out));
+        }
+
+        SECTION("generate an rdb with 5 random strings with random expiration in ms (not expired)") {
+            uint8_t buffer[1024];
+            size_t buffer_size = sizeof(buffer);
+            size_t buffer_offset_out = 0;
+            module_redis_snapshot_header_t module_redis_snapshot_header = { .version = rdb_version };
+
+            REQUIRE(module_redis_snapshot_serialize_primitive_encode_header(
+                    &module_redis_snapshot_header,
+                    buffer,
+                    buffer_size,
+                    buffer_offset_out,
+                    &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+            REQUIRE(module_redis_snapshot_serialize_primitive_encode_opcode_db_number(
+                    0,
+                    buffer,
+                    buffer_size,
+                    buffer_offset_out,
+                    &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+            for (int i = 0; i < 5; i++) {
+                char key[10];
+                char string[10];
+                sprintf(key, "key%d", i);
+                size_t key_length = strlen(key);
+                sprintf(string, "value%d", i);
+                size_t string_length = strlen(string);
+
+                REQUIRE(module_redis_snapshot_serialize_primitive_encode_opcode_expire_time_ms(
+                        clock_realtime_int64_ms() + (random_generate() % 1000000),
+                        buffer,
+                        buffer_size,
+                        buffer_offset_out,
+                        &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+                REQUIRE(module_redis_snapshot_serialize_primitive_encode_opcode_value_type(
+                        MODULE_REDIS_SNAPSHOT_VALUE_TYPE_STRING,
+                        buffer,
+                        buffer_size,
+                        buffer_offset_out,
+                        &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+                REQUIRE(module_redis_snapshot_serialize_primitive_encode_key(
+                        key,
+                        key_length,
+                        buffer,
+                        buffer_size,
+                        buffer_offset_out,
+                        &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+                REQUIRE(module_redis_snapshot_serialize_primitive_encode_string_length(
+                        string_length,
+                        buffer,
+                        buffer_size,
+                        buffer_offset_out,
+                        &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+                REQUIRE(module_redis_snapshot_serialize_primitive_encode_string_data_plain(
+                        string,
+                        string_length,
+                        buffer,
+                        buffer_size,
+                        buffer_offset_out,
+                        &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+            }
+
+            REQUIRE(module_redis_snapshot_serialize_primitive_encode_opcode_eof(
+                    0,
+                    buffer,
+                    buffer_size,
+                    buffer_offset_out,
+                    &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+            // Write the data
+            REQUIRE(test_module_redis_snapshot_serialize_primitive_vaidate_rdb((char*)buffer, buffer_offset_out));
+        }
+
+        SECTION("generate an rdb with 5 random strings with random expiration in ms (expired)") {
+            uint8_t buffer[1024];
+            size_t buffer_size = sizeof(buffer);
+            size_t buffer_offset_out = 0;
+            module_redis_snapshot_header_t module_redis_snapshot_header = { .version = rdb_version };
+
+            REQUIRE(module_redis_snapshot_serialize_primitive_encode_header(
+                    &module_redis_snapshot_header,
+                    buffer,
+                    buffer_size,
+                    buffer_offset_out,
+                    &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+            REQUIRE(module_redis_snapshot_serialize_primitive_encode_opcode_db_number(
+                    0,
+                    buffer,
+                    buffer_size,
+                    buffer_offset_out,
+                    &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
+
+            for (int i = 0; i < 5; i++) {
+                char key[10];
+                char string[10];
+                sprintf(key, "key%d", i);
+                size_t key_length = strlen(key);
+                sprintf(string, "value%d", i);
+                size_t string_length = strlen(string);
+
+                REQUIRE(module_redis_snapshot_serialize_primitive_encode_opcode_expire_time_ms(
+                        clock_realtime_int64_ms() - (random_generate() % 1000000),
+                        buffer,
+                        buffer_size,
+                        buffer_offset_out,
+                        &buffer_offset_out) == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK);
 
                 REQUIRE(module_redis_snapshot_serialize_primitive_encode_opcode_value_type(
                         MODULE_REDIS_SNAPSHOT_VALUE_TYPE_STRING,
