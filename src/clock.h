@@ -17,12 +17,15 @@ extern "C" {
 #include <assert.h>
 #endif
 
+#include "intrinsics.h"
+
 #include "misc.h"
 #include "fatal.h"
 
 typedef struct timespec timespec_t;
 
 int64_t clock_monotonic_coarse_get_resolution_ms();
+
 int64_t clock_realtime_coarse_get_resolution_ms();
 
 static inline __attribute__((always_inline)) int64_t clock_timespec_to_int64_ms(
@@ -35,28 +38,37 @@ static inline __attribute__((always_inline)) int64_t clock_timespec_to_int64_ms(
 
 static inline __attribute__((always_inline)) void clock_monotonic(
         timespec_t *timespec) {
-    if (unlikely(clock_gettime(CLOCK_MONOTONIC, timespec) < 0)) {
-        FATAL("clock", "Unable to fetch the time");
-    }
+    uint64_t cycles = intrinsics_tsc();
+    uint64_t cycles_per_second = intrinsics_cycles_per_second_get();
+    uint64_t seconds = cycles / cycles_per_second;
+    uint64_t remaining_cycles = cycles % cycles_per_second;
+
+    uint64_t quotient = 1000000000ULL / cycles_per_second;
+    uint64_t remainder = 1000000000ULL % cycles_per_second;
+    uint64_t nanoseconds = ((remaining_cycles * quotient) + (remaining_cycles * remainder)) / cycles_per_second;
+
+    timespec->tv_sec = (long)seconds;
+    timespec->tv_nsec = (long)nanoseconds;
 }
 
 static inline __attribute__((always_inline)) int64_t clock_monotonic_int64_ms() {
-    timespec_t timespec;
-    clock_monotonic(&timespec);
-    return clock_timespec_to_int64_ms(&timespec);
+    uint64_t cycles = intrinsics_tsc();
+    uint64_t cycles_per_second = intrinsics_cycles_per_second_get();
+
+    uint64_t quotient = 1000ULL / cycles_per_second;
+    uint64_t remainder = 1000ULL % cycles_per_second;
+    uint64_t milliseconds = ((cycles * quotient) + (cycles * remainder)) / cycles_per_second;
+
+    return (int64_t)milliseconds;
 }
 
 static inline __attribute__((always_inline)) void clock_monotonic_coarse(
         timespec_t *timespec) {
-    if (unlikely(clock_gettime(CLOCK_MONOTONIC_COARSE, timespec) < 0)) {
-        FATAL("clock", "Unable to fetch the time");
-    }
+    clock_monotonic(timespec);
 }
 
 static inline __attribute__((always_inline)) int64_t clock_monotonic_coarse_int64_ms() {
-    timespec_t timespec;
-    clock_monotonic_coarse(&timespec);
-    return clock_timespec_to_int64_ms(&timespec);
+    return clock_monotonic_int64_ms();
 }
 
 static inline __attribute__((always_inline)) void clock_realtime(

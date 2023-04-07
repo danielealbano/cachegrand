@@ -6,6 +6,13 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
+#include <stdio.h>
+#include <stdint.h>
+#include <unistd.h>
+
+#include "misc.h"
+#include "intrinsics.h"
+
 #include "clock.h"
 
 int64_t clock_realtime_coarse_get_resolution_ms() {
@@ -17,9 +24,5 @@ int64_t clock_realtime_coarse_get_resolution_ms() {
 }
 
 int64_t clock_monotonic_coarse_get_resolution_ms() {
-    timespec_t res;
-    clock_getres(CLOCK_MONOTONIC_COARSE, &res);
-    int64_t res_ms = clock_timespec_to_int64_ms(&res);
-
-    return res_ms;
+    return 1;
 }
