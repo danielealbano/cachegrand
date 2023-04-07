@@ -261,16 +261,16 @@ void test_queue_mpmc_fuzzy_single_thread(
 
 TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mpmc]") {
     SECTION("queue_mpmc_init") {
-        queue_mpmc_t *queue = queue_mpmc_init();
+        queue_mpmc_t *queue_mpmc = queue_mpmc_init();
 
-        REQUIRE(queue != NULL);
-        REQUIRE(queue->head._packed != 0);
-        REQUIRE(queue->head.data.length == 0);
-        REQUIRE(queue->head.data.version == 0);
-        REQUIRE(queue->head.data.node_index == -1);
-        REQUIRE(queue->head.data.nodes_page != NULL);
+        REQUIRE(queue_mpmc != NULL);
+        REQUIRE(queue_mpmc->head._packed != 0);
+        REQUIRE(queue_mpmc->head.data.length == 0);
+        REQUIRE(queue_mpmc->head.data.version == 0);
+        REQUIRE(queue_mpmc->head.data.node_index == -1);
+        REQUIRE(queue_mpmc->head.data.nodes_page != NULL);
 
-        queue_mpmc_free(queue);
+        queue_mpmc_free(queue_mpmc);
     }
 
     SECTION("queue_mpmc_push") {
