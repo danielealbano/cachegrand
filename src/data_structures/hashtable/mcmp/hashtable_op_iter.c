@@ -44,6 +44,13 @@ void *hashtable_mcmp_op_data_iter(
             chunk_index++) {
         half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
 
+        // If a chunk has no changes it can be skipped
+        if (half_hashes_chunk->metadata.changes_counter == 0) {
+            *bucket_index = (chunk_index * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT - 1;
+            chunk_slot_index = 0;
+            continue;
+        }
+
         for(; chunk_slot_index < HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT; chunk_slot_index++) {
             MEMORY_FENCE_LOAD();
             *bucket_index = (chunk_index * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index;
