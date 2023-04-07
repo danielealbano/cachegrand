@@ -73,7 +73,6 @@ bool worker_fiber_register(
 
 void worker_fiber_free(
         worker_context_t* worker_context) {
-
     double_linked_list_item_t *item;
     while ((item = double_linked_list_pop_item(worker_context->fibers)) != NULL) {
         fiber_t *fiber = item->data;
