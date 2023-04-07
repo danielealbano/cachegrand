@@ -730,6 +730,7 @@ void storage_db_chunk_sequence_free_chunks(
     ffma_mem_free(sequence->sequence);
     sequence->count = 0;
     sequence->sequence = NULL;
+    sequence->size = 0;
 }
 
 void storage_db_entry_index_chunks_free(
