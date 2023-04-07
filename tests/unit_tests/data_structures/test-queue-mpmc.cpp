@@ -269,6 +269,7 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
         REQUIRE(queue_mpmc->head.data.version == 0);
         REQUIRE(queue_mpmc->head.data.node_index == -1);
         REQUIRE(queue_mpmc->head.data.nodes_page != NULL);
+        REQUIRE(queue_mpmc->head.data.nodes_page->prev_page == nullptr);
 
         queue_mpmc_free(queue_mpmc);
     }
@@ -283,6 +284,8 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
             REQUIRE(queue_mpmc->head.data.node_index == 0);
             REQUIRE(queue_mpmc->head.data.nodes_page != NULL);
             REQUIRE(queue_mpmc->head.data.nodes_page->nodes[0] == (uintptr_t)&test_queue_mpmc_value1);
+            REQUIRE(queue_mpmc->head.data.nodes_page->prev_page == nullptr);
+            REQUIRE(queue_mpmc->head.data.nodes_page->next_page == nullptr);
         }
 
         SECTION("two values") {
@@ -295,6 +298,8 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
             REQUIRE(queue_mpmc->head.data.nodes_page != NULL);
             REQUIRE(queue_mpmc->head.data.nodes_page->nodes[0] == (uintptr_t)&test_queue_mpmc_value1);
             REQUIRE(queue_mpmc->head.data.nodes_page->nodes[1] == (uintptr_t)&test_queue_mpmc_value2);
+            REQUIRE(queue_mpmc->head.data.nodes_page->prev_page == nullptr);
+            REQUIRE(queue_mpmc->head.data.nodes_page->next_page == nullptr);
         }
 
         SECTION("entire page plus one") {
@@ -312,6 +317,9 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
             for(uint64_t i = 0; i < queue_mpmc->max_nodes_per_page; i++) {
                 REQUIRE(nodes_page_initial->nodes[i] == (uintptr_t)(i + 1));
             }
+
+            REQUIRE(queue_mpmc->head.data.nodes_page->prev_page == nodes_page_initial);
+            REQUIRE(queue_mpmc->head.data.nodes_page->prev_page->next_page == queue_mpmc->head.data.nodes_page);
             REQUIRE(queue_mpmc->head.data.nodes_page->nodes[0] == (uintptr_t)(queue_mpmc->max_nodes_per_page + 1));
         }
 
@@ -340,6 +348,8 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
             REQUIRE(queue_mpmc->head.data.node_index == -1);
             REQUIRE(queue_mpmc->head.data.nodes_page != NULL);
             REQUIRE(queue_mpmc->head.data.nodes_page->nodes[0] == 0);
+            REQUIRE(queue_mpmc->head.data.nodes_page->prev_page == nullptr);
+            REQUIRE(queue_mpmc->head.data.nodes_page->next_page == nullptr);
             REQUIRE(value_pop == &test_queue_mpmc_value1);
         }
 
@@ -355,6 +365,8 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
             REQUIRE(queue_mpmc->head.data.nodes_page != NULL);
             REQUIRE(queue_mpmc->head.data.nodes_page->nodes[0] == 0);
             REQUIRE(queue_mpmc->head.data.nodes_page->nodes[1] == 0);
+            REQUIRE(queue_mpmc->head.data.nodes_page->prev_page == nullptr);
+            REQUIRE(queue_mpmc->head.data.nodes_page->next_page == nullptr);
             REQUIRE(value1_pop == &test_queue_mpmc_value1);
             REQUIRE(value2_pop == &test_queue_mpmc_value2);
         }
@@ -366,6 +378,8 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
                 REQUIRE(queue_mpmc_push(queue_mpmc, (void*)(i + 1)));
             }
 
+            auto nodes_page_new = queue_mpmc->head.data.nodes_page;
+
             for(int64_t i = queue_mpmc->max_nodes_per_page; i >= 0; i--) {
                 REQUIRE(queue_mpmc_pop(queue_mpmc) == (void*)(i + 1));
             }
@@ -374,6 +388,7 @@ TEST_CASE("data_structures/queue_mpmc/queue_mpmc.c", "[data_structures][queue_mp
             REQUIRE(queue_mpmc->head.data.version == (queue_mpmc->max_nodes_per_page + 1) * 2);
             REQUIRE(queue_mpmc->head.data.node_index == -1);
             REQUIRE(queue_mpmc->head.data.nodes_page == nodes_page_initial);
+            REQUIRE(queue_mpmc->head.data.nodes_page->next_page == nodes_page_new);
 
             for(uint64_t i = 0; i < queue_mpmc->max_nodes_per_page; i++) {
                 REQUIRE(nodes_page_initial->nodes[i] == 0);
