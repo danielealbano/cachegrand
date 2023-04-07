@@ -62,9 +62,9 @@ bool test_module_redis_snapshot_serialize_primitive_vaidate_rdb(
     close(temp_test_snapshot_fd);
 
     // Run redis-check-rdb on the file to ensure it can be read, if the operation fails print out the command output
-    char command[1024];
-    char command_temp_buffer[1024];
-    char command_output[64 * 1024];
+    char command[1024] = { 0 };
+    char command_temp_buffer[8 * 1024] = { 0 };
+    char command_output[64 * 1024] = { 0 };
     char *command_output_ptr = command_output;
     size_t command_output_offset = 0;
 
