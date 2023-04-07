@@ -72,6 +72,7 @@
 #include "worker/worker_fiber.h"
 #include "worker/fiber/worker_fiber_storage_db_gc_deleted_entries.h"
 #include "worker/fiber/worker_fiber_storage_db_initialize.h"
+#include "worker/fiber/worker_fiber_storage_db_keys_eviction.h"
 
 #define TAG "worker"
 
@@ -308,6 +309,14 @@ bool worker_initialize_storage_db(
         return false;
     }
 
+    if (!worker_fiber_register(
+            worker_context,
+            "worker-fiber-storage-db-keys-eviction",
+            worker_fiber_storage_db_keys_eviction_fiber_entrypoint,
+            NULL)) {
+        return false;
+    }
+
     return true;
 }
 
@@ -450,17 +459,6 @@ void* worker_thread_func(
                     &worker_context->stats.internal,
                     &worker_context->stats.shared,
                     only_total);
-        }
-
-        // Check the database limits (max keys), if the limits are exceeded the eviction process will be started.
-        // Although this check is going to be false most of the time, it doesn't impact the performance of the
-        // worker because it's a really simple check so it makes sense to do it first.
-        if (unlikely(storage_db_keys_eviction_should_run(worker_context->db))) {
-            storage_db_keys_eviction_run_worker(
-                    worker_context->db,
-                    worker_context->config->database->keys_eviction->only_ttl,
-                    worker_context->config->database->keys_eviction->policy,
-                    worker_context->worker_index);
         }
     } while(!worker_should_terminate(worker_context));
 
