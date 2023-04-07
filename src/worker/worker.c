@@ -287,11 +287,16 @@ void worker_set_aborted(
 
 bool worker_initialize_storage_db(
         worker_context_t *worker_context) {
-    if (!worker_fiber_register(
-            worker_context,
+    bool storage_db_initialized = false;
+
+    // No need to keep track of this fiber, it will be freed right away once the control is returned to the code
+    fiber_scheduler_new_fiber(
             "worker-fiber-storage-db-initialize",
+            strlen("worker-fiber-storage-db-initialize"),
             worker_fiber_storage_db_initialize_fiber_entrypoint,
-            NULL)) {
+            &storage_db_initialized);
+
+    if (!storage_db_initialized) {
         return false;
     }
 

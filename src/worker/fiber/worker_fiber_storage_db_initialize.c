@@ -5,6 +5,7 @@
  * This software may be modified and distributed under the terms
  * of the BSD license.  See the LICENSE file for details.
  **/
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <arpa/inet.h>
@@ -40,13 +41,12 @@
 
 void worker_fiber_storage_db_initialize_fiber_entrypoint(
         void* user_data) {
+    bool *storage_db_initialized = (bool*)user_data;
     worker_context_t *worker_context = worker_context_get();
 
-    if (!storage_db_open(worker_context->db)) {
-        // TODO: execution has to terminate
-        LOG_E(TAG, "Failed to open the database, terminating");
-    }
+    // Initialize the storage db
+    *storage_db_initialized = storage_db_open(worker_context->db);
 
-    // Switch back to the scheduler, as the lister has been closed this fiber will never be invoked and will get freed
-    fiber_scheduler_switch_back();
+    // Mark the current fiber as terminated
+    fiber_scheduler_terminate_current_fiber();
 }
