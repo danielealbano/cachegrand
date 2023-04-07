@@ -505,13 +505,13 @@ static inline double storage_db_keys_eviction_calculate_close_to_hard_limit_perc
         return 0;
     }
 
-    if (db->limits.keys_count.soft_limit > 0) {
+    if (db->limits.keys_count.soft_limit > 0 && keys_count > db->limits.keys_count.soft_limit) {
         keys_count_close_to_hard_limit_percentage =
                 (double)(keys_count - db->limits.keys_count.soft_limit) /
                 (double)(db->limits.keys_count.hard_limit - db->limits.keys_count.soft_limit);
     }
 
-    if (db->limits.data_size.soft_limit > 0) {
+    if (db->limits.data_size.soft_limit > 0 && data_size > db->limits.data_size.soft_limit) {
         data_size_close_to_hard_limit_percentage =
                 (double)(data_size - db->limits.data_size.soft_limit) /
                 (double)(db->limits.data_size.hard_limit - db->limits.data_size.soft_limit);
