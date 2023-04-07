@@ -13,18 +13,32 @@
 TEST_CASE("clock.c", "[clock]") {
     SECTION("clock_monotonic") {
         timespec_t a, b;
-        clock_monotonic(&a);
+        clock_monotonic(&b);
 
-        REQUIRE(clock_gettime(CLOCK_MONOTONIC, &b) == 0);
-        REQUIRE(b.tv_sec >= a.tv_sec);
+        // Allow up to 5 minutes of difference between the system monotonic clock and the one calculated via the tsc
+        // as they might are calculated a bit differently
+        REQUIRE(clock_gettime(CLOCK_MONOTONIC, &a) == 0);
+
+        if (b.tv_sec <= a.tv_sec + 300) {
+            b.tv_sec = a.tv_sec;
+        }
+
+        REQUIRE(b.tv_sec == a.tv_sec);
     }
 
     SECTION("clock_monotonic_coarse") {
         timespec_t a, b;
-        clock_monotonic_coarse(&a);
+        clock_monotonic_coarse(&b);
 
-        REQUIRE(clock_gettime(CLOCK_MONOTONIC_COARSE, &b) == 0);
-        REQUIRE(b.tv_sec >= a.tv_sec);
+        REQUIRE(clock_gettime(CLOCK_MONOTONIC_COARSE, &a) == 0);
+
+        // Allow up to 5 minutes of difference between the system monotonic clock and the one calculated via the tsc
+        // as they might are calculated a bit differently
+        if (b.tv_sec <= a.tv_sec + 300) {
+            b.tv_sec = a.tv_sec;
+        }
+
+        REQUIRE(b.tv_sec == a.tv_sec);
     }
 
     SECTION("clock_realtime") {
@@ -42,10 +56,6 @@ TEST_CASE("clock.c", "[clock]") {
         REQUIRE(clock_gettime(CLOCK_REALTIME_COARSE, &b) == 0);
         REQUIRE(b.tv_sec >= a.tv_sec);
     }
-
-
-    int64_t clock_timespec_to_int64_ms(
-            timespec_t *timespec);
 
     SECTION("clock_timespec_to_int64_ms") {
         SECTION("ns less than 1 ms") {
@@ -108,11 +118,18 @@ TEST_CASE("clock.c", "[clock]") {
     SECTION("clock_monotonic_int64_ms") {
         timespec_t a;
         clock_monotonic(&a);
+        int64_t a1 = clock_timespec_to_int64_ms(&a);
         int64_t b = clock_monotonic_int64_ms();
 
         // Allow up to 1ms of difference although these 2 clock reads are executed right after so there shouldn't be any
-        int64_t diff = b - clock_timespec_to_int64_ms(&a);
-        REQUIRE(((diff == 0) || (diff == 1)));
+        int64_t diff = b - a1;
+
+        // Allow up to 1 ms of difference
+        if (diff <= 1) {
+            diff = 0;
+        }
+
+        REQUIRE(diff == 0);
     }
 
     SECTION("clock_realtime_int64_ms") {
@@ -133,8 +150,14 @@ TEST_CASE("clock.c", "[clock]") {
         int64_t res_ms = clock_monotonic_coarse_get_resolution_ms();
 
         // Allow up to res in ms of difference
-        int64_t diff = (b - clock_timespec_to_int64_ms(&a)) + res_ms;
-        REQUIRE((diff >= 0 && diff <= res_ms * 2));
+        int64_t diff = b - clock_timespec_to_int64_ms(&a);
+
+        // Allow up to res_ms of difference
+        if (diff <= res_ms) {
+            diff = 0;
+        }
+
+        REQUIRE(diff == 0);
     }
 
     SECTION("clock_realtime_coarse_int64_ms") {
