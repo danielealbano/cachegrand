@@ -417,13 +417,13 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                     half_hashes_chunk->half_hashes[chunk_slot_index].slot_id = slot_id_wrapper.slot_id;
                     *created_new = true;
 
+                    // Update the counter for the occupied slots
+                    half_hashes_chunk->metadata.slots_occupied++;
+                    assert(half_hashes_chunk->metadata.slots_occupied <= HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT);
+                    LOG_DI(">>> incrementing the slots_occupied to %d", half_hashes_chunk->metadata.slots_occupied);
+
                     LOG_DI(">>> empty slot found, updating the half_hashes in the chunk with the hash");
                 }
-
-                // Update the counter for the occupied slots
-                half_hashes_chunk->metadata.slots_occupied++;
-                assert(half_hashes_chunk->metadata.slots_occupied <= HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT);
-                LOG_DI(">>> incrementing the slots_occupied to %d", half_hashes_chunk->metadata.slots_occupied);
 
                 *found_half_hashes_chunk = half_hashes_chunk;
                 *found_key_value = key_value;

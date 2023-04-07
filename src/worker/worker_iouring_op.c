@@ -47,7 +47,7 @@
 
 #define TAG "worker_iouring_op"
 
-bool worker_iouring_op_timer(
+bool worker_iouring_op_wait(
         long seconds,
         long long nanoseconds) {
     kernel_timespec_t kernel_timespec = {
@@ -72,6 +72,17 @@ bool worker_iouring_op_timer(
     return true;
 }
 
+bool worker_iouring_op_wait_ms(
+        uint64_t ms) {
+    kernel_timespec_t kernel_timespec = {
+            .tv_sec = (long long)(ms / 1000ull),
+            .tv_nsec = (long long)((ms % 1000ull) * 1000000ll),
+    };
+
+    return worker_iouring_op_wait(kernel_timespec.tv_sec, kernel_timespec.tv_nsec);
+}
+
 void worker_iouring_op_register() {
-    worker_op_timer = worker_iouring_op_timer;
+    worker_op_wait = worker_iouring_op_wait;
+    worker_op_wait_ms = worker_iouring_op_wait_ms;
 }

@@ -72,6 +72,7 @@
 #include "worker/worker_fiber.h"
 #include "worker/fiber/worker_fiber_storage_db_gc_deleted_entries.h"
 #include "worker/fiber/worker_fiber_storage_db_initialize.h"
+#include "worker/fiber/worker_fiber_storage_db_keys_eviction.h"
 
 #define TAG "worker"
 
@@ -287,11 +288,16 @@ void worker_set_aborted(
 
 bool worker_initialize_storage_db(
         worker_context_t *worker_context) {
-    if (!worker_fiber_register(
-            worker_context,
+    bool storage_db_initialized = false;
+
+    // No need to keep track of this fiber, it will be freed right away once the control is returned to the code
+    fiber_scheduler_new_fiber(
             "worker-fiber-storage-db-initialize",
+            strlen("worker-fiber-storage-db-initialize"),
             worker_fiber_storage_db_initialize_fiber_entrypoint,
-            NULL)) {
+            &storage_db_initialized);
+
+    if (!storage_db_initialized) {
         return false;
     }
 
@@ -299,6 +305,14 @@ bool worker_initialize_storage_db(
             worker_context,
             "worker-fiber-storage-db-gc-deleted-entries",
             worker_fiber_storage_db_gc_deleted_entries_fiber_entrypoint,
+            NULL)) {
+        return false;
+    }
+
+    if (!worker_fiber_register(
+            worker_context,
+            "worker-fiber-storage-db-keys-eviction",
+            worker_fiber_storage_db_keys_eviction_fiber_entrypoint,
             NULL)) {
         return false;
     }
@@ -373,23 +387,23 @@ void* worker_thread_func(
     }
 
     if (!worker_initialize_network(worker_context)) {
-        LOG_E(TAG, "Unable to initialize the network, can't continue!");
+        LOG_E(TAG, "Unable to initialize the network subsystem!");
         goto end;
     }
 
     if (!worker_initialize_storage(worker_context)) {
-        LOG_E(TAG, "Unable to initialize the storage, can't continue!");
+        LOG_E(TAG, "Unable to initialize the storage subsystem!");
         goto end;
     }
 
     if (worker_initialize_storage_db(worker_context) == false) {
-        LOG_E(TAG, "Unable to initialize the database, can't continue!");
+        LOG_E(TAG, "Unable to initialize the database!");
         goto end;
     }
 
     if ((worker_module_contexts = worker_module_contexts_initialize(
             worker_context->config)) == NULL) {
-        LOG_E(TAG, "Unable to initialize the listeners, can't continue!");
+        LOG_E(TAG, "Unable to initialize the listeners!");
         goto end;
     }
 
@@ -400,7 +414,7 @@ void* worker_thread_func(
             worker_module_contexts,
             &listeners,
             &listeners_count)) {
-        LOG_E(TAG, "Unable to initialize the listeners, can't continue!");
+        LOG_E(TAG, "Unable to initialize the listeners!");
         goto end;
     }
 
@@ -445,17 +459,6 @@ void* worker_thread_func(
                     &worker_context->stats.internal,
                     &worker_context->stats.shared,
                     only_total);
-        }
-
-        // Check the database limits (max keys), if the limits are exceeded the eviction process will be started.
-        // Although this check is going to be false most of the time, it doesn't impact the performance of the
-        // worker because it's a really simple check so it makes sense to do it first.
-        if (unlikely(storage_db_keys_eviction_should_run(worker_context->db))) {
-            storage_db_keys_eviction_run_worker(
-                    worker_context->db,
-                    worker_context->config->database->keys_eviction->only_ttl,
-                    worker_context->config->database->keys_eviction->policy,
-                    worker_context->worker_index);
         }
     } while(!worker_should_terminate(worker_context));
 

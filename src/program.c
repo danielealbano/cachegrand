@@ -855,7 +855,7 @@ int program_main(
 
     // Ensure that all the workers started correctly
     if (!program_workers_ensure_started(program_context)) {
-        LOG_E(TAG, "One or more workers didn't start correctly, can't continue");
+        LOG_E(TAG, "One or more workers didn't start correctly, aborting");
         goto end;
     }
 
@@ -874,7 +874,7 @@ end:
     // thread is aborting, every other thread is also notified and will terminate the execution
     program_request_terminate(&program_terminate_event_loop);
 
-    LOG_V(TAG, "Terminating");
+    LOG_I(TAG, "Terminating");
 
     // Final cleanup
     program_cleanup(program_context);
