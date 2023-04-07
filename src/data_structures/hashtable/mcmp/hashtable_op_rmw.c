@@ -167,9 +167,11 @@ void hashtable_mcmp_op_rmw_commit_delete(
 void hashtable_mcmp_op_rmw_abort(
         hashtable_mcmp_op_rmw_status_t *rmw_status) {
     if (rmw_status->created_new) {
+        rmw_status->half_hashes_chunk->metadata.slots_occupied--;
 
         // Catch overflows anyway
         assert(rmw_status->half_hashes_chunk->metadata.slots_occupied <= HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT);
+        rmw_status->half_hashes_chunk->metadata.is_full = 0;
         rmw_status->half_hashes_chunk->half_hashes[rmw_status->chunk_slot_index].slot_id = 0;
     }
 }
