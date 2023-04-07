@@ -422,6 +422,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
 
                 // Update the counter for the occupied slots
                 half_hashes_chunk->metadata.slots_occupied++;
+                assert(half_hashes_chunk->metadata.slots_occupied <= HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT);
                 LOG_DI(">>> incrementing the slots_occupied to %d", half_hashes_chunk->metadata.slots_occupied);
 
                 *found_half_hashes_chunk = half_hashes_chunk;
