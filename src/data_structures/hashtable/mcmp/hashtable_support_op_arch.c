@@ -410,9 +410,9 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                     LOG_DI(">>> empty slot found, updating the half_hashes in the chunk with the hash");
                 }
 
-                // Update the changes counter to the current chunk
-                half_hashes_chunk->metadata.changes_counter++;
-                LOG_DI(">>> incrementing the changes counter to %d", half_hashes_chunk->metadata.changes_counter);
+                // Update the counter for the occupied slots
+                half_hashes_chunk->metadata.slots_occupied++;
+                LOG_DI(">>> incrementing the slots_occupied to %d", half_hashes_chunk->metadata.slots_occupied);
 
                 *found_half_hashes_chunk = half_hashes_chunk;
                 *found_key_value = key_value;
