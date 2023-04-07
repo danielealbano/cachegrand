@@ -12,7 +12,10 @@ extern "C" {
 #define STORAGE_DB_SHARD_VERSION (1)
 #define STORAGE_DB_CHUNK_MAX_SIZE ((64 * 1024) - 1)
 #define STORAGE_DB_WORKERS_MAX (2048)
-#define STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH (128)
+#define STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH (64)
+#define STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS (5)
+#define STORAGE_DB_KEYS_EVICTION_ITER_MAX_DISTANCE (5000)
+#define STORAGE_DB_KEYS_EVICTION_ITER_MAX_SEARCH_ATTEMPTS (100)
 
 // This magic value defines the size of the ring buffer used to keep in memory data long enough to be sure they are not
 // being in use anymore.
@@ -469,8 +472,7 @@ void storage_db_keys_eviction_bitonic_sort_16_elements(
 uint8_t storage_db_keys_eviction_run_worker(
         storage_db_t *db,
         bool only_ttl,
-        config_database_keys_eviction_policy_t policy,
-        uint32_t worker_index);
+        config_database_keys_eviction_policy_t policy);
 
 static inline bool storage_db_keys_eviction_should_run(
         storage_db_t *db) {
@@ -481,15 +483,7 @@ static inline bool storage_db_keys_eviction_should_run(
         return false;
     }
 
-    if (db->limits.keys_count.hard_limit > 0 && keys_count >= db->limits.keys_count.hard_limit) {
-        return true;
-    }
-
     if (db->limits.keys_count.soft_limit > 0 && keys_count > db->limits.keys_count.soft_limit) {
-        return true;
-    }
-
-    if (db->limits.data_size.hard_limit > 0 && data_size >= db->limits.data_size.hard_limit) {
         return true;
     }
 
@@ -498,6 +492,33 @@ static inline bool storage_db_keys_eviction_should_run(
     }
 
     return false;
+}
+
+static inline double storage_db_keys_eviction_calculate_close_to_hard_limit_percentage(
+        storage_db_t *db) {
+    double keys_count_close_to_hard_limit_percentage = 0;
+    double data_size_close_to_hard_limit_percentage = 0;
+    uint64_t keys_count = storage_db_op_get_keys_count(db);
+    uint64_t data_size = storage_db_op_get_data_size(db);
+
+    if (db->limits.keys_count.soft_limit == 0 && db->limits.data_size.soft_limit == 0) {
+        return 0;
+    }
+
+    if (db->limits.keys_count.soft_limit > 0) {
+        keys_count_close_to_hard_limit_percentage =
+                (double)(keys_count - db->limits.keys_count.soft_limit) /
+                (double)(db->limits.keys_count.hard_limit - db->limits.keys_count.soft_limit);
+    }
+
+    if (db->limits.data_size.soft_limit > 0) {
+        data_size_close_to_hard_limit_percentage =
+                (double)(data_size - db->limits.data_size.soft_limit) /
+                (double)(db->limits.data_size.hard_limit - db->limits.data_size.soft_limit);
+    }
+
+    return keys_count_close_to_hard_limit_percentage > data_size_close_to_hard_limit_percentage ?
+            keys_count_close_to_hard_limit_percentage : data_size_close_to_hard_limit_percentage;
 }
 
 static inline bool storage_db_will_new_entry_hit_hard_limit(
@@ -515,15 +536,6 @@ static inline bool storage_db_will_new_entry_hit_hard_limit(
     }
 
     return false;
-}
-
-static inline bool storage_db_keys_eviction_soft_or_hard_limit_hit(
-        storage_db_t *db) {
-    uint64_t keys_count = storage_db_op_get_keys_count(db);
-    uint64_t data_size = storage_db_op_get_data_size(db);
-
-    return
-            (keys_count >= db->limits.keys_count.hard_limit) || (data_size >= db->limits.data_size.hard_limit);
 }
 
 #ifdef __cplusplus
