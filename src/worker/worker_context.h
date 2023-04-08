@@ -31,11 +31,7 @@ struct worker_context {
     struct {
         void* context;
     } storage;
-    struct {
-        fiber_t *worker_storage_db_one_shot;
-        fiber_t *timer_fiber;
-        fiber_t **listeners_fibers;
-    } fibers;
+    double_linked_list_t *fibers;
 };
 
 worker_context_t* worker_context_get();

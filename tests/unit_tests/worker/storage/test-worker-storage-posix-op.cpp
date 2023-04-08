@@ -25,6 +25,7 @@
 #include "fiber/fiber.h"
 #include "fiber/fiber_scheduler.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
 #include "config.h"
 #include "clock.h"
 #include "worker/worker_stats.h"

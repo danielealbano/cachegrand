@@ -5,19 +5,15 @@
 extern "C" {
 #endif
 
-#define WORKER_TIMER_LOOP_MS 50l
-
-typedef bool (worker_op_timer_fp_t)(
+typedef bool (worker_op_wait_fp_t)(
         long seconds,
         long long nanoseconds);
 
-void worker_timer_fiber_entrypoint(
-        void *user_data);
+typedef bool (worker_op_wait_ms_fp_t)(
+        uint64_t ms);
 
-void worker_timer_setup(
-        worker_context_t* worker_context);
-
-extern worker_op_timer_fp_t* worker_op_timer;
+extern worker_op_wait_fp_t* worker_op_wait;
+extern worker_op_wait_ms_fp_t* worker_op_wait_ms;
 
 #ifdef __cplusplus
 }

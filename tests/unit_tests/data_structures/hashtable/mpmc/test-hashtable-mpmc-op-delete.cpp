@@ -22,6 +22,7 @@
 #include "clock.h"
 #include "config.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "worker/worker.h"
@@ -75,6 +76,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         test_value_1,
                         nullptr));
 
+                REQUIRE(half_hashes_chunk->metadata.slots_occupied == 1);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
                 REQUIRE(key_value->flags != HASHTABLE_KEY_VALUE_FLAG_DELETED);
 
@@ -84,6 +86,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         test_key_1_len,
                         nullptr));
 
+                REQUIRE(half_hashes_chunk->metadata.slots_occupied == 0);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
             })
@@ -112,6 +115,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         test_value_1,
                         nullptr));
 
+                REQUIRE(half_hashes_chunk->metadata.slots_occupied == 1);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
                 REQUIRE(key_value->flags != HASHTABLE_KEY_VALUE_FLAG_DELETED);
 
@@ -121,6 +125,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         test_key_1_len,
                         &prev_value));
 
+                REQUIRE(half_hashes_chunk->metadata.slots_occupied == 0);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
                 REQUIRE(prev_value == test_value_1);
@@ -149,6 +154,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         test_value_1,
                         nullptr));
 
+                REQUIRE(half_hashes_chunk->metadata.slots_occupied == 1);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
                 REQUIRE(key_value->flags != HASHTABLE_KEY_VALUE_FLAG_DELETED);
 
@@ -158,6 +164,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         test_key_1_len,
                         nullptr));
 
+                REQUIRE(half_hashes_chunk->metadata.slots_occupied == 0);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
 
@@ -171,6 +178,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         test_value_1,
                         nullptr));
 
+                REQUIRE(half_hashes_chunk->metadata.slots_occupied == 1);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].distance == 0);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
@@ -182,6 +190,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                         test_key_1_len,
                         nullptr));
 
+                REQUIRE(half_hashes_chunk->metadata.slots_occupied == 0);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
             })

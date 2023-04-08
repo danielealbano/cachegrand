@@ -58,8 +58,8 @@ bool worker_network_listeners_initialize(
         network_channel_t **listeners,
         uint8_t *listeners_count);
 
-void worker_network_listeners_listen(
-        fiber_t **listeners_fibers,
+bool worker_network_listeners_listen(
+        worker_context_t *worker_context,
         network_channel_t *listeners,
         uint8_t listeners_count);
 

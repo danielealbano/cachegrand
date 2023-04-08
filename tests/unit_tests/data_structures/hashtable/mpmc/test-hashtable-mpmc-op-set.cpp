@@ -22,6 +22,7 @@
 #include "clock.h"
 #include "config.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/double_linked_list/double_linked_list.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "worker/worker.h"
@@ -71,7 +72,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(!spinlock_is_locked(&half_hashes_chunk->write_lock));
 
                 // Check if the first slot of the chain ring contains the correct key/value
-                REQUIRE(half_hashes_chunk->metadata.changes_counter == 1);
+                REQUIRE(half_hashes_chunk->metadata.slots_occupied == 1);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].distance == 0);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
@@ -117,7 +118,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(!transaction_spinlock_is_locked(&half_hashes_chunk->write_lock));
 
                 // Check if the first slot of the chain ring contains the correct key/value
-                REQUIRE(half_hashes_chunk->metadata.changes_counter == 1);
+                REQUIRE(half_hashes_chunk->metadata.slots_occupied == 1);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].distance == 0);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_long_1_hash_quarter);
@@ -170,7 +171,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         &prev_value2));
 
                 // Check if the first slot of the chain ring contains the correct key/value
-                REQUIRE(half_hashes_chunk->metadata.changes_counter == 2);
+                REQUIRE(half_hashes_chunk->metadata.slots_occupied == 1);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].distance == 0);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
@@ -504,7 +505,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                     REQUIRE(!transaction_spinlock_is_locked(&half_hashes_chunk->write_lock));
 
                     // Check if the first slot of the chain ring contains the correct key/value
-                    REQUIRE(half_hashes_chunk->metadata.changes_counter == 1);
+                    REQUIRE(half_hashes_chunk->metadata.slots_occupied == 1);
                     REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].filled == true);
                     REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].distance == 0);
                     REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);

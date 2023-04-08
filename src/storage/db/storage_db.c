@@ -730,6 +730,7 @@ void storage_db_chunk_sequence_free_chunks(
     ffma_mem_free(sequence->sequence);
     sequence->count = 0;
     sequence->sequence = NULL;
+    sequence->size = 0;
 }
 
 void storage_db_entry_index_chunks_free(
@@ -1659,8 +1660,9 @@ void storage_db_keys_eviction_bitonic_sort_16_elements(storage_db_keys_eviction_
 uint8_t storage_db_keys_eviction_run_worker(
         storage_db_t *db,
         bool only_ttl,
-        config_database_keys_eviction_policy_t policy,
-        uint32_t worker_index) {
+        config_database_keys_eviction_policy_t policy) {
+    assert(STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS <= STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH);
+
     storage_db_keys_eviction_kv_list_entry_t keys_evitction_candidates_list[
             STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH];
     uint64_t keys_eviction_candidates_list_count;
@@ -1675,23 +1677,39 @@ uint8_t storage_db_keys_eviction_run_worker(
 
     // Iterates over the hashtable to free up the entry index
     hashtable_bucket_index_t bucket_index = 0;
-    hashtable_bucket_count_t segment_size = buckets_end / STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH;
+    hashtable_bucket_count_t segment_size =
+            buckets_end / STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH;
+    uint32_t search_attempts = 0;
     void *data = NULL;
     for(
             keys_eviction_candidates_list_count = 0;
-            keys_eviction_candidates_list_count < STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH;
+            keys_eviction_candidates_list_count < STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH &&
+                search_attempts < STORAGE_DB_KEYS_EVICTION_ITER_MAX_SEARCH_ATTEMPTS;
             keys_eviction_candidates_list_count++) {
         hashtable_bucket_count_t increment = random_generate() % segment_size;
         bucket_index += increment;
 
-        data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index);
+        // Tries to fetch the next entry index
+        data = hashtable_mcmp_op_iter_max_distance(
+                db->hashtable,
+                &bucket_index,
+                STORAGE_DB_KEYS_EVICTION_ITER_MAX_DISTANCE * search_attempts);
         if (unlikely(bucket_index >= buckets_end || data == NULL)) {
-            // Restarts from the beginning and retry
-            bucket_index = 0;
+            // In case data is null but the bucket index is not at the end, it means that the max distance has been
+            // reached and no bucket has been found.
+            if (unlikely(bucket_index >= buckets_end)) {
+                // Restarts from the beginning and retry
+                bucket_index = 0;
+            }
             keys_eviction_candidates_list_count--;
+            search_attempts++;
             continue;
         }
 
+        // Bucket found, reset the search attempts
+        search_attempts = 0;
+
+        // Fetch the entry index
         storage_db_entry_index_t *entry_index = data;
 
         // If only the keys with expiry time have to be evicted and the current key has no expiry time, then skip it
@@ -1728,12 +1746,32 @@ uint8_t storage_db_keys_eviction_run_worker(
         keys_evitction_candidates_list[keys_eviction_candidates_list_count].value = bucket_index;
     }
 
+    // If too many search attempts have been carried out, fill the rest of the array with key set to UINT64_MAX and
+    // value set to UINT64_MAX
+    if (unlikely(search_attempts >= STORAGE_DB_KEYS_EVICTION_ITER_MAX_SEARCH_ATTEMPTS)) {
+        #pragma unroll(STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH)
+        for (;
+                keys_eviction_candidates_list_count < STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH;
+                keys_eviction_candidates_list_count++) {
+            keys_evitction_candidates_list[keys_eviction_candidates_list_count].key = UINT64_MAX;
+            keys_evitction_candidates_list[keys_eviction_candidates_list_count].value = UINT64_MAX;
+        }
+    }
+
     // Sort the keys
     storage_db_keys_eviction_bitonic_sort_16_elements(keys_evitction_candidates_list);
 
     // Delete the first 10 keys
-    #pragma unroll(10)
-    for (uint8_t i = 0; i < 10; i++) {
+    #pragma unroll(STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS)
+    for (uint8_t i = 0; i < STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS; i++) {
+        // Check if the key is set to UINT64_MAX and the value is set to UINT64_MAX, in which case there are no more
+        // keys to evict in the list
+        if (unlikely(keys_evitction_candidates_list[i].key == UINT64_MAX &&
+            keys_evitction_candidates_list[i].value == UINT64_MAX)) {
+            break;
+        }
+
+        // Try to delete the key by index
         if (storage_db_op_delete_by_index(db, keys_evitction_candidates_list[i].value)) {
             keys_evicted_count++;
         }

@@ -106,6 +106,7 @@ bool hashtable_mcmp_op_delete(
                 *current_value = key_value->data;
             }
 
+            half_hashes_chunk->metadata.slots_occupied--;
             half_hashes_chunk->metadata.is_full = 0;
             half_hashes_chunk->half_hashes[chunk_slot_index].slot_id = 0;
 
@@ -195,6 +196,7 @@ bool hashtable_mcmp_op_delete_by_index(
             *current_value = key_value->data;
         }
 
+        half_hashes_chunk->metadata.slots_occupied--;
         half_hashes_chunk->metadata.is_full = 0;
         half_hashes_chunk->half_hashes[chunk_slot_index].slot_id = 0;
 
