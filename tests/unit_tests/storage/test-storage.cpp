@@ -7,8 +7,8 @@
  **/
 
 #include <catch2/catch_test_macros.hpp>
+#include <cstring>
 #include <unistd.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -32,13 +32,15 @@
 #include "worker/worker_context.h"
 #include "worker/worker.h"
 #include "worker/storage/worker_storage_posix_op.h"
+#include "memory_allocator/ffma.h"
 
 #include "storage/storage.h"
 
 extern thread_local fiber_scheduler_stack_t fiber_scheduler_stack;
 
 TEST_CASE("storage/storage.c", "[storage]") {
-    storage_channel_t *storage_channel = NULL;
+    char *fixture_temp_path_copy = nullptr;
+    storage_channel_t *storage_channel = nullptr;
 
     char fiber_name[] = "test-fiber";
     fiber_t fiber = {
@@ -57,21 +59,23 @@ TEST_CASE("storage/storage.c", "[storage]") {
     char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
     int fixture_temp_path_suffix_len = 4;
     close(mkstemps(fixture_temp_path, fixture_temp_path_suffix_len));
+    fixture_temp_path_copy = (char *)(ffma_mem_alloc(strlen(fixture_temp_path) + 1));
+    strcpy(fixture_temp_path_copy, fixture_temp_path);
 
     char buffer_write[] = "cachegrand test - read / write tests";
     char buffer_read1[128] = { 0 }, buffer_read2[128] = { 0 };
-    struct iovec iovec[2] = { 0 };
+    struct iovec iovec[2] = { nullptr };
 
     worker_storage_posix_op_register();
 
     SECTION("storage_open") {
         SECTION("open an existing file") {
             storage_channel = storage_open(
-                    fixture_temp_path,
+                    fixture_temp_path_copy,
                     O_RDONLY,
                     0);
 
-            REQUIRE(storage_channel != NULL);
+            REQUIRE(storage_channel != nullptr);
             REQUIRE(fiber.error_number == 0);
             REQUIRE(storage_channel->fd > -1);
             REQUIRE(strncmp(storage_channel->path, fixture_temp_path, strlen(fixture_temp_path)) == 0);
@@ -85,11 +89,11 @@ TEST_CASE("storage/storage.c", "[storage]") {
             // be able to reuse the unique file name
             unlink(fixture_temp_path);
             storage_channel = storage_open(
-                    fixture_temp_path,
+                    fixture_temp_path_copy,
                     O_CREAT | O_RDWR | O_EXCL,
                     S_IRUSR | S_IWUSR);
 
-            REQUIRE(storage_channel != NULL);
+            REQUIRE(storage_channel != nullptr);
             REQUIRE(fiber.error_number == 0);
             REQUIRE(storage_channel->fd > -1);
             REQUIRE(strncmp(storage_channel->path, fixture_temp_path, strlen(fixture_temp_path)) == 0);
@@ -103,13 +107,13 @@ TEST_CASE("storage/storage.c", "[storage]") {
             // be able to reuse the unique file name
             unlink(fixture_temp_path);
             storage_channel = storage_open(
-                    fixture_temp_path,
+                    fixture_temp_path_copy,
                     O_RDONLY,
                     0);
 
-            REQUIRE(storage_channel == NULL);
+            REQUIRE(storage_channel == nullptr);
             REQUIRE(fiber.error_number == ENOENT);
-            REQUIRE(storage_channel == NULL);
+            REQUIRE(storage_channel == nullptr);
 
             REQUIRE(worker_context.stats.internal.storage.total.open_files == 0);
         }
@@ -125,9 +129,9 @@ TEST_CASE("storage/storage.c", "[storage]") {
             REQUIRE(write(fd, buffer_write, strlen(buffer_write)) == strlen(buffer_write));
             REQUIRE(close(fd) == 0);
 
-            storage_channel = storage_open(fixture_temp_path, O_RDONLY, 0);
+            storage_channel = storage_open(fixture_temp_path_copy, O_RDONLY, 0);
 
-            REQUIRE(storage_channel != NULL);
+            REQUIRE(storage_channel != nullptr);
             REQUIRE(storage_readv(storage_channel, iovec, 1, iovec[0].iov_len, 0));
             REQUIRE(fiber.error_number == 0);
             REQUIRE(strncmp(buffer_write, buffer_read1, strlen(buffer_write)) == 0);
@@ -149,9 +153,9 @@ TEST_CASE("storage/storage.c", "[storage]") {
             REQUIRE(write(fd, buffer_write, strlen(buffer_write)) == strlen(buffer_write));
             REQUIRE(close(fd) == 0);
 
-            storage_channel = storage_open(fixture_temp_path, O_RDONLY, 0);
+            storage_channel = storage_open(fixture_temp_path_copy, O_RDONLY, 0);
 
-            REQUIRE(storage_channel != NULL);
+            REQUIRE(storage_channel != nullptr);
             REQUIRE(storage_readv(storage_channel, iovec, 2, iovec[0].iov_len + iovec[1].iov_len, 0));
             REQUIRE(fiber.error_number == 0);
             REQUIRE(strncmp(buffer_write, buffer_read1, strlen(buffer_write)) == 0);
@@ -178,7 +182,7 @@ TEST_CASE("storage/storage.c", "[storage]") {
             REQUIRE(worker_context.stats.internal.storage.per_minute.read_iops == 0);
             REQUIRE(worker_context.stats.internal.storage.total.read_iops == 0);
 
-            storage_channel = NULL;
+            storage_channel = nullptr;
         }
     }
 
@@ -189,9 +193,9 @@ TEST_CASE("storage/storage.c", "[storage]") {
             REQUIRE(write(fd, buffer_write, strlen(buffer_write)) == strlen(buffer_write));
             REQUIRE(close(fd) == 0);
 
-            storage_channel = storage_open(fixture_temp_path, O_RDONLY, 0);
+            storage_channel = storage_open(fixture_temp_path_copy, O_RDONLY, 0);
 
-            REQUIRE(storage_channel != NULL);
+            REQUIRE(storage_channel != nullptr);
             REQUIRE(storage_read(storage_channel, buffer_read1, strlen(buffer_write), 0));
             REQUIRE(fiber.error_number == 0);
             REQUIRE(strncmp(buffer_write, buffer_read1, strlen(buffer_write)) == 0);
@@ -214,7 +218,7 @@ TEST_CASE("storage/storage.c", "[storage]") {
             REQUIRE(worker_context.stats.internal.storage.per_minute.read_iops == 0);
             REQUIRE(worker_context.stats.internal.storage.total.read_iops == 0);
 
-            storage_channel = NULL;
+            storage_channel = nullptr;
         }
     }
 
@@ -223,9 +227,9 @@ TEST_CASE("storage/storage.c", "[storage]") {
             iovec[0].iov_base = buffer_write;
             iovec[0].iov_len = strlen(buffer_write);
 
-            storage_channel = storage_open(fixture_temp_path, O_WRONLY, 0);
+            storage_channel = storage_open(fixture_temp_path_copy, O_WRONLY, 0);
 
-            REQUIRE(storage_channel != NULL);
+            REQUIRE(storage_channel != nullptr);
             REQUIRE(storage_writev(storage_channel, iovec, 1, iovec[0].iov_len, 0));
             REQUIRE(fiber.error_number == 0);
 
@@ -246,9 +250,9 @@ TEST_CASE("storage/storage.c", "[storage]") {
             iovec[1].iov_base = buffer_write;
             iovec[1].iov_len = strlen(buffer_write);
 
-            storage_channel = storage_open(fixture_temp_path, O_WRONLY, 0);
+            storage_channel = storage_open(fixture_temp_path_copy, O_WRONLY, 0);
 
-            REQUIRE(storage_channel != NULL);
+            REQUIRE(storage_channel != nullptr);
             REQUIRE(storage_writev(storage_channel, iovec, 2, iovec[0].iov_len + iovec[1].iov_len, 0));
             REQUIRE(fiber.error_number == 0);
 
@@ -281,15 +285,15 @@ TEST_CASE("storage/storage.c", "[storage]") {
             REQUIRE(worker_context.stats.internal.storage.per_minute.write_iops == 0);
             REQUIRE(worker_context.stats.internal.storage.total.write_iops == 0);
 
-            storage_channel = NULL;
+            storage_channel = nullptr;
         }
     }
 
     SECTION("storage_write") {
         SECTION("write buffer") {
-            storage_channel = storage_open(fixture_temp_path, O_WRONLY, 0);
+            storage_channel = storage_open(fixture_temp_path_copy, O_WRONLY, 0);
 
-            REQUIRE(storage_channel != NULL);
+            REQUIRE(storage_channel != nullptr);
             REQUIRE(storage_write(storage_channel, buffer_write, strlen(buffer_write), 0));
             REQUIRE(fiber.error_number == 0);
 
@@ -317,15 +321,15 @@ TEST_CASE("storage/storage.c", "[storage]") {
             REQUIRE(worker_context.stats.internal.storage.per_minute.write_iops == 0);
             REQUIRE(worker_context.stats.internal.storage.total.write_iops == 0);
 
-            storage_channel = NULL;
+            storage_channel = nullptr;
         }
     }
 
     SECTION("storage_flush") {
         SECTION("valid fd") {
-            storage_channel = storage_open(fixture_temp_path, O_WRONLY, 0);
+            storage_channel = storage_open(fixture_temp_path_copy, O_WRONLY, 0);
 
-            REQUIRE(storage_channel != NULL);
+            REQUIRE(storage_channel != nullptr);
             REQUIRE(storage_flush(storage_channel));
             REQUIRE(fiber.error_number == 0);
         }
@@ -339,7 +343,7 @@ TEST_CASE("storage/storage.c", "[storage]") {
             REQUIRE(storage_flush(storage_channel) == false);
             REQUIRE(fiber.error_number == EBADF);
 
-            storage_channel = NULL;
+            storage_channel = nullptr;
         }
     }
 
@@ -347,8 +351,8 @@ TEST_CASE("storage/storage.c", "[storage]") {
         SECTION("create and extend to 1kb") {
             struct stat statbuf = { 0 };
 
-            storage_channel = storage_open(fixture_temp_path, O_WRONLY, 0);
-            REQUIRE(storage_channel != NULL);
+            storage_channel = storage_open(fixture_temp_path_copy, O_WRONLY, 0);
+            REQUIRE(storage_channel != nullptr);
             REQUIRE(storage_fallocate(storage_channel, 0, 0, 1024));
             REQUIRE(fiber.error_number == 0);
 
@@ -362,8 +366,8 @@ TEST_CASE("storage/storage.c", "[storage]") {
         SECTION("create and extend to 1kb - no file size increase") {
             struct stat statbuf = { 0 };
 
-            storage_channel = storage_open(fixture_temp_path, O_WRONLY, 0);
-            REQUIRE(storage_channel != NULL);
+            storage_channel = storage_open(fixture_temp_path_copy, O_WRONLY, 0);
+            REQUIRE(storage_channel != nullptr);
             REQUIRE(storage_fallocate(storage_channel, FALLOC_FL_KEEP_SIZE, 0, 1024));
             REQUIRE(fiber.error_number == 0);
 
@@ -387,9 +391,9 @@ TEST_CASE("storage/storage.c", "[storage]") {
 
     SECTION("storage_close") {
         SECTION("valid fd") {
-            storage_channel = storage_open(fixture_temp_path, O_RDONLY, 0);
+            storage_channel = storage_open(fixture_temp_path_copy, O_RDONLY, 0);
 
-            REQUIRE(storage_channel != NULL);
+            REQUIRE(storage_channel != nullptr);
             REQUIRE(storage_close(storage_channel));
             REQUIRE(fiber.error_number == 0);
 
@@ -405,20 +409,21 @@ TEST_CASE("storage/storage.c", "[storage]") {
             REQUIRE(storage_close(storage_channel) == false);
             REQUIRE(fiber.error_number == EBADF);
 
-            storage_channel = NULL;
+            storage_channel = nullptr;
         }
     }
 
     if (storage_channel && storage_channel->fd != -1) {
         storage_io_common_close(storage_channel->fd);
-
         storage_channel_free(storage_channel);
+    } else {
+        ffma_mem_free(fixture_temp_path_copy);
     }
 
     unlink(fixture_temp_path);
 
     xalloc_free(fiber_scheduler_stack.list);
-    fiber_scheduler_stack.list = NULL;
+    fiber_scheduler_stack.list = nullptr;
     fiber_scheduler_stack.index = -1;
     fiber_scheduler_stack.size = 0;
 }
