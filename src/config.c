@@ -454,12 +454,6 @@ bool config_validate_after_load_database_snapshots(
         return_result = false;
     }
 
-    // Ensure that min_keys is equal or greater than 0
-    if (config->database->snapshots->min_keys_changed < 0) {
-        LOG_E(TAG, "The minimum number of keys changes to trigger the snapshots must be greater or equal to <0>");
-        return_result = false;
-    }
-
     // Ensure that if rotation is enabled, the maximum number of max_files is equal or greater than 0 and smaller than
     // uint16_t
     if (config->database->snapshots->rotation && (
