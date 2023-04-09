@@ -1124,9 +1124,11 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         // of the rmw operation
         if ((storage_db_entry_index_t*)rmw_status.current_entry_index != entry_index) {
             storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, entry_index);
+            storage_db_op_rmw_abort(db, &rmw_status);
+        } else {
+            storage_db_op_rmw_commit_delete(db, &rmw_status);
         }
 
-        storage_db_op_rmw_abort(db, &rmw_status);
         entry_index = NULL;
     }
 
