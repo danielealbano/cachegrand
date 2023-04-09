@@ -16,7 +16,7 @@
 #include <pow2.h>
 #include <stdatomic.h>
 #include <assert.h>
-#include <ctype.h>
+#include <sys/stat.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -32,7 +32,6 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
-#include "data_structures/hashtable/mcmp/hashtable_data.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_get.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_get_key.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"
