@@ -53,6 +53,7 @@
 #include "storage/storage.h"
 
 #include "storage_db.h"
+#include "storage_db_snapshot.h"
 
 #define TAG "storage_db"
 
@@ -247,10 +248,13 @@ storage_db_t* storage_db_new(
     db->snapshot.next_run_time_ms = 0;
     db->snapshot.status = STORAGE_DB_SNAPSHOT_STATUS_NONE;
     db->snapshot.block_index = 0;
+    db->snapshot.storage_channel_opened = false;
     db->snapshot.storage_channel = NULL;
+    db->snapshot.path = NULL;
     db->snapshot.running = false;
     db->snapshot.keys_changed_at_start = 0;
     db->snapshot.data_changed_at_start = 0;
+    db->snapshot.entry_index_to_be_deleted_queue = queue_mpmc_init();
 
     spinlock_init(&db->snapshot.spinlock);
 
@@ -621,6 +625,7 @@ storage_db_entry_index_t *storage_db_entry_index_ring_buffer_new(
     if (ring_bounded_queue_spsc_voidptr_is_full(rb)) {
         entry_index = ring_bounded_queue_spsc_voidptr_dequeue(rb);
         entry_index->status._cas_wrapper = 0;
+        entry_index->snapshot_time_ms = 0;
     } else {
         entry_index = storage_db_entry_index_new();
     }

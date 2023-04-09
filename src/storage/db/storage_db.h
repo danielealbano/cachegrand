@@ -11,13 +11,11 @@ extern "C" {
 
 #define STORAGE_DB_SHARD_VERSION (1)
 #define STORAGE_DB_CHUNK_MAX_SIZE ((64 * 1024) - 1)
-#define STORAGE_DB_WORKERS_MAX (2048)
+#define STORAGE_DB_WORKERS_MAX (1024)
 #define STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH (64)
 #define STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS (5)
 #define STORAGE_DB_KEYS_EVICTION_ITER_MAX_DISTANCE (5000)
 #define STORAGE_DB_KEYS_EVICTION_ITER_MAX_SEARCH_ATTEMPTS (100)
-#define STORAGE_DB_SNAPSHOT_RDB_VERSION (9)
-#define STORAGE_DB_SNAPSHOT_BLOCK_SIZE (8 * 1024)
 
 // This magic value defines the size of the ring buffer used to keep in memory data long enough to be sure they are not
 // being in use anymore.
@@ -31,6 +29,7 @@ typedef uint32_t storage_db_chunk_offset_t;
 typedef uint32_t storage_db_shard_index_t;
 typedef uint64_t storage_db_create_time_ms_t;
 typedef uint64_t storage_db_last_access_time_ms_t;
+typedef uint64_t storage_db_snapshot_time_ms_t;
 typedef int64_t storage_db_expiry_time_ms_t;
 
 struct storage_db_keys_eviction_kv_list_entry {
@@ -90,6 +89,7 @@ struct storage_db_snapshot {
     uint64_t min_keys_changed;
     uint64_t min_data_changed;
     char *path;
+    uint64_t rotation_max_files;
 };
 typedef struct storage_db_snapshot storage_db_snapshot_t;
 
@@ -138,6 +138,7 @@ enum storage_db_snapshot_status {
     STORAGE_DB_SNAPSHOT_STATUS_NONE = 0,
     STORAGE_DB_SNAPSHOT_STATUS_IN_PREPARATION,
     STORAGE_DB_SNAPSHOT_STATUS_IN_PROGRESS,
+    STORAGE_DB_SNAPSHOT_STATUS_BEING_FINALIZED,
     STORAGE_DB_SNAPSHOT_STATUS_COMPLETED,
     STORAGE_DB_SNAPSHOT_STATUS_FAILED,
 };
@@ -159,10 +160,13 @@ struct storage_db {
         uint64_volatile_t next_run_time_ms;
         uint64_volatile_t start_time_ms;
         uint64_volatile_t end_time_ms;
+        uint64_volatile_t progress_reported_at_ms;
         storage_db_snapshot_status_volatile_t status;
         uint64_volatile_t block_index;
         bool_volatile_t running;
+        bool_volatile_t storage_channel_opened;
         storage_channel_t *storage_channel;
+        queue_mpmc_t *entry_index_to_be_deleted_queue;
         off_t offset;
         uint64_t keys_changed_at_start;
         uint64_t data_changed_at_start;
@@ -170,7 +174,6 @@ struct storage_db {
         struct {
             uint64_t data_written;
             uint64_t keys_written;
-            uint64_t last_update_ms;
         } stats;
     } snapshot;
     hashtable_t *hashtable;
@@ -220,6 +223,7 @@ struct storage_db_entry_index {
     storage_db_create_time_ms_t created_time_ms;
     storage_db_expiry_time_ms_t expiry_time_ms;
     storage_db_last_access_time_ms_t last_access_time_ms;
+    storage_db_snapshot_time_ms_t snapshot_time_ms;
     storage_db_chunk_sequence_t key;
     storage_db_chunk_sequence_t value;
 };
