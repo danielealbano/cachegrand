@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#define WORKER_FIBER_STORAGE_DB_GC_DELETED_STORAGE_DB_ENTRIES_WAIT_LOOP_MS 50l
+#define WORKER_FIBER_STORAGE_DB_GC_DELETED_STORAGE_DB_ENTRIES_WAIT_LOOP_MS 5l
 
 void worker_fiber_storage_db_gc_deleted_entries_fiber_entrypoint(
         void *user_data);
