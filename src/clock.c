@@ -26,3 +26,38 @@ int64_t clock_realtime_coarse_get_resolution_ms() {
 int64_t clock_monotonic_coarse_get_resolution_ms() {
     return 1;
 }
+
+char *clock_timespan_human_readable(
+        uint64_t timespan_ms,
+        char *buffer,
+        size_t buffer_length) {
+    assert(buffer_length >= CLOCK_TIMESPAN_MIN_LENGTH);
+
+    size_t offset = 0;
+    uint64_t days = timespan_ms / (1000 * 60 * 60 * 24);
+    uint64_t hours = (timespan_ms / (1000 * 60 * 60)) % 24;
+    uint64_t minutes = (timespan_ms / (1000 * 60)) % 60;
+    uint64_t seconds = (timespan_ms / 1000) % 60;
+
+    if (days > 0) {
+        offset += snprintf(buffer + offset, buffer_length - offset, "%lu days", days);
+    }
+
+    if (hours > 0) {
+        offset += snprintf(buffer + offset, buffer_length - offset, "%s%lu hours", offset > 0 ? " " : "", hours);
+    }
+
+    if (minutes > 0) {
+        offset += snprintf(buffer + offset, buffer_length - offset, "%s%lu minutes", offset > 0 ? " " : "", minutes);
+    }
+
+    if (seconds > 0) {
+        offset += snprintf(buffer + offset, buffer_length - offset, "%s%lu seconds", offset > 0 ? " " : "", seconds);
+    }
+
+    if (offset == 0) {
+        snprintf(buffer + offset, buffer_length - offset, "0 seconds");
+    }
+
+    return buffer;
+}

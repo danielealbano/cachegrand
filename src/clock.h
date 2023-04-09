@@ -22,11 +22,19 @@ extern "C" {
 #include "misc.h"
 #include "fatal.h"
 
+#define CLOCK_TIMESPAN_MIN_LENGTH (38)
+#define CLOCK_TIMESPAN_MAX_LENGTH (64)
+
 typedef struct timespec timespec_t;
 
 int64_t clock_monotonic_coarse_get_resolution_ms();
 
 int64_t clock_realtime_coarse_get_resolution_ms();
+
+char *clock_timespan_human_readable(
+        uint64_t timespan_ms,
+        char *buffer,
+        size_t buffer_length);
 
 static inline __attribute__((always_inline)) int64_t clock_timespec_to_int64_ms(
         timespec_t *timespec) {
