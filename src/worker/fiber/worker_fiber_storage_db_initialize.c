@@ -47,6 +47,15 @@ void worker_fiber_storage_db_initialize_fiber_entrypoint(
     // Initialize the storage db
     *storage_db_initialized = storage_db_open(worker_context->db);
 
+    // TODO: Load the initial snapshot if necessary
+
+    // Set the next snapshot run time and add 100ms to have a bit more padding during the startup
+    storage_db_config_t *storage_db_config = worker_context->db->config;
+    worker_context->db->snapshot.next_run_time_ms =
+            clock_monotonic_coarse_int64_ms() +
+            storage_db_config->snapshot.interval_ms +
+            100;
+
     // Mark the current fiber as terminated
     fiber_scheduler_terminate_current_fiber();
 }
