@@ -330,15 +330,13 @@ bool storage_db_snapshot_rdb_ensure_prepared(
 
 bool storage_db_snapshot_rdb_write_value_header(
         storage_db_t *db,
+        char *key,
+        size_t key_length,
         storage_db_entry_index_t *entry_index) {
     bool result = true;
     uint8_t buffer[128] = { 0 };
     size_t buffer_size = sizeof(buffer);
     size_t buffer_offset = 0;
-    char *key = NULL;
-    size_t key_length;
-    bool key_allocated_new_buffer = false;
-    storage_db_chunk_info_t *chunk_info;
 
     static module_redis_snapshot_value_type_t value_type_cg_to_rdb_map[] = {
             0, 0, // The first 2 values for cachegrand are not used
@@ -347,14 +345,6 @@ bool storage_db_snapshot_rdb_write_value_header(
 
     // Convert the cachegrand value type to the redis one
     assert(entry_index->value_type >= sizeof(value_type_cg_to_rdb_map) / sizeof(value_type_cg_to_rdb_map[0]));
-
-    // Read the key
-    chunk_info = storage_db_chunk_sequence_get(
-            &entry_index->key,
-            0);
-    key = storage_db_get_chunk_data(db, chunk_info, &key_allocated_new_buffer);
-    key_length = chunk_info->chunk_length;
-
 
     // Check if the entry has an expiration time
     if (entry_index->expiry_time_ms != 0) {
@@ -417,11 +407,6 @@ bool storage_db_snapshot_rdb_write_value_header(
     }
 
 end:
-    // Free the key if it was allocated
-    if (key_allocated_new_buffer) {
-        ffma_mem_free(key);
-    }
-
     return result;
 }
 
