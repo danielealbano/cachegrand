@@ -338,14 +338,6 @@ bool storage_db_snapshot_rdb_write_value_header(
     size_t buffer_size = sizeof(buffer);
     size_t buffer_offset = 0;
 
-    static module_redis_snapshot_value_type_t value_type_cg_to_rdb_map[] = {
-            0, 0, // The first 2 values for cachegrand are not used
-            MODULE_REDIS_SNAPSHOT_VALUE_TYPE_STRING
-    };
-
-    // Convert the cachegrand value type to the redis one
-    assert(entry_index->value_type >= sizeof(value_type_cg_to_rdb_map) / sizeof(value_type_cg_to_rdb_map[0]));
-
     // Check if the entry has an expiration time
     if (entry_index->expiry_time_ms != 0) {
         // Serialize and write the expire time opcode
@@ -368,7 +360,7 @@ bool storage_db_snapshot_rdb_write_value_header(
 
     // Serialize and write the value type opcode
     if (module_redis_snapshot_serialize_primitive_encode_opcode_value_type(
-            value_type_cg_to_rdb_map[entry_index->value_type],
+            MODULE_REDIS_SNAPSHOT_VALUE_TYPE_STRING,
             buffer,
             buffer_size,
             0,
