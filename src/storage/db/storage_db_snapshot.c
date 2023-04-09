@@ -421,7 +421,6 @@ bool storage_db_snapshot_rdb_write_value_string(
     bool string_allocated_new_buffer = false;
     bool string_serialized = false;
     storage_db_chunk_info_t *chunk_info;
-    module_redis_snapshot_serialize_primitive_result_t serialize_result;
 
     if (likely(entry_index->value.count == 1)) {
         // If the string is small enough, it can be encoded as a small string int so get the string, it's
@@ -460,39 +459,37 @@ bool storage_db_snapshot_rdb_write_value_string(
             }
         }
 
-        // If the string is longer than 32 chars or can't be serialized as integer, try to compress it. It limits the
-        // amount of data allowed to be compressed to 52kb to be sure to have room for extra space as
-        // LZF_MAX_COMPRESSED_SIZE might return 104% and we are adding an additional 10% to be sure to have enough
-        // space to compress the string
-        if (false && likely(!string_serialized || (entry_index->value.size > 32 && entry_index->value.size < 52 * 1024))) {
-            size_t allocated_buffer_size = LZF_MAX_COMPRESSED_SIZE(entry_index->value.size) * 1.2;
-            uint8_t *allocated_buffer = ffma_mem_alloc(allocated_buffer_size);
-
-            serialize_result = module_redis_snapshot_serialize_primitive_encode_small_string_lzf(
-                    string,
-                    entry_index->value.size,
-                    allocated_buffer,
-                    allocated_buffer_size,
-                    0,
-                    &buffer_offset);
-
-            // If the compression fails or the ration is too low ignore the error, cachegrand will try to
-            // save the string as a regular string
-            if (likely(serialize_result == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK)) {
-                if (unlikely(!storage_db_snapshot_rdb_write_buffer(
-                        db,
-                        allocated_buffer,
-                        allocated_buffer_size))) {
-                    ffma_mem_free(allocated_buffer);
-                    result = false;
-                    goto end;
-                }
-
-                string_serialized = true;
-            }
-
-            ffma_mem_free(allocated_buffer);
-        }
+        // The LZF compression is disabled for now, it causes a segfault
+//        if (false && likely(!string_serialized || (entry_index->value.size > 32 && entry_index->value.size < 52 * 1024))) {
+//           module_redis_snapshot_serialize_primitive_result_t serialize_result;
+//            size_t allocated_buffer_size = LZF_MAX_COMPRESSED_SIZE(entry_index->value.size) * 1.2;
+//            uint8_t *allocated_buffer = ffma_mem_alloc(allocated_buffer_size);
+//
+//            serialize_result = module_redis_snapshot_serialize_primitive_encode_small_string_lzf(
+//                    string,
+//                    entry_index->value.size,
+//                    allocated_buffer,
+//                    allocated_buffer_size,
+//                    0,
+//                    &buffer_offset);
+//
+//            // If the compression fails or the ration is too low ignore the error, cachegrand will try to
+//            // save the string as a regular string
+//            if (likely(serialize_result == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK)) {
+//                if (unlikely(!storage_db_snapshot_rdb_write_buffer(
+//                        db,
+//                        allocated_buffer,
+//                        allocated_buffer_size))) {
+//                    ffma_mem_free(allocated_buffer);
+//                    result = false;
+//                    goto end;
+//                }
+//
+//                string_serialized = true;
+//            }
+//
+//            ffma_mem_free(allocated_buffer);
+//        }
     }
 
     // If the string hasn't been serialized via the fast path or is too long, serialize it as a regular
