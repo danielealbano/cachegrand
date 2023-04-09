@@ -1837,18 +1837,30 @@ uint8_t storage_db_keys_eviction_run_worker(
     storage_db_keys_eviction_bitonic_sort_16_elements(keys_evitction_candidates_list);
 
     // Delete the first 10 keys
-    #pragma unroll(STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS)
-    for (uint8_t i = 0; i < STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS; i++) {
+    uint8_t evict_first_n_keys = STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS;
+
+#pragma unroll(STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS)
+    for (
+            uint8_t entry_index = 0;
+            entry_index < evict_first_n_keys &&
+                entry_index < STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH;
+            entry_index++) {
+        storage_db_keys_eviction_kv_list_entry_t *key_eviction_list_entry = &keys_evitction_candidates_list[entry_index];
+
         // Check if the key is set to UINT64_MAX and the value is set to UINT64_MAX, in which case there are no more
         // keys to evict in the list
-        if (unlikely(keys_evitction_candidates_list[i].key == UINT64_MAX &&
-            keys_evitction_candidates_list[i].value == UINT64_MAX)) {
+        if (unlikely(key_eviction_list_entry->key == UINT64_MAX &&
+            key_eviction_list_entry->value == UINT64_MAX)) {
             break;
         }
 
-        // Try to delete the key by index
-        if (storage_db_op_delete_by_index(db, keys_evitction_candidates_list[i].value)) {
+        // Try to delete the key by index, potentially the operation might fail if the key has been deleted or if it
+        // was selected twice for the eviction
+        if (storage_db_op_delete_by_index(db, key_eviction_list_entry->value)) {
             keys_evicted_count++;
+        } else {
+            // If the operation fails, increment the amount of keys to evict by one
+            evict_first_n_keys++;
         }
     }
 
