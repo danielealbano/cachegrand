@@ -1077,6 +1077,28 @@ int64_t storage_db_entry_index_ttl_ms(
     return entry_index->expiry_time_ms - clock_realtime_coarse_int64_ms();
 }
 
+storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep_no_expired_eviction(
+        storage_db_t *db,
+        storage_db_entry_index_t *entry_index) {
+    storage_db_entry_index_status_t old_status = {0};
+
+    // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
+    storage_db_entry_index_status_increase_readers_counter(
+            entry_index,
+            &old_status);
+
+    if (unlikely(old_status.deleted)) {
+        entry_index = NULL;
+    }
+
+    if (storage_db_entry_index_is_expired(entry_index)) {
+        storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
+        entry_index = NULL;
+    }
+
+    return entry_index;
+}
+
 storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         storage_db_t *db,
         char *key,

@@ -418,6 +418,10 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         size_t key_length,
         storage_db_entry_index_t *entry_index);
 
+storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep_no_expired_eviction(
+        storage_db_t *db,
+        storage_db_entry_index_t *entry_index);
+
 storage_db_entry_index_t *storage_db_get_entry_index_for_read(
         storage_db_t *db,
         char *key,
