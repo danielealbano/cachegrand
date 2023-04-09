@@ -53,5 +53,6 @@ storage_channel_t* storage_channel_multi_new(
 
 void storage_channel_free(
         storage_channel_t* storage_channel) {
+    ffma_mem_free(storage_channel->path);
     ffma_mem_free(storage_channel);
 }
