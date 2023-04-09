@@ -71,8 +71,7 @@ void test_worker_storage_io_uring_op_fiber_entrypoint(void *user_data) {
     bool flush_result;
     bool fallocate_result;
 
-    test_worker_storage_io_uring_op_fiber_userdata_t *user_data_fiber =
-            (test_worker_storage_io_uring_op_fiber_userdata_t*)user_data;
+    auto user_data_fiber = (test_worker_storage_io_uring_op_fiber_userdata_t*)user_data;
 
     if (user_data_fiber->open) {
         open_result = (storage_channel_iouring_t*)worker_storage_iouring_op_storage_open(
@@ -148,7 +147,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
 
     char buffer_write[] = "cachegrand test - read / write tests";
     char buffer_read1[128] = { 0 }, buffer_read2[128] = { 0 };
-    struct iovec iovec[2] = { 0 };
+    struct iovec iovec[2] = { nullptr };
 
     fiber_t *fiber = nullptr;
     char fiber_name[] = "test-fiber";
