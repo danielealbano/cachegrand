@@ -587,7 +587,7 @@ end:
 }
 
 module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_opcode_value_type(
-        module_snapshot_value_type_t value_type,
+        module_redis_snapshot_value_type_t value_type,
         uint8_t *buffer,
         size_t buffer_size,
         size_t buffer_offset,
