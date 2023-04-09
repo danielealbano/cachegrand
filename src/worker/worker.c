@@ -73,6 +73,7 @@
 #include "worker/fiber/worker_fiber_storage_db_gc_deleted_entries.h"
 #include "worker/fiber/worker_fiber_storage_db_initialize.h"
 #include "worker/fiber/worker_fiber_storage_db_keys_eviction.h"
+#include "worker/fiber/worker_fiber_storage_db_snapshot_rdb.h"
 
 #define TAG "worker"
 
@@ -313,6 +314,14 @@ bool worker_initialize_storage_db(
             worker_context,
             "worker-fiber-storage-db-keys-eviction",
             worker_fiber_storage_db_keys_eviction_fiber_entrypoint,
+            NULL)) {
+        return false;
+    }
+
+    if (!worker_fiber_register(
+            worker_context,
+            "worker-fiber-storage-db-snapshot-rdb",
+            worker_fiber_storage_db_snapshot_rdb_fiber_entrypoint,
             NULL)) {
         return false;
     }
