@@ -784,11 +784,42 @@ bool storage_db_snapshot_rdb_process_block(
         if (*last_block) {
             result = storage_db_snapshot_rdb_completed_successfully(db);
         }
+void storage_db_snapshot_report_progress(
+        storage_db_t *db) {
+    char eta_buffer[CLOCK_TIMESPAN_MAX_LENGTH];
+
+    uint64_t now_ms = clock_monotonic_int64_ms();
+
+    // Calculate the block index end and ensure it is not greater than the buckets count
+    uint64_t processed_block_index_end = db->snapshot.block_index * STORAGE_DB_SNAPSHOT_BLOCK_SIZE;
+    if (processed_block_index_end > db->hashtable->ht_current->buckets_count_real) {
+        processed_block_index_end = db->hashtable->ht_current->buckets_count_real;
     }
 
-    if (result == false) {
-        storage_db_snapshot_failed(db);
+    // Calculate progress
+    double progress =
+            (double)processed_block_index_end *
+            100.0 /
+            (double)db->hashtable->ht_current->buckets_count_real;
+
+    // Calculate the eta
+    uint64_t eta_ms = 0;
+    if (progress > 0) {
+        eta_ms = (uint64_t)(((double)now_ms - (double)db->snapshot.start_time_ms) * ((100.0 - progress) / progress));
     }
 
-    return result;
+    // Report the progress
+    LOG_I(
+            TAG,
+            "Snapshot progress <%0.02f%%>, keys processed <%lu>, data processed <%0.02lf MB>, eta: <%s>",
+            progress,
+            db->snapshot.stats.keys_written,
+            (double)db->snapshot.stats.data_written / 1024.0 / 1024.0,
+            clock_timespan_human_readable(
+                    eta_ms,
+                    eta_buffer,
+                    sizeof(eta_buffer)));
+
+    // Update the progress reported at time
+    db->snapshot.progress_reported_at_ms = clock_monotonic_int64_ms();
 }
