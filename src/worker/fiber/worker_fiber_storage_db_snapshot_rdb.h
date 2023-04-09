@@ -7,7 +7,7 @@ extern "C" {
 
 #define WORKER_FIBER_STORAGE_DB_SNAPSHOT_RDB_WAIT_LOOP_MS 10l
 
-void worker_fiber_storage_db_keys_eviction_fiber_entrypoint(
+void worker_fiber_storage_db_snapshot_rdb_fiber_entrypoint(
         void* user_data);
 
 #ifdef __cplusplus
