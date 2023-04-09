@@ -1197,6 +1197,25 @@ bool storage_db_set_entry_index(
         if (previous_entry_index != NULL) {
             counter_data_size_delta -= (int64_t)previous_entry_index->value.size;
 
+            if (storage_db_snapshot_is_in_progress(db)) {
+                if (
+                        storage_db_snapshot_should_entry_index_be_processed_creation_time(db, previous_entry_index) &&
+                        storage_db_snapshot_should_entry_index_be_processed_block_not_processed(db, out_bucket_index)) {
+                    storage_db_entry_index_t *previous_entry_index_after_prep =
+                            storage_db_get_entry_index_for_read_prep_no_expired_eviction(
+                                    db,
+                                    previous_entry_index);
+                    if (previous_entry_index_after_prep) {
+                        storage_db_snapshot_queue_entry_index_to_be_deleted(
+                                db,
+                                out_bucket_index,
+                                key,
+                                key_length,
+                                previous_entry_index_after_prep);
+                    }
+                }
+            }
+
             storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, previous_entry_index);
         }
 
@@ -1204,6 +1223,10 @@ bool storage_db_set_entry_index(
         storage_db_counters_get_current_thread_data(db)->data_size += counter_data_size_delta;
         storage_db_counters_get_current_thread_data(db)->keys_changed++;
         storage_db_counters_get_current_thread_data(db)->data_changed += counter_data_size_delta;
+    }
+
+    if (out_should_free_key) {
+        xalloc_free(key);
     }
 
     return res;
