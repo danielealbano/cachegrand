@@ -83,7 +83,6 @@ void storage_db_snapshot_completed(
             ? "Snapshot completed in <%lu> ms"
             : "Snapshot failed after <%lu> ms",
             db->snapshot.end_time_ms - db->snapshot.start_time_ms);
-    LOG_I(TAG, "Next snapshot in <%lu> s", (db->snapshot.next_run_time_ms - db->snapshot.end_time_ms) / 1000);
 
     // Sync the data
     db->snapshot.running = false;
