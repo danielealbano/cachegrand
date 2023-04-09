@@ -985,7 +985,9 @@ void storage_db_worker_garbage_collect_deleting_entry_index_when_no_readers(
     // Can't use double_linked_list_iter_next because the code might remove from the list the current item and
     // double_linked_list_iter_next needs access to it
     item_next = list->head;
-    while((item = item_next) != NULL) {
+    uint64_t counter = 0;
+    uint64_t max_iterations = 1000 + (list->count > 1000 ? list->count / 25 : 0);
+    while((item = item_next) != NULL && counter++ < max_iterations) {
         item_next = item->next;
         storage_db_entry_index_t *entry_index = item->data;
 
