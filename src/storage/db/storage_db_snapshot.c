@@ -618,6 +618,50 @@ bool storage_db_snapshot_rdb_completed_successfully(
     return storage_db_snapshot_completed_successfully(db);
 }
 
+bool storage_db_snapshot_rdb_process_entry_index_to_be_deleted_queue(
+        storage_db_t *db) {
+    bool result = true;
+    storage_db_snapshot_entry_index_to_be_deleted_t *data = NULL;
+
+    uint32_t counter = 0;
+    while ((data = queue_mpmc_pop(db->snapshot.entry_index_to_be_deleted_queue)) != NULL &&
+        counter++ < (STORAGE_DB_SNAPSHOT_BLOCK_SIZE / 2)) {
+        // Process the entry index
+        result = storage_db_snapshot_rdb_process_entry_index(
+                db,
+                data->key,
+                data->key_length,
+                data->entry_index);
+
+        // If the operation is successful, update the statistics
+        if (result) {
+            db->snapshot.stats.keys_written++;
+        }
+
+        // Free the memory
+        xalloc_free(data->key);
+        ffma_mem_free(data);
+
+        // If the operation failed, exit after freeing the memory
+        if (!result) {
+            break;
+        }
+    }
+
+    return result;
+}
+
+void storage_db_snapshot_rdb_flush_entry_index_to_be_deleted_queue(
+        storage_db_t *db) {
+    storage_db_snapshot_entry_index_to_be_deleted_t *data;
+
+    while ((data = queue_mpmc_pop(db->snapshot.entry_index_to_be_deleted_queue)) != NULL) {
+        storage_db_entry_index_status_decrease_readers_counter(data->entry_index, NULL);
+        xalloc_free(data->key);
+        ffma_mem_free(data);
+    }
+}
+
 bool storage_db_snapshot_rdb_process_block(
         storage_db_t *db,
         bool *last_block) {
