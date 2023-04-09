@@ -460,9 +460,12 @@ bool config_validate_after_load_database_snapshots(
         return_result = false;
     }
 
-    // Ensure that if rotation is enabled, the maximum number of max_files is equal or greater than 0
-    if (config->database->snapshots->rotation && config->database->snapshots->rotation->max_files < 0) {
-        LOG_E(TAG, "The maximum number of days for the snapshots rotation must be greater or equal to <0>");
+    // Ensure that if rotation is enabled, the maximum number of max_files is equal or greater than 0 and smaller than
+    // uint16_t
+    if (config->database->snapshots->rotation && (
+            config->database->snapshots->rotation->max_files < 2 ||
+            config->database->snapshots->rotation->max_files > 65535)) {
+        LOG_E(TAG, "The maximum number of files for the snapshots rotation must be between <2> and <65535>");
         return_result = false;
     }
 

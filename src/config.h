@@ -240,7 +240,7 @@ struct config_database_limits {
 typedef struct config_database_limits config_database_limits_t;
 
 struct config_database_snapshots_rotation {
-    uint64_t max_files;
+    int64_t max_files;
 };
 typedef struct config_database_snapshots_rotation config_database_snapshots_rotation_t;
 
