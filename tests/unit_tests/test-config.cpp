@@ -2002,8 +2002,8 @@ TEST_CASE("config.c", "[config]") {
         // Replace the old paths with the new ones
         std::string cachegrand_yaml_skel_stream_with_fixed_paths = cachegrand_yaml_skel_buffer.str();
         cachegrand_yaml_skel_stream_with_fixed_paths.replace(
-                cachegrand_yaml_skel_stream_with_fixed_paths.find("/var/lib/cachegrand/snapshot"),
-                strlen("/var/lib/cachegrand/snapshot"),
+                cachegrand_yaml_skel_stream_with_fixed_paths.find("/var/lib/cachegrand/dump.rdb"),
+                strlen("/var/lib/cachegrand/dump.rdb"),
                 shapshot_temp_path);
 
         // Close the file
