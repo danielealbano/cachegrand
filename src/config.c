@@ -17,8 +17,7 @@
 #include <sys/statvfs.h>
 #include <sys/sysinfo.h>
 #include <cyaml/cyaml.h>
-#include <libgen.h>
-#include <sys/stat.h>
+#include <limits.h>
 
 #include "exttypes.h"
 #include "misc.h"
@@ -437,34 +436,20 @@ bool config_validate_after_load_database_backend_memory(
 
 bool config_validate_after_load_database_snapshots(
         config_t* config) {
-    struct stat parent_path_stat;
     bool return_result = true;
 
     if (!config->database->snapshots) {
         return return_result;
     }
 
-    // Get the dirname out of the database snapshots path and validates that it exists and it's readable / writable
-    char* parent_path = dirname(config->database->snapshots->path);
-    if(stat(parent_path, &parent_path_stat) == -1) {
+    // Ensure that the path is not longer than PATH_MAX
+    if (strlen(config->database->snapshots->path) > PATH_MAX) {
+        LOG_E(TAG, "The path for the snapshots is too long");
         return_result = false;
-        if(ENOENT == errno) {
-            LOG_E(TAG, "The folder for the snapshots path <%s> does not exist", parent_path);
-        } else {
-            LOG_E(TAG, "Unable to check the folder for the snapshots path <%s>", parent_path);
-        }
-    } else {
-        if (!S_ISDIR(parent_path_stat.st_mode)) {
-            LOG_E(TAG, "The folder for the snapshots path <%s> is not a folder", parent_path);
-            return_result = false;
-        } else if(access(parent_path, R_OK | W_OK) == -1) {
-            LOG_E(TAG, "The folder for the snapshots path <%s> is not readable or writable", parent_path);
-            return_result = false;
-        }
     }
 
     // Check that the maximum allowed interval is 7 days
-    if (config->database->snapshots->interval > 7 * 24 * 60 * 60) {
+    if (config->database->snapshots->interval_ms > 7 * 24 * 60 * 60 * 1000) {
         LOG_E(TAG, "The maximum allowed interval for the snapshots is <7> days");
         return_result = false;
     }
@@ -934,7 +919,10 @@ bool config_process_string_values(
                 false,
                 false,
                 true,
-                &config->database->snapshots->interval);
+                &config->database->snapshots->interval_ms);
+
+        // The returned time is in seconds, so multiply by 1000 to convert to ms
+        config->database->snapshots->interval_ms *= 1000;
 
         if (!result) {
             LOG_E(TAG, "Failed to parse the snapshot interval");

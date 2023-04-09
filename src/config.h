@@ -248,7 +248,7 @@ struct config_database_snapshots {
     char *path;
     char *interval_str;
     char *min_data_changed_str;
-    int64_t interval;
+    int64_t interval_ms;
     int64_t min_keys_changed;
     int64_t min_data_changed;
     config_database_snapshots_rotation_t *rotation;
