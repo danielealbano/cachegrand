@@ -517,25 +517,50 @@ end:
 
 bool storage_db_snapshot_rdb_process_entry_index(
         storage_db_t *db,
+        char *key,
+        size_t key_size,
         storage_db_entry_index_t *entry_index) {
+    bool result = true;
+
+    // Check if the snapshot time of the entry is after the start of the snapshot process
+    if (entry_index->snapshot_time_ms > db->snapshot.start_time_ms) {
+        // If the snapshot time of the entry is newer than the snapshot start time, it means that the entry has been
+        // deleted or modified and pushed in the queue after the snapshot process has started. Therefore it has already
+        // been serialized and we can skip it
+        return true;
+    }
+
     // Write the header of the value
-    if (!storage_db_snapshot_rdb_write_value_header(db, entry_index)) {
-        return false;
+    if (!storage_db_snapshot_rdb_write_value_header(
+            db,
+            key,
+            key_size,
+            entry_index)) {
+        result = false;
+        goto end;
     }
 
     // Depending on the value type, serialize the data
-    switch(entry_index->value_type) {
-        case STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING:
-            if (!storage_db_snapshot_rdb_write_value_string(db, entry_index)) {
-                return false;
-            }
-            break;
-
-        default:
-            FATAL(TAG, "Unsupported value type");
+    assert(entry_index->value_type == 0);
+    if (!storage_db_snapshot_rdb_write_value_string(db, entry_index)) {
+        result = false;
+        goto end;
     }
 
-    return true;
+end:
+    // To spare resources, set the snapshot time to the start time plus one, no need to use memory fences as this
+    // process can't be executed in parallel as the RDB file format doesn't allow it
+    entry_index->snapshot_time_ms = db->snapshot.start_time_ms + 1;
+
+    // Decrease the number of readers of the entry index
+    storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
+    return result;
+}
+
+void storage_db_snapshot_mark_as_being_finalized(
+        storage_db_t *db) {
+    db->snapshot.status = STORAGE_DB_SNAPSHOT_STATUS_BEING_FINALIZED;
+    MEMORY_FENCE_STORE();
 }
 
 bool storage_db_snapshot_completed_successfully(
