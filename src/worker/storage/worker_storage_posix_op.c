@@ -27,6 +27,7 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
+#include "memory_allocator/ffma.h"
 #include "config.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
@@ -50,6 +51,32 @@ storage_channel_t* worker_storage_posix_op_storage_open(
         fiber_scheduler_set_error(errno);
         return NULL;
     }
+
+    storage_channel_t *storage_channel = storage_channel_new();
+    storage_channel->fd = fd;
+    storage_channel->path = path;
+    storage_channel->path_len = strlen(path);
+
+    return storage_channel;
+}
+
+storage_channel_t* worker_storage_posix_op_storage_open_fd(
+        storage_io_common_fd_t fd) {
+    char temp_fd_link_path[PATH_MAX];
+    char temp_fd_path[PATH_MAX];
+
+    // Read the path of the fd
+    snprintf(temp_fd_link_path, PATH_MAX - 1, "/proc/self/fd/%d", fd);
+    size_t res = readlink(temp_fd_link_path, temp_fd_path, PATH_MAX - 1);
+
+    // If the fd is not valid, return NULL
+    if (res == -1) {
+        return NULL;
+    }
+
+    // Copy the path to a new buffer
+    char *path = ffma_mem_alloc(strlen(temp_fd_path));
+    strcpy(path, temp_fd_path);
 
     storage_channel_t *storage_channel = storage_channel_new();
     storage_channel->fd = fd;
@@ -156,6 +183,7 @@ bool worker_storage_posix_cleanup(
 
 bool worker_storage_posix_op_register() {
     worker_op_storage_open = worker_storage_posix_op_storage_open;
+    worker_op_storage_open_fd = worker_storage_posix_op_storage_open_fd;
     worker_op_storage_read = worker_storage_posix_op_storage_read;
     worker_op_storage_write = worker_storage_posix_op_storage_write;
     worker_op_storage_flush = worker_storage_posix_op_storage_flush;

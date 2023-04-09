@@ -101,6 +101,36 @@ storage_channel_t* worker_storage_iouring_op_storage_open(
     return (storage_channel_t*)storage_channel_iouring;
 }
 
+storage_channel_t *worker_storage_iouring_op_storage_open_fd(
+        storage_io_common_fd_t fd) {
+    char temp_fd_link_path[PATH_MAX];
+    char temp_fd_path[PATH_MAX];
+
+    // Read the path of the fd
+    snprintf(temp_fd_link_path, PATH_MAX - 1, "/proc/self/fd/%d", fd);
+    size_t res = readlink(temp_fd_link_path, temp_fd_path, PATH_MAX - 1);
+
+    // If the fd is not valid, return NULL
+    if (res == -1) {
+        return NULL;
+    }
+
+    // Copy the path to a new buffer
+    char *path = ffma_mem_alloc(strlen(temp_fd_path));
+    strcpy(path, temp_fd_path);
+
+    // Setup the storage channel
+    storage_channel_iouring_t *storage_channel_iouring = storage_channel_iouring_new();
+    storage_channel_iouring->has_mapped_fd = false;
+    storage_channel_iouring->fd = storage_channel_iouring->wrapped_channel.fd = fd;
+    storage_channel_iouring->wrapped_channel.path = path;
+    storage_channel_iouring->wrapped_channel.path_len = strlen(path);
+
+    // TODO: should map the fd
+
+    return (storage_channel_t*)storage_channel_iouring;
+}
+
 int32_t worker_storage_iouring_op_storage_read(
         storage_channel_t *channel,
         storage_io_common_iovec_t *iov,
@@ -255,6 +285,7 @@ bool worker_storage_iouring_cleanup(
 
 bool worker_storage_iouring_op_register() {
     worker_op_storage_open = worker_storage_iouring_op_storage_open;
+    worker_op_storage_open_fd = worker_storage_iouring_op_storage_open_fd;
     worker_op_storage_read = worker_storage_iouring_op_storage_read;
     worker_op_storage_write = worker_storage_iouring_op_storage_write;
     worker_op_storage_flush = worker_storage_iouring_op_storage_flush;

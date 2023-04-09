@@ -12,6 +12,9 @@ storage_channel_t* worker_storage_iouring_op_storage_open(
         storage_io_common_open_flags_t flags,
         storage_io_common_open_mode_t mode);
 
+storage_channel_t *worker_storage_iouring_op_storage_open_fd(
+        int fd);
+
 int32_t worker_storage_iouring_op_storage_read(
         storage_channel_t *channel,
         storage_io_common_iovec_t *iov,

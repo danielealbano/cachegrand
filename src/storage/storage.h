@@ -10,6 +10,9 @@ storage_channel_t* storage_open(
         storage_io_common_open_flags_t flags,
         storage_io_common_open_mode_t mode);
 
+storage_channel_t* storage_open_fd(
+        storage_io_common_fd_t fd);
+
 bool storage_readv(
         storage_channel_t *channel,
         storage_io_common_iovec_t *iov,
