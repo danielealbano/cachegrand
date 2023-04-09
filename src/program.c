@@ -611,6 +611,16 @@ bool program_config_setup_storage_db(
         program_context_t* program_context) {
     storage_db_config_t *config = storage_db_config_new();
 
+    if ((config->snapshot.enabled = program_context->config->database->snapshots != NULL)) {
+        config->snapshot.path = program_context->config->database->snapshots->path;
+        config->snapshot.interval_ms = program_context->config->database->snapshots->interval_ms;
+        config->snapshot.min_keys_changed = program_context->config->database->snapshots->min_keys_changed;
+        config->snapshot.min_data_changed = program_context->config->database->snapshots->min_data_changed;
+        config->snapshot.rotation_max_files = program_context->config->database->snapshots->rotation != NULL
+                                              ? program_context->config->database->snapshots->rotation->max_files
+                                              : 0;
+    }
+
     if (program_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
         config->backend.file.shard_size_mb = program_context->config->database->file->shard_size_mb;
         config->backend.file.basedir_path = program_context->config->database->file->path;
