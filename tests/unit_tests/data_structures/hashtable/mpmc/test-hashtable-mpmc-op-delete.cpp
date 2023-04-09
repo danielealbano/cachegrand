@@ -128,7 +128,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(half_hashes_chunk->metadata.slots_occupied == 1);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].quarter_hash == test_key_1_hash_quarter);
                 REQUIRE(key_value->flags != HASHTABLE_KEY_VALUE_FLAG_DELETED);
-                REQUIRE(out_should_free_key);
+                REQUIRE(out_should_free_key == false);
 
                 REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
