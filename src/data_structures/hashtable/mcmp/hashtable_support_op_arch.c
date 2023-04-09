@@ -467,22 +467,6 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
         LOG_DI("chunk %lu will not be unlocked, it has to be returned to the caller", *found_chunk_index);
     }
 
-//    // The unlocking is now done via the transaction logic when transaction_release is issued
-//    // TODO: refactor the code to have a sliding locking window, if the algorithm is not finding free slots there are
-//    //       no reasons to keep a chunk locked
-//    LOG_DI("unlocking chunks from %lu to %lu", chunk_index_start_initial, locked_up_to_chunk_index);
-//    for (chunk_index = chunk_index_start_initial; chunk_index <= locked_up_to_chunk_index; chunk_index++) {
-//        LOG_DI("> processing chunk %lu", chunk_index);
-//        if (found == true && chunk_index == *found_chunk_index) {
-//            LOG_DI("> chunk to return to the caller, keeping it locked");
-//            continue;
-//        }
-//        half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
-//
-//        LOG_DI("> unlocking chunk");
-//        transaction_spinlock_unlock(&half_hashes_chunk->write_lock, transaction);
-//    }
-
     LOG_DI("found_half_hashes_chunk = 0x%016x", *found_half_hashes_chunk);
     LOG_DI("found_key_value = 0x%016x", *found_key_value);
     LOG_DI("created_new = %s", *created_new ? "YES" : "NO");
