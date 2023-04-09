@@ -1177,6 +1177,8 @@ bool storage_db_set_entry_index(
         char *key,
         size_t key_length,
         storage_db_entry_index_t *entry_index) {
+    bool out_should_free_key = false;
+    hashtable_bucket_index_t out_bucket_index = 0;
     storage_db_entry_index_t *previous_entry_index = NULL;
 
     storage_db_entry_index_touch(entry_index);
@@ -1186,7 +1188,9 @@ bool storage_db_set_entry_index(
             key,
             key_length,
             (uintptr_t)entry_index,
-            (uintptr_t*)&previous_entry_index);
+            (uintptr_t*)&previous_entry_index,
+            &out_bucket_index,
+            &out_should_free_key);
 
     if (res) {
         int64_t counter_data_size_delta = (int64_t)entry_index->value.size;
