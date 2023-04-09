@@ -117,6 +117,9 @@ storage_channel_t *worker_storage_iouring_op_storage_open_fd(
 
     // Copy the path to a new buffer
     char *path = ffma_mem_alloc(strlen(temp_fd_path));
+    if (!path) {
+        return NULL;
+    }
     strcpy(path, temp_fd_path);
 
     // Setup the storage channel

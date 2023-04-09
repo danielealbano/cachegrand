@@ -122,6 +122,10 @@ static inline bool storage_db_snapshot_queue_entry_index_to_be_deleted(
 
     storage_db_snapshot_entry_index_to_be_deleted_t *data =
             ffma_mem_alloc(sizeof(storage_db_snapshot_entry_index_to_be_deleted_t));
+    if (!data) {
+        return false;
+    }
+
     data->bucket_index = bucket_index;
     data->key = key_dup;
     data->key_length = key_length;

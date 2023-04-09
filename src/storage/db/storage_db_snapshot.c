@@ -191,7 +191,7 @@ void storage_db_snapshot_rdb_internal_status_reset(
 
 bool storage_db_snapshot_rdb_prepare(
         storage_db_t *db) {
-    storage_io_common_fd_t snapshot_fd;
+    storage_io_common_fd_t snapshot_fd = 0;
     char snapshot_path[PATH_MAX];
     struct stat parent_path_stat;
     uint8_t buffer[128] = { 0 };
@@ -294,7 +294,9 @@ end:
 
         // Doesn't matter if the close fails, it might have been closed already, it's pointless to check we can just
         // ignore the error if there is one
-        close(snapshot_fd);
+        if (snapshot_fd > 0) {
+            close(snapshot_fd);
+        }
     }
 
     return result;
@@ -619,16 +621,12 @@ bool storage_db_snapshot_completed_successfully(
                     "%s.%d", db->config->snapshot.path,
                     index + 1);
 
-            // Check if the snapshot_path_rotated_next file exists
-            if (access(snapshot_path_rotated, F_OK) != 0) {
-                // If not, skip the file
-                continue;
-            }
-
             if (rename(snapshot_path_rotated, snapshot_path_rotated_next) == -1) {
-                LOG_E(TAG, "Failed to rotate the snapshot file");
-                LOG_E_OS_ERROR(TAG);
-                return false;
+                if (errno != ENOENT) {
+                    LOG_E(TAG, "Failed to rotate the snapshot file");
+                    LOG_E_OS_ERROR(TAG);
+                    return false;
+                }
             }
         }
     }
