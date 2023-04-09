@@ -30,6 +30,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_iter.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_get_key.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "memory_allocator/ffma.h"
@@ -60,6 +61,7 @@ bool storage_db_snapshot_rdb_write_buffer(
         return false;
     }
 
+    db->snapshot.stats.data_written += buffer_size;
     db->snapshot.offset += (off_t)buffer_size;
 
     return true;
@@ -68,13 +70,11 @@ bool storage_db_snapshot_rdb_write_buffer(
 void storage_db_snapshot_completed(
         storage_db_t *db,
         storage_db_snapshot_status_t status) {
-    // Free the path
-    ffma_mem_free(db->snapshot.storage_channel->path);
-
     // Update the snapshot general information
     storage_db_snapshot_update_next_run_time(db);
     db->snapshot.end_time_ms = clock_monotonic_coarse_int64_ms();
     db->snapshot.status = status;
+    db->snapshot.path = NULL;
 
     // Report the result of the snapshot
     LOG_I(
@@ -83,17 +83,30 @@ void storage_db_snapshot_completed(
             ? "Snapshot completed in <%lu> ms"
             : "Snapshot failed after <%lu> ms",
             db->snapshot.end_time_ms - db->snapshot.start_time_ms);
+    LOG_I(TAG, "Next snapshot in <%lu> s", (db->snapshot.next_run_time_ms - db->snapshot.end_time_ms) / 1000);
 
     // Sync the data
     db->snapshot.running = false;
     MEMORY_FENCE_STORE();
+
+    assert(queue_mpmc_pop(db->snapshot.entry_index_to_be_deleted_queue) == NULL);
 }
 
 void storage_db_snapshot_failed(
         storage_db_t *db) {
+    struct stat path_stat;
+
     // Close the snapshot file and delete the file from the disk
-    storage_close(db->snapshot.storage_channel);
-    unlink(db->snapshot.storage_channel->path);
+    if (db->snapshot.storage_channel_opened) {
+        storage_close(db->snapshot.storage_channel);
+        db->snapshot.storage_channel_opened = false;
+        MEMORY_FENCE_STORE();
+    }
+
+    // Check if the snapshot file exists and, if yes, delete it
+    if (db->snapshot.path != NULL && stat(db->snapshot.path, &path_stat) != -1) {
+        unlink(db->snapshot.path);
+    }
 
     // The operation has failed so the storage channel must be closed and the snapshot deleted
     storage_db_snapshot_completed(db, STORAGE_DB_SNAPSHOT_STATUS_FAILED);
@@ -157,23 +170,44 @@ void storage_db_snapshot_wait_for_prepared(
     } while (db->snapshot.status != STORAGE_DB_SNAPSHOT_STATUS_IN_PREPARATION);
 }
 
+void storage_db_snapshot_rdb_internal_status_reset(
+        storage_db_t *db) {
+    // Reset the status of the snapshot
+    memset(&db->snapshot.stats, 0, sizeof(db->snapshot.stats));
+    db->snapshot.storage_channel = NULL;
+    db->snapshot.storage_channel_opened = false;
+    db->snapshot.block_index = 0;
+    db->snapshot.offset = 0;
+    db->snapshot.progress_reported_at_ms = clock_monotonic_int64_ms();
+    db->snapshot.start_time_ms = 0;
+    db->snapshot.end_time_ms = 0;
+    db->snapshot.stats.keys_written = 0;
+    db->snapshot.stats.data_written = 0;
+
+    // Ensure the queue is empty
+    assert(queue_mpmc_pop(db->snapshot.entry_index_to_be_deleted_queue) == NULL);
+}
+
 bool storage_db_snapshot_rdb_prepare(
         storage_db_t *db) {
     storage_io_common_fd_t snapshot_fd;
-    bool result = true;
     char snapshot_path[PATH_MAX];
     struct stat parent_path_stat;
+    uint8_t buffer[128] = { 0 };
+    size_t buffer_size = sizeof(buffer);
+    size_t buffer_offset = 0;
     storage_db_config_t *config = db->config;
+    bool result = true;
 
-    // Set the storage channel to NULL
-    db->snapshot.storage_channel = NULL;
+    // Reset the status of the snapshot
+    storage_db_snapshot_rdb_internal_status_reset(db);
 
     // Ensure that the parent directory of the path to be used for the snapshot exists and validates that it's readable
     // and writable
     char snapshot_path_tmp[PATH_MAX + 1];
     strcpy(snapshot_path_tmp, config->snapshot.path);
     char* parent_path = dirname(snapshot_path_tmp);
-    if(stat(parent_path, &parent_path_stat) == -1) {
+    if (stat(parent_path, &parent_path_stat) == -1) {
         if(ENOENT == errno) {
             LOG_E(TAG, "The folder for the snapshots path <%s> does not exist", parent_path);
         } else {
@@ -211,27 +245,27 @@ bool storage_db_snapshot_rdb_prepare(
         goto end;
     }
 
+    // Mark the storage channel as opened
+    db->snapshot.storage_channel_opened = true;
+
     // Duplicate the path of the storage channel
-    db->snapshot.path = ffma_mem_alloc(db->snapshot.storage_channel->path_len + 1);
+    db->snapshot.path = ffma_mem_alloc_zero(db->snapshot.storage_channel->path_len + 1);
     strncpy(db->snapshot.path, db->snapshot.storage_channel->path, db->snapshot.storage_channel->path_len);
 
     // Write the snapshot header
-    uint8_t buffer[128] = { 0 };
-    size_t buffer_size = sizeof(buffer);
-    size_t buffer_offset_out = 0;
     module_redis_snapshot_header_t header = { .version = STORAGE_DB_SNAPSHOT_RDB_VERSION };
     if (module_redis_snapshot_serialize_primitive_encode_header(
             &header,
             buffer,
             buffer_size,
             0,
-            &buffer_offset_out) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK) {
+            &buffer_offset) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK) {
         LOG_E(TAG, "Failed to prepare the snapshot header");
         result = false;
         goto end;
     }
 
-    if (!storage_db_snapshot_rdb_write_buffer(db, buffer, buffer_offset_out)) {
+    if (!storage_db_snapshot_rdb_write_buffer(db, buffer, buffer_offset)) {
         LOG_E(TAG, "Failed to write the snapshot header");
         result = false;
         goto end;
@@ -244,14 +278,22 @@ end:
 
         // The snapshot has been successfully prepared, so we can set running to true and update the status to
         // IN_PROGRESS
+        db->snapshot.start_time_ms = clock_monotonic_coarse_int64_ms();
         db->snapshot.keys_changed_at_start = counters.keys_changed;
         db->snapshot.data_changed_at_start = counters.data_changed;
-        db->snapshot.start_time_ms = clock_monotonic_coarse_int64_ms();
-        db->snapshot.running = true;
         db->snapshot.status = STORAGE_DB_SNAPSHOT_STATUS_IN_PROGRESS;
         MEMORY_FENCE_STORE();
+
+        db->snapshot.running = true;
+        MEMORY_FENCE_STORE();
+
+        LOG_I(TAG, "Snapshot started");
     } else {
         storage_db_snapshot_failed(db);
+
+        // Doesn't matter if the close fails, it might have been closed already, it's pointless to check we can just
+        // ignore the error if there is one
+        close(snapshot_fd);
     }
 
     return result;
@@ -433,9 +475,12 @@ bool storage_db_snapshot_rdb_write_value_string(
             }
         }
 
-        // If the string is longer than 32 chars or can't be serialized as integer, try to compress it
-        if (likely(!string_serialized || entry_index->value.size > 32)) {
-            size_t allocated_buffer_size = LZF_MAX_COMPRESSED_SIZE(entry_index->value.size);
+        // If the string is longer than 32 chars or can't be serialized as integer, try to compress it. It limits the
+        // amount of data allowed to be compressed to 52kb to be sure to have room for extra space as
+        // LZF_MAX_COMPRESSED_SIZE might return 104% and we are adding an additional 10% to be sure to have enough
+        // space to compress the string
+        if (false && likely(!string_serialized || (entry_index->value.size > 32 && entry_index->value.size < 52 * 1024))) {
+            size_t allocated_buffer_size = LZF_MAX_COMPRESSED_SIZE(entry_index->value.size) * 1.2;
             uint8_t *allocated_buffer = ffma_mem_alloc(allocated_buffer_size);
 
             serialize_result = module_redis_snapshot_serialize_primitive_encode_small_string_lzf(
@@ -728,28 +773,31 @@ bool storage_db_snapshot_rdb_process_block(
     // Get the end of the hashtable
     uint64_t buckets_end = db->hashtable->ht_current->buckets_count_real;
 
-    // Acquire a new snapshot block index and calculate the block start and block end
+    // Acquire a new block index and calculate the start and the end
     uint64_t block_index = db->snapshot.block_index++;
+    MEMORY_FENCE_STORE();
     uint64_t block_start = block_index * STORAGE_DB_SNAPSHOT_BLOCK_SIZE;
     uint64_t block_end = block_start + STORAGE_DB_SNAPSHOT_BLOCK_SIZE;
 
     // Check if the block is the last one
+    *last_block = false;
     if (block_end >= buckets_end) {
         *last_block = true;
     }
 
     // Loop over the buckets in the block
-    for (hashtable_bucket_index_t bucket_index = block_start;
+    for (hashtable_bucket_index_t bucket_index = block_start - 1;
          bucket_index < block_end && bucket_index < buckets_end;
          bucket_index++) {
+        char *key = NULL;
+        hashtable_key_size_t key_size = 0;
+
         // Tries to fetch the next entry within the block being processed
+        bucket_index++;
         storage_db_entry_index_t *entry_index = (storage_db_entry_index_t*)hashtable_mcmp_op_iter_max_distance(
                 db->hashtable,
                 &bucket_index,
-                buckets_end - bucket_index);
-
-        // Prepare for the next iteration, if there is one
-        bucket_index++;
+                block_end - bucket_index);
 
         // Ensure the entry is not null
         if (entry_index == NULL) {
@@ -760,7 +808,12 @@ bool storage_db_snapshot_rdb_process_block(
 
         // Check if the creation time is previous to the start time of the snapshot, in which case the key was created
         // after the snapshot was started and it should be skipped
-        if (entry_index->created_time_ms < db->snapshot.start_time_ms) {
+        if (!storage_db_snapshot_should_entry_index_be_processed_creation_time(db, entry_index)) {
+            continue;
+        }
+
+        // Try to get the key
+        if (unlikely(!hashtable_mcmp_op_get_key(db->hashtable, bucket_index, &key, &key_size))) {
             continue;
         }
 
@@ -768,22 +821,32 @@ bool storage_db_snapshot_rdb_process_block(
         entry_index = storage_db_get_entry_index_for_read_prep_no_expired_eviction(db, entry_index);
         if (unlikely(entry_index == NULL)) {
             // If entry_index is null after the call to storage_db_get_entry_index_for_read_prep_no_expired_eviction,
-            // it means that it has been deleted or has expired, in this case the key can be skipped
+            // it means that it has been deleted or has expired, in this case the entry can be skipped and the key can
+            // be freed
+            xalloc_free(key);
             continue;
         }
 
         // Serialize the entry
-        if (!storage_db_snapshot_rdb_process_entry_index(db, entry_index)) {
+        if (!storage_db_snapshot_rdb_process_entry_index(
+                db,
+                key,
+                key_size,
+                entry_index)) {
             result = false;
+            xalloc_free(key);
             break;
         }
+
+        db->snapshot.stats.keys_written++;
+
+        // Free the key
+        xalloc_free(key);
     }
 
-    if (result) {
-        // If the block is the last one, wrap it up
-        if (*last_block) {
-            result = storage_db_snapshot_rdb_completed_successfully(db);
-        }
+    return result;
+}
+
 void storage_db_snapshot_report_progress(
         storage_db_t *db) {
     char eta_buffer[CLOCK_TIMESPAN_MAX_LENGTH];
