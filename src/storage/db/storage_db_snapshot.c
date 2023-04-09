@@ -46,17 +46,6 @@
 
 #define TAG "storage_db_snapshot"
 
-bool storage_db_snapshot_lock_try_acquire(
-        storage_db_t *db) {
-    // Try to acquire the lock
-    return spinlock_try_lock(&db->snapshot.spinlock);
-}
-
-void storage_db_snapshot_release_lock(
-        storage_db_t *db) {
-    spinlock_unlock(&db->snapshot.spinlock);
-}
-
 bool storage_db_snapshot_rdb_write_buffer(
         storage_db_t *db,
         uint8_t *buffer,
