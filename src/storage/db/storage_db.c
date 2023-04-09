@@ -131,6 +131,8 @@ void storage_db_counters_sum(
             slots_bitmap_mpmc_iter(storage_db->counters_slots_bitmap, next_slot_index)) != UINT64_MAX) {
         counters->data_size += storage_db->counters[found_slot_index].data_size;
         counters->keys_count += storage_db->counters[found_slot_index].keys_count;
+        counters->keys_changed += storage_db->counters[found_slot_index].keys_count;
+        counters->data_changed += storage_db->counters[found_slot_index].data_changed;
         next_slot_index = found_slot_index + 1;
         workers_to_find--;
     }
@@ -243,6 +245,15 @@ storage_db_t* storage_db_new(
     db->workers_count = workers_count;
     db->hashtable = hashtable;
     db->counters_slots_bitmap = slots_bitmap_mpmc_init(STORAGE_DB_WORKERS_MAX);
+    db->snapshot.next_run_time_ms = 0;
+    db->snapshot.status = STORAGE_DB_SNAPSHOT_STATUS_NONE;
+    db->snapshot.block_index = 0;
+    db->snapshot.storage_channel = NULL;
+    db->snapshot.running = false;
+    db->snapshot.keys_changed_at_start = 0;
+    db->snapshot.data_changed_at_start = 0;
+
+    spinlock_init(&db->snapshot.spinlock);
 
     // Sets up the shards only if it has to write to the disk
     if (config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
@@ -1163,6 +1174,8 @@ bool storage_db_set_entry_index(
 
         storage_db_counters_get_current_thread_data(db)->keys_count += previous_entry_index ? 0 : 1;
         storage_db_counters_get_current_thread_data(db)->data_size += counter_data_size_delta;
+        storage_db_counters_get_current_thread_data(db)->keys_changed++;
+        storage_db_counters_get_current_thread_data(db)->data_changed += counter_data_size_delta;
     }
 
     return res;
@@ -1360,8 +1373,10 @@ bool storage_db_op_rmw_commit_update(
                 (storage_db_entry_index_t *)rmw_status->hashtable.current_value);
     }
 
-    storage_db_counters_get_current_thread_data(db)->data_size += counter_data_size_delta;
     storage_db_counters_get_current_thread_data(db)->keys_count += rmw_status->hashtable.current_value ? 0 : 1;
+    storage_db_counters_get_current_thread_data(db)->data_size += counter_data_size_delta;
+    storage_db_counters_get_current_thread_data(db)->keys_changed++;
+    storage_db_counters_get_current_thread_data(db)->data_changed += counter_data_size_delta;
 
     result_res = true;
 
@@ -1401,9 +1416,12 @@ void storage_db_op_rmw_commit_rename(
 void storage_db_op_rmw_commit_delete(
         storage_db_t *db,
         storage_db_op_rmw_status_t *rmw_status) {
+    storage_db_counters_get_current_thread_data(db)->keys_count--;
     storage_db_counters_get_current_thread_data(db)->data_size -=
             (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value.size;
-    storage_db_counters_get_current_thread_data(db)->keys_count--;
+    storage_db_counters_get_current_thread_data(db)->keys_changed++;
+    storage_db_counters_get_current_thread_data(db)->data_changed +=
+            (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value.size;
 
     storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
             db,
@@ -1435,9 +1453,12 @@ bool storage_db_op_delete(
             (uintptr_t*)&current_entry_index);
 
     if (res && current_entry_index != NULL) {
+        storage_db_counters_get_current_thread_data(db)->keys_count--;
         storage_db_counters_get_current_thread_data(db)->data_size -=
                 (int64_t)current_entry_index->value.size;
-        storage_db_counters_get_current_thread_data(db)->keys_count--;
+        storage_db_counters_get_current_thread_data(db)->keys_changed++;
+        storage_db_counters_get_current_thread_data(db)->data_changed +=
+                (int64_t)current_entry_index->value.size;
 
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
     }
@@ -1456,9 +1477,12 @@ bool storage_db_op_delete_by_index(
             (uintptr_t*)&current_entry_index);
 
     if (res && current_entry_index != NULL) {
+        storage_db_counters_get_current_thread_data(db)->keys_count--;
         storage_db_counters_get_current_thread_data(db)->data_size -=
                 (int64_t)current_entry_index->value.size;
-        storage_db_counters_get_current_thread_data(db)->keys_count--;
+        storage_db_counters_get_current_thread_data(db)->keys_changed++;
+        storage_db_counters_get_current_thread_data(db)->data_changed +=
+                (int64_t)current_entry_index->value.size;
 
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
     }

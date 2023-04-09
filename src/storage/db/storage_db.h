@@ -16,6 +16,8 @@ extern "C" {
 #define STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS (5)
 #define STORAGE_DB_KEYS_EVICTION_ITER_MAX_DISTANCE (5000)
 #define STORAGE_DB_KEYS_EVICTION_ITER_MAX_SEARCH_ATTEMPTS (100)
+#define STORAGE_DB_SNAPSHOT_RDB_VERSION (9)
+#define STORAGE_DB_SNAPSHOT_BLOCK_SIZE (8 * 1024)
 
 // This magic value defines the size of the ring buffer used to keep in memory data long enough to be sure they are not
 // being in use anymore.
@@ -82,12 +84,22 @@ enum storage_db_entry_index_value_type {
 };
 typedef enum storage_db_entry_index_value_type storage_db_entry_index_value_type_t;
 
+struct storage_db_snapshot {
+    bool enabled;
+    uint64_t interval_ms;
+    uint64_t min_keys_changed;
+    uint64_t min_data_changed;
+    char *path;
+};
+typedef struct storage_db_snapshot storage_db_snapshot_t;
+
 // general config parameters to initialize and use the internal storage db (e.g. storage backend, amount of memory for
 // the hashtable, other optional stuff)
 typedef struct storage_db_config storage_db_config_t;
 struct storage_db_config {
     storage_db_backend_type_t backend_type;
     storage_db_limits_t limits;
+    storage_db_snapshot_t snapshot;
     union {
         struct {
             char *basedir_path;
@@ -118,7 +130,19 @@ typedef struct storage_db_counters storage_db_counters_t;
 struct storage_db_counters {
     int64_t keys_count;
     int64_t data_size;
+    int64_t keys_changed;
+    int64_t data_changed;
 };
+
+enum storage_db_snapshot_status {
+    STORAGE_DB_SNAPSHOT_STATUS_NONE = 0,
+    STORAGE_DB_SNAPSHOT_STATUS_IN_PREPARATION,
+    STORAGE_DB_SNAPSHOT_STATUS_IN_PROGRESS,
+    STORAGE_DB_SNAPSHOT_STATUS_COMPLETED,
+    STORAGE_DB_SNAPSHOT_STATUS_FAILED,
+};
+typedef enum storage_db_snapshot_status storage_db_snapshot_status_t;
+typedef _Volatile(storage_db_snapshot_status_t) storage_db_snapshot_status_volatile_t;
 
 // contains the necessary information to manage the db, holds a pointer to storage_db_config required during the
 // the initialization
@@ -130,6 +154,25 @@ struct storage_db {
         storage_db_shard_index_t new_index;
         spinlock_lock_volatile_t write_spinlock;
     } shards;
+    struct {
+        spinlock_lock_t spinlock;
+        uint64_volatile_t next_run_time_ms;
+        uint64_volatile_t start_time_ms;
+        uint64_volatile_t end_time_ms;
+        storage_db_snapshot_status_volatile_t status;
+        uint64_volatile_t block_index;
+        bool_volatile_t running;
+        storage_channel_t *storage_channel;
+        off_t offset;
+        uint64_t keys_changed_at_start;
+        uint64_t data_changed_at_start;
+        char *path;
+        struct {
+            uint64_t data_written;
+            uint64_t keys_written;
+            uint64_t last_update_ms;
+        } stats;
+    } snapshot;
     hashtable_t *hashtable;
     storage_db_config_t *config;
     storage_db_worker_t *workers;
