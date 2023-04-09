@@ -914,7 +914,6 @@ bool config_process_string_values(
     // Check if snapshots are enabled
     if (config->database->snapshots) {
         config->database->snapshots->min_data_changed = 0;
-        config->database->snapshots->min_keys_changed = 0;
 
         bool result = config_parse_string_time(
                 config->database->snapshots->interval_str,
