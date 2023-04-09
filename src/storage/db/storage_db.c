@@ -1119,8 +1119,9 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
 
         // If the storage db entry index is actually expired it's necessary to start a read modify write operation
-        // because the check has to be carried out again under the lock to check if the entry index only has to be
-        // deleted or the entire bucket in the hashtable has to be deleted
+        // because the check has to be carried out again under the lock to verify if the entry_index has been replaced
+        // with a new one and therefore the current entry_index has not to be touched or if the entire bucket has to be
+        // freed
         transaction_t transaction = { 0 };
         storage_db_op_rmw_status_t rmw_status = { 0 };
 
