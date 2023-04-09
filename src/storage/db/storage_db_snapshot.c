@@ -114,7 +114,7 @@ void storage_db_snapshot_failed(
 
 bool storage_db_snapshot_should_run(
         storage_db_t *db) {
-    storage_db_counters_t counters;
+    storage_db_counters_t counters = { 0 };
     storage_db_config_t *config = db->config;
 
     // If the snapshot is running skip all the checks
@@ -149,6 +149,8 @@ bool storage_db_snapshot_should_run(
         if (config->snapshot.min_data_changed > 0 && data_changed >= config->snapshot.min_data_changed) {
             return true;
         }
+
+        return false;
     }
 
     return true;
