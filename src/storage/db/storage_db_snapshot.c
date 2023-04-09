@@ -570,9 +570,53 @@ bool storage_db_snapshot_completed_successfully(
         return false;
     }
 
+    db->snapshot.storage_channel_opened = false;
+    MEMORY_FENCE_STORE();
+
+    if (db->config->snapshot.rotation_max_files > 1) {
+        // Rotate the snapshot files, file_index will never be bigger than UINT16_MAX as the value is validated when
+        // the configuration is loaded
+        for(int32_t index = (int32_t)db->config->snapshot.rotation_max_files - 1; index >= 0; index--) {
+            char snapshot_path_rotated[PATH_MAX + 1];
+
+            if (index == 0) {
+                strcpy(
+                        snapshot_path_rotated,
+                        db->config->snapshot.path);
+            } else {
+                snprintf(
+                        snapshot_path_rotated,
+                        PATH_MAX,
+                        "%s.%d",
+                        db->config->snapshot.path,
+                        index);
+            }
+
+            char snapshot_path_rotated_next[PATH_MAX + 1];
+            snprintf(
+                    snapshot_path_rotated_next,
+                    PATH_MAX,
+                    "%s.%d", db->config->snapshot.path,
+                    index + 1);
+
+            // Check if the snapshot_path_rotated_next file exists
+            if (access(snapshot_path_rotated, F_OK) != 0) {
+                // If not, skip the file
+                continue;
+            }
+
+            if (rename(snapshot_path_rotated, snapshot_path_rotated_next) == -1) {
+                LOG_E(TAG, "Failed to rotate the snapshot file");
+                LOG_E_OS_ERROR(TAG);
+                return false;
+            }
+        }
+    }
+
     // Swap atomically the temporary file with the main snapshot file
-    if (rename(db->snapshot.path,db->config->snapshot.path) == -1) {
+    if (rename(db->snapshot.path, db->config->snapshot.path) == -1) {
         LOG_E(TAG, "Failed to atomically rename the snapshot file");
+        LOG_E_OS_ERROR(TAG);
         return false;
     }
 
