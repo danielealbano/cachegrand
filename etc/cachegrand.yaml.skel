@@ -139,7 +139,7 @@ database:
     min_data_changed: 100mb
     # Rotation settings, optional, if missing the snapshots rotation will be disabled
     rotation:
-      # The max number of snapshots files to keep, 0 means no limit
+      # The max number of snapshots files to keep, minimum 2
       max_files: 10
 
   backend: memory
