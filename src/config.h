@@ -239,10 +239,27 @@ struct config_database_limits {
 };
 typedef struct config_database_limits config_database_limits_t;
 
+struct config_database_snapshots_rotation {
+    int64_t max_files;
+};
+typedef struct config_database_snapshots_rotation config_database_snapshots_rotation_t;
+
+struct config_database_snapshots {
+    char *path;
+    char *interval_str;
+    char *min_data_changed_str;
+    int64_t interval_ms;
+    int64_t min_keys_changed;
+    int64_t min_data_changed;
+    config_database_snapshots_rotation_t *rotation;
+};
+typedef struct config_database_snapshots config_database_snapshots_t;
+
 struct config_database {
     config_database_limits_t *limits;
     config_database_keys_eviction_t *keys_eviction;
     config_database_backend_t backend;
+    config_database_snapshots_t *snapshots;
     config_database_file_t *file;
     config_database_memory_t *memory;
 };
@@ -277,6 +294,14 @@ enum config_cpus_validate_error {
 };
 typedef enum config_cpus_validate_error config_cpus_validate_error_t;
 
+bool config_parse_string_time(
+        char *string,
+        size_t string_len,
+        bool allow_negative,
+        bool allow_zero,
+        bool allow_time_suffix,
+        int64_t *return_value);
+
 bool config_parse_string_absolute_or_percent(
         char *string,
         size_t string_len,
@@ -295,6 +320,9 @@ void config_free(
         config_t *config);
 
 bool config_validate_after_load_cpus(
+        config_t* config);
+
+bool config_validate_after_load_database_snapshots(
         config_t* config);
 
 bool config_validate_after_load_database_backend_file(

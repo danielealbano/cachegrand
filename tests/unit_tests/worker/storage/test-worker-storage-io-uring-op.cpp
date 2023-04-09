@@ -29,6 +29,7 @@
 #include "support/io_uring/io_uring_support.h"
 #include "config.h"
 #include "clock.h"
+#include "memory_allocator/ffma.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/channel/storage_channel_iouring.h"
@@ -70,8 +71,7 @@ void test_worker_storage_io_uring_op_fiber_entrypoint(void *user_data) {
     bool flush_result;
     bool fallocate_result;
 
-    test_worker_storage_io_uring_op_fiber_userdata_t *user_data_fiber =
-            (test_worker_storage_io_uring_op_fiber_userdata_t*)user_data;
+    auto user_data_fiber = (test_worker_storage_io_uring_op_fiber_userdata_t*)user_data;
 
     if (user_data_fiber->open) {
         open_result = (storage_channel_iouring_t*)worker_storage_iouring_op_storage_open(
@@ -133,20 +133,23 @@ void test_worker_storage_io_uring_op_fiber_entrypoint(void *user_data) {
 }
 
 TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storage][worker_storage_io_uring_op]") {
-    storage_channel_iouring_t *storage_channel_iouring = NULL;
-    io_uring_t *ring = NULL;
-    io_uring_cqe_t *cqe = NULL;
-    ring = io_uring_support_init(10, NULL, NULL);
+    char *fixture_temp_path_copy;
+    storage_channel_iouring_t *storage_channel_iouring = nullptr;
+    io_uring_t *ring = nullptr;
+    io_uring_cqe_t *cqe = nullptr;
+    ring = io_uring_support_init(10, nullptr, nullptr);
 
     char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
     int fixture_temp_path_suffix_len = 4;
     close(mkstemps(fixture_temp_path, fixture_temp_path_suffix_len));
+    fixture_temp_path_copy = (char *)(ffma_mem_alloc(strlen(fixture_temp_path) + 1));
+    strcpy(fixture_temp_path_copy, fixture_temp_path);
 
     char buffer_write[] = "cachegrand test - read / write tests";
     char buffer_read1[128] = { 0 }, buffer_read2[128] = { 0 };
-    struct iovec iovec[2] = { 0 };
+    struct iovec iovec[2] = { nullptr };
 
-    fiber_t *fiber = NULL;
+    fiber_t *fiber = nullptr;
     char fiber_name[] = "test-fiber";
     size_t fiber_name_len = strlen(fiber_name);
 
@@ -159,7 +162,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
         SECTION("open an existing file") {
             test_worker_storage_io_uring_op_fiber_userdata_t user_data = {
                     .open = true,
-                    .path = fixture_temp_path,
+                    .path = fixture_temp_path_copy,
                     .open_flags = O_RDONLY,
                     .open_mode = 0,
                     .open_result = &storage_channel_iouring
@@ -172,28 +175,28 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
 
             io_uring_support_sqe_submit(ring);
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
 
             fiber->ret.ptr_value = cqe;
             fiber_scheduler_switch_to(fiber);
 
-            REQUIRE(user_data.open_result != NULL);
+            REQUIRE(user_data.open_result != nullptr);
             REQUIRE(fiber->error_number == 0);
             REQUIRE(storage_channel_iouring->fd > -1);
             REQUIRE(storage_channel_iouring->has_mapped_fd == false);
             REQUIRE(storage_channel_iouring->wrapped_channel.fd > -1);
             REQUIRE(storage_channel_iouring->wrapped_channel.fd == storage_channel_iouring->fd);
-            REQUIRE(strncmp(storage_channel_iouring->wrapped_channel.path, fixture_temp_path, strlen(fixture_temp_path)) == 0);
-            REQUIRE(strlen(fixture_temp_path) == storage_channel_iouring->wrapped_channel.path_len);
+            REQUIRE(strncmp(storage_channel_iouring->wrapped_channel.path, fixture_temp_path_copy, strlen(fixture_temp_path_copy)) == 0);
+            REQUIRE(strlen(fixture_temp_path_copy) == storage_channel_iouring->wrapped_channel.path_len);
         }
 
         SECTION("open a non-existing file creating it") {
             // The file gets pre-created for convenience during the test setup, need to be unlinked for the test to
             // be able to reuse the unique file name
-            unlink(fixture_temp_path);
+            unlink(fixture_temp_path_copy);
             test_worker_storage_io_uring_op_fiber_userdata_t user_data = {
                     .open = true,
-                    .path = fixture_temp_path,
+                    .path = fixture_temp_path_copy,
                     .open_flags = O_CREAT | O_RDWR | O_EXCL,
                     .open_mode = S_IRUSR | S_IWUSR,
                     .open_result = &storage_channel_iouring
@@ -206,28 +209,28 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
 
             io_uring_support_sqe_submit(ring);
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
 
             fiber->ret.ptr_value = cqe;
             fiber_scheduler_switch_to(fiber);
 
-            REQUIRE(user_data.open_result != NULL);
+            REQUIRE(user_data.open_result != nullptr);
             REQUIRE(fiber->error_number == 0);
             REQUIRE(storage_channel_iouring->fd > -1);
             REQUIRE(storage_channel_iouring->has_mapped_fd == false);
             REQUIRE(storage_channel_iouring->wrapped_channel.fd > -1);
             REQUIRE(storage_channel_iouring->wrapped_channel.fd == storage_channel_iouring->fd);
-            REQUIRE(strncmp(storage_channel_iouring->wrapped_channel.path, fixture_temp_path, strlen(fixture_temp_path)) == 0);
-            REQUIRE(strlen(fixture_temp_path) == storage_channel_iouring->wrapped_channel.path_len);
+            REQUIRE(strncmp(storage_channel_iouring->wrapped_channel.path, fixture_temp_path_copy, strlen(fixture_temp_path_copy)) == 0);
+            REQUIRE(strlen(fixture_temp_path_copy) == storage_channel_iouring->wrapped_channel.path_len);
         }
 
         SECTION("fail to open an non-existing file without create option") {
             // The file gets pre-created for convenience during the test setup, need to be unlinked for the test to
             // be able to reuse the unique file name
-            unlink(fixture_temp_path);
+            unlink(fixture_temp_path_copy);
             test_worker_storage_io_uring_op_fiber_userdata_t user_data = {
                     .open = true,
-                    .path = fixture_temp_path,
+                    .path = fixture_temp_path_copy,
                     .open_flags = O_RDONLY,
                     .open_mode = 0,
                     .open_result = &storage_channel_iouring
@@ -240,14 +243,14 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
 
             io_uring_support_sqe_submit(ring);
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
 
             fiber->ret.ptr_value = cqe;
             fiber_scheduler_switch_to(fiber);
 
-            REQUIRE(user_data.open_result != NULL);
+            REQUIRE(user_data.open_result != nullptr);
             REQUIRE(fiber->error_number == ENOENT);
-            REQUIRE(storage_channel_iouring == NULL);
+            REQUIRE(storage_channel_iouring == nullptr);
         }
     }
 
@@ -257,7 +260,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             iovec[0].iov_base = buffer_read1;
             iovec[0].iov_len = strlen(buffer_write);
 
-            int fd = openat(0, fixture_temp_path, O_WRONLY, 0);
+            int fd = openat(0, fixture_temp_path_copy, O_WRONLY, 0);
             REQUIRE(fd > -1);
             REQUIRE(write(fd, buffer_write, strlen(buffer_write)) == strlen(buffer_write));
             REQUIRE(close(fd) == 0);
@@ -265,7 +268,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             test_worker_storage_io_uring_op_fiber_userdata_t user_data = {
                     .open = true,
                     .read = true,
-                    .path = fixture_temp_path,
+                    .path = fixture_temp_path_copy,
                     .open_flags = O_RDONLY,
                     .open_mode = 0,
                     .iovec = iovec,
@@ -284,12 +287,12 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             for (int i = 0; i < 2; i++) {
                 io_uring_support_sqe_submit(ring);
                 io_uring_wait_cqe(ring, &cqe);
-                REQUIRE(cqe != NULL);
+                REQUIRE(cqe != nullptr);
                 REQUIRE(cqe->res >= 0);
                 fiber->ret.ptr_value = cqe;
                 fiber_scheduler_switch_to(fiber);
                 io_uring_cqe_seen(ring, cqe);
-                cqe = NULL;
+                cqe = nullptr;
             }
 
             REQUIRE(fiber->error_number == 0);
@@ -304,7 +307,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             iovec[1].iov_base = buffer_read2;
             iovec[1].iov_len = strlen(buffer_write);
 
-            int fd = openat(0, fixture_temp_path, O_WRONLY, 0);
+            int fd = openat(0, fixture_temp_path_copy, O_WRONLY, 0);
             REQUIRE(fd > -1);
             REQUIRE(write(fd, buffer_write, strlen(buffer_write)) == strlen(buffer_write));
             REQUIRE(write(fd, buffer_write, strlen(buffer_write)) == strlen(buffer_write));
@@ -313,7 +316,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             test_worker_storage_io_uring_op_fiber_userdata_t user_data = {
                     .open = true,
                     .read = true,
-                    .path = fixture_temp_path,
+                    .path = fixture_temp_path_copy,
                     .open_flags = O_RDONLY,
                     .open_mode = 0,
                     .iovec = iovec,
@@ -332,12 +335,12 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             for (int i = 0; i < 2; i++) {
                 io_uring_support_sqe_submit(ring);
                 io_uring_wait_cqe(ring, &cqe);
-                REQUIRE(cqe != NULL);
+                REQUIRE(cqe != nullptr);
                 REQUIRE(cqe->res >= 0);
                 fiber->ret.ptr_value = cqe;
                 fiber_scheduler_switch_to(fiber);
                 io_uring_cqe_seen(ring, cqe);
-                cqe = NULL;
+                cqe = nullptr;
             }
 
             REQUIRE(fiber->error_number == 0);
@@ -361,7 +364,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
 
             test_worker_storage_io_uring_op_fiber_userdata_t user_data = {
                     .read = true,
-                    .path = fixture_temp_path,
+                    .path = fixture_temp_path_copy,
                     .iovec = iovec,
                     .iovec_nr = 1,
                     .offset = 0,
@@ -376,11 +379,11 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
 
             io_uring_support_sqe_submit(ring);
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             fiber->ret.ptr_value = cqe;
             fiber_scheduler_switch_to(fiber);
 
-            storage_channel_iouring = NULL;
+            storage_channel_iouring = nullptr;
 
             REQUIRE(fiber->error_number == EBADF);
             REQUIRE((int)len == -EBADF);
@@ -395,7 +398,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             test_worker_storage_io_uring_op_fiber_userdata_t user_data = {
                     .open = true,
                     .write = true,
-                    .path = fixture_temp_path,
+                    .path = fixture_temp_path_copy,
                     .open_flags = O_WRONLY,
                     .open_mode = 0,
                     .iovec = iovec,
@@ -414,18 +417,18 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             for (int i = 0; i < 2; i++) {
                 io_uring_support_sqe_submit(ring);
                 io_uring_wait_cqe(ring, &cqe);
-                REQUIRE(cqe != NULL);
+                REQUIRE(cqe != nullptr);
                 REQUIRE(cqe->res >= 0);
                 fiber->ret.ptr_value = cqe;
                 fiber_scheduler_switch_to(fiber);
                 io_uring_cqe_seen(ring, cqe);
-                cqe = NULL;
+                cqe = nullptr;
             }
 
             REQUIRE(fiber->error_number == 0);
             REQUIRE(len == strlen(buffer_write));
 
-            int fd = openat(0, fixture_temp_path, O_RDONLY, 0);
+            int fd = openat(0, fixture_temp_path_copy, O_RDONLY, 0);
             REQUIRE(fd > -1);
             REQUIRE(pread(fd, buffer_read1, strlen(buffer_write), 0) == strlen(buffer_write));
             REQUIRE(strncmp(buffer_write, buffer_read1, strlen(buffer_write)) == 0);
@@ -442,7 +445,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             test_worker_storage_io_uring_op_fiber_userdata_t user_data = {
                     .open = true,
                     .write = true,
-                    .path = fixture_temp_path,
+                    .path = fixture_temp_path_copy,
                     .open_flags = O_WRONLY,
                     .open_mode = 0,
                     .iovec = iovec,
@@ -461,18 +464,18 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             for (int i = 0; i < 2; i++) {
                 io_uring_support_sqe_submit(ring);
                 io_uring_wait_cqe(ring, &cqe);
-                REQUIRE(cqe != NULL);
+                REQUIRE(cqe != nullptr);
                 REQUIRE(cqe->res >= 0);
                 fiber->ret.ptr_value = cqe;
                 fiber_scheduler_switch_to(fiber);
                 io_uring_cqe_seen(ring, cqe);
-                cqe = NULL;
+                cqe = nullptr;
             }
 
             REQUIRE(fiber->error_number == 0);
             REQUIRE(len == strlen(buffer_write) * 2);
 
-            int fd = openat(0, fixture_temp_path, O_RDONLY, 0);
+            int fd = openat(0, fixture_temp_path_copy, O_RDONLY, 0);
             REQUIRE(fd > -1);
             REQUIRE(pread(fd, buffer_read1, strlen(buffer_write), 0) == strlen(buffer_write));
             REQUIRE(pread(fd, buffer_read2, strlen(buffer_write), 0) == strlen(buffer_write));
@@ -496,7 +499,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
 
             test_worker_storage_io_uring_op_fiber_userdata_t user_data = {
                     .write = true,
-                    .path = fixture_temp_path,
+                    .path = fixture_temp_path_copy,
                     .iovec = iovec,
                     .iovec_nr = 1,
                     .offset = 0,
@@ -511,11 +514,11 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
 
             io_uring_support_sqe_submit(ring);
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             fiber->ret.ptr_value = cqe;
             fiber_scheduler_switch_to(fiber);
 
-            storage_channel_iouring = NULL;
+            storage_channel_iouring = nullptr;
 
             REQUIRE(fiber->error_number == EBADF);
             REQUIRE((int)len == -EBADF);
@@ -535,7 +538,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
                     .open = true,
                     .write = true,
                     .flush = true,
-                    .path = fixture_temp_path,
+                    .path = fixture_temp_path_copy,
                     .open_flags = O_RDWR,
                     .iovec = iovec,
                     .iovec_nr = 1,
@@ -553,12 +556,12 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             for (int i = 0; i < 3; i++) {
                 io_uring_support_sqe_submit(ring);
                 io_uring_wait_cqe(ring, &cqe);
-                REQUIRE(cqe != NULL);
+                REQUIRE(cqe != nullptr);
                 REQUIRE(cqe->res >= 0);
                 fiber->ret.ptr_value = cqe;
                 fiber_scheduler_switch_to(fiber);
                 io_uring_cqe_seen(ring, cqe);
-                cqe = NULL;
+                cqe = nullptr;
             }
 
             REQUIRE(res);
@@ -591,11 +594,11 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
 
             io_uring_support_sqe_submit(ring);
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             fiber->ret.ptr_value = cqe;
             fiber_scheduler_switch_to(fiber);
 
-            storage_channel_iouring = NULL;
+            storage_channel_iouring = nullptr;
 
             REQUIRE(fiber->error_number == EBADF);
             REQUIRE(res == false);
@@ -610,7 +613,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             test_worker_storage_io_uring_op_fiber_userdata_t user_data = {
                     .open = true,
                     .fallocate = true,
-                    .path = fixture_temp_path,
+                    .path = fixture_temp_path_copy,
                     .open_flags = O_RDWR,
                     .fallocate_mode = 0,
                     .fallocate_offset = 0,
@@ -628,18 +631,18 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             for (int i = 0; i < 2; i++) {
                 io_uring_support_sqe_submit(ring);
                 io_uring_wait_cqe(ring, &cqe);
-                REQUIRE(cqe != NULL);
+                REQUIRE(cqe != nullptr);
                 REQUIRE(cqe->res >= 0);
                 fiber->ret.ptr_value = cqe;
                 fiber_scheduler_switch_to(fiber);
                 io_uring_cqe_seen(ring, cqe);
-                cqe = NULL;
+                cqe = nullptr;
             }
 
             REQUIRE(res);
             REQUIRE(fiber->error_number == 0);
 
-            int fd = openat(0, fixture_temp_path, O_RDWR, 0);
+            int fd = openat(0, fixture_temp_path_copy, O_RDWR, 0);
             REQUIRE(fd > -1);
             REQUIRE(fstat(fd, &statbuf) == 0);
             REQUIRE(statbuf.st_size == 1024);
@@ -653,7 +656,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             test_worker_storage_io_uring_op_fiber_userdata_t user_data = {
                     .open = true,
                     .fallocate = true,
-                    .path = fixture_temp_path,
+                    .path = fixture_temp_path_copy,
                     .open_flags = O_RDWR,
                     .fallocate_mode = FALLOC_FL_KEEP_SIZE,
                     .fallocate_offset = 0,
@@ -671,18 +674,18 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             for (int i = 0; i < 2; i++) {
                 io_uring_support_sqe_submit(ring);
                 io_uring_wait_cqe(ring, &cqe);
-                REQUIRE(cqe != NULL);
+                REQUIRE(cqe != nullptr);
                 REQUIRE(cqe->res >= 0);
                 fiber->ret.ptr_value = cqe;
                 fiber_scheduler_switch_to(fiber);
                 io_uring_cqe_seen(ring, cqe);
-                cqe = NULL;
+                cqe = nullptr;
             }
 
             REQUIRE(res);
             REQUIRE(fiber->error_number == 0);
 
-            int fd = openat(0, fixture_temp_path, O_RDWR, 0);
+            int fd = openat(0, fixture_temp_path_copy, O_RDWR, 0);
             REQUIRE(fd > -1);
             REQUIRE(fstat(fd, &statbuf) == 0);
             REQUIRE(statbuf.st_size == 0);
@@ -718,11 +721,11 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
 
             io_uring_support_sqe_submit(ring);
             io_uring_wait_cqe(ring, &cqe);
-            REQUIRE(cqe != NULL);
+            REQUIRE(cqe != nullptr);
             fiber->ret.ptr_value = cqe;
             fiber_scheduler_switch_to(fiber);
 
-            storage_channel_iouring = NULL;
+            storage_channel_iouring = nullptr;
 
             REQUIRE(fiber->error_number == EBADF);
             REQUIRE(res == false);
@@ -734,7 +737,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
             SECTION("open an existing file") {
                 test_worker_storage_io_uring_op_fiber_userdata_t user_data = {
                         .open = true,
-                        .path = fixture_temp_path,
+                        .path = fixture_temp_path_copy,
                         .open_flags = O_RDONLY,
                         .open_mode = 0,
                         .open_result = &storage_channel_iouring
@@ -747,14 +750,15 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
 
                 io_uring_support_sqe_submit(ring);
                 io_uring_wait_cqe(ring, &cqe);
-                REQUIRE(cqe != NULL);
+                REQUIRE(cqe != nullptr);
 
                 fiber->ret.ptr_value = cqe;
                 fiber_scheduler_switch_to(fiber);
 
                 REQUIRE(worker_storage_iouring_op_storage_close((storage_channel_t*)storage_channel_iouring));
 
-                storage_channel_iouring = NULL;
+                storage_channel_iouring = nullptr;
+                fixture_temp_path_copy = nullptr;
             }
         }
     }
@@ -797,7 +801,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
     worker_iouring_context_reset();
 
     if (storage_channel_iouring && storage_channel_iouring->wrapped_channel.fd != -1) {
-        storage_channel_t *storage_channel = (storage_channel_t*)storage_channel_iouring;
+        auto storage_channel = (storage_channel_t*)storage_channel_iouring;
 
         storage_io_common_close(storage_channel->fd);
 
@@ -806,7 +810,9 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
         }
 
         storage_channel_iouring_free(storage_channel_iouring);
+    } else {
+        ffma_mem_free(fixture_temp_path_copy);
     }
 
-    unlink(fixture_temp_path);
+    unlink(fixture_temp_path_copy);
 }

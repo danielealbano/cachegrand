@@ -51,6 +51,26 @@ storage_channel_t* storage_open(
     return res;
 }
 
+storage_channel_t* storage_open_fd(
+        storage_io_common_fd_t fd) {
+    storage_channel_t *res = worker_op_storage_open_fd(fd);
+
+    if (likely(res)) {
+        worker_stats_t *stats = worker_stats_get_internal_current();
+        stats->storage.total.open_files++;
+    } else {
+        int error_number = fiber_scheduler_get_error();
+        LOG_E(
+                TAG,
+                "[OPEN] Error <%s (%d)> opening fd <%d>",
+                strerror(error_number),
+                error_number,
+                fd);
+    }
+
+    return res;
+}
+
 bool storage_readv(
         storage_channel_t *channel,
         storage_io_common_iovec_t *iov,

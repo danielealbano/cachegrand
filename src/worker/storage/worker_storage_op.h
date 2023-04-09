@@ -10,6 +10,9 @@ typedef storage_channel_t *(worker_op_storage_open_fp_t)(
         storage_io_common_open_flags_t flags,
         storage_io_common_open_mode_t mode);
 
+typedef storage_channel_t *(worker_op_storage_open_fd_fp_t)(
+        storage_io_common_fd_t fd);
+
 typedef int32_t (worker_op_storage_read_fp_t)(
         storage_channel_t *channel,
         storage_io_common_iovec_t *iov,
@@ -36,6 +39,7 @@ typedef bool (worker_op_storage_close_fp_t)(
 
 // Storage operations
 extern worker_op_storage_open_fp_t *worker_op_storage_open;
+extern worker_op_storage_open_fd_fp_t *worker_op_storage_open_fd;
 extern worker_op_storage_read_fp_t *worker_op_storage_read;
 extern worker_op_storage_write_fp_t *worker_op_storage_write;
 extern worker_op_storage_flush_fp_t *worker_op_storage_flush;

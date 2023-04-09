@@ -17,6 +17,7 @@
 #include <sys/statvfs.h>
 #include <sys/sysinfo.h>
 #include <cyaml/cyaml.h>
+#include <limits.h>
 
 #include "exttypes.h"
 #include "misc.h"
@@ -103,6 +104,98 @@ cyaml_err_t config_internal_cyaml_load(
             schema,
             (cyaml_data_t **)config,
             NULL);
+}
+
+bool config_parse_string_time(
+        char *string,
+        size_t string_len,
+        bool allow_negative,
+        bool allow_zero,
+        bool allow_time_suffix,
+        int64_t *return_value) {
+    bool result = false;
+    char *string_end;
+    size_t string_end_len;
+    int64_t string_value;
+
+    // Skip any leading space
+    while (isspace(string[0]) && string_len > 0) {
+        string++;
+        string_len--;
+    }
+
+    // Skip any trailing space
+    while (isspace(string[string_len - 1]) && string_len > 0) {
+        string_len--;
+    }
+
+    // If there are only spaces, skip them
+    if (string_len == 0) {
+        return false;
+    }
+
+    // As strtoll doesn't support non-null terminated strings, duplicate the string and null terminate it using strndup
+    string = strndup(string, string_len);
+    if (string == NULL) {
+        return false;
+    }
+
+    // Try to parse the number
+    string_value = strtoll(string, &string_end, 10);
+    string_end_len = strlen(string_end);
+
+    // Skip any leading space after parsing string_end
+    while (isspace(string_end[0]) && string_end_len > 0) {
+        string_end++;
+        string_end_len--;
+    }
+
+    // Check if the end of the string matches the beginning of the string, if's true then the string is not a number
+    if (string_end == string) {
+        goto end;
+    }
+
+    // Check if string_value is negative
+    if (!allow_negative && string_value < 0) {
+        goto end;
+    }
+
+    // Check if string_value is zero
+    if (!allow_zero && string_value == 0) {
+        goto end;
+    }
+
+    if (!allow_time_suffix && string_end_len == 0) {
+        *return_value = string_value;
+        result = true;
+        goto end;
+    }
+
+    // Check if the string is a size suffix
+    if (allow_time_suffix && string_end_len == 1) {
+        switch (string_end[0]) {
+            case 's':
+                string_value *= 1;
+                break;
+            case 'm':
+                string_value *= 60;
+                break;
+            case 'h':
+                string_value *= 60 * 60;
+                break;
+            case 'd':
+                string_value *= 60 * 60 * 24;
+                break;
+        }
+
+        *return_value = string_value;
+        result = true;
+        goto end;
+    }
+
+end:
+    free(string);
+    return result;
 }
 
 bool config_parse_string_absolute_or_percent(
@@ -341,6 +434,38 @@ bool config_validate_after_load_database_backend_memory(
     return return_result;
 }
 
+bool config_validate_after_load_database_snapshots(
+        config_t* config) {
+    bool return_result = true;
+
+    if (!config->database->snapshots) {
+        return return_result;
+    }
+
+    // Ensure that the path is not longer than PATH_MAX
+    if (strlen(config->database->snapshots->path) > PATH_MAX) {
+        LOG_E(TAG, "The path for the snapshots is too long");
+        return_result = false;
+    }
+
+    // Check that the maximum allowed interval is 7 days
+    if (config->database->snapshots->interval_ms > 7 * 24 * 60 * 60 * 1000) {
+        LOG_E(TAG, "The maximum allowed interval for the snapshots is <7> days");
+        return_result = false;
+    }
+
+    // Ensure that if rotation is enabled, the maximum number of max_files is equal or greater than 0 and smaller than
+    // uint16_t
+    if (config->database->snapshots->rotation && (
+            config->database->snapshots->rotation->max_files < 2 ||
+            config->database->snapshots->rotation->max_files > 65535)) {
+        LOG_E(TAG, "The maximum number of files for the snapshots rotation must be between <2> and <65535>");
+        return_result = false;
+    }
+
+    return return_result;
+}
+
 bool config_validate_after_load_database_limits(
         config_t* config) {
     bool return_result = true;
@@ -529,6 +654,7 @@ bool config_validate_after_load(
     if (config_validate_after_load_cpus(config) == false
         || config_validate_after_load_database_backend_file(config) == false
         || config_validate_after_load_database_backend_memory(config) == false
+        || config_validate_after_load_database_snapshots(config) == false
         || config_validate_after_load_database_limits(config) == false
         || config_validate_after_load_database_keys_eviction(config) == false
         || config_validate_after_load_modules(config) == false
@@ -778,6 +904,47 @@ void config_cpus_filter_duplicates(
 bool config_process_string_values(
         config_t *config) {
     config_parse_string_absolute_or_percent_return_value_t return_value_type;
+
+    // Check if snapshots are enabled
+    if (config->database->snapshots) {
+        config->database->snapshots->min_data_changed = 0;
+
+        bool result = config_parse_string_time(
+                config->database->snapshots->interval_str,
+                strlen(config->database->snapshots->interval_str),
+                false,
+                false,
+                true,
+                &config->database->snapshots->interval_ms);
+
+        // The returned time is in seconds, so multiply by 1000 to convert to ms
+        config->database->snapshots->interval_ms *= 1000;
+
+        if (!result) {
+            LOG_E(TAG, "Failed to parse the snapshot interval");
+            config_free(config);
+            return NULL;
+        }
+
+        if (config->database->snapshots->min_data_changed_str) {
+            result = config_parse_string_absolute_or_percent(
+                    config->database->snapshots->min_data_changed_str,
+                    strlen(config->database->snapshots->min_data_changed_str),
+                    false,
+                    false,
+                    false,
+                    true,
+                    true,
+                    &config->database->snapshots->min_data_changed,
+                    &return_value_type);
+
+            if (!result) {
+                LOG_E(TAG, "Failed to parse the snapshot minimum data changed");
+                config_free(config);
+                return NULL;
+            }
+        }
+    }
 
     // Check if the memory backend for the database is defined in the config, if yes process the hard and soft memory
     // limits, the latter is optional

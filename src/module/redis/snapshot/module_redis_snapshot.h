@@ -34,7 +34,7 @@ enum module_redis_snapshot_value_type {
     MODULE_REDIS_SNAPSHOT_VALUE_TYPE_STREAM_LISTPACKS_3 = 0x15,
     MODULE_REDIS_SNAPSHOT_VALUE_TYPE_MAX,
 };
-typedef enum module_redis_snapshot_value_type module_snapshot_value_type_t;
+typedef enum module_redis_snapshot_value_type module_redis_snapshot_value_type_t;
 
 #define MODULE_REDIS_SNAPSHOT_VALUES_TYPES MODULE_REDIS_SNAPSHOT_VALUE_TYPE_STRING, MODULE_REDIS_SNAPSHOT_VALUE_TYPE_LIST, \
                                          MODULE_REDIS_SNAPSHOT_VALUE_TYPE_SET, MODULE_REDIS_SNAPSHOT_VALUE_TYPE_ZSET, \
@@ -108,10 +108,10 @@ struct module_redis_snapshot_header {
 typedef struct module_redis_snapshot_header module_redis_snapshot_header_t;
 
 bool module_redis_snapshot_is_value_type_valid(
-        module_snapshot_value_type_t value_type);
+        module_redis_snapshot_value_type_t value_type);
 
 bool module_redis_snapshot_is_value_type_supported(
-        module_snapshot_value_type_t value_type);
+        module_redis_snapshot_value_type_t value_type);
 
 #ifdef __cplusplus
 }

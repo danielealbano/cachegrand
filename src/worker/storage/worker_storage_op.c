@@ -21,6 +21,7 @@
 
 // Storage operations
 worker_op_storage_open_fp_t* worker_op_storage_open;
+worker_op_storage_open_fd_fp_t* worker_op_storage_open_fd;
 worker_op_storage_read_fp_t* worker_op_storage_read;
 worker_op_storage_write_fp_t* worker_op_storage_write;
 worker_op_storage_flush_fp_t* worker_op_storage_flush;

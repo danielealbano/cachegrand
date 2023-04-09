@@ -10,7 +10,9 @@ bool hashtable_mcmp_op_set(
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_value_data_t new_value,
-        hashtable_value_data_t *current_value);
+        hashtable_value_data_t *previous_value,
+        hashtable_bucket_index_t *out_bucket_index,
+        bool *out_should_free_key);
 
 #ifdef __cplusplus
 }

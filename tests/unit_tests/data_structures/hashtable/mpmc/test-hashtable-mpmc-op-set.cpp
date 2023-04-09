@@ -38,6 +38,9 @@
 #include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashtable_mcmp_op_set]") {
+    hashtable_bucket_index_t out_bucket_index = 0;
+    bool out_should_free_key = false;
+
     worker_context_t worker_context = { 0 };
     worker_context.worker_index = UINT16_MAX;
     worker_context_set(&worker_context);
@@ -112,7 +115,9 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         test_key_long_1_alloc,
                         test_key_long_1_len,
                         test_value_1,
-                        &prev_value));
+                        &prev_value,
+                        &out_bucket_index,
+                        &out_should_free_key));
 
                 // Check if the write lock has been released
                 REQUIRE(!transaction_spinlock_is_locked(&half_hashes_chunk->write_lock));
@@ -129,6 +134,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         test_key_long_1_len) == 0);
                 REQUIRE(key_value->data == test_value_1);
                 REQUIRE(prev_value == 0);
+                REQUIRE(out_bucket_index == HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index));
+                REQUIRE(out_should_free_key == false);
 
                 // Check if the subsequent element has been affected by the changes
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index + 1].slot_id == 0);
@@ -158,7 +165,9 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
-                        &prev_value1));
+                        &prev_value1,
+                        &out_bucket_index,
+                        &out_should_free_key));
 
                 test_key_1_alloc = (char*)xalloc_alloc(test_key_1_len + 1);
                 strncpy(test_key_1_alloc, test_key_1, test_key_1_len + 1);
@@ -168,7 +177,9 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1 + 1,
-                        &prev_value2));
+                        &prev_value2,
+                        &out_bucket_index,
+                        &out_should_free_key));
 
                 // Check if the first slot of the chain ring contains the correct key/value
                 REQUIRE(half_hashes_chunk->metadata.slots_occupied == 1);
@@ -194,6 +205,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(key_value->data == test_value_1 + 1);
                 REQUIRE(prev_value1 == 0);
                 REQUIRE(prev_value2 == test_value_1);
+                REQUIRE(out_bucket_index == HASHTABLE_TO_BUCKET_INDEX(chunk_index, chunk_slot_index));
+                REQUIRE(out_should_free_key == true);
 
                 // Check if the subsequent element has been affected by the changes
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index + 1].slot_id == 0);
@@ -211,7 +224,6 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         &hashtable->ht_current->half_hashes_chunk[chunk_index1];
                 hashtable_key_value_volatile_t * key_value1 =
                         &hashtable->ht_current->keys_values[HASHTABLE_TO_BUCKET_INDEX(chunk_index1, chunk_slot_index1)];
-
 
                 hashtable_chunk_index_t chunk_index2 = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
@@ -231,7 +243,9 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
-                        NULL));
+                        nullptr,
+                        &out_bucket_index,
+                        &out_should_free_key));
 
                 char *test_key_2_alloc = (char*)xalloc_alloc(test_key_2_len + 1);
                 strncpy(test_key_2_alloc, test_key_2, test_key_2_len + 1);
@@ -241,7 +255,9 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         test_key_2_alloc,
                         test_key_2_len,
                         test_value_2,
-                        NULL));
+                        nullptr,
+                        &out_bucket_index,
+                        &out_should_free_key));
 
                 // Check the first set
                 REQUIRE(half_hashes_chunk1->half_hashes[chunk_slot_index1].filled == true);
@@ -305,7 +321,11 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                             test_key_same_bucket_current_copy,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
-                            NULL));
+                            nullptr,
+                            &out_bucket_index,
+                            &out_should_free_key));
+
+                    REQUIRE(out_should_free_key == false);
                 }
 
                 hashtable_chunk_index_t chunk_index_base =
@@ -358,7 +378,9 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                             test_key_same_bucket_current_copy,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
-                            NULL));
+                            nullptr,
+                            &out_bucket_index,
+                            &out_should_free_key));
                 }
 
                 hashtable_chunk_index_t chunk_index_base =
@@ -417,7 +439,9 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                             test_key_same_bucket_current_copy,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
-                            NULL));
+                            nullptr,
+                            &out_bucket_index,
+                            &out_should_free_key));
                 }
 
                 hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
@@ -461,7 +485,9 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                             test_key_same_bucket_current_copy,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
-                            NULL));
+                            nullptr,
+                            &out_bucket_index,
+                            &out_should_free_key));
                 }
 
                 char *test_key_alloc = (char*)xalloc_alloc(test_key_same_bucket[i].key_len + 1);
@@ -472,7 +498,9 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         test_key_alloc,
                         test_key_same_bucket[i].key_len,
                         test_value_1 + i,
-                        NULL));
+                        nullptr,
+                        &out_bucket_index,
+                        &out_should_free_key));
 
                 test_support_same_hash_mod_fixtures_free(test_key_same_bucket);
             })
@@ -499,7 +527,9 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                             test_key_1_alloc,
                             test_key_1_len,
                             test_value_1,
-                            NULL));
+                            nullptr,
+                            &out_bucket_index,
+                            &out_should_free_key));
 
                     // Check if the write lock has been released
                     REQUIRE(!transaction_spinlock_is_locked(&half_hashes_chunk->write_lock));

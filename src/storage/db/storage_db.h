@@ -11,7 +11,7 @@ extern "C" {
 
 #define STORAGE_DB_SHARD_VERSION (1)
 #define STORAGE_DB_CHUNK_MAX_SIZE ((64 * 1024) - 1)
-#define STORAGE_DB_WORKERS_MAX (2048)
+#define STORAGE_DB_WORKERS_MAX (1024)
 #define STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH (64)
 #define STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS (5)
 #define STORAGE_DB_KEYS_EVICTION_ITER_MAX_DISTANCE (5000)
@@ -29,6 +29,7 @@ typedef uint32_t storage_db_chunk_offset_t;
 typedef uint32_t storage_db_shard_index_t;
 typedef uint64_t storage_db_create_time_ms_t;
 typedef uint64_t storage_db_last_access_time_ms_t;
+typedef uint64_t storage_db_snapshot_time_ms_t;
 typedef int64_t storage_db_expiry_time_ms_t;
 
 struct storage_db_keys_eviction_kv_list_entry {
@@ -82,12 +83,23 @@ enum storage_db_entry_index_value_type {
 };
 typedef enum storage_db_entry_index_value_type storage_db_entry_index_value_type_t;
 
+struct storage_db_snapshot {
+    bool enabled;
+    uint64_t interval_ms;
+    uint64_t min_keys_changed;
+    uint64_t min_data_changed;
+    char *path;
+    uint64_t rotation_max_files;
+};
+typedef struct storage_db_snapshot storage_db_snapshot_t;
+
 // general config parameters to initialize and use the internal storage db (e.g. storage backend, amount of memory for
 // the hashtable, other optional stuff)
 typedef struct storage_db_config storage_db_config_t;
 struct storage_db_config {
     storage_db_backend_type_t backend_type;
     storage_db_limits_t limits;
+    storage_db_snapshot_t snapshot;
     union {
         struct {
             char *basedir_path;
@@ -118,7 +130,20 @@ typedef struct storage_db_counters storage_db_counters_t;
 struct storage_db_counters {
     int64_t keys_count;
     int64_t data_size;
+    int64_t keys_changed;
+    int64_t data_changed;
 };
+
+enum storage_db_snapshot_status {
+    STORAGE_DB_SNAPSHOT_STATUS_NONE = 0,
+    STORAGE_DB_SNAPSHOT_STATUS_IN_PREPARATION,
+    STORAGE_DB_SNAPSHOT_STATUS_IN_PROGRESS,
+    STORAGE_DB_SNAPSHOT_STATUS_BEING_FINALIZED,
+    STORAGE_DB_SNAPSHOT_STATUS_COMPLETED,
+    STORAGE_DB_SNAPSHOT_STATUS_FAILED,
+};
+typedef enum storage_db_snapshot_status storage_db_snapshot_status_t;
+typedef _Volatile(storage_db_snapshot_status_t) storage_db_snapshot_status_volatile_t;
 
 // contains the necessary information to manage the db, holds a pointer to storage_db_config required during the
 // the initialization
@@ -130,6 +155,27 @@ struct storage_db {
         storage_db_shard_index_t new_index;
         spinlock_lock_volatile_t write_spinlock;
     } shards;
+    struct {
+        spinlock_lock_t spinlock;
+        uint64_volatile_t next_run_time_ms;
+        uint64_volatile_t start_time_ms;
+        uint64_volatile_t end_time_ms;
+        uint64_volatile_t progress_reported_at_ms;
+        storage_db_snapshot_status_volatile_t status;
+        uint64_volatile_t block_index;
+        bool_volatile_t running;
+        bool_volatile_t storage_channel_opened;
+        storage_channel_t *storage_channel;
+        queue_mpmc_t *entry_index_to_be_deleted_queue;
+        off_t offset;
+        uint64_t keys_changed_at_start;
+        uint64_t data_changed_at_start;
+        char *path;
+        struct {
+            uint64_t data_written;
+            uint64_t keys_written;
+        } stats;
+    } snapshot;
     hashtable_t *hashtable;
     storage_db_config_t *config;
     storage_db_worker_t *workers;
@@ -177,6 +223,7 @@ struct storage_db_entry_index {
     storage_db_create_time_ms_t created_time_ms;
     storage_db_expiry_time_ms_t expiry_time_ms;
     storage_db_last_access_time_ms_t last_access_time_ms;
+    storage_db_snapshot_time_ms_t snapshot_time_ms;
     storage_db_chunk_sequence_t key;
     storage_db_chunk_sequence_t value;
 };
@@ -373,6 +420,10 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         storage_db_t *db,
         char *key,
         size_t key_length,
+        storage_db_entry_index_t *entry_index);
+
+storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep_no_expired_eviction(
+        storage_db_t *db,
         storage_db_entry_index_t *entry_index);
 
 storage_db_entry_index_t *storage_db_get_entry_index_for_read(

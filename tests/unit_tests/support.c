@@ -489,6 +489,9 @@ bool test_support_hashtable_prefill(
         char* keyset,
         uint64_t value,
         uint64_t insert_count) {
+    hashtable_bucket_index_t out_bucket_index;
+    bool out_should_free_key;
+
     for(long int i = 0; i < insert_count; i++) {
         char* key = keyset + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
 
@@ -497,7 +500,9 @@ bool test_support_hashtable_prefill(
                 key,
                 strlen(key),
                 value + i,
-                NULL);
+                NULL,
+                &out_bucket_index,
+                &out_should_free_key);
 
         if (!result) {
             return false;

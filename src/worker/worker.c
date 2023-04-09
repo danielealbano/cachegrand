@@ -73,6 +73,7 @@
 #include "worker/fiber/worker_fiber_storage_db_gc_deleted_entries.h"
 #include "worker/fiber/worker_fiber_storage_db_initialize.h"
 #include "worker/fiber/worker_fiber_storage_db_keys_eviction.h"
+#include "worker/fiber/worker_fiber_storage_db_snapshot_rdb.h"
 
 #define TAG "worker"
 
@@ -187,15 +188,13 @@ bool worker_initialize_storage(
         worker_context_t* worker_context) {
     // TODO: the workers should be map the their func ops in a struct and these should be used
     //       below, can't keep doing ifs :/
-    if (worker_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
-        if (!worker_storage_iouring_initialize(worker_context)) {
-            LOG_E(TAG, "io_uring worker storage initialization failed, terminating");
-            worker_iouring_cleanup(worker_context);
-            return false;
-        }
-
-        worker_storage_iouring_op_register();
+    if (!worker_storage_iouring_initialize(worker_context)) {
+        LOG_E(TAG, "io_uring worker storage initialization failed, terminating");
+        worker_iouring_cleanup(worker_context);
+        return false;
     }
+
+    worker_storage_iouring_op_register();
 
     return true;
 }
@@ -313,6 +312,14 @@ bool worker_initialize_storage_db(
             worker_context,
             "worker-fiber-storage-db-keys-eviction",
             worker_fiber_storage_db_keys_eviction_fiber_entrypoint,
+            NULL)) {
+        return false;
+    }
+
+    if (!worker_fiber_register(
+            worker_context,
+            "worker-fiber-storage-db-snapshot-rdb",
+            worker_fiber_storage_db_snapshot_rdb_fiber_entrypoint,
             NULL)) {
         return false;
     }

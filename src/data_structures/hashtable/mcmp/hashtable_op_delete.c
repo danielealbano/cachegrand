@@ -92,6 +92,10 @@ bool hashtable_mcmp_op_delete(
 
         half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
 
+        if (half_hashes_chunk->half_hashes[chunk_slot_index].filled == 0) {
+            return false;
+        }
+
         transaction_acquire(&transaction);
         if (unlikely(!transaction_spinlock_lock(&half_hashes_chunk->write_lock, &transaction))) {
             return false;
@@ -107,6 +111,7 @@ bool hashtable_mcmp_op_delete(
             }
 
             half_hashes_chunk->metadata.slots_occupied--;
+            assert(half_hashes_chunk->metadata.slots_occupied <= HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT);
             half_hashes_chunk->metadata.is_full = 0;
             half_hashes_chunk->half_hashes[chunk_slot_index].slot_id = 0;
 
@@ -185,6 +190,10 @@ bool hashtable_mcmp_op_delete_by_index(
 
         half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
 
+        if (half_hashes_chunk->half_hashes[chunk_slot_index].filled == 0) {
+            return false;
+        }
+
         transaction_acquire(&transaction);
         if (unlikely(!transaction_spinlock_lock(&half_hashes_chunk->write_lock, &transaction))) {
             return false;
@@ -197,6 +206,7 @@ bool hashtable_mcmp_op_delete_by_index(
         }
 
         half_hashes_chunk->metadata.slots_occupied--;
+        assert(half_hashes_chunk->metadata.slots_occupied <= HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT);
         half_hashes_chunk->metadata.is_full = 0;
         half_hashes_chunk->half_hashes[chunk_slot_index].slot_id = 0;
 

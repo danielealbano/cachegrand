@@ -16,7 +16,7 @@
 #include <pow2.h>
 #include <stdatomic.h>
 #include <assert.h>
-#include <ctype.h>
+#include <sys/stat.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -32,7 +32,6 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
-#include "data_structures/hashtable/mcmp/hashtable_data.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_get.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_get_key.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"
@@ -54,6 +53,7 @@
 #include "storage/storage.h"
 
 #include "storage_db.h"
+#include "storage_db_snapshot.h"
 
 #define TAG "storage_db"
 
@@ -131,6 +131,8 @@ void storage_db_counters_sum(
             slots_bitmap_mpmc_iter(storage_db->counters_slots_bitmap, next_slot_index)) != UINT64_MAX) {
         counters->data_size += storage_db->counters[found_slot_index].data_size;
         counters->keys_count += storage_db->counters[found_slot_index].keys_count;
+        counters->keys_changed += storage_db->counters[found_slot_index].keys_count;
+        counters->data_changed += storage_db->counters[found_slot_index].data_changed;
         next_slot_index = found_slot_index + 1;
         workers_to_find--;
     }
@@ -243,6 +245,18 @@ storage_db_t* storage_db_new(
     db->workers_count = workers_count;
     db->hashtable = hashtable;
     db->counters_slots_bitmap = slots_bitmap_mpmc_init(STORAGE_DB_WORKERS_MAX);
+    db->snapshot.next_run_time_ms = 0;
+    db->snapshot.status = STORAGE_DB_SNAPSHOT_STATUS_NONE;
+    db->snapshot.block_index = 0;
+    db->snapshot.storage_channel_opened = false;
+    db->snapshot.storage_channel = NULL;
+    db->snapshot.path = NULL;
+    db->snapshot.running = false;
+    db->snapshot.keys_changed_at_start = 0;
+    db->snapshot.data_changed_at_start = 0;
+    db->snapshot.entry_index_to_be_deleted_queue = queue_mpmc_init();
+
+    spinlock_init(&db->snapshot.spinlock);
 
     // Sets up the shards only if it has to write to the disk
     if (config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
@@ -611,6 +625,7 @@ storage_db_entry_index_t *storage_db_entry_index_ring_buffer_new(
     if (ring_bounded_queue_spsc_voidptr_is_full(rb)) {
         entry_index = ring_bounded_queue_spsc_voidptr_dequeue(rb);
         entry_index->status._cas_wrapper = 0;
+        entry_index->snapshot_time_ms = 0;
     } else {
         entry_index = storage_db_entry_index_new();
     }
@@ -970,7 +985,9 @@ void storage_db_worker_garbage_collect_deleting_entry_index_when_no_readers(
     // Can't use double_linked_list_iter_next because the code might remove from the list the current item and
     // double_linked_list_iter_next needs access to it
     item_next = list->head;
-    while((item = item_next) != NULL) {
+    uint64_t counter = 0;
+    uint64_t max_iterations = 1000 + (list->count > 1000 ? list->count / 25 : 0);
+    while((item = item_next) != NULL && counter++ < max_iterations) {
         item_next = item->next;
         storage_db_entry_index_t *entry_index = item->data;
 
@@ -1017,6 +1034,9 @@ void storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
         double_linked_list_push_item(
                 storage_db_worker_deleting_entry_index_list(db),
                 item);
+
+        // During development, this list should never get larger than 100 items, if it does, there is a bug
+        assert(storage_db_worker_deleting_entry_index_list(db)->count < 100);
     }
 }
 
@@ -1066,6 +1086,28 @@ int64_t storage_db_entry_index_ttl_ms(
     return entry_index->expiry_time_ms - clock_realtime_coarse_int64_ms();
 }
 
+storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep_no_expired_eviction(
+        storage_db_t *db,
+        storage_db_entry_index_t *entry_index) {
+    storage_db_entry_index_status_t old_status = {0};
+
+    // Try to acquire a reader lock until it's successful or the entry index has been marked as deleted
+    storage_db_entry_index_status_increase_readers_counter(
+            entry_index,
+            &old_status);
+
+    if (unlikely(old_status.deleted)) {
+        entry_index = NULL;
+    }
+
+    if (storage_db_entry_index_is_expired(entry_index)) {
+        storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
+        entry_index = NULL;
+    }
+
+    return entry_index;
+}
+
 storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         storage_db_t *db,
         char *key,
@@ -1086,8 +1128,9 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
 
         // If the storage db entry index is actually expired it's necessary to start a read modify write operation
-        // because the check has to be carried out again under the lock to check if the entry index only has to be
-        // deleted or the entire bucket in the hashtable has to be deleted
+        // because the check has to be carried out again under the lock to verify if the entry_index has been replaced
+        // with a new one and therefore the current entry_index has not to be touched or if the entire bucket has to be
+        // freed
         transaction_t transaction = { 0 };
         storage_db_op_rmw_status_t rmw_status = { 0 };
 
@@ -1113,9 +1156,11 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         // of the rmw operation
         if ((storage_db_entry_index_t*)rmw_status.current_entry_index != entry_index) {
             storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, entry_index);
+            storage_db_op_rmw_abort(db, &rmw_status);
+        } else {
+            storage_db_op_rmw_commit_delete(db, &rmw_status);
         }
 
-        storage_db_op_rmw_abort(db, &rmw_status);
         entry_index = NULL;
     }
 
@@ -1142,6 +1187,8 @@ bool storage_db_set_entry_index(
         char *key,
         size_t key_length,
         storage_db_entry_index_t *entry_index) {
+    bool out_should_free_key = false;
+    hashtable_bucket_index_t out_bucket_index = 0;
     storage_db_entry_index_t *previous_entry_index = NULL;
 
     storage_db_entry_index_touch(entry_index);
@@ -1151,18 +1198,45 @@ bool storage_db_set_entry_index(
             key,
             key_length,
             (uintptr_t)entry_index,
-            (uintptr_t*)&previous_entry_index);
+            (uintptr_t*)&previous_entry_index,
+            &out_bucket_index,
+            &out_should_free_key);
 
     if (res) {
         int64_t counter_data_size_delta = (int64_t)entry_index->value.size;
         if (previous_entry_index != NULL) {
             counter_data_size_delta -= (int64_t)previous_entry_index->value.size;
 
+            if (storage_db_snapshot_is_in_progress(db)) {
+                if (
+                        storage_db_snapshot_should_entry_index_be_processed_creation_time(db, previous_entry_index) &&
+                        storage_db_snapshot_should_entry_index_be_processed_block_not_processed(db, out_bucket_index)) {
+                    storage_db_entry_index_t *previous_entry_index_after_prep =
+                            storage_db_get_entry_index_for_read_prep_no_expired_eviction(
+                                    db,
+                                    previous_entry_index);
+                    if (previous_entry_index_after_prep) {
+                        storage_db_snapshot_queue_entry_index_to_be_deleted(
+                                db,
+                                out_bucket_index,
+                                key,
+                                key_length,
+                                previous_entry_index_after_prep);
+                    }
+                }
+            }
+
             storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, previous_entry_index);
         }
 
         storage_db_counters_get_current_thread_data(db)->keys_count += previous_entry_index ? 0 : 1;
         storage_db_counters_get_current_thread_data(db)->data_size += counter_data_size_delta;
+        storage_db_counters_get_current_thread_data(db)->keys_changed++;
+        storage_db_counters_get_current_thread_data(db)->data_changed += counter_data_size_delta;
+    }
+
+    if (out_should_free_key) {
+        xalloc_free(key);
     }
 
     return res;
@@ -1360,8 +1434,10 @@ bool storage_db_op_rmw_commit_update(
                 (storage_db_entry_index_t *)rmw_status->hashtable.current_value);
     }
 
-    storage_db_counters_get_current_thread_data(db)->data_size += counter_data_size_delta;
     storage_db_counters_get_current_thread_data(db)->keys_count += rmw_status->hashtable.current_value ? 0 : 1;
+    storage_db_counters_get_current_thread_data(db)->data_size += counter_data_size_delta;
+    storage_db_counters_get_current_thread_data(db)->keys_changed++;
+    storage_db_counters_get_current_thread_data(db)->data_changed += counter_data_size_delta;
 
     result_res = true;
 
@@ -1401,9 +1477,12 @@ void storage_db_op_rmw_commit_rename(
 void storage_db_op_rmw_commit_delete(
         storage_db_t *db,
         storage_db_op_rmw_status_t *rmw_status) {
+    storage_db_counters_get_current_thread_data(db)->keys_count--;
     storage_db_counters_get_current_thread_data(db)->data_size -=
             (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value.size;
-    storage_db_counters_get_current_thread_data(db)->keys_count--;
+    storage_db_counters_get_current_thread_data(db)->keys_changed++;
+    storage_db_counters_get_current_thread_data(db)->data_changed +=
+            (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value.size;
 
     storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
             db,
@@ -1435,9 +1514,12 @@ bool storage_db_op_delete(
             (uintptr_t*)&current_entry_index);
 
     if (res && current_entry_index != NULL) {
+        storage_db_counters_get_current_thread_data(db)->keys_count--;
         storage_db_counters_get_current_thread_data(db)->data_size -=
                 (int64_t)current_entry_index->value.size;
-        storage_db_counters_get_current_thread_data(db)->keys_count--;
+        storage_db_counters_get_current_thread_data(db)->keys_changed++;
+        storage_db_counters_get_current_thread_data(db)->data_changed +=
+                (int64_t)current_entry_index->value.size;
 
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
     }
@@ -1456,9 +1538,12 @@ bool storage_db_op_delete_by_index(
             (uintptr_t*)&current_entry_index);
 
     if (res && current_entry_index != NULL) {
+        storage_db_counters_get_current_thread_data(db)->keys_count--;
         storage_db_counters_get_current_thread_data(db)->data_size -=
                 (int64_t)current_entry_index->value.size;
-        storage_db_counters_get_current_thread_data(db)->keys_count--;
+        storage_db_counters_get_current_thread_data(db)->keys_changed++;
+        storage_db_counters_get_current_thread_data(db)->data_changed +=
+                (int64_t)current_entry_index->value.size;
 
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
     }
@@ -1762,18 +1847,30 @@ uint8_t storage_db_keys_eviction_run_worker(
     storage_db_keys_eviction_bitonic_sort_16_elements(keys_evitction_candidates_list);
 
     // Delete the first 10 keys
-    #pragma unroll(STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS)
-    for (uint8_t i = 0; i < STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS; i++) {
+    uint8_t evict_first_n_keys = STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS;
+
+#pragma unroll(STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS)
+    for (
+            uint8_t entry_index = 0;
+            entry_index < evict_first_n_keys &&
+                entry_index < STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH;
+            entry_index++) {
+        storage_db_keys_eviction_kv_list_entry_t *key_eviction_list_entry = &keys_evitction_candidates_list[entry_index];
+
         // Check if the key is set to UINT64_MAX and the value is set to UINT64_MAX, in which case there are no more
         // keys to evict in the list
-        if (unlikely(keys_evitction_candidates_list[i].key == UINT64_MAX &&
-            keys_evitction_candidates_list[i].value == UINT64_MAX)) {
+        if (unlikely(key_eviction_list_entry->key == UINT64_MAX &&
+            key_eviction_list_entry->value == UINT64_MAX)) {
             break;
         }
 
-        // Try to delete the key by index
-        if (storage_db_op_delete_by_index(db, keys_evitction_candidates_list[i].value)) {
+        // Try to delete the key by index, potentially the operation might fail if the key has been deleted or if it
+        // was selected twice for the eviction
+        if (storage_db_op_delete_by_index(db, key_eviction_list_entry->value)) {
             keys_evicted_count++;
+        } else {
+            // If the operation fails, increment the amount of keys to evict by one
+            evict_first_n_keys++;
         }
     }
 

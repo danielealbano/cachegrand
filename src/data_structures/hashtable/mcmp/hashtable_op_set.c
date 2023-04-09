@@ -30,7 +30,9 @@ bool hashtable_mcmp_op_set(
         hashtable_key_data_t *key,
         hashtable_key_size_t key_size,
         hashtable_value_data_t new_value,
-        hashtable_value_data_t *previous_value) {
+        hashtable_value_data_t *previous_value,
+        hashtable_bucket_index_t *out_bucket_index,
+        bool *out_should_free_key) {
     bool created_new = true;
     bool key_inlined = false;
     hashtable_hash_t hash;
@@ -75,6 +77,9 @@ bool hashtable_mcmp_op_set(
     }
 
     assert(key_value < hashtable->ht_current->keys_values + hashtable->ht_current->keys_values_size);
+
+    // Calculate the bucket index
+    *out_bucket_index = chunk_index * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT + chunk_slot_index;
 
     LOG_DI("key found or created");
 
@@ -133,8 +138,9 @@ bool hashtable_mcmp_op_set(
     LOG_DI("unlocking half_hashes_chunk 0x%016x", half_hashes_chunk);
 
     // Validate if the passed key can be freed because unused or because inlined
+    *out_should_free_key = false;
     if (!created_new || key_inlined) {
-        xalloc_free(key);
+        *out_should_free_key = true;
     }
 
     return true;

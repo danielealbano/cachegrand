@@ -492,7 +492,7 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             size_t buffer_offset = 0;
             size_t buffer_offset_out;
 
-            module_snapshot_value_type_t value_type = MODULE_REDIS_SNAPSHOT_VALUE_TYPE_STRING;
+            module_redis_snapshot_value_type_t value_type = MODULE_REDIS_SNAPSHOT_VALUE_TYPE_STRING;
             module_redis_snapshot_serialize_primitive_result_t result =
                     module_redis_snapshot_serialize_primitive_encode_opcode_value_type(
                             value_type,
@@ -512,7 +512,7 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             size_t buffer_offset = 0;
             size_t buffer_offset_out;
 
-            module_snapshot_value_type_t value_type = MODULE_REDIS_SNAPSHOT_VALUE_TYPE_STRING;
+            module_redis_snapshot_value_type_t value_type = MODULE_REDIS_SNAPSHOT_VALUE_TYPE_STRING;
             module_redis_snapshot_serialize_primitive_result_t result =
                     module_redis_snapshot_serialize_primitive_encode_opcode_value_type(
                             value_type,

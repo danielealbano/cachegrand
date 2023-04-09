@@ -41,5 +41,6 @@ storage_channel_iouring_t* storage_channel_iouring_multi_new(
 
 void storage_channel_iouring_free(
         storage_channel_iouring_t* storage_channel) {
+    ffma_mem_free(storage_channel->wrapped_channel.path);
     ffma_mem_free(storage_channel);
 }
