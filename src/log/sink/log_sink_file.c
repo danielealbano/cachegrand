@@ -9,7 +9,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include <time.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -90,7 +89,20 @@ void log_sink_file_printer(
             message,
             message_len);
 
-    write(settings->file.internal.fd, log_message, log_message_size);
+    // Ensure that the log message is always written entirely to the disk and to catch any error
+    size_t data_written = 0;
+    do {
+        ssize_t data_written_now = write(
+                settings->file.internal.fd,
+                log_message + data_written,
+                log_message_size - data_written);
+
+        if (data_written_now < 0) {
+            break;
+        }
+
+        data_written += data_written_now;
+    } while (data_written < log_message_size);
 
     if (!log_message_static_buffer_selected) {
         xalloc_free(log_message);
