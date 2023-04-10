@@ -13,6 +13,7 @@
 #include <unistd.h>
 
 #include "misc.h"
+#include "clock.h"
 #include "log/log.h"
 #include "log/sink/log_sink.h"
 #include "log/sink/log_sink_support.h"
