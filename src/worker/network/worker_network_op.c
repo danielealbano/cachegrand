@@ -286,6 +286,8 @@ bool worker_network_listeners_listen(
             return false;
         }
     }
+
+    return true;
 }
 
 void worker_network_new_client_fiber_entrypoint(
