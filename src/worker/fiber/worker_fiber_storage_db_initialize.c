@@ -10,12 +10,17 @@
 #include <stdbool.h>
 #include <arpa/inet.h>
 #include <stddef.h>
+#include <fcntl.h>
+#include <string.h>
+#include <liblzf/lzf.h>
+#include <stdlib.h>
 
 #include "exttypes.h"
 #include "misc.h"
 #include "clock.h"
 #include "fiber/fiber.h"
 #include "log/log.h"
+#include "xalloc.h"
 #include "spinlock.h"
 #include "transaction.h"
 #include "transaction_spinlock.h"
@@ -23,6 +28,7 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
+#include "memory_allocator/ffma.h"
 #include "config.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
@@ -30,10 +36,13 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
+#include "storage/storage.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "fiber/fiber_scheduler.h"
 #include "worker/worker_op.h"
+#include "module/redis/snapshot/module_redis_snapshot.h"
+#include "module/redis/snapshot/module_redis_snapshot_load.h"
 
 #include "worker_fiber_storage_db_initialize.h"
 
@@ -49,7 +58,12 @@ void worker_fiber_storage_db_initialize_fiber_entrypoint(
         FATAL(TAG, "Unable to open the database failed");
     }
 
-    // TODO: Load the initial snapshot if necessary
+    // Try to load the snapshot file if necessary
+    if (worker_context->config->database->snapshots) {
+        if (!module_redis_snapshot_load(worker_context->config->database->snapshots->path)) {
+            FATAL(TAG, "Unable to load the rdb");
+        }
+    }
 
     // Set the next snapshot run time and add 100ms to have a bit more padding during the startup
     storage_db_config_t *storage_db_config = worker_context->db->config;
