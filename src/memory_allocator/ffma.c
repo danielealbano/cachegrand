@@ -248,6 +248,7 @@ ffma_slice_t* ffma_slice_init(
     ffma_slice->data.metrics.objects_total_count = slots_count;
     ffma_slice->data.metrics.objects_inuse_count = 0;
     ffma_slice->data.available = true;
+    ffma_slice->data.slots_count = slots_count;
 
     return ffma_slice;
 }
@@ -322,7 +323,6 @@ void ffma_mem_free_slot_in_current_thread(
         ffma_t* ffma,
         ffma_slice_t* ffma_slice,
         ffma_slot_t* ffma_slot) {
-    bool can_free_ffma_slice = false;
     // Update the availability and the metrics
     ffma_slice->data.metrics.objects_inuse_count--;
     ffma->metrics.objects_inuse_count--;
@@ -333,18 +333,18 @@ void ffma_mem_free_slot_in_current_thread(
             ffma->slots,
             &ffma_slot->double_linked_list_item);
 
-    // If the slice is empty and for the currently core there is already another empty slice, make the current
-    // slice available for other cores in the same numa node
-    if (ffma_slice->data.metrics.objects_inuse_count == 0) {
-        ffma_slice_make_available(ffma, ffma_slice);
-        can_free_ffma_slice = true;
-    }
+    // If the slice is empty check if it makes sense to free it, always keep 1 slice hot ready to be used
+    if (unlikely(ffma_slice->data.metrics.objects_inuse_count == 0)) {
+        // Calculate the amount of slices in use
+        uint32_t total_slices_in_use = (ffma->metrics.objects_inuse_count + ffma_slice->data.slots_count - 1) / ffma_slice->data.slots_count;
+        if (unlikely(ffma->metrics.slices_inuse_count - total_slices_in_use > 1)) {
+            ffma_slice_make_available(ffma, ffma_slice);
 
-    if (can_free_ffma_slice) {
 #if defined(HAS_VALGRIND)
-        VALGRIND_DESTROY_MEMPOOL(ffma_slice->data.page_addr);
+            VALGRIND_DESTROY_MEMPOOL(ffma_slice->data.page_addr);
 #endif
-        ffma_region_cache_push(internal_ffma_region_cache, ffma_slice->data.page_addr);
+            ffma_region_cache_push(internal_ffma_region_cache, ffma_slice->data.page_addr);
+        }
     }
 
     MEMORY_FENCE_STORE();

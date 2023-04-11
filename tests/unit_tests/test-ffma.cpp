@@ -664,10 +664,10 @@ TEST_CASE("ffma.c", "[ffma]") {
             ffma_mem_free(memptr);
 
             REQUIRE(ffma->metrics.objects_inuse_count == 0);
-            REQUIRE(ffma->metrics.slices_inuse_count == 0);
+            REQUIRE(ffma->metrics.slices_inuse_count == 1);
             REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
-            REQUIRE(ffma->slots->head == nullptr);
-            REQUIRE(ffma->slots->tail == nullptr);
+            REQUIRE(ffma->slots->head != nullptr);
+            REQUIRE(ffma->slots->tail != nullptr);
         }
 
         SECTION("allocate and free 1 object via different threads") {
@@ -682,10 +682,10 @@ TEST_CASE("ffma.c", "[ffma]") {
             ffma_mem_free(memptr);
 
             REQUIRE(ffma->metrics.objects_inuse_count == 0);
-            REQUIRE(ffma->metrics.slices_inuse_count == 0);
+            REQUIRE(ffma->metrics.slices_inuse_count == 1);
             REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
-            REQUIRE(ffma->slots->head == nullptr);
-            REQUIRE(ffma->slots->tail == nullptr);
+            REQUIRE(ffma->slots->head != nullptr);
+            REQUIRE(ffma->slots->tail != nullptr);
         }
 
         SECTION("fill and free one hugepage") {
@@ -715,10 +715,10 @@ TEST_CASE("ffma.c", "[ffma]") {
             }
 
             REQUIRE(ffma->metrics.objects_inuse_count == 0);
-            REQUIRE(ffma->metrics.slices_inuse_count == 0);
+            REQUIRE(ffma->metrics.slices_inuse_count == 1);
             REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
-            REQUIRE(ffma->slots->head == nullptr);
-            REQUIRE(ffma->slots->tail == nullptr);
+            REQUIRE(ffma->slots->head != nullptr);
+            REQUIRE(ffma->slots->tail != nullptr);
         }
 
         SECTION("fill and free one hugepage and one element") {
@@ -739,6 +739,8 @@ TEST_CASE("ffma.c", "[ffma]") {
                 memptrs[i] = ffma_mem_alloc_internal(ffma, ffma_predefined_object_sizes[0]);
             }
 
+            sleep(1);
+
             REQUIRE(ffma->metrics.slices_inuse_count == 2);
             REQUIRE(ffma->metrics.objects_inuse_count == slots_count);
             REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
@@ -750,11 +752,13 @@ TEST_CASE("ffma.c", "[ffma]") {
                         memptrs[i]);
             }
 
+            sleep(1);
+
             REQUIRE(ffma->metrics.objects_inuse_count == 0);
-            REQUIRE(ffma->metrics.slices_inuse_count == 0);
+            REQUIRE(ffma->metrics.slices_inuse_count == 1);
             REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
-            REQUIRE(ffma->slots->head == nullptr);
-            REQUIRE(ffma->slots->tail == nullptr);
+            REQUIRE(ffma->slots->head != nullptr);
+            REQUIRE(ffma->slots->tail != nullptr);
         }
 
         SECTION("free via different ffma") {

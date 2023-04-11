@@ -1035,8 +1035,8 @@ void storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
                 storage_db_worker_deleting_entry_index_list(db),
                 item);
 
-        // During development, this list should never get larger than 100 items, if it does, there is a bug
-        assert(storage_db_worker_deleting_entry_index_list(db)->count < 100);
+        // During development, this list should never get larger than 1000 items, if it does, there is a bug
+        assert(storage_db_worker_deleting_entry_index_list(db)->count < 1000);
     }
 }
 

@@ -77,7 +77,8 @@ void ffma_region_cache_push(
     assert(region_cache->numa_nodes[numa_node_index].free_queue != NULL);
 
     // If the queue is full free the memory
-    if (queue_mpmc_get_length(region_cache->numa_nodes[numa_node_index].free_queue) >= region_cache->cache_size) {
+    if (queue_mpmc_get_length(region_cache->numa_nodes[numa_node_index].free_queue) >=
+        region_cache->cache_size) {
         xalloc_mmap_free(addr, region_cache->region_size);
     } else {
         queue_mpmc_push(region_cache->numa_nodes[numa_node_index].free_queue, addr);
