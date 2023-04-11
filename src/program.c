@@ -831,11 +831,6 @@ int program_main(
     // Calculate workers count
     program_workers_initialize_count(program_context);
 
-    // Initialize the fast memory allocator if hugepages are enabled
-    if (program_context->use_hugepages) {
-        program_context->fast_memory_allocator_initialized = true;
-    }
-
     // Initialize the epoch gc workers
     if (program_config_setup_storage_db(program_context) == false) {
         LOG_E(TAG, "Unable to initialize the database");
