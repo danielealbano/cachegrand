@@ -59,7 +59,7 @@ void worker_fiber_storage_db_initialize_fiber_entrypoint(
     }
 
     // Try to load the snapshot file if necessary
-    if (worker_context->config->database->snapshots) {
+    if (worker_context->worker_index == 0 && worker_context->config->database->snapshots) {
         if (!module_redis_snapshot_load(worker_context->config->database->snapshots->path)) {
             FATAL(TAG, "Unable to load the rdb");
         }
