@@ -218,7 +218,7 @@ void* xalloc_mmap_alloc(
             -1,
             0);
 
-    if (memptr == (void *)-1) {
+    if (memptr == MAP_FAILED) {
         failed = true;
     }
 #else
@@ -252,7 +252,7 @@ xalloc_mmap_try_alloc_fixed_addr_result_t xalloc_mmap_try_alloc_fixed_addr(
             -1,
             0);
 
-    if (unlikely(*out_addr == (void*)-1)) {
+    if (unlikely(*out_addr == MAP_FAILED)) {
         if (errno == EEXIST) {
             result = XALLOC_MMAP_TRY_ALLOC_FIXED_ADDR_RESULT_FAILED_ALREADY_ALLOCATED;
         } else if (errno == ENOMEM) {
@@ -304,7 +304,7 @@ void* xalloc_hugepage_alloc(
             -1,
             0);
 
-    if (memptr == (void *)-1) {
+    if (memptr == MAP_FAILED) {
         LOG_E(TAG, "Unable to allocate the hugepage of size %lu", size);
         return NULL;
     }
