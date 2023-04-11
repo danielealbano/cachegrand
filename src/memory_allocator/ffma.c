@@ -335,12 +335,9 @@ void ffma_mem_free_slot_in_current_thread(
 
     // If the slice is empty and for the currently core there is already another empty slice, make the current
     // slice available for other cores in the same numa node
-    if (ffma_slice->data.metrics.objects_inuse_count == 0) {
+    if (unlikely(ffma_slice->data.metrics.objects_inuse_count == 0 && ffma->slices->count - ffma->metrics.slices_inuse_count > 1)) {
         ffma_slice_make_available(ffma, ffma_slice);
-        can_free_ffma_slice = true;
-    }
 
-    if (can_free_ffma_slice) {
 #if defined(HAS_VALGRIND)
         VALGRIND_DESTROY_MEMPOOL(ffma_slice->data.page_addr);
 #endif
