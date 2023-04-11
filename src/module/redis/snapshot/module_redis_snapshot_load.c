@@ -67,7 +67,8 @@ size_t module_redis_snapshot_load_read(
     return length;
 }
 
-uint64_t module_redis_snapshot_load_read_length_encoded_int(storage_channel_t *channel) {
+uint64_t module_redis_snapshot_load_read_length_encoded_int(
+        storage_channel_t *channel) {
     uint8_t byte;
     uint64_t length = 0;
     module_redis_snapshot_load_read(channel, (char *) &byte, 1);
@@ -90,7 +91,9 @@ uint64_t module_redis_snapshot_load_read_length_encoded_int(storage_channel_t *c
     return length;
 }
 
-void *module_redis_snapshot_load_read_string(storage_channel_t *channel, size_t *length) {
+void *module_redis_snapshot_load_read_string(
+        storage_channel_t *channel,
+        size_t *length) {
     uint8_t byte;
     module_redis_snapshot_load_read(channel, &byte, 1);
 
@@ -144,7 +147,15 @@ void *module_redis_snapshot_load_read_string(storage_channel_t *channel, size_t 
                 void *compressed_buf = xalloc_alloc(compressed_length);
                 module_redis_snapshot_load_read(channel, compressed_buf, compressed_length);
                 void *uncompressed_buf = xalloc_alloc(uncompressed_length);
-                lzf_decompress(compressed_buf, compressed_length, uncompressed_buf, uncompressed_length);
+                if (lzf_decompress(
+                        compressed_buf,
+                        compressed_length,
+                        uncompressed_buf,
+                        uncompressed_length) == 0) {
+                    xalloc_free(compressed_buf);
+                    xalloc_free(uncompressed_buf);
+                    FATAL(TAG, "Unable to decompress LZF compressed string");
+                }
                 xalloc_free(compressed_buf);
                 *length = uncompressed_length;
                 return uncompressed_buf;
@@ -160,7 +171,8 @@ void *module_redis_snapshot_load_read_string(storage_channel_t *channel, size_t 
     return buf;
 }
 
-bool module_redis_snapshot_load_validate_magic(storage_channel_t *channel) {
+bool module_redis_snapshot_load_validate_magic(
+        storage_channel_t *channel) {
     char magic[5] = { 0 };
     module_redis_snapshot_load_read(channel, magic, 5);
 
@@ -171,7 +183,8 @@ bool module_redis_snapshot_load_validate_magic(storage_channel_t *channel) {
     return true;
 }
 
-bool module_redis_snapshot_load_validate_version(storage_channel_t *channel) {
+bool module_redis_snapshot_load_validate_version(
+        storage_channel_t *channel) {
     char *endptr = NULL;
     char version[5] = { 0 };
 
@@ -196,7 +209,8 @@ bool module_redis_snapshot_load_validate_version(storage_channel_t *channel) {
     return true;
 }
 
-bool module_redis_snapshot_load_validate_checksum(storage_channel_t *channel) {
+bool module_redis_snapshot_load_validate_checksum(
+        storage_channel_t *channel) {
     uint64_t checksum;
     module_redis_snapshot_load_read(channel, &checksum, 8);
     checksum = int64_ntoh(checksum);
@@ -210,13 +224,15 @@ bool module_redis_snapshot_load_validate_checksum(storage_channel_t *channel) {
     return true;
 }
 
-uint8_t module_redis_snapshot_load_read_opcode(storage_channel_t *channel) {
+uint8_t module_redis_snapshot_load_read_opcode(
+        storage_channel_t *channel) {
     uint8_t opcode;
     module_redis_snapshot_load_read(channel, &opcode, 1);
     return opcode;
 }
 
-void module_redis_snapshot_load_process_opcode_aux(storage_channel_t *channel) {
+void module_redis_snapshot_load_process_opcode_aux(
+        storage_channel_t *channel) {
     size_t key_length;
     size_t value_length;
     void *key = module_redis_snapshot_load_read_string(channel, &key_length);
@@ -234,7 +250,8 @@ void module_redis_snapshot_load_process_opcode_aux(storage_channel_t *channel) {
     xalloc_free(value);
 }
 
-void module_redis_snapshot_load_process_opcode_dbnumber(storage_channel_t *channel) {
+void module_redis_snapshot_load_process_opcode_db_number(
+        storage_channel_t *channel) {
     uint32_t db_number = module_redis_snapshot_load_read_length_encoded_int(channel);
     if (db_number != 0) {
         FATAL(TAG, "Unsupported DB number: %d", db_number);
@@ -243,7 +260,8 @@ void module_redis_snapshot_load_process_opcode_dbnumber(storage_channel_t *chann
     LOG_V(TAG, "RDB DB number: %d", db_number);
 }
 
-void module_redis_snapshot_load_process_opcode_resize_db(storage_channel_t *channel) {
+void module_redis_snapshot_load_process_opcode_resize_db(
+        storage_channel_t *channel) {
     uint64_t db_size = module_redis_snapshot_load_read_length_encoded_int(channel);
     uint64_t expires_size = module_redis_snapshot_load_read_length_encoded_int(channel);
 
@@ -372,7 +390,8 @@ void module_redis_snapshot_load_process_value_string(
     }
 }
 
-void module_redis_snapshot_load_data(storage_channel_t *channel) {
+void module_redis_snapshot_load_data(
+        storage_channel_t *channel) {
     uint8_t opcode;
     uint64_t expiry_ms = 0;
 
@@ -394,7 +413,7 @@ void module_redis_snapshot_load_data(storage_channel_t *channel) {
                 break;
 
             case MODULE_REDIS_SNAPSHOT_OPCODE_DB_NUMBER:
-                module_redis_snapshot_load_process_opcode_dbnumber(channel);
+                module_redis_snapshot_load_process_opcode_db_number(channel);
                 break;
 
             case MODULE_REDIS_SNAPSHOT_OPCODE_RESIZE_DB:

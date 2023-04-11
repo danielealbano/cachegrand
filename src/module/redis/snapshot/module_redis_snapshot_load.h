@@ -32,7 +32,7 @@ uint8_t module_redis_snapshot_load_read_opcode(
 void module_redis_snapshot_load_process_opcode_aux(
         storage_channel_t *channel);
 
-void module_redis_snapshot_load_process_opcode_dbnumber(
+void module_redis_snapshot_load_process_opcode_db_number(
         storage_channel_t *channel);
 
 void module_redis_snapshot_load_process_opcode_resize_db(
