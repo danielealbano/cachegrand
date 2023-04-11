@@ -453,6 +453,7 @@ bool module_redis_snapshot_load(
     // Check if the snapshot file exists
     if (!module_redis_snapshot_load_check_file_exists(path)) {
         // If the file don't exist just return, it's not an error
+        LOG_I(TAG, "Snapshot file <%s> does not exist", path);
         return true;
     }
 
