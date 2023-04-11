@@ -45,10 +45,12 @@ void worker_fiber_storage_db_snapshot_rdb_fiber_entrypoint(
     worker_context_t *worker_context = worker_context_get();
     storage_db_t *db = worker_context->db;
 
-    // If the time is set to zero something went wrong during the initialization and the code shouldn't even get here
-    assert(db->snapshot.next_run_time_ms > 0);
-
     while(true) {
+        if (!worker_is_running(worker_context) || db->snapshot.next_run_time_ms == 0) {
+            worker_op_wait_ms(WORKER_FIBER_STORAGE_DB_SNAPSHOT_RDB_WAIT_LOOP_MS);
+            continue;
+        }
+
         // If the snapshot is not running, wait and then check if it's time to run it and if yes ensure that the
         // snapshot is prepared to run
         if (!db->snapshot.running) {

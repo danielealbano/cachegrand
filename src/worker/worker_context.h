@@ -49,6 +49,12 @@ void worker_context_set(
 
 void worker_context_reset();
 
+static inline bool worker_is_running(
+        worker_context_t *worker_context) {
+    MEMORY_FENCE_LOAD();
+    return worker_context->running;
+}
+
 #ifdef __cplusplus
 }
 #endif

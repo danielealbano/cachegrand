@@ -44,6 +44,10 @@ void worker_fiber_storage_db_gc_deleted_entries_fiber_entrypoint(
     worker_context_t* worker_context = worker_context_get();
 
     while(worker_op_wait_ms(WORKER_FIBER_STORAGE_DB_GC_DELETED_STORAGE_DB_ENTRIES_WAIT_LOOP_MS)) {
+        if (!worker_is_running(worker_context)) {
+            continue;
+        }
+
         // The condition checked below is mostly for the tests, as there are some simple tests that should setup the
         // storage_db otherwise
         if (likely(worker_context->db)) {
