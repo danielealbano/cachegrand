@@ -41,11 +41,13 @@
 
 void worker_fiber_storage_db_initialize_fiber_entrypoint(
         void* user_data) {
-    bool *storage_db_initialized = (bool*)user_data;
+    bool *storage_db_loaded = (bool*)user_data;
     worker_context_t *worker_context = worker_context_get();
 
     // Initialize the storage db
-    *storage_db_initialized = storage_db_open(worker_context->db);
+    if (!storage_db_open(worker_context->db)) {
+        FATAL(TAG, "Unable to open the database failed");
+    }
 
     // TODO: Load the initial snapshot if necessary
 
@@ -55,6 +57,9 @@ void worker_fiber_storage_db_initialize_fiber_entrypoint(
             clock_monotonic_coarse_int64_ms() +
             storage_db_config->snapshot.interval_ms +
             100;
+
+    // Mark the storage db as loaded
+    *storage_db_loaded = true;
 
     // Mark the current fiber as terminated
     fiber_scheduler_terminate_current_fiber();

@@ -169,6 +169,7 @@ worker_context_t* program_workers_initialize_context(
                 program_context->workers_count,
                 worker_index,
                 terminate_event_loop,
+                &program_context->storage_db_loaded,
                 program_context->config,
                 program_context->db);
 
