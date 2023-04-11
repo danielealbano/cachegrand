@@ -69,7 +69,7 @@ struct ffma {
     // initialized and therefore some support is needed there.
     // When a thread sends back memory to a thread it has to check if it has been terminated and if yes, process the
     // free_ffma_slots_queue, free up the  slots, check if the slice owning the
-    // ffma_slot is then empty, and in case return the addres sof the page.
+    // ffma_slot is then empty, and in case return the address sof the page.
     // All these operations have to be carried out under the external_thread_lock spinlock to avoid contention.
     bool_volatile_t ffma_freed;
 
@@ -114,6 +114,7 @@ typedef union {
         ffma_t *ffma;
         void *page_addr;
         uintptr_t data_addr;
+        uint32_t slots_count;
         bool available;
         struct {
             uint32_t objects_total_count;
