@@ -150,10 +150,10 @@ database:
     #                     system memory.
     limits:
       hard:
-        max_memory_usage: 1000000
-#     # Optional
-#     soft:
-#       max_memory_usage: 999999
+        max_memory_usage: 75%
+      # Optional
+      soft:
+        max_memory_usage: 70%
 
 #  backend: file
 #  file:
