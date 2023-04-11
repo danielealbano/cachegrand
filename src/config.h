@@ -319,6 +319,9 @@ config_t *config_load(
 void config_free(
         config_t *config);
 
+bool config_process_string_values(
+        config_t *config);
+
 bool config_validate_after_load_cpus(
         config_t* config);
 
