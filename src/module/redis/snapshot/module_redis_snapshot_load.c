@@ -492,9 +492,9 @@ bool module_redis_snapshot_load(
     // Report the results
     LOG_I(TAG, "Loaded the snapshot file <%s>", path);
     LOG_I(TAG, "Found:");
-    LOG_I(TAG, "> %lu strings", counter_strings);
-    LOG_I(TAG, "> %lu values with expirations", counter_expires - counter_expires_expired);
-    LOG_I(TAG, "> %lu values expired", counter_expires_expired);
+    LOG_I(TAG, "> %lu string(s)", counter_strings);
+    LOG_I(TAG, "> %lu value(s) with expirations", counter_expires - counter_expires_expired);
+    LOG_I(TAG, "> %lu value(s) expired", counter_expires_expired);
 
     return true;
 }
