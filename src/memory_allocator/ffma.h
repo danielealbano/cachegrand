@@ -28,7 +28,7 @@ extern "C" {
 #endif
 
 #define FFMA_SLICE_SIZE         (2 * 1024 * 1024)
-#define FFMA_REGION_CACHE_SIZE  (16)
+#define FFMA_REGION_CACHE_SIZE  (32)
 
 #define FFMA_OBJECT_SIZE_16     (0x00000010)
 #define FFMA_OBJECT_SIZE_32     (0x00000020)
