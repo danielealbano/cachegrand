@@ -8,10 +8,10 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <time.h>
-#include <string.h>
+#include <cstdint>
+#include <cstdbool>
+#include <ctime>
+#include <cstring>
 #include <unistd.h>
 #include <netdb.h>
 #include <arpa/inet.h>
@@ -194,10 +194,10 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
     SECTION("worker_setup_context") {
         config_t config = {};
         storage_db_t storage_db = { };
-        worker_context_t worker_user_data = {0};
-        network_channel_address_t addresses[1] = {0};
+        worker_context_t worker_user_data = { 0 };
         timespec_t started_on_timestamp = { 0 };
-        volatile bool terminate_event_loop = false;
+        bool_volatile_t terminate_event_loop = false;
+        bool_volatile_t storage_db_loaded = false;
 
         worker_setup_context(
                 &worker_user_data,
@@ -205,6 +205,7 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
                 1,
                 1,
                 &terminate_event_loop,
+                &storage_db_loaded,
                 &config,
                 &storage_db);
 
