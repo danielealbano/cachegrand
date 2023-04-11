@@ -104,6 +104,7 @@ void worker_setup_context(
         uint32_t workers_count,
         uint32_t worker_index,
         bool_volatile_t *terminate_event_loop,
+        bool_volatile_t *storage_db_loaded,
         config_t *config,
         storage_db_t *db) {
     worker_context->workers_count = workers_count;
@@ -113,6 +114,7 @@ void worker_setup_context(
     worker_context->db = db;
     worker_context->aborted = false;
     worker_context->running = false;
+    worker_context->storage_db_loaded = storage_db_loaded;
 
     worker_context->stats.internal.started_on_timestamp.tv_nsec = started_on_timestamp->tv_nsec;
     worker_context->stats.internal.started_on_timestamp.tv_sec = started_on_timestamp->tv_sec;
@@ -287,16 +289,12 @@ void worker_set_aborted(
 
 bool worker_initialize_storage_db(
         worker_context_t *worker_context) {
-    bool storage_db_initialized = false;
-
     // No need to keep track of this fiber, it will be freed right away once the control is returned to the code
-    fiber_scheduler_new_fiber(
+    if (!worker_fiber_register(
+            worker_context,
             "worker-fiber-storage-db-initialize",
-            strlen("worker-fiber-storage-db-initialize"),
             worker_fiber_storage_db_initialize_fiber_entrypoint,
-            &storage_db_initialized);
-
-    if (!storage_db_initialized) {
+            (fiber_scheduler_new_fiber_user_data_t *)worker_context->storage_db_loaded)) {
         return false;
     }
 
@@ -430,14 +428,8 @@ void* worker_thread_func(
             listeners,
             listeners_count);
 
-    worker_network_listeners_listen(
-            worker_context,
-            listeners,
-            listeners_count);
-
     LOG_V(TAG, "Starting events loop");
 
-    worker_set_running(worker_context, true);
 
     // TODO: the current loop terminates immediately when requests but this can lead to data corruption while data are
     //       being written by the fibers. To ensure a proper flow of operations the worker should notify the fibers that
@@ -447,9 +439,18 @@ void* worker_thread_func(
     //       a maximum timeout or X seconds and an error message should be reported pointing out what a fiber is doing
     //       and where.
     do {
-        if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING ||
-            worker_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
-            res = worker_iouring_process_events_loop(worker_context);
+        // Process io_uring events
+        res = worker_iouring_process_events_loop(worker_context);
+
+        // Check if the database has been loaded
+        if (worker_context->running == false && *worker_context->storage_db_loaded == true) {
+            // Starts to listen and marks the worker as running
+            worker_network_listeners_listen(
+                    worker_context,
+                    listeners,
+                    listeners_count);
+
+            worker_set_running(worker_context, true);
         }
 
         if (!res) {

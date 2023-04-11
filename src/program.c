@@ -169,6 +169,7 @@ worker_context_t* program_workers_initialize_context(
                 program_context->workers_count,
                 worker_index,
                 terminate_event_loop,
+                &program_context->storage_db_loaded,
                 program_context->config,
                 program_context->db);
 
@@ -830,11 +831,6 @@ int program_main(
 
     // Calculate workers count
     program_workers_initialize_count(program_context);
-
-    // Initialize the fast memory allocator if hugepages are enabled
-    if (program_context->use_hugepages) {
-        program_context->fast_memory_allocator_initialized = true;
-    }
 
     // Initialize the epoch gc workers
     if (program_config_setup_storage_db(program_context) == false) {

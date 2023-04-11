@@ -15,7 +15,8 @@ void worker_setup_context(
         timespec_t *started_on_timestamp,
         uint32_t workers_count,
         uint32_t worker_index,
-        volatile bool *terminate_event_loop,
+        bool_volatile_t *terminate_event_loop,
+        bool_volatile_t *storage_db_loaded,
         config_t *config,
         storage_db_t *db);
 

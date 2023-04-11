@@ -232,7 +232,7 @@ bool epoch_gc_worker_teardown(
         char *thread_name) {
     bool res = true;
 
-    LOG_V(TAG, "Tearing down signal handler thread");
+    LOG_V(TAG, "Tearing down epoch gc worker");
 
     xalloc_free(log_producer_early_prefix_thread);
     xalloc_free(thread_name);

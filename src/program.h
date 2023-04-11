@@ -10,7 +10,6 @@ extern "C" {
 typedef struct program_context program_context_t;
 struct program_context {
     bool use_hugepages;
-    bool fast_memory_allocator_initialized;
     config_t *config;
     uint16_t *selected_cpus;
     uint16_t selected_cpus_count;
@@ -20,6 +19,7 @@ struct program_context {
     signal_handler_thread_context_t *signal_handler_thread_context;
     uint32_t epoch_gc_workers_count;
     epoch_gc_worker_context_t *epoch_gc_workers_context;
+    bool_volatile_t storage_db_loaded;
 };
 
 program_context_t *program_get_context();

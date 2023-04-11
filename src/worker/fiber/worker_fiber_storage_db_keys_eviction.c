@@ -44,6 +44,10 @@ void worker_fiber_storage_db_keys_eviction_fiber_entrypoint(
         uint64_t iterations = 0;
         bool eviction_run = false;
 
+        if (!worker_is_running(worker_context)) {
+            continue;
+        }
+
         // Check if limits have been passed
         if (likely(!storage_db_keys_eviction_should_run(worker_context->db))) {
             continue;

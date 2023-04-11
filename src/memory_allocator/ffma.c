@@ -210,6 +210,10 @@ bool ffma_free(
     while(item != NULL) {
         ffma_slice_t* ffma_slice = (ffma_slice_t *)item;
         item = item->next;
+
+#if defined(HAS_VALGRIND)
+        VALGRIND_DESTROY_MEMPOOL(ffma_slice->data.page_addr);
+#endif
         ffma_region_cache_push(internal_ffma_region_cache, ffma_slice->data.page_addr);
     }
 
@@ -317,6 +321,10 @@ void ffma_grow(
     double_linked_list_push_item(
             ffma->slices,
             &ffma_slice->double_linked_list_item);
+
+#if defined(HAS_VALGRIND)
+    VALGRIND_CREATE_MEMPOOL(ffma_slice->data.page_addr, 0, false);
+#endif
 }
 
 void ffma_mem_free_slot_in_current_thread(

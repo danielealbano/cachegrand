@@ -2,6 +2,13 @@
 #define CACHEGRAND_WORKER_CONTEXT_H
 
 #ifdef __cplusplus
+#include <atomic>
+#else
+#include <stdatomic.h>
+#endif
+#include "memory_fences.h"
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -32,6 +39,7 @@ struct worker_context {
         void* context;
     } storage;
     double_linked_list_t *fibers;
+    bool_volatile_t *storage_db_loaded;
 };
 
 worker_context_t* worker_context_get();
@@ -40,6 +48,12 @@ void worker_context_set(
         worker_context_t *worker_context);
 
 void worker_context_reset();
+
+static inline bool worker_is_running(
+        worker_context_t *worker_context) {
+    MEMORY_FENCE_LOAD();
+    return worker_context->running;
+}
 
 #ifdef __cplusplus
 }
