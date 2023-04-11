@@ -75,6 +75,6 @@ void worker_fiber_storage_db_initialize_fiber_entrypoint(
     // Mark the storage db as loaded
     *storage_db_loaded = true;
 
-    // Mark the current fiber as terminated
-    fiber_scheduler_terminate_current_fiber();
+    // Switch back
+    fiber_scheduler_switch_back();
 }
