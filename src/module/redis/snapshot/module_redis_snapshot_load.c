@@ -350,19 +350,6 @@ void module_redis_snapshot_load_process_value_string(
     key = module_redis_snapshot_load_read_string(channel, &key_length);
     value = module_redis_snapshot_load_read_string(channel, &value_length);
 
-    LOG_V(
-            TAG,
-            "Key-Value pair: key = %.*s%s (%lu), value = %.*s%s (%lu), expiry_ms = %lu",
-            value_length > 20 ? 20 : (int)value_length,
-            (char *)key,
-            value_length > 20 ? "..." : "",
-            key_length,
-            value_length > 20 ? 20 : (int)value_length,
-            (char *)value,
-            value_length > 20 ? "..." : "",
-            value_length,
-            expiry_ms);
-
     counter_strings++;
 
     if (likely(expiry_ms == 0 || expiry_ms > rdb_load_start)) {
