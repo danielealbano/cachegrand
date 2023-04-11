@@ -183,8 +183,8 @@ bool module_redis_snapshot_load_validate_version(storage_channel_t *channel) {
         return false;
     }
 
-    // Check that the version is less than 11
-    if (strtol(version, &endptr, 10) > 10) {
+    // Check that the version is less or equal than 11
+    if (strtol(version, &endptr, 10) <= 11) {
         return false;
     }
 
