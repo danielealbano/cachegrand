@@ -2019,6 +2019,7 @@ TEST_CASE("config.c", "[config]") {
                 nullptr);
 
         REQUIRE(config != nullptr);
+        REQUIRE(config_process_string_values(config));
         REQUIRE(config_validate_after_load(config) == true);
 
         cyaml_free(config_cyaml_config, config_top_schema, config, 0);
