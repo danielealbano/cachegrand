@@ -54,4 +54,7 @@ void worker_fiber_storage_db_gc_deleted_entries_fiber_entrypoint(
             storage_db_worker_garbage_collect_deleting_entry_index_when_no_readers(worker_context->db);
         }
     }
+
+    // Switch back
+    fiber_scheduler_switch_back();
 }

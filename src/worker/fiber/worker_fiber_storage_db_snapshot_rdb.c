@@ -119,4 +119,7 @@ void worker_fiber_storage_db_snapshot_rdb_fiber_entrypoint(
             ? WORKER_FIBER_STORAGE_DB_SNAPSHOT_RDB_WAIT_LOOP_MS
             : 0);
     }
+
+    // Switch back
+    fiber_scheduler_switch_back();
 }

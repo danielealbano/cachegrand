@@ -98,4 +98,7 @@ void worker_fiber_storage_db_keys_eviction_fiber_entrypoint(
             last_run = clock_monotonic_coarse_int64_ms();
         }
     }
+
+    // Switch back
+    fiber_scheduler_switch_back();
 }
