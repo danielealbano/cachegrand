@@ -7,17 +7,24 @@ extern "C" {
 
 typedef struct ffma ffma_t;
 
+extern thread_local ffma_t **thread_local_ffmas;
+
 ffma_t **ffma_thread_cache_init();
 
 void ffma_thread_cache_free(
         void *data);
+
+void ffma_thread_cache_thread_local_free(
+        __attribute__((unused)) void *data);
 
 ffma_t **ffma_thread_cache_get();
 
 void ffma_thread_cache_set(
         ffma_t **ffmas);
 
-bool ffma_thread_cache_has();
+static inline bool ffma_thread_cache_has() {
+    return thread_local_ffmas != NULL;
+}
 
 #ifdef __cplusplus
 }

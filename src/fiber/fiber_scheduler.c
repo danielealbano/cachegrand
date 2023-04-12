@@ -13,11 +13,6 @@
 #include <errno.h>
 #include <string.h>
 
-#if defined(DEBUG) &&  __has_include(<valgrind/valgrind.h>)
-#include <valgrind/valgrind.h>
-#define HAS_VALGRIND
-#endif
-
 #include "misc.h"
 #include "xalloc.h"
 #include "log/log.h"

@@ -20,15 +20,8 @@
 #include <string.h>
 #include <stdatomic.h>
 
-#if DEBUG == 1 &&  __has_include(<valgrind/valgrind.h>)
-#include <valgrind/valgrind.h>
-#define HAS_VALGRIND
-#endif
-
 #include "misc.h"
 #include "exttypes.h"
-#include "clock.h"
-#include "log/log.h"
 #include "memory_fences.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
@@ -46,7 +39,7 @@
 #include <sys/syscall.h>
 #endif
 
-#define TAG _INTERNAL_FFMA_TAG
+#define TAG FFMA_LOG_TAG_INTERNAL
 
 /**
  * The memory allocator requires regions aligned to size of the region itself to calculate the initial address of the
@@ -150,11 +143,6 @@ void ffma_set_use_hugepages(
     internal_ffma_region_cache->use_hugepages = use_hugepages;
 }
 
-bool ffma_get_use_hugepages(
-        bool use_hugepages) {
-    return internal_ffma_region_cache;
-}
-
 ffma_t* ffma_init(
         size_t object_size) {
     assert(object_size <= FFMA_OBJECT_SIZE_MAX);
@@ -252,7 +240,8 @@ ffma_slice_t* ffma_slice_init(
     ffma_slice->data.metrics.objects_total_count = slots_count;
     ffma_slice->data.metrics.objects_inuse_count = 0;
     ffma_slice->data.available = true;
-    ffma_slice->data.slots_count = slots_count;
+    ffma_slice->data.metrics.objects_total_count = slots_count;
+    ffma_slice->data.metrics.objects_initialized_count = 0;
 
     return ffma_slice;
 }
@@ -274,6 +263,8 @@ void ffma_slice_add_slots_to_per_thread_metadata_slots(
         double_linked_list_unshift_item(
                 ffma->slots,
                 &ffma_slot->double_linked_list_item);
+
+        ffma_slice->data.metrics.objects_initialized_count++;
     }
 }
 
@@ -312,8 +303,8 @@ void ffma_grow(
             memptr);
     ffma_slice->data.available = false;
 
-    // Add all the slots to the double linked list
-    ffma_slice_add_slots_to_per_thread_metadata_slots(
+    // Add just one slot to the list of slots available for the current thread
+    ffma_slice_add_some_slots_to_per_thread_metadata_slots(
             ffma,
             ffma_slice);
     ffma->metrics.slices_inuse_count++;
@@ -344,7 +335,9 @@ void ffma_mem_free_slot_in_current_thread(
     // If the slice is empty check if it makes sense to free it, always keep 1 slice hot ready to be used
     if (unlikely(ffma_slice->data.metrics.objects_inuse_count == 0)) {
         // Calculate the amount of slices in use
-        uint32_t total_slices_in_use = (ffma->metrics.objects_inuse_count + ffma_slice->data.slots_count - 1) / ffma_slice->data.slots_count;
+        uint32_t total_slices_in_use =
+                (ffma->metrics.objects_inuse_count + ffma_slice->data.metrics.objects_total_count - 1) /
+                ffma_slice->data.metrics.objects_total_count;
         if (unlikely(ffma->metrics.slices_inuse_count - total_slices_in_use > 1)) {
             ffma_slice_make_available(ffma, ffma_slice);
 
@@ -402,7 +395,7 @@ void ffma_mem_free(
                     ffma_slice,
                     memptr);
 
-    // Tests to catch misalignments and double free
+    // Tests to catch misalignments and double frees
     assert(ffma_slot->data.memptr == memptr);
     assert(ffma_slot->data.available == false);
 

@@ -87,8 +87,7 @@ void *test_ffma_fuzzy_multi_thread_single_size_thread_func(
         MEMORY_FENCE_LOAD();
     } while (!*ti->start);
 
-    while (!*ti->stop) {
-        MEMORY_FENCE_LOAD();
+    do {
         test_ffma_fuzzy_test_data_t *data;
         uint32_t ops_counter_total = __atomic_fetch_add(ti->ops_counter_total, 1, __ATOMIC_RELAXED);
         uint32_t queue_mpmc_length = queue_mpmc_get_length(queue_mpmc);
@@ -144,7 +143,9 @@ void *test_ffma_fuzzy_multi_thread_single_size_thread_func(
 
             ffma_mem_free(data);
         }
-    }
+
+        MEMORY_FENCE_LOAD();
+    } while (*ti->stop == false);
 
     ti->stopped = true;
     MEMORY_FENCE_STORE();
@@ -153,12 +154,12 @@ void *test_ffma_fuzzy_multi_thread_single_size_thread_func(
 }
 
 void test_ffma_fuzzy_multi_thread_single_size(
-        uint32_t duration,
+        uint64_t duration_ms,
         uint32_t object_size,
         uint32_t min_used_slots,
         uint32_t use_max_hugepages) {
     uint32_t ops_counter_total = 0, ops_counter_mem_alloc = 0;
-    timespec_t start_time, current_time, diff_time;
+    uint64_t start_time;
     queue_mpmc_t *queue_mpmc = queue_mpmc_init();
     bool start = false;
     bool stop = false;
@@ -198,17 +199,13 @@ void test_ffma_fuzzy_multi_thread_single_size(
         }
     }
 
+    start_time = clock_monotonic_int64_ms();
     start = true;
     MEMORY_FENCE_STORE();
 
-    clock_monotonic(&start_time);
-
     do {
-        clock_monotonic(&current_time);
         sched_yield();
-
-        clock_diff(&diff_time, &current_time, &start_time);
-    } while(diff_time.tv_sec < duration);
+    } while(clock_monotonic_int64_ms() - start_time < duration_ms);
 
     stop = true;
     MEMORY_FENCE_STORE();
@@ -233,6 +230,7 @@ void test_ffma_fuzzy_multi_thread_single_size(
         ffma_mem_free(data);
     }
 
+
     REQUIRE(queue_mpmc->head.data.length == 0);
 
     queue_mpmc_free(queue_mpmc);
@@ -240,14 +238,13 @@ void test_ffma_fuzzy_multi_thread_single_size(
 }
 
 void test_ffma_fuzzy_single_thread_single_size(
-        uint32_t duration,
+        uint64_t duration_ms,
         uint32_t object_size,
         uint32_t min_used_slots,
         uint32_t use_max_hugepages) {
-    timespec_t start_time, current_time, diff_time;
+    uint64_t start_time;
     queue_mpmc_t *queue_mpmc = queue_mpmc_init();
-    uint32_t ops_counter_total = 0,
-            ops_counter_mem_alloc = 0;
+    uint32_t ops_counter_total = 0, ops_counter_mem_alloc = 0;
 
     // The object size must be large enough to hold the test data, 32 bytes, so it's not possible to test the 16 bytes
     // object size
@@ -265,11 +262,10 @@ void test_ffma_fuzzy_single_thread_single_size(
     // validation
     bool can_place_signature_at_end = object_size > (sizeof(test_ffma_fuzzy_test_data_t) * 2);
 
-    clock_monotonic(&start_time);
+    start_time = clock_monotonic_int64_ms();
 
     do {
         test_ffma_fuzzy_test_data_t *data;
-        clock_monotonic(&current_time);
 
         ops_counter_total++;
         uint32_t queue_mpmc_length = queue_mpmc_get_length(queue_mpmc);
@@ -316,9 +312,7 @@ void test_ffma_fuzzy_single_thread_single_size(
 
             ffma_mem_free(data);
         }
-
-        clock_diff(&diff_time, &current_time, &start_time);
-    } while(diff_time.tv_sec < duration);
+    } while(clock_monotonic_int64_ms() - start_time < duration_ms);
 
     void *data;
     while((data = queue_mpmc_pop(queue_mpmc)) != nullptr) {
@@ -330,6 +324,8 @@ void test_ffma_fuzzy_single_thread_single_size(
     queue_mpmc_free(queue_mpmc);
 }
 
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "bugprone-sizeof-expression"
 TEST_CASE("ffma.c", "[ffma]") {
     SECTION("ffma_init") {
         ffma_t* ffma = ffma_init(128);
@@ -469,6 +465,7 @@ TEST_CASE("ffma.c", "[ffma]") {
                 ffma->object_size);
 
         REQUIRE(ffma_slice->data.ffma == ffma);
+        REQUIRE(ffma_slice->data.metrics.objects_initialized_count == 0);
         REQUIRE(ffma_slice->data.metrics.objects_total_count == slots_count);
         REQUIRE(ffma_slice->data.metrics.objects_inuse_count == 0);
         REQUIRE(ffma_slice->data.data_addr == (uintptr_t)memptr + data_offset);
@@ -546,8 +543,7 @@ TEST_CASE("ffma.c", "[ffma]") {
         REQUIRE(&ffma->slices->head->data == &ffma_slice->double_linked_list_item.data);
         REQUIRE(&ffma->slices->tail->data == &ffma_slice->double_linked_list_item.data);
         REQUIRE(ffma->slots->tail == &ffma_slice->data.slots[0].double_linked_list_item);
-        REQUIRE(ffma->slots->head ==
-                &ffma_slice->data.slots[ffma_slice->data.metrics.objects_total_count - 1].double_linked_list_item);
+        REQUIRE(ffma->slots->head == &ffma_slice->data.slots[FFMA_PREINIT_SOME_SLOTS_COUNT - 1].double_linked_list_item);
 
         ffma_region_cache_free(ffma_region_cache);
         ffma_free(ffma);
@@ -556,9 +552,7 @@ TEST_CASE("ffma.c", "[ffma]") {
     SECTION("ffma_predefined_allocators_init / ffma_predefined_allocators_free") {
         ffma_t **ffmas = ffma_thread_cache_init();
 
-        for(int i = 0; i < FFMA_PREDEFINED_OBJECT_SIZES_COUNT; i++) {
-            uint32_t ffma_predefined_object_size =
-                    ffma_predefined_object_sizes[i];
+        for(unsigned int ffma_predefined_object_size : ffma_predefined_object_sizes) {
             ffma_t* ffma =
                     ffmas[ffma_index_by_object_size(
                         ffma_predefined_object_size)];
@@ -584,10 +578,8 @@ TEST_CASE("ffma.c", "[ffma]") {
             REQUIRE(ffma->slots->tail->data == memptr);
             REQUIRE(((ffma_slot_t *) ffma->slots->tail)->data.available == false);
             REQUIRE(((ffma_slot_t *) ffma->slots->head)->data.available == true);
+            REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count == FFMA_PREINIT_SOME_SLOTS_COUNT);
             REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_inuse_count == 1);
-            REQUIRE(((ffma_slot_t *) ffma->slots->head)->data.available == true);
-            REQUIRE(((ffma_slot_t *) ffma->slots->head)->data.available == true);
-            REQUIRE(((ffma_slot_t *) ffma->slots->tail)->data.available == false);
             REQUIRE(((ffma_slot_t *) ffma->slots->tail)->data.memptr == memptr);
         }
 
@@ -608,6 +600,8 @@ TEST_CASE("ffma.c", "[ffma]") {
 
             REQUIRE(ffma->metrics.slices_inuse_count == 1);
             REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
+            REQUIRE(ffma->slices->count == 1);
+            REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count == slots_count);
             REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_inuse_count == slots_count);
             REQUIRE(((ffma_slot_t *) ffma->slots->head)->data.available == false);
             REQUIRE(((ffma_slot_t *) ffma->slots->head->next)->data.available == false);
@@ -635,6 +629,8 @@ TEST_CASE("ffma.c", "[ffma]") {
             REQUIRE(ffma->slices->head != ffma->slices->tail);
             REQUIRE(ffma->slices->head->next == ffma->slices->tail);
             REQUIRE(ffma->slices->head == ffma->slices->tail->prev);
+            REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count == slots_count);
+            REQUIRE(((ffma_slice_t *) ffma->slices->tail)->data.metrics.objects_initialized_count == 16);
             REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_inuse_count == slots_count);
             REQUIRE(((ffma_slice_t *) ffma->slices->tail)->data.metrics.objects_inuse_count == 1);
             REQUIRE(((ffma_slot_t *) ffma->slots->head)->data.available == true);
@@ -657,6 +653,8 @@ TEST_CASE("ffma.c", "[ffma]") {
 
             REQUIRE(ffma->metrics.objects_inuse_count == 1);
             REQUIRE(ffma->metrics.slices_inuse_count == 1);
+            REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count ==
+                FFMA_PREINIT_SOME_SLOTS_COUNT);
             REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->head->data != memptr);
             REQUIRE(ffma->slots->tail->data == memptr);
@@ -665,6 +663,8 @@ TEST_CASE("ffma.c", "[ffma]") {
 
             REQUIRE(ffma->metrics.objects_inuse_count == 0);
             REQUIRE(ffma->metrics.slices_inuse_count == 1);
+            REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count ==
+                FFMA_PREINIT_SOME_SLOTS_COUNT);
             REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->head != nullptr);
             REQUIRE(ffma->slots->tail != nullptr);
@@ -675,6 +675,8 @@ TEST_CASE("ffma.c", "[ffma]") {
 
             REQUIRE(ffma->metrics.objects_inuse_count == 1);
             REQUIRE(ffma->metrics.slices_inuse_count == 1);
+            REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count ==
+                FFMA_PREINIT_SOME_SLOTS_COUNT);
             REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->head->data != memptr);
             REQUIRE(ffma->slots->tail->data == memptr);
@@ -683,12 +685,14 @@ TEST_CASE("ffma.c", "[ffma]") {
 
             REQUIRE(ffma->metrics.objects_inuse_count == 0);
             REQUIRE(ffma->metrics.slices_inuse_count == 1);
+            REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count ==
+                FFMA_PREINIT_SOME_SLOTS_COUNT);
             REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->head != nullptr);
             REQUIRE(ffma->slots->tail != nullptr);
         }
 
-        SECTION("fill and free one hugepage") {
+        SECTION("fill and free one region") {
             size_t usable_hugepage_size = ffma_slice_calculate_usable_memory_size(xalloc_get_page_size());
             uint32_t data_offset = ffma_slice_calculate_data_offset(
                     xalloc_get_page_size(),
@@ -706,22 +710,32 @@ TEST_CASE("ffma.c", "[ffma]") {
 
             REQUIRE(ffma->metrics.slices_inuse_count == 1);
             REQUIRE(ffma->metrics.objects_inuse_count == slots_count);
+            REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count == slots_count);
             REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->head != nullptr);
             REQUIRE(ffma->slots->tail != nullptr);
 
             for(int i = 0; i < slots_count; i++) {
+                ffma_slot_t* ffma_slot =
+                        ffma_slot_from_memptr(
+                                ffma,
+                                ((ffma_slice_t *) ffma->slices->head),
+                                memptrs[i]);
+                assert(ffma_slot->data.memptr == memptrs[i]);
+                assert(ffma_slot->data.available == false);
+
                 ffma_mem_free(memptrs[i]);
             }
 
             REQUIRE(ffma->metrics.objects_inuse_count == 0);
             REQUIRE(ffma->metrics.slices_inuse_count == 1);
+            REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count == slots_count);
             REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->head != nullptr);
             REQUIRE(ffma->slots->tail != nullptr);
         }
 
-        SECTION("fill and free one hugepage and one element") {
+        SECTION("fill and free one region and one element") {
             size_t usable_hugepage_size = ffma_slice_calculate_usable_memory_size(xalloc_get_page_size());
             uint32_t data_offset = ffma_slice_calculate_data_offset(
                     xalloc_get_page_size(),
@@ -735,14 +749,22 @@ TEST_CASE("ffma.c", "[ffma]") {
             slots_count++;
 
             void** memptrs = (void**)malloc(sizeof(void*) * slots_count);
-            for(int i = 0; i < slots_count; i++) {
+            for(int i = 0; i < slots_count - 1; i++) {
                 memptrs[i] = ffma_mem_alloc_internal(ffma, ffma_predefined_object_sizes[0]);
             }
 
-            sleep(1);
+            REQUIRE(ffma->metrics.slices_inuse_count == 1);
+            REQUIRE(((ffma_slice_t *) ffma->slices->tail)->data.metrics.objects_inuse_count == slots_count - 1);
+            REQUIRE(((ffma_slice_t *) ffma->slices->tail)->data.metrics.objects_initialized_count == slots_count - 1);
+            REQUIRE(ffma->slices->count == 1);
+
+            memptrs[slots_count - 1] = ffma_mem_alloc_internal(ffma, ffma_predefined_object_sizes[0]);
 
             REQUIRE(ffma->metrics.slices_inuse_count == 2);
             REQUIRE(ffma->metrics.objects_inuse_count == slots_count);
+            REQUIRE(ffma->slices->count == 2);
+            REQUIRE(((ffma_slice_t *) ffma->slices->tail)->data.metrics.objects_inuse_count == 1);
+            REQUIRE(((ffma_slice_t *) ffma->slices->tail)->data.metrics.objects_initialized_count == FFMA_PREINIT_SOME_SLOTS_COUNT);
             REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->head != nullptr);
             REQUIRE(ffma->slots->tail != nullptr);
@@ -752,10 +774,11 @@ TEST_CASE("ffma.c", "[ffma]") {
                         memptrs[i]);
             }
 
-            sleep(1);
-
             REQUIRE(ffma->metrics.objects_inuse_count == 0);
             REQUIRE(ffma->metrics.slices_inuse_count == 1);
+            REQUIRE(ffma->slices->count == 1);
+            REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_inuse_count == 0);
+            REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count == slots_count - 1);
             REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->head != nullptr);
             REQUIRE(ffma->slots->tail != nullptr);
@@ -841,13 +864,11 @@ TEST_CASE("ffma.c", "[ffma]") {
     SECTION("ffma alloc and free - fuzzy - single thread") {
         uint32_t min_used_slots = 2500;
         uint32_t use_max_hugepages = 100;
-        uint32_t max_duration = 1;
-
-        ffma_thread_cache_set(ffma_thread_cache_init());
+        uint32_t max_duration_ms = 250;
 
         SECTION("single thread / one size - size 32") {
             test_ffma_fuzzy_single_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     32,
                     min_used_slots,
                     use_max_hugepages);
@@ -855,7 +876,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("single thread / one size - size 64") {
             test_ffma_fuzzy_single_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     64,
                     min_used_slots,
                     use_max_hugepages);
@@ -863,7 +884,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("single thread / one size - size 128") {
             test_ffma_fuzzy_single_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     128,
                     min_used_slots,
                     use_max_hugepages);
@@ -871,7 +892,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("single thread / one size - size 256") {
             test_ffma_fuzzy_single_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     256,
                     min_used_slots,
                     use_max_hugepages);
@@ -879,7 +900,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("single thread / one size - size 512") {
             test_ffma_fuzzy_single_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     512,
                     min_used_slots,
                     use_max_hugepages);
@@ -887,7 +908,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("single thread / one size - size 1k") {
             test_ffma_fuzzy_single_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     1024,
                     min_used_slots,
                     use_max_hugepages);
@@ -895,7 +916,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("single thread / one size - size 2k") {
             test_ffma_fuzzy_single_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     2048,
                     min_used_slots,
                     use_max_hugepages);
@@ -903,7 +924,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("single thread / one size - size 4k") {
             test_ffma_fuzzy_single_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     4096,
                     min_used_slots,
                     use_max_hugepages);
@@ -911,7 +932,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("single thread / one size - size 8k") {
             test_ffma_fuzzy_single_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     8192,
                     min_used_slots,
                     use_max_hugepages);
@@ -919,7 +940,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("single thread / one size - size 16k") {
             test_ffma_fuzzy_single_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     16384,
                     min_used_slots,
                     use_max_hugepages);
@@ -927,7 +948,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("single thread / one size - size 32k") {
             test_ffma_fuzzy_single_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     32768,
                     min_used_slots,
                     use_max_hugepages);
@@ -935,26 +956,21 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("single thread / one size - size 64k") {
             test_ffma_fuzzy_single_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     65536,
                     min_used_slots,
                     use_max_hugepages);
         }
-
-        ffma_thread_cache_free(ffma_thread_cache_get());
-        ffma_thread_cache_set(nullptr);
     }
 
     SECTION("ffma alloc and free - fuzzy - multi thread") {
         uint32_t min_used_slots = 2500;
         uint32_t use_max_hugepages = 100;
-        uint32_t max_duration = 1;
-
-        ffma_thread_cache_set(ffma_thread_cache_init());
+        uint32_t max_duration_ms = 250;
 
         SECTION("multi thread / one size - size 32") {
             test_ffma_fuzzy_multi_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     32,
                     min_used_slots,
                     use_max_hugepages);
@@ -962,7 +978,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("multi thread / one size - size 64") {
             test_ffma_fuzzy_multi_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     64,
                     min_used_slots,
                     use_max_hugepages);
@@ -970,7 +986,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("multi thread / one size - size 128") {
             test_ffma_fuzzy_multi_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     128,
                     min_used_slots,
                     use_max_hugepages);
@@ -978,7 +994,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("multi thread / one size - size 256") {
             test_ffma_fuzzy_multi_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     256,
                     min_used_slots,
                     use_max_hugepages);
@@ -986,7 +1002,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("multi thread / one size - size 512") {
             test_ffma_fuzzy_multi_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     512,
                     min_used_slots,
                     use_max_hugepages);
@@ -994,7 +1010,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("multi thread / one size - size 1024") {
             test_ffma_fuzzy_multi_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     1024,
                     min_used_slots,
                     use_max_hugepages);
@@ -1002,7 +1018,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("multi thread / one size - size 2k") {
             test_ffma_fuzzy_multi_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     2048,
                     min_used_slots,
                     use_max_hugepages);
@@ -1010,7 +1026,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("multi thread / one size - size 4k") {
             test_ffma_fuzzy_multi_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     4096,
                     min_used_slots,
                     use_max_hugepages);
@@ -1018,7 +1034,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("multi thread / one size - size 8k") {
             test_ffma_fuzzy_multi_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     8192,
                     min_used_slots,
                     use_max_hugepages);
@@ -1026,7 +1042,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("multi thread / one size - size 16k") {
             test_ffma_fuzzy_multi_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     16384,
                     min_used_slots,
                     use_max_hugepages);
@@ -1034,7 +1050,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("multi thread / one size - size 32k") {
             test_ffma_fuzzy_multi_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     32768,
                     min_used_slots,
                     use_max_hugepages);
@@ -1042,13 +1058,11 @@ TEST_CASE("ffma.c", "[ffma]") {
 
         SECTION("multi thread / one size - size 64k") {
             test_ffma_fuzzy_multi_thread_single_size(
-                    max_duration,
+                    max_duration_ms,
                     65536,
                     min_used_slots,
                     use_max_hugepages);
         }
-
-        ffma_thread_cache_free(ffma_thread_cache_get());
-        ffma_thread_cache_set(nullptr);
     }
 }
+#pragma clang diagnostic pop

@@ -5,6 +5,11 @@
 extern "C" {
 #endif
 
+extern thread_local uint32_t thread_current_core_index;
+extern thread_local uint32_t thread_current_numa_node_index;
+
+extern int getcpu (unsigned int *, unsigned int *);
+
 void thread_flush_cached_core_index_and_numa_node_index();
 
 long thread_current_get_id();
@@ -20,9 +25,22 @@ void thread_affinity_set_selected_cpus(
         uint16_t* selected_cpus,
         uint16_t selected_cpus_count);
 
-uint8_t thread_get_current_numa_node_index();
+static inline void thread_ensure_core_index_and_numa_node_index_filled() {
+    if (thread_current_core_index == UINT32_MAX || thread_current_numa_node_index == UINT32_MAX) {
+        getcpu(&thread_current_core_index, &thread_current_numa_node_index);
+    }
+}
 
-uint16_t thread_get_current_core_index();
+static inline uint8_t thread_get_current_numa_node_index() {
+    thread_ensure_core_index_and_numa_node_index_filled();
+    return thread_current_numa_node_index;
+}
+
+static inline uint16_t thread_get_current_core_index() {
+    thread_ensure_core_index_and_numa_node_index_filled();
+    return thread_current_core_index;
+}
+
 
 #ifdef __cplusplus
 }

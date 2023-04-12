@@ -13,8 +13,6 @@
 
 #include "misc.h"
 #include "exttypes.h"
-#include "log/log.h"
-#include "fatal.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "xalloc.h"
@@ -24,10 +22,11 @@
 
 #define TAG "ffma_thread_cache"
 
-static pthread_key_t ffma_thread_cache_key;
+static pthread_key_t ffma_thread_cache_destructor_key;
+thread_local ffma_t** thread_local_ffmas = NULL;
 
 FUNCTION_CTOR(ffma_thread_cache_init_ctor, {
-    pthread_key_create(&ffma_thread_cache_key, ffma_thread_cache_free);
+    pthread_key_create(&ffma_thread_cache_destructor_key, ffma_thread_cache_thread_local_free);
 })
 
 ffma_t **ffma_thread_cache_init() {
@@ -42,7 +41,8 @@ ffma_t **ffma_thread_cache_init() {
     return thread_ffmas;
 }
 
-void ffma_thread_cache_free(void *data) {
+void ffma_thread_cache_free(
+        void *data) {
     ffma_t **thread_ffmas = data;
 
     for(int i = 0; i < FFMA_PREDEFINED_OBJECT_SIZES_COUNT; i++) {
@@ -55,18 +55,25 @@ void ffma_thread_cache_free(void *data) {
     xalloc_free(data);
 }
 
+void ffma_thread_cache_thread_local_free(
+        __attribute__((unused)) void *data) {
+    if (thread_local_ffmas == NULL) {
+        return;
+    }
+
+    ffma_thread_cache_free(thread_local_ffmas);
+    thread_local_ffmas = NULL;
+}
+
 ffma_t** ffma_thread_cache_get() {
-    ffma_t **thread_ffmas = pthread_getspecific(ffma_thread_cache_key);
-    return thread_ffmas;
+    return thread_local_ffmas;
 }
 
 void ffma_thread_cache_set(
         ffma_t** ffmas) {
-    if (pthread_setspecific(ffma_thread_cache_key, ffmas) != 0) {
-        FATAL(TAG, "Unable to set the fast fixed memory allocator thread cache");
-    }
+    thread_local_ffmas = ffmas;
+
+    // Required to trigger the destructor
+    pthread_setspecific(ffma_thread_cache_destructor_key, (void*)1);
 }
 
-bool ffma_thread_cache_has() {
-    return ffma_thread_cache_get() != NULL;
-}

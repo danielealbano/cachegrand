@@ -21,13 +21,15 @@
 extern "C" {
 #endif
 
-#define _INTERNAL_FFMA_TAG "ffma"
+#define FFMA_LOG_TAG_INTERNAL "ffma"
 
 #ifndef FFMA_DEBUG_ALLOCS_FREES
 #define FFMA_DEBUG_ALLOCS_FREES 0
 #endif
 
-#define FFMA_SLICE_SIZE         (2 * 1024 * 1024)
+#define FFMA_PREINIT_SOME_SLOTS_COUNT (16)
+
+#define FFMA_SLICE_SIZE         (8 * 1024 * 1024)
 #define FFMA_REGION_CACHE_SIZE  (32)
 
 #define FFMA_OBJECT_SIZE_16     (0x00000010)
@@ -114,10 +116,10 @@ typedef union {
         ffma_t *ffma;
         void *page_addr;
         uintptr_t data_addr;
-        uint32_t slots_count;
         bool available;
         struct {
             uint32_t objects_total_count;
+            uint32_t objects_initialized_count;
             uint32_t objects_inuse_count;
         } metrics;
         ffma_slot_t slots[];
@@ -129,9 +131,6 @@ void ffma_debug_allocs_frees_end();
 #endif
 
 void ffma_set_use_hugepages(
-        bool use_hugepages);
-
-bool ffma_get_use_hugepages(
         bool use_hugepages);
 
 ffma_t* ffma_init(
@@ -252,6 +251,41 @@ static inline ffma_t* ffma_thread_cache_get_ffma_by_size(
     return ffma_list[ffma_index_by_object_size(object_size)];
 }
 
+static inline bool ffma_slice_can_add_one_slot_to_per_thread_metadata_slots(
+        ffma_slice_t* ffma_slice) {
+    return ffma_slice->data.metrics.objects_initialized_count < ffma_slice->data.metrics.objects_total_count;
+}
+
+static inline void ffma_slice_add_some_slots_to_per_thread_metadata_slots(
+        ffma_t* ffma,
+        ffma_slice_t* ffma_slice) {
+    ffma_slot_t* ffma_slot;
+
+    uint32_t index_end = ffma_slice->data.metrics.objects_initialized_count + FFMA_PREINIT_SOME_SLOTS_COUNT;
+    if (unlikely(index_end > ffma_slice->data.metrics.objects_total_count)) {
+        index_end = ffma_slice->data.metrics.objects_total_count;
+    }
+
+#pragma unroll(FFMA_PREINIT_SOME_SLOTS_COUNT)
+    for(uint32_t index = ffma_slice->data.metrics.objects_initialized_count; index < index_end; index++) {
+        assert(index < ffma_slice->data.metrics.objects_total_count);
+        ffma_slot = &ffma_slice->data.slots[index];
+        ffma_slot->data.available = true;
+        ffma_slot->data.memptr = (void*)(ffma_slice->data.data_addr + (index * ffma->object_size));
+
+#if DEBUG == 1
+        ffma_slot->data.allocs = 0;
+        ffma_slot->data.frees = 0;
+#endif
+
+        double_linked_list_unshift_item(
+                ffma->slots,
+                &ffma_slot->double_linked_list_item);
+
+        ffma_slice->data.metrics.objects_initialized_count++;
+    }
+}
+
 __attribute__((malloc))
 static inline void* ffma_mem_alloc_internal(
         ffma_t* ffma,
@@ -268,46 +302,60 @@ static inline void* ffma_mem_alloc_internal(
     slots_head_item = slots_list->head;
     ffma_slot = (ffma_slot_t*)slots_head_item;
 
-    // If it can't get the slot from the local cache tries to fetch if from the free list which is a bit slower as it
-    // involves atomic operations, on the other end it requires less operation to be prepared as e.g. it is already on
-    // the correct side of the slots double linked list
-    if (
-            (ffma_slot == NULL || ffma_slot->data.available == false) &&
-            (ffma_slot = (ffma_slot_t*)queue_mpmc_pop(ffma->free_ffma_slots_queue_from_other_threads)) != NULL) {
-        assert(ffma_slot->data.memptr != NULL);
-        ffma_slot->data.available = false;
+    if (unlikely(ffma_slot == NULL || ffma_slot->data.available == false)) {
+        // If the local cache is empty tries to check if the slices has slot to initialize and if yes initializes one
+        // and adds it to the local cache.
+        // The newly added slice with uninitialized slots is added to the tail of the list during the growing process so
+        // it's possible to check the tail of the slices list.
+        if (likely(
+                ffma->slices->tail != NULL &&
+                ffma_slice_can_add_one_slot_to_per_thread_metadata_slots((ffma_slice_t*)ffma->slices->tail))) {
+            ffma_slice_add_some_slots_to_per_thread_metadata_slots(ffma, (ffma_slice_t*)ffma->slices->tail);
+
+            // After adding the slot to the local cache tries to get it again
+            slots_head_item = slots_list->head;
+            ffma_slot = (ffma_slot_t *) slots_head_item;
+
+            // There should always be a valid slot so if it's not the case it's a bug
+            assert(ffma_slot != NULL);
+            assert(ffma_slot->data.available == true);
+
+            // If it can't get the slot from the local cache tries to fetch if from the free list which is a bit slower as
+            // it involves atomic operations, on the other end it requires less operation to be prepared as e.g. it is
+            // already on the correct side of the slots double linked list
+        } else if ((ffma_slot =
+                (ffma_slot_t *) queue_mpmc_pop(ffma->free_ffma_slots_queue_from_other_threads)) != NULL) {
+            assert(ffma_slot->data.memptr != NULL);
+            ffma_slot->data.available = false;
 
 #if DEBUG == 1
-        ffma_slot->data.allocs++;
+            ffma_slot->data.allocs++;
 
 #if defined(HAS_VALGRIND)
-        ffma_slice = ffma_slice_from_memptr(ffma_slot->data.memptr);
-        VALGRIND_MEMPOOL_ALLOC(ffma_slice->data.page_addr, ffma_slot->data.memptr, size);
+            ffma_slice = ffma_slice_from_memptr(ffma_slot->data.memptr);
+            VALGRIND_MEMPOOL_ALLOC(ffma_slice->data.page_addr, ffma_slot->data.memptr, size);
 #endif
 #endif
 
-        // To keep the code simpler and avoid convoluted ifs, the code returns here
-        return ffma_slot->data.memptr;
-    }
-
-    if (ffma_slot == NULL || ffma_slot->data.available == false) {
-        void* addr = ffma_region_cache_pop(internal_ffma_region_cache);
-
-#if defined(HAS_VALGRIND)
-        VALGRIND_CREATE_MEMPOOL(addr, 0, false);
-#endif
-
-        if (!addr) {
-            LOG_E(_INTERNAL_FFMA_TAG, "Unable to allocate %lu bytes of memory", size);
-            return NULL;
+            // To keep the code simpler and avoid convoluted ifs, the code returns here
+            return ffma_slot->data.memptr;
         }
 
-        ffma_grow(
-                ffma,
-                addr);
+        if (ffma_slot == NULL || ffma_slot->data.available == false) {
+            void *addr = ffma_region_cache_pop(internal_ffma_region_cache);
 
-        slots_head_item = slots_list->head;
-        ffma_slot = (ffma_slot_t*)slots_head_item;
+            if (!addr) {
+                LOG_E(FFMA_LOG_TAG_INTERNAL, "Unable to allocate %lu bytes of memory", size);
+                return NULL;
+            }
+
+            ffma_grow(
+                    ffma,
+                    addr);
+
+            slots_head_item = slots_list->head;
+            ffma_slot = (ffma_slot_t *) slots_head_item;
+        }
     }
 
     assert(ffma_slot->data.memptr != NULL);
