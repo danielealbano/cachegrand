@@ -39,7 +39,7 @@
 #include <sys/syscall.h>
 #endif
 
-#define TAG _INTERNAL_FFMA_TAG
+#define TAG FFMA_LOG_TAG_INTERNAL
 
 /**
  * The memory allocator requires regions aligned to size of the region itself to calculate the initial address of the

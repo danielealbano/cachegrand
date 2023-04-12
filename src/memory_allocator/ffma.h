@@ -21,13 +21,15 @@
 extern "C" {
 #endif
 
-#define _INTERNAL_FFMA_TAG "ffma"
+#define FFMA_LOG_TAG_INTERNAL "ffma"
 
 #ifndef FFMA_DEBUG_ALLOCS_FREES
 #define FFMA_DEBUG_ALLOCS_FREES 0
 #endif
 
-#define FFMA_SLICE_SIZE         (2 * 1024 * 1024)
+#define FFMA_PREINIT_SOME_SLOTS_COUNT (16)
+
+#define FFMA_SLICE_SIZE         (8 * 1024 * 1024)
 #define FFMA_REGION_CACHE_SIZE  (32)
 
 #define FFMA_OBJECT_SIZE_16     (0x00000010)
@@ -327,16 +329,16 @@ static inline void* ffma_mem_alloc_internal(
             ffma_slot->data.available = false;
 
 #if DEBUG == 1
-        ffma_slot->data.allocs++;
+            ffma_slot->data.allocs++;
 
 #if defined(HAS_VALGRIND)
-        ffma_slice = ffma_slice_from_memptr(ffma_slot->data.memptr);
-        VALGRIND_MEMPOOL_ALLOC(ffma_slice->data.page_addr, ffma_slot->data.memptr, size);
+            ffma_slice = ffma_slice_from_memptr(ffma_slot->data.memptr);
+            VALGRIND_MEMPOOL_ALLOC(ffma_slice->data.page_addr, ffma_slot->data.memptr, size);
 #endif
 #endif
 
-        // To keep the code simpler and avoid convoluted ifs, the code returns here
-        return ffma_slot->data.memptr;
+            // To keep the code simpler and avoid convoluted ifs, the code returns here
+            return ffma_slot->data.memptr;
         }
 
         if (ffma_slot == NULL || ffma_slot->data.available == false) {
@@ -347,8 +349,8 @@ static inline void* ffma_mem_alloc_internal(
                 return NULL;
             }
 
-        ffma_grow(
-                ffma,
+            ffma_grow(
+                    ffma,
                     addr);
 
             slots_head_item = slots_list->head;
