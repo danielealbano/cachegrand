@@ -162,7 +162,6 @@ fiber_t *fiber_new(
         fiber_new_first_run_from = &temp_swap_stack_ptr;
         fiber_new_first_run_to = (void **)&stack_pointer;
 #pragma GCC diagnostic pop
-
         fiber_context_swap(fiber_new_first_run_from, fiber_new_first_run_to);
 
         fiber_new_first_run_fiber = NULL;
