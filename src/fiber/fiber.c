@@ -15,11 +15,6 @@
 #include <errno.h>
 #include <assert.h>
 
-#if defined(DEBUG) &&  __has_include(<valgrind/valgrind.h>)
-#include <valgrind/valgrind.h>
-#define HAS_VALGRIND
-#endif
-
 #include "misc.h"
 #include "exttypes.h"
 #include "xalloc.h"
