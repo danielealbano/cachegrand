@@ -143,11 +143,6 @@ void ffma_set_use_hugepages(
     internal_ffma_region_cache->use_hugepages = use_hugepages;
 }
 
-bool ffma_get_use_hugepages(
-        bool use_hugepages) {
-    return internal_ffma_region_cache;
-}
-
 ffma_t* ffma_init(
         size_t object_size) {
     assert(object_size <= FFMA_OBJECT_SIZE_MAX);

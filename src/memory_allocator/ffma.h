@@ -114,7 +114,6 @@ typedef union {
         ffma_t *ffma;
         void *page_addr;
         uintptr_t data_addr;
-        uint32_t slots_count;
         bool available;
         struct {
             uint32_t objects_total_count;
@@ -130,9 +129,6 @@ void ffma_debug_allocs_frees_end();
 #endif
 
 void ffma_set_use_hugepages(
-        bool use_hugepages);
-
-bool ffma_get_use_hugepages(
         bool use_hugepages);
 
 ffma_t* ffma_init(
