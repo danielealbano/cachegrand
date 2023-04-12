@@ -45,6 +45,12 @@ freed, although one slab is always kept hot. This memory allocator doesn't use `
 the memory to the OS and therefore the extra cost of the `munmap` is amortized avoiding having to have an additional
 garbage collector thread that would have to run periodically to release the memory to the OS.
 
+In terms of security, in addition to using guard pages to catch memory overflows, another huge advantage of using FFMA
+comes from a secure memory allocation, the memory allocated by FFMA is always allocated using a random address in
+memory, this is achieved by using the `mmap` with the `MAP_FIXED_NOREPLACE` flag, and de-facto makes it impossible to
+try to guess the address of the memory allocated by FFMA providing an additional layer of security against memory
+attacks.
+
 ### Data Structures
 
 ```mermaid
