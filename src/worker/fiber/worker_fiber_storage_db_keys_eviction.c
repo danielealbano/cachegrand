@@ -20,6 +20,8 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
+#include "fiber/fiber.h"
+#include "fiber/fiber_scheduler.h"
 #include "config.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
