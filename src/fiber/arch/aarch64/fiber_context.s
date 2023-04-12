@@ -35,7 +35,9 @@ fiber_context_swap:
     mov x4, sp
     str x4, [x0]
 
-    mov sp, x1
+    # Load the stack pointer from the second argument (x1)
+    ldr x3, [x1]
+	mov sp, x3
 
     ldp d8,  d9,  [sp, #0x00]
     ldp d10, d11, [sp, #0x10]
