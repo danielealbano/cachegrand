@@ -26,14 +26,13 @@
 
 // This benchmark requires TEST_ALLOCATIONS_COUNT_PER_THREAD * 64kb per thread plus some extra memory for the internal
 // data structures, therefore a machine with 32 cores and 64 threads and with TEST_ALLOCATIONS_COUNT_PER_THREAD set to
-// 16 * 1024 will require up to ~64GB of memory
+// 32 * 1024 will require up to ~128GB of virtual memory (although it's not directly allocated, when benchmarking ffma
+// with hugepages enabled it will be necessary to have enough hugepages available to allocate the memory)
 #define TEST_ALLOCATIONS_COUNT_PER_THREAD (32 * 1024)
 
 // It is possible to control the amount of threads used for the test tuning the two defines below
 #define TEST_THREADS_RANGE_BEGIN (1)
 #define TEST_THREADS_RANGE_END (utils_cpu_count())
-
-static size_t bench_ffma_os_page_size = xalloc_get_page_size();
 
 static void memory_allocation_ffma_only_alloc(benchmark::State& state) {
     size_t object_size = state.range(0);
@@ -42,6 +41,19 @@ static void memory_allocation_ffma_only_alloc(benchmark::State& state) {
     thread_current_set_affinity(state.thread_index());
 
     std::vector<void*> memptrs = std::vector<void*>(objects_count);
+
+    // Warmup
+    for(long int i = 0; i < objects_count; i++) {
+#if DEBUG == 1
+        memptrs[i] = ffma_mem_alloc(object_size);
+#else
+        benchmark::DoNotOptimize((memptrs[i] = ffma_mem_alloc(object_size)));
+#endif
+    }
+
+    for(long int i = 0; i < objects_count; i++) {
+        ffma_mem_free(memptrs[i]);
+    }
 
     for (auto _ : state) {
         for(long int i = 0; i < objects_count; i++) {
@@ -65,6 +77,19 @@ static void memory_allocation_ffma_alloc_and_free(benchmark::State& state) {
     thread_current_set_affinity(state.thread_index());
 
     std::vector<void*> memptrs = std::vector<void*>(objects_count);
+
+    // Warmup
+    for(long int i = 0; i < objects_count; i++) {
+#if DEBUG == 1
+        memptrs[i] = ffma_mem_alloc(object_size);
+#else
+        benchmark::DoNotOptimize((memptrs[i] = ffma_mem_alloc(object_size)));
+#endif
+    }
+
+    for(long int i = 0; i < objects_count; i++) {
+        ffma_mem_free(memptrs[i]);
+    }
 
     for (auto _ : state) {
         for(long int i = 0; i < objects_count; i++) {
@@ -91,6 +116,19 @@ static void memory_allocation_ffma_fragment_memory(benchmark::State& state) {
     std::random_device rd;
     std::mt19937 g(rd());
     std::vector<void*> memptrs = std::vector<void*>(objects_count);
+
+    // Warmup
+    for(long int i = 0; i < objects_count; i++) {
+#if DEBUG == 1
+        memptrs[i] = ffma_mem_alloc(object_size);
+#else
+        benchmark::DoNotOptimize((memptrs[i] = ffma_mem_alloc(object_size)));
+#endif
+    }
+
+    for(long int i = 0; i < objects_count; i++) {
+        ffma_mem_free(memptrs[i]);
+    }
 
     // The code below willingly causes memory fragmentation
     for (auto _ : state) {
@@ -182,7 +220,7 @@ static void memory_allocation_ffma_fragment_memory(benchmark::State& state) {
     }
 }
 
-static void memory_allocation_os_malloc_only_alloc(benchmark::State& state) {
+static void memory_allocation_malloc_only_alloc(benchmark::State& state) {
     size_t object_size = state.range(0);
     uint32_t objects_count = state.range(1);
 
@@ -190,6 +228,15 @@ static void memory_allocation_os_malloc_only_alloc(benchmark::State& state) {
 
     void** memptrs = (void**)malloc(sizeof(void*) * objects_count);
     memset(memptrs, 0, sizeof(void*) * objects_count);
+
+    // Warmup
+    for(long int i = 0; i < objects_count; i++) {
+        benchmark::DoNotOptimize((memptrs[i] = malloc(object_size)));
+    }
+
+    for(long int i = 0; i < objects_count; i++) {
+        free(memptrs[i]);
+    }
 
     for (auto _ : state) {
         for(long int i = 0; i < objects_count; i++) {
@@ -202,7 +249,7 @@ static void memory_allocation_os_malloc_only_alloc(benchmark::State& state) {
     }
 }
 
-static void memory_allocation_os_malloc_alloc_and_free(benchmark::State& state) {
+static void memory_allocation_malloc_alloc_and_free(benchmark::State& state) {
     size_t object_size = state.range(0);
     uint32_t objects_count = state.range(1);
 
@@ -210,6 +257,15 @@ static void memory_allocation_os_malloc_alloc_and_free(benchmark::State& state) 
 
     void** memptrs = (void**)malloc(sizeof(void*) * objects_count);
     memset(memptrs, 0, sizeof(void*) * objects_count);
+
+    // Warmup
+    for(long int i = 0; i < objects_count; i++) {
+        benchmark::DoNotOptimize((memptrs[i] = malloc(object_size)));
+    }
+
+    for(long int i = 0; i < objects_count; i++) {
+        free(memptrs[i]);
+    }
 
     for (auto _ : state) {
         for(long int i = 0; i < objects_count; i++) {
@@ -222,7 +278,7 @@ static void memory_allocation_os_malloc_alloc_and_free(benchmark::State& state) 
     }
 }
 
-static void memory_allocation_os_malloc_fragment_memory(benchmark::State& state) {
+static void memory_allocation_malloc_fragment_memory(benchmark::State& state) {
     size_t object_size = state.range(0);
     uint32_t objects_count = state.range(1);
     uint32_t objects_count_1_of_4 = objects_count >> 2;
@@ -232,6 +288,15 @@ static void memory_allocation_os_malloc_fragment_memory(benchmark::State& state)
     std::random_device rd;
     std::mt19937 g(rd());
     std::vector<void*> memptrs = std::vector<void*>(objects_count);
+
+    // Warmup
+    for(long int i = 0; i < objects_count; i++) {
+        benchmark::DoNotOptimize((memptrs[i] = malloc(object_size)));
+    }
+
+    for(long int i = 0; i < objects_count; i++) {
+        free(memptrs[i]);
+    }
 
     // The code below willingly causes memory fragmentation
     for (auto _ : state) {
@@ -307,6 +372,15 @@ static void memory_allocation_mimalloc_only_alloc(benchmark::State& state) {
 
     void** memptrs = (void**)mi_zalloc(sizeof(void*) * objects_count);
 
+    // Warmup
+    for(long int i = 0; i < objects_count; i++) {
+        benchmark::DoNotOptimize((memptrs[i] = mi_malloc(object_size)));
+    }
+
+    for(long int i = 0; i < objects_count; i++) {
+        mi_free(memptrs[i]);
+    }
+
     for (auto _ : state) {
         for(long int i = 0; i < objects_count; i++) {
             benchmark::DoNotOptimize((memptrs[i] = mi_malloc(object_size)));
@@ -325,6 +399,15 @@ static void memory_allocation_mimalloc_alloc_and_free(benchmark::State& state) {
     thread_current_set_affinity(state.thread_index());
 
     void** memptrs = (void**)mi_zalloc(sizeof(void*) * objects_count);
+
+    // Warmup
+    for(long int i = 0; i < objects_count; i++) {
+        benchmark::DoNotOptimize((memptrs[i] = mi_malloc(object_size)));
+    }
+
+    for(long int i = 0; i < objects_count; i++) {
+        mi_free(memptrs[i]);
+    }
 
     for (auto _ : state) {
         for(long int i = 0; i < objects_count; i++) {
@@ -347,6 +430,15 @@ static void memory_allocation_mimalloc_fragment_memory(benchmark::State& state) 
     std::random_device rd;
     std::mt19937 g(rd());
     std::vector<void*> memptrs = std::vector<void*>(objects_count);
+
+    // Warmup
+    for(long int i = 0; i < objects_count; i++) {
+        benchmark::DoNotOptimize((memptrs[i] = mi_malloc(object_size)));
+    }
+
+    for(long int i = 0; i < objects_count; i++) {
+        mi_free(memptrs[i]);
+    }
 
     // The code below willingly causes memory fragmentation
     for (auto _ : state) {
@@ -435,11 +527,11 @@ BENCHMARK(memory_allocation_ffma_alloc_and_free)
 BENCHMARK(memory_allocation_ffma_fragment_memory)
         ->Apply(BenchArguments);
 
-BENCHMARK(memory_allocation_os_malloc_only_alloc)
+BENCHMARK(memory_allocation_malloc_only_alloc)
         ->Apply(BenchArguments);
-BENCHMARK(memory_allocation_os_malloc_alloc_and_free)
+BENCHMARK(memory_allocation_malloc_alloc_and_free)
         ->Apply(BenchArguments);
-BENCHMARK(memory_allocation_os_malloc_fragment_memory)
+BENCHMARK(memory_allocation_malloc_fragment_memory)
         ->Apply(BenchArguments);
 
 BENCHMARK(memory_allocation_mimalloc_only_alloc)
