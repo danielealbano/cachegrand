@@ -147,14 +147,14 @@ ffma_t* ffma_init(
         size_t object_size) {
     assert(object_size <= FFMA_OBJECT_SIZE_MAX);
 
-    ffma_t* ffma = (ffma_t*)xalloc_alloc_zero(sizeof(ffma_t));
+    ffma_t* ffma = (ffma_t*)xalloc_mmap_alloc(sizeof(ffma_t));
 
     ffma->object_size = object_size;
     ffma->slots = double_linked_list_init();
     ffma->slices = double_linked_list_init();
     ffma->metrics.slices_inuse_count = 0;
     ffma->metrics.objects_inuse_count = 0;
-    ffma->free_ffma_slots_queue_from_other_threads = queue_mpmc_init();
+    queue_mpmc_init_noalloc(&ffma->free_ffma_slots_queue_from_other_threads);
 
 #if FFMA_DEBUG_ALLOCS_FREES == 1
     ffma->thread_id = syscall(SYS_gettid);
@@ -171,8 +171,11 @@ bool ffma_free(
     double_linked_list_item_t* item;
     ffma_slot_t *ffma_slot;
 
-    ffma->ffma_freed = true;
-    MEMORY_FENCE_STORE();
+    // Try to set ffma_freed to true with an atomic operation, if it fails it means that another thread is already
+    // freeing the allocator and we can just return as if it was freed successfully.
+    if (!atomic_compare_exchange_strong(&ffma->ffma_freed, &(bool){ false }, true)) {
+        return true;
+    }
 
     // If there are objects in use they are most likely owned in use in some other threads and therefore the memory
     // can't be freed. The ownership of the operation fall upon the thread that will return the last object.
@@ -181,13 +184,13 @@ bool ffma_free(
     // shuts-down.
     uint32_t objects_inuse_count =
             ffma->metrics.objects_inuse_count -
-            queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads);
+            queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads);
     if (objects_inuse_count > 0) {
         return false;
     }
 
     // Clean up the free list
-    while((ffma_slot = queue_mpmc_pop(ffma->free_ffma_slots_queue_from_other_threads)) != NULL) {
+    while((ffma_slot = queue_mpmc_pop(&ffma->free_ffma_slots_queue_from_other_threads)) != NULL) {
         ffma_slice_t* ffma_slice = ffma_slice_from_memptr(ffma_slot->data.memptr);
         ffma_mem_free_slot_in_current_thread(ffma, ffma_slice, ffma_slot);
     }
@@ -211,10 +214,11 @@ bool ffma_free(
 #if FFMA_DEBUG_ALLOCS_FREES == 1
     // Do nothing really, it's to ensure that the memory will get always freed if the condition checked is not 1
 #else
-
-    queue_mpmc_free(ffma->free_ffma_slots_queue_from_other_threads);
-    xalloc_free(ffma);
+    queue_mpmc_free_noalloc(&ffma->free_ffma_slots_queue_from_other_threads);
 #endif
+
+    // Never ever free ffma itself as another thread might be trying to access its data meanwhile checking if it has
+    // to free it or not
 
     return true;
 }
@@ -354,7 +358,7 @@ void ffma_mem_free_slot_in_current_thread(
 void ffma_mem_free_slot_different_thread(
         ffma_t* ffma,
         ffma_slot_t* ffma_slot) {
-    if (unlikely(!queue_mpmc_push(ffma->free_ffma_slots_queue_from_other_threads, ffma_slot))) {
+    if (unlikely(!queue_mpmc_push(&ffma->free_ffma_slots_queue_from_other_threads, ffma_slot))) {
         FATAL(TAG, "Can't pass the slot to free to the owning thread, unable to continue");
     }
 
@@ -366,7 +370,7 @@ void ffma_mem_free_slot_different_thread(
         // If the last object pushed was the last that needed to be freed, ffma_free can be invoked.
         bool can_free_ffma =
                 (ffma->metrics.objects_inuse_count -
-                queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads)) == 0;
+                queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads)) == 0;
         if (unlikely(can_free_ffma)) {
             ffma_free(ffma);
         }
@@ -412,7 +416,7 @@ void ffma_mem_free(
     bool is_different_thread = ffma != ffma_thread_cache_get_ffma_by_size(
             ffma->object_size);
     if (unlikely(is_different_thread)) {
-        // This is slow path as it involves always atomic ops and potentially also a spinlock
+        // This is slow path as it involves always atomic ops
         ffma_mem_free_slot_different_thread(ffma, ffma_slot);
     } else {
         ffma_mem_free_slot_in_current_thread(ffma, ffma_slice, ffma_slot);
