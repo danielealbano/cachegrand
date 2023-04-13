@@ -147,7 +147,7 @@ ffma_t* ffma_init(
         size_t object_size) {
     assert(object_size <= FFMA_OBJECT_SIZE_MAX);
 
-    ffma_t* ffma = (ffma_t*)xalloc_alloc_zero(sizeof(ffma_t));
+    ffma_t* ffma = (ffma_t*)xalloc_mmap_alloc(sizeof(ffma_t));
 
     ffma->object_size = object_size;
     ffma->slots = double_linked_list_init();
