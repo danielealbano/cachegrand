@@ -47,7 +47,7 @@ static inline __attribute__((always_inline)) int64_t clock_timespec_to_int64_ms(
 static inline __attribute__((always_inline)) void clock_monotonic(
         timespec_t *timespec) {
     uint64_t cycles = intrinsics_tsc();
-    uint64_t cycles_per_second = intrinsics_cycles_per_second_get();
+    uint64_t cycles_per_second = intrinsics_frequency_max();
     uint64_t seconds = cycles / cycles_per_second;
     uint64_t remaining_cycles = cycles % cycles_per_second;
 
@@ -61,7 +61,7 @@ static inline __attribute__((always_inline)) void clock_monotonic(
 
 static inline __attribute__((always_inline)) int64_t clock_monotonic_int64_ms() {
     uint64_t cycles = intrinsics_tsc();
-    uint64_t cycles_per_second = intrinsics_cycles_per_second_get();
+    uint64_t cycles_per_second = intrinsics_frequency_max();
 
     uint64_t quotient = 1000ULL / cycles_per_second;
     uint64_t remainder = 1000ULL % cycles_per_second;
