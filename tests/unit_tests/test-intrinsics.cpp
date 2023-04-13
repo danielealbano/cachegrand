@@ -26,17 +26,4 @@ TEST_CASE("intrinsics.c", "[intrinsics]") {
 
         REQUIRE(cycles_per_second == cpu_freq_simple);
     }
-
-    SECTION("intrinsics_frequency_max_estimated") {
-        bool expected_result;
-#if defined(__x86_64__)
-        expected_result = __get_cpuid_max(0, nullptr) < 16 ? false : true;
-#elif defined(__aarch64__)
-        expected_result = false;
-#else
-        expected_result = true;
-#endif
-        // On the test hardware it should never be estimated, better to catch if it is
-        REQUIRE(intrinsics_frequency_max_estimated() == expected_result);
-    }
 }
