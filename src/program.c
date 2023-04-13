@@ -754,12 +754,13 @@ int program_main(
     // later stage
     program_setup_initial_log_sink_console();
 
+    // Report some general information before starting
     program_startup_report();
 
+    // Load the configuration
     if ((program_context->config = program_parse_arguments_and_load_config(argc, argv)) == NULL) {
         goto end;
     }
-
 
     // Ensure the minimum kernel version is supported
     if (program_ensure_min_kernel_version() == false) {
