@@ -114,14 +114,18 @@ fiber_t *fiber_new(
     // Align the stack_pointer to 16 bytes and add some padding as required by the ABI adding abort to the stack
     void **stack_pointer = (void**)(((uintptr_t)stack_base + stack_size_with_guard) & -16L);
 
-    // TODO: test fibers on AARCH64
 #if defined(__aarch64__)
-    stack_pointer--;
-#endif
-
+    stack_pointer -= FIBER_CONTEXT_NUM_REGISTRIES;
+    *(stack_pointer + FIBER_CONTEXT_SP_PC_OFFSET) = fiber_new_first_run;
+    *(stack_pointer + FIBER_CONTEXT_SP_ABRT_OFFSET) = fiber_abort;
+#elif defined(__amd64)
     *--stack_pointer = (void *)fiber_abort;
     *--stack_pointer = (void *)fiber_new_first_run;
     stack_pointer -= FIBER_CONTEXT_NUM_REGISTRIES;
+#else
+#error "Unsupported architecture"
+#endif
+
 
     LOG_D(
             TAG,
@@ -158,7 +162,6 @@ fiber_t *fiber_new(
         fiber_new_first_run_from = &temp_swap_stack_ptr;
         fiber_new_first_run_to = (void **)&stack_pointer;
 #pragma GCC diagnostic pop
-
         fiber_context_swap(fiber_new_first_run_from, fiber_new_first_run_to);
 
         fiber_new_first_run_fiber = NULL;
