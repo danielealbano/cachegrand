@@ -20,7 +20,6 @@
 #include <sys/resource.h>
 #include <string.h>
 #include <stdlib.h>
-#include <mimalloc.h>
 
 #include "misc.h"
 #include "pow2.h"
@@ -28,6 +27,7 @@
 #include "exttypes.h"
 #include "clock.h"
 #include "xalloc.h"
+#include "program_startup_report.h"
 #include "memory_fences.h"
 #include "pidfile.h"
 #include "log/log.h"
@@ -754,53 +754,19 @@ int program_main(
     // later stage
     program_setup_initial_log_sink_console();
 
+    program_startup_report();
+
     if ((program_context->config = program_parse_arguments_and_load_config(argc, argv)) == NULL) {
         goto end;
     }
 
-    // Report some general information
-    LOG_I(
-            TAG,
-            "%s version %s (built on %s)",
-            CACHEGRAND_CMAKE_CONFIG_NAME,
-            CACHEGRAND_CMAKE_CONFIG_VERSION_GIT,
-            CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME);
-    LOG_I(
-            TAG,
-            "> %s build, compiled using %s v%s",
-            CACHEGRAND_CMAKE_CONFIG_BUILD_TYPE,
-            CACHEGRAND_CMAKE_CONFIG_C_COMPILER_ID,
-            CACHEGRAND_CMAKE_CONFIG_C_COMPILER_VERSION);
-    LOG_I(
-            TAG,
-            "> Hashing algorithm in use %s",
-            CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2
-            ? "t1ha2"
-            : (CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_XXH3
-               ? "xxh3" :
-               "crc32c"));
-    LOG_I(
-            TAG,
-            "> TLS: %s (kernel offloading %s)",
-            network_tls_mbedtls_version(),
-            network_tls_is_ulp_tls_supported() ? "enabled" : "disabled");
-    if (!network_tls_is_ulp_tls_supported()) {
-        LOG_I(
-                TAG,
-                "       Try to load the tls kernel module with \"modprobe tls\" and restart %s",
-                CACHEGRAND_CMAKE_CONFIG_NAME);
-    }
-
-    LOG_I(
-            TAG,
-            "> Clock resolution: %ld ms",
-            clock_realtime_coarse_get_resolution_ms());
 
     // Ensure the minimum kernel version is supported
     if (program_ensure_min_kernel_version() == false) {
         LOG_E(TAG, "Kernel version not supported, the minimum required is <%s>", CACHEGRAND_MIN_KERNEL_VERSION);
         goto end;
     }
+
 
     // Initialize the log sinks defined in the configuration, if any is defined. The function will take care of dropping
     // the temporary log sink defined initially
