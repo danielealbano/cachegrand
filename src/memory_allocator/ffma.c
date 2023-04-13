@@ -171,8 +171,11 @@ bool ffma_free(
     double_linked_list_item_t* item;
     ffma_slot_t *ffma_slot;
 
-    ffma->ffma_freed = true;
-    MEMORY_FENCE_STORE();
+    // Try to set ffma_freed to true with an atomic operation, if it fails it means that another thread is already
+    // freeing the allocator and we can just return as if it was freed successfully.
+    if (!atomic_compare_exchange_strong(&ffma->ffma_freed, &(bool){ false }, true)) {
+        return true;
+    }
 
     // If there are objects in use they are most likely owned in use in some other threads and therefore the memory
     // can't be freed. The ownership of the operation fall upon the thread that will return the last object.
