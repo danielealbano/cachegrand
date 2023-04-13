@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <numa.h>
 
+#include "misc.h"
 #include "utils_numa.h"
 
 TEST_CASE("utils_numa.c", "[utils_numa]") {
@@ -19,12 +20,16 @@ TEST_CASE("utils_numa.c", "[utils_numa]") {
     }
 
     SECTION("utils_numa_node_configured_count") {
-        REQUIRE(utils_numa_node_configured_count() == numa_num_configured_nodes());
+        int count = numa_num_configured_nodes();
+        if (count == 0) {
+            count = 1;
+        }
+        REQUIRE(utils_numa_node_configured_count() == count);
     }
 
     SECTION("utils_numa_node_current_index") {
         uint32_t numa_node_index;
-        getcpu(NULL, &numa_node_index);
+        getcpu(nullptr, &numa_node_index);
 
         REQUIRE(utils_numa_node_current_index() == numa_node_index);
     }
@@ -39,7 +44,7 @@ TEST_CASE("utils_numa.c", "[utils_numa]") {
 
     SECTION("utils_numa_cpu_current_index") {
         uint32_t cpu_index;
-        getcpu(&cpu_index, NULL);
+        getcpu(&cpu_index, nullptr);
 
         REQUIRE(utils_numa_cpu_current_index() == cpu_index);
     }
