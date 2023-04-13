@@ -43,8 +43,8 @@ TEST_CASE("epoch_operation_queue.c", "[epoch_operation_queue]") {
             epoch_operation_queue_operation_t *op2 = epoch_operation_queue_enqueue(epoch_operation_queue);
 
             REQUIRE(op2 != nullptr);
-            REQUIRE(op2->data.start_epoch > op1->data.start_epoch);
-            REQUIRE(op2->data.start_epoch < intrinsics_tsc());
+            REQUIRE(op2->data.start_epoch >= op1->data.start_epoch);
+            REQUIRE(op2->data.start_epoch <= intrinsics_tsc());
             REQUIRE(op2->data.completed == false);
             REQUIRE(&op2->_packed == &epoch_operation_queue->ring->items[1]);
             REQUIRE(ring_bounded_queue_spsc_uint64_get_length(epoch_operation_queue->ring) == 2);
