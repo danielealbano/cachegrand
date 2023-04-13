@@ -65,14 +65,13 @@ struct ffma {
     // The slots and the slices are sorted per availability
     double_linked_list_t *slots;
     double_linked_list_t *slices;
-    queue_mpmc_t *free_ffma_slots_queue_from_other_threads;
+    queue_mpmc_t free_ffma_slots_queue_from_other_threads;
 
     // When the thread owning an instance of an allocator is terminated, other threads might still own some memory it
     // initialized and therefore some support is needed there.
     // When a thread sends back memory to a thread it has to check if it has been terminated and if yes, process the
     // free_ffma_slots_queue, free up the  slots, check if the slice owning the
     // ffma_slot is then empty, and in case return the address sof the page.
-    // All these operations have to be carried out under the external_thread_lock spinlock to avoid contention.
     bool_volatile_t ffma_freed;
 
     uint32_t object_size;
@@ -324,7 +323,7 @@ static inline void* ffma_mem_alloc_internal(
             // it involves atomic operations, on the other end it requires less operation to be prepared as e.g. it is
             // already on the correct side of the slots double linked list
         } else if ((ffma_slot =
-                (ffma_slot_t *) queue_mpmc_pop(ffma->free_ffma_slots_queue_from_other_threads)) != NULL) {
+                (ffma_slot_t *) queue_mpmc_pop(&ffma->free_ffma_slots_queue_from_other_threads)) != NULL) {
             assert(ffma_slot->data.memptr != NULL);
             ffma_slot->data.available = false;
 
