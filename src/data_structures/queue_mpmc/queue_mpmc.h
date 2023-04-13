@@ -49,7 +49,17 @@ struct queue_mpmc {
 
 queue_mpmc_t *queue_mpmc_init();
 
-void queue_mpmc_free(queue_mpmc_t *queue_mpmc);
+void queue_mpmc_init_noalloc(
+        queue_mpmc_t *);
+
+void queue_mpmc_free(
+        queue_mpmc_t *queue_mpmc);
+
+void queue_mpmc_free_noalloc(
+        queue_mpmc_t *queue_mpmc);
+
+void queue_mpmc_free_nodes(
+        queue_mpmc_t *queue_mpmc);
 
 bool queue_mpmc_push(
         queue_mpmc_t *queue_mpmc,

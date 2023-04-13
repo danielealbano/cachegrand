@@ -366,10 +366,10 @@ TEST_CASE("ffma.c", "[ffma]") {
             int value = 0;
             ffma_t* ffma = ffma_init(128);
 
-            REQUIRE(queue_mpmc_push(ffma->free_ffma_slots_queue_from_other_threads, &value));
+            REQUIRE(queue_mpmc_push(&ffma->free_ffma_slots_queue_from_other_threads, &value));
             REQUIRE(!ffma_free(ffma));
 
-            REQUIRE(queue_mpmc_pop(ffma->free_ffma_slots_queue_from_other_threads) != NULL);
+            REQUIRE(queue_mpmc_pop(&ffma->free_ffma_slots_queue_from_other_threads) != NULL);
             REQUIRE(ffma_free(ffma));
         }
     }
@@ -574,7 +574,7 @@ TEST_CASE("ffma.c", "[ffma]") {
             void *memptr = ffma_mem_alloc_internal(ffma, ffma_predefined_object_sizes[0]);
 
             REQUIRE(ffma->metrics.slices_inuse_count == 1);
-            REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
+            REQUIRE(queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->tail->data == memptr);
             REQUIRE(((ffma_slot_t *) ffma->slots->tail)->data.available == false);
             REQUIRE(((ffma_slot_t *) ffma->slots->head)->data.available == true);
@@ -599,7 +599,7 @@ TEST_CASE("ffma.c", "[ffma]") {
             }
 
             REQUIRE(ffma->metrics.slices_inuse_count == 1);
-            REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
+            REQUIRE(queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slices->count == 1);
             REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count == slots_count);
             REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_inuse_count == slots_count);
@@ -625,7 +625,7 @@ TEST_CASE("ffma.c", "[ffma]") {
             }
 
             REQUIRE(ffma->metrics.slices_inuse_count == 2);
-            REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
+            REQUIRE(queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slices->head != ffma->slices->tail);
             REQUIRE(ffma->slices->head->next == ffma->slices->tail);
             REQUIRE(ffma->slices->head == ffma->slices->tail->prev);
@@ -645,6 +645,8 @@ TEST_CASE("ffma.c", "[ffma]") {
     SECTION("ffma_mem_free") {
         ffma_t *ffma = ffma_init(ffma_predefined_object_sizes[0]);
         ffma_t *ffmas[] = { ffma };
+        ffma_t *ffma2 = ffma_init(ffma_predefined_object_sizes[0]);
+        ffma_t *ffmas2[] = { ffma2 };
 
         ffma_thread_cache_set(ffmas);
 
@@ -655,7 +657,7 @@ TEST_CASE("ffma.c", "[ffma]") {
             REQUIRE(ffma->metrics.slices_inuse_count == 1);
             REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count ==
                 FFMA_PREINIT_SOME_SLOTS_COUNT);
-            REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
+            REQUIRE(queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->head->data != memptr);
             REQUIRE(ffma->slots->tail->data == memptr);
 
@@ -665,7 +667,7 @@ TEST_CASE("ffma.c", "[ffma]") {
             REQUIRE(ffma->metrics.slices_inuse_count == 1);
             REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count ==
                 FFMA_PREINIT_SOME_SLOTS_COUNT);
-            REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
+            REQUIRE(queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->head != nullptr);
             REQUIRE(ffma->slots->tail != nullptr);
         }
@@ -677,7 +679,7 @@ TEST_CASE("ffma.c", "[ffma]") {
             REQUIRE(ffma->metrics.slices_inuse_count == 1);
             REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count ==
                 FFMA_PREINIT_SOME_SLOTS_COUNT);
-            REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
+            REQUIRE(queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->head->data != memptr);
             REQUIRE(ffma->slots->tail->data == memptr);
 
@@ -687,7 +689,7 @@ TEST_CASE("ffma.c", "[ffma]") {
             REQUIRE(ffma->metrics.slices_inuse_count == 1);
             REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count ==
                 FFMA_PREINIT_SOME_SLOTS_COUNT);
-            REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
+            REQUIRE(queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->head != nullptr);
             REQUIRE(ffma->slots->tail != nullptr);
         }
@@ -711,7 +713,7 @@ TEST_CASE("ffma.c", "[ffma]") {
             REQUIRE(ffma->metrics.slices_inuse_count == 1);
             REQUIRE(ffma->metrics.objects_inuse_count == slots_count);
             REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count == slots_count);
-            REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
+            REQUIRE(queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->head != nullptr);
             REQUIRE(ffma->slots->tail != nullptr);
 
@@ -730,7 +732,7 @@ TEST_CASE("ffma.c", "[ffma]") {
             REQUIRE(ffma->metrics.objects_inuse_count == 0);
             REQUIRE(ffma->metrics.slices_inuse_count == 1);
             REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count == slots_count);
-            REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
+            REQUIRE(queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->head != nullptr);
             REQUIRE(ffma->slots->tail != nullptr);
         }
@@ -765,7 +767,7 @@ TEST_CASE("ffma.c", "[ffma]") {
             REQUIRE(ffma->slices->count == 2);
             REQUIRE(((ffma_slice_t *) ffma->slices->tail)->data.metrics.objects_inuse_count == 1);
             REQUIRE(((ffma_slice_t *) ffma->slices->tail)->data.metrics.objects_initialized_count == FFMA_PREINIT_SOME_SLOTS_COUNT);
-            REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
+            REQUIRE(queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->head != nullptr);
             REQUIRE(ffma->slots->tail != nullptr);
 
@@ -779,18 +781,21 @@ TEST_CASE("ffma.c", "[ffma]") {
             REQUIRE(ffma->slices->count == 1);
             REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_inuse_count == 0);
             REQUIRE(((ffma_slice_t *) ffma->slices->head)->data.metrics.objects_initialized_count == slots_count - 1);
-            REQUIRE(queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads) == 0);
+            REQUIRE(queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma->slots->head != nullptr);
             REQUIRE(ffma->slots->tail != nullptr);
         }
 
         SECTION("free via different ffma") {
-            ffma_t *ffma2 = ffma_init(ffma_predefined_object_sizes[0]);
+            // Set the threads cache to ffmas2
+            ffma_thread_cache_set(ffmas2);
 
-            void *memptr1 = ffma_mem_alloc_internal(ffma2, ffma_predefined_object_sizes[0]);
+            void *memptr1 = ffma_mem_alloc(ffma_predefined_object_sizes[0]);
             REQUIRE(ffma2->metrics.objects_inuse_count == 1);
             REQUIRE(ffma2->metrics.slices_inuse_count == 1);
 
+            // Revert the threads cache to ffams
+            ffma_thread_cache_set(ffmas);
             ffma_mem_free(memptr1);
 
             REQUIRE(ffma2->metrics.objects_inuse_count == 1);
@@ -798,7 +803,7 @@ TEST_CASE("ffma.c", "[ffma]") {
             REQUIRE(ffma2->metrics.slices_inuse_count == 1);
             REQUIRE(ffma->metrics.slices_inuse_count == 0);
 
-            REQUIRE(queue_mpmc_get_length(ffma2->free_ffma_slots_queue_from_other_threads) == 1);
+            REQUIRE(queue_mpmc_get_length(&ffma2->free_ffma_slots_queue_from_other_threads) == 1);
 
             // slots from the queue are used if all the items in the hugepages have been used so it's necessary to
             // fill the hugepage allocated
@@ -818,12 +823,12 @@ TEST_CASE("ffma.c", "[ffma]") {
             }
 
             // All the previous allocation must have come out from the local list of slots
-            REQUIRE(queue_mpmc_get_length(ffma2->free_ffma_slots_queue_from_other_threads) == 1);
+            REQUIRE(queue_mpmc_get_length(&ffma2->free_ffma_slots_queue_from_other_threads) == 1);
 
             // This last allocation must come from the free list
             void *memptr2 = ffma_mem_alloc_internal(ffma2, ffma_predefined_object_sizes[0]);
 
-            REQUIRE(queue_mpmc_get_length(ffma2->free_ffma_slots_queue_from_other_threads) == 0);
+            REQUIRE(queue_mpmc_get_length(&ffma2->free_ffma_slots_queue_from_other_threads) == 0);
             REQUIRE(ffma2->metrics.objects_inuse_count == slots_count);
             REQUIRE(ffma2->metrics.slices_inuse_count == 1);
             REQUIRE(memptr1 == memptr2);
@@ -834,7 +839,7 @@ TEST_CASE("ffma.c", "[ffma]") {
             }
             ffma_mem_free(memptr2);
 
-            REQUIRE(queue_mpmc_get_length(ffma2->free_ffma_slots_queue_from_other_threads) == slots_count);
+            REQUIRE(queue_mpmc_get_length(&ffma2->free_ffma_slots_queue_from_other_threads) == slots_count);
 
             REQUIRE(ffma_free(ffma2));
         }

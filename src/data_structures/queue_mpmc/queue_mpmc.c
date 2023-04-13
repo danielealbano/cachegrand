@@ -30,6 +30,13 @@
 static size_t queue_mpmc_os_page_size = 0;
 
 queue_mpmc_t *queue_mpmc_init() {
+    queue_mpmc_t *queue_mpmc = xalloc_mmap_alloc(sizeof(queue_mpmc_t));
+    queue_mpmc_init_noalloc(queue_mpmc);
+    return queue_mpmc;
+}
+
+void queue_mpmc_init_noalloc(
+        queue_mpmc_t *queue_mpmc) {
     if (unlikely(queue_mpmc_os_page_size == 0)) {
         queue_mpmc_os_page_size = xalloc_get_page_size();
     }
@@ -39,16 +46,14 @@ queue_mpmc_t *queue_mpmc_init() {
     nodes_page->prev_page = 0;
 
     // Initialize the base structure and return set the nodes page pointer
-    queue_mpmc_t *queue_mpmc = xalloc_mmap_alloc(sizeof(queue_mpmc_t));
     queue_mpmc->head.data.nodes_page = nodes_page;
     queue_mpmc->head.data.node_index = -1;
     queue_mpmc->max_nodes_per_page =
             (int16_t)((queue_mpmc_os_page_size - sizeof(queue_mpmc_page_volatile_t)) / sizeof(nodes_page->nodes[0]));
-
-    return queue_mpmc;
 }
 
-void queue_mpmc_free_nodes(queue_mpmc_t *queue_mpmc) {
+void queue_mpmc_free_nodes(
+        queue_mpmc_t *queue_mpmc) {
     // This function is invoked only when the queue is freed up, no operation will be carried out on it, therefore the
     // queue can be freed up using non-atomic operations, only a load fence is needed to ensure that the local cpu
     // cache is up-to-date with the changes carried out by the atomic ops if any.
@@ -73,9 +78,15 @@ void queue_mpmc_free_nodes(queue_mpmc_t *queue_mpmc) {
     }
 }
 
-void queue_mpmc_free(queue_mpmc_t *queue_mpmc) {
-    queue_mpmc_free_nodes(queue_mpmc);
+void queue_mpmc_free(
+        queue_mpmc_t *queue_mpmc) {
+    queue_mpmc_free_noalloc(queue_mpmc);
     xalloc_mmap_free(queue_mpmc, sizeof(queue_mpmc_t));
+}
+
+void queue_mpmc_free_noalloc(
+        queue_mpmc_t *queue_mpmc) {
+    queue_mpmc_free_nodes(queue_mpmc);
 }
 
 bool queue_mpmc_push(
