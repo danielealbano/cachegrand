@@ -118,14 +118,14 @@ TEST_CASE("clock.c", "[clock]") {
     SECTION("clock_monotonic_int64_ms") {
         timespec_t a;
         clock_monotonic(&a);
-        int64_t a1 = clock_timespec_to_int64_ms(&a);
         int64_t b = clock_monotonic_int64_ms();
+        int64_t a1 = clock_timespec_to_int64_ms(&a);
 
         // Allow up to 1ms of difference although these 2 clock reads are executed right after so there shouldn't be any
         int64_t diff = b - a1;
 
-        // Allow up to 1 ms of difference
-        if (diff <= 1) {
+        // Allow up to 1s of difference, the monotonic clock in cachegrand might be calculated differently
+        if (diff == 1) {
             diff = 0;
         }
 
@@ -152,8 +152,8 @@ TEST_CASE("clock.c", "[clock]") {
         // Allow up to res in ms of difference
         int64_t diff = b - clock_timespec_to_int64_ms(&a);
 
-        // Allow up to res_ms of difference
-        if (diff <= res_ms) {
+        // Allow up to 1s plus res_ms of difference, the monotonic clock in cachegrand might be calculated differently
+        if (diff <= 1 + res_ms) {
             diff = 0;
         }
 
