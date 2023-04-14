@@ -572,23 +572,6 @@ static inline double storage_db_keys_eviction_calculate_close_to_hard_limit_perc
             keys_count_close_to_hard_limit_percentage : data_size_close_to_hard_limit_percentage;
 }
 
-static inline bool storage_db_will_new_entry_hit_hard_limit(
-        storage_db_t *db,
-        uint64_t new_entry_size) {
-    uint64_t keys_count = storage_db_op_get_keys_count(db);
-    uint64_t data_size = storage_db_op_get_data_size(db);
-
-    if (db->limits.keys_count.hard_limit > 0 && keys_count + 1 > db->limits.keys_count.hard_limit) {
-        return true;
-    }
-
-    if (db->limits.data_size.hard_limit > 0 && data_size + new_entry_size > db->limits.data_size.hard_limit) {
-        return true;
-    }
-
-    return false;
-}
-
 #ifdef __cplusplus
 }
 #endif
