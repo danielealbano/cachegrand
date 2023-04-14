@@ -419,6 +419,10 @@ bool storage_db_chunk_data_pre_allocate(
 void storage_db_chunk_data_free(
         storage_db_t *db,
         storage_db_chunk_info_t *chunk_info) {
+    if (chunk_info == NULL) {
+        return;
+    }
+
     if (db->config->backend_type == STORAGE_DB_BACKEND_TYPE_MEMORY) {
         ffma_mem_free(chunk_info->memory.chunk_data);
     } else {
