@@ -33,6 +33,7 @@ typedef struct slots_bitmap_mpmc slots_bitmap_mpmc_t;
 struct slots_bitmap_mpmc {
     size_t size;
     size_t shards_count;
+    size_t allocation_size;
     slots_bitmap_mpmc_shard_t shards[0];
     uint8_volatile_t shards_used_slots[0];
 };
