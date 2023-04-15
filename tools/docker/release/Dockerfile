@@ -33,7 +33,7 @@ RUN apt-get update -y \
         libnuma1 libnuma-dev \
         libcurl4-openssl-dev libcurl4 \
         libyaml-0-2 libyaml-dev \
-        libmbedtls-dev libmbedtls14 \
+        libmbedtls-dev libmbedtls14 liblzf1 liblzf-dev \
         lcov gcovr \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -65,7 +65,7 @@ RUN apt-get update -y \
     && apt-get install -y --no-install-recommends \
         apt-utils \
     && apt-get install -y --no-install-recommends \
-        libnuma1 libyaml-0-2 libcurl4 libmbedtls14 libatomic1 openssl \
+        libnuma1 libyaml-0-2 libcurl4 libmbedtls14 libatomic1 openssl liblzf1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
