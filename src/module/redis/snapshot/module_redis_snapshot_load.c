@@ -94,7 +94,8 @@ uint64_t module_redis_snapshot_load_read_length_encoded_int(
 void *module_redis_snapshot_load_read_string(
         storage_channel_t *channel,
         size_t *length) {
-    uint8_t byte;
+    uint8_t byte = 0;
+    *length = 0;
     module_redis_snapshot_load_read(channel, &byte, 1);
 
     if ((byte & 0xC0) == 0) {
@@ -211,7 +212,7 @@ bool module_redis_snapshot_load_validate_version(
 
 bool module_redis_snapshot_load_validate_checksum(
         storage_channel_t *channel) {
-    uint64_t checksum;
+    uint64_t checksum = 0;
     module_redis_snapshot_load_read(channel, &checksum, 8);
     checksum = int64_ntoh(checksum);
 
@@ -226,7 +227,7 @@ bool module_redis_snapshot_load_validate_checksum(
 
 uint8_t module_redis_snapshot_load_read_opcode(
         storage_channel_t *channel) {
-    uint8_t opcode;
+    uint8_t opcode = 0;
     module_redis_snapshot_load_read(channel, &opcode, 1);
     return opcode;
 }
@@ -392,7 +393,7 @@ void module_redis_snapshot_load_process_value_string(
 
 void module_redis_snapshot_load_data(
         storage_channel_t *channel) {
-    uint8_t opcode;
+    uint8_t opcode = 0;
     uint64_t expiry_ms = 0;
 
     // Validate the magic string
