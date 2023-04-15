@@ -40,7 +40,7 @@ RUN apt-get update -y \
         libnuma1 libnuma-dev \
         libcurl4-openssl-dev libcurl4 \
         libyaml-0-2 libyaml-dev \
-        libmbedtls-dev libmbedtls14 \
+        libmbedtls-dev libmbedtls14 liblzf1 liblzf-dev \
         libpcre2-8-0 libpcre2-dev \
         libjson-c-dev \
         lcov gcovr \

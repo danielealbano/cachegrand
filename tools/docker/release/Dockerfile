@@ -4,6 +4,13 @@
 # This software may be modified and distributed under the terms
 # of the BSD license. See the LICENSE file for details.
 
+# Build commands
+#docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+#docker buildx create --name cachegrand-builder --platform linux/amd64 --use
+#docker buildx create --name cachegrand-builder --append --platform linux/arm64,linux/arm/v8 ssh://cg-server-arm64-01
+#docker buildx build --pull --push --platform linux/amd64,linux/arm64/v8 --tag cachegrand/cachegrand-server:latest --tag cachegrand/cachegrand-server:v0.2.0 .
+#docker buildx rm --name cachegrand-builder
+
 FROM ubuntu:22.04 AS builder
 
 # General dpkg and packages settings
@@ -33,7 +40,7 @@ RUN apt-get update -y \
         libnuma1 libnuma-dev \
         libcurl4-openssl-dev libcurl4 \
         libyaml-0-2 libyaml-dev \
-        libmbedtls-dev libmbedtls14 \
+        libmbedtls-dev libmbedtls14 liblzf1 liblzf-dev \
         lcov gcovr \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -65,7 +72,7 @@ RUN apt-get update -y \
     && apt-get install -y --no-install-recommends \
         apt-utils \
     && apt-get install -y --no-install-recommends \
-        libnuma1 libyaml-0-2 libcurl4 libmbedtls14 libatomic1 openssl \
+        libnuma1 libyaml-0-2 libcurl4 libmbedtls14 libatomic1 openssl liblzf1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
