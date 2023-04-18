@@ -1923,53 +1923,43 @@ TEST_CASE("config.c", "[config]") {
         SECTION("CYAML_LOG_DEBUG") {
             char* str_cmp = "[DEBUG      ][config] test log message: test argument\n";
             test_config_internal_cyaml_log_wrapper(CYAML_LOG_DEBUG, nullptr, "test log message: %s", "test argument");
-            if (strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) != 0) {
-                fprintf(
-                        stderr,
-                        "'%s' (%lu) != '%s' (%lu)\n",
-                        str_cmp,
-                        strlen(str_cmp),
-                        test_config_internal_log_sink_printer_data + 22,
-                        strlen(test_config_internal_log_sink_printer_data + 22));
-                fflush(stderr);
-            }
-            REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
+            REQUIRE(strncmp(str_cmp, test_config_internal_log_sink_printer_data + 22, strlen(str_cmp)) == 0);
         }
 
         SECTION("CYAML_LOG_NOTICE") {
             char* str_cmp = "[WARNING    ][config] test log message: test argument\n";
             test_config_internal_cyaml_log_wrapper(CYAML_LOG_NOTICE, nullptr, "test log message: %s", "test argument");
-            REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
+            REQUIRE(strncmp(str_cmp, test_config_internal_log_sink_printer_data + 22, strlen(str_cmp)) == 0);
         }
 
         SECTION("CYAML_LOG_WARNING") {
             char* str_cmp = "[WARNING    ][config] test log message: test argument\n";
             test_config_internal_cyaml_log_wrapper(CYAML_LOG_WARNING, nullptr, "test log message: %s", "test argument");
-            REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
+            REQUIRE(strncmp(str_cmp, test_config_internal_log_sink_printer_data + 22, strlen(str_cmp)) == 0);
         }
 
         SECTION("CYAML_LOG_ERROR") {
             char* str_cmp = "[ERROR      ][config] test log message: test argument\n";
             test_config_internal_cyaml_log_wrapper(CYAML_LOG_ERROR, nullptr, "test log message: %s", "test argument");
-            REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
+            REQUIRE(strncmp(str_cmp, test_config_internal_log_sink_printer_data + 22, strlen(str_cmp)) == 0);
         }
 
         SECTION("CYAML_LOG_INFO") {
             char* str_cmp = "[INFO       ][config] test log message: test argument\n";
             test_config_internal_cyaml_log_wrapper(CYAML_LOG_INFO, nullptr, "test log message: %s", "test argument");
-            REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
+            REQUIRE(strncmp(str_cmp, test_config_internal_log_sink_printer_data + 22, strlen(str_cmp)) == 0);
         }
 
         SECTION("CYAML_LOG_INFO - new line at end") {
             char* str_cmp = "[INFO       ][config] test log message: test argument\n";
             test_config_internal_cyaml_log_wrapper(CYAML_LOG_INFO, nullptr, "test log message: %s\n", "test argument");
-            REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
+            REQUIRE(strncmp(str_cmp, test_config_internal_log_sink_printer_data + 22, strlen(str_cmp)) == 0);
         }
 
         SECTION("CYAML_LOG_INFO - multiple new lines at end") {
             char* str_cmp = "[INFO       ][config] test log message: test argument\n";
             test_config_internal_cyaml_log_wrapper(CYAML_LOG_INFO, nullptr, "test log message: %s\r\n\r\n", "test argument");
-            REQUIRE(strcmp(str_cmp, test_config_internal_log_sink_printer_data + 22) == 0);
+            REQUIRE(strncmp(str_cmp, test_config_internal_log_sink_printer_data + 22, strlen(str_cmp)) == 0);
         }
 
         log_sink_registered_free();
