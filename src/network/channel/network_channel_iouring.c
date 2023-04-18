@@ -50,6 +50,16 @@ network_channel_iouring_t* network_channel_iouring_multi_new(
     return channels;
 }
 
+void network_channel_iouring_multi_free(
+        network_channel_iouring_t *channels,
+        uint32_t count) {
+    for(int index = 0; index < count; index++) {
+        network_channel_cleanup(&channels[index].wrapped_channel);
+    }
+
+    ffma_mem_free(channels);
+}
+
 void network_channel_iouring_free(
         network_channel_iouring_t* network_channel) {
     network_channel_cleanup(&network_channel->wrapped_channel);

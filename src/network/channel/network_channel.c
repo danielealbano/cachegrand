@@ -89,6 +89,8 @@ bool network_channel_init(
     channel->timeout.read.nsec = -1;
     channel->timeout.write.sec = -1;
     channel->timeout.write.nsec = -1;
+    channel->buffers.send.length = 0;
+    channel->buffers.send.data = NULL;
 
     if (channel->type == NETWORK_CHANNEL_TYPE_CLIENT) {
         channel->buffers.send.length = NETWORK_CHANNEL_SEND_BUFFER_SIZE;

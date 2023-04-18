@@ -13,16 +13,6 @@
 #include <liburing.h>
 #include <linux/tls.h>
 
-
-#include <mbedtls/aes.h>
-#include <mbedtls/ctr_drbg.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/error.h>
-#include <mbedtls/gcm.h>
-#include <mbedtls/net_sockets.h>
-#include <mbedtls/ssl.h>
-#include <mbedtls/ssl_internal.h>
-
 #include "misc.h"
 #include "exttypes.h"
 #include "clock.h"
@@ -74,26 +64,19 @@ void worker_network_iouring_op_network_post_close(
 network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
         worker_iouring_context_t *context,
         network_channel_iouring_t *listener_channel,
-        network_channel_iouring_t *new_channel,
+        struct sockaddr *addr,
+        socklen_t addr_len,
         io_uring_cqe_t *cqe) {
-    if (unlikely(worker_iouring_cqe_is_error_any(cqe))) {
-        fiber_scheduler_set_error(-cqe->res);
-        LOG_E(
-                TAG,
-                "Error while accepting a connection on listener <%s>",
-                listener_channel->wrapped_channel.address.str);
-        LOG_E_OS_ERROR(TAG);
-
-        return NULL;
-    }
-
     worker_context_t *worker_context = worker_context_get();
     worker_stats_t *stats = worker_stats_get_internal_current();
 
     // Setup the new channel
-    new_channel->fd = new_channel->wrapped_channel.fd = cqe->res;
+    network_channel_iouring_t* new_channel = network_channel_iouring_new(NETWORK_CHANNEL_TYPE_CLIENT);
+    memcpy(&new_channel->wrapped_channel.address.socket.base, addr, addr_len);
+    new_channel->wrapped_channel.address.size = addr_len;
     new_channel->wrapped_channel.protocol = listener_channel->wrapped_channel.protocol;
     new_channel->wrapped_channel.module_config = listener_channel->wrapped_channel.module_config;
+    new_channel->fd = new_channel->wrapped_channel.fd = cqe->res;
 
     // Convert the socket address in a string
     network_io_common_socket_address_str(
@@ -254,24 +237,25 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
 
 network_channel_t* worker_network_iouring_op_network_accept(
         network_channel_t *listener_channel) {
+    uint8_t socket_address[128];
+    socklen_t socket_address_size = sizeof(socket_address);
+
     // The memory allocated here will get lost (valgrind will report it) when cachegrand shutdown because the fiber
     // never gets the chance to terminate. This is a wanted behaviour.
     worker_iouring_context_t *context = worker_iouring_context_get();
-    network_channel_iouring_t* new_channel_temp = network_channel_iouring_new(NETWORK_CHANNEL_TYPE_CLIENT);
 
     fiber_scheduler_reset_error();
 
     bool res = io_uring_support_sqe_enqueue_accept(
             context->ring,
             listener_channel->fd,
-            &new_channel_temp->wrapped_channel.address.socket.base,
-            &new_channel_temp->wrapped_channel.address.size,
+            (struct sockaddr*)&socket_address,
+            &socket_address_size,
             0,
-            ((network_channel_iouring_t*)listener_channel)->base_sqe_flags,
+            0,
             (uintptr_t) fiber_scheduler_get_current());
 
     if (unlikely(res == false)) {
-        network_channel_iouring_free(new_channel_temp);
         fiber_scheduler_set_error(ENOMEM);
         return NULL;
     }
@@ -282,10 +266,24 @@ network_channel_t* worker_network_iouring_op_network_accept(
     // When the fiber continues the execution, it has to fetch the return value
     io_uring_cqe_t *cqe = (io_uring_cqe_t*)((fiber_scheduler_get_current())->ret.ptr_value);
 
+    // Validate the result
+    if (unlikely(worker_iouring_cqe_is_error_any(cqe))) {
+        fiber_scheduler_set_error(-cqe->res);
+        LOG_E(
+                TAG,
+                "Error while accepting a connection on listener <%s>",
+                listener_channel->address.str);
+        LOG_E_OS_ERROR(TAG);
+
+        return NULL;
+    }
+
+    // Setup the new channel
     network_channel_t *new_channel = worker_network_iouring_op_network_accept_setup_new_channel(
             context,
-            (network_channel_iouring_t *) listener_channel,
-            new_channel_temp,
+            (network_channel_iouring_t *)listener_channel,
+            (struct sockaddr*)&socket_address,
+            socket_address_size,
             cqe);
 
     return new_channel;
@@ -468,7 +466,7 @@ network_channel_t* worker_network_iouring_network_channel_new(
 }
 
 void worker_network_iouring_network_channel_free(
-        network_channel_t* channel) {
+        network_channel_t *channel) {
     network_channel_iouring_free((network_channel_iouring_t*)channel);
 }
 
@@ -479,9 +477,15 @@ network_channel_t* worker_network_iouring_network_channel_multi_new(
 }
 
 network_channel_t* worker_network_iouring_network_channel_multi_get(
-        network_channel_t* channels,
+        network_channel_t *channels,
         uint32_t index) {
     return ((void*)channels) + (worker_network_iouring_op_network_channel_size() * index);
+}
+
+void worker_network_iouring_network_channel_multi_free(
+        network_channel_t *channels,
+        uint32_t count) {
+    network_channel_iouring_multi_free((network_channel_iouring_t*)channels, count);
 }
 
 size_t worker_network_iouring_op_network_channel_size() {
@@ -492,6 +496,7 @@ bool worker_network_iouring_op_register() {
     worker_op_network_channel_new = worker_network_iouring_network_channel_new;
     worker_op_network_channel_multi_new = worker_network_iouring_network_channel_multi_new;
     worker_op_network_channel_multi_get = worker_network_iouring_network_channel_multi_get;
+    worker_op_network_channel_multi_free = worker_network_iouring_network_channel_multi_free;
     worker_op_network_channel_size = worker_network_iouring_op_network_channel_size;
     worker_op_network_channel_free = worker_network_iouring_network_channel_free;
     worker_op_network_accept = worker_network_iouring_op_network_accept;

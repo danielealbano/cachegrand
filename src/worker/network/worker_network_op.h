@@ -13,6 +13,9 @@ struct worker_module_context {
 typedef network_channel_t* (worker_op_network_channel_new_fp_t)(
         network_channel_type_t type);
 
+typedef void (worker_op_network_channel_free_fp_t)(
+        network_channel_t *network_channel);
+
 typedef network_channel_t* (worker_op_network_channel_multi_new_fp_t)(
         network_channel_type_t type,
         uint32_t count);
@@ -21,8 +24,9 @@ typedef network_channel_t* (worker_op_network_channel_multi_get_fp_t)(
         network_channel_t* channels,
         uint32_t index);
 
-typedef void (worker_op_network_channel_free_fp_t)(
-        network_channel_t *network_channel);
+typedef void (worker_op_network_channel_multi_free_fp_t)(
+        network_channel_t *network_channel,
+        uint32_t count);
 
 typedef network_channel_t* (worker_op_network_accept_fp_t)(
         network_channel_t *listener_channel);
@@ -70,6 +74,7 @@ void worker_network_listeners_fiber_entrypoint(
 extern worker_op_network_channel_new_fp_t* worker_op_network_channel_new;
 extern worker_op_network_channel_multi_new_fp_t* worker_op_network_channel_multi_new;
 extern worker_op_network_channel_multi_get_fp_t* worker_op_network_channel_multi_get;
+extern worker_op_network_channel_multi_free_fp_t* worker_op_network_channel_multi_free;
 extern worker_op_network_channel_free_fp_t* worker_op_network_channel_free;
 extern worker_op_network_accept_fp_t* worker_op_network_accept;
 extern worker_op_network_receive_fp_t* worker_op_network_receive;

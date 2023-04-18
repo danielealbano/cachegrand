@@ -221,7 +221,7 @@ void worker_cleanup_network(
     }
 
     if (listeners) {
-        worker_op_network_channel_free(listeners);
+        worker_op_network_channel_multi_free(listeners, listeners_count);
     }
 }
 
