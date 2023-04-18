@@ -178,34 +178,27 @@ ffma_t* ffma_init(
     return ffma;
 }
 
-bool ffma_free(
-        ffma_t* ffma) {
-    double_linked_list_item_t* item;
+void ffma_flush_slots_queue_from_other_threads(
+    ffma_t* ffma) {
     ffma_slot_t *ffma_slot;
-
-    // Try to set ffma_freed to true with an atomic operation, if it fails it means that another thread is already
-    // freeing the allocator and we can just return as if it was freed successfully.
-    if (!atomic_compare_exchange_strong(&ffma->ffma_freed, &(bool){ false }, true)) {
-        return true;
-    }
-
-    // If there are objects in use they are most likely owned in use in some other threads and therefore the memory
-    // can't be freed. The ownership of the operation fall upon the thread that will return the last object.
-    // Not optimal, as it would be better to use a dying thread to free up memory instead of an in-use thread.
-    // For currently cachegrand doesn't matter really because the threads are long-lived and only terminate when it
-    // shuts-down.
-    uint32_t objects_inuse_count =
-            ffma->metrics.objects_inuse_count -
-            queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads);
-    if (objects_inuse_count > 0) {
-        return false;
-    }
 
     // Clean up the free list
     while((ffma_slot = queue_mpmc_pop(&ffma->free_ffma_slots_queue_from_other_threads)) != NULL) {
         ffma_slice_t* ffma_slice = ffma_slice_from_memptr(ffma_slot->data.memptr);
         ffma_mem_free_slot_in_current_thread(ffma, ffma_slice, ffma_slot);
     }
+}
+
+void ffma_flush(
+        ffma_t* ffma) {
+    double_linked_list_item_t* item;
+
+    if (ffma->metrics.objects_inuse_count == 0) {
+        return;
+    }
+
+    // Clean up the free list
+    ffma_flush_slots_queue_from_other_threads(ffma);
 
     // Can't iterate using the normal double_linked_list_iter_next as the double_linked_list_item is embedded in the
     // allocated memory and the memory is going to get freed
@@ -220,19 +213,14 @@ bool ffma_free(
         ffma_region_cache_push(internal_ffma_region_cache, ffma_slice->data.page_addr);
     }
 
+    queue_mpmc_free_noalloc(&ffma->free_ffma_slots_queue_from_other_threads);
+}
+
+void ffma_free(
+        ffma_t* ffma) {
     double_linked_list_free(ffma->slices);
     double_linked_list_free(ffma->slots);
-
-#if FFMA_DEBUG_ALLOCS_FREES == 1
-    // Do nothing really, it's to ensure that the memory will get always freed if the condition checked is not 1
-#else
-    queue_mpmc_free_noalloc(&ffma->free_ffma_slots_queue_from_other_threads);
-#endif
-
-    // Never ever free ffma itself as another thread might be trying to access its data meanwhile checking if it has
-    // to free it or not
-
-    return true;
+    xalloc_mmap_free(ffma, sizeof(ffma_t));
 }
 
 ffma_slice_t* ffma_slice_init(
