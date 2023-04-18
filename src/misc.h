@@ -13,7 +13,9 @@ extern "C" {
 
 #if DEBUG == 1 &&  __has_include(<valgrind/valgrind.h>)
 #include <valgrind/valgrind.h>
-#define HAS_VALGRIND
+#define HAS_VALGRIND 1
+#else
+#undef HAS_VALGRIND
 #endif
 
 /* gcc doesn't know _Thread_local from C11 yet */
