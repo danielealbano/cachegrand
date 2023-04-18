@@ -388,21 +388,8 @@ void ffma_mem_free_slot_different_thread(
     if (unlikely(!queue_mpmc_push(&ffma->free_ffma_slots_queue_from_other_threads, ffma_slot))) {
         FATAL(TAG, "Can't pass the slot to free to the owning thread, unable to continue");
     }
-
-    // To determine which thread can clean up the data the code simply checks if objects_inuse_count - length of the
-    // free_ffma_slots_queue queue is equals to 0, if it is this thread can perform the final clean up.
-    // The objects_inuse_count is not atomic but memory fences are in use
-    MEMORY_FENCE_LOAD();
-    if (unlikely(ffma->ffma_freed)) {
-        // If the last object pushed was the last that needed to be freed, ffma_free can be invoked.
-        bool can_free_ffma =
-                (ffma->metrics.objects_inuse_count -
-                queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads)) == 0;
-        if (unlikely(can_free_ffma)) {
-            ffma_free(ffma);
-        }
-    }
 }
+
 
 #if FFMA_DEBUG_ALLOCS_FREES == 1
 void ffma_mem_free_wrapped(
