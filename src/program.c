@@ -852,7 +852,7 @@ end:
     // Final cleanup
     program_cleanup(program_context);
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
     ffma_debug_allocs_frees_end();
 #endif
 
