@@ -312,10 +312,7 @@ void program_epoch_gc_workers_cleanup(
 
     LOG_V(
             TAG,
-            "Cleaning signal handler thread");
-    LOG_V(
-            TAG,
-            "Waiting for signal handler thread to terminate");
+            "Waiting for gc epoch workers to terminate");
 
     for(uint32_t index = 0; index < epoch_gc_workers_count; index++) {
         epoch_gc_worker_context_t *epoch_gc_worker_context = &epoch_gc_workers_context[index];
