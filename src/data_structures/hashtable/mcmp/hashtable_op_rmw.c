@@ -153,7 +153,7 @@ void hashtable_mcmp_op_rmw_commit_delete(
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
         if (!HASHTABLE_KEY_VALUE_HAS_FLAG(key_value_flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
 #endif
-        xalloc_free(rmw_status->key_value->external_key.data);
+        xalloc_free((hashtable_key_data_t*)rmw_status->key_value->external_key.data);
         rmw_status->key_value->external_key.data = NULL;
         rmw_status->key_value->external_key.size = 0;
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1

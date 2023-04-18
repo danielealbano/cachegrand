@@ -110,7 +110,7 @@ void hashtable_mcmp_data_keys_free(
             continue;
         }
 
-        xalloc_free(key_value->external_key.data);
+        xalloc_free((hashtable_key_data_t*)key_value->external_key.data);
     }
 }
 

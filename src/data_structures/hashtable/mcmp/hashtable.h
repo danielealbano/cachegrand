@@ -44,7 +44,9 @@ typedef uint8_t hashtable_chunk_slot_index_t;
 typedef hashtable_bucket_index_t hashtable_bucket_count_t;
 typedef hashtable_chunk_index_t hashtable_chunk_count_t;
 typedef uint32_t hashtable_key_size_t;
+typedef _Volatile(hashtable_key_size_t) hashtable_key_size_volatile_t;
 typedef char hashtable_key_data_t;
+typedef _Volatile(hashtable_key_data_t) hashtable_key_data_volatile_t;
 typedef uintptr_t hashtable_value_data_t;
 
 typedef _Volatile(uint32_t) hashtable_slot_id_volatile_t;
@@ -88,8 +90,8 @@ typedef _Volatile(hashtable_key_value_t) hashtable_key_value_volatile_t;
 struct hashtable_key_value {
     union {                                     // union 23 bytes (HASHTABLE_KEY_INLINE_MAX_LENGTH must match this size)
         struct {
-            hashtable_key_size_t size;          // 4 bytes
-            hashtable_key_data_t* data;         // 8 bytes
+            hashtable_key_size_volatile_t size;          // 4 bytes
+            hashtable_key_data_volatile_t* data;         // 8 bytes
         } __attribute__((packed)) external_key;
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
         struct {
