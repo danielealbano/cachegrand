@@ -23,8 +23,8 @@ extern "C" {
 
 #define FFMA_LOG_TAG_INTERNAL "ffma"
 
-#ifndef FFMA_DEBUG_ALLOCS_FREES
-#define FFMA_DEBUG_ALLOCS_FREES 0
+#ifndef FFMA_TRACK_ALLOCS_FREES
+#define FFMA_TRACK_ALLOCS_FREES 0
 #endif
 
 #define FFMA_PREINIT_SOME_SLOTS_COUNT (16)
@@ -73,7 +73,7 @@ struct ffma {
         uint32_volatile_t objects_inuse_count;
     } metrics;
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
     pid_t thread_id;
     char thread_name[101];
 #endif
@@ -97,7 +97,7 @@ typedef union {
 #else
         bool available;
 #endif
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
         struct {
             const char *function;
             uint32_t line;
@@ -123,7 +123,7 @@ typedef union {
     } __attribute__((aligned(64))) data;
 } ffma_slice_t;
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
 void ffma_debug_allocs_frees_end_print_header();
 void ffma_debug_allocs_frees_end();
 #endif
@@ -172,7 +172,7 @@ void ffma_mem_free_slot_different_thread(
         ffma_t* ffma,
         ffma_slot_t* ffma_slot);
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
 #define ffma_mem_realloc(memptr, current_size, new_size, zero_new_memory) \
     ffma_mem_realloc_wrapped(memptr, current_size, new_size, zero_new_memory, __FUNCTION__, __LINE__)
 void* ffma_mem_realloc_wrapped(
@@ -190,7 +190,7 @@ void* ffma_mem_realloc(
         bool zero_new_memory);
 #endif
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
 #define ffma_mem_free(memptr) ffma_mem_free_wrapped(memptr, __FUNCTION__, __LINE__)
 void ffma_mem_free_wrapped(
         void *memptr,
@@ -310,7 +310,7 @@ static inline void ffma_slice_add_some_slots_to_per_thread_metadata_slots(
     }
 }
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
 #define ffma_mem_alloc_internal(ffma, size) ffma_mem_alloc_internal_wrapped(ffma, size, __FUNCTION__, __LINE__)
 __attribute__((malloc))
 static inline void* ffma_mem_alloc_internal_wrapped(
@@ -371,7 +371,7 @@ static inline void* ffma_mem_alloc_internal(
 #endif
 #endif
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
             ffma_slot->data.allocated_freed_by.function = allocated_by_function;
             ffma_slot->data.allocated_freed_by.line = allocated_by_line;
 #endif
@@ -415,7 +415,7 @@ static inline void* ffma_mem_alloc_internal(
 #endif
 #endif
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
     ffma_slot->data.allocated_freed_by.function = allocated_by_function;
     ffma_slot->data.allocated_freed_by.line = allocated_by_line;
 #endif
@@ -426,7 +426,7 @@ static inline void* ffma_mem_alloc_internal(
 }
 
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
 #define ffma_mem_alloc(size) ffma_mem_alloc_wrapped(size, __FUNCTION__, __LINE__)
 __attribute__((malloc))
 static inline void* ffma_mem_alloc_wrapped(
@@ -450,7 +450,7 @@ static inline void* ffma_mem_alloc(
     assert(index < FFMA_PREDEFINED_OBJECT_SIZES_COUNT);
 
     ffma_t *ffma = ffma_thread_cache_get()[index];
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
     memptr = ffma_mem_alloc_internal_wrapped(ffma, size, allocated_by_function, allocated_by_line);
 #else
     memptr = ffma_mem_alloc_internal(ffma, size);
@@ -462,7 +462,7 @@ static inline void* ffma_mem_alloc(
 }
 
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
 #define ffma_mem_alloc_zero(size) ffma_mem_alloc_zero_wrapped(size, __FUNCTION__, __LINE__)
 __attribute__((malloc))
 static inline void* ffma_mem_alloc_zero_wrapped(
@@ -475,7 +475,7 @@ static inline void* ffma_mem_alloc_zero(
     size_t size) {
 #endif
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
     void* memptr = ffma_mem_alloc_wrapped(size, allocated_by_function, allocated_by_line);
 #else
     void* memptr = ffma_mem_alloc(size);

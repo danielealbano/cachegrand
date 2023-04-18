@@ -10,7 +10,7 @@
 // the dtor invoked at the end of the execution to be able to access the metrics and other information.
 // This might hide bugs and/or mess-up valgrind therefore it's controlled by a specific define that has to be set to 1
 // inside ffma.c for safety reasons
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
 #define _GNU_SOURCE
 #endif
 
@@ -20,7 +20,7 @@
 #include <string.h>
 #include <stdatomic.h>
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
 #include <pthread.h>
 #endif
 
@@ -36,7 +36,7 @@
 #include "ffma.h"
 #include "ffma_thread_cache.h"
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -59,7 +59,7 @@
 static size_t ffma_os_page_size;
 ffma_region_cache_t *internal_ffma_region_cache;
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
 // When in debug mode, allow the allocated memory allocators are tracked in a queue for later checks at shutdown
 queue_mpmc_t *debug_ffma_list;
 #endif
@@ -74,7 +74,7 @@ FUNCTION_CTOR(ffma_init_ctor, {
             FFMA_REGION_CACHE_SIZE,
             false);
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
     // If the debug mode for the allocators is enabled then initialize the list of ffma allocators to track
     debug_ffma_list = queue_mpmc_init();
 #endif
@@ -84,7 +84,7 @@ FUNCTION_DTOR(ffma_init_dtor, {
     ffma_region_cache_free(internal_ffma_region_cache);
 })
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
 void ffma_debug_allocs_frees_end_print_header() {
     fprintf(stdout, "> debug_ffma_list length <%d>\n", queue_mpmc_get_length(debug_ffma_list));
     fflush(stdout);
@@ -202,7 +202,7 @@ ffma_t* ffma_init(
     ffma->metrics.objects_inuse_count = 0;
     queue_mpmc_init_noalloc(&ffma->free_ffma_slots_queue_from_other_threads);
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
     ffma->thread_id = syscall(SYS_gettid);
     pthread_getname_np(pthread_self(), ffma->thread_name, sizeof(ffma->thread_name) - 1);
 
@@ -398,7 +398,7 @@ void ffma_mem_free_slot_different_thread(
 }
 
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
 void ffma_mem_free_wrapped(
         void* memptr,
         const char *freed_by_function,
@@ -431,7 +431,7 @@ void ffma_mem_free(
     assert(ffma_slot->data.memptr == memptr);
     assert(ffma_slot->data.available == false);
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
     ffma_slot->data.allocated_freed_by.function = freed_by_function;
     ffma_slot->data.allocated_freed_by.line = freed_by_line;
 #endif
@@ -456,7 +456,7 @@ void ffma_mem_free(
     }
 }
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
 #define ffma_mem_realloc(memptr, current_size, new_size, zero_new_memory) \
     ffma_mem_realloc_wrapped(memptr, current_size, new_size, zero_new_memory, __FUNCTION__, __LINE__)
 void* ffma_mem_realloc_wrapped(
@@ -477,7 +477,7 @@ void* ffma_mem_realloc(
     //       because in case a new allocation is not really needed
     void* new_memptr;
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
     new_memptr = ffma_mem_alloc_wrapped(new_size, allocated_by_function, allocated_by_line);
 #else
     new_memptr = ffma_mem_alloc(new_size);

@@ -381,7 +381,7 @@ TEST_CASE("ffma.c", "[ffma]") {
             REQUIRE((void*)slot.data.memptr == slot.double_linked_list_item.data);
         }
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
         SECTION("ensure that ffma_slot_t is 48 bytes") {
             REQUIRE(sizeof(ffma_slot_t) == 48);
         }

@@ -167,7 +167,7 @@ target_compile_options(
         PUBLIC
         -include cmake_config.h)
 
-if (FFMA_DEBUG_ALLOCS_FREES)
+if (FFMA_TRACK_ALLOCS_FREES)
     target_compile_options(
             cachegrand-internal
             PUBLIC
