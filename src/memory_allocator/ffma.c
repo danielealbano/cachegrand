@@ -101,6 +101,7 @@ void ffma_debug_allocs_frees_end() {
             "-------------------------------", "-------------------------------", "-------------------------------",
             "-------------------------------", "-------------------------------");
 
+    bool header_printed = false;
     pid_t previous_thread_id = 0;
     while((ffma = (ffma_t*)queue_mpmc_pop(debug_ffma_list)) != NULL) {
         char thread_id_str[20] = { 0 };
@@ -112,6 +113,11 @@ void ffma_debug_allocs_frees_end() {
 
         if (leaked_object_count == 0) {
             continue;
+        }
+
+        if (header_printed == false) {
+            ffma_debug_allocs_frees_end_print_header();
+            header_printed = true;
         }
 
         fprintf(stdout, "| %-10s | %-20s | %p | %10u | %11u | %10u | %12u | %14u |\n",
