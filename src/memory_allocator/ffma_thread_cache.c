@@ -26,7 +26,7 @@ static pthread_key_t ffma_thread_cache_destructor_key;
 thread_local ffma_t** thread_local_ffmas = NULL;
 
 FUNCTION_CTOR(ffma_thread_cache_init_ctor, {
-    pthread_key_create(&ffma_thread_cache_destructor_key, ffma_thread_cache_thread_local_free);
+    pthread_key_create(&ffma_thread_cache_destructor_key, NULL);
 })
 
 ffma_t **ffma_thread_cache_init() {
@@ -42,9 +42,7 @@ ffma_t **ffma_thread_cache_init() {
 }
 
 void ffma_thread_cache_free(
-        void *data) {
-    ffma_t **thread_ffmas = data;
-
+        ffma_t **thread_ffmas) {
     for(int i = 0; i < FFMA_PREDEFINED_OBJECT_SIZES_COUNT; i++) {
         uint32_t object_size = ffma_predefined_object_sizes[i];
         uint32_t thread_ffmas_index = ffma_index_by_object_size(object_size);
@@ -52,17 +50,7 @@ void ffma_thread_cache_free(
         thread_ffmas[thread_ffmas_index] = NULL;
     }
 
-    xalloc_free(data);
-}
-
-void ffma_thread_cache_thread_local_free(
-        __attribute__((unused)) void *data) {
-    if (thread_local_ffmas == NULL) {
-        return;
-    }
-
-    ffma_thread_cache_free(thread_local_ffmas);
-    thread_local_ffmas = NULL;
+    xalloc_free(thread_ffmas);
 }
 
 ffma_t** ffma_thread_cache_get() {
