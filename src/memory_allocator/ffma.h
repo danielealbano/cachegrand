@@ -66,14 +66,6 @@ struct ffma {
     double_linked_list_t *slots;
     double_linked_list_t *slices;
     queue_mpmc_t free_ffma_slots_queue_from_other_threads;
-
-    // When the thread owning an instance of an allocator is terminated, other threads might still own some memory it
-    // initialized and therefore some support is needed there.
-    // When a thread sends back memory to a thread it has to check if it has been terminated and if yes, process the
-    // free_ffma_slots_queue, free up the  slots, check if the slice owning the
-    // ffma_slot is then empty, and in case return the address sof the page.
-    bool_volatile_t ffma_freed;
-
     uint32_t object_size;
 
     struct {
