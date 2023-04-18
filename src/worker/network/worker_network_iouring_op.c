@@ -13,16 +13,6 @@
 #include <liburing.h>
 #include <linux/tls.h>
 
-
-#include <mbedtls/aes.h>
-#include <mbedtls/ctr_drbg.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/error.h>
-#include <mbedtls/gcm.h>
-#include <mbedtls/net_sockets.h>
-#include <mbedtls/ssl.h>
-#include <mbedtls/ssl_internal.h>
-
 #include "misc.h"
 #include "exttypes.h"
 #include "clock.h"
@@ -476,7 +466,7 @@ network_channel_t* worker_network_iouring_network_channel_new(
 }
 
 void worker_network_iouring_network_channel_free(
-        network_channel_t* channel) {
+        network_channel_t *channel) {
     network_channel_iouring_free((network_channel_iouring_t*)channel);
 }
 
@@ -487,7 +477,7 @@ network_channel_t* worker_network_iouring_network_channel_multi_new(
 }
 
 network_channel_t* worker_network_iouring_network_channel_multi_get(
-        network_channel_t* channels,
+        network_channel_t *channels,
         uint32_t index) {
     return ((void*)channels) + (worker_network_iouring_op_network_channel_size() * index);
 }
