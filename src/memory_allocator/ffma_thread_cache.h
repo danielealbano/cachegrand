@@ -14,6 +14,9 @@ ffma_t **ffma_thread_cache_init();
 void ffma_thread_cache_free(
         ffma_t **thread_ffmas);
 
+void ffma_thread_cache_thread_local_free(
+        __attribute__((unused)) void *data);
+
 ffma_t **ffma_thread_cache_get();
 
 void ffma_thread_cache_set(
