@@ -197,7 +197,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
                         (char*)key_value->inline_key.data,
 #else
-                        key_value->external_key.data,
+                        (char*)key_value->external_key.data,
 #endif
                         test_key_1,
                         test_key_1_len) == 0);
@@ -273,7 +273,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
                 (char*)key_value1->inline_key.data,
 #else
-                key_value1->external_key.data,
+                (char*)key_value1->external_key.data,
 #endif
                         test_key_1,
                         test_key_1_len) == 0);
@@ -293,7 +293,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
                 (char*)key_value2->inline_key.data,
 #else
-                key_value2->external_key.data,
+                (char*)key_value2->external_key.data,
 #endif
                         test_key_2,
                         test_key_2_len) == 0);
@@ -549,7 +549,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
                             (char*)key_value->inline_key.data,
 #else
-                            key_value->external_key.data,
+                            (char*)key_value->external_key.data,
 #endif
                             test_key_1,
                             test_key_1_len) == 0);

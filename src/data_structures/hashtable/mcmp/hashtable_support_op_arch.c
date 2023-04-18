@@ -229,8 +229,8 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
     hashtable_chunk_slot_index_t chunk_slot_index;
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
     hashtable_key_value_volatile_t* key_value;
-    volatile hashtable_key_data_t* found_key;
-    hashtable_key_size_t found_key_compare_size;
+    hashtable_key_data_volatile_t* found_key;
+    hashtable_key_size_volatile_t found_key_compare_size;
     uint32_t skip_indexes_mask;
     bool found = false;
     bool found_chunk_with_freespace = false;

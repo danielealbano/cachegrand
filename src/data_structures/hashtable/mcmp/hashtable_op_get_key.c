@@ -33,7 +33,7 @@ bool hashtable_mcmp_op_get_key(
         hashtable_bucket_index_t bucket_index,
         hashtable_key_data_t **key,
         hashtable_key_size_t *key_size) {
-    char *source_key = NULL;
+    volatile char *source_key = NULL;
     size_t source_key_size = 0;
     hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(bucket_index);
     hashtable_chunk_slot_index_t chunk_slot_index = HASHTABLE_TO_CHUNK_SLOT_INDEX(bucket_index);
@@ -68,7 +68,7 @@ bool hashtable_mcmp_op_get_key(
 
     *key_size = source_key_size;
     *key = xalloc_alloc(source_key_size + 1);
-    memcpy(*key, source_key, source_key_size);
+    memcpy(*key, (char*)source_key, source_key_size);
     (*key)[source_key_size] = 0;
 
     // Validate that the hash and the key length in the bucket haven't changed or that the bucket has been deleted in

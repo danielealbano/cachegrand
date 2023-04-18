@@ -127,7 +127,7 @@ bool hashtable_mcmp_op_delete(
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
             if (!HASHTABLE_KEY_VALUE_HAS_FLAG(key_value_flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
 #endif
-            xalloc_free(key_value->external_key.data);
+            xalloc_free((hashtable_key_data_t*)key_value->external_key.data);
             key_value->external_key.data = NULL;
             key_value->external_key.size = 0;
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
@@ -223,7 +223,7 @@ bool hashtable_mcmp_op_delete_by_index(
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
         if (!HASHTABLE_KEY_VALUE_HAS_FLAG(key_value_flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
 #endif
-        xalloc_free(key_value->external_key.data);
+        xalloc_free((hashtable_key_data_t*)key_value->external_key.data);
         key_value->external_key.data = NULL;
         key_value->external_key.size = 0;
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
