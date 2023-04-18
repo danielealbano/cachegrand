@@ -10,7 +10,7 @@
 // the dtor invoked at the end of the execution to be able to access the metrics and other information.
 // This might hide bugs and/or mess-up valgrind therefore it's controlled by a specific define that has to be set to 1
 // inside ffma.c for safety reasons
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
 #define _GNU_SOURCE
 #endif
 
@@ -19,6 +19,10 @@
 #include <assert.h>
 #include <string.h>
 #include <stdatomic.h>
+
+#if FFMA_TRACK_ALLOCS_FREES == 1
+#include <pthread.h>
+#endif
 
 #include "misc.h"
 #include "exttypes.h"
@@ -32,7 +36,7 @@
 #include "ffma.h"
 #include "ffma_thread_cache.h"
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -55,7 +59,7 @@
 static size_t ffma_os_page_size;
 ffma_region_cache_t *internal_ffma_region_cache;
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
 // When in debug mode, allow the allocated memory allocators are tracked in a queue for later checks at shutdown
 queue_mpmc_t *debug_ffma_list;
 #endif
@@ -70,7 +74,7 @@ FUNCTION_CTOR(ffma_init_ctor, {
             FFMA_REGION_CACHE_SIZE,
             false);
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
     // If the debug mode for the allocators is enabled then initialize the list of ffma allocators to track
     debug_ffma_list = queue_mpmc_init();
 #endif
@@ -80,9 +84,8 @@ FUNCTION_DTOR(ffma_init_dtor, {
     ffma_region_cache_free(internal_ffma_region_cache);
 })
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
-void ffma_debug_allocs_frees_end() {
-    ffma_t *ffma;
+#if FFMA_TRACK_ALLOCS_FREES == 1
+void ffma_debug_allocs_frees_end_print_header() {
     fprintf(stdout, "> debug_ffma_list length <%d>\n", queue_mpmc_get_length(debug_ffma_list));
     fflush(stdout);
 
@@ -100,7 +103,12 @@ void ffma_debug_allocs_frees_end() {
             "-------------------------------", "-------------------------------", "-------------------------------",
             "-------------------------------", "-------------------------------", "-------------------------------",
             "-------------------------------", "-------------------------------");
+}
 
+void ffma_debug_allocs_frees_end() {
+    ffma_t *ffma;
+
+    bool header_printed = false;
     pid_t previous_thread_id = 0;
     while((ffma = (ffma_t*)queue_mpmc_pop(debug_ffma_list)) != NULL) {
         char thread_id_str[20] = { 0 };
@@ -108,10 +116,21 @@ void ffma_debug_allocs_frees_end() {
 
         uint32_t leaked_object_count =
                 ffma->metrics.objects_inuse_count -
-                        queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads);
+                        queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads);
 
         if (leaked_object_count == 0) {
             continue;
+        }
+
+        // Flush the queue of slots from other threads to avoid polluting the object, these slots are marked as occupied
+        // as they have been freed by a thread other than the one that allocated them but they didn't get reused.
+        // As this function is invoked ONLY at the very end of the program, it's safe to assume that the slots in the
+        // queue are not going to be reused and can be processed as if they were freed.
+        ffma_flush_slots_queue_from_other_threads(ffma);
+
+        if (header_printed == false) {
+            ffma_debug_allocs_frees_end_print_header();
+            header_printed = true;
         }
 
         fprintf(stdout, "| %-10s | %-20s | %p | %10u | %11u | %10u | %12u | %14u |\n",
@@ -122,19 +141,46 @@ void ffma_debug_allocs_frees_end() {
                 leaked_object_count,
                 ffma->metrics.objects_inuse_count,
                 ffma->metrics.slices_inuse_count,
-                queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads));
-        fflush(stdout);
+                queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads));
 
-        queue_mpmc_free(ffma->free_ffma_slots_queue_from_other_threads);
-        xalloc_free(ffma);
+        fprintf(stdout, "+-%.10s-+-%.20s-+-%.14s-+-%.10s-+-%.11s-+-%.10s-+-%.12s-+-%.14s-+\n",
+                "-------------------------------", "-------------------------------", "-------------------------------",
+                "-------------------------------", "-------------------------------", "-------------------------------",
+                "-------------------------------", "-------------------------------");
+
+        // Iterate over ffma_slot->double_linked_list_item checking if available is set to false, exit from the loop
+        // once it finds one set to true. Loops from the tail as all the used slots are at the end.
+        ffma_slot_t *ffma_slot = (ffma_slot_t *)ffma->slots->tail;
+        while(ffma_slot != NULL) {
+            char slot_allocated_by_function_line[1024] = { 0 };
+
+            if (ffma_slot->data.available == true) {
+                break;
+            }
+
+            snprintf(
+                    slot_allocated_by_function_line,
+                    sizeof(slot_allocated_by_function_line) - 1,
+                    "%s:%d",
+                    ffma_slot->data.allocated_freed_by.function,
+                    ffma_slot->data.allocated_freed_by.line);
+
+            fprintf(stdout, "| %-10s | %-20s | %-86s |\n",
+                    "", "",
+                    slot_allocated_by_function_line);
+
+            ffma_slot = (ffma_slot_t *)ffma_slot->double_linked_list_item.prev;
+        }
+
+        fprintf(stdout, "+-%.10s-+-%.20s-+-%.14s-+-%.10s-+-%.11s-+-%.10s-+-%.12s-+-%.14s-+\n",
+                "-------------------------------", "-------------------------------", "-------------------------------",
+                "-------------------------------", "-------------------------------", "-------------------------------",
+                "-------------------------------", "-------------------------------");
 
         previous_thread_id = ffma->thread_id;
     }
 
-    fprintf(stdout, "+-%.10s-+-%.20s-+-%.14s-+-%.10s-+-%.11s-+-%.10s-+-%.12s-+-%.14s-+\n",
-            "-------------------------------", "-------------------------------", "-------------------------------",
-            "-------------------------------", "-------------------------------", "-------------------------------",
-            "-------------------------------", "-------------------------------");
+    fflush(stdout);
 }
 #endif
 
@@ -156,7 +202,7 @@ ffma_t* ffma_init(
     ffma->metrics.objects_inuse_count = 0;
     queue_mpmc_init_noalloc(&ffma->free_ffma_slots_queue_from_other_threads);
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
     ffma->thread_id = syscall(SYS_gettid);
     pthread_getname_np(pthread_self(), ffma->thread_name, sizeof(ffma->thread_name) - 1);
 
@@ -166,34 +212,27 @@ ffma_t* ffma_init(
     return ffma;
 }
 
-bool ffma_free(
-        ffma_t* ffma) {
-    double_linked_list_item_t* item;
+void ffma_flush_slots_queue_from_other_threads(
+    ffma_t* ffma) {
     ffma_slot_t *ffma_slot;
-
-    // Try to set ffma_freed to true with an atomic operation, if it fails it means that another thread is already
-    // freeing the allocator and we can just return as if it was freed successfully.
-    if (!atomic_compare_exchange_strong(&ffma->ffma_freed, &(bool){ false }, true)) {
-        return true;
-    }
-
-    // If there are objects in use they are most likely owned in use in some other threads and therefore the memory
-    // can't be freed. The ownership of the operation fall upon the thread that will return the last object.
-    // Not optimal, as it would be better to use a dying thread to free up memory instead of an in-use thread.
-    // For currently cachegrand doesn't matter really because the threads are long-lived and only terminate when it
-    // shuts-down.
-    uint32_t objects_inuse_count =
-            ffma->metrics.objects_inuse_count -
-            queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads);
-    if (objects_inuse_count > 0) {
-        return false;
-    }
 
     // Clean up the free list
     while((ffma_slot = queue_mpmc_pop(&ffma->free_ffma_slots_queue_from_other_threads)) != NULL) {
         ffma_slice_t* ffma_slice = ffma_slice_from_memptr(ffma_slot->data.memptr);
         ffma_mem_free_slot_in_current_thread(ffma, ffma_slice, ffma_slot);
     }
+}
+
+void ffma_flush(
+        ffma_t* ffma) {
+    double_linked_list_item_t* item;
+
+    if (ffma->metrics.objects_inuse_count == 0) {
+        return;
+    }
+
+    // Clean up the free list
+    ffma_flush_slots_queue_from_other_threads(ffma);
 
     // Can't iterate using the normal double_linked_list_iter_next as the double_linked_list_item is embedded in the
     // allocated memory and the memory is going to get freed
@@ -208,19 +247,14 @@ bool ffma_free(
         ffma_region_cache_push(internal_ffma_region_cache, ffma_slice->data.page_addr);
     }
 
+    queue_mpmc_free_noalloc(&ffma->free_ffma_slots_queue_from_other_threads);
+}
+
+void ffma_free(
+        ffma_t* ffma) {
     double_linked_list_free(ffma->slices);
     double_linked_list_free(ffma->slots);
-
-#if FFMA_DEBUG_ALLOCS_FREES == 1
-    // Do nothing really, it's to ensure that the memory will get always freed if the condition checked is not 1
-#else
-    queue_mpmc_free_noalloc(&ffma->free_ffma_slots_queue_from_other_threads);
-#endif
-
-    // Never ever free ffma itself as another thread might be trying to access its data meanwhile checking if it has
-    // to free it or not
-
-    return true;
+    xalloc_mmap_free(ffma, sizeof(ffma_t));
 }
 
 ffma_slice_t* ffma_slice_init(
@@ -361,24 +395,18 @@ void ffma_mem_free_slot_different_thread(
     if (unlikely(!queue_mpmc_push(&ffma->free_ffma_slots_queue_from_other_threads, ffma_slot))) {
         FATAL(TAG, "Can't pass the slot to free to the owning thread, unable to continue");
     }
-
-    // To determine which thread can clean up the data the code simply checks if objects_inuse_count - length of the
-    // free_ffma_slots_queue queue is equals to 0, if it is this thread can perform the final clean up.
-    // The objects_inuse_count is not atomic but memory fences are in use
-    MEMORY_FENCE_LOAD();
-    if (unlikely(ffma->ffma_freed)) {
-        // If the last object pushed was the last that needed to be freed, ffma_free can be invoked.
-        bool can_free_ffma =
-                (ffma->metrics.objects_inuse_count -
-                queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads)) == 0;
-        if (unlikely(can_free_ffma)) {
-            ffma_free(ffma);
-        }
-    }
 }
 
+
+#if FFMA_TRACK_ALLOCS_FREES == 1
+void ffma_mem_free_wrapped(
+        void* memptr,
+        const char *freed_by_function,
+        uint32_t freed_by_line) {
+#else
 void ffma_mem_free(
-        void* memptr) {
+    void* memptr) {
+#endif
     if (unlikely(memptr == NULL)) {
         return;
     }
@@ -403,6 +431,11 @@ void ffma_mem_free(
     assert(ffma_slot->data.memptr == memptr);
     assert(ffma_slot->data.available == false);
 
+#if FFMA_TRACK_ALLOCS_FREES == 1
+    ffma_slot->data.allocated_freed_by.function = freed_by_function;
+    ffma_slot->data.allocated_freed_by.line = freed_by_line;
+#endif
+
 #if DEBUG == 1
     ffma_slot->data.frees++;
 
@@ -423,16 +456,32 @@ void ffma_mem_free(
     }
 }
 
+#if FFMA_TRACK_ALLOCS_FREES == 1
+#define ffma_mem_realloc(memptr, current_size, new_size, zero_new_memory) \
+    ffma_mem_realloc_wrapped(memptr, current_size, new_size, zero_new_memory, __FUNCTION__, __LINE__)
+void* ffma_mem_realloc_wrapped(
+        void* memptr,
+        size_t current_size,
+        size_t new_size,
+        bool zero_new_memory,
+        const char *allocated_by_function,
+        uint32_t allocated_by_line) {
+#else
 void* ffma_mem_realloc(
         void* memptr,
         size_t current_size,
         size_t new_size,
         bool zero_new_memory) {
+#endif
     // TODO: the implementation is terrible, it's not even checking if the new size fits within the provided slot
     //       because in case a new allocation is not really needed
     void* new_memptr;
 
+#if FFMA_TRACK_ALLOCS_FREES == 1
+    new_memptr = ffma_mem_alloc_wrapped(new_size, allocated_by_function, allocated_by_line);
+#else
     new_memptr = ffma_mem_alloc(new_size);
+#endif
 
     // If the new allocation doesn't fail check if it has to be zeroed
     if (!new_memptr) {

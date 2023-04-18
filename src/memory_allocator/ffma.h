@@ -23,8 +23,8 @@ extern "C" {
 
 #define FFMA_LOG_TAG_INTERNAL "ffma"
 
-#ifndef FFMA_DEBUG_ALLOCS_FREES
-#define FFMA_DEBUG_ALLOCS_FREES 0
+#ifndef FFMA_TRACK_ALLOCS_FREES
+#define FFMA_TRACK_ALLOCS_FREES 0
 #endif
 
 #define FFMA_PREINIT_SOME_SLOTS_COUNT (16)
@@ -66,14 +66,6 @@ struct ffma {
     double_linked_list_t *slots;
     double_linked_list_t *slices;
     queue_mpmc_t free_ffma_slots_queue_from_other_threads;
-
-    // When the thread owning an instance of an allocator is terminated, other threads might still own some memory it
-    // initialized and therefore some support is needed there.
-    // When a thread sends back memory to a thread it has to check if it has been terminated and if yes, process the
-    // free_ffma_slots_queue, free up the  slots, check if the slice owning the
-    // ffma_slot is then empty, and in case return the address sof the page.
-    bool_volatile_t ffma_freed;
-
     uint32_t object_size;
 
     struct {
@@ -81,7 +73,7 @@ struct ffma {
         uint32_volatile_t objects_inuse_count;
     } metrics;
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
     pid_t thread_id;
     char thread_name[101];
 #endif
@@ -105,6 +97,12 @@ typedef union {
 #else
         bool available;
 #endif
+#if FFMA_TRACK_ALLOCS_FREES == 1
+        struct {
+            const char *function;
+            uint32_t line;
+        } allocated_freed_by;
+#endif
     } data;
 } ffma_slot_t;
 
@@ -125,7 +123,8 @@ typedef union {
     } __attribute__((aligned(64))) data;
 } ffma_slice_t;
 
-#if FFMA_DEBUG_ALLOCS_FREES == 1
+#if FFMA_TRACK_ALLOCS_FREES == 1
+void ffma_debug_allocs_frees_end_print_header();
 void ffma_debug_allocs_frees_end();
 #endif
 
@@ -135,7 +134,13 @@ void ffma_set_use_hugepages(
 ffma_t* ffma_init(
         size_t object_size);
 
-bool ffma_free(
+void ffma_flush_slots_queue_from_other_threads(
+        ffma_t *ffma);
+
+void ffma_flush(
+        ffma_t *ffma);
+
+void ffma_free(
         ffma_t *ffma);
 
 ffma_slice_t* ffma_slice_init(
@@ -159,22 +164,42 @@ void ffma_grow(
         void *memptr);
 
 void ffma_mem_free_slot_in_current_thread(
-        ffma_t* ffma,
-        ffma_slice_t* ffma_slice,
-        ffma_slot_t* ffma_slot);
+        ffma_t *ffma,
+        ffma_slice_t *ffma_slice,
+        ffma_slot_t *ffma_slot);
 
 void ffma_mem_free_slot_different_thread(
         ffma_t* ffma,
         ffma_slot_t* ffma_slot);
 
+#if FFMA_TRACK_ALLOCS_FREES == 1
+#define ffma_mem_realloc(memptr, current_size, new_size, zero_new_memory) \
+    ffma_mem_realloc_wrapped(memptr, current_size, new_size, zero_new_memory, __FUNCTION__, __LINE__)
+void* ffma_mem_realloc_wrapped(
+        void *memptr,
+        size_t current_size,
+        size_t new_size,
+        bool zero_new_memory,
+        const char *allocated_by_function,
+        uint32_t allocated_by_line);
+#else
 void* ffma_mem_realloc(
         void *memptr,
         size_t current_size,
         size_t new_size,
         bool zero_new_memory);
+#endif
 
+#if FFMA_TRACK_ALLOCS_FREES == 1
+#define ffma_mem_free(memptr) ffma_mem_free_wrapped(memptr, __FUNCTION__, __LINE__)
+void ffma_mem_free_wrapped(
+        void *memptr,
+        const char *freed_by_function,
+        uint32_t freed_by_line);
+#else
 void ffma_mem_free(
         void *memptr);
+#endif
 
 static inline uint8_t ffma_index_by_object_size(
         size_t object_size) {
@@ -198,9 +223,9 @@ static inline uint8_t ffma_index_by_object_size(
 }
 
 static inline ffma_slice_t* ffma_slice_from_memptr(
-        void* memptr) {
+        void *memptr) {
     uintptr_t memptr_uintptr = (uintptr_t)memptr;
-    ffma_slice_t* ffma_slice = (ffma_slice_t*)(memptr_uintptr - (memptr_uintptr % FFMA_SLICE_SIZE));
+    ffma_slice_t *ffma_slice = (ffma_slice_t*)(memptr_uintptr - (memptr_uintptr % FFMA_SLICE_SIZE));
 
     return ffma_slice;
 }
@@ -234,9 +259,9 @@ static inline uint32_t ffma_slice_calculate_slots_count(
 }
 
 static inline ffma_slot_t* ffma_slot_from_memptr(
-        ffma_t* ffma,
-        ffma_slice_t* ffma_slice,
-        void* memptr) {
+        ffma_t *ffma,
+        ffma_slice_t *ffma_slice,
+        void *memptr) {
     uint32_t object_index = ((uintptr_t)memptr - (uintptr_t)ffma_slice->data.data_addr) / ffma->object_size;
     ffma_slot_t* slot = &ffma_slice->data.slots[object_index];
 
@@ -251,13 +276,13 @@ static inline ffma_t* ffma_thread_cache_get_ffma_by_size(
 }
 
 static inline bool ffma_slice_can_add_one_slot_to_per_thread_metadata_slots(
-        ffma_slice_t* ffma_slice) {
+        ffma_slice_t *ffma_slice) {
     return ffma_slice->data.metrics.objects_initialized_count < ffma_slice->data.metrics.objects_total_count;
 }
 
 static inline void ffma_slice_add_some_slots_to_per_thread_metadata_slots(
-        ffma_t* ffma,
-        ffma_slice_t* ffma_slice) {
+        ffma_t *ffma,
+        ffma_slice_t *ffma_slice) {
     ffma_slot_t* ffma_slot;
 
     uint32_t index_end = ffma_slice->data.metrics.objects_initialized_count + FFMA_PREINIT_SOME_SLOTS_COUNT;
@@ -285,10 +310,20 @@ static inline void ffma_slice_add_some_slots_to_per_thread_metadata_slots(
     }
 }
 
+#if FFMA_TRACK_ALLOCS_FREES == 1
+#define ffma_mem_alloc_internal(ffma, size) ffma_mem_alloc_internal_wrapped(ffma, size, __FUNCTION__, __LINE__)
+__attribute__((malloc))
+static inline void* ffma_mem_alloc_internal_wrapped(
+        ffma_t *ffma,
+        size_t size,
+        const char *allocated_by_function,
+        uint32_t allocated_by_line) {
+#else
 __attribute__((malloc))
 static inline void* ffma_mem_alloc_internal(
-        ffma_t* ffma,
+        ffma_t *ffma,
         size_t size) {
+#endif
     assert(size <= FFMA_OBJECT_SIZE_MAX);
 
     double_linked_list_t* slots_list;
@@ -336,6 +371,11 @@ static inline void* ffma_mem_alloc_internal(
 #endif
 #endif
 
+#if FFMA_TRACK_ALLOCS_FREES == 1
+            ffma_slot->data.allocated_freed_by.function = allocated_by_function;
+            ffma_slot->data.allocated_freed_by.line = allocated_by_line;
+#endif
+
             // To keep the code simpler and avoid convoluted ifs, the code returns here
             return ffma_slot->data.memptr;
         }
@@ -375,15 +415,29 @@ static inline void* ffma_mem_alloc_internal(
 #endif
 #endif
 
+#if FFMA_TRACK_ALLOCS_FREES == 1
+    ffma_slot->data.allocated_freed_by.function = allocated_by_function;
+    ffma_slot->data.allocated_freed_by.line = allocated_by_line;
+#endif
+
     MEMORY_FENCE_STORE();
 
     return ffma_slot->data.memptr;
 }
 
 
+#if FFMA_TRACK_ALLOCS_FREES == 1
+#define ffma_mem_alloc(size) ffma_mem_alloc_wrapped(size, __FUNCTION__, __LINE__)
+__attribute__((malloc))
+static inline void* ffma_mem_alloc_wrapped(
+        size_t size,
+        const char *allocated_by_function,
+        uint32_t allocated_by_line) {
+#else
 __attribute__((malloc))
 static inline void* ffma_mem_alloc(
         size_t size) {
+#endif
     void* memptr;
 
     assert(size > 0);
@@ -396,16 +450,37 @@ static inline void* ffma_mem_alloc(
     assert(index < FFMA_PREDEFINED_OBJECT_SIZES_COUNT);
 
     ffma_t *ffma = ffma_thread_cache_get()[index];
+#if FFMA_TRACK_ALLOCS_FREES == 1
+    memptr = ffma_mem_alloc_internal_wrapped(ffma, size, allocated_by_function, allocated_by_line);
+#else
     memptr = ffma_mem_alloc_internal(ffma, size);
+#endif
 
     assert(memptr != NULL);
 
     return memptr;
 }
 
+
+#if FFMA_TRACK_ALLOCS_FREES == 1
+#define ffma_mem_alloc_zero(size) ffma_mem_alloc_zero_wrapped(size, __FUNCTION__, __LINE__)
+__attribute__((malloc))
+static inline void* ffma_mem_alloc_zero_wrapped(
+        size_t size,
+        const char *allocated_by_function,
+        uint32_t allocated_by_line) {
+#else
+__attribute__((malloc))
 static inline void* ffma_mem_alloc_zero(
-        size_t size) {
+    size_t size) {
+#endif
+
+#if FFMA_TRACK_ALLOCS_FREES == 1
+    void* memptr = ffma_mem_alloc_wrapped(size, allocated_by_function, allocated_by_line);
+#else
     void* memptr = ffma_mem_alloc(size);
+#endif
+
     if (memptr) {
         memset(memptr, 0, size);
     }

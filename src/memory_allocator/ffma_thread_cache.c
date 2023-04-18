@@ -30,8 +30,8 @@ FUNCTION_CTOR(ffma_thread_cache_init_ctor, {
 })
 
 ffma_t **ffma_thread_cache_init() {
-    ffma_t **thread_ffmas = (ffma_t**)xalloc_alloc_zero(
-            FFMA_PREDEFINED_OBJECT_SIZES_COUNT * (sizeof(ffma_t*) + 1));
+    size_t size = FFMA_PREDEFINED_OBJECT_SIZES_COUNT * sizeof(ffma_t*);
+    ffma_t **thread_ffmas = (ffma_t**)xalloc_mmap_alloc(size);
 
     for(int i = 0; i < FFMA_PREDEFINED_OBJECT_SIZES_COUNT; i++) {
         uint32_t object_size = ffma_predefined_object_sizes[i];
@@ -42,17 +42,9 @@ ffma_t **ffma_thread_cache_init() {
 }
 
 void ffma_thread_cache_free(
-        void *data) {
-    ffma_t **thread_ffmas = data;
-
-    for(int i = 0; i < FFMA_PREDEFINED_OBJECT_SIZES_COUNT; i++) {
-        uint32_t object_size = ffma_predefined_object_sizes[i];
-        uint32_t thread_ffmas_index = ffma_index_by_object_size(object_size);
-        ffma_free(thread_ffmas[thread_ffmas_index]);
-        thread_ffmas[thread_ffmas_index] = NULL;
-    }
-
-    xalloc_free(data);
+        ffma_t **thread_ffmas) {
+    size_t size = FFMA_PREDEFINED_OBJECT_SIZES_COUNT * sizeof(ffma_t*);
+    xalloc_mmap_free(thread_ffmas, size);
 }
 
 void ffma_thread_cache_thread_local_free(

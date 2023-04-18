@@ -336,42 +336,7 @@ TEST_CASE("ffma.c", "[ffma]") {
         REQUIRE(ffma->slots->count == 0);
         REQUIRE(ffma->slices->count == 0);
 
-        REQUIRE(ffma_free(ffma));
-    }
-
-    SECTION("ffma_free") {
-        SECTION("without objects allocated") {
-            ffma_t* ffma = ffma_init(128);
-
-            REQUIRE(ffma->object_size == 128);
-            REQUIRE(ffma->metrics.objects_inuse_count == 0);
-            REQUIRE(ffma->metrics.slices_inuse_count == 0);
-            REQUIRE(ffma->slots->count == 0);
-            REQUIRE(ffma->slices->count == 0);
-
-            REQUIRE(ffma_free(ffma));
-        }
-
-        SECTION("with objects allocated - locally") {
-            ffma_t* ffma = ffma_init(128);
-
-            ffma->metrics.objects_inuse_count = 1;
-            REQUIRE(!ffma_free(ffma));
-
-            ffma->metrics.objects_inuse_count = 0;
-            REQUIRE(ffma_free(ffma));
-        }
-
-        SECTION("with objects allocated - in free list") {
-            int value = 0;
-            ffma_t* ffma = ffma_init(128);
-
-            REQUIRE(queue_mpmc_push(&ffma->free_ffma_slots_queue_from_other_threads, &value));
-            REQUIRE(!ffma_free(ffma));
-
-            REQUIRE(queue_mpmc_pop(&ffma->free_ffma_slots_queue_from_other_threads) != NULL);
-            REQUIRE(ffma_free(ffma));
-        }
+        ffma_free(ffma);
     }
 
     SECTION("ffma_index_by_object_size") {
@@ -416,9 +381,15 @@ TEST_CASE("ffma.c", "[ffma]") {
             REQUIRE((void*)slot.data.memptr == slot.double_linked_list_item.data);
         }
 
+#if FFMA_TRACK_ALLOCS_FREES == 1
+        SECTION("ensure that ffma_slot_t is 48 bytes") {
+            REQUIRE(sizeof(ffma_slot_t) == 48);
+        }
+#else
         SECTION("ensure that ffma_slot_t is 32 bytes to be cache-aligned") {
             REQUIRE(sizeof(ffma_slot_t) == 32);
         }
+#endif
     }
 
     SECTION("ffma_slice_calculate_usable_memory_size") {
@@ -841,7 +812,7 @@ TEST_CASE("ffma.c", "[ffma]") {
 
             REQUIRE(queue_mpmc_get_length(&ffma2->free_ffma_slots_queue_from_other_threads) == slots_count);
 
-            REQUIRE(ffma_free(ffma2));
+            ffma_free(ffma2);
         }
 
         ffma_free(ffma);

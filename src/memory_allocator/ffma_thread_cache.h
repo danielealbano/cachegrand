@@ -12,7 +12,7 @@ extern thread_local ffma_t **thread_local_ffmas;
 ffma_t **ffma_thread_cache_init();
 
 void ffma_thread_cache_free(
-        void *data);
+        ffma_t **thread_ffmas);
 
 void ffma_thread_cache_thread_local_free(
         __attribute__((unused)) void *data);
