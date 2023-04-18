@@ -11,7 +11,8 @@ void worker_network_iouring_op_network_post_close(
 network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
         worker_iouring_context_t *context,
         network_channel_iouring_t *listener_channel,
-        network_channel_iouring_t *new_channel,
+        struct sockaddr *addr,
+        socklen_t addr_len,
         io_uring_cqe_t *cqe);
 
 network_channel_t* worker_network_iouring_op_network_accept(
