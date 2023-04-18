@@ -13,6 +13,7 @@ add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-ggdb3>)
 if (CMAKE_BUILD_TYPE MATCHES Debug)
     set(CMAKE_VERBOSE_MAKEFILE ON)
     add_definitions(-DDEBUG=1)
+    add_definitions(-DFFMA_DEBUG_ALLOCS_FREES=1)
 
     add_compile_options($<$<COMPILE_LANGUAGE:C>:-O0>)
     add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-O0>)
