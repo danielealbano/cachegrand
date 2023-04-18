@@ -124,6 +124,7 @@ typedef union {
 } ffma_slice_t;
 
 #if FFMA_DEBUG_ALLOCS_FREES == 1
+void ffma_debug_allocs_frees_end_print_header();
 void ffma_debug_allocs_frees_end();
 #endif
 
@@ -133,7 +134,13 @@ void ffma_set_use_hugepages(
 ffma_t* ffma_init(
         size_t object_size);
 
-bool ffma_free(
+void ffma_flush_slots_queue_from_other_threads(
+        ffma_t *ffma);
+
+void ffma_flush(
+        ffma_t *ffma);
+
+void ffma_free(
         ffma_t *ffma);
 
 ffma_slice_t* ffma_slice_init(
@@ -157,9 +164,9 @@ void ffma_grow(
         void *memptr);
 
 void ffma_mem_free_slot_in_current_thread(
-        ffma_t* ffma,
-        ffma_slice_t* ffma_slice,
-        ffma_slot_t* ffma_slot);
+        ffma_t *ffma,
+        ffma_slice_t *ffma_slice,
+        ffma_slot_t *ffma_slot);
 
 void ffma_mem_free_slot_different_thread(
         ffma_t* ffma,
@@ -216,9 +223,9 @@ static inline uint8_t ffma_index_by_object_size(
 }
 
 static inline ffma_slice_t* ffma_slice_from_memptr(
-        void* memptr) {
+        void *memptr) {
     uintptr_t memptr_uintptr = (uintptr_t)memptr;
-    ffma_slice_t* ffma_slice = (ffma_slice_t*)(memptr_uintptr - (memptr_uintptr % FFMA_SLICE_SIZE));
+    ffma_slice_t *ffma_slice = (ffma_slice_t*)(memptr_uintptr - (memptr_uintptr % FFMA_SLICE_SIZE));
 
     return ffma_slice;
 }
@@ -252,9 +259,9 @@ static inline uint32_t ffma_slice_calculate_slots_count(
 }
 
 static inline ffma_slot_t* ffma_slot_from_memptr(
-        ffma_t* ffma,
-        ffma_slice_t* ffma_slice,
-        void* memptr) {
+        ffma_t *ffma,
+        ffma_slice_t *ffma_slice,
+        void *memptr) {
     uint32_t object_index = ((uintptr_t)memptr - (uintptr_t)ffma_slice->data.data_addr) / ffma->object_size;
     ffma_slot_t* slot = &ffma_slice->data.slots[object_index];
 
@@ -269,13 +276,13 @@ static inline ffma_t* ffma_thread_cache_get_ffma_by_size(
 }
 
 static inline bool ffma_slice_can_add_one_slot_to_per_thread_metadata_slots(
-        ffma_slice_t* ffma_slice) {
+        ffma_slice_t *ffma_slice) {
     return ffma_slice->data.metrics.objects_initialized_count < ffma_slice->data.metrics.objects_total_count;
 }
 
 static inline void ffma_slice_add_some_slots_to_per_thread_metadata_slots(
-        ffma_t* ffma,
-        ffma_slice_t* ffma_slice) {
+        ffma_t *ffma,
+        ffma_slice_t *ffma_slice) {
     ffma_slot_t* ffma_slot;
 
     uint32_t index_end = ffma_slice->data.metrics.objects_initialized_count + FFMA_PREINIT_SOME_SLOTS_COUNT;
