@@ -377,8 +377,15 @@ void ffma_mem_free_slot_different_thread(
     }
 }
 
+#if FFMA_DEBUG_ALLOCS_FREES == 1
+void ffma_mem_free_wrapped(
+        void* memptr,
+        const char *freed_by_function,
+        uint32_t freed_by_line) {
+#else
 void ffma_mem_free(
         void* memptr) {
+#endif
     if (unlikely(memptr == NULL)) {
         return;
     }
@@ -403,6 +410,11 @@ void ffma_mem_free(
     assert(ffma_slot->data.memptr == memptr);
     assert(ffma_slot->data.available == false);
 
+#if FFMA_DEBUG_ALLOCS_FREES == 1
+    ffma_slot->data.allocated_freed_by.function = freed_by_function;
+    ffma_slot->data.allocated_freed_by.line = freed_by_line;
+#endif
+
 #if DEBUG == 1
     ffma_slot->data.frees++;
 
@@ -423,16 +435,32 @@ void ffma_mem_free(
     }
 }
 
+#if FFMA_DEBUG_ALLOCS_FREES == 1
+#define ffma_mem_realloc(memptr, current_size, new_size, zero_new_memory) \
+    ffma_mem_realloc_wrapped(memptr, current_size, new_size, zero_new_memory, __FUNCTION__, __LINE__)
+void* ffma_mem_realloc_wrapped(
+        void* memptr,
+        size_t current_size,
+        size_t new_size,
+        bool zero_new_memory,
+        const char *allocated_by_function,
+        uint32_t allocated_by_line) {
+#else
 void* ffma_mem_realloc(
         void* memptr,
         size_t current_size,
         size_t new_size,
         bool zero_new_memory) {
+#endif
     // TODO: the implementation is terrible, it's not even checking if the new size fits within the provided slot
     //       because in case a new allocation is not really needed
     void* new_memptr;
 
+#if FFMA_DEBUG_ALLOCS_FREES == 1
+    new_memptr = ffma_mem_alloc_wrapped(new_size, allocated_by_function, allocated_by_line);
+#else
     new_memptr = ffma_mem_alloc(new_size);
+#endif
 
     // If the new allocation doesn't fail check if it has to be zeroed
     if (!new_memptr) {
