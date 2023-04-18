@@ -471,7 +471,7 @@ static inline void* ffma_mem_alloc_zero_wrapped(
         uint32_t allocated_by_line) {
 #else
 __attribute__((malloc))
-static inline void* ffma_mem_alloc(
+static inline void* ffma_mem_alloc_zero(
     size_t size) {
 #endif
 
