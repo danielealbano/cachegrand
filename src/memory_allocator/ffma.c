@@ -109,11 +109,17 @@ void ffma_debug_allocs_frees_end() {
 
         uint32_t leaked_object_count =
                 ffma->metrics.objects_inuse_count -
-                        queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads);
+                        queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads);
 
         if (leaked_object_count == 0) {
             continue;
         }
+
+        // Flush the queue of slots from other threads to avoid polluting the object, these slots are marked as occupied
+        // as they have been freed by a thread other than the one that allocated them but they didn't get reused.
+        // As this function is invoked ONLY at the very end of the program, it's safe to assume that the slots in the
+        // queue are not going to be reused and can be processed as if they were freed.
+        ffma_flush_slots_queue_from_other_threads(ffma);
 
         if (header_printed == false) {
             ffma_debug_allocs_frees_end_print_header();
