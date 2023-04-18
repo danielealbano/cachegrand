@@ -134,19 +134,46 @@ void ffma_debug_allocs_frees_end() {
                 leaked_object_count,
                 ffma->metrics.objects_inuse_count,
                 ffma->metrics.slices_inuse_count,
-                queue_mpmc_get_length(ffma->free_ffma_slots_queue_from_other_threads));
-        fflush(stdout);
+                queue_mpmc_get_length(&ffma->free_ffma_slots_queue_from_other_threads));
 
-        queue_mpmc_free(ffma->free_ffma_slots_queue_from_other_threads);
-        xalloc_free(ffma);
+        fprintf(stdout, "+-%.10s-+-%.20s-+-%.14s-+-%.10s-+-%.11s-+-%.10s-+-%.12s-+-%.14s-+\n",
+                "-------------------------------", "-------------------------------", "-------------------------------",
+                "-------------------------------", "-------------------------------", "-------------------------------",
+                "-------------------------------", "-------------------------------");
+
+        // Iterate over ffma_slot->double_linked_list_item checking if available is set to false, exit from the loop
+        // once it finds one set to true. Loops from the tail as all the used slots are at the end.
+        ffma_slot_t *ffma_slot = (ffma_slot_t *)ffma->slots->tail;
+        while(ffma_slot != NULL) {
+            char slot_allocated_by_function_line[1024] = { 0 };
+
+            if (ffma_slot->data.available == true) {
+                break;
+            }
+
+            snprintf(
+                    slot_allocated_by_function_line,
+                    sizeof(slot_allocated_by_function_line) - 1,
+                    "%s:%d",
+                    ffma_slot->data.allocated_freed_by.function,
+                    ffma_slot->data.allocated_freed_by.line);
+
+            fprintf(stdout, "| %-10s | %-20s | %-86s |\n",
+                    "", "",
+                    slot_allocated_by_function_line);
+
+            ffma_slot = (ffma_slot_t *)ffma_slot->double_linked_list_item.prev;
+        }
+
+        fprintf(stdout, "+-%.10s-+-%.20s-+-%.14s-+-%.10s-+-%.11s-+-%.10s-+-%.12s-+-%.14s-+\n",
+                "-------------------------------", "-------------------------------", "-------------------------------",
+                "-------------------------------", "-------------------------------", "-------------------------------",
+                "-------------------------------", "-------------------------------");
 
         previous_thread_id = ffma->thread_id;
     }
 
-    fprintf(stdout, "+-%.10s-+-%.20s-+-%.14s-+-%.10s-+-%.11s-+-%.10s-+-%.12s-+-%.14s-+\n",
-            "-------------------------------", "-------------------------------", "-------------------------------",
-            "-------------------------------", "-------------------------------", "-------------------------------",
-            "-------------------------------", "-------------------------------");
+    fflush(stdout);
 }
 #endif
 
