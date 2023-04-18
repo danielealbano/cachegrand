@@ -484,6 +484,12 @@ network_channel_t* worker_network_iouring_network_channel_multi_get(
     return ((void*)channels) + (worker_network_iouring_op_network_channel_size() * index);
 }
 
+void worker_network_iouring_network_channel_multi_free(
+        network_channel_t *channels,
+        uint32_t count) {
+    network_channel_iouring_multi_free((network_channel_iouring_t*)channels, count);
+}
+
 size_t worker_network_iouring_op_network_channel_size() {
     return sizeof(network_channel_iouring_t);
 }
@@ -492,6 +498,7 @@ bool worker_network_iouring_op_register() {
     worker_op_network_channel_new = worker_network_iouring_network_channel_new;
     worker_op_network_channel_multi_new = worker_network_iouring_network_channel_multi_new;
     worker_op_network_channel_multi_get = worker_network_iouring_network_channel_multi_get;
+    worker_op_network_channel_multi_free = worker_network_iouring_network_channel_multi_free;
     worker_op_network_channel_size = worker_network_iouring_op_network_channel_size;
     worker_op_network_channel_free = worker_network_iouring_network_channel_free;
     worker_op_network_accept = worker_network_iouring_op_network_accept;

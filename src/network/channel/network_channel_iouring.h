@@ -20,6 +20,10 @@ network_channel_iouring_t* network_channel_iouring_multi_new(
         network_channel_type_t type,
         uint32_t count);
 
+void network_channel_iouring_multi_free(
+        network_channel_iouring_t *channels,
+        uint32_t count);
+
 void network_channel_iouring_free(
         network_channel_iouring_t* network_channel);
 
