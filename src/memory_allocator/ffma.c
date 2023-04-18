@@ -20,6 +20,10 @@
 #include <string.h>
 #include <stdatomic.h>
 
+#if FFMA_DEBUG_ALLOCS_FREES == 1
+#include <pthread.h>
+#endif
+
 #include "misc.h"
 #include "exttypes.h"
 #include "memory_fences.h"
@@ -81,8 +85,7 @@ FUNCTION_DTOR(ffma_init_dtor, {
 })
 
 #if FFMA_DEBUG_ALLOCS_FREES == 1
-void ffma_debug_allocs_frees_end() {
-    ffma_t *ffma;
+void ffma_debug_allocs_frees_end_print_header() {
     fprintf(stdout, "> debug_ffma_list length <%d>\n", queue_mpmc_get_length(debug_ffma_list));
     fflush(stdout);
 
@@ -100,6 +103,10 @@ void ffma_debug_allocs_frees_end() {
             "-------------------------------", "-------------------------------", "-------------------------------",
             "-------------------------------", "-------------------------------", "-------------------------------",
             "-------------------------------", "-------------------------------");
+}
+
+void ffma_debug_allocs_frees_end() {
+    ffma_t *ffma;
 
     bool header_printed = false;
     pid_t previous_thread_id = 0;
@@ -398,7 +405,7 @@ void ffma_mem_free_wrapped(
         uint32_t freed_by_line) {
 #else
 void ffma_mem_free(
-        void* memptr) {
+    void* memptr) {
 #endif
     if (unlikely(memptr == NULL)) {
         return;
