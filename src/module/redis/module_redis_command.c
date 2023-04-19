@@ -139,7 +139,7 @@ void *module_redis_command_get_base_context_from_argument(
 void *module_redis_command_context_list_expand_and_get_new_entry(
         module_redis_command_argument_t *argument,
         void *base_addr) {
-    void *list, *new_list_entry;
+    void *list = NULL, *list_new = NULL, *new_list_entry;
 
     int list_count = module_redis_command_context_list_get_count(argument, base_addr);
     int list_count_new = list_count + 1;
@@ -149,11 +149,20 @@ void *module_redis_command_context_list_expand_and_get_new_entry(
         list = ffma_mem_alloc_zero(list_count_new * argument->argument_context_member_size);
     } else {
         list = module_redis_command_context_list_get_list(argument, base_addr);
-        list = ffma_mem_realloc(
+        size_t current_size = list_count * argument->argument_context_member_size;
+        size_t new_size = list_count_new * argument->argument_context_member_size;
+
+        list_new = ffma_mem_realloc(
                 list,
-                list_count * argument->argument_context_member_size,
-                list_count_new * argument->argument_context_member_size,
-                true);
+                new_size);
+
+        // If the list was reallocated and ffma allocated a different slot then, zero the new memory
+        if (unlikely(list_new != list)) {
+            // Zero the new memory
+            memset(list_new + current_size, 0, new_size - current_size);
+        }
+
+        list = list_new;
 
         if (!list) {
             return NULL;
