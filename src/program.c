@@ -656,7 +656,7 @@ bool program_config_setup_storage_db(
         storage_db_config_free(config);
     }
 
-    return program_context->db;
+    return program_context->db != NULL;
 }
 
 void program_setup_sentry(

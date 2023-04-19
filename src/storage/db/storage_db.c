@@ -278,6 +278,7 @@ storage_db_t* storage_db_new(
     memcpy(&db->limits, &config->limits, sizeof(storage_db_limits_t));
 
     return db;
+
 fail:
     if (hashtable) {
         hashtable_mcmp_free(hashtable);

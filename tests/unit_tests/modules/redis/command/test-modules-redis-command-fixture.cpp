@@ -123,11 +123,20 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
             .policy = CONFIG_DATABASE_KEYS_EVICTION_POLICY_RANDOM
     };
 
+    config_database_snapshots = {
+            .path = "/tmp/dump.rdb",
+            .interval_str = "7d",
+            .min_data_changed_str = "0",
+            .min_keys_changed = 0,
+            .rotation = nullptr,
+    };
+
     config_database = {
             .limits = &config_database_limits,
             .keys_eviction = &config_database_keys_eviction,
             .backend = CONFIG_DATABASE_BACKEND_MEMORY,
-            .memory = &config_database_memory
+            .snapshots = &config_database_snapshots,
+            .memory = &config_database_memory,
     };
 
     config = {
@@ -146,17 +155,20 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
     db_config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY;
     db_config->limits.keys_count.hard_limit = 1000;
 
-    db = storage_db_new(db_config, workers_count);
-    storage_db_open(db);
-
     program_context = program_get_context();
     program_context->config = &config;
-    program_context->db = db;
+    program_context->workers_count = 1;
+
+    program_config_setup_storage_db(program_context);
+    db = program_context->db;
+    storage_db_open(db);
 
     program_epoch_gc_workers_initialize(&terminate_event_loop, program_context);
 
     program_config_thread_affinity_set_selected_cpus(program_context);
+
     program_workers_initialize_count(program_context);
+
     worker_context = program_workers_initialize_context(
             &terminate_event_loop,
             program_context);

@@ -41,6 +41,8 @@
 #include "module/redis/module_redis.h"
 #include "module/redis/module_redis_connection.h"
 
+#include "module_redis_command_helper_incr_decr.h"
+
 #define TAG "module_redis_command_helper_incr_decr"
 
 bool module_redis_command_helper_incr_decr(

@@ -196,8 +196,6 @@ void storage_db_snapshot_update_next_run_time(
 
 void storage_db_snapshot_skip_run(
         storage_db_t *db) {
-    char next_shapshot_run_buffer[256] = { 0 };
-
     // Do nothing if another thread has already updated the next run time
     storage_db_snapshot_update_next_run_time(db);
 }

@@ -30,7 +30,6 @@
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "config.h"
-#include "fiber/fiber.h"
 #include "network/channel/network_channel.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
@@ -38,43 +37,26 @@
 #include "module/redis/module_redis.h"
 #include "module/redis/module_redis_connection.h"
 #include "network/network.h"
-#include "worker/worker_stats.h"
-#include "worker/worker_context.h"
-#include "worker/worker.h"
+#include "worker/worker_op.h"
 #include "helpers/module_redis_command_helper_save.h"
 
-#define TAG "module_redis_command_shutdown"
+#define TAG "module_redis_command_bgsave"
 
-MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(shutdown) {
-    module_redis_command_shutdown_context_t *context = connection_context->command.context;
-
-    if (context->nosave_save.value.save_save.has_token) {
-        uint64_t start_time_ms;
-        // Check if the snapshot is already running
-        if (!module_redis_command_helper_save_is_running(connection_context)) {
-            start_time_ms = module_redis_command_helper_save_request(connection_context);
-        } else {
-            start_time_ms = clock_monotonic_int64_ms() - 1;
-        }
-
-        if (!module_redis_command_helper_save_wait(connection_context, start_time_ms)) {
-            // If the operation fails it means that something really bad just happened, skip directly to the termination
-            goto end;
-        }
+MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(bgsave) {
+    // Check if the snapshot is already running
+    if (module_redis_command_helper_save_is_running(connection_context)) {
+        return module_redis_connection_error_message_printf_noncritical(
+                connection_context,
+                "ERR A background save is already in progress");
     }
 
-    if (!module_redis_connection_send_ok(connection_context)) {
-        goto end;
-    }
+    module_redis_command_helper_save_request(connection_context);
 
+    // Confirm the snapshot is complete
+    module_redis_connection_send_ok(connection_context);
     if (network_flush_send_buffer(connection_context->network_channel) != NETWORK_OP_RESULT_OK) {
-        goto end;
+        return false;
     }
 
-end:
-
-    worker_request_terminate(worker_context_get());
-
-    connection_context->terminate_connection = true;
     return true;
 }

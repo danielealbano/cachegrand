@@ -26,6 +26,9 @@ program_context_t *program_get_context();
 
 void program_reset_context();
 
+bool program_config_setup_storage_db(
+        program_context_t* program_context);
+
 bool program_epoch_gc_workers_initialize(
         bool_volatile_t *terminate_event_loop,
         program_context_t *program_context);

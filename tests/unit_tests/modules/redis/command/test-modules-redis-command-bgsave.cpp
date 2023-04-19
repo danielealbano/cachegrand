@@ -42,48 +42,29 @@
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
-TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SHUTDOWN", "[redis][command][SHUTDOWN]") {
-    SECTION("Plain") {
-        REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"SHUTDOWN"},
-                "+OK\r\n"));
-
-        // Wait up to 5 seconds for the worker to stop
-        for(int i = 0; i < 5100; i++) {
-            MEMORY_FENCE_LOAD();
-            if(!worker_context->running) {
-                break;
-            }
-
-            usleep(1000);
-        }
-
-        MEMORY_FENCE_LOAD();
-        REQUIRE(!worker_context->running);
-    }
-
-    SECTION("Trigger save") {
+TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - BGSAVE", "[redis][command][BGSAVE]") {
+    SECTION("Snapshot not running") {
         uint64_t now = clock_monotonic_int64_ms() - 1;
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"SHUTDOWN", "SAVE"},
+                std::vector<std::string>{"BGSAVE"},
                 "+OK\r\n"));
 
+        // Wait a little amount of time before checking if the next_run_time_ms has been updated as the command returns
+        // immediately and the operation might not have been started yet
+        usleep(5000);
+
         // Check that the save operation has successfully run
-        REQUIRE(worker_context->db->snapshot.next_run_time_ms > now);
-
-        // Wait up to 5 seconds for the worker to stop
-        for(int i = 0; i < 5100; i++) {
-            MEMORY_FENCE_LOAD();
-            if(!worker_context->running) {
-                break;
-            }
-
-            usleep(1000);
-        }
-
         MEMORY_FENCE_LOAD();
-        REQUIRE(!worker_context->running);
+        REQUIRE(worker_context->db->snapshot.next_run_time_ms > now);
+    }
 
+    SECTION("Snapshot already running") {
+        worker_context->db->snapshot.running = true;
+        MEMORY_FENCE_STORE();
+
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                std::vector<std::string>{"BGSAVE"},
+                "-ERR A background save is already in progress\r\n"));
     }
 }

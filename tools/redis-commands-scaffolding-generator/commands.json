@@ -52,6 +52,31 @@
         ]
     },
     {
+        "command_string": "BGSAVE",
+        "command_callback_name": "bgsave",
+        "since": "1.0.0",
+        "required_arguments_count": 0,
+        "has_variable_arguments": false,
+        "key_specs": [
+        ],
+        "arguments": [
+            {
+                "name": "schedule_schedule",
+                "type": "bool",
+                "since": "3.2.2",
+                "key_spec_index": null,
+                "token": "SCHEDULE",
+                "sub_arguments": [],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
         "command_string": "COPY",
         "command_callback_name": "copy",
         "since": "6.2.0",
@@ -2160,6 +2185,17 @@
                 "has_multiple_occurrences": false,
                 "has_multiple_token": false
             }
+        ]
+    },
+    {
+        "command_string": "SAVE",
+        "command_callback_name": "save",
+        "since": "1.0.0",
+        "required_arguments_count": 0,
+        "has_variable_arguments": false,
+        "key_specs": [
+        ],
+        "arguments": [
         ]
     },
     {
