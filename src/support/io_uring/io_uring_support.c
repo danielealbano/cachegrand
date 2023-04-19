@@ -46,7 +46,7 @@ io_uring_t* io_uring_support_init(
     io_uring_t *io_uring;
     io_uring_params_t temp_io_uring_params = { 0 };
 
-    io_uring = xalloc_alloc(sizeof(io_uring_t));
+    io_uring = xalloc_mmap_alloc(sizeof(io_uring_t));
 
     if (io_uring_params == NULL && features != NULL) {
         io_uring_params = &temp_io_uring_params;
@@ -69,9 +69,14 @@ io_uring_t* io_uring_support_init(
         }
         LOG_E_OS_ERROR(TAG);
 
-        xalloc_free(io_uring);
+        xalloc_mmap_free(io_uring,sizeof(io_uring_t));
 
         return NULL;
+    }
+
+    if (io_uring_register_ring_fd(io_uring) != 1) {
+        LOG_W(TAG, "Unable to register the io_uring ring fd");
+        LOG_E_OS_ERROR(TAG);
     }
 
     if (features != NULL) {
@@ -84,7 +89,8 @@ io_uring_t* io_uring_support_init(
 void io_uring_support_free(
         io_uring_t *io_uring) {
     io_uring_queue_exit(io_uring);
-    xalloc_free(io_uring);
+    io_uring_unregister_ring_fd(io_uring);
+    xalloc_mmap_free(io_uring,sizeof(io_uring_t));
 }
 
 bool io_uring_support_probe_opcode(
