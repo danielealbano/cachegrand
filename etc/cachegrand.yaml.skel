@@ -100,16 +100,17 @@ modules:
           # To enable tls is necessary to uncomment the tls block above
           # tls: true
 
-# Uncomment to enable prometheus support, more information available at
-# https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/prometheus.md
-#  - type: prometheus
-#    network:
-#      timeout:
-#        read_ms: -1
-#        write_ms: 10000
-#      bindings:
-#        - host: 127.0.0.1
-#          port: 9090
+  # Uncomment to enable prometheus support, more information available at
+  # https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/prometheus.md
+  - type: prometheus
+    network:
+      timeout:
+        read_ms: -1
+        write_ms: 10000
+      bindings:
+        - host: 0.0.0.0
+          port: 9090
+
 database:
   # Limits for the database to prevent it from using too much system resources, optional.
   # The hard limit will prevent any operation that would exceed the limit, the soft limit will allow the operation but
