@@ -133,9 +133,9 @@ void storage_db_counters_sum(
     counters->data_size = 0;
     while(workers_to_find > 0 && (found_slot_index =
             slots_bitmap_mpmc_iter(storage_db->counters_slots_bitmap, next_slot_index)) != UINT64_MAX) {
-        counters->data_size += storage_db->counters[found_slot_index].data_size;
         counters->keys_count += storage_db->counters[found_slot_index].keys_count;
-        counters->keys_changed += storage_db->counters[found_slot_index].keys_count;
+        counters->data_size += storage_db->counters[found_slot_index].data_size;
+        counters->keys_changed += storage_db->counters[found_slot_index].keys_changed;
         counters->data_changed += storage_db->counters[found_slot_index].data_changed;
         next_slot_index = found_slot_index + 1;
         workers_to_find--;
