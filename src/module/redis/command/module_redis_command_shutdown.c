@@ -57,7 +57,10 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(shutdown) {
             start_time_ms = clock_monotonic_int64_ms() - 1;
         }
 
-        module_redis_command_helper_save_wait(connection_context, start_time_ms);
+        if (!module_redis_command_helper_save_wait(connection_context, start_time_ms)) {
+            // If the operation fails it means that something really bad just happened, skip directly to the termination
+            goto end;
+        }
     }
 
     if (!module_redis_connection_send_ok(connection_context)) {

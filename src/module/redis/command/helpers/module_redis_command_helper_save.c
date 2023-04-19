@@ -75,4 +75,6 @@ bool module_redis_command_helper_save_wait(
 
         MEMORY_FENCE_LOAD();
     } while (connection_context->db->snapshot.next_run_time_ms <= start_time_ms);
+
+    return true;
 }

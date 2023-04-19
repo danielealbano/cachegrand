@@ -49,9 +49,12 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(save) {
                 "ERR A background save is already in progress");
     }
 
-    module_redis_command_helper_save_wait(
+    if (!module_redis_command_helper_save_wait(
             connection_context,
-            module_redis_command_helper_save_request(connection_context));
+            module_redis_command_helper_save_request(connection_context))) {
+        // If the wait fails something is really wrong
+        return false;
+    }
 
     // Confirm the snapshot is complete
     module_redis_connection_send_ok(connection_context);
