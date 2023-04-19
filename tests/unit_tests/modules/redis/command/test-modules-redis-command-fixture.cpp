@@ -123,11 +123,20 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
             .policy = CONFIG_DATABASE_KEYS_EVICTION_POLICY_RANDOM
     };
 
+    config_database_snapshots = {
+            .path = "/tmp/dump.rdb",
+            .interval_str = "7d",
+            .min_data_changed_str = "0",
+            .min_keys_changed = 0,
+            .rotation = nullptr,
+    };
+
     config_database = {
             .limits = &config_database_limits,
             .keys_eviction = &config_database_keys_eviction,
             .backend = CONFIG_DATABASE_BACKEND_MEMORY,
-            .memory = &config_database_memory
+            .snapshots = &config_database_snapshots,
+            .memory = &config_database_memory,
     };
 
     config = {
