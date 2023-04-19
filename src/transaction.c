@@ -45,14 +45,10 @@ void transaction_manager_init() {
 
 bool transaction_expand_locks_list(
         transaction_t *transaction) {
-    size_t current_mem_size = sizeof(transaction_spinlock_lock_volatile_t*) * transaction->locks.size;
-
     transaction->locks.size = transaction->locks.size * 2;
     transaction->locks.list = ffma_mem_realloc(
             transaction->locks.list,
-            current_mem_size,
-            sizeof(transaction_spinlock_lock_volatile_t*) * transaction->locks.size,
-            false);
+            sizeof(transaction_spinlock_lock_volatile_t*) * transaction->locks.size);
 
     return transaction->locks.list != NULL;
 }

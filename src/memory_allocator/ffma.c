@@ -457,45 +457,51 @@ void ffma_mem_free(
 }
 
 #if FFMA_TRACK_ALLOCS_FREES == 1
-#define ffma_mem_realloc(memptr, current_size, new_size, zero_new_memory) \
-    ffma_mem_realloc_wrapped(memptr, current_size, new_size, zero_new_memory, __FUNCTION__, __LINE__)
+#define ffma_mem_realloc(memptr, size) \
+    ffma_mem_realloc_wrapped(memptr, size, __FUNCTION__, __LINE__)
 void* ffma_mem_realloc_wrapped(
         void* memptr,
-        size_t current_size,
-        size_t new_size,
-        bool zero_new_memory,
+        size_t size,
         const char *allocated_by_function,
         uint32_t allocated_by_line) {
 #else
 void* ffma_mem_realloc(
         void* memptr,
-        size_t current_size,
-        size_t new_size,
-        bool zero_new_memory) {
+        size_t size) {
 #endif
-    // TODO: the implementation is terrible, it's not even checking if the new size fits within the provided slot
-    //       because in case a new allocation is not really needed
-    void* new_memptr;
+    ffma_slice_t *ffma_slice = NULL;
+    ffma_t *ffma = NULL;
+    void* new_memptr = NULL;
+
+    if (likely(memptr != NULL)) {
+        // Acquire the ffma_slice, the ffma and the ffma_slot related to the memory to be resized
+        ffma_slice = ffma_slice_from_memptr(memptr);
+        ffma = ffma_slice->data.ffma;
+
+        // Check if the new object size is within the same class of the current one, which is the most common case. In
+        // this specific case the memory can be reused without any further action as internally the actual allocated
+        // memory is big as the object size class.
+        if (likely(size <= ffma->object_size)) {
+            return memptr;
+        }
+    }
 
 #if FFMA_TRACK_ALLOCS_FREES == 1
-    new_memptr = ffma_mem_alloc_wrapped(new_size, allocated_by_function, allocated_by_line);
+    new_memptr = ffma_mem_alloc_wrapped(size, allocated_by_function, allocated_by_line);
 #else
-    new_memptr = ffma_mem_alloc(new_size);
+    new_memptr = ffma_mem_alloc(size);
 #endif
 
-    // If the new allocation doesn't fail check if it has to be zeroed
-    if (!new_memptr) {
+    if (unlikely(!new_memptr)) {
         return new_memptr;
     }
 
-    // Always free the pointer passed, even if the realloc fails
-    if (memptr != NULL) {
-        memcpy(new_memptr, memptr, current_size);
-        ffma_mem_free(memptr);
-    }
+    if (likely(memptr != NULL)) {
+        // Copy the data from the old memory to the new one
+        memcpy(new_memptr, memptr, ffma->object_size);
 
-    if (zero_new_memory) {
-        memset(new_memptr + current_size, 0, new_size - current_size);
+        // Free up the previous allocation
+        ffma_mem_free(memptr);
     }
 
     return new_memptr;

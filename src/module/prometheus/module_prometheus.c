@@ -198,18 +198,27 @@ int module_prometheus_http_parser_on_header_value(
 
     // Check if there is enough room to fill out another header in headers.list
     if (http_request_data->headers.count == http_request_data->headers.size) {
+        void *list_new = NULL;
+
         // Expand the list of headers
         size_t headers_list_current_size =
                 sizeof(client_http_header_t) * http_request_data->headers.size;
         size_t headers_list_new_size =
                 headers_list_current_size +
                 (sizeof(client_http_header_t) * MODULE_PROMETHEUS_HTTP_HEADERS_SIZE_INCREASE);
-        http_request_data->headers.list =
-                ffma_mem_realloc(
-                        http_request_data->headers.list,
-                        headers_list_current_size,
-                        headers_list_new_size,
-                        true);
+        list_new = ffma_mem_realloc(http_request_data->headers.list, headers_list_new_size);
+
+        // Check if ffma returned a new slot or if it was able to reuse the old one, if it's a new one the newly
+        // allocated memory needs to be freed
+        if (unlikely(list_new != http_request_data->headers.list)) {
+            // Zero the newly allocated memory
+            memset(
+                    list_new + headers_list_current_size,
+                    0,
+                    headers_list_new_size - headers_list_current_size);
+        }
+
+        http_request_data->headers.list = list_new;
         http_request_data->headers.size += MODULE_PROMETHEUS_HTTP_HEADERS_SIZE_INCREASE;
     }
 
@@ -409,9 +418,7 @@ char *module_prometheus_fetch_extra_metrics_from_env() {
         if (extra_env_content_length + metric_env_line_length + 1 > extra_env_content_size) {
             extra_env_content = ffma_mem_realloc(
                     extra_env_content,
-                    extra_env_content_size,
-                    extra_env_content_size + 512,
-                    false);
+                    extra_env_content_size + 512);
             if (!extra_env_content) {
                 break;
             }
@@ -480,9 +487,7 @@ bool module_prometheus_process_metrics_request_add_metric(
     if (*length + metric_length + 1 > *size) {
         *buffer = ffma_mem_realloc(
                 *buffer,
-                *size,
-                *size + 128,
-                false);
+                *size + 128);
 
         if (!*buffer) {
             return false;
