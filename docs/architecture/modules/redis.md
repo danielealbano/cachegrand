@@ -12,8 +12,9 @@ scalability.
 Only a subset of commands are supported, mostly string and keyspace related ones:
 
 | Command       | Notes                                                |
-| ------------- |------------------------------------------------------|
+|---------------|------------------------------------------------------|
 | ✔ APPEND      |                                                      |
+| ✔ BGSAVE      |                                                      |
 | ✔ COPY        | Missing DB parameter                                 |
 | ✔ DBSIZE      |                                                      |
 | ✔ DECR        |                                                      |
@@ -49,12 +50,13 @@ Only a subset of commands are supported, mostly string and keyspace related ones
 | ✔ RANDOMKEY   |                                                      |
 | ✔ RENAME      |                                                      |
 | ✔ RENAMENX    |                                                      |
+| ✔ SAVE        |                                                      |
 | ✔ SCAN        | Missing TYPE parameter                               |
 | ✔ SET         |                                                      |
 | ✔ SETEX       |                                                      |
 | ✔ SETNX       |                                                      |
 | ✔ SETRANGE    |                                                      |
-| ✔ SHUTDOWN    |                                                      |
+| ✔ SHUTDOWN    | Missing the NOSAVE, NOW and FORCE parameters         |
 | ✔ STRLEN      |                                                      |
 | ✔ SUBSTR      |                                                      |
 | ✔ TOUCH       |                                                      |
