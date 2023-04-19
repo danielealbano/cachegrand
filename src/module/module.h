@@ -12,11 +12,14 @@ enum module_types {
 };
 typedef enum module_types module_types_t;
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wwrite-strings"
 static char *module_types_text[] = {
         "Unknown",
         "Redis",
         "Prometheus",
 };
+#pragma GCC diagnostic pop
 
 #ifdef __cplusplus
 }
