@@ -41,10 +41,25 @@
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "worker/worker.h"
+#include "helpers/module_redis_command_helper_save.h"
 
 #define TAG "module_redis_command_shutdown"
 
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(shutdown) {
+    module_redis_command_shutdown_context_t *context = connection_context->command.context;
+
+    if (context->nosave_save.value.save_save.has_token) {
+        uint64_t start_time_ms;
+        // Check if the snapshot is already running
+        if (!module_redis_command_helper_save_is_running(connection_context)) {
+            start_time_ms = module_redis_command_helper_save_request(connection_context);
+        } else {
+            start_time_ms = clock_monotonic_int64_ms() - 1;
+        }
+
+        module_redis_command_helper_save_wait(connection_context, start_time_ms);
+    }
+
     if (!module_redis_connection_send_ok(connection_context)) {
         goto end;
     }
