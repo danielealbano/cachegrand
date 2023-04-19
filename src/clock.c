@@ -31,7 +31,8 @@ int64_t clock_monotonic_coarse_get_resolution_ms() {
 char *clock_timespan_human_readable(
         uint64_t timespan_ms,
         char *buffer,
-        size_t buffer_length) {
+        size_t buffer_length,
+        bool add_ms) {
     assert(buffer_length >= CLOCK_TIMESPAN_MIN_LENGTH);
 
     size_t offset = 0;
@@ -39,21 +40,49 @@ char *clock_timespan_human_readable(
     uint64_t hours = (timespan_ms / (1000 * 60 * 60)) % 24;
     uint64_t minutes = (timespan_ms / (1000 * 60)) % 60;
     uint64_t seconds = (timespan_ms / 1000) % 60;
+    uint64_t milliseconds = timespan_ms % 1000;
 
     if (days > 0) {
-        offset += snprintf(buffer + offset, buffer_length - offset, "%lu days", days);
+        offset += snprintf(
+                buffer + offset,
+                buffer_length - offset,
+                "%lu days", days);
     }
 
     if (hours > 0) {
-        offset += snprintf(buffer + offset, buffer_length - offset, "%s%lu hours", offset > 0 ? " " : "", hours);
+        offset += snprintf(
+                buffer + offset,
+                buffer_length - offset,
+                "%s%lu hours",
+                offset > 0 ? " " : "",
+                hours);
     }
 
     if (minutes > 0) {
-        offset += snprintf(buffer + offset, buffer_length - offset, "%s%lu minutes", offset > 0 ? " " : "", minutes);
+        offset += snprintf(
+                buffer + offset,
+                buffer_length - offset,
+                "%s%lu minutes",
+                offset > 0 ? " " : "",
+                minutes);
     }
 
     if (seconds > 0) {
-        offset += snprintf(buffer + offset, buffer_length - offset, "%s%lu seconds", offset > 0 ? " " : "", seconds);
+        offset += snprintf(
+                buffer + offset,
+                buffer_length - offset,
+                "%s%lu seconds",
+                offset > 0 ? " " : "",
+                seconds);
+    }
+
+    if (add_ms && milliseconds > 0) {
+        offset += snprintf(
+                buffer + offset,
+                buffer_length - offset,
+                "%s%lu ms",
+                offset > 0 ? " " : "",
+                milliseconds);
     }
 
     if (offset == 0) {
