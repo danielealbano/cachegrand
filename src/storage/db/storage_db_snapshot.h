@@ -31,10 +31,16 @@ void storage_db_snapshot_completed(
 void storage_db_snapshot_failed(
         storage_db_t *db);
 
+bool storage_db_snapshot_enough_keys_data_changed(
+        storage_db_t *db);
+
 bool storage_db_snapshot_should_run(
         storage_db_t *db);
 
 void storage_db_snapshot_update_next_run_time(
+        storage_db_t *db);
+
+void storage_db_snapshot_skip_run(
         storage_db_t *db);
 
 void storage_db_snapshot_wait_for_prepared(

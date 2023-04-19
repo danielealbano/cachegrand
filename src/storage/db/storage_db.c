@@ -133,9 +133,9 @@ void storage_db_counters_sum(
     counters->data_size = 0;
     while(workers_to_find > 0 && (found_slot_index =
             slots_bitmap_mpmc_iter(storage_db->counters_slots_bitmap, next_slot_index)) != UINT64_MAX) {
-        counters->data_size += storage_db->counters[found_slot_index].data_size;
         counters->keys_count += storage_db->counters[found_slot_index].keys_count;
-        counters->keys_changed += storage_db->counters[found_slot_index].keys_count;
+        counters->data_size += storage_db->counters[found_slot_index].data_size;
+        counters->keys_changed += storage_db->counters[found_slot_index].keys_changed;
         counters->data_changed += storage_db->counters[found_slot_index].data_changed;
         next_slot_index = found_slot_index + 1;
         workers_to_find--;
@@ -1240,9 +1240,10 @@ bool storage_db_set_entry_index(
 
         storage_db_counters_get_current_thread_data(db)->keys_count += previous_entry_index ? 0 : 1;
         storage_db_counters_get_current_thread_data(db)->data_size += counter_data_size_delta;
-        storage_db_counters_get_current_thread_data(db)->keys_changed++;
-        storage_db_counters_get_current_thread_data(db)->data_changed += counter_data_size_delta;
     }
+
+    storage_db_counters_get_current_thread_data(db)->keys_changed++;
+    storage_db_counters_get_current_thread_data(db)->data_changed += (int64_t)entry_index->value.size;
 
     if (out_should_free_key) {
         xalloc_free(key);
@@ -1436,7 +1437,7 @@ bool storage_db_op_rmw_commit_update(
     storage_db_counters_get_current_thread_data(db)->keys_count += rmw_status->hashtable.current_value ? 0 : 1;
     storage_db_counters_get_current_thread_data(db)->data_size += counter_data_size_delta;
     storage_db_counters_get_current_thread_data(db)->keys_changed++;
-    storage_db_counters_get_current_thread_data(db)->data_changed += counter_data_size_delta;
+    storage_db_counters_get_current_thread_data(db)->data_changed += (int64_t)entry_index->value.size;
 
     result_res = true;
 
@@ -1517,8 +1518,7 @@ bool storage_db_op_delete(
         storage_db_counters_get_current_thread_data(db)->data_size -=
                 (int64_t)current_entry_index->value.size;
         storage_db_counters_get_current_thread_data(db)->keys_changed++;
-        storage_db_counters_get_current_thread_data(db)->data_changed +=
-                (int64_t)current_entry_index->value.size;
+        storage_db_counters_get_current_thread_data(db)->data_changed += (int64_t)current_entry_index->value.size;
 
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
     }
@@ -1541,8 +1541,7 @@ bool storage_db_op_delete_by_index(
         storage_db_counters_get_current_thread_data(db)->data_size -=
                 (int64_t)current_entry_index->value.size;
         storage_db_counters_get_current_thread_data(db)->keys_changed++;
-        storage_db_counters_get_current_thread_data(db)->data_changed +=
-                (int64_t)current_entry_index->value.size;
+        storage_db_counters_get_current_thread_data(db)->data_changed += (int64_t)current_entry_index->value.size;
 
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
     }

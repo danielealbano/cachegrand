@@ -63,6 +63,13 @@ void worker_fiber_storage_db_snapshot_rdb_fiber_entrypoint(
                 continue;
             }
 
+            // Check if there is any configured constraint to run the snapshot
+            if (!storage_db_snapshot_enough_keys_data_changed(db)) {
+                // If there aren't enough keys or data changed, skip the run and wait for the next one
+                storage_db_snapshot_skip_run(db);
+                continue;
+            }
+
             // Ensure that the snapshot is prepared to run
             if (!storage_db_snapshot_rdb_ensure_prepared(db)) {
                 continue;
