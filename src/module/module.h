@@ -12,6 +12,12 @@ enum module_types {
 };
 typedef enum module_types module_types_t;
 
+static char *module_types_text[] = {
+        "Unknown",
+        "Redis",
+        "Prometheus",
+};
+
 #ifdef __cplusplus
 }
 #endif

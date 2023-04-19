@@ -112,7 +112,7 @@ bool network_channel_listener_new_callback(
         socklen_t socket_address_size,
         uint16_t port,
         uint16_t backlog,
-        module_types_t protocol,
+        module_types_t module_type,
         void* user_data);
 
 bool network_channel_listener_new(

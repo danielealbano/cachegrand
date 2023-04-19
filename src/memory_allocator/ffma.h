@@ -380,8 +380,7 @@ static inline void* ffma_mem_alloc_internal(
             void *addr = ffma_region_cache_pop(internal_ffma_region_cache);
 
             if (!addr) {
-                LOG_E(FFMA_LOG_TAG_INTERNAL, "Unable to allocate %lu bytes of memory", size);
-                return NULL;
+                FATAL(FFMA_LOG_TAG_INTERNAL, "Unable to allocate %lu bytes of memory", size);
             }
 
             ffma_grow(
