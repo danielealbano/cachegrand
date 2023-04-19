@@ -173,21 +173,17 @@ void ffma_mem_free_slot_different_thread(
         ffma_slot_t* ffma_slot);
 
 #if FFMA_TRACK_ALLOCS_FREES == 1
-#define ffma_mem_realloc(memptr, current_size, new_size, zero_new_memory) \
-    ffma_mem_realloc_wrapped(memptr, current_size, new_size, zero_new_memory, __FUNCTION__, __LINE__)
+#define ffma_mem_realloc(memptr, size) \
+    ffma_mem_realloc_wrapped(memptr, size, __FUNCTION__, __LINE__)
 void* ffma_mem_realloc_wrapped(
         void *memptr,
-        size_t current_size,
-        size_t new_size,
-        bool zero_new_memory,
+        size_t size,
         const char *allocated_by_function,
         uint32_t allocated_by_line);
 #else
 void* ffma_mem_realloc(
         void *memptr,
-        size_t current_size,
-        size_t new_size,
-        bool zero_new_memory);
+        size_t size);
 #endif
 
 #if FFMA_TRACK_ALLOCS_FREES == 1
