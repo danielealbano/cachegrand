@@ -70,25 +70,44 @@ bool storage_db_snapshot_rdb_write_buffer(
 void storage_db_snapshot_completed(
         storage_db_t *db,
         storage_db_snapshot_status_t status) {
+    char snapshot_duration_buffer[256] = { 0 };
+    char next_shapshot_run_buffer[256] = { 0 };
+
     // Update the snapshot general information
     storage_db_snapshot_update_next_run_time(db);
     db->snapshot.end_time_ms = clock_monotonic_coarse_int64_ms();
     db->snapshot.status = status;
     db->snapshot.path = NULL;
 
-    // Report the result of the snapshot
-    LOG_I(
-            TAG,
-            status == STORAGE_DB_SNAPSHOT_STATUS_COMPLETED
-            ? "Snapshot completed in <%lu> ms"
-            : "Snapshot failed after <%lu> ms",
-            db->snapshot.end_time_ms - db->snapshot.start_time_ms);
-
     // Sync the data
     db->snapshot.running = false;
     MEMORY_FENCE_STORE();
 
     assert(queue_mpmc_pop(db->snapshot.entry_index_to_be_deleted_queue) == NULL);
+
+    // Calculate the snapshot duration and when the next snapshot will be run
+    uint64_t snapshot_duration = db->snapshot.end_time_ms - db->snapshot.start_time_ms;
+    clock_timespan_human_readable(
+            snapshot_duration,
+            snapshot_duration_buffer,
+            sizeof(snapshot_duration_buffer) - 1,
+            true);
+
+    uint64_t next_run_in = db->snapshot.next_run_time_ms - clock_monotonic_coarse_int64_ms();
+    clock_timespan_human_readable(
+            next_run_in,
+            next_shapshot_run_buffer,
+            sizeof(next_shapshot_run_buffer) - 1,
+            true);
+
+    // Report the snapshot status
+    if (status == STORAGE_DB_SNAPSHOT_STATUS_FAILED_DURING_PREPARATION) {
+        LOG_E(TAG, "Snapshot failed, next run in <%s>", next_shapshot_run_buffer);
+    } else if (status == STORAGE_DB_SNAPSHOT_STATUS_FAILED) {
+        LOG_E(TAG, "Snapshot failed after <%s>, next run in <%s>", snapshot_duration_buffer, next_shapshot_run_buffer);
+    } else if (status == STORAGE_DB_SNAPSHOT_STATUS_COMPLETED) {
+        LOG_I(TAG, "Snapshot completed in <%s>, next run in <%s>", snapshot_duration_buffer, next_shapshot_run_buffer);
+    }
 }
 
 void storage_db_snapshot_failed(
@@ -854,7 +873,8 @@ void storage_db_snapshot_report_progress(
             clock_timespan_human_readable(
                     eta_ms,
                     eta_buffer,
-                    sizeof(eta_buffer)));
+                    sizeof(eta_buffer),
+                    false));
 
     // Update the progress reported at time
     db->snapshot.progress_reported_at_ms = clock_monotonic_int64_ms();

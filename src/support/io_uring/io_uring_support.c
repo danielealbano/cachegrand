@@ -21,15 +21,22 @@
 #define TAG "io_uring_support"
 
 io_uring_support_feature_t io_uring_support_features[] = {
-        { "IORING_FEAT_SINGLE_MMAP",    IORING_FEAT_SINGLE_MMAP },
-        { "IORING_FEAT_NODROP",         IORING_FEAT_NODROP },
-        { "IORING_FEAT_SUBMIT_STABLE",  IORING_FEAT_SUBMIT_STABLE },
-        { "IORING_FEAT_RW_CUR_POS",     IORING_FEAT_RW_CUR_POS },
-        { "IORING_FEAT_CUR_PERSONALITY",IORING_FEAT_CUR_PERSONALITY },
-        { "IORING_FEAT_FAST_POLL",      IORING_FEAT_FAST_POLL }
+        { "IORING_FEAT_SINGLE_MMAP",        IORING_FEAT_SINGLE_MMAP },
+        { "IORING_FEAT_NODROP",             IORING_FEAT_NODROP },
+        { "IORING_FEAT_SUBMIT_STABLE",      IORING_FEAT_SUBMIT_STABLE },
+        { "IORING_FEAT_RW_CUR_POS",         IORING_FEAT_RW_CUR_POS },
+        { "IORING_FEAT_CUR_PERSONALITY",    IORING_FEAT_CUR_PERSONALITY },
+        { "IORING_FEAT_FAST_POLL",          IORING_FEAT_FAST_POLL },
+        { "IORING_FEAT_POLL_32BITS",        IORING_FEAT_POLL_32BITS},
+        { "IORING_FEAT_SQPOLL_NONFIXED",    IORING_FEAT_SQPOLL_NONFIXED},
+        { "IORING_FEAT_EXT_ARG",            IORING_FEAT_EXT_ARG},
+        { "IORING_FEAT_NATIVE_WORKERS",     IORING_FEAT_NATIVE_WORKERS},
+        { "IORING_FEAT_RSRC_TAGS",          IORING_FEAT_RSRC_TAGS},
+        { "IORING_FEAT_CQE_SKIP",           IORING_FEAT_CQE_SKIP},
+        { "IORING_FEAT_LINKED_FILE",        IORING_FEAT_LINKED_FILE},
 };
 #define IO_URING_SUPPORT_FEATURES_COUNT \
-    (sizeof(io_uring_support_features) / sizeof(io_uring_support_feature_t))
+    (sizeof(io_uring_support_features) / sizeof(io_uring_support_features[0]))
 
 io_uring_t* io_uring_support_init(
         uint32_t entries,
@@ -53,7 +60,10 @@ io_uring_t* io_uring_support_init(
 
     if (res < 0) {
         if (res == -ENOMEM) {
-            LOG_E(TAG, "Unable to allocate or lock enough memory to initialize io_uring, please check the available memory and/or increase the memlock ulimit.");
+            LOG_E(
+                    TAG,
+                    "Unable to allocate or lock enough memory to initialize io_uring, please check the available "
+                    "memory and/or increase the memlock ulimit.");
         } else {
             LOG_E(TAG, "Unable to allocate io_uring using the given params");
         }

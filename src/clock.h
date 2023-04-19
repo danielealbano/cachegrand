@@ -34,7 +34,8 @@ int64_t clock_realtime_coarse_get_resolution_ms();
 char *clock_timespan_human_readable(
         uint64_t timespan_ms,
         char *buffer,
-        size_t buffer_length);
+        size_t buffer_length,
+        bool add_ms);
 
 static inline __attribute__((always_inline)) int64_t clock_timespec_to_int64_ms(
         timespec_t *timespec) {
