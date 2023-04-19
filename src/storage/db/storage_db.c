@@ -64,6 +64,10 @@ static void storage_db_counters_index_key_destroy(void *value) {
     storage_db_counters_slots_bitmap_and_index_t *slot =
             (storage_db_counters_slots_bitmap_and_index_t*)value;
 
+    if (!slot) {
+        return;
+    }
+
     slots_bitmap_mpmc_release(slot->slots_bitmap, slot->index);
     ffma_mem_free(slot);
 }
@@ -654,7 +658,8 @@ void storage_db_entry_index_ring_buffer_free(
         storage_db_entry_index_free(db, entry_index_to_free);
     }
 
-    assert(ring_bounded_queue_spsc_voidptr_enqueue(rb, entry_index));
+    bool result = ring_bounded_queue_spsc_voidptr_enqueue(rb, entry_index);
+    assert(result);
 }
 
 storage_db_entry_index_t *storage_db_entry_index_new() {
