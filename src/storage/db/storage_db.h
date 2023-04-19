@@ -141,6 +141,7 @@ enum storage_db_snapshot_status {
     STORAGE_DB_SNAPSHOT_STATUS_BEING_FINALIZED,
     STORAGE_DB_SNAPSHOT_STATUS_COMPLETED,
     STORAGE_DB_SNAPSHOT_STATUS_FAILED,
+    STORAGE_DB_SNAPSHOT_STATUS_FAILED_DURING_PREPARATION,
 };
 typedef enum storage_db_snapshot_status storage_db_snapshot_status_t;
 typedef _Volatile(storage_db_snapshot_status_t) storage_db_snapshot_status_volatile_t;

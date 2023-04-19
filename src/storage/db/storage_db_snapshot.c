@@ -73,13 +73,13 @@ void storage_db_snapshot_completed(
     char snapshot_duration_buffer[256] = { 0 };
     char next_shapshot_run_buffer[256] = { 0 };
 
-    // Update the snapshot general information
+    // Update the snapshot general information, no need to check if the update next run time is fails as this function
+    // is called only when the snapshot is completed or failed by the thread that is running the snapshot and all the
+    // other threads will wait for the snapshot to be completed as this is the last block processed.
     storage_db_snapshot_update_next_run_time(db);
     db->snapshot.end_time_ms = clock_monotonic_coarse_int64_ms();
     db->snapshot.status = status;
     db->snapshot.path = NULL;
-
-    // Sync the data
     db->snapshot.running = false;
     MEMORY_FENCE_STORE();
 
@@ -127,7 +127,7 @@ void storage_db_snapshot_failed(
     }
 
     // The operation has failed so the storage channel must be closed and the snapshot deleted
-    storage_db_snapshot_completed(db, STORAGE_DB_SNAPSHOT_STATUS_FAILED);
+    storage_db_snapshot_completed(db, STORAGE_DB_SNAPSHOT_STATUS_FAILED_DURING_PREPARATION);
 }
 
 bool storage_db_snapshot_enough_keys_data_changed(
@@ -149,14 +149,14 @@ bool storage_db_snapshot_enough_keys_data_changed(
     storage_db_counters_sum(db, &counters);
 
     // Check if the number of keys changed is greater than the configured threshold
-        uint64_t keys_changed = counters.keys_changed - db->snapshot.keys_changed_at_start;
-        if (config->snapshot.min_keys_changed > 0 && keys_changed >= config->snapshot.min_keys_changed) {
-            return true;
-        }
+    uint64_t keys_changed = counters.keys_changed - db->snapshot.keys_changed_at_start;
+    if (config->snapshot.min_keys_changed > 0 && keys_changed >= config->snapshot.min_keys_changed) {
+        return true;
+    }
 
-        // Check if the number of data changed is greater than the configured threshold
-        uint64_t data_changed = counters.data_changed - db->snapshot.data_changed_at_start;
-        if (config->snapshot.min_data_changed > 0 && data_changed >= config->snapshot.min_data_changed) {
+    // Check if the number of data changed is greater than the configured threshold
+    uint64_t data_changed = counters.data_changed - db->snapshot.data_changed_at_start;
+    if (config->snapshot.min_data_changed > 0 && data_changed >= config->snapshot.min_data_changed) {
         return true;
     }
 
