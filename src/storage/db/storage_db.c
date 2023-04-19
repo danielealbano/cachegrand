@@ -64,6 +64,10 @@ static void storage_db_counters_index_key_destroy(void *value) {
     storage_db_counters_slots_bitmap_and_index_t *slot =
             (storage_db_counters_slots_bitmap_and_index_t*)value;
 
+    if (!slot) {
+        return;
+    }
+
     slots_bitmap_mpmc_release(slot->slots_bitmap, slot->index);
     ffma_mem_free(slot);
 }
