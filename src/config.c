@@ -931,7 +931,7 @@ bool config_process_string_values(
                     config->database->snapshots->min_data_changed_str,
                     strlen(config->database->snapshots->min_data_changed_str),
                     false,
-                    false,
+                    true,
                     false,
                     true,
                     true,
