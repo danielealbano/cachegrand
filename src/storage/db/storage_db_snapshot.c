@@ -191,8 +191,15 @@ void storage_db_snapshot_update_next_run_time(
         storage_db_t *db) {
     storage_db_config_t *config = db->config;
 
-    // Set the next run time
     db->snapshot.next_run_time_ms = clock_monotonic_coarse_int64_ms() + config->snapshot.interval_ms;
+}
+
+void storage_db_snapshot_skip_run(
+        storage_db_t *db) {
+    char next_shapshot_run_buffer[256] = { 0 };
+
+    // Do nothing if another thread has already updated the next run time
+    storage_db_snapshot_update_next_run_time(db);
 }
 
 void storage_db_snapshot_wait_for_prepared(
