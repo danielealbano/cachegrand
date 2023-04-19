@@ -330,6 +330,7 @@ long double utils_string_to_long_double(
         return 0;
     }
 
+    // Check if it can use a buffer from the stack instead of having to allocate a new one
     if (unlikely(string_length > buffer_length - 1)) {
         allocated_new_buffer = true;
         buffer_length = string_length + 1;
