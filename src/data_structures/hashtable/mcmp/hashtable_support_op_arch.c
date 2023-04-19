@@ -156,7 +156,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
             } else {
                 LOG_DI(">> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 #endif
-
+                MEMORY_FENCE_LOAD();
                 found_key = key_value->external_key.data;
                 found_key_compare_size = key_value->external_key.size;
 
@@ -388,7 +388,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                     } else {
                         LOG_DI(">>> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
 #endif
-
+                        MEMORY_FENCE_LOAD();
                         found_key = key_value->external_key.data;
                         found_key_compare_size = key_value->external_key.size;
 
