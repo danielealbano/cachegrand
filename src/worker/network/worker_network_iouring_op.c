@@ -479,7 +479,9 @@ network_channel_t* worker_network_iouring_network_channel_multi_new(
 network_channel_t* worker_network_iouring_network_channel_multi_get(
         network_channel_t *channels,
         uint32_t index) {
-    return ((void*)channels) + (worker_network_iouring_op_network_channel_size() * index);
+    uintptr_t offset = worker_network_iouring_op_network_channel_size() * index;
+    uintptr_t channels_ptr = (uintptr_t)channels;
+    return (network_channel_t*)(channels_ptr + offset);
 }
 
 void worker_network_iouring_network_channel_multi_free(
