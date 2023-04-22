@@ -271,9 +271,9 @@ void worker_iouring_cqe_log(
 }
 
 void worker_iouring_cleanup(
-        __attribute__((unused)) worker_context_t *worker_context) {
+        worker_context_t *worker_context) {
     io_uring_t *ring;
-    worker_iouring_context_t *iouring_context = worker_iouring_context_get();
+    worker_iouring_context_t *iouring_context = worker_context->interface_context;
 
     if (iouring_context != NULL) {
         ring = iouring_context->ring;
@@ -293,6 +293,8 @@ void worker_iouring_cleanup(
     if (fds_map_registered) {
         xalloc_free((void*)fds_map_registered);
     }
+
+    worker_context->interface_context = NULL;
 }
 
 bool worker_iouring_process_events(
@@ -302,7 +304,7 @@ bool worker_iouring_process_events(
     fiber_t *fiber;
     uint32_t head, count = 0;
 
-    context = worker_iouring_context_get();
+    context = worker_context->interface_context;
 
     io_uring_support_sqe_submit_and_wait(context->ring, 1);
 
@@ -385,6 +387,7 @@ bool worker_iouring_initialize(
     }
 
     context = (worker_iouring_context_t*)xalloc_alloc(sizeof(worker_iouring_context_t));
+    worker_context->interface_context = context;
     uint32_t fds_count = max_fd;
 
     LOG_V(TAG, "Initializing local worker ring for io_uring");
