@@ -52,7 +52,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - BGSAVE", "[r
 
         // Wait a little amount of time before checking if the next_run_time_ms has been updated as the command returns
         // immediately and the operation might not have been started yet
-        usleep(5000);
+        usleep(10000);
 
         // Check that the save operation has successfully run
         MEMORY_FENCE_LOAD();
