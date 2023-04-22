@@ -56,7 +56,7 @@ Only a subset of commands are supported, mostly string and keyspace related ones
 | ✔ SETEX       |                                                      |
 | ✔ SETNX       |                                                      |
 | ✔ SETRANGE    |                                                      |
-| ✔ SHUTDOWN    | Missing the NOSAVE, NOW and FORCE parameters         |
+| ✔ SHUTDOWN    | Missing the NOW and FORCE parameters                 |
 | ✔ STRLEN      |                                                      |
 | ✔ SUBSTR      |                                                      |
 | ✔ TOUCH       |                                                      |
