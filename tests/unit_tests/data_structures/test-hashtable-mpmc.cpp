@@ -2027,6 +2027,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                 }
 
                 SECTION("multi thread") {
+                    thread_affinity_set_selected_cpus(nullptr, 0);
                     test_hashtable_mpmc_fuzzy_testing_run(
                             test_hashtable,
                             test_keys,
@@ -2054,6 +2055,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
                 }
 
                 SECTION("multi thread") {
+                    thread_affinity_set_selected_cpus(nullptr, 0);
                     test_hashtable_mpmc_fuzzy_testing_run(
                             test_hashtable,
                             test_keys,
@@ -2075,6 +2077,7 @@ TEST_CASE("data_structures/hashtable_mpmc/hashtable_mpmc.c", "[data_structures][
             uint32_t test_hashtable_upsize_block_size = HASHTABLE_MPMC_UPSIZE_BLOCK_SIZE;
 
             SECTION("multi thread") {
+                thread_affinity_set_selected_cpus(nullptr, 0);
                 for (uint32_t test_run = 0; test_run < test_runs; test_run++) {
                     uint32_t test_keys_count = 1 * 1024 * 1024;
                     uint16_t test_key_length = 8;
