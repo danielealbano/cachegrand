@@ -144,7 +144,6 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
     program_config_thread_affinity_set_selected_cpus(program_context);
     program_workers_initialize_count(program_context);
     worker_context = program_workers_initialize_context(
-            &terminate_event_loop,
             program_context);
 
     PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true)

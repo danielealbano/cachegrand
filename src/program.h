@@ -20,6 +20,8 @@ struct program_context {
     uint32_t epoch_gc_workers_count;
     epoch_gc_worker_context_t *epoch_gc_workers_context;
     bool_volatile_t storage_db_loaded;
+    bool_volatile_t workers_terminate_event_loop;
+    bool_volatile_t program_terminate_event_loop;
 };
 
 program_context_t *program_get_context();
@@ -30,7 +32,6 @@ bool program_config_setup_storage_db(
         program_context_t* program_context);
 
 bool program_epoch_gc_workers_initialize(
-        bool_volatile_t *terminate_event_loop,
         program_context_t *program_context);
 
 void program_epoch_gc_workers_cleanup(
@@ -41,10 +42,7 @@ void program_workers_initialize_count(
         program_context_t *program_context);
 
 worker_context_t* program_workers_initialize_context(
-        volatile bool *terminate_event_loop,
         program_context_t *program_context);
-
-bool* program_get_terminate_event_loop();
 
 void program_request_terminate(
         volatile bool *terminate_event_loop);

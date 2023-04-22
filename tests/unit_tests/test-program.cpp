@@ -145,7 +145,7 @@ void* test_program_wait_loop_terminate(
         sched_yield(); \
         usleep(10000); \
         MEMORY_FENCE_LOAD(); \
-    } while((WORKER_CONTEXT)->running == !RUNNING); \
+    } while((WORKER_CONTEXT)->running == !(RUNNING)); \
 }
 
 TEST_CASE("program.c", "[program]") {
@@ -165,18 +165,6 @@ TEST_CASE("program.c", "[program]") {
         SECTION("should not") {
             volatile bool terminate_event_loop = false;
             REQUIRE(!program_should_terminate(&terminate_event_loop));
-        }
-    }
-
-    SECTION("program_get_terminate_event_loop") {
-        SECTION("false") {
-            REQUIRE(!*program_get_terminate_event_loop());
-        }
-
-        SECTION("true") {
-            bool *program_terminate_event_loop = program_get_terminate_event_loop();
-            program_request_terminate(program_terminate_event_loop);
-            REQUIRE(*program_get_terminate_event_loop());
         }
     }
 
@@ -235,9 +223,6 @@ TEST_CASE("program.c", "[program]") {
         volatile bool terminate_event_loop = false;
         pthread_t pthread_wait, pthread_terminate;
 
-        bool *program_terminate_event_loop = program_get_terminate_event_loop();
-        *program_terminate_event_loop = false;
-
         REQUIRE(pthread_create(
                 &pthread_wait,
                 nullptr,
@@ -280,7 +265,6 @@ TEST_CASE("program.c", "[program]") {
         program_config_thread_affinity_set_selected_cpus(&program_context);
         program_workers_initialize_count(&program_context);
         worker_context = program_workers_initialize_context(
-                &terminate_event_loop,
                 &program_context);
 
         REQUIRE(worker_context != nullptr);
@@ -316,7 +300,6 @@ TEST_CASE("program.c", "[program]") {
         program_config_thread_affinity_set_selected_cpus(&program_context);
         program_workers_initialize_count(&program_context);
         worker_context = program_workers_initialize_context(
-                &terminate_event_loop,
                 &program_context);
 
         PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true)

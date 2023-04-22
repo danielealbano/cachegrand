@@ -14,7 +14,6 @@ public:
     ~TestModulesRedisCommandFixture();
 protected:
     redisContext *c;
-    volatile bool terminate_event_loop;
 
     size_t buffer_send_data_len{};
     char buffer_send[16 * 1024] = {0};
