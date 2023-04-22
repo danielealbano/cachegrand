@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2018-2022 Daniele Salvatore Albano
+ * Copyright (C) 2018-2023 Daniele Salvatore Albano
  * All rights reserved.
  *
  * This software may be modified and distributed under the terms
@@ -394,7 +394,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
 
                         if (unlikely(key_value->external_key.size != key_size)) {
                             LOG_DI(">>> key have different length (%lu != %lu), skipping comparison",
-                                     key_size, key_value->external_key.size);
+                                   key_size, key_value->external_key.size);
                             continue;
                         }
 #if HASHTABLE_FLAG_ALLOW_KEY_INLINE==1
