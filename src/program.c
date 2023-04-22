@@ -259,7 +259,7 @@ void program_wait_loop(
     while(
             !program_should_terminate(terminate_event_loop) &&
             !program_has_aborted_workers(workers_context, workers_count)) {
-        usleep(WORKER_LOOP_MAX_WAIT_TIME_MS * 1000);
+        usleep(WORKER_LOOP_MAX_WAIT_TIME_MS * 100);
     }
 
     LOG_V(TAG, "Wait loop terminated");
