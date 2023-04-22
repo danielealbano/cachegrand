@@ -86,7 +86,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SHUTDOWN", "
 
     SECTION("snapshot_at_shutdown = true") {
         // Set the flag to true to trigger a save operation on shutdown
-        config.database->snapshots->snapshot_at_shutdown = true;
+        program_context->db->config->snapshot.snapshot_at_shutdown = true;
         MEMORY_FENCE_STORE();
 
         MEMORY_FENCE_LOAD();
@@ -104,7 +104,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SHUTDOWN", "
 
     SECTION("Force nosave") {
         // To emulate the save operation we need to set the snapshot_at_shutdown flag
-        config.database->snapshots->snapshot_at_shutdown = true;
+        program_context->db->config->snapshot.snapshot_at_shutdown = true;
         MEMORY_FENCE_STORE();
 
         MEMORY_FENCE_LOAD();

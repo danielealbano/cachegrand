@@ -611,6 +611,7 @@ bool program_config_setup_storage_db(
         config->snapshot.rotation_max_files = program_context->config->database->snapshots->rotation != NULL
                                               ? program_context->config->database->snapshots->rotation->max_files
                                               : 0;
+        config->snapshot.snapshot_at_shutdown = program_context->config->database->snapshots->snapshot_at_shutdown;
     }
 
     if (program_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {

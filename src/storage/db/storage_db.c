@@ -275,7 +275,7 @@ storage_db_t* storage_db_new(
     }
 
     // Import the hard and soft limits for the keys eviction
-    memcpy(&db->limits, &config->limits, sizeof(storage_db_limits_t));
+    memcpy(&db->limits, &config->limits, sizeof(storage_db_config_limits_t));
 
     return db;
 

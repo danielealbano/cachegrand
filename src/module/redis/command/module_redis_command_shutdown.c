@@ -49,9 +49,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(shutdown) {
     module_redis_command_shutdown_context_t *context = connection_context->command.context;
 
     if (context->nosave_save.value.save_save.has_token) {
-        worker_context_get()->config->database->snapshots->snapshot_at_shutdown = true;
+        connection_context->db->config->snapshot.snapshot_at_shutdown = true;
     } else if (context->nosave_save.value.nosave_nosave.has_token) {
-        worker_context_get()->config->database->snapshots->snapshot_at_shutdown = false;
+        connection_context->db->config->snapshot.snapshot_at_shutdown = false;
     }
 
     if (!module_redis_connection_send_ok(connection_context)) {
