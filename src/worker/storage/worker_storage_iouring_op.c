@@ -28,6 +28,8 @@
 #include "memory_allocator/ffma.h"
 #include "support/io_uring/io_uring_support.h"
 #include "config.h"
+#include "module/module.h"
+#include "network/io/network_io_common.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
