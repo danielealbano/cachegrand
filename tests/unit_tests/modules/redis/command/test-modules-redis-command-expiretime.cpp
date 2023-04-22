@@ -62,7 +62,6 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - EXPIRETIME",
         size_t out_buffer_length = 0;
         int64_t unixtime_response;
         int64_t unixtime_plus_5s = (clock_realtime_coarse_int64_ms() / 1000) + 5;
-        size_t expected_length = snprintf(nullptr, 0, ":%ld\r\n", unixtime_plus_5s);
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value", "EX", "5"},
