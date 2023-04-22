@@ -216,6 +216,7 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
     if (unlikely(!worker_iouring_fds_map_add_and_enqueue_files_update(
             worker_iouring_context_get()->ring,
             new_channel->fd,
+            WORKER_FDS_MAP_FILES_FD_TYPE_NETWORK_CHANNEL,
             &new_channel->has_mapped_fd,
             &new_channel->base_sqe_flags,
             &new_channel->wrapped_channel.fd))) {
