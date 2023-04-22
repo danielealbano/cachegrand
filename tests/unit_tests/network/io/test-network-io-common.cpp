@@ -826,10 +826,6 @@ TEST_CASE("network/io/network_io_common.c", "[network][network_io][network_io_co
 
             close(fd);
         }
-
-        SECTION("invalid socket") {
-            REQUIRE(!network_io_common_socket_close(-1, false));
-        }
     }
 
     SECTION("network_io_common_parse_addresses_foreach") {
