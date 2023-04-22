@@ -72,7 +72,6 @@
 #define TAG "program"
 
 static program_context_t program_context_global = { 0 };
-bool_volatile_t program_terminate_event_loop = false;
 
 static char* config_path_default = CACHEGRAND_CONFIG_PATH_DEFAULT;
 
@@ -85,13 +84,13 @@ void program_reset_context() {
 }
 
 signal_handler_thread_context_t* program_signal_handler_thread_initialize(
-        bool_volatile_t *terminate_event_loop,
         program_context_t *program_context) {
     signal_handler_thread_context_t *signal_handler_thread_context;
 
     program_context->signal_handler_thread_context = signal_handler_thread_context =
             xalloc_alloc_zero(sizeof(signal_handler_thread_context_t));
-    signal_handler_thread_context->terminate_event_loop = terminate_event_loop;
+    signal_handler_thread_context->workers_terminate_event_loop = &program_context->workers_terminate_event_loop;
+    signal_handler_thread_context->program_terminate_event_loop = &program_context->program_terminate_event_loop;
 
     LOG_V(TAG, "Creating signal handler thread");
 
@@ -110,21 +109,21 @@ signal_handler_thread_context_t* program_signal_handler_thread_initialize(
 }
 
 bool program_epoch_gc_workers_initialize(
-        bool_volatile_t *terminate_event_loop,
         program_context_t *program_context) {
 
     int epoch_gc_workers_count = (int)EPOCH_GC_OBJECT_TYPE_MAX;
+    program_context->epoch_gc_workers_count = epoch_gc_workers_count;
     program_context->epoch_gc_workers_context =
             xalloc_alloc_zero(epoch_gc_workers_count * sizeof(epoch_gc_worker_context_t));
 
     LOG_V(TAG, "Creating epoch gc workers");
 
-    for(int object_type_index = 0; object_type_index < epoch_gc_workers_count; object_type_index++) {
+    for(int object_type_index = 0; object_type_index < program_context->epoch_gc_workers_count; object_type_index++) {
         epoch_gc_worker_context_t *epoch_gc_worker_context =
                 &program_context->epoch_gc_workers_context[object_type_index];
 
         epoch_gc_worker_context->epoch_gc = epoch_gc_init(object_type_index);
-        epoch_gc_worker_context->terminate_event_loop = terminate_event_loop;
+        epoch_gc_worker_context->terminate_event_loop = &program_context->program_terminate_event_loop;
         epoch_gc_worker_context->stats.collected_objects = 0;
 
         if (pthread_create(
@@ -148,7 +147,6 @@ void program_workers_initialize_count(
 }
 
 worker_context_t* program_workers_initialize_context(
-        bool_volatile_t *terminate_event_loop,
         program_context_t *program_context)  {
     timespec_t started_on_timestamp = { 0 };
     worker_context_t *workers_context;
@@ -168,7 +166,7 @@ worker_context_t* program_workers_initialize_context(
                 &started_on_timestamp,
                 program_context->workers_count,
                 worker_index,
-                terminate_event_loop,
+                &program_context->workers_terminate_event_loop,
                 &program_context->storage_db_loaded,
                 program_context->config,
                 program_context->db);
@@ -220,10 +218,6 @@ bool program_workers_ensure_started(
     return true;
 }
 
-bool* program_get_terminate_event_loop() {
-    return (bool*)&program_terminate_event_loop;
-}
-
 void program_request_terminate(
         bool_volatile_t *terminate_event_loop) {
     *terminate_event_loop = true;
@@ -265,7 +259,7 @@ void program_wait_loop(
     while(
             !program_should_terminate(terminate_event_loop) &&
             !program_has_aborted_workers(workers_context, workers_count)) {
-        usleep(WORKER_LOOP_MAX_WAIT_TIME_MS * 1000);
+        usleep(WORKER_LOOP_MAX_WAIT_TIME_MS * 100);
     }
 
     LOG_V(TAG, "Wait loop terminated");
@@ -617,6 +611,7 @@ bool program_config_setup_storage_db(
         config->snapshot.rotation_max_files = program_context->config->database->snapshots->rotation != NULL
                                               ? program_context->config->database->snapshots->rotation->max_files
                                               : 0;
+        config->snapshot.snapshot_at_shutdown = program_context->config->database->snapshots->snapshot_at_shutdown;
     }
 
     if (program_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
@@ -688,6 +683,9 @@ void program_cleanup(
                 program_context->workers_count);
         xalloc_free(program_context->workers_context);
     }
+
+    // Ensure that that everything will start to shutdown after the workers have terminated
+    program_request_terminate(&program_context->program_terminate_event_loop);
 
     if (program_context->signal_handler_thread_context) {
         program_signal_handler_thread_cleanup(
@@ -804,21 +802,18 @@ int program_main(
 
     // Initialize the epoch gc workers
     if (program_signal_handler_thread_initialize(
-            &program_terminate_event_loop,
             program_context) == NULL) {
         goto end;
     }
 
     // Initialize the epoch gc workers
     if (program_epoch_gc_workers_initialize(
-            &program_terminate_event_loop,
             program_context) == false) {
         goto end;
     }
 
     // Initialize the workers
     if (program_workers_initialize_context(
-            &program_terminate_event_loop,
             program_context) == NULL) {
         goto end;
     }
@@ -835,14 +830,14 @@ int program_main(
     program_wait_loop(
             program_context->workers_context,
             program_context->workers_count,
-            &program_terminate_event_loop);
+            &program_context->workers_terminate_event_loop);
 
     return_res = 0;
 
 end:
     // The program_request_terminate is invoked to be sure that if the termination is being triggered because a worker
     // thread is aborting, every other thread is also notified and will terminate the execution
-    program_request_terminate(&program_terminate_event_loop);
+    program_request_terminate(&program_context->workers_terminate_event_loop);
 
     LOG_I(TAG, "Terminating");
 

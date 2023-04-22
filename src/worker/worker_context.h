@@ -20,6 +20,7 @@ typedef struct storage_db storage_db_t;
 typedef struct worker_context worker_context_t;
 struct worker_context {
     pthread_t pthread;
+    void *interface_context;
     bool_volatile_t *terminate_event_loop;
     bool_volatile_t aborted;
     bool_volatile_t running;

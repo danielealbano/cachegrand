@@ -27,8 +27,10 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
 #include "fiber/fiber.h"
+#include "fiber/fiber_scheduler.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
+#include "worker/worker_fiber.h"
 #include "signal_handler_thread.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
@@ -44,23 +46,13 @@
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SAVE", "[redis][command][SAVE]") {
     SECTION("Snapshot not running") {
-        uint64_t now = clock_monotonic_int64_ms() - 1;
+        uint64_t iteration = worker_context->db->snapshot.iteration;
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SAVE"},
                 "+OK\r\n"));
 
         // Check that the save operation has successfully run
-        MEMORY_FENCE_LOAD();
-        REQUIRE(worker_context->db->snapshot.next_run_time_ms > now);
-    }
-
-    SECTION("Snapshot already running") {
-        worker_context->db->snapshot.running = true;
-        MEMORY_FENCE_STORE();
-
-        REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"SAVE"},
-                "-ERR A background save is already in progress\r\n"));
+        REQUIRE(worker_context->db->snapshot.iteration > iteration);
     }
 }

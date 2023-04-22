@@ -73,6 +73,10 @@ void storage_db_snapshot_completed(
     char snapshot_duration_buffer[256] = { 0 };
     char next_shapshot_run_buffer[256] = { 0 };
 
+    if (db->snapshot.path) {
+        ffma_mem_free(db->snapshot.path);
+    }
+
     // Update the snapshot general information, no need to check if the update next run time is fails as this function
     // is called only when the snapshot is completed or failed by the thread that is running the snapshot and all the
     // other threads will wait for the snapshot to be completed as this is the last block processed.
@@ -190,8 +194,8 @@ bool storage_db_snapshot_should_run(
 void storage_db_snapshot_update_next_run_time(
         storage_db_t *db) {
     storage_db_config_t *config = db->config;
-
     db->snapshot.next_run_time_ms = clock_monotonic_coarse_int64_ms() + config->snapshot.interval_ms;
+    db->snapshot.iteration++;
 }
 
 void storage_db_snapshot_skip_run(

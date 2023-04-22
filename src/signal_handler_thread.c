@@ -58,18 +58,18 @@ void signal_handler_thread_handle_signal(
 
     LOG_I(
             TAG,
-            "Received signal <%s (%d)>, requesting loop termination",
+            "Received signal <%s (%d)>, requesting workers termination",
             signal_name,
             signal_number);
 
-    *signal_handler_thread_internal_context->terminate_event_loop = true;
+    *signal_handler_thread_internal_context->workers_terminate_event_loop = true;
     MEMORY_FENCE_STORE();
 }
 
 bool signal_handler_thread_should_terminate(
         signal_handler_thread_context_t *context) {
     MEMORY_FENCE_LOAD();
-    return *context->terminate_event_loop;
+    return *context->program_terminate_event_loop;
 }
 
 void signal_handler_thread_register_signal_handlers(

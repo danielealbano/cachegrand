@@ -161,6 +161,7 @@ database:
   snapshots:
     path: "/path/to/snapshot"
     interval: 5m
+    snapshot_at_shutdown: true
     min_keys_changed: 1000
     min_data_changed: 100mb
     rotation:
@@ -238,6 +239,14 @@ database:
       max_keys: 1000000
     soft:
       max_keys: 999999
+  snapshots:
+    path: "/path/to/snapshot"
+    interval: 5m
+    snapshot_at_shutdown: true
+    min_keys_changed: 1000
+    min_data_changed: 100mb
+    rotation:
+      max_files: 10
   backend: memory
   memory:
     limits:

@@ -42,48 +42,81 @@
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
+void test_modules_redis_command_shutdown_wait_for_teardown(
+        worker_context_t* worker_context) {
+    // Wait up to 5 seconds for the worker to stop
+    for(int i = 0; i < 5000; i++) {
+        MEMORY_FENCE_LOAD();
+        if(!worker_context->running) {
+            break;
+        }
+
+        usleep(500);
+    }
+
+    MEMORY_FENCE_LOAD();
+    REQUIRE(!worker_context->running);
+}
+
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SHUTDOWN", "[redis][command][SHUTDOWN]") {
     SECTION("Plain") {
+        uint64_t iteration = worker_context->db->snapshot.iteration;
+
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SHUTDOWN"},
                 "+OK\r\n"));
 
-        // Wait up to 5 seconds for the worker to stop
-        for(int i = 0; i < 5100; i++) {
-            MEMORY_FENCE_LOAD();
-            if(!worker_context->running) {
-                break;
-            }
+        test_modules_redis_command_shutdown_wait_for_teardown(worker_context);
 
-            usleep(1000);
-        }
-
-        MEMORY_FENCE_LOAD();
-        REQUIRE(!worker_context->running);
+        REQUIRE(worker_context->db->snapshot.iteration == iteration);
     }
 
     SECTION("Trigger save") {
-        uint64_t now = clock_monotonic_int64_ms() - 1;
+        uint64_t iteration = worker_context->db->snapshot.iteration;
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SHUTDOWN", "SAVE"},
                 "+OK\r\n"));
 
+        test_modules_redis_command_shutdown_wait_for_teardown(worker_context);
+
         // Check that the save operation has successfully run
-        REQUIRE(worker_context->db->snapshot.next_run_time_ms > now);
+        REQUIRE(worker_context->db->snapshot.iteration == iteration + 1);
+    }
 
-        // Wait up to 5 seconds for the worker to stop
-        for(int i = 0; i < 5100; i++) {
-            MEMORY_FENCE_LOAD();
-            if(!worker_context->running) {
-                break;
-            }
-
-            usleep(1000);
-        }
+    SECTION("snapshot_at_shutdown = true") {
+        // Set the flag to true to trigger a save operation on shutdown
+        program_context->db->config->snapshot.snapshot_at_shutdown = true;
+        MEMORY_FENCE_STORE();
 
         MEMORY_FENCE_LOAD();
-        REQUIRE(!worker_context->running);
+        uint64_t iteration = worker_context->db->snapshot.iteration;
 
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                std::vector<std::string>{"SHUTDOWN"},
+                "+OK\r\n"));
+
+        test_modules_redis_command_shutdown_wait_for_teardown(worker_context);
+
+        // Check that the save operation has successfully run
+        REQUIRE(worker_context->db->snapshot.iteration == iteration + 1);
+    }
+
+    SECTION("Force nosave") {
+        // To emulate the save operation we need to set the snapshot_at_shutdown flag
+        program_context->db->config->snapshot.snapshot_at_shutdown = true;
+        MEMORY_FENCE_STORE();
+
+        MEMORY_FENCE_LOAD();
+        uint64_t iteration = worker_context->db->snapshot.iteration;
+
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                std::vector<std::string>{"SHUTDOWN", "NOSAVE"},
+                "+OK\r\n"));
+
+        test_modules_redis_command_shutdown_wait_for_teardown(worker_context);
+
+        // Check that the save operation has successfully run
+        REQUIRE(worker_context->db->snapshot.iteration == iteration);
     }
 }

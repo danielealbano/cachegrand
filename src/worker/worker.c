@@ -201,15 +201,9 @@ bool worker_initialize_storage(
     return true;
 }
 
-void worker_cleanup_network(
-        worker_context_t* worker_context,
+void worker_shutdown_network_listeners(
         network_channel_t *listeners,
         uint8_t listeners_count) {
-    // TODO: should use a struct with fp pointers, not ifs
-    if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING) {
-        worker_network_iouring_cleanup(listeners, listeners_count);
-    }
-
     for(
             uint32_t listener_index = 0; listener_index < listeners_count; listener_index++) {
         network_channel_t *listener_channel = worker_op_network_channel_multi_get(
@@ -218,6 +212,16 @@ void worker_cleanup_network(
         network_io_common_socket_close(
                 listener_channel->fd,
                 true);
+    }
+}
+
+void worker_cleanup_network(
+        worker_context_t* worker_context,
+        network_channel_t *listeners,
+        uint8_t listeners_count) {
+    // TODO: should use a struct with fp pointers, not ifs
+    if (worker_context->config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING) {
+        worker_network_iouring_cleanup(listeners, listeners_count);
     }
 
     if (listeners) {
@@ -412,24 +416,7 @@ void* worker_thread_func(
         goto end;
     }
 
-    if (!worker_network_listeners_initialize(
-            worker_context->worker_index,
-            worker_context->core_index,
-            worker_context->config,
-            worker_module_contexts,
-            &listeners,
-            &listeners_count)) {
-        LOG_E(TAG, "Unable to initialize the listeners!");
-        goto end;
-    }
-
-    worker_network_listeners_listen_pre(
-            worker_context->config->network->backend,
-            listeners,
-            listeners_count);
-
     LOG_V(TAG, "Starting events loop");
-
 
     // TODO: the current loop terminates immediately when requests but this can lead to data corruption while data are
     //       being written by the fibers. To ensure a proper flow of operations the worker should notify the fibers that
@@ -438,12 +425,30 @@ void* worker_thread_func(
     //       In case the fibers are not terminating, even if it can lead to corruption, them should be terminated within
     //       a maximum timeout or X seconds and an error message should be reported pointing out what a fiber is doing
     //       and where.
+    bool can_terminate_loop = false;
+    bool can_start_snapshot_at_shutdown = false;
+    bool snapshot_at_shutdown_started = false;
+    bool shutdown_done_waiting_for_storage_fds = false;
+    uint64_t snapshot_shutdown_start_time = 0;
     do {
-        // Process io_uring events
-        res = worker_iouring_process_events_loop(worker_context);
-
         // Check if the database has been loaded
         if (worker_context->running == false && *worker_context->storage_db_loaded == true) {
+            if (!worker_network_listeners_initialize(
+                    worker_context->worker_index,
+                    worker_context->core_index,
+                    worker_context->config,
+                    worker_module_contexts,
+                    &listeners,
+                    &listeners_count)) {
+                LOG_E(TAG, "Unable to initialize the listeners!");
+                goto end;
+            }
+
+            worker_network_listeners_listen_pre(
+                    worker_context->config->network->backend,
+                    listeners,
+                    listeners_count);
+
             // Starts to listen and marks the worker as running
             worker_network_listeners_listen(
                     worker_context,
@@ -452,6 +457,68 @@ void* worker_thread_func(
 
             worker_set_running(worker_context, true);
         }
+
+        // Check if the work can terminate
+        if (worker_should_terminate(worker_context)) {
+            if (shutdown_done_waiting_for_storage_fds == false) {
+                // Close all the listeners
+                worker_shutdown_network_listeners(
+                        listeners,
+                        listeners_count);
+
+                // Close all the network sockets
+                int64_t fds_map_files_index = -1;
+                while((fds_map_files_index = worker_iouring_fds_map_files_iter(fds_map_files_index + 1)) != -1) {
+                    worker_iouring_fds_map_files_fd_type_t type;
+                    network_io_common_fd_t fd = worker_iouring_fds_map_get(fds_map_files_index, &type);
+
+                    if (type != WORKER_FDS_MAP_FILES_FD_TYPE_NETWORK_CHANNEL) {
+                        continue;
+                    }
+
+                    network_io_common_socket_close(fd, true);
+                }
+
+                // Mark that it has to wait
+                shutdown_done_waiting_for_storage_fds = true;
+            } else {
+                // Wait for all the fds to be closed
+                uint32_t counter = 0;
+                int64_t fds_map_files_index = -1;
+                while((fds_map_files_index = worker_iouring_fds_map_files_iter(fds_map_files_index + 1)) != -1) {
+                    counter++;
+                }
+
+                if (counter == 0) {
+                    // All the fds have been closed
+                    if (worker_context->db->config->snapshot.snapshot_at_shutdown) {
+                        can_start_snapshot_at_shutdown = true;
+                    } else {
+                        can_terminate_loop = true;
+                    }
+                }
+            }
+
+            if (can_start_snapshot_at_shutdown && !snapshot_at_shutdown_started) {
+                MEMORY_FENCE_LOAD();
+                if (worker_context->db->snapshot.running == false) {
+                    snapshot_shutdown_start_time = clock_monotonic_int64_ms();
+                    worker_context->db->snapshot.next_run_time_ms = snapshot_shutdown_start_time - 1;
+                    MEMORY_FENCE_STORE();
+                    snapshot_at_shutdown_started = true;
+                }
+            }
+
+            if (snapshot_at_shutdown_started) {
+                MEMORY_FENCE_LOAD();
+                if (worker_context->db->snapshot.next_run_time_ms > snapshot_shutdown_start_time) {
+                    can_terminate_loop = true;
+                }
+            }
+        }
+
+        // Process events
+        res = worker_iouring_process_events(worker_context);
 
         if (!res) {
             LOG_E(TAG, "Worker process event loop failed, terminating");
@@ -468,10 +535,10 @@ void* worker_thread_func(
                     &worker_context->stats.shared,
                     only_total);
         }
-    } while(!worker_should_terminate(worker_context));
+    } while(!can_terminate_loop);
 
     aborted = false;
-end:
+    end:
     LOG_V(TAG, "Worker events loop ended, cleaning up");
 
     worker_cleanup(

@@ -248,6 +248,7 @@ struct config_database_snapshots {
     char *path;
     char *interval_str;
     char *min_data_changed_str;
+    bool snapshot_at_shutdown;
     int64_t interval_ms;
     int64_t min_keys_changed;
     int64_t min_data_changed;

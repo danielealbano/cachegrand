@@ -38,7 +38,7 @@ struct storage_db_keys_eviction_kv_list_entry {
 } __attribute__((__aligned__(16)));
 typedef struct storage_db_keys_eviction_kv_list_entry storage_db_keys_eviction_kv_list_entry_t;
 
-struct storage_db_limits {
+struct storage_db_config_limits {
     struct {
         uint64_t soft_limit;
         uint64_t hard_limit;
@@ -48,9 +48,7 @@ struct storage_db_limits {
         hashtable_bucket_count_t hard_limit;
     } keys_count;
 };
-typedef struct storage_db_limits storage_db_limits_t;
-
-typedef int (*storage_db_keys_eviction_list_sort_cb)(const void *, const void*);
+typedef struct storage_db_config_limits storage_db_config_limits_t;
 
 struct storage_db_keys_eviction_list_entry {
     uint16_t key_size;
@@ -83,23 +81,24 @@ enum storage_db_entry_index_value_type {
 };
 typedef enum storage_db_entry_index_value_type storage_db_entry_index_value_type_t;
 
-struct storage_db_snapshot {
+struct storage_db_config_snapshot {
     bool enabled;
     uint64_t interval_ms;
     uint64_t min_keys_changed;
     uint64_t min_data_changed;
     char *path;
     uint64_t rotation_max_files;
+    bool snapshot_at_shutdown;
 };
-typedef struct storage_db_snapshot storage_db_snapshot_t;
+typedef struct storage_db_config_snapshot storage_db_config_snapshot_t;
 
 // general config parameters to initialize and use the internal storage db (e.g. storage backend, amount of memory for
 // the hashtable, other optional stuff)
 typedef struct storage_db_config storage_db_config_t;
 struct storage_db_config {
     storage_db_backend_type_t backend_type;
-    storage_db_limits_t limits;
-    storage_db_snapshot_t snapshot;
+    storage_db_config_limits_t limits;
+    storage_db_config_snapshot_t snapshot;
     union {
         struct {
             char *basedir_path;
@@ -158,6 +157,7 @@ struct storage_db {
     } shards;
     struct {
         spinlock_lock_t spinlock;
+        uint64_t iteration;
         uint64_volatile_t next_run_time_ms;
         uint64_volatile_t start_time_ms;
         uint64_volatile_t end_time_ms;
@@ -181,7 +181,7 @@ struct storage_db {
     storage_db_config_t *config;
     storage_db_worker_t *workers;
     uint16_t workers_count;
-    storage_db_limits_t limits;
+    storage_db_config_limits_t limits;
     slots_bitmap_mpmc_t *counters_slots_bitmap;
     storage_db_counters_t counters[STORAGE_DB_WORKERS_MAX];
 };

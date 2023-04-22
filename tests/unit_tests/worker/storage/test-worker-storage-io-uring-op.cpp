@@ -30,6 +30,8 @@
 #include "config.h"
 #include "clock.h"
 #include "memory_allocator/ffma.h"
+#include "module/module.h"
+#include "network/io/network_io_common.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/channel/storage_channel_iouring.h"

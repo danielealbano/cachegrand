@@ -86,7 +86,7 @@ void worker_fiber_storage_db_snapshot_rdb_fiber_entrypoint(
         // Process a block
         result = storage_db_snapshot_rdb_process_block(db, &last_block);
 
-        // If the block was processed successfully and was the last one, mark the snapshot as not running anymore
+        // If the block was processed successfully and was the last one, mark the snapshot as being finalized
         if (result && last_block) {
             storage_db_snapshot_mark_as_being_finalized(db);
         }

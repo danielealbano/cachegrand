@@ -355,11 +355,13 @@ void worker_network_listeners_fiber_entrypoint(
     while(!worker_should_terminate(worker_context)) {
         if ((new_channel = worker_op_network_accept(
                 listener_channel)) == NULL) {
-            LOG_V(
-                    TAG,
-                    "[FD:%5d][ACCEPT] Listener <%s> failed to accept a new connection",
-                    listener_channel->fd,
-                    listener_channel->address.str);
+            if (!worker_should_terminate(worker_context)) {
+                LOG_V(
+                        TAG,
+                        "[FD:%5d][ACCEPT] Listener <%s> failed to accept a new connection",
+                        listener_channel->fd,
+                        listener_channel->address.str);
+            }
 
             continue;
         }

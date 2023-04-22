@@ -61,7 +61,6 @@
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
-    terminate_event_loop = false;
     char* cpus[] = { "0" };
 
     config_module_network_binding = {
@@ -127,6 +126,7 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
             .path = "/tmp/dump.rdb",
             .interval_str = "7d",
             .min_data_changed_str = "0",
+            .snapshot_at_shutdown = false,
             .min_keys_changed = 0,
             .rotation = nullptr,
     };
@@ -163,14 +163,13 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
     db = program_context->db;
     storage_db_open(db);
 
-    program_epoch_gc_workers_initialize(&terminate_event_loop, program_context);
+    program_epoch_gc_workers_initialize(program_context);
 
     program_config_thread_affinity_set_selected_cpus(program_context);
 
     program_workers_initialize_count(program_context);
 
     worker_context = program_workers_initialize_context(
-            &terminate_event_loop,
             program_context);
 
     PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true)
@@ -197,28 +196,17 @@ TestModulesRedisCommandFixture::~TestModulesRedisCommandFixture() {
     }
     redisFree(this->c);
 
-    terminate_event_loop = true;
-    MEMORY_FENCE_STORE();
+    // As the config is not allocated via cyaml, set program_context->config to null to avoid the code trying to free
+    // memory allocated on the stack
+    program_context->config = nullptr;
 
-    // Wait for the thread to end
-    if (worker_context->running) {
-        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false)
-    }
-    sched_yield();
+    // Request the termination of the workers
+    program_request_terminate(&program_context->workers_terminate_event_loop);
 
-    program_workers_cleanup(
-            worker_context,
-            1);
+    // Wait for the cachegrand instance to terminate
+    program_cleanup(program_context);
 
-    REQUIRE(mprobe(worker_context) == -MCHECK_FREE);
-
-    program_epoch_gc_workers_cleanup(
-            program_context->epoch_gc_workers_context,
-            program_context->epoch_gc_workers_count);
-
-    storage_db_close(db);
-    storage_db_free(db, workers_count);
-
+    // Reset the context for the next test if needed
     program_reset_context();
 }
 
@@ -309,15 +297,6 @@ size_t TestModulesRedisCommandFixture::string_replace(
     *(output+1) = 0;
 
     return output - output_begin;
-}
-
-size_t TestModulesRedisCommandFixture::send_recv_resp_command_calculate_multi_recv(
-        size_t expected_length) const {
-    if (expected_length < recv_packet_size) {
-        return 1;
-    }
-
-    return 1 + (size_t)ceil((float)expected_length / (float)recv_packet_size) + 3;
 }
 
 bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(

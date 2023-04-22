@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#define EPOCH_GC_THREAD_LOOP_WAIT_TIME_MS 5000
+#define EPOCH_GC_THREAD_LOOP_WAIT_TIME_MS 3
 #define EPOCH_GC_THREAD_LOG_PRODUCER_PREFIX_TEMPLATE "[epoch gc %d]"
 #define EPOCH_GC_THREAD_NAME_TEMPLATE "epoch_gc_%d"
 

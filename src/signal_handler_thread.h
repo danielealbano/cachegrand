@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#define SIGNAL_HANDLER_THREAD_LOOP_MAX_WAIT_TIME_MS 500
+#define SIGNAL_HANDLER_THREAD_LOOP_MAX_WAIT_TIME_MS 3
 #define SIGNAL_HANDLER_THREAD_LOG_PRODUCER_PREFIX_FORMAT_STRING "[signal handler thread]"
 #define SIGNAL_HANDLER_THREAD_NAME "signal_handler"
 
@@ -17,7 +17,8 @@ extern uint8_t signal_handler_thread_managed_signals_count;
 
 struct signal_handler_thread_context {
     pthread_t pthread;
-    volatile bool *terminate_event_loop;
+    volatile bool *workers_terminate_event_loop;
+    volatile bool *program_terminate_event_loop;
 };
 
 void signal_handler_thread_handle_signal(
