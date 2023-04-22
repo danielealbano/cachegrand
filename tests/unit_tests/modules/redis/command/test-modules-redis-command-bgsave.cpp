@@ -27,8 +27,10 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "config.h"
 #include "fiber/fiber.h"
+#include "fiber/fiber_scheduler.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
+#include "worker/worker_fiber.h"
 #include "signal_handler_thread.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
@@ -60,11 +62,22 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - BGSAVE", "[r
     }
 
     SECTION("Snapshot already running") {
+        // Kill the fiber that generates the snapshot to avoid a crash when setting the snapshot.running flag to true
+        // as the fiber will try to finalize a non existing snapshot
+        REQUIRE(worker_fiber_terminate_by_name(
+                &program_context->workers_context[0],
+                "worker-fiber-storage-db-gc-deleted-entries"));
+
+        // Mark the snapshot as running
         worker_context->db->snapshot.running = true;
         MEMORY_FENCE_STORE();
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"BGSAVE"},
                 "-ERR A background save is already in progress\r\n"));
+
+        // Restore the flag
+        worker_context->db->snapshot.running = false;
+        MEMORY_FENCE_STORE();
     }
 }
