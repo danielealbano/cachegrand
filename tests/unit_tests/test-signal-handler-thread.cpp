@@ -63,7 +63,6 @@ TEST_CASE("signal_handler_thread.c", "[signal_handler_thread]") {
                     .program_terminate_event_loop = &program_terminate_event_loop,
             };
 
-            REQUIRE(signal_handler_thread_should_terminate(&context) == workers_terminate_event_loop);
             REQUIRE(signal_handler_thread_should_terminate(&context) == program_terminate_event_loop);
         }
     }
@@ -226,13 +225,8 @@ TEST_CASE("signal_handler_thread.c", "[signal_handler_thread]") {
             program_terminate_event_loop = true;
             MEMORY_FENCE_STORE();
 
-            usleep((SIGNAL_HANDLER_THREAD_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
             sched_yield();
-
             REQUIRE(pthread_join(context.pthread, nullptr) == 0);
-
-            usleep((SIGNAL_HANDLER_THREAD_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
-            sched_yield();
         }
 
         signal_handler_thread_internal_context = nullptr;
@@ -263,22 +257,35 @@ TEST_CASE("signal_handler_thread.c", "[signal_handler_thread]") {
         usleep(25000);
         sched_yield();
 
-        SECTION("teardown with terminate_event_loop") {
+        SECTION("teardown thread with terminate_event_loop") {
             program_terminate_event_loop = true;
             MEMORY_FENCE_STORE();
-
-            usleep((SIGNAL_HANDLER_THREAD_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
             sched_yield();
 
+            // Not real test but will get stuck here if the thread doesn't terminate after the
+            // flag is changed to true
             REQUIRE(pthread_join(context.pthread, nullptr) == 0);
         }
 
-        SECTION("teardown with signal") {
+        SECTION("teardown workers with signal") {
             REQUIRE(kill(0, SIGCHLD) == 0);
-
-            usleep((SIGNAL_HANDLER_THREAD_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
             sched_yield();
 
+            // Wait up to 1s to see if workers_terminate_event_loop is set to true
+            for (uint8_t i = 0; i < 100; i++) {
+                MEMORY_FENCE_LOAD();
+                if (workers_terminate_event_loop) {
+                    break;
+                }
+                usleep(10000);
+            }
+
+            REQUIRE(workers_terminate_event_loop == true);
+
+            // Terminate the thread
+            program_terminate_event_loop = true;
+            MEMORY_FENCE_STORE();
+            sched_yield();
             REQUIRE(pthread_join(context.pthread, nullptr) == 0);
         }
 
