@@ -260,7 +260,6 @@ TEST_CASE("program.c", "[program]") {
         PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345()
 
         worker_context_t* worker_context;
-        volatile bool terminate_event_loop = false;
 
         program_config_thread_affinity_set_selected_cpus(&program_context);
         program_workers_initialize_count(&program_context);
@@ -270,14 +269,14 @@ TEST_CASE("program.c", "[program]") {
         REQUIRE(worker_context != nullptr);
         REQUIRE(worker_context->workers_count == 1);
         REQUIRE(worker_context->worker_index == 0);
-        REQUIRE(worker_context->terminate_event_loop == &terminate_event_loop);
+        REQUIRE(worker_context->terminate_event_loop == &program_context.workers_terminate_event_loop);
         REQUIRE(worker_context->config == &config);
         REQUIRE(worker_context->pthread != 0);
 
         PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true)
 
         // Terminate running thread
-        terminate_event_loop = true;
+        program_context.workers_terminate_event_loop = true;
         MEMORY_FENCE_STORE();
 
         // Wait for the thread to end
@@ -295,7 +294,6 @@ TEST_CASE("program.c", "[program]") {
         PROGRAM_CONFIG_AND_CONTEXT_REDIS_LOCALHOST_12345()
 
         worker_context_t* worker_context;
-        volatile bool terminate_event_loop = false;
 
         program_config_thread_affinity_set_selected_cpus(&program_context);
         program_workers_initialize_count(&program_context);
@@ -304,7 +302,7 @@ TEST_CASE("program.c", "[program]") {
 
         PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true)
 
-        terminate_event_loop = true;
+        program_context.workers_terminate_event_loop = true;
         MEMORY_FENCE_STORE();
 
         // Wait for the thread to end
