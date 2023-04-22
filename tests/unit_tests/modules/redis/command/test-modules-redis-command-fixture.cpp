@@ -126,6 +126,7 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
             .path = "/tmp/dump.rdb",
             .interval_str = "7d",
             .min_data_changed_str = "0",
+            .snapshot_at_shutdown = false,
             .min_keys_changed = 0,
             .rotation = nullptr,
     };
