@@ -75,7 +75,7 @@ io_uring_t* io_uring_support_init(
     }
 
     if (io_uring_register_ring_fd(io_uring) != 1) {
-        LOG_W(TAG, "Unable to register the io_uring ring fd");
+        LOG_V(TAG, "Unable to register the io_uring ring fd");
         LOG_E_OS_ERROR(TAG);
     }
 
