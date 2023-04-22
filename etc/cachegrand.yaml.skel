@@ -134,6 +134,8 @@ database:
     path: /var/lib/cachegrand/dump.rdb
     # The interval between the snapshots, the allowed units are s, m, h, if not specified the default is seconds.
     interval: 30m
+    # If enabled, a snapshot will be taken at shutdown
+    snapshot_at_shutdown: true
     # The number of keys that must be changed before a snapshot is taken, 0 means no limit
     min_keys_changed: 1
     # The amount of data that must be changed before a snapshot is taken, the allowed units are b, k, m, g, 0 means no

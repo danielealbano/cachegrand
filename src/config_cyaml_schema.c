@@ -318,6 +318,9 @@ const cyaml_schema_field_t config_database_snapshots_schema[] = {
         CYAML_FIELD_STRING_PTR(
                 "interval", CYAML_FLAG_DEFAULT,
                 config_database_snapshots_t, interval_str, 0, 20),
+        CYAML_FIELD_BOOL(
+                "snapshot_at_shutdown", CYAML_FLAG_DEFAULT,
+                config_database_snapshots_t, snapshot_at_shutdown),
         CYAML_FIELD_UINT(
                 "min_keys_changed", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
                 config_database_snapshots_t, min_keys_changed),
