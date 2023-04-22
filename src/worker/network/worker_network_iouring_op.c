@@ -269,6 +269,12 @@ network_channel_t* worker_network_iouring_op_network_accept(
 
     // Validate the result
     if (unlikely(worker_iouring_cqe_is_error_any(cqe))) {
+        worker_context_t *worker_context = worker_context_get();
+        if (cqe->res == -EINVAL && worker_should_terminate(worker_context)) {
+            // The worker is terminating, the error is the consequence of closing the listener socket
+            return NULL;
+        }
+
         fiber_scheduler_set_error(-cqe->res);
         LOG_E(
                 TAG,

@@ -208,12 +208,9 @@ bool network_io_common_socket_close(
         ret = false;
     }
 
-    // Try to close the socket anyway if the shutdown fails
-    if (close(fd)) {
-        LOG_E(TAG, "Error closing the socket with fd <%d>", fd);
-        LOG_E_OS_ERROR(TAG);
-        ret = false;
-    }
+    // If the close fails it means the socket is already closed, we don't really need to care
+    close(fd);
+    ret = true;
 
     return ret;
 }
