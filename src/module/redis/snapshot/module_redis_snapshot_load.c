@@ -484,6 +484,8 @@ bool module_redis_snapshot_load(
     counter_expires = 0;
     counter_expires_expired = 0;
 
+    LOG_I(TAG, "Loading the snapshot file <%s>", path);
+
     // Load the data
     module_redis_snapshot_load_data(snapshot_channel);
 
@@ -491,7 +493,7 @@ bool module_redis_snapshot_load(
     storage_close(snapshot_channel);
 
     // Report the results
-    LOG_I(TAG, "Loaded the snapshot file <%s>", path);
+    LOG_I(TAG, "Snapshot loaded");
     LOG_I(TAG, "Found:");
     LOG_I(TAG, "> %lu string(s)", counter_strings);
     LOG_I(TAG, "> %lu value(s) with expirations", counter_expires - counter_expires_expired);
