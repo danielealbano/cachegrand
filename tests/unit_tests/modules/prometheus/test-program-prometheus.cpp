@@ -73,7 +73,6 @@ typedef struct test_metric_entry test_metric_entry_t;
 
 TEST_CASE("program.c-prometheus", "[program-prometheus]") {
     worker_context_t *worker_context;
-    volatile bool terminate_event_loop = false;
     char* cpus[] = { "0" };
 
     config_module_network_binding_t config_module_network_binding = {
@@ -134,15 +133,20 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
     db_config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY;
     db_config->limits.keys_count.hard_limit = 1000;
 
-    storage_db_t *db = storage_db_new(db_config, workers_count);
-    storage_db_open(db);
-
     program_context_t *program_context = program_get_context();
     program_context->config = &config;
-    program_context->db = db;
+    program_context->workers_count = workers_count;
+
+    program_config_setup_storage_db(program_context);
+    storage_db_t *db = program_context->db;
+    storage_db_open(db);
+
+    program_epoch_gc_workers_initialize(program_context);
 
     program_config_thread_affinity_set_selected_cpus(program_context);
+
     program_workers_initialize_count(program_context);
+
     worker_context = program_workers_initialize_context(
             program_context);
 
@@ -375,24 +379,16 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
 
     close(clientfd);
 
-    terminate_event_loop = true;
-    MEMORY_FENCE_STORE();
+    // As the config is not allocated via cyaml, set program_context->config to null to avoid the code trying to free
+    // memory allocated on the stack
+    program_context->config = nullptr;
 
-    // Wait for the thread to end
-    if (worker_context->running) {
-        PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, false)
-        usleep(10000);
-    }
-    sched_yield();
+    // Request the termination of the workers
+    program_request_terminate(&program_context->workers_terminate_event_loop);
 
-    program_workers_cleanup(
-            worker_context,
-            1);
+    // Wait for the cachegrand instance to terminate
+    program_cleanup(program_context);
 
-    REQUIRE(mprobe(worker_context) == -MCHECK_FREE);
-
-    storage_db_close(db);
-    storage_db_free(db, workers_count);
-
+    // Reset the context for the next test if needed
     program_reset_context();
 }
