@@ -3,7 +3,6 @@
 ![Lines of code](https://badges.cachegrand.io/svg/ssc-total-lines.svg)
 [![COCOMO](https://badges.cachegrand.io/svg/ssc-cocomo.svg)](https://en.wikipedia.org/wiki/COCOMO)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fdanielealbano%2Fcachegrand.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fdanielealbano%2Fcachegrand?ref=badge_shield)
-[![](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/danielealbano)
 
 <p align="center">
   <a href="https://cachegrand.io">
@@ -105,11 +104,21 @@ the documentation is lacking as well as it's being re-written, please don't open
 
 The status of the project is tracked via GitHub using the project management board.
 
+### License
+
+cachegrand is licensed under the [BSD 3-Clause License](https://github.com/danielealbano/cachegrand/blob/main/LICENSE),
+all the files under the repository are licensed under the same license unless otherwise specified (for example, but not
+limited, via a README or a LICENSE in a sub folder or as header in the source files).
+
+cachegrand uses a number of different components all licensed under compatible licenses but if you spot any that is not
+compatible with the BSD 3-Clause License please open an issue, we will be happy to fix it promptly!
+
 ### Issues & contributions
 
 Please if you find any bug, malfunction or regression feel free to open an issue or to fork the repository and submit
 your PRs! If you do open an Issue for a crash, if possible please enable sentry.io in the configuration file and try to
 reproduce the crash, a minidump will be automatically uploaded on sentry.io.
+
 Also, if you have built cachegrand from the source, please attach the compiled binary to the issue as well as sentry.io
 knows nothing of your own compiled binaries.
 
@@ -184,6 +193,8 @@ docker run \
   --ulimit nofile=262144:262144 \
   -p 6379:6379 \
   -p 6380:6380 \
+  -p 9090:9090 \
+  -it \
   --rm \
   cachegrand/cachegrand-server:latest
 ```
@@ -197,22 +208,23 @@ it's possible to mount the required certificate and key using the following comm
 docker run \
   -v /path/to/certificate.pem:/etc/cachegrand/cachegrand.pem \
   -v /path/to/certificate.key:/etc/cachegrand/cachegrand.key \
-  -v /path/to/cachegrand.yaml:/etc/cachegrand/cachegrand.yaml \
   --ulimit memlock=-1:-1 \
   --ulimit nofile=262144:262144 \
   -p 6379:6379 \
   -p 6380:6380 \
+  -p 9090:9090 \
+  -it \
   --rm \
   cachegrand/cachegrand-server:latest
 ```
 
-if you want to enable prometheus or change other parameters you can download the example config file
+if you want to use a custom configuration, you can download the default configuration file using the following command
 
 ```shell
 curl https://raw.githubusercontent.com/danielealbano/cachegrand/main/etc/cachegrand.yaml.skel -o /path/to/cachegrand.yaml
 ```
 
-Edit it with your preferred editor and then start cachegrand using the following command
+Edit it and then use it with the cachegrand's docker image using the following command
 
 ```shell
 docker run \
@@ -221,9 +233,8 @@ docker run \
   --ulimit nofile=262144:262144 \
   -p 6379:6379 \
   -p 6380:6380 \
+  -p 9090:9090 \
+  -it \
   --rm \
   cachegrand/cachegrand-server:latest
 ```
-
-## License
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fdanielealbano%2Fcachegrand.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fdanielealbano%2Fcachegrand?ref=badge_large)
