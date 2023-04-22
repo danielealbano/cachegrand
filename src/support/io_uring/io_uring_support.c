@@ -212,6 +212,22 @@ bool io_uring_support_sqe_enqueue_nop(
     return true;
 }
 
+bool io_uring_support_sqe_enqueue_cancel(
+        io_uring_t *ring,
+        uint8_t sqe_flags,
+        uint64_t user_data) {
+    io_uring_sqe_t *sqe = io_uring_support_get_sqe(ring);
+    if (sqe == NULL) {
+        return false;
+    }
+
+    io_uring_prep_cancel64(sqe, user_data, 0);
+    io_uring_sqe_set_flags(sqe, sqe_flags);
+    sqe->user_data = user_data;
+
+    return true;
+}
+
 bool io_uring_support_sqe_enqueue_files_update(
         io_uring_t *ring,
         int *fds,

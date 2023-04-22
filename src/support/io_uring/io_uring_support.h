@@ -64,6 +64,11 @@ bool io_uring_support_sqe_enqueue_nop(
         uint8_t sqe_flags,
         uint64_t user_data);
 
+bool io_uring_support_sqe_enqueue_cancel(
+        io_uring_t *ring,
+        uint8_t sqe_flags,
+        uint64_t user_data);
+
 bool io_uring_support_sqe_enqueue_accept(
         io_uring_t *ring,
         int fd,

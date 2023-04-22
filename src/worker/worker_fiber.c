@@ -71,25 +71,6 @@ bool worker_fiber_register(
     return true;
 }
 
-bool worker_fiber_terminate_by_name(
-        worker_context_t* worker_context,
-        char *fiber_name) {
-    double_linked_list_item_t *item;
-    while ((item = double_linked_list_pop_item(worker_context->fibers)) != NULL) {
-        fiber_t *fiber = item->data;
-
-        if (strcmp(fiber->name, fiber_name) != 0) {
-            continue;
-        }
-
-        fiber_free(fiber);
-        double_linked_list_item_free(item);
-        return true;
-    }
-
-    return false;
-}
-
 void worker_fiber_free(
         worker_context_t* worker_context) {
     double_linked_list_item_t *item;
