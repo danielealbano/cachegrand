@@ -194,8 +194,8 @@ bool storage_db_snapshot_should_run(
 void storage_db_snapshot_update_next_run_time(
         storage_db_t *db) {
     storage_db_config_t *config = db->config;
-
     db->snapshot.next_run_time_ms = clock_monotonic_coarse_int64_ms() + config->snapshot.interval_ms;
+    db->snapshot.iteration++;
 }
 
 void storage_db_snapshot_skip_run(

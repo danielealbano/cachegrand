@@ -158,6 +158,7 @@ struct storage_db {
     } shards;
     struct {
         spinlock_lock_t spinlock;
+        uint64_t iteration;
         uint64_volatile_t next_run_time_ms;
         uint64_volatile_t start_time_ms;
         uint64_volatile_t end_time_ms;
