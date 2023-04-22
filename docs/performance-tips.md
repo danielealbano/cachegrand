@@ -88,17 +88,34 @@ sudo sysctl net.core.default_qdisc=noqueue
 sudo tc qdisc replace dev __NIC__ root mq
 ```
 
-### Generic Receive Offload (GRO)
+### Kernel and NIC Offload
 
-The *Generic Receive Offload*, or *GRO*, is a mechanism provided by the kernel to merge together packets at kernel level
-to reduce the amount of packets processed by the network stack.
+Both the Kernel and the NIC offer several different potential optimizations to merge, or split, packets and to offload
+some of the processing to the hardware. Although in general it's a good idea to keep them on, it's possible to turn them
+off in some cases to improve the latencies.
+It's important to test out the different settings to find the best combination for your specific use case as any
+combination can have a different impact and will depend on the behavior of the applications using cachegrand.
 
-Meanwhile, it's normally a very good idea to keep it on, when using cachegrand there might be cases where it's convenient
-to turn it off as the vast majority of commands will fit in a single packet (which can be as long as the MTU) further
-reducing extra processing.
-This though can have an impact with bigger commands if they are used often than the others, for example if the Redis
-`SET` command is very often used with blocks of data bigger than 1400 bytes the network stack will have to process and
-generate multiple events for these.
+Here some useful documentation
+https://www.kernel.org/doc/html/latest/networking/segmentation-offloads.html
+
+Certain kind of offloads are not available on all the network cards and the kernel will try to compensate performing
+these operation in software, causing a latency degradation. To improve it it's possible to turn them off.
+
+#### Generic Segmentation Offload (GSO)
+
+The *Generic Segmentation Offload*, or *GSO*, is a mechanism provided by the kernel to split packets at software level
+to match the MSS, meanwhile it can be useful to keep it on, it's possible to turn it off to reduce the latency.
+
+```shell
+sudo ethtool -K __NIC__ gso off
+```
+
+#### Generic Receive Offload (GRO)
+
+The *Generic Receive Offload*, or *GRO*, is a mechanism provided by the kernel to merge packets at software level to
+reduce the amount of packets that need to be processed. As for the GSO, it's possible to turn it off to improve the
+latency.
 
 ```shell
 sudo ethtool -K __NIC__ gro off
