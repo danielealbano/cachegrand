@@ -17,7 +17,8 @@ extern uint8_t signal_handler_thread_managed_signals_count;
 
 struct signal_handler_thread_context {
     pthread_t pthread;
-    volatile bool *terminate_event_loop;
+    volatile bool *workers_terminate_event_loop;
+    volatile bool *program_terminate_event_loop;
 };
 
 void signal_handler_thread_handle_signal(
