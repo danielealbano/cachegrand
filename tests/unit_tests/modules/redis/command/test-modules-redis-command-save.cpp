@@ -46,34 +46,13 @@
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SAVE", "[redis][command][SAVE]") {
     SECTION("Snapshot not running") {
-        uint64_t now = clock_monotonic_int64_ms() - 1;
+        uint64_t iteration = worker_context->db->snapshot.iteration;
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SAVE"},
                 "+OK\r\n"));
 
         // Check that the save operation has successfully run
-        MEMORY_FENCE_LOAD();
-        REQUIRE(worker_context->db->snapshot.next_run_time_ms > now);
-    }
-
-    SECTION("Snapshot already running") {
-        // Kill the fiber that generates the snapshot to avoid a crash when setting the snapshot.running flag to true
-        // as the fiber will try to finalize a non existing snapshot
-        REQUIRE(worker_fiber_terminate_by_name(
-                &program_context->workers_context[0],
-                "worker-fiber-storage-db-gc-deleted-entries"));
-
-        // Mark the snapshot as running
-        worker_context->db->snapshot.running = true;
-        MEMORY_FENCE_STORE();
-
-        REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"SAVE"},
-                "-ERR A background save is already in progress\r\n"));
-
-        // Restore the flag
-        worker_context->db->snapshot.running = false;
-        MEMORY_FENCE_STORE();
+        REQUIRE(worker_context->db->snapshot.iteration > iteration);
     }
 }

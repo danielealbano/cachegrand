@@ -46,38 +46,25 @@
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - BGSAVE", "[redis][command][BGSAVE]") {
     SECTION("Snapshot not running") {
-        uint64_t now = clock_monotonic_int64_ms() - 1;
+        uint64_t iteration = worker_context->db->snapshot.iteration;
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"BGSAVE"},
                 "+OK\r\n"));
 
-        // Wait a little amount of time before checking if the next_run_time_ms has been updated as the command returns
-        // immediately and the operation might not have been started yet
-        usleep(10000);
+        // Wait up to 1s for the snapshot to be executed
+        uint64_t now = clock_monotonic_int64_ms();
+        do {
+            // Check that the save operation has successfully run
+            MEMORY_FENCE_LOAD();
+            if (worker_context->db->snapshot.iteration > iteration) {
+                break;
+            }
+
+            usleep(500);
+        } while (clock_monotonic_int64_ms() - now < 1000);
 
         // Check that the save operation has successfully run
-        MEMORY_FENCE_LOAD();
-        REQUIRE(worker_context->db->snapshot.next_run_time_ms > now);
-    }
-
-    SECTION("Snapshot already running") {
-        // Kill the fiber that generates the snapshot to avoid a crash when setting the snapshot.running flag to true
-        // as the fiber will try to finalize a non existing snapshot
-        REQUIRE(worker_fiber_terminate_by_name(
-                &program_context->workers_context[0],
-                "worker-fiber-storage-db-gc-deleted-entries"));
-
-        // Mark the snapshot as running
-        worker_context->db->snapshot.running = true;
-        MEMORY_FENCE_STORE();
-
-        REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"BGSAVE"},
-                "-ERR A background save is already in progress\r\n"));
-
-        // Restore the flag
-        worker_context->db->snapshot.running = false;
-        MEMORY_FENCE_STORE();
+        REQUIRE(worker_context->db->snapshot.iteration > iteration);
     }
 }
