@@ -49,18 +49,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(shutdown) {
     module_redis_command_shutdown_context_t *context = connection_context->command.context;
 
     if (context->nosave_save.value.save_save.has_token) {
-        uint64_t start_time_ms;
-        // Check if the snapshot is already running
-        if (!module_redis_command_helper_save_is_running(connection_context)) {
-            start_time_ms = module_redis_command_helper_save_request(connection_context);
-        } else {
-            start_time_ms = clock_monotonic_int64_ms() - 1;
-        }
-
-        if (!module_redis_command_helper_save_wait(connection_context, start_time_ms)) {
-            // If the operation fails it means that something really bad just happened, skip directly to the termination
-            goto end;
-        }
+        worker_context_get()->config->database->snapshots->snapshot_at_shutdown = true;
+    } else if (context->nosave_save.value.nosave_nosave.has_token) {
+        worker_context_get()->config->database->snapshots->snapshot_at_shutdown = false;
     }
 
     if (!module_redis_connection_send_ok(connection_context)) {
