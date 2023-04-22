@@ -229,7 +229,7 @@ TEST_CASE("program.c", "[program]") {
                 test_program_wait_loop_wait,
                 (void*)&terminate_event_loop) == 0);
 
-        usleep(25000);
+        usleep(1000);
         sched_yield();
 
         REQUIRE(pthread_create(
@@ -238,11 +238,10 @@ TEST_CASE("program.c", "[program]") {
                 test_program_wait_loop_terminate,
                 (void*)&terminate_event_loop) == 0);
 
-        usleep((WORKER_LOOP_MAX_WAIT_TIME_MS + 100) * 1000);
+        usleep(1000);
         sched_yield();
 
         REQUIRE(pthread_join(pthread_terminate, nullptr) == 0);
-
         REQUIRE(pthread_join(pthread_wait, nullptr) == 0);
     }
 
