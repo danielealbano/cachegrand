@@ -14,6 +14,10 @@ bool worker_fiber_register(
         fiber_scheduler_entrypoint_fp_t *fiber_entrypoint,
         fiber_scheduler_new_fiber_user_data_t *fiber_user_data);
 
+bool worker_fiber_terminate_by_name(
+        worker_context_t* worker_context,
+        char *fiber_name);
+
 void worker_fiber_free(
         worker_context_t *worker_context);
 
