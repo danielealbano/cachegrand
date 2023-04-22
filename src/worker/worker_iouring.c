@@ -84,16 +84,37 @@ void worker_iouring_context_reset() {
     thread_local_worker_iouring_context = NULL;
 }
 
+network_io_common_fd_t worker_iouring_fds_map_get(
+        uint32_t fds_map_index,
+        worker_iouring_fds_map_files_fd_type_t *type) {
+    *type = (worker_iouring_fds_map_files_fd_type_t)(fds_map[fds_map_index] >> 31);
+    network_io_common_fd_t fd = fds_map[fds_map_index] & 0x7FFFFFFF;
+    return fd;
+}
+
+int64_t worker_iouring_fds_map_files_iter(
+        uint32_t fds_map_index) {
+    for(; fds_map_index < fds_map_count; fds_map_index++) {
+        if (fds_map[fds_map_index] != WORKER_FDS_MAP_EMPTY) {
+            return fds_map_index;
+        }
+    }
+
+    return -1;
+}
+
 bool worker_iouring_fds_map_files_update(
         io_uring_t *ring,
         int index,
         int fd,
+        worker_iouring_fds_map_files_fd_type_t worker_iouring_fds_map_files_fd_type,
         bool *has_mapped_fd,
         int *base_sqe_flags,
         int *wrapped_channel_fd) {
     bool ret;
 
     fds_map[index] = fd;
+    fds_map[index] |= (int)worker_iouring_fds_map_files_fd_type << 31;
 
     ret = io_uring_register_files_update(
             ring,
@@ -142,6 +163,7 @@ int32_t worker_iouring_fds_map_find_free_index() {
 bool worker_iouring_fds_map_add_and_enqueue_files_update(
         io_uring_t *ring,
         int fd,
+        worker_iouring_fds_map_files_fd_type_t worker_iouring_fds_map_files_fd_type,
         bool *has_mapped_fd,
         int *base_sqe_flags,
         int *wrapped_channel_fd) {
@@ -159,6 +181,7 @@ bool worker_iouring_fds_map_add_and_enqueue_files_update(
             ring,
             index,
             fd,
+            worker_iouring_fds_map_files_fd_type,
             has_mapped_fd,
             base_sqe_flags,
             wrapped_channel_fd)) {
@@ -272,7 +295,7 @@ void worker_iouring_cleanup(
     }
 }
 
-bool worker_iouring_process_events_loop(
+bool worker_iouring_process_events(
         worker_context_t *worker_context) {
     io_uring_cqe_t *cqe;
     worker_iouring_context_t *context;
