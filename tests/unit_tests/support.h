@@ -53,14 +53,16 @@ typedef uint16_t hashtable_hash_quarter_t;
 typedef uint8_t hashtable_chunk_slot_index_t;
 typedef hashtable_bucket_index_t hashtable_bucket_count_t;
 typedef hashtable_chunk_index_t hashtable_chunk_count_t;
-typedef uint32_t hashtable_key_size_t;
+typedef uint32_t hashtable_database_number_t;
+typedef uint32_t hashtable_key_length_t;
 typedef char hashtable_key_data_t;
 typedef uintptr_t hashtable_value_data_t;
 
 typedef struct test_key_same_bucket test_key_same_bucket_t;
 struct test_key_same_bucket {
+    hashtable_database_number_t database_number;
     char* key;
-    hashtable_key_size_t key_len;
+    hashtable_key_length_t key_len;
     hashtable_hash_t key_hash;
     hashtable_hash_half_t key_hash_half;
     hashtable_hash_quarter_t key_hash_quarter;
@@ -86,6 +88,7 @@ void test_support_hashtable_print_heatmap(
         uint8_t columns);
 
 test_key_same_bucket_t* test_support_same_hash_mod_fixtures_generate(
+        hashtable_database_number_t database_number,
         hashtable_bucket_count_t bucket_count,
         const char* key_prefix,
         uint32_t count);
@@ -109,6 +112,7 @@ hashtable_t* test_support_init_hashtable(
 
 bool test_support_hashtable_prefill(
         hashtable_t* hashtable,
+        hashtable_database_number_t database_number,
         char* keyset,
         uint64_t value,
         uint64_t insert_count);

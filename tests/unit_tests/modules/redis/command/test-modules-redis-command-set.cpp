@@ -26,6 +26,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "config.h"
 #include "fiber/fiber.h"
 #include "worker/worker_stats.h"
@@ -51,7 +52,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"SET", key, value},
                 "+OK\r\n"));
 
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
+        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
         REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value));
         REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value, strlen(value)) == 0);
     }
@@ -64,7 +65,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"SET", key, value},
                 "+OK\r\n"));
 
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
+        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
         REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value));
         REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value, strlen(value)) == 0);
     }
@@ -82,7 +83,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"SET", key, value2},
                 "+OK\r\n"));
 
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
+        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
         REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value2));
         REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
     }
@@ -125,7 +126,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"GET", key},
                 "$-1\r\n"));
 
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
+        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
         REQUIRE(entry_index == NULL);
     }
 
@@ -149,7 +150,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"GET", key},
                 "$-1\r\n"));
 
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
+        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
         REQUIRE(entry_index == NULL);
     }
 
@@ -167,7 +168,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"GET", key},
                 "$7\r\nb_value\r\n"));
 
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, key, strlen(key));
+        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
         REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value1));
         REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value1, strlen(value1)) == 0);
 
@@ -183,7 +184,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"SET", key, value2, "KEEPTTL"},
                 "+OK\r\n"));
 
-        entry_index = storage_db_get_entry_index(db, key, strlen(key));
+        entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
         REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value2));
         REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
 
@@ -198,7 +199,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"GET", key},
                 "$-1\r\n"));
 
-        entry_index = storage_db_get_entry_index(db, key, strlen(key));
+        entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
         REQUIRE(entry_index == NULL);
     }
 

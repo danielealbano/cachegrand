@@ -25,6 +25,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "config.h"
 #include "fiber/fiber.h"
 #include "fiber/fiber_scheduler.h"

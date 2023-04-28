@@ -169,7 +169,6 @@ TEST_CASE("module/redis/module_redis_commands.c", "[module][redis][module_redis_
         hashtable_spsc_t *hashtable = hashtable_spsc_new(
                 32,
                 HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                true,
                 false);
 
         SECTION("command with tokens") {
@@ -265,7 +264,6 @@ TEST_CASE("module/redis/module_redis_commands.c", "[module][redis][module_redis_
         command_infos_map[0].tokens_hashtable = hashtable_spsc_new(
                 8,
                 8,
-                true,
                 false);
 
         module_redis_commands_free_command_arguments_token_entries_hashtable(&command_infos_map[0]);

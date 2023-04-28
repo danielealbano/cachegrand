@@ -25,6 +25,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "config.h"
 #include "fiber/fiber.h"
 #include "worker/worker_stats.h"
@@ -72,7 +73,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GETEX", "[re
                     std::vector<std::string>{"GET", "a_key"},
                     "$-1\r\n"));
 
-            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, "a_key", strlen("a_key"));
+            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, "a_key", strlen("a_key"));
             REQUIRE(entry_index == NULL);
         }
 
@@ -94,7 +95,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GETEX", "[re
                     std::vector<std::string>{"GET", "a_key"},
                     "$-1\r\n"));
 
-            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, "a_key", strlen("a_key"));
+            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, "a_key", strlen("a_key"));
             REQUIRE(entry_index == NULL);
         }
 

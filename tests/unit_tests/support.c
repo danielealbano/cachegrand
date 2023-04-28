@@ -197,6 +197,7 @@ void test_support_hashtable_print_heatmap(
 }
 
 test_key_same_bucket_t* test_support_same_hash_mod_fixtures_generate(
+        hashtable_database_number_t database_number,
         hashtable_bucket_count_t bucket_count,
         const char* key_prefix,
         uint32_t count) {
@@ -227,7 +228,10 @@ test_key_same_bucket_t* test_support_same_hash_mod_fixtures_generate(
         bool add_fixture = false;
 
         snprintf(key_test, key_test_size, key_model, i);
-        hashtable_hash_t hash_test = hashtable_mcmp_support_hash_calculate(key_test, strlen(key_test));
+        hashtable_hash_t hash_test = hashtable_mcmp_support_hash_calculate(
+                database_number,
+                key_test,
+                strlen(key_test));
 
         if (!reference_hash_set) {
             reference_bucket_index = hash_test & (bucket_count - 1);
@@ -241,6 +245,7 @@ test_key_same_bucket_t* test_support_same_hash_mod_fixtures_generate(
             memset(key_test_copy, 0, key_test_size);
             strncpy(key_test_copy, key_test, key_test_size);
 
+            test_key_same_bucket_fixtures[matches_counter].database_number = database_number;
             test_key_same_bucket_fixtures[matches_counter].key = key_test_copy;
             test_key_same_bucket_fixtures[matches_counter].key_len = strlen(key_test);
             test_key_same_bucket_fixtures[matches_counter].key_hash = hash_test;
@@ -486,6 +491,7 @@ hashtable_t* test_support_init_hashtable(
 
 bool test_support_hashtable_prefill(
         hashtable_t* hashtable,
+        hashtable_database_number_t database_number,
         char* keyset,
         uint64_t value,
         uint64_t insert_count) {
@@ -497,6 +503,7 @@ bool test_support_hashtable_prefill(
 
         bool result = hashtable_mcmp_op_set(
                 hashtable,
+                database_number,
                 key,
                 strlen(key),
                 value + i,

@@ -41,30 +41,10 @@
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
-TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - TOUCH", "[redis][command][TOUCH]") {
-    SECTION("Existing key") {
+TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - ECHO", "[redis][command][ECHO]") {
+    SECTION("With value") {
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"SET", "a_key", "b_value"},
-                "+OK\r\n"));
-
-        REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"TOUCH", "a_key"},
-                ":1\r\n"));
-    }
-
-    SECTION("Multiple key") {
-        REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"MSET", "a_key", "b_value", "b_key", "value_z", "c_key", "d_value"},
-                "+OK\r\n"));
-
-        REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"TOUCH", "a_key", "b_key", "c_key"},
-                ":3\r\n"));
-    }
-
-    SECTION("Non-existing key") {
-        REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"TOUCH", "a_key"},
-                ":0\r\n"));
+                std::vector<std::string>{"ECHO", "a test"},
+                "$6\r\na test\r\n"));
     }
 }

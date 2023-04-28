@@ -40,6 +40,7 @@
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "config.h"
 #include "fiber/fiber.h"
 #include "network/channel/network_channel.h"
@@ -137,6 +138,7 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
             .backend = CONFIG_DATABASE_BACKEND_MEMORY,
             .snapshots = &config_database_snapshots,
             .memory = &config_database_memory,
+            .max_user_databases = 16,
     };
 
     config = {
