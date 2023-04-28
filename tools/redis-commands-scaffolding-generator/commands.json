@@ -311,6 +311,30 @@
         ]
     },
     {
+        "command_string": "ECHO",
+        "command_callback_name": "echo",
+        "since": "1.0.0",
+        "required_arguments_count": 0,
+        "has_variable_arguments": true,
+        "key_specs": [],
+        "arguments": [
+            {
+                "name": "message",
+                "type": "short_string",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
         "command_string": "EXISTS",
         "command_callback_name": "exists",
         "since": "1.0.0",
