@@ -112,6 +112,9 @@ modules:
           port: 9090
 
 database:
+  # Number of available user databases
+  max_user_databases: 64
+
   # Limits for the database to prevent it from using too much system resources, optional.
   # The hard limit will prevent any operation that would exceed the limit, the soft limit will allow the operation but
   # will run the keys eviction process to try to free up some space.

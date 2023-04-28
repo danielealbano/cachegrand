@@ -153,6 +153,7 @@ modules:
           port: 6379
           tls: true
 database:
+  max_user_databases: 16
   limits:
     hard:
       max_keys: 1000000
@@ -234,6 +235,7 @@ modules:
         - host: "::"
           port: 6379
 database:
+  max_user_databases: 16
   limits:
     hard:
       max_keys: 1000000

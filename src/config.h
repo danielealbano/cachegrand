@@ -263,6 +263,7 @@ struct config_database {
     config_database_snapshots_t *snapshots;
     config_database_file_t *file;
     config_database_memory_t *memory;
+    int64_t max_user_databases;
 };
 typedef struct config_database config_database_t;
 

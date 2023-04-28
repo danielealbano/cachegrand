@@ -354,6 +354,9 @@ const cyaml_schema_field_t config_database_schema[] = {
         CYAML_FIELD_MAPPING_PTR(
                 "memory", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
                 config_database_t, memory, config_database_backend_memory_schema),
+        CYAML_FIELD_UINT(
+                "max_user_databases", CYAML_FLAG_DEFAULT,
+                config_database_t, max_user_databases),
         CYAML_FIELD_END
 };
 

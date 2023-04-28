@@ -500,6 +500,21 @@ bool config_validate_after_load_database_keys_eviction(
     return return_result;
 }
 
+bool config_validate_after_load_database(
+        config_t* config) {
+    bool return_result = true;
+
+    if (config->database->max_user_databases < 1) {
+        LOG_E(TAG, "The maximum number of user databases must be greater than <0>");
+        return_result = false;
+    } else if (config->database->max_user_databases > UINT8_MAX) {
+        LOG_E(TAG, "The maximum number of user databases must be smaller than <%d>", UINT8_MAX);
+        return_result = false;
+    }
+
+    return return_result;
+}
+
 bool config_validate_after_load_modules_network_timeout(
         config_module_t *module) {
     bool return_result = true;
@@ -657,6 +672,7 @@ bool config_validate_after_load(
         || config_validate_after_load_database_snapshots(config) == false
         || config_validate_after_load_database_limits(config) == false
         || config_validate_after_load_database_keys_eviction(config) == false
+        || config_validate_after_load_database(config) == false
         || config_validate_after_load_modules(config) == false
         || config_validate_after_load_logs(config) == false) {
         return_result = false;
