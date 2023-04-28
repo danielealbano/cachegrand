@@ -35,6 +35,7 @@
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "config.h"
 #include "fiber/fiber.h"
 #include "network/channel/network_channel.h"

@@ -51,37 +51,12 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
             HASHTABLE(0x7FFF, false, {
                 REQUIRE(!hashtable_mcmp_op_get(
                         hashtable,
-                        test_key_1,
-                        test_key_1_len,
-                        &value));
-            })
-        }
-
-#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
-        SECTION("found - key inline") {
-            HASHTABLE(0x7FFF, false, {
-                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
-                        hashtable->ht_current->buckets_count,
-                        test_key_1_hash));
-
-                HASHTABLE_SET_KEY_INLINE_BY_INDEX(
-                        chunk_index,
                         0,
-                        test_key_1_hash,
-                        test_key_1,
-                        test_key_1_len,
-                        test_value_1);
-
-                REQUIRE(hashtable_mcmp_op_get(
-                        hashtable,
                         test_key_1,
                         test_key_1_len,
                         &value));
-
-                REQUIRE(value == test_value_1);
             })
         }
-#endif
 
         SECTION("found - key external") {
             HASHTABLE(0x7FFF, false, {
@@ -93,7 +68,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
 
-                HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(
+                HASHTABLE_SET_KEY_DB_0_BY_INDEX(
                         chunk_index,
                         0,
                         test_key_1_hash,
@@ -103,6 +78,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
 
                 REQUIRE(hashtable_mcmp_op_get(
                         hashtable,
+                        0,
                         test_key_1_copy,
                         test_key_1_len,
                         &value));
@@ -126,7 +102,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                         hashtable->ht_current->buckets_count,
                         test_key_2_hash));
 
-                HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(
+                HASHTABLE_SET_KEY_DB_0_BY_INDEX(
                         chunk_index1,
                         0,
                         test_key_1_hash,
@@ -134,7 +110,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                         test_key_1_len,
                         test_value_1);
 
-                HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(
+                HASHTABLE_SET_KEY_DB_0_BY_INDEX(
                         chunk_index2,
                         0,
                         test_key_2_hash,
@@ -144,6 +120,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
 
                 REQUIRE(hashtable_mcmp_op_get(
                         hashtable,
+                        0,
                         test_key_1_copy,
                         test_key_1_len,
                         &value));
@@ -152,6 +129,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
 
                 REQUIRE(hashtable_mcmp_op_get(
                         hashtable,
+                        0,
                         test_key_2_copy,
                         test_key_2_len,
                         &value));
@@ -170,7 +148,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
 
-                HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(
+                HASHTABLE_SET_KEY_DB_0_BY_INDEX(
                         chunk_index,
                         1,
                         test_key_1_hash,
@@ -180,6 +158,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
 
                 REQUIRE(hashtable_mcmp_op_get(
                         hashtable,
+                        0,
                         test_key_1_copy,
                         test_key_1_len,
                         &value));
@@ -191,6 +170,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
         SECTION("found - single chunk multiple slots - key prefix/external") {
             HASHTABLE(0x7FFF, false, {
                 test_key_same_bucket_t* test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
+                        0,
                         hashtable->ht_current->buckets_count,
                         test_key_same_bucket_key_prefix_external,
                         HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT);
@@ -206,7 +186,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                             test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len + 1);
 
-                    HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(
+                    HASHTABLE_SET_KEY_DB_0_BY_INDEX(
                             HASHTABLE_TO_CHUNK_INDEX(bucket_index_base),
                             i,
                             test_key_same_bucket[i].key_hash,
@@ -218,6 +198,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                 for(hashtable_chunk_slot_index_t i = 0; i < HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT; i++) {
                     REQUIRE(hashtable_mcmp_op_get(
                             hashtable,
+                            0,
                             (char *) test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len,
                             &value));
@@ -234,6 +215,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                 hashtable_chunk_slot_index_t slots_to_fill =
                         (HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT * chunks_to_set) + 3;
                 test_key_same_bucket_t* test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
+                        0,
                         hashtable->ht_current->buckets_count,
                         test_key_same_bucket_key_prefix_external,
                         slots_to_fill);
@@ -258,7 +240,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                     hashtable_chunk_slot_index_t chunk_slot_index =
                             i % HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
 
-                    HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(
+                    HASHTABLE_SET_KEY_DB_0_BY_INDEX(
                             chunk_index,
                             chunk_slot_index,
                             test_key_same_bucket[i].key_hash,
@@ -277,6 +259,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
 
                     REQUIRE(hashtable_mcmp_op_get(
                             hashtable,
+                            0,
                             (char *) test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len,
                             &value));
@@ -293,7 +276,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                 char *test_key_1_copy = (char*)xalloc_alloc(test_key_1_len + 1);
                 strcpy(test_key_1_copy, test_key_1);
 
-                HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(
+                HASHTABLE_SET_KEY_DB_0_BY_INDEX(
                         HASHTABLE_TO_CHUNK_INDEX(test_key_1_hash & (0x8000 - 1)),
                         0,
                         test_key_1_hash,
@@ -306,6 +289,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
 
                 REQUIRE(!hashtable_mcmp_op_get(
                         hashtable,
+                        0,
                         test_key_1,
                         test_key_1_len,
                         &value));
@@ -322,7 +306,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
 
-                HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(
+                HASHTABLE_SET_KEY_DB_0_BY_INDEX(
                         chunk_index,
                         0,
                         test_key_1_hash,
@@ -337,6 +321,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
 
                 REQUIRE(!hashtable_mcmp_op_get(
                         hashtable,
+                        0,
                         test_key_1,
                         test_key_1_len,
                         &value));
@@ -355,7 +340,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
 
-                HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(
+                HASHTABLE_SET_KEY_DB_0_BY_INDEX(
                         chunk_index,
                         0,
                         test_key_1_hash,
@@ -366,7 +351,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                 HASHTABLE_KEYS_VALUES(chunk_index, 0).flags =
                         HASHTABLE_KEY_VALUE_FLAG_DELETED;
 
-                HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(
+                HASHTABLE_SET_KEY_DB_0_BY_INDEX(
                         chunk_index,
                         2,
                         test_key_1_hash,
@@ -376,6 +361,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
 
                 REQUIRE(hashtable_mcmp_op_get(
                         hashtable,
+                        0,
                         test_key_1,
                         test_key_1_len,
                         &value));

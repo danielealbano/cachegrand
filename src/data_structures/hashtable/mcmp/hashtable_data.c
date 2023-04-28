@@ -105,12 +105,11 @@ void hashtable_mcmp_data_keys_free(
         }
 
         if (
-                HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_DELETED) ||
-                HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
+                HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_DELETED)) {
             continue;
         }
 
-        xalloc_free((hashtable_key_data_t*)key_value->external_key.data);
+        xalloc_free((hashtable_key_data_t*)key_value->key);
     }
 }
 

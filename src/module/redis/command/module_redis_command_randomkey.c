@@ -45,8 +45,11 @@
 
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(randomkey) {
     bool return_res;
-    hashtable_key_size_t key_size = 0;
-    char *key = storage_db_op_random_key(connection_context->db, &key_size);
+    hashtable_key_length_t key_size = 0;
+    char *key = storage_db_op_random_key(
+            connection_context->db,
+            connection_context->database_number,
+            &key_size);
 
     if (likely(key)) {
         return_res = module_redis_connection_send_blob_string(connection_context, key, key_size);

@@ -29,31 +29,17 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
     uint32_t key2_ci_hash = fnv_32_hash_ci(key2, key2_length);
 
     SECTION("hashtable_spsc_new") {
-        SECTION("valid buckets_count, default max range, stop_on_not_set true, free_keys_on_deallocation false") {
+        SECTION("valid buckets_count, default max range, free_keys_on_deallocation false") {
             hashtable_spsc_t *hashtable = hashtable_spsc_new(
                     10,
                     HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                    true,
                     false);
 
             REQUIRE(hashtable->buckets_count == 10);
             REQUIRE(hashtable->buckets_count_pow2 == 16);
             REQUIRE(hashtable->buckets_count_real == 16 + HASHTABLE_SPSC_DEFAULT_MAX_RANGE);
-            REQUIRE(hashtable->stop_on_not_set == true);
             REQUIRE(hashtable->free_keys_on_deallocation == false);
             REQUIRE(hashtable->max_range == HASHTABLE_SPSC_DEFAULT_MAX_RANGE);
-
-            hashtable_spsc_free(hashtable);
-        }
-
-        SECTION("valid buckets_count, stop_on_not_set false") {
-            hashtable_spsc_t *hashtable = hashtable_spsc_new(
-                    10,
-                    HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                    false,
-                    false);
-
-            REQUIRE(hashtable->stop_on_not_set == false);
 
             hashtable_spsc_free(hashtable);
         }
@@ -62,7 +48,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_spsc_t *hashtable = hashtable_spsc_new(
                     10,
                     HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                    false,
                     true);
 
             REQUIRE(hashtable->free_keys_on_deallocation == true);
@@ -74,7 +59,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_spsc_t *hashtable = hashtable_spsc_new(
                     10,
                     1,
-                    true,
                     false);
 
             REQUIRE(hashtable->buckets_count_real == 16 + 1);
@@ -88,7 +72,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
         hashtable_spsc_t *hashtable = hashtable_spsc_new(
                 10,
                 HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                true,
                 false);
 
         hashtable_spsc_bucket_t *buckets = hashtable_spsc_get_buckets(hashtable);
@@ -102,7 +85,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
         hashtable_spsc_t *hashtable = hashtable_spsc_new(
                 16,
                 HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                false,
                 false);
         hashtable_spsc_bucket_count_t hashtable_key_bucket_index = key_ci_hash & (hashtable->buckets_count_pow2 - 1);
         hashtable_spsc_bucket_count_t hashtable_key_bucket_index_max =
@@ -140,7 +122,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
         hashtable_spsc_t *hashtable = hashtable_spsc_new(
                 16,
                 HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                false,
                 false);
         hashtable_spsc_bucket_count_t hashtable_key_bucket_index = key_ci_hash & (hashtable->buckets_count_pow2 - 1);
         hashtable_spsc_bucket_count_t hashtable_key_bucket_index_max =
@@ -182,7 +163,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
         hashtable_spsc_t *hashtable = hashtable_spsc_new(
                 16,
                 HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                false,
                 false);
 
         REQUIRE((key_hash & (hashtable->buckets_count_pow2 - 1)) == 15);
@@ -195,7 +175,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_spsc_t *hashtable = hashtable_spsc_new(
                     16,
                     HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                    false,
                     false);
             hashtable_spsc_bucket_t *hashtable_buckets = hashtable_spsc_get_buckets(hashtable);
 
@@ -205,7 +184,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_spsc_t *hashtable2 = hashtable_spsc_new(
                     16,
                     HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                    true,
                     false);
             hashtable_spsc_bucket_t *hashtable2_buckets = hashtable_spsc_get_buckets(hashtable2);
             hashtable_spsc_bucket_count_t hashtable2_key_bucket_index =
@@ -213,7 +191,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("bucket found - key exists") {
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_ci_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_ci_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
@@ -223,7 +201,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("bucket found - same hash but different key_length and key") {
                 hashtable->hashes[hashtable_key_bucket_index + 1].set = true;
-                hashtable->hashes[hashtable_key_bucket_index + 1].cmp_hash = key_ci_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index + 1].cmp_hash = HASHTABLE_SPSC_HASH(key_ci_hash);
                 hashtable_buckets[hashtable_key_bucket_index + 1].key = key;
                 hashtable_buckets[hashtable_key_bucket_index + 1].key_length = key_length;
 
@@ -239,7 +217,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("bucket found - same hash and same key_length but different key") {
                 hashtable->hashes[hashtable_key_bucket_index + 1].set = true;
-                hashtable->hashes[hashtable_key_bucket_index + 1].cmp_hash = key_ci_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index + 1].cmp_hash = HASHTABLE_SPSC_HASH(key_ci_hash);
                 hashtable_buckets[hashtable_key_bucket_index + 1].key = key;
                 hashtable_buckets[hashtable_key_bucket_index + 1].key_length = key_length;
 
@@ -259,11 +237,11 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
                 for (int index = 0; index < extra_slots; index++) {
                     hashtable->hashes[hashtable_key_bucket_index + index].set = true;
-                    hashtable->hashes[hashtable_key_bucket_index + index].cmp_hash = (key_ci_hash & 0x7FFF) + 1 + index;
+                    hashtable->hashes[hashtable_key_bucket_index + index].cmp_hash = HASHTABLE_SPSC_HASH(key_ci_hash) + 1 + index;
                 }
 
                 hashtable->hashes[hashtable_key_bucket_index + extra_slots].set = true;
-                hashtable->hashes[hashtable_key_bucket_index + extra_slots].cmp_hash = key_ci_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index + extra_slots].cmp_hash = HASHTABLE_SPSC_HASH(key_ci_hash);
                 hashtable_buckets[hashtable_key_bucket_index + extra_slots].key = key;
                 hashtable_buckets[hashtable_key_bucket_index + extra_slots].key_length = key_length;
 
@@ -274,7 +252,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             SECTION("bucket found - key exists, last bucket within max range") {
                 hashtable_key_bucket_index += hashtable->max_range - 1;
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_ci_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_ci_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
@@ -284,7 +262,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("bucket found - key with different case") {
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
@@ -294,7 +272,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("bucket not found - key not-existent") {
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_ci_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_ci_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
@@ -305,7 +283,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             SECTION("bucket not found - key outside max range") {
                 hashtable_key_bucket_index += hashtable->max_range;
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_ci_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_ci_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
@@ -315,7 +293,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             SECTION("bucket not found - key exists but not set buckets on the way") {
                 hashtable2_key_bucket_index += hashtable2->max_range;
                 hashtable2->hashes[hashtable2_key_bucket_index].set = true;
-                hashtable2->hashes[hashtable2_key_bucket_index].cmp_hash = key_ci_hash & 0x7FFF;
+                hashtable2->hashes[hashtable2_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_ci_hash);
                 hashtable2_buckets[hashtable2_key_bucket_index].key = key;
                 hashtable2_buckets[hashtable2_key_bucket_index].key_length = key_length;
 
@@ -333,7 +311,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_spsc_t *hashtable = hashtable_spsc_new(
                     16,
                     HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                    false,
                     false);
             hashtable_spsc_bucket_t *hashtable_buckets = hashtable_spsc_get_buckets(hashtable);
 
@@ -344,7 +321,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
                 REQUIRE(hashtable_spsc_op_try_set_ci(hashtable, key, key_length, value1));
 
                 REQUIRE(hashtable->hashes[hashtable_key_bucket_index].set);
-                REQUIRE(hashtable->hashes[hashtable_key_bucket_index].cmp_hash == (key_ci_hash & 0x7FFF));
+                REQUIRE(hashtable->hashes[hashtable_key_bucket_index].cmp_hash == HASHTABLE_SPSC_HASH(key_ci_hash));
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].key == key);
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].key_length == key_length);
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].value == value1);
@@ -355,7 +332,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
                 REQUIRE(hashtable_spsc_op_try_set_ci(hashtable, key, key_length, value2));
 
                 REQUIRE(hashtable->hashes[hashtable_key_bucket_index].set);
-                REQUIRE(hashtable->hashes[hashtable_key_bucket_index].cmp_hash == (key_ci_hash & 0x7FFF));
+                REQUIRE(hashtable->hashes[hashtable_key_bucket_index].cmp_hash == HASHTABLE_SPSC_HASH(key_ci_hash));
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].key == key);
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].key_length == key_length);
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].value == value2);
@@ -366,7 +343,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
                 REQUIRE(hashtable_spsc_op_try_set_ci(hashtable, key_different_case, key_length, value2));
 
                 REQUIRE(hashtable->hashes[hashtable_key_bucket_index].set);
-                REQUIRE(hashtable->hashes[hashtable_key_bucket_index].cmp_hash == (key_ci_hash & 0x7FFF));
+                REQUIRE(hashtable->hashes[hashtable_key_bucket_index].cmp_hash == HASHTABLE_SPSC_HASH(key_ci_hash));
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].key == key_different_case);
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].key_length == key_length);
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].value == value2);
@@ -398,7 +375,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_spsc_t *hashtable = hashtable_spsc_new(
                     16,
                     HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                    false,
                     false);
             hashtable_spsc_bucket_t *hashtable_buckets = hashtable_spsc_get_buckets(hashtable);
 
@@ -406,7 +382,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("value found - existing key") {
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_ci_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_ci_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
                 hashtable_buckets[hashtable_key_bucket_index].value = value1;
@@ -416,7 +392,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("value found - existing key with different case") {
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_ci_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_ci_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
                 hashtable_buckets[hashtable_key_bucket_index].value = value1;
@@ -435,7 +411,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_spsc_t *hashtable = hashtable_spsc_new(
                     16,
                     HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                    false,
                     false);
             hashtable_spsc_bucket_t *hashtable_buckets = hashtable_spsc_get_buckets(hashtable);
 
@@ -443,7 +418,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("value deleted - existing key") {
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_ci_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_ci_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
@@ -454,7 +429,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("value deleted - existing key with different case") {
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_ci_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_ci_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
@@ -476,7 +451,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_spsc_t *hashtable = hashtable_spsc_new(
                     16,
                     HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                    false,
                     false);
             hashtable_spsc_bucket_t *hashtable_buckets = hashtable_spsc_get_buckets(hashtable);
 
@@ -485,14 +459,13 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_spsc_t *hashtable2 = hashtable_spsc_new(
                     16,
                     HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                    true,
                     false);
             hashtable_spsc_bucket_t *hashtable2_buckets = hashtable_spsc_get_buckets(hashtable2);
             hashtable_spsc_bucket_count_t hashtable2_key_bucket_index = key_hash & (hashtable2->buckets_count_pow2 - 1);
 
             SECTION("bucket found - key exists") {
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
@@ -502,7 +475,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("bucket found - same hash but different key_length and key") {
                 hashtable->hashes[hashtable_key_bucket_index + 1].set = true;
-                hashtable->hashes[hashtable_key_bucket_index + 1].cmp_hash = key_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index + 1].cmp_hash = HASHTABLE_SPSC_HASH(key_hash);
                 hashtable_buckets[hashtable_key_bucket_index + 1].key = key;
                 hashtable_buckets[hashtable_key_bucket_index + 1].key_length = key_length;
 
@@ -518,7 +491,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("bucket found - same hash and same key_length but different key") {
                 hashtable->hashes[hashtable_key_bucket_index + 1].set = true;
-                hashtable->hashes[hashtable_key_bucket_index + 1].cmp_hash = key_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index + 1].cmp_hash = HASHTABLE_SPSC_HASH(key_hash);
                 hashtable_buckets[hashtable_key_bucket_index + 1].key = key;
                 hashtable_buckets[hashtable_key_bucket_index + 1].key_length = key_length;
 
@@ -538,11 +511,11 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
                 for (int index = 0; index < extra_slots; index++) {
                     hashtable->hashes[hashtable_key_bucket_index + index].set = true;
-                    hashtable->hashes[hashtable_key_bucket_index + index].cmp_hash = (key_hash & 0x7FFF) + 1 + index;
+                    hashtable->hashes[hashtable_key_bucket_index + index].cmp_hash = HASHTABLE_SPSC_HASH(key_hash) + 1 + index;
                 }
 
                 hashtable->hashes[hashtable_key_bucket_index + extra_slots].set = true;
-                hashtable->hashes[hashtable_key_bucket_index + extra_slots].cmp_hash = key_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index + extra_slots].cmp_hash = HASHTABLE_SPSC_HASH(key_hash);
                 hashtable_buckets[hashtable_key_bucket_index + extra_slots].key = key;
                 hashtable_buckets[hashtable_key_bucket_index + extra_slots].key_length = key_length;
 
@@ -553,7 +526,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             SECTION("bucket found - key exists, last bucket within max range") {
                 hashtable_key_bucket_index += hashtable->max_range - 1;
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
@@ -563,7 +536,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("bucket not found - key with different case") {
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
@@ -573,7 +546,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("bucket not found - key not-existent") {
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
@@ -584,7 +557,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             SECTION("bucket not found - key outside max range") {
                 hashtable_key_bucket_index += hashtable->max_range;
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
@@ -594,7 +567,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             SECTION("bucket not found - key exists but not set buckets on the way") {
                 hashtable2_key_bucket_index += hashtable2->max_range;
                 hashtable2->hashes[hashtable2_key_bucket_index].set = true;
-                hashtable2->hashes[hashtable2_key_bucket_index].cmp_hash = key_hash & 0x7FFF;
+                hashtable2->hashes[hashtable2_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_hash);
                 hashtable2_buckets[hashtable2_key_bucket_index].key = key;
                 hashtable2_buckets[hashtable2_key_bucket_index].key_length = key_length;
 
@@ -611,7 +584,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_spsc_t *hashtable = hashtable_spsc_new(
                     16,
                     HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                    false,
                     false);
             hashtable_spsc_bucket_t *hashtable_buckets = hashtable_spsc_get_buckets(hashtable);
 
@@ -629,7 +601,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
                 REQUIRE(hashtable_spsc_op_try_set_cs(hashtable, key, key_length, value1));
 
                 REQUIRE(hashtable->hashes[hashtable_key_bucket_index].set);
-                REQUIRE(hashtable->hashes[hashtable_key_bucket_index].cmp_hash == (key_hash & 0x7FFF));
+                REQUIRE(hashtable->hashes[hashtable_key_bucket_index].cmp_hash == HASHTABLE_SPSC_HASH(key_hash));
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].key == key);
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].key_length == key_length);
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].value == value1);
@@ -640,7 +612,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
                 REQUIRE(hashtable_spsc_op_try_set_cs(hashtable, key, key_length, value2));
 
                 REQUIRE(hashtable->hashes[hashtable_key_bucket_index].set);
-                REQUIRE(hashtable->hashes[hashtable_key_bucket_index].cmp_hash == (key_hash & 0x7FFF));
+                REQUIRE(hashtable->hashes[hashtable_key_bucket_index].cmp_hash == HASHTABLE_SPSC_HASH(key_hash));
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].key == key);
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].key_length == key_length);
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].value == value2);
@@ -651,14 +623,14 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
                 REQUIRE(hashtable_spsc_op_try_set_cs(hashtable, key_different_case, key_length, value2));
 
                 REQUIRE(hashtable->hashes[hashtable_key_bucket_index].set);
-                REQUIRE(hashtable->hashes[hashtable_key_bucket_index].cmp_hash == (key_hash & 0x7FFF));
+                REQUIRE(hashtable->hashes[hashtable_key_bucket_index].cmp_hash == HASHTABLE_SPSC_HASH(key_hash));
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].key == key);
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].key_length == key_length);
                 REQUIRE(hashtable_buckets[hashtable_key_bucket_index].value == value1);
 
                 REQUIRE(hashtable->hashes[hashtable_key_different_case_bucket_index].set);
                 REQUIRE(hashtable->hashes[hashtable_key_different_case_bucket_index].cmp_hash ==
-                        (key_different_case_hash & 0x7FFF));
+                        HASHTABLE_SPSC_HASH(key_different_case_hash));
                 REQUIRE(hashtable_buckets[hashtable_key_different_case_bucket_index].key == key_different_case);
                 REQUIRE(hashtable_buckets[hashtable_key_different_case_bucket_index].key_length == key_length);
                 REQUIRE(hashtable_buckets[hashtable_key_different_case_bucket_index].value == value2);
@@ -688,7 +660,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_spsc_t *hashtable = hashtable_spsc_new(
                     16,
                     HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                    false,
                     false);
             hashtable_spsc_bucket_t *hashtable_buckets = hashtable_spsc_get_buckets(hashtable);
 
@@ -696,7 +667,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("value found - existing key ") {
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
                 hashtable_buckets[hashtable_key_bucket_index].value = value1;
@@ -706,7 +677,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("value not found - existing key with different case") {
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
                 hashtable_buckets[hashtable_key_bucket_index].value = value1;
@@ -725,7 +696,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
             hashtable_spsc_t *hashtable = hashtable_spsc_new(
                     16,
                     HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                    false,
                     false);
             hashtable_spsc_bucket_t *hashtable_buckets = hashtable_spsc_get_buckets(hashtable);
 
@@ -733,7 +703,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("value deleted - existing key") {
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
@@ -744,7 +714,7 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
 
             SECTION("value not deleted - existing key with different case") {
                 hashtable->hashes[hashtable_key_bucket_index].set = true;
-                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = key_hash & 0x7FFF;
+                hashtable->hashes[hashtable_key_bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(key_hash);
                 hashtable_buckets[hashtable_key_bucket_index].key = key;
                 hashtable_buckets[hashtable_key_bucket_index].key_length = key_length;
 
@@ -767,7 +737,6 @@ TEST_CASE("data_structures/hashtable/spsc/hashtable_spsc.c", "[data_structures][
         hashtable_spsc_t *hashtable = hashtable_spsc_new(
                 16,
                 HASHTABLE_SPSC_DEFAULT_MAX_RANGE,
-                false,
                 false);
         hashtable_spsc_bucket_t *hashtable_buckets = hashtable_spsc_get_buckets(hashtable);
         hashtable_spsc_bucket_index_t hashtable_key_bucket_index = 0;

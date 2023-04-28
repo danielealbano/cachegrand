@@ -35,10 +35,24 @@ TEST_CASE("hashtable/hashtable_support_hash.c", "[hashtable][hashtable_support][
     transaction_set_worker_index(worker_context.worker_index);
 
     SECTION("hashtable_mcmp_support_hash_calculate") {
-        SECTION("hash calculation") {
+        SECTION("one key, db 0") {
             REQUIRE(hashtable_mcmp_support_hash_calculate(
+                    0,
                     test_key_1,
                     test_key_1_len) == test_key_1_hash);
+        }
+
+        SECTION("same key, different dbs = different hashes") {
+            hashtable_hash_t hash_db0 = hashtable_mcmp_support_hash_calculate(
+                    0,
+                    test_key_1,
+                    test_key_1_len);
+            hashtable_hash_t hash_db1 = hashtable_mcmp_support_hash_calculate(
+                    1,
+                    test_key_1,
+                    test_key_1_len);
+
+            REQUIRE(hash_db0 != hash_db1);
         }
     }
 

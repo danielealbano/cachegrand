@@ -7,6 +7,7 @@
  **/
 
 #include <stdlib.h>
+#include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <arpa/inet.h>
@@ -23,6 +24,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
+#include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"

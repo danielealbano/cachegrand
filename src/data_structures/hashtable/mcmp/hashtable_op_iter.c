@@ -28,6 +28,8 @@
 
 void *hashtable_mcmp_op_data_iter(
         hashtable_data_volatile_t *hashtable_data,
+        bool all_databases,
+        hashtable_database_number_t database_number,
         uint64_t *bucket_index,
         uint64_t max_distance) {
     hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk;
@@ -82,6 +84,12 @@ void *hashtable_mcmp_op_data_iter(
                 continue;
             }
 
+            if (unlikely(!all_databases)) {
+                if (key_value->database_number != database_number) {
+                    continue;
+                }
+            }
+
             return (void*)data;
         }
 
@@ -94,13 +102,48 @@ void *hashtable_mcmp_op_data_iter(
 
 void *hashtable_mcmp_op_iter(
         hashtable_t *hashtable,
+        hashtable_database_number_t database_number,
         uint64_t *bucket_index) {
-    return hashtable_mcmp_op_data_iter(hashtable->ht_current, bucket_index, UINT64_MAX);
+    return hashtable_mcmp_op_data_iter(
+            hashtable->ht_current,
+            false,
+            database_number,
+            bucket_index,
+            UINT64_MAX);
 }
 
 void *hashtable_mcmp_op_iter_max_distance(
         hashtable_t *hashtable,
+        hashtable_database_number_t database_number,
         uint64_t *bucket_index,
         uint64_t max_distance) {
-    return hashtable_mcmp_op_data_iter(hashtable->ht_current, bucket_index, max_distance);
+    return hashtable_mcmp_op_data_iter(
+            hashtable->ht_current,
+            false,
+            database_number,
+            bucket_index,
+            max_distance);
+}
+
+void *hashtable_mcmp_op_iter_all_databases(
+        hashtable_t *hashtable,
+        uint64_t *bucket_index) {
+    return hashtable_mcmp_op_data_iter(
+            hashtable->ht_current,
+            true,
+            0,
+            bucket_index,
+            UINT64_MAX);
+}
+
+void *hashtable_mcmp_op_iter_max_distance_all_databases(
+        hashtable_t *hashtable,
+        uint64_t *bucket_index,
+        uint64_t max_distance) {
+    return hashtable_mcmp_op_data_iter(
+            hashtable->ht_current,
+            true,
+            0,
+            bucket_index,
+            max_distance);
 }

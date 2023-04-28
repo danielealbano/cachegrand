@@ -42,6 +42,7 @@
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(dbsize) {
     return module_redis_connection_send_number(
             connection_context,
-            storage_db_op_get_keys_count(
-                    connection_context->db));
+            storage_db_op_get_keys_count_per_db(
+                    connection_context->db,
+                    connection_context->database_number));
 }

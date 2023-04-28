@@ -31,6 +31,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "support/simple_file_io.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
+#include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "config.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"

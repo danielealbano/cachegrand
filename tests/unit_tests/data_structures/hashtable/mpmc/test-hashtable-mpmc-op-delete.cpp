@@ -47,6 +47,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
             HASHTABLE(0x7FFF, false, {
                 REQUIRE(!hashtable_mcmp_op_delete(
                         hashtable,
+                        0,
                         test_key_1,
                         test_key_1_len,
                         nullptr));
@@ -73,6 +74,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
 
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
+                        0,
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
@@ -88,6 +90,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
 
                 REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
+                        0,
                         test_key_1,
                         test_key_1_len,
                         nullptr));
@@ -118,6 +121,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
 
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
+                        0,
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
@@ -132,6 +136,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
 
                 REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
+                        0,
                         test_key_1,
                         test_key_1_len,
                         &prev_value));
@@ -162,6 +167,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
 
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
+                        0,
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
@@ -175,6 +181,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
 
                 REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
+                        0,
                         test_key_1,
                         test_key_1_len,
                         nullptr));
@@ -188,6 +195,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
 
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
+                        0,
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
@@ -204,6 +212,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
 
                 REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
+                        0,
                         test_key_1,
                         test_key_1_len,
                         nullptr));
@@ -220,6 +229,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 bool out_should_free_key = false;
                 hashtable_chunk_slot_index_t slots_to_fill = 8;
                 test_key_same_bucket_t* test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
+                        0,
                         hashtable->ht_current->buckets_count,
                         test_key_same_bucket_key_prefix_external,
                         slots_to_fill);
@@ -230,6 +240,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
 
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
+                            0,
                             test_key_same_bucket_alloc,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
@@ -242,6 +253,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
 
                 REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
+                        0,
                         test_key_same_bucket[random_slot_index].key,
                         test_key_same_bucket[random_slot_index].key_len,
                         nullptr));
@@ -270,6 +282,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 bool out_should_free_key = false;
                 hashtable_chunk_slot_index_t slots_to_fill = 8;
                 test_key_same_bucket_t* test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
+                        0,
                         hashtable->ht_current->buckets_count,
                         test_key_same_bucket_key_prefix_external,
                         slots_to_fill);
@@ -280,6 +293,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
 
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
+                            0,
                             test_key_same_bucket_alloc,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
@@ -292,6 +306,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
 
                 REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
+                        0,
                         test_key_same_bucket[random_slot_index].key,
                         test_key_same_bucket[random_slot_index].key_len,
                         nullptr));
@@ -314,6 +329,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
 
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
+                        0,
                         test_key_same_bucket_alloc,
                         test_key_same_bucket[slots_to_fill - 1].key_len,
                         test_value_1 + slots_to_fill - 1,

@@ -187,6 +187,7 @@ struct module_redis_connection_context {
     network_channel_t *network_channel;
     network_channel_buffer_t read_buffer;
     storage_db_t *db;
+    uint32_t database_number;
     size_t current_argument_token_data_offset;
     bool terminate_connection;
     struct {

@@ -31,13 +31,15 @@
 
 bool hashtable_mcmp_op_get_random_key_try(
         hashtable_t *hashtable,
+        hashtable_database_number_t database_number,
         char **key,
-        hashtable_key_size_t *key_size) {
+        hashtable_key_length_t *key_length) {
     uint64_t random_value = random_generate();
 
     return hashtable_mcmp_op_get_key(
             hashtable,
+            database_number,
             random_value % hashtable->ht_current->buckets_count_real,
             key,
-            key_size);
+            key_length);
 }

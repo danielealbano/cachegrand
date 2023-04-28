@@ -23,6 +23,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "config.h"
 #include "fiber/fiber.h"
 #include "worker/worker_stats.h"
@@ -127,7 +128,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - KEYS", "[red
         SECTION("Match - star - multiple results") {
             REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"KEYS", "*key"},
-                    "*4\r\n$5\r\nb_key\r\n$5\r\na_key\r\n$5\r\nd_key\r\n$5\r\nc_key\r\n"));
+                    "*4\r\n$5\r\nc_key\r\n$5\r\nd_key\r\n$5\r\nb_key\r\n$5\r\na_key\r\n"));
         }
 
         SECTION("Match - question mark") {
@@ -145,13 +146,13 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - KEYS", "[red
         SECTION("Match - brackets") {
             REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"KEYS", "[a-z]_key"},
-                    "*4\r\n$5\r\nb_key\r\n$5\r\na_key\r\n$5\r\nd_key\r\n$5\r\nc_key\r\n"));
+                    "*4\r\n$5\r\nc_key\r\n$5\r\nd_key\r\n$5\r\nb_key\r\n$5\r\na_key\r\n"));
         }
 
         SECTION("Match - everything") {
             REQUIRE(send_recv_resp_command_text_and_validate_recv(
                     std::vector<std::string>{"KEYS", "*"},
-                    "*5\r\n$7\r\nkey_zzz\r\n$5\r\nb_key\r\n$5\r\na_key\r\n$5\r\nd_key\r\n$5\r\nc_key\r\n"));
+                    "*5\r\n$5\r\nc_key\r\n$5\r\nd_key\r\n$7\r\nkey_zzz\r\n$5\r\nb_key\r\n$5\r\na_key\r\n"));
         }
     }
 }

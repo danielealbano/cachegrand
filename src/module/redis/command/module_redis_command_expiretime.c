@@ -51,6 +51,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(expiretime) {
     if (unlikely(!storage_db_op_rmw_begin(
             connection_context->db,
             &transaction,
+            connection_context->database_number,
             context->key.value.key,
             context->key.value.length,
             &rmw_status,

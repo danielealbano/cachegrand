@@ -7,8 +7,9 @@ extern "C" {
 
 bool hashtable_mcmp_op_get_random_key_try(
         hashtable_t *hashtable,
+        hashtable_database_number_t database_number,
         char **key,
-        hashtable_key_size_t *key_size);
+        hashtable_key_length_t *key_length);
 
 #ifdef __cplusplus
 }

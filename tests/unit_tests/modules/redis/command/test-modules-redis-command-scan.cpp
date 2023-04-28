@@ -23,6 +23,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
+#include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "config.h"
 #include "fiber/fiber.h"
 #include "worker/worker_stats.h"
@@ -76,30 +77,30 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SCAN", "[red
             SECTION("No match") {
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SCAN", "0", "MATCH", "nomatch", "COUNT", "100"},
-                        "*2\r\n:687\r\n*0\r\n"));
+                        "*2\r\n:981\r\n*0\r\n"));
 
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                        std::vector<std::string>{"SCAN", "687", "MATCH", "nomatch", "COUNT", "100"},
+                        std::vector<std::string>{"SCAN", "981", "MATCH", "nomatch", "COUNT", "100"},
                         "*2\r\n:0\r\n*0\r\n"));
             }
 
             SECTION("Match - simple") {
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SCAN", "0", "MATCH", "a_key", "COUNT", "100"},
-                        "*2\r\n:687\r\n*1\r\n$5\r\na_key\r\n"));
+                        "*2\r\n:981\r\n*1\r\n$5\r\na_key\r\n"));
 
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                        std::vector<std::string>{"SCAN", "687", "MATCH", "a_key", "COUNT", "100"},
+                        std::vector<std::string>{"SCAN", "981", "MATCH", "a_key", "COUNT", "100"},
                         "*2\r\n:0\r\n*0\r\n"));
             }
 
             SECTION("Only count") {
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SCAN", "0", "COUNT", "100"},
-                        "*2\r\n:687\r\n*1\r\n$5\r\na_key\r\n"));
+                        "*2\r\n:981\r\n*1\r\n$5\r\na_key\r\n"));
 
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                        std::vector<std::string>{"SCAN", "687", "COUNT", "100"},
+                        std::vector<std::string>{"SCAN", "981", "COUNT", "100"},
                         "*2\r\n:0\r\n*0\r\n"));
             }
         }
@@ -164,54 +165,66 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SCAN", "[red
             SECTION("No match") {
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SCAN", "0", "MATCH", "nomatch", "COUNT", "100"},
-                        "*2\r\n:281\r\n*0\r\n"));
+                        "*2\r\n:421\r\n*0\r\n"));
 
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                        std::vector<std::string>{"SCAN", "281", "MATCH", "nomatch", "COUNT", "100"},
-                        "*2\r\n:687\r\n*0\r\n"));
+                        std::vector<std::string>{"SCAN", "421", "MATCH", "nomatch", "COUNT", "100"},
+                        "*2\r\n:659\r\n*0\r\n"));
 
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                        std::vector<std::string>{"SCAN", "687", "MATCH", "nomatch", "COUNT", "100"},
-                        "*2\r\n:841\r\n*0\r\n"));
+                        std::vector<std::string>{"SCAN", "659", "MATCH", "nomatch", "COUNT", "100"},
+                        "*2\r\n:869\r\n*0\r\n"));
 
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                        std::vector<std::string>{"SCAN", "841", "MATCH", "nomatch", "COUNT", "100"},
+                        std::vector<std::string>{"SCAN", "869", "MATCH", "nomatch", "COUNT", "100"},
+                        "*2\r\n:981\r\n*0\r\n"));
+
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                        std::vector<std::string>{"SCAN", "981", "MATCH", "nomatch", "COUNT", "100"},
                         "*2\r\n:0\r\n*0\r\n"));
             }
 
             SECTION("Match - simple") {
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SCAN", "0", "MATCH", "a_key", "COUNT", "100"},
-                        "*2\r\n:281\r\n*0\r\n"));
+                        "*2\r\n:421\r\n*0\r\n"));
 
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                        std::vector<std::string>{"SCAN", "281", "MATCH", "a_key", "COUNT", "100"},
-                        "*2\r\n:687\r\n*1\r\n$5\r\na_key\r\n"));
+                        std::vector<std::string>{"SCAN", "421", "MATCH", "a_key", "COUNT", "100"},
+                        "*2\r\n:659\r\n*0\r\n"));
 
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                        std::vector<std::string>{"SCAN", "687", "MATCH", "a_key", "COUNT", "100"},
-                        "*2\r\n:841\r\n*0\r\n"));
+                        std::vector<std::string>{"SCAN", "659", "MATCH", "a_key", "COUNT", "100"},
+                        "*2\r\n:869\r\n*0\r\n"));
 
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                        std::vector<std::string>{"SCAN", "841", "MATCH", "nomatch", "COUNT", "100"},
+                        std::vector<std::string>{"SCAN", "869", "MATCH", "a_key", "COUNT", "100"},
+                        "*2\r\n:981\r\n*1\r\n$5\r\na_key\r\n"));
+
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                        std::vector<std::string>{"SCAN", "981", "MATCH", "a_key", "COUNT", "100"},
                         "*2\r\n:0\r\n*0\r\n"));
             }
 
             SECTION("Only count") {
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SCAN", "0", "COUNT", "100"},
-                        "*2\r\n:281\r\n*2\r\n$7\r\nkey_zzz\r\n$5\r\nb_key\r\n"));
+                        "*2\r\n:421\r\n*1\r\n$5\r\nc_key\r\n"));
 
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                        std::vector<std::string>{"SCAN", "281", "COUNT", "100"},
-                        "*2\r\n:687\r\n*1\r\n$5\r\na_key\r\n"));
+                        std::vector<std::string>{"SCAN", "421", "COUNT", "100"},
+                        "*2\r\n:659\r\n*1\r\n$5\r\nd_key\r\n"));
 
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                        std::vector<std::string>{"SCAN", "687", "COUNT", "100"},
-                        "*2\r\n:841\r\n*2\r\n$5\r\nd_key\r\n$5\r\nc_key\r\n"));
+                        std::vector<std::string>{"SCAN", "659", "COUNT", "100"},
+                        "*2\r\n:869\r\n*2\r\n$7\r\nkey_zzz\r\n$5\r\nb_key\r\n"));
 
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                        std::vector<std::string>{"SCAN", "841", "COUNT", "100"},
+                        std::vector<std::string>{"SCAN", "869", "COUNT", "100"},
+                        "*2\r\n:981\r\n*1\r\n$5\r\na_key\r\n"));
+
+                REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                        std::vector<std::string>{"SCAN", "981", "COUNT", "100"},
                         "*2\r\n:0\r\n*0\r\n"));
             }
         }
@@ -238,7 +251,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SCAN", "[red
             SECTION("Match - star - multiple results") {
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SCAN", "0", "MATCH", "*key"},
-                        "*2\r\n:0\r\n*4\r\n$5\r\nb_key\r\n$5\r\na_key\r\n$5\r\nd_key\r\n$5\r\nc_key\r\n"));
+                        "*2\r\n:0\r\n*4\r\n$5\r\nc_key\r\n$5\r\nd_key\r\n$5\r\nb_key\r\n$5\r\na_key\r\n"));
             }
 
             SECTION("Match - question mark") {
@@ -256,13 +269,13 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SCAN", "[red
             SECTION("Match - brackets") {
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SCAN", "0", "MATCH", "[a-z]_key"},
-                        "*2\r\n:0\r\n*4\r\n$5\r\nb_key\r\n$5\r\na_key\r\n$5\r\nd_key\r\n$5\r\nc_key\r\n"));
+                        "*2\r\n:0\r\n*4\r\n$5\r\nc_key\r\n$5\r\nd_key\r\n$5\r\nb_key\r\n$5\r\na_key\r\n"));
             }
 
             SECTION("Match - everything") {
                 REQUIRE(send_recv_resp_command_text_and_validate_recv(
                         std::vector<std::string>{"SCAN", "0", "MATCH", "*"},
-                        "*2\r\n:0\r\n*5\r\n$7\r\nkey_zzz\r\n$5\r\nb_key\r\n$5\r\na_key\r\n$5\r\nd_key\r\n$5\r\nc_key\r\n"));
+                        "*2\r\n:0\r\n*5\r\n$5\r\nc_key\r\n$5\r\nd_key\r\n$7\r\nkey_zzz\r\n$5\r\nb_key\r\n$5\r\na_key\r\n"));
             }
         }
     }

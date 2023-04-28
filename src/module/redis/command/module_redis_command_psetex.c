@@ -56,6 +56,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(psetex) {
 
     if (unlikely(!storage_db_op_set(
             connection_context->db,
+            connection_context->database_number,
             context->key.value.key,
             context->key.value.length,
             STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,

@@ -2223,6 +2223,31 @@
         ]
     },
     {
+        "command_string": "SELECT",
+        "command_callback_name": "select",
+        "since": "1.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": true,
+        "key_specs": [
+        ],
+        "arguments": [
+            {
+                "name": "index",
+                "type": "integer",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
         "command_string": "SCAN",
         "command_callback_name": "scan",
         "since": "2.8.0",

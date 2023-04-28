@@ -17,7 +17,7 @@
 
 #include "benchmark-program-simple.hpp"
 
-#include "data_structures/hashtable/spsc/hashtable_spsc.h"
+#include "data_structures/art_spsc/art_spsc.h"
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 #pragma GCC diagnostic ignored "-Wpointer-arith"
@@ -339,224 +339,81 @@ char *global_keys[] = {
 };
 int global_keys_count = ARRAY_SIZE(global_keys);
 
-class HashtableSpscOpGetFixture : public benchmark::Fixture {
+
+class ArtSpscOpGetFixture : public benchmark::Fixture {
 private:
-    hashtable_spsc_t *_hashtable = nullptr;
+    art_tree tree = { nullptr };
     char **_keys = (char**)global_keys;
     int _keys_count = global_keys_count;
 public:
-    hashtable_spsc_t *GetHashtable() {
-        return this->_hashtable;
+    art_tree *GetArtTree() {
+        return &this->tree;
     }
 
     void SetUp(benchmark::State& state) override {
-        this->_hashtable = hashtable_spsc_new(
-                100,
-                24,
-                true);
+        int res = art_tree_init(this->GetArtTree());
 
         for (int index = 0; index < this->_keys_count; index++) {
-            char *key_dup = (char*)ffma_mem_alloc(strlen(_keys[index]) + 1);
+            char *key_dup = (char*)xalloc_alloc(strlen(_keys[index]) + 1);
             strcpy(key_dup, _keys[index]);
             key_dup[strlen(_keys[index])] = '\0';
 
-            if (!hashtable_spsc_op_try_set_cs(this->_hashtable, key_dup, strlen(_keys[index]), _keys[index])) {
-                // Move back the pointer of the keys array
-                index--;
-
-                // Resize the hashtable
-                uint32_t current_size = this->_hashtable->buckets_count_real;
-                this->_hashtable = hashtable_spsc_uspize(this->_hashtable);
-            }
-        }
-
-        // Validate that all the keys are in the hashtable and can be found
-        for (int index = 0; index < this->_keys_count; index++) {
-            char *key = (char*)global_keys[index];
-            size_t key_length = strlen(global_keys[index]);
-            if (hashtable_spsc_op_get_cs(
-                    this->_hashtable,
-                    key,
-                    key_length) != key) {
-                state.SkipWithError("Failed to find key in hashtable");
-            }
+            art_insert(
+                    this->GetArtTree(),
+                    (const unsigned char *)key_dup,
+                    strlen(_keys[index]),
+                    _keys[index]);
         }
     }
 
     void TearDown(const ::benchmark::State &state) override {
-        hashtable_spsc_free(this->_hashtable);
+        art_tree_destroy(this->GetArtTree());
     }
 };
 
-class HashtableSpscOpGetKeyAsIntFixture : public benchmark::Fixture {
-private:
-    hashtable_spsc_t *_hashtable = nullptr;
-    char **_keys = (char**)global_keys;
-    int _keys_count = global_keys_count;
-public:
-    hashtable_spsc_t *GetHashtable() {
-        return this->_hashtable;
-    }
-
-    void SetUp(benchmark::State& state) override {
-        this->_hashtable = hashtable_spsc_new(
-                100,
-                24,
-                false);
-
-        for (int index = 0; index < this->_keys_count; index++) {
-            if (!hashtable_spsc_op_try_set_by_hash_and_key_uint32(
-                    this->_hashtable,
-                    *(uint32_t*)_keys[index],
-                    *(uint32_t*)_keys[index],
-                    _keys[index])) {
-                // Move back the pointer of the keys array
-                index--;
-
-                // Resize the hashtable
-                uint32_t current_size = this->_hashtable->buckets_count_real;
-                this->_hashtable = hashtable_spsc_uspize(this->_hashtable);
-            }
-        }
-
-        // Validate that all the keys are in the hashtable and can be found
-        for (int index = 0; index < this->_keys_count; index++) {
-            if (hashtable_spsc_op_get_by_hash_and_key_uint32(
-                    this->_hashtable,
-                    *(uint32_t*)_keys[index],
-                    *(uint32_t*)_keys[index]) != _keys[index]) {
-                state.SkipWithError("Failed to find key in hashtable");
-            }
-        }
-    }
-
-    void TearDown(const ::benchmark::State &state) override {
-        hashtable_spsc_free(this->_hashtable);
-    }
-};
-
-BENCHMARK_DEFINE_F(HashtableSpscOpGetFixture, FindTokenInHashtableWorstCase1Benchmark)(benchmark::State& state) {
+BENCHMARK_DEFINE_F(ArtSpscOpGetFixture, FindTokenInHashtableWorstCase1Benchmark)(benchmark::State& state) {
+    char *non_existing_key = "0000";
     for (auto _ : state) {
-        benchmark::DoNotOptimize(hashtable_spsc_op_get_cs(
-                this->GetHashtable(),
-                "non-existing",
-                strlen("non-existing")));
+        benchmark::DoNotOptimize(art_search(
+                this->GetArtTree(),
+                (const unsigned char*)non_existing_key,
+                strlen(non_existing_key)));
     }
 }
 
-BENCHMARK_DEFINE_F(HashtableSpscOpGetFixture, FindTokenInHashtableAvgCaseCIBenchmark)(benchmark::State& state) {
-    char *key = (char*)global_keys[3000];
-    size_t key_length = strlen(global_keys[3000]);
-    hashtable_spsc_t *hashtable = this->GetHashtable();
+BENCHMARK_DEFINE_F(ArtSpscOpGetFixture, FindTokenInHashtableAvgCase1Benchmark)(benchmark::State& state) {
+    char *key = (char*)global_keys[0];
+    size_t key_length = strlen(global_keys[0]);
+    art_tree *art_tree = this->GetArtTree();
 
     for (auto _ : state) {
-        benchmark::DoNotOptimize(hashtable_spsc_op_get_ci(
-                hashtable,
-                key,
+        benchmark::DoNotOptimize(art_search(
+                art_tree,
+                (const unsigned char*)key,
                 key_length));
     }
 }
 
-BENCHMARK_DEFINE_F(HashtableSpscOpGetFixture, FindTokenInHashtableAvgCaseCSBenchmark)(benchmark::State& state) {
+BENCHMARK_DEFINE_F(ArtSpscOpGetFixture, FindTokenInHashtableAvgCase2Benchmark)(benchmark::State& state) {
     char *key = (char*)global_keys[3000];
     size_t key_length = strlen(global_keys[3000]);
-    hashtable_spsc_t *hashtable = this->GetHashtable();
+    art_tree *art_tree = this->GetArtTree();
 
     for (auto _ : state) {
-        benchmark::DoNotOptimize(hashtable_spsc_op_get_cs(
-                hashtable,
-                key,
+        benchmark::DoNotOptimize(art_search(
+                art_tree,
+                (const unsigned char*)key,
                 key_length));
-    }
-}
-
-BENCHMARK_DEFINE_F(HashtableSpscOpGetKeyAsIntFixture, FindTokenInHashtableBypassHashAndKey1Benchmark)(benchmark::State& state) {
-    char *key = (char*)global_keys[999];
-    uint32_t key_uint32 = *(uint32_t *)key;
-
-    hashtable_spsc_t *hashtable = this->GetHashtable();
-
-    for (auto _ : state) {
-        benchmark::DoNotOptimize(hashtable_spsc_op_get_by_hash_and_key_uint32(
-                hashtable,
-                key_uint32,
-                key_uint32));
-    }
-}
-
-BENCHMARK_DEFINE_F(HashtableSpscOpGetKeyAsIntFixture, FindTokenInHashtableBypassHashAndKey2Benchmark)(benchmark::State& state) {
-    char *key = (char*)global_keys[1999];
-    uint32_t key_uint32 = *(uint32_t *)key;
-
-    hashtable_spsc_t *hashtable = this->GetHashtable();
-
-    for (auto _ : state) {
-        benchmark::DoNotOptimize(hashtable_spsc_op_get_by_hash_and_key_uint32(
-                hashtable,
-                key_uint32,
-                key_uint32));
-    }
-}
-
-BENCHMARK_DEFINE_F(HashtableSpscOpGetKeyAsIntFixture, FindTokenInHashtableBypassHashAndKey3Benchmark)(benchmark::State& state) {
-    char *key = (char*)global_keys[3000];
-    uint32_t key_uint32 = *(uint32_t *)key;
-
-    hashtable_spsc_t *hashtable = this->GetHashtable();
-
-    for (auto _ : state) {
-        benchmark::DoNotOptimize(hashtable_spsc_op_get_by_hash_and_key_uint32(
-                hashtable,
-                key_uint32,
-                key_uint32));
-    }
-}
-
-BENCHMARK_DEFINE_F(HashtableSpscOpGetKeyAsIntFixture, FindTokenInHashtableBypassHashAndKey4Benchmark)(benchmark::State& state) {
-    char *key = (char*)global_keys[3999];
-    uint32_t key_uint32 = *(uint32_t *)key;
-
-    hashtable_spsc_t *hashtable = this->GetHashtable();
-
-    for (auto _ : state) {
-        benchmark::DoNotOptimize(hashtable_spsc_op_get_by_hash_and_key_uint32(
-                hashtable,
-                key_uint32,
-                key_uint32));
-    }
-}
-
-BENCHMARK_DEFINE_F(HashtableSpscOpGetKeyAsIntFixture, FindTokenInHashtableBypassHashAndKey5Benchmark)(benchmark::State& state) {
-    char *key = (char*)global_keys[4999];
-    uint32_t key_uint32 = *(uint32_t *)key;
-
-    hashtable_spsc_t *hashtable = this->GetHashtable();
-
-    for (auto _ : state) {
-        benchmark::DoNotOptimize(hashtable_spsc_op_get_by_hash_and_key_uint32(
-                hashtable,
-                key_uint32,
-                key_uint32));
     }
 }
 
 static void BenchArguments(benchmark::internal::Benchmark* b) {
-    b->Iterations(100000000);
+    b->Iterations(1000000);
 }
 
-BENCHMARK_REGISTER_F(HashtableSpscOpGetFixture, FindTokenInHashtableWorstCase1Benchmark)
+BENCHMARK_REGISTER_F(ArtSpscOpGetFixture, FindTokenInHashtableWorstCase1Benchmark)
     ->Apply(BenchArguments);
-BENCHMARK_REGISTER_F(HashtableSpscOpGetFixture, FindTokenInHashtableAvgCaseCIBenchmark)
+BENCHMARK_REGISTER_F(ArtSpscOpGetFixture, FindTokenInHashtableAvgCase1Benchmark)
     ->Apply(BenchArguments);
-BENCHMARK_REGISTER_F(HashtableSpscOpGetFixture, FindTokenInHashtableAvgCaseCSBenchmark)
+BENCHMARK_REGISTER_F(ArtSpscOpGetFixture, FindTokenInHashtableAvgCase2Benchmark)
     ->Apply(BenchArguments);
-BENCHMARK_REGISTER_F(HashtableSpscOpGetKeyAsIntFixture, FindTokenInHashtableBypassHashAndKey1Benchmark)
-->Apply(BenchArguments);
-BENCHMARK_REGISTER_F(HashtableSpscOpGetKeyAsIntFixture, FindTokenInHashtableBypassHashAndKey2Benchmark)
-->Apply(BenchArguments);
-BENCHMARK_REGISTER_F(HashtableSpscOpGetKeyAsIntFixture, FindTokenInHashtableBypassHashAndKey3Benchmark)
-->Apply(BenchArguments);
-BENCHMARK_REGISTER_F(HashtableSpscOpGetKeyAsIntFixture, FindTokenInHashtableBypassHashAndKey4Benchmark)
-->Apply(BenchArguments);
-BENCHMARK_REGISTER_F(HashtableSpscOpGetKeyAsIntFixture, FindTokenInHashtableBypassHashAndKey5Benchmark)
-->Apply(BenchArguments);

@@ -29,9 +29,9 @@
 #include "fixtures-hashtable-mpmc.h"
 
 #if CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2 == 1
-hashtable_bucket_index_t test_key_1_hash_buckets_0x80 = 76;
-hashtable_bucket_index_t test_key_1_hash_buckets_0x8000 = 24908;
-hashtable_bucket_index_t test_key_1_hash_buckets_0x80000000 = 4940108;
+hashtable_bucket_index_t test_key_1_hash_buckets_0x80 = 100;
+hashtable_bucket_index_t test_key_1_hash_buckets_0x8000 = 1508;
+hashtable_bucket_index_t test_key_1_hash_buckets_0x80000000 = 6751716;
 #elif CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_XXH3 == 1
 hashtable_bucket_index_t test_key_1_hash_buckets_0x80 = 106;
 hashtable_bucket_index_t test_key_1_hash_buckets_0x8000 = 28010;

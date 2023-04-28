@@ -6,6 +6,12 @@
  * of the BSD license.  See the LICENSE file for details.
  **/
 
+// The macro STORAGE_DB_COUNTERS_UPDATE relies on running a function, passed as VA_ARGS, twice to update both the
+// global counters and the per database counters, therefore the bugprone-macro-repeated-side-effects warning must be
+// ignored as this is an intended behaviour.
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "bugprone-macro-repeated-side-effects"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,6 +47,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_op_get_random_key.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
+#include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "memory_allocator/ffma.h"
 #include "fiber/fiber.h"
 #include "fiber/fiber_scheduler.h"
@@ -57,7 +64,7 @@
 
 #define TAG "storage_db"
 
-pthread_key_t storage_db_counters_index_key;
+static pthread_key_t storage_db_counters_index_key;
 static pthread_once_t storage_db_counters_index_key_once = PTHREAD_ONCE_INIT;
 
 static void storage_db_counters_index_key_destroy(void *value) {
@@ -67,6 +74,9 @@ static void storage_db_counters_index_key_destroy(void *value) {
     if (!slot) {
         return;
     }
+
+    // TODO: free up memory at the shutdown
+    //hashtable_spsc_free(storage_db->counters[storage_db_counters_get_current_thread_get_slot_index(storage_db)].per_db);
 
     slots_bitmap_mpmc_release(slot->slots_bitmap, slot->index);
     ffma_mem_free(slot);
@@ -103,11 +113,14 @@ void storage_db_counters_slot_key_ensure_init(
             FATAL(TAG, "No more slots available for worker counters");
         }
 
+        storage_db->counters[slot->index].per_db = hashtable_spsc_new(
+                100, HASHTABLE_SPSC_DEFAULT_MAX_RANGE, false);
+
         pthread_setspecific(storage_db_counters_index_key, slot);
     }
 }
 
-uint64_t storage_db_counters_get_current_thread_get_slot_index(
+static inline __attribute__((always_inline)) uint64_t storage_db_counters_get_current_thread_get_slot_index(
         storage_db_t *storage_db) {
     storage_db_counters_slot_key_ensure_init(storage_db);
 
@@ -118,12 +131,37 @@ uint64_t storage_db_counters_get_current_thread_get_slot_index(
     return slot->index;
 }
 
-storage_db_counters_t* storage_db_counters_get_current_thread_data(
+static inline __attribute__((always_inline)) storage_db_counters_global_and_per_db_t* storage_db_counters_get_current_thread_data(
         storage_db_t *storage_db) {
     return &storage_db->counters[storage_db_counters_get_current_thread_get_slot_index(storage_db)];
 }
 
-void storage_db_counters_sum(
+static inline storage_db_counters_t* storage_db_counters_per_thread_get_or_create(
+        storage_db_t *storage_db,
+        storage_db_database_number_t database_number) {
+    storage_db_counters_t *counters_per_db = NULL;
+
+    storage_db_counters_global_and_per_db_t *counters_global_and_per_db =
+            storage_db_counters_get_current_thread_data(storage_db);
+
+    counters_per_db = (storage_db_counters_t*) hashtable_spsc_op_get_by_hash_and_key_uint32(
+            counters_global_and_per_db->per_db,
+            database_number,
+            database_number);
+
+    if (!counters_per_db) {
+        counters_per_db = ffma_mem_alloc_zero(sizeof(storage_db_counters_t));
+        hashtable_spsc_op_try_set_by_hash_and_key_uint32(
+                counters_global_and_per_db->per_db,
+                database_number,
+                database_number,
+                counters_per_db);
+    }
+
+    return counters_per_db;
+}
+
+void storage_db_counters_sum_global(
         storage_db_t *storage_db,
         storage_db_counters_t *counters) {
     uint64_t workers_to_find = storage_db->workers_count;
@@ -131,12 +169,41 @@ void storage_db_counters_sum(
     uint64_t next_slot_index = 0;
 
     counters->data_size = 0;
-    while(workers_to_find > 0 && (found_slot_index =
-            slots_bitmap_mpmc_iter(storage_db->counters_slots_bitmap, next_slot_index)) != UINT64_MAX) {
-        counters->keys_count += storage_db->counters[found_slot_index].keys_count;
-        counters->data_size += storage_db->counters[found_slot_index].data_size;
-        counters->keys_changed += storage_db->counters[found_slot_index].keys_changed;
-        counters->data_changed += storage_db->counters[found_slot_index].data_changed;
+    while(workers_to_find > 0 && (found_slot_index = slots_bitmap_mpmc_iter(
+            storage_db->counters_slots_bitmap, next_slot_index)) != UINT64_MAX) {
+        counters->keys_count += storage_db->counters[found_slot_index].global.keys_count;
+        counters->data_size += storage_db->counters[found_slot_index].global.data_size;
+        counters->keys_changed += storage_db->counters[found_slot_index].global.keys_changed;
+        counters->data_changed += storage_db->counters[found_slot_index].global.data_changed;
+        next_slot_index = found_slot_index + 1;
+        workers_to_find--;
+    }
+}
+
+void storage_db_counters_sum_per_db(
+        storage_db_t *storage_db,
+        storage_db_database_number_t database_number,
+        storage_db_counters_t *counters) {
+    uint64_t workers_to_find = storage_db->workers_count;
+    uint64_t found_slot_index;
+    uint64_t next_slot_index = 0;
+
+    counters->data_size = 0;
+    while(workers_to_find > 0 && (found_slot_index = slots_bitmap_mpmc_iter(
+            storage_db->counters_slots_bitmap, next_slot_index)) != UINT64_MAX) {
+        storage_db_counters_t *counters_per_db = (storage_db_counters_t*) hashtable_spsc_op_get_by_hash_and_key_uint32(
+                storage_db->counters[found_slot_index].per_db,
+                database_number,
+                database_number);
+
+        if (unlikely(!counters_per_db)) {
+            continue;
+        }
+
+        counters->keys_count += counters_per_db->keys_count;
+        counters->data_size += counters_per_db->data_size;
+        counters->keys_changed += counters_per_db->keys_changed;
+        counters->data_changed += counters_per_db->data_changed;
         next_slot_index = found_slot_index + 1;
         workers_to_find--;
     }
@@ -600,9 +667,9 @@ void storage_db_free(
     // Iterates over the hashtable to free up the entry index
     hashtable_bucket_index_t bucket_index = 0;
     for(
-            void *data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index);
+            void *data = hashtable_mcmp_op_iter_all_databases(db->hashtable, &bucket_index);
             data;
-            ++bucket_index && (data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index))) {
+            ++bucket_index && (data = hashtable_mcmp_op_iter_all_databases(db->hashtable, &bucket_index))) {
         storage_db_entry_index_free(db, data);
     }
 
@@ -1052,6 +1119,7 @@ void storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
 
 storage_db_entry_index_t *storage_db_get_entry_index(
         storage_db_t *db,
+        storage_db_database_number_t database_number,
         char *key,
         size_t key_length) {
     storage_db_entry_index_t *entry_index = NULL;
@@ -1059,6 +1127,7 @@ storage_db_entry_index_t *storage_db_get_entry_index(
 
     bool res = hashtable_mcmp_op_get(
             db->hashtable,
+            database_number,
             key,
             key_length,
             &memptr);
@@ -1120,6 +1189,7 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep_no_expired_ev
 
 storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         storage_db_t *db,
+        storage_db_database_number_t database_number,
         char *key,
         size_t key_length,
         storage_db_entry_index_t *entry_index) {
@@ -1150,6 +1220,7 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         if (unlikely(!storage_db_op_rmw_begin(
                 db,
                 &transaction,
+                database_number,
                 key,
                 key_length,
                 &rmw_status,
@@ -1179,14 +1250,15 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
 
 storage_db_entry_index_t *storage_db_get_entry_index_for_read(
         storage_db_t *db,
+        storage_db_database_number_t database_number,
         char *key,
         size_t key_length) {
     storage_db_entry_index_t *entry_index = NULL;
 
-    entry_index = storage_db_get_entry_index(db, key, key_length);
+    entry_index = storage_db_get_entry_index(db, database_number, key, key_length);
 
     if (likely(entry_index)) {
-        entry_index = storage_db_get_entry_index_for_read_prep(db, key, key_length, entry_index);
+        entry_index = storage_db_get_entry_index_for_read_prep(db, database_number, key, key_length, entry_index);
     }
 
     return entry_index;
@@ -1194,6 +1266,7 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read(
 
 bool storage_db_set_entry_index(
         storage_db_t *db,
+        storage_db_database_number_t database_number,
         char *key,
         size_t key_length,
         storage_db_entry_index_t *entry_index) {
@@ -1205,6 +1278,7 @@ bool storage_db_set_entry_index(
 
     bool res = hashtable_mcmp_op_set(
             db->hashtable,
+            database_number,
             key,
             key_length,
             (uintptr_t)entry_index,
@@ -1239,12 +1313,16 @@ bool storage_db_set_entry_index(
             storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, previous_entry_index);
         }
 
-        storage_db_counters_get_current_thread_data(db)->keys_count += previous_entry_index ? 0 : 1;
-        storage_db_counters_get_current_thread_data(db)->data_size += counter_data_size_delta;
+        STORAGE_DB_COUNTERS_UPDATE(db, database_number, {
+            counters->keys_count += previous_entry_index ? 0 : 1;
+            counters->data_size += counter_data_size_delta;
+        });
     }
 
-    storage_db_counters_get_current_thread_data(db)->keys_changed++;
-    storage_db_counters_get_current_thread_data(db)->data_changed += (int64_t)entry_index->value.size;
+    STORAGE_DB_COUNTERS_UPDATE(db, database_number, {
+        counters->keys_changed++;
+        counters->data_changed += (int64_t) entry_index->value.size;
+    });
 
     if (out_should_free_key) {
         xalloc_free(key);
@@ -1255,6 +1333,7 @@ bool storage_db_set_entry_index(
 
 bool storage_db_op_set(
         storage_db_t *db,
+        storage_db_database_number_t database_number,
         char *key,
         size_t key_length,
         storage_db_entry_index_value_type_t value_type,
@@ -1287,6 +1366,7 @@ bool storage_db_op_set(
     }
 
     // Fetch a new entry and assign the key and the value as needed
+    entry_index->database_number = database_number;
     entry_index->value.size = value_chunk_sequence->size;
     entry_index->value.count = value_chunk_sequence->count;
     entry_index->value.sequence = value_chunk_sequence->sequence;
@@ -1295,6 +1375,7 @@ bool storage_db_op_set(
     // Try to store the entry index in the database
     if (!storage_db_set_entry_index(
             db,
+            database_number,
             key,
             key_length,
             entry_index)) {
@@ -1322,6 +1403,7 @@ end:
 bool storage_db_op_rmw_begin(
         storage_db_t *db,
         transaction_t *transaction,
+        storage_db_database_number_t database_number,
         char *key,
         size_t key_length,
         storage_db_op_rmw_status_t *rmw_status,
@@ -1332,6 +1414,7 @@ bool storage_db_op_rmw_begin(
             db->hashtable,
             transaction,
             &rmw_status->hashtable,
+            database_number,
             key,
             key_length,
             (uintptr_t*)current_entry_index))) {
@@ -1394,7 +1477,7 @@ bool storage_db_op_rmw_commit_update(
 
     // Set up the key if necessary
     if (db->config->backend_type != STORAGE_DB_BACKEND_TYPE_MEMORY) {
-        if (!storage_db_chunk_sequence_allocate(db, &entry_index->key, rmw_status->hashtable.key_size)) {
+        if (!storage_db_chunk_sequence_allocate(db, &entry_index->key, rmw_status->hashtable.key_length)) {
             LOG_E(TAG, "Unable to allocate the chunks for the key");
             goto end;
         }
@@ -1407,13 +1490,14 @@ bool storage_db_op_rmw_commit_update(
                         0),
                 0,
                 rmw_status->hashtable.key,
-                rmw_status->hashtable.key_size)) {
+                rmw_status->hashtable.key_length)) {
             LOG_E(TAG, "Unable to write an index entry key");
             goto end;
         }
     }
 
     // Fetch a new entry and assign the key and the value as needed
+    entry_index->database_number = rmw_status->hashtable.database_number;
     entry_index->value.size = value_chunk_sequence->size;
     entry_index->value.count = value_chunk_sequence->count;
     entry_index->value.sequence = value_chunk_sequence->sequence;
@@ -1435,10 +1519,12 @@ bool storage_db_op_rmw_commit_update(
                 (storage_db_entry_index_t *)rmw_status->hashtable.current_value);
     }
 
-    storage_db_counters_get_current_thread_data(db)->keys_count += rmw_status->hashtable.current_value ? 0 : 1;
-    storage_db_counters_get_current_thread_data(db)->data_size += counter_data_size_delta;
-    storage_db_counters_get_current_thread_data(db)->keys_changed++;
-    storage_db_counters_get_current_thread_data(db)->data_changed += (int64_t)entry_index->value.size;
+    STORAGE_DB_COUNTERS_UPDATE(db, rmw_status->hashtable.database_number, {
+        counters->keys_count += rmw_status->hashtable.current_value ? 0 : 1;
+        counters->data_size += counter_data_size_delta;
+        counters->keys_changed++;
+        counters->data_changed += (int64_t) entry_index->value.size;
+    });
 
     result_res = true;
 
@@ -1478,12 +1564,12 @@ void storage_db_op_rmw_commit_rename(
 void storage_db_op_rmw_commit_delete(
         storage_db_t *db,
         storage_db_op_rmw_status_t *rmw_status) {
-    storage_db_counters_get_current_thread_data(db)->keys_count--;
-    storage_db_counters_get_current_thread_data(db)->data_size -=
-            (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value.size;
-    storage_db_counters_get_current_thread_data(db)->keys_changed++;
-    storage_db_counters_get_current_thread_data(db)->data_changed +=
-            (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value.size;
+    STORAGE_DB_COUNTERS_UPDATE(db, rmw_status->hashtable.database_number, {
+        counters->keys_count--;
+        counters->data_size -= (int64_t) ((storage_db_entry_index_t *) rmw_status->hashtable.current_value)->value.size;
+        counters->keys_changed++;
+        counters->data_changed += (int64_t) ((storage_db_entry_index_t *) rmw_status->hashtable.current_value)->value.size;
+    });
 
     storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
             db,
@@ -1504,22 +1590,25 @@ void storage_db_op_rmw_abort(
 
 bool storage_db_op_delete(
         storage_db_t *db,
+        storage_db_database_number_t database_number,
         char *key,
         size_t key_length) {
     storage_db_entry_index_t *current_entry_index = NULL;
 
     bool res = hashtable_mcmp_op_delete(
             db->hashtable,
+            database_number,
             key,
             key_length,
             (uintptr_t*)&current_entry_index);
 
     if (res && current_entry_index != NULL) {
-        storage_db_counters_get_current_thread_data(db)->keys_count--;
-        storage_db_counters_get_current_thread_data(db)->data_size -=
-                (int64_t)current_entry_index->value.size;
-        storage_db_counters_get_current_thread_data(db)->keys_changed++;
-        storage_db_counters_get_current_thread_data(db)->data_changed += (int64_t)current_entry_index->value.size;
+        STORAGE_DB_COUNTERS_UPDATE(db, database_number, {
+            counters->keys_count--;
+            counters->data_size -= (int64_t) current_entry_index->value.size;
+            counters->keys_changed++;
+            counters->data_changed += (int64_t) current_entry_index->value.size;
+        });
 
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
     }
@@ -1529,20 +1618,23 @@ bool storage_db_op_delete(
 
 bool storage_db_op_delete_by_index(
         storage_db_t *db,
+        storage_db_database_number_t database_number,
         hashtable_bucket_index_t bucket_index) {
     storage_db_entry_index_t *current_entry_index = NULL;
 
     bool res = hashtable_mcmp_op_delete_by_index(
             db->hashtable,
+            database_number,
             bucket_index,
             (uintptr_t*)&current_entry_index);
 
     if (res && current_entry_index != NULL) {
-        storage_db_counters_get_current_thread_data(db)->keys_count--;
-        storage_db_counters_get_current_thread_data(db)->data_size -=
-                (int64_t)current_entry_index->value.size;
-        storage_db_counters_get_current_thread_data(db)->keys_changed++;
-        storage_db_counters_get_current_thread_data(db)->data_changed += (int64_t)current_entry_index->value.size;
+        STORAGE_DB_COUNTERS_UPDATE(db, database_number, {
+            counters->keys_count--;
+            counters->data_size -= (int64_t)current_entry_index->value.size;
+            counters->keys_changed++;
+            counters->data_changed += (int64_t)current_entry_index->value.size;
+        });
 
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
     }
@@ -1550,29 +1642,72 @@ bool storage_db_op_delete_by_index(
     return res;
 }
 
-int64_t storage_db_op_get_keys_count(
-        storage_db_t *db) {
+bool storage_db_op_delete_by_index_all_databases(
+        storage_db_t *db,
+        hashtable_bucket_index_t bucket_index) {
+    storage_db_entry_index_t *current_entry_index = NULL;
+
+    bool res = hashtable_mcmp_op_delete_by_index_all_databases(
+            db->hashtable,
+            bucket_index,
+            (uintptr_t*)&current_entry_index);
+
+    if (res && current_entry_index != NULL) {
+        STORAGE_DB_COUNTERS_UPDATE(db, current_entry_index->database_number, {
+            counters->keys_count--;
+            counters->data_size -= (int64_t)current_entry_index->value.size;
+            counters->keys_changed++;
+            counters->data_changed += (int64_t)current_entry_index->value.size;
+        });
+
+        storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
+    }
+
+    return res;
+}
+
+int64_t storage_db_op_get_keys_count_per_db(
+        storage_db_t *db,
+        storage_db_database_number_t database_number) {
     storage_db_counters_t counters = { 0 };
-    storage_db_counters_sum(db, &counters);
+    storage_db_counters_sum_per_db(db, database_number, &counters);
 
     return counters.keys_count;
 }
 
-int64_t storage_db_op_get_data_size(
+int64_t storage_db_op_get_data_size_per_db(
+        storage_db_t *db,
+        storage_db_database_number_t database_number) {
+    storage_db_counters_t counters = { 0 };
+    storage_db_counters_sum_per_db(db, database_number, &counters);
+
+    return counters.data_size;
+}
+
+int64_t storage_db_op_get_keys_count_global(
         storage_db_t *db) {
     storage_db_counters_t counters = { 0 };
-    storage_db_counters_sum(db, &counters);
+    storage_db_counters_sum_global(db, &counters);
+
+    return counters.keys_count;
+}
+
+int64_t storage_db_op_get_data_size_global(
+        storage_db_t *db) {
+    storage_db_counters_t counters = { 0 };
+    storage_db_counters_sum_global(db, &counters);
 
     return counters.data_size;
 }
 
 char *storage_db_op_random_key(
         storage_db_t *db,
-        hashtable_key_size_t *key_size) {
+        storage_db_database_number_t database_number,
+        hashtable_key_length_t *key_size) {
     char *key = NULL;
 
-    while(storage_db_op_get_keys_count(db) > 0 &&
-          !hashtable_mcmp_op_get_random_key_try(db->hashtable, &key, key_size)) {
+    while(storage_db_op_get_keys_count_per_db(db, database_number) > 0 &&
+          !hashtable_mcmp_op_get_random_key_try(db->hashtable, database_number, &key, key_size)) {
         // do nothing
     }
 
@@ -1580,7 +1715,8 @@ char *storage_db_op_random_key(
 }
 
 bool storage_db_op_flush_sync(
-        storage_db_t *db) {
+        storage_db_t *db,
+        storage_db_database_number_t database_number) {
     // As the resizing has to be taken into account but not yet implemented, the assert will catch if the resizing is
     // implemented without having dealt with the flush
     assert(db->hashtable->ht_old == NULL);
@@ -1589,20 +1725,13 @@ bool storage_db_op_flush_sync(
     // Iterates over the hashtable to free up the entry index
     hashtable_bucket_index_t bucket_index = 0;
     for(
-            void *data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index);
+            void *data = hashtable_mcmp_op_iter(db->hashtable, database_number, &bucket_index);
             data;
-            ++bucket_index && (data = hashtable_mcmp_op_iter(db->hashtable, &bucket_index))) {
+            ++bucket_index && (data = hashtable_mcmp_op_iter(db->hashtable, database_number, &bucket_index))) {
         storage_db_entry_index_t *entry_index = data;
 
         if (entry_index->created_time_ms <= deletion_start_ms) {
-            hashtable_key_data_t *key;
-            hashtable_key_size_t key_size;
-
-            // The bucket might have been deleted in the meantime so get_key has to return true
-            if (hashtable_mcmp_op_get_key(db->hashtable, bucket_index, &key, &key_size)) {
-                storage_db_op_delete(db, key, key_size);
-                xalloc_free(key);
-            }
+            storage_db_op_delete_by_index(db, database_number, bucket_index);
         }
     }
 
@@ -1611,6 +1740,7 @@ bool storage_db_op_flush_sync(
 
 storage_db_key_and_key_length_t *storage_db_op_get_keys(
         storage_db_t *db,
+        storage_db_database_number_t database_number,
         uint64_t cursor,
         uint64_t count,
         char *pattern,
@@ -1618,14 +1748,14 @@ storage_db_key_and_key_length_t *storage_db_op_get_keys(
         uint64_t *keys_count,
         uint64_t *cursor_next) {
     hashtable_key_data_t *key;
-    hashtable_key_size_t key_size;
+    hashtable_key_length_t key_size;
     bool end_reached = false;
     hashtable_bucket_index_t bucket_index = cursor;
     storage_db_entry_index_t *entry_index = NULL;
     *keys_count = 0;
     *cursor_next = 0;
 
-    if (unlikely(storage_db_op_get_keys_count(db)) == 0) {
+    if (unlikely(storage_db_op_get_keys_count_per_db(db, database_number)) == 0) {
         return NULL;
     }
 
@@ -1638,7 +1768,8 @@ storage_db_key_and_key_length_t *storage_db_op_get_keys(
     }
 
     uint64_t keys_allocated_count = 8;
-    storage_db_key_and_key_length_t *keys = xalloc_alloc(sizeof(storage_db_key_and_key_length_t) * keys_allocated_count);
+    storage_db_key_and_key_length_t *keys =
+            xalloc_alloc(sizeof(storage_db_key_and_key_length_t) * keys_allocated_count);
 
     // As the resizing has to be taken into account but not yet implemented, the assert will catch if the resizing is
     // implemented without having dealt with the flush
@@ -1647,7 +1778,7 @@ storage_db_key_and_key_length_t *storage_db_op_get_keys(
 
     // Iterates over the hashtable to free up the entry index
     do {
-        entry_index = hashtable_mcmp_op_iter(db->hashtable, &bucket_index);
+        entry_index = hashtable_mcmp_op_iter(db->hashtable, database_number, &bucket_index);
 
         if (unlikely(entry_index == NULL)) {
             end_reached = true;
@@ -1661,7 +1792,12 @@ storage_db_key_and_key_length_t *storage_db_op_get_keys(
         }
 
         // The bucket might have been deleted in the meantime so get_key has to return true
-        if (unlikely(!hashtable_mcmp_op_get_key(db->hashtable, bucket_index, &key, &key_size))) {
+        if (unlikely(!hashtable_mcmp_op_get_key(
+                db->hashtable,
+                database_number,
+                bucket_index,
+                &key,
+                &key_size))) {
             continue;
         }
 
@@ -1774,7 +1910,7 @@ uint8_t storage_db_keys_eviction_run_worker(
         bucket_index += increment;
 
         // Tries to fetch the next entry index
-        data = hashtable_mcmp_op_iter_max_distance(
+        data = hashtable_mcmp_op_iter_max_distance_all_databases(
                 db->hashtable,
                 &bucket_index,
                 STORAGE_DB_KEYS_EVICTION_ITER_MAX_DISTANCE * search_attempts);
@@ -1865,7 +2001,7 @@ uint8_t storage_db_keys_eviction_run_worker(
 
         // Try to delete the key by index, potentially the operation might fail if the key has been deleted or if it
         // was selected twice for the eviction
-        if (storage_db_op_delete_by_index(db, key_eviction_list_entry->value)) {
+        if (storage_db_op_delete_by_index_all_databases(db, key_eviction_list_entry->value)) {
             keys_evicted_count++;
         } else {
             // If the operation fails, increment the amount of keys to evict by one
@@ -1875,3 +2011,5 @@ uint8_t storage_db_keys_eviction_run_worker(
 
     return keys_evicted_count;
 }
+
+#pragma clang diagnostic pop

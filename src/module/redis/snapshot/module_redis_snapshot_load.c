@@ -28,6 +28,7 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
+#include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "memory_allocator/ffma.h"
 #include "config.h"
 #include "module/module.h"
@@ -53,6 +54,7 @@ static uint64_t counter_strings = 0;
 static uint64_t counter_expires = 0;
 static uint64_t counter_expires_expired = 0;
 static uint64_t rdb_load_start;
+static storage_db_database_number_t current_database_number = 0;
 
 size_t module_redis_snapshot_load_read(
         storage_channel_t *channel,
@@ -258,6 +260,8 @@ void module_redis_snapshot_load_process_opcode_db_number(
         FATAL(TAG, "Unsupported DB number: %d", db_number);
     }
 
+    current_database_number = db_number;
+
     LOG_V(TAG, "RDB DB number: %d", db_number);
 }
 
@@ -347,6 +351,7 @@ bool module_redis_snapshot_load_write_key_value_string(
 
     if (unlikely(!storage_db_op_set(
             db,
+            current_database_number,
             key,
             key_length,
             STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,

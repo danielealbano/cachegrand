@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2018-2022 Vito Castellano
+ * Copyright (C) 2018-2023 Daniele Salvatore Albano
  * All rights reserved.
  *
  * This software may be modified and distributed under the terms
@@ -9,11 +9,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdbool>
-#include <cstring>
 #include <memory>
-#include <string>
 
-#include <unistd.h>
 #include <netinet/in.h>
 
 #include "clock.h"
@@ -44,64 +41,68 @@
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
-TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - RENAMENX", "[redis][command][RENAMENX]") {
-    SECTION("Key not existing") {
+TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SELECT", "[redis][command][SELECT]") {
+    SECTION("Select DB 1") {
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"RENAMENX", "a_key", "b_value"},
-                "-ERR no such key\r\n"));
+                std::vector<std::string>{"SELECT", "1"},
+                "+OK\r\n"));
     }
 
-    SECTION("Key existing") {
+    SECTION("Select DB 17 - not allowed") {
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                std::vector<std::string>{"SELECT", "17"},
+                "-ERR invalid DB index\r\n"));
+    }
+
+    SECTION("SET, SELECT and GET") {
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"RENAMENX", "a_key", "b_key"},
-                ":1\r\n"));
+                std::vector<std::string>{"GET", "a_key"},
+                "$7\r\nb_value\r\n"));
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"GET", "b_key"},
-                "$7\r\nb_value\r\n"));
+                std::vector<std::string>{"SELECT", "1"},
+                "+OK\r\n"));
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
                 "$-1\r\n"));
     }
 
-    SECTION("Overwrite same key") {
+    SECTION("SET, SELECT, SET same key diff value, switch back and GET") {
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", "a_key", "b_value"},
                 "+OK\r\n"));
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"RENAMENX", "a_key", "a_key"},
-                ":0\r\n"));
+                std::vector<std::string>{"GET", "a_key"},
+                "$7\r\nb_value\r\n"));
+
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                std::vector<std::string>{"SELECT", "1"},
+                "+OK\r\n"));
+
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                std::vector<std::string>{"SET", "a_key", "z_value"},
+                "+OK\r\n"));
+
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                std::vector<std::string>{"SELECT", "0"},
+                "+OK\r\n"));
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
                 "$7\r\nb_value\r\n"));
-    }
 
-    SECTION("Overwrite key") {
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"SET", "a_key", "b_value"},
+                std::vector<std::string>{"SELECT", "1"},
                 "+OK\r\n"));
-
-        REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"SET", "b_key", "c_value"},
-                "+OK\r\n"));
-
-        REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"RENAMENX", "a_key", "b_key"},
-                ":0\r\n"));
-
-        REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"GET", "b_key"},
-                "$7\r\nc_value\r\n"));
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", "a_key"},
-                "$7\r\nb_value\r\n"));
+                "$7\r\nz_value\r\n"));
     }
 }

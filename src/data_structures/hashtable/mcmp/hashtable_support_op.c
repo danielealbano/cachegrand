@@ -59,8 +59,9 @@
 
 bool hashtable_mcmp_support_op_search_key(
         hashtable_data_volatile_t *hashtable_data,
+        hashtable_database_number_t database_number,
         hashtable_key_data_t *key,
-        hashtable_key_size_t key_size,
+        hashtable_key_length_t key_length,
         hashtable_hash_t hash,
         hashtable_chunk_index_t *found_chunk_index,
         hashtable_chunk_slot_index_t *found_chunk_slot_index,
@@ -70,8 +71,9 @@ HASHTABLE_MCMP_SUPPORT_OP_FUNC_RESOLVER(hashtable_mcmp_support_op_search_key)
 
 bool hashtable_mcmp_support_op_search_key_or_create_new(
         hashtable_data_volatile_t *hashtable_data,
+        hashtable_database_number_t database_number,
         hashtable_key_data_t *key,
-        hashtable_key_size_t key_size,
+        hashtable_key_length_t key_length,
         hashtable_hash_t hash,
         bool create_new_if_missing,
         transaction_t *transaction,
@@ -87,7 +89,7 @@ HASHTABLE_MCMP_SUPPORT_OP_FUNC_RESOLVER(hashtable_mcmp_support_op_search_key_or_
 bool hashtable_mcmp_support_op_search_key(
         hashtable_data_volatile_t *hashtable_data,
         hashtable_key_data_t *key,
-        hashtable_key_size_t key_size,
+        hashtable_key_length_t key_length,
         hashtable_hash_t hash,
         hashtable_chunk_index_t *found_chunk_index,
         hashtable_chunk_slot_index_t *found_chunk_slot_index,
@@ -95,7 +97,7 @@ bool hashtable_mcmp_support_op_search_key(
     return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(hashtable_mcmp_support_op_search_key, loop)(
             hashtable_data,
             key,
-            key_size,
+            key_length,
             hash,
             found_chunk_index,
             found_chunk_slot_index,
@@ -106,7 +108,7 @@ bool hashtable_mcmp_support_op_search_key(
 bool hashtable_mcmp_support_op_search_key_or_create_new(
         hashtable_data_volatile_t *hashtable_data,
         hashtable_key_data_t *key,
-        hashtable_key_size_t key_size,
+        hashtable_key_length_t key_length,
         hashtable_hash_t hash,
         bool create_new_if_missing,
         transaction_t *transaction,
@@ -118,7 +120,7 @@ bool hashtable_mcmp_support_op_search_key_or_create_new(
     return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(hashtable_mcmp_support_op_search_key_or_create_new, loop)(
         hashtable_data,
         key,
-        key_size,
+        key_length,
         hash,
         create_new_if_missing,
         transaction,

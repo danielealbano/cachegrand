@@ -45,17 +45,18 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(flushdb) {
         module_redis_connection_error_message_printf_noncritical(
                 connection_context,
                 "ERR the async flushdb is currently unsupported");
-        return true;
+        goto end;
     }
 
-    if (!storage_db_op_flush_sync(connection_context->db)) {
+    if (!storage_db_op_flush_sync(connection_context->db, connection_context->database_number)) {
         module_redis_connection_error_message_printf_noncritical(
                 connection_context,
                 "ERR Failed to flush the database");
-        return true;
+        goto end;
     }
 
     module_redis_connection_send_ok(connection_context);
 
+end:
     return true;
 }

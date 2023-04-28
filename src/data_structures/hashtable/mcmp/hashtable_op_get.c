@@ -28,8 +28,9 @@
 
 bool hashtable_mcmp_op_get(
         hashtable_t *hashtable,
+        hashtable_database_number_t database_number,
         hashtable_key_data_t *key,
-        hashtable_key_size_t key_size,
+        hashtable_key_length_t key_length,
         hashtable_value_data_t *data) {
     hashtable_hash_t hash;
     hashtable_chunk_index_t chunk_index = 0;
@@ -39,9 +40,9 @@ bool hashtable_mcmp_op_get(
     bool data_found = false;
     *data = 0;
 
-    hash = hashtable_mcmp_support_hash_calculate(key, key_size);
+    hash = hashtable_mcmp_support_hash_calculate(database_number, key, key_length);
 
-    LOG_DI("key (%d) = %s", key_size, key);
+    LOG_DI("key (%d) = %s", key_length, key);
     LOG_DI("hash = 0x%016x", hash);
 
     hashtable_data_volatile_t* hashtable_data_list[] = {
@@ -68,8 +69,9 @@ bool hashtable_mcmp_op_get(
 
         if (hashtable_mcmp_support_op_search_key(
                 hashtable_data,
+                database_number,
                 key,
-                key_size,
+                key_length,
                 hash,
                 &chunk_index,
                 &chunk_slot_index,
@@ -83,14 +85,6 @@ bool hashtable_mcmp_op_get(
         MEMORY_FENCE_LOAD();
 
         *data = key_value->data;
-
-        // Note for the future
-        // ---
-        // At this point, the code can end-up returning a value of a key that has been deleted.
-        // While this is a non problem, this is something that would happen anyway in a context of a network platform
-        // that receives un-synchronized requests from the caller and that if it's necessary the caller has to implement
-        // the required sync mechanism to ensure it's not going to issue get/delete commands in the wrong order, if it
-        // will be necessary to avoid returning deleted data a check on flags can be introduced in this point
 
         data_found = true;
 

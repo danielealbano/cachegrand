@@ -210,6 +210,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
 
     if (!(entry_index_1 = storage_db_get_entry_index_for_read(
             connection_context->db,
+            connection_context->database_number,
             context->key1.value.key,
             context->key1.value.length))) {
         goto end;
@@ -217,6 +218,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
 
     if (!(entry_index_2 = storage_db_get_entry_index_for_read(
             connection_context->db,
+            connection_context->database_number,
             context->key2.value.key,
             context->key2.value.length))) {
         goto end;

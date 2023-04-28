@@ -119,70 +119,6 @@ static void hashtable_mpmc_op_get_not_found_key(benchmark::State& state) {
     hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free();
 }
 
-static void hashtable_mpmc_op_get_single_key_inline(benchmark::State& state) {
-    static hashtable_mpmc_t * hashtable;
-    static hashtable_mpmc_bucket_index_t bucket_index;
-    uintptr_t value;
-    bool result;
-    char error_message[150] = {0};
-    worker_context_t worker_context = { 0 };
-
-    worker_context.worker_index = state.thread_index();
-    worker_context_set(&worker_context);
-    transaction_set_worker_index(worker_context.worker_index);
-
-    hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_init();
-
-    if (state.thread_index() == 0) {
-        hashtable = hashtable_mpmc_init(state.range(0));
-
-        bucket_index = hashtable_mpmc_support_bucket_index_from_hash(
-                hashtable->data,
-                test_key_1_hash);
-        char *test_key_1_clone = (char*)xalloc_alloc(test_key_1_len + 1);
-        strncpy(test_key_1_clone, test_key_1, test_key_1_len);
-
-        auto key_value = (hashtable_mpmc_data_key_value_t*)xalloc_alloc(sizeof(hashtable_mpmc_data_key_value_t));
-        strncpy(key_value->key.embedded.key, test_key_1_clone, test_key_1_len);
-        key_value->key.embedded.key_length = test_key_1_len;
-        key_value->value = test_value_1;
-        key_value->hash = test_key_1_hash;
-        key_value->key_is_embedded = true;
-
-        hashtable->data->buckets[bucket_index].data.hash_half = hashtable_mpmc_support_hash_half(test_key_1_hash);
-        hashtable->data->buckets[bucket_index].data.key_value = key_value;
-    }
-
-    test_support_set_thread_affinity(state.thread_index());
-
-    for (auto _ : state) {
-        benchmark::DoNotOptimize((result = hashtable_mpmc_op_get(
-                hashtable,
-                test_key_1,
-                test_key_1_len,
-                &value)));
-
-#if TEST_VALIDATE_KEYS == 1
-        if (result == HASHTABLE_MPMC_RESULT_FALSE || value != test_value_1) {
-            sprintf(
-                    error_message,
-                    "Unable to get the key <%s> with bucket index <%lu> for the thread <%d>",
-                    test_key_1,
-                    bucket_index,
-                    state.thread_index());
-            state.SkipWithError(error_message);
-            break;
-        }
-#endif
-    }
-
-    if (state.thread_index() == 0) {
-        hashtable_mpmc_free(hashtable);
-    }
-
-    hashtable_mpmc_thread_epoch_operation_queue_hashtable_key_value_free();
-}
-
 static void hashtable_mpmc_op_get_single_key_external(benchmark::State& state) {
     static hashtable_mpmc_t * hashtable;
     static hashtable_mpmc_bucket_index_t bucket_index;
@@ -258,9 +194,6 @@ static void BenchArguments(benchmark::internal::Benchmark* b) {
 }
 
 BENCHMARK(hashtable_mpmc_op_get_not_found_key)
-        ->Apply(BenchArguments);
-
-BENCHMARK(hashtable_mpmc_op_get_single_key_inline)
         ->Apply(BenchArguments);
 
 BENCHMARK(hashtable_mpmc_op_get_single_key_external)

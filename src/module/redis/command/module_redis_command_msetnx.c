@@ -65,6 +65,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(msetnx) {
         if (unlikely(!storage_db_op_rmw_begin(
                 connection_context->db,
                 &transaction,
+                connection_context->database_number,
                 key_value->key.value.key,
                 key_value->key.value.length,
                 &rmw_statuses[index],

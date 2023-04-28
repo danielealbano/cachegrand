@@ -32,42 +32,41 @@ uint64_t buckets_count_101 = 101;
 uint64_t buckets_count_307 = 307;
 
 char test_key_same_bucket_key_prefix_external[] = "same_bucket_key_not_inline_";
-char test_key_same_bucket_key_prefix_inline[] = "sb_key_inline_";
 
 char test_key_1[32] = "test key 1";
-hashtable_key_size_t test_key_1_len = strlen(test_key_1);
+hashtable_key_length_t test_key_1_len = strlen(test_key_1);
 #if CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2 == 1
-    hashtable_hash_t test_key_1_hash = (hashtable_hash_t)t1ha2_atonce(test_key_1, test_key_1_len, HASHTABLE_SUPPORT_HASH_SEED);
+    hashtable_hash_t test_key_1_hash = (hashtable_hash_t)t1ha2_atonce(test_key_1, test_key_1_len, 0);
 #elif CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_XXH3 == 1
-    hashtable_hash_t test_key_1_hash = (hashtable_hash_t)XXH3_64bits_withSeed(test_key_1, test_key_1_len, HASHTABLE_SUPPORT_HASH_SEED);
+    hashtable_hash_t test_key_1_hash = (hashtable_hash_t)XXH3_64bits_withSeed(test_key_1, test_key_1_len, 0);
 #elif CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_CRC32 == 1
-    uint32_t crc32 = hash_crc32c(test_key_1, test_key_1_len, HASHTABLE_SUPPORT_HASH_SEED);
+    uint32_t crc32 = hash_crc32c(test_key_1, test_key_1_len, 0);
     hashtable_hash_t test_key_1_hash = ((uint64_t)hash_crc32c(test_key_1, test_key_1_len, crc32) << 32u) | crc32;
 #endif
 hashtable_hash_half_t test_key_1_hash_half = (test_key_1_hash >> 32u) | 0x80000000u;
 hashtable_hash_quarter_t test_key_1_hash_quarter = test_key_1_hash_half & 0xFFFF;
 
 char test_key_2[32] = "test key 2";
-hashtable_key_size_t test_key_2_len = strlen(test_key_2);
+hashtable_key_length_t test_key_2_len = strlen(test_key_2);
 #if CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2 == 1
-    hashtable_hash_t test_key_2_hash = (hashtable_hash_t)t1ha2_atonce(test_key_2, test_key_2_len, HASHTABLE_SUPPORT_HASH_SEED);
+    hashtable_hash_t test_key_2_hash = (hashtable_hash_t)t1ha2_atonce(test_key_2, test_key_2_len, 0);
 #elif CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_XXH3 == 1
-    hashtable_hash_t test_key_2_hash = (hashtable_hash_t)XXH3_64bits_withSeed(test_key_2, test_key_2_len, HASHTABLE_SUPPORT_HASH_SEED);
+    hashtable_hash_t test_key_2_hash = (hashtable_hash_t)XXH3_64bits_withSeed(test_key_2, test_key_2_len, 0);
 #elif CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_CRC32 == 1
-    uint32_t crc32 = hash_crc32c(test_key_2, test_key_2_len, HASHTABLE_SUPPORT_HASH_SEED);
+    uint32_t crc32 = hash_crc32c(test_key_2, test_key_2_len, 0);
     hashtable_hash_t test_key_2_hash = ((uint64_t)hash_crc32c(test_key_2, test_key_2_len, crc32) << 32u) | crc32;
 #endif
 hashtable_hash_half_t test_key_2_hash_half = (test_key_2_hash >> 32u) | 0x80000000u;
 hashtable_hash_quarter_t test_key_2_hash_quarter = test_key_2_hash_half & 0xFFFF;
 
 char test_key_long_1[] = "a very long test key that can't be inlined 1";
-hashtable_key_size_t test_key_long_1_len = strlen(test_key_long_1);
+hashtable_key_length_t test_key_long_1_len = strlen(test_key_long_1);
 #if CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2 == 1
-hashtable_hash_t test_key_long_1_hash = (hashtable_hash_t)t1ha2_atonce(test_key_long_1, test_key_long_1_len, HASHTABLE_SUPPORT_HASH_SEED);
+hashtable_hash_t test_key_long_1_hash = (hashtable_hash_t)t1ha2_atonce(test_key_long_1, test_key_long_1_len, 0);
 #elif CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_XXH3 == 1
-hashtable_hash_t test_key_long_1_hash = (hashtable_hash_t)XXH3_64bits_withSeed(test_key_long_1, test_key_long_1_len, HASHTABLE_SUPPORT_HASH_SEED);
+hashtable_hash_t test_key_long_1_hash = (hashtable_hash_t)XXH3_64bits_withSeed(test_key_long_1, test_key_long_1_len, 0);
 #elif CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_CRC32 == 1
-uint32_t crc32 = hash_crc32c(test_key_long_1, test_key_long_1_len, HASHTABLE_SUPPORT_HASH_SEED);
+uint32_t crc32 = hash_crc32c(test_key_long_1, test_key_long_1_len, 0);
 hashtable_hash_t test_key_long_1_hash = ((uint64_t)hash_crc32c(test_key_long_1, test_key_long_1_len, crc32) << 32u) | crc32;
 #endif
 hashtable_hash_half_t test_key_long_1_hash_half = (test_key_long_1_hash >> 32u) | 0x80000000u;
@@ -132,23 +131,15 @@ hashtable_hash_quarter_t test_key_long_1_hash_quarter = test_key_long_1_hash_hal
     HASHTABLE_HALF_HASHES_CHUNK(chunk_index).half_hashes[chunk_slot_index].filled = true; \
     HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).data = value;
 
-#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
-#define HASHTABLE_SET_KEY_INLINE_BY_INDEX(chunk_index, chunk_slot_index, hash, key, key_size, value) \
+#define HASHTABLE_SET_KEY_BY_INDEX(chunk_index, chunk_slot_index, hash, database_number_, key_, key_size_, value) \
     HASHTABLE_SET_INDEX_SHARED(chunk_index, chunk_slot_index, hash, value); \
-    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).flags = \
-        HASHTABLE_KEY_VALUE_FLAG_FILLED | HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE; \
-    strncpy((char*)&HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).inline_key.data, key, HASHTABLE_KEY_INLINE_MAX_LENGTH); \
-    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).inline_key.size = key_size;
-#endif
+    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).flags = HASHTABLE_KEY_VALUE_FLAG_FILLED; \
+    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).database_number = database_number_; \
+    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).key = key_; \
+    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).key_length = key_size_;
 
-#define HASHTABLE_SET_KEY_EXTERNAL_BY_INDEX(chunk_index, chunk_slot_index, hash, key, key_size, value) \
-    HASHTABLE_SET_INDEX_SHARED(chunk_index, chunk_slot_index, hash, value); \
-    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).flags = \
-        HASHTABLE_KEY_VALUE_FLAG_FILLED; \
-    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).external_key.data = \
-        key; \
-    HASHTABLE_KEYS_VALUES(chunk_index, chunk_slot_index).external_key.size = \
-        key_size;
+#define HASHTABLE_SET_KEY_DB_0_BY_INDEX(chunk_index, chunk_slot_index, hash, key_, key_size_, value) \
+    HASHTABLE_SET_KEY_BY_INDEX(chunk_index, chunk_slot_index, hash, 0, key_, key_size_, value)
 
 #ifdef __cplusplus
 }

@@ -43,6 +43,7 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
+#include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "epoch_gc.h"
 #include "epoch_gc_worker.h"
 #include "module/module.h"
@@ -604,6 +605,7 @@ bool program_config_setup_storage_db(
     storage_db_config_t *config = storage_db_config_new();
 
     if ((config->snapshot.enabled = program_context->config->database->snapshots != NULL)) {
+        config->max_user_databases = program_context->config->database->max_user_databases;
         config->snapshot.path = program_context->config->database->snapshots->path;
         config->snapshot.interval_ms = program_context->config->database->snapshots->interval_ms;
         config->snapshot.min_keys_changed = program_context->config->database->snapshots->min_keys_changed;

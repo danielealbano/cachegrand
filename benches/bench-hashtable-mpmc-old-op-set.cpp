@@ -387,19 +387,6 @@ public:
         }
 
         if (state.thread_index() == 0) {
-#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
-            // Free up the memory allocated for the first keyset slots generated
-            test_support_free_keyset_slots((test_support_keyset_slot_t *)static_keyset_slots);
-
-            // Re-initialize the keyset, the random generator in use will re-generate exactly the same set as we are
-            // using the same random seed (although the generator will not generate them in the same order because
-            // threads are used but that's doesn't matter)
-            static_keyset_slots = test_support_init_keyset_slots(
-                    this->_requested_keyset_size,
-                    KEYSET_GENERATOR_METHOD,
-                    544498304);
-#endif
-
             static_storage_db_populated = true;
             MEMORY_FENCE_STORE();
         }
