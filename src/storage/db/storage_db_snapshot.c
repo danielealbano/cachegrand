@@ -33,6 +33,7 @@
 #include "data_structures/hashtable/mcmp/hashtable_op_get_key.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
+#include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "memory_allocator/ffma.h"
 #include "log/log.h"
 #include "config.h"
@@ -150,7 +151,7 @@ bool storage_db_snapshot_enough_keys_data_changed(
     }
 
     // Get the current counters
-    storage_db_counters_sum(db, &counters);
+    storage_db_counters_sum_global(db, &counters);
 
     // Check if the number of keys changed is greater than the configured threshold
     uint64_t keys_changed = counters.keys_changed - db->snapshot.keys_changed_at_start;
@@ -313,10 +314,17 @@ bool storage_db_snapshot_rdb_prepare(
         goto end;
     }
 
+    // Set the database number to zero and write it
+    db->snapshot.current_database_number = 0;
+    if (!storage_db_snapshot_rdb_write_database_number(db, db->snapshot.current_database_number)) {
+        result = false;
+        goto end;
+    }
+
 end:
     if (result) {
         storage_db_counters_t counters;
-        storage_db_counters_sum(db, &counters);
+        storage_db_counters_sum_global(db, &counters);
 
         // The snapshot has been successfully prepared, so we can set running to true and update the status to
         // IN_PROGRESS
@@ -578,6 +586,35 @@ end:
     return result;
 }
 
+bool storage_db_snapshot_rdb_write_database_number(
+        storage_db_t *db,
+        storage_db_database_number_t database_number) {
+    bool result = true;
+    uint8_t buffer[128] = { 0 };
+    size_t buffer_size = sizeof(buffer);
+    size_t buffer_offset = 0;
+
+    if (module_redis_snapshot_serialize_primitive_encode_opcode_db_number(
+            database_number,
+            buffer,
+            buffer_size,
+            0,
+            &buffer_offset) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK) {
+        LOG_E(TAG, "Failed to write the database number");
+        result = false;
+        goto end;
+    }
+
+    if (!storage_db_snapshot_rdb_write_buffer(db, buffer, buffer_offset)) {
+        result = false;
+        goto end;
+    }
+
+end:
+
+    return result;
+}
+
 bool storage_db_snapshot_rdb_process_entry_index(
         storage_db_t *db,
         char *key,
@@ -781,6 +818,7 @@ void storage_db_snapshot_rdb_flush_entry_index_to_be_deleted_queue(
 
 bool storage_db_snapshot_rdb_process_block(
         storage_db_t *db,
+        storage_db_database_number_t *current_database_number,
         bool *last_block) {
     bool result = true;
 
@@ -803,15 +841,17 @@ bool storage_db_snapshot_rdb_process_block(
     for (hashtable_bucket_index_t bucket_index = block_start - 1;
          bucket_index < block_end && bucket_index < buckets_end;
          bucket_index++) {
+        storage_db_database_number_t database_number;
         char *key = NULL;
-        hashtable_key_size_t key_size = 0;
+        hashtable_key_length_t key_size = 0;
 
         // Tries to fetch the next entry within the block being processed
         bucket_index++;
-        storage_db_entry_index_t *entry_index = (storage_db_entry_index_t*)hashtable_mcmp_op_iter_max_distance(
-                db->hashtable,
-                &bucket_index,
-                block_end - bucket_index);
+        storage_db_entry_index_t *entry_index =
+                (storage_db_entry_index_t*)hashtable_mcmp_op_iter_max_distance_all_databases(
+                        db->hashtable,
+                        &bucket_index,
+                        block_end - bucket_index);
 
         // Ensure the entry is not null
         if (entry_index == NULL) {
@@ -827,7 +867,12 @@ bool storage_db_snapshot_rdb_process_block(
         }
 
         // Try to get the key
-        if (unlikely(!hashtable_mcmp_op_get_key(db->hashtable, bucket_index, &key, &key_size))) {
+        if (unlikely(!hashtable_mcmp_op_get_key_all_databases(
+                db->hashtable,
+                bucket_index,
+                &database_number,
+                &key,
+                &key_size))) {
             continue;
         }
 
@@ -841,6 +886,17 @@ bool storage_db_snapshot_rdb_process_block(
             continue;
         }
 
+        // Check if the database number has changed
+        if (*current_database_number != database_number) {
+            // If the database number has changed, the current database number should be updated
+            *current_database_number = database_number;
+
+            if (!storage_db_snapshot_rdb_write_database_number(db, database_number)) {
+                result = false;
+                goto loop_end;
+            }
+        }
+
         // Serialize the entry
         if (!storage_db_snapshot_rdb_process_entry_index(
                 db,
@@ -848,14 +904,18 @@ bool storage_db_snapshot_rdb_process_block(
                 key_size,
                 entry_index)) {
             result = false;
-            xalloc_free(key);
-            break;
+            goto loop_end;
         }
 
         db->snapshot.stats.keys_written++;
 
+loop_end:
         // Free the key
         xalloc_free(key);
+
+        if (unlikely(!result)) {
+            break;
+        }
     }
 
     return result;

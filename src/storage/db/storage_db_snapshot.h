@@ -14,7 +14,7 @@ extern "C" {
 struct storage_db_snapshot_entry_index_to_be_deleted {
     char *key;
     hashtable_bucket_index_t bucket_index;
-    hashtable_key_size_t key_length;
+    hashtable_key_length_t key_length;
     storage_db_entry_index_t *entry_index;
 };
 typedef struct storage_db_snapshot_entry_index_to_be_deleted storage_db_snapshot_entry_index_to_be_deleted_t;
@@ -62,6 +62,10 @@ bool storage_db_snapshot_rdb_write_value_string(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index);
 
+bool storage_db_snapshot_rdb_write_database_number(
+        storage_db_t *db,
+        storage_db_database_number_t database_number);
+
 bool storage_db_snapshot_rdb_process_entry_index(
         storage_db_t *db,
         char *key,
@@ -85,6 +89,7 @@ void storage_db_snapshot_rdb_flush_entry_index_to_be_deleted_queue(
 
 bool storage_db_snapshot_rdb_process_block(
         storage_db_t *db,
+        storage_db_database_number_t *current_database_number,
         bool *last_block);
 
 static inline bool storage_db_snapshot_lock_try_acquire(

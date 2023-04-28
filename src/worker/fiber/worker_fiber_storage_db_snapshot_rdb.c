@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <arpa/inet.h>
 
 #include "exttypes.h"
@@ -20,6 +21,7 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
+#include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "fiber/fiber.h"
 #include "fiber/fiber_scheduler.h"
 #include "config.h"
@@ -84,7 +86,10 @@ void worker_fiber_storage_db_snapshot_rdb_fiber_entrypoint(
         }
 
         // Process a block
-        result = storage_db_snapshot_rdb_process_block(db, &last_block);
+        result = storage_db_snapshot_rdb_process_block(
+                db,
+                &db->snapshot.current_database_number,
+                &last_block);
 
         // If the block was processed successfully and was the last one, mark the snapshot as being finalized
         if (result && last_block) {
