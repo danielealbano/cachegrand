@@ -47,6 +47,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(keys) {
 
     storage_db_key_and_key_length_t *keys = storage_db_op_get_keys(
             connection_context->db,
+            connection_context->database_number,
             0,
             0,
             context->pattern.value.pattern,

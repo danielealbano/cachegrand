@@ -53,6 +53,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(touch) {
         if (unlikely(!storage_db_op_rmw_begin(
                 connection_context->db,
                 &transaction,
+                connection_context->database_number,
                 context->key.list[index].key,
                 context->key.list[index].length,
                 &rmw_status,

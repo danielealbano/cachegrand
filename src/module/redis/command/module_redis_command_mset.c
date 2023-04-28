@@ -47,6 +47,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(mset) {
 
         if (!storage_db_op_set(
                 connection_context->db,
+                connection_context->database_number,
                 key_value->key.value.key,
                 key_value->key.value.length,
                 STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,

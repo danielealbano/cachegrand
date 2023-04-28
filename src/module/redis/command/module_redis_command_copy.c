@@ -78,6 +78,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
     if (unlikely(!storage_db_op_rmw_begin(
             connection_context->db,
             &transaction,
+            connection_context->database_number,
             context->destination.value.key,
             context->destination.value.length,
             &rmw_status,
@@ -96,6 +97,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
 
     entry_index_source = storage_db_get_entry_index_for_read(
             connection_context->db,
+            connection_context->database_number,
             context->source.value.key,
             context->source.value.length);
 

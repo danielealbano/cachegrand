@@ -68,6 +68,7 @@ bool module_redis_command_helper_incr_decr(
     if (unlikely(!storage_db_op_rmw_begin(
             connection_context->db,
             &transaction,
+            connection_context->database_number,
             *key,
             *key_length,
             &rmw_status,
@@ -220,6 +221,7 @@ bool module_redis_command_helper_incr_decr_float(
     if (unlikely(!storage_db_op_rmw_begin(
             connection_context->db,
             &transaction,
+            connection_context->database_number,
             *key,
             *key_length,
             &rmw_status,

@@ -51,6 +51,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
     for(int index = 0; index < context->key.count; index++) {
         storage_db_entry_index_t *entry_index = storage_db_get_entry_index_for_read(
                 connection_context->db,
+                connection_context->database_number,
                 context->key.list[index].key,
                 context->key.list[index].length);
 
