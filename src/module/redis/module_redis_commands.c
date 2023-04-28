@@ -48,7 +48,6 @@ hashtable_spsc_t *module_redis_commands_build_commands_hashtables(
     hashtable_spsc_t *commands_hashtable = hashtable_spsc_new(
             command_infos_count,
             32,
-            true,
             false);
     for(
             uint32_t command_info_index = 0;
@@ -222,7 +221,6 @@ bool module_redis_commands_build_commands_arguments_token_entries_hashtable(
         if ((tokens_hashtable = hashtable_spsc_new(
                 token_count,
                 8,
-                true,
                 false)) == NULL) {
             goto end;
         }

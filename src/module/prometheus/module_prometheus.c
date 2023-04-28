@@ -27,6 +27,7 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
+#include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
@@ -531,7 +532,7 @@ bool module_prometheus_process_metrics_request(
     tags_from_env = module_prometheus_fetch_extra_metrics_from_env();
 
     storage_db_counters_t storage_db_counters = { 0 };
-    storage_db_counters_sum(program_context->db, &storage_db_counters);
+    storage_db_counters_sum_global(program_context->db, &storage_db_counters);
 
     // Send out the global fields
     response_metric_field_t global_stats_fields[] = {
