@@ -30,8 +30,9 @@ bool hashtable_mcmp_op_rmw_begin(
         hashtable_t *hashtable,
         transaction_t *transaction,
         hashtable_mcmp_op_rmw_status_t *rmw_status,
+        hashtable_database_number_t database_number,
         hashtable_key_data_t *key,
-        hashtable_key_size_t key_size,
+        hashtable_key_length_t key_length,
         hashtable_value_data_t *current_value) {
     bool created_new = false;
     hashtable_hash_t hash;
@@ -42,7 +43,7 @@ bool hashtable_mcmp_op_rmw_begin(
 
     assert(transaction->transaction_id.id != TRANSACTION_ID_NOT_ACQUIRED);
 
-    hash = hashtable_mcmp_support_hash_calculate(key, key_size);
+    hash = hashtable_mcmp_support_hash_calculate(database_number, key, key_length);
 
     assert(*key != 0);
 
@@ -50,8 +51,9 @@ bool hashtable_mcmp_op_rmw_begin(
     //       it has to be created in the new hashtable and not in the one being looked into
     bool ret = hashtable_mcmp_support_op_search_key_or_create_new(
             hashtable->ht_current,
+            database_number,
             key,
-            key_size,
+            key_length,
             hash,
             true,
             transaction,
@@ -73,8 +75,9 @@ bool hashtable_mcmp_op_rmw_begin(
         *current_value = key_value->data;
     }
 
+    rmw_status->database_number = database_number;
     rmw_status->key = key;
-    rmw_status->key_size = key_size;
+    rmw_status->key_length = key_length;
     rmw_status->hash = hash;
     rmw_status->hashtable = hashtable;
     rmw_status->transaction = transaction;
@@ -91,33 +94,14 @@ bool hashtable_mcmp_op_rmw_begin(
 void hashtable_mcmp_op_rmw_commit_update(
         hashtable_mcmp_op_rmw_status_t *rmw_status,
         hashtable_value_data_t new_value) {
-    bool key_inlined = false;
-
     rmw_status->key_value->data = new_value;
 
     if (rmw_status->created_new) {
         hashtable_key_value_flags_t flags = 0;
 
-#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
-        // Get the destination pointer for the key
-        if (key_size <= HASHTABLE_KEY_INLINE_MAX_LENGTH) {
-            hashtable_key_data_t* ht_key;
-
-            key_inlined = true;
-
-            HASHTABLE_KEY_VALUE_SET_FLAG(flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE);
-
-            ht_key = (hashtable_key_data_t *)&key_value->inline_key.data;
-            strncpy((char*)ht_key, key, key_size);
-
-            key_value->inline_key.size = key_size;
-        } else {
-#endif
-        rmw_status->key_value->external_key.data = rmw_status->key;
-        rmw_status->key_value->external_key.size = rmw_status->key_size;
-#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
-        }
-#endif
+        rmw_status->key_value->database_number = rmw_status->database_number;
+        rmw_status->key_value->key = rmw_status->key;
+        rmw_status->key_value->key_length = rmw_status->key_length;
 
         // Set the FILLED flag
         HASHTABLE_KEY_VALUE_SET_FLAG(flags, HASHTABLE_KEY_VALUE_FLAG_FILLED);
@@ -128,7 +112,7 @@ void hashtable_mcmp_op_rmw_commit_update(
     }
 
     // Validate if the passed key can be freed because unused or because inlined
-    if (!rmw_status->created_new || key_inlined) {
+    if (!rmw_status->created_new) {
         xalloc_free(rmw_status->key);
     }
 }
@@ -143,22 +127,14 @@ void hashtable_mcmp_op_rmw_commit_delete(
     MEMORY_FENCE_STORE();
 
     if (likely(!rmw_status->created_new)) {
-#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
-        hashtable_key_value_flags_t key_value_flags = rmw_status->key_value->flags;
-#endif
         rmw_status->key_value->flags = HASHTABLE_KEY_VALUE_FLAG_DELETED;
 
         MEMORY_FENCE_STORE();
 
-#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
-        if (!HASHTABLE_KEY_VALUE_HAS_FLAG(key_value_flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
-#endif
-        xalloc_free((hashtable_key_data_t*)rmw_status->key_value->external_key.data);
-        rmw_status->key_value->external_key.data = NULL;
-        rmw_status->key_value->external_key.size = 0;
-#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
-        }
-#endif
+        xalloc_free((hashtable_key_data_t*)rmw_status->key_value->key);
+        rmw_status->key_value->database_number = 0;
+        rmw_status->key_value->key = NULL;
+        rmw_status->key_value->key_length = 0;
     }
 }
 

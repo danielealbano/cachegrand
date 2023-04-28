@@ -9,8 +9,9 @@ bool hashtable_mcmp_op_rmw_begin(
         hashtable_t *hashtable,
         transaction_t *transaction,
         hashtable_mcmp_op_rmw_status_t *rmw_status,
+        hashtable_database_number_t database_number,
         hashtable_key_data_t *key,
-        hashtable_key_size_t key_size,
+        hashtable_key_length_t key_length,
         hashtable_value_data_t *current_value);
 
 void hashtable_mcmp_op_rmw_commit_update(

@@ -27,14 +27,14 @@
 
 bool hashtable_mcmp_op_set(
         hashtable_t *hashtable,
+        hashtable_database_number_t database_number,
         hashtable_key_data_t *key,
-        hashtable_key_size_t key_size,
+        hashtable_key_length_t key_length,
         hashtable_value_data_t new_value,
         hashtable_value_data_t *previous_value,
         hashtable_bucket_index_t *out_bucket_index,
         bool *out_should_free_key) {
     bool created_new = true;
-    bool key_inlined = false;
     hashtable_hash_t hash;
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk = 0;
     hashtable_chunk_index_t chunk_index = 0;
@@ -42,9 +42,9 @@ bool hashtable_mcmp_op_set(
     hashtable_key_value_volatile_t* key_value = 0;
     transaction_t transaction = { 0 };
 
-    hash = hashtable_mcmp_support_hash_calculate(key, key_size);
+    hash = hashtable_mcmp_support_hash_calculate(database_number, key, key_length);
 
-    LOG_DI("key (%d) = %s", key_size, key);
+    LOG_DI("key (%d) = %s", key_length, key);
     LOG_DI("hash = 0x%016x", hash);
 
     assert(*key != 0);
@@ -55,8 +55,9 @@ bool hashtable_mcmp_op_set(
     //       it has to be created in the new hashtable and not in the one being looked into
     bool ret = hashtable_mcmp_support_op_search_key_or_create_new(
             hashtable->ht_current,
+            database_number,
             key,
-            key_size,
+            key_length,
             hash,
             true,
             &transaction,
@@ -98,29 +99,9 @@ bool hashtable_mcmp_op_set(
         hashtable_key_value_flags_t flags = 0;
 
         LOG_DI("copying the key onto the key_value structure");
-
-#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
-        // Get the destination pointer for the key
-        if (key_size <= HASHTABLE_KEY_INLINE_MAX_LENGTH) {
-            hashtable_key_data_t* ht_key;
-
-            key_inlined = true;
-            LOG_DI("key can be inline-ed", key_size);
-
-            HASHTABLE_KEY_VALUE_SET_FLAG(flags, HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE);
-
-            ht_key = (hashtable_key_data_t *)&key_value->inline_key.data;
-            strncpy((char*)ht_key, key, key_size);
-
-            key_value->inline_key.size = key_size;
-        } else {
-            LOG_DI("key can't be inline-ed, max length for inlining %d", HASHTABLE_KEY_INLINE_MAX_LENGTH);
-#endif
-            key_value->external_key.data = key;
-            key_value->external_key.size = key_size;
-#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
-        }
-#endif
+        key_value->database_number = database_number;
+        key_value->key = key;
+        key_value->key_length = key_length;
 
         // Set the FILLED flag
         HASHTABLE_KEY_VALUE_SET_FLAG(flags, HASHTABLE_KEY_VALUE_FLAG_FILLED);
@@ -139,7 +120,7 @@ bool hashtable_mcmp_op_set(
 
     // Validate if the passed key can be freed because unused or because inlined
     *out_should_free_key = false;
-    if (!created_new || key_inlined) {
+    if (!created_new) {
         *out_should_free_key = true;
     }
 

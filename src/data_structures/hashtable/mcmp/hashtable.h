@@ -9,18 +9,8 @@ extern "C" {
 #define HASHTABLE_USE_UINT64    1
 #endif
 
-// By default, don't inline keys, although it might improve memory consumption it will hit hard to the memory allocator
-// which require currently some minimal locking wasting a lot of cycles just to save up to 32 bytes
-#ifndef HASHTABLE_FLAG_ALLOW_KEY_INLINE
-#define HASHTABLE_FLAG_ALLOW_KEY_INLINE 0
-#endif
-
 #define HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT    14
 #define HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX          32
-
-#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
-#define HASHTABLE_KEY_INLINE_MAX_LENGTH                 22
-#endif
 
 #define HASHTABLE_TO_CHUNK_INDEX(bucket_index) \
     ((bucket_index) / HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT)
@@ -43,8 +33,10 @@ typedef uint32_t hashtable_chunk_index_t;
 typedef uint8_t hashtable_chunk_slot_index_t;
 typedef hashtable_bucket_index_t hashtable_bucket_count_t;
 typedef hashtable_chunk_index_t hashtable_chunk_count_t;
-typedef uint32_t hashtable_key_size_t;
-typedef _Volatile(hashtable_key_size_t) hashtable_key_size_volatile_t;
+typedef uint32_t hashtable_database_number_t;
+typedef _Volatile(hashtable_database_number_t) hashtable_database_number_volatile_t;
+typedef uint32_t hashtable_key_length_t;
+typedef _Volatile(hashtable_key_length_t) hashtable_key_length_volatile_t;
 typedef char hashtable_key_data_t;
 typedef _Volatile(hashtable_key_data_t) hashtable_key_data_volatile_t;
 typedef uintptr_t hashtable_value_data_t;
@@ -56,7 +48,6 @@ typedef _Volatile(hashtable_hash_quarter_t) hashtable_hash_quarter_volatile_t;
 enum {
     HASHTABLE_KEY_VALUE_FLAG_DELETED         = 0x01u,
     HASHTABLE_KEY_VALUE_FLAG_FILLED          = 0x02u,
-    HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE      = 0x04u,
 };
 
 #define HASHTABLE_KEY_VALUE_HAS_FLAG(flags, flag) \
@@ -88,22 +79,11 @@ struct hashtable_config {
 typedef struct hashtable_key_value hashtable_key_value_t;
 typedef _Volatile(hashtable_key_value_t) hashtable_key_value_volatile_t;
 struct hashtable_key_value {
-    union {                                     // union 23 bytes (HASHTABLE_KEY_INLINE_MAX_LENGTH must match this size)
-        struct {
-            hashtable_key_size_volatile_t size;          // 4 bytes
-            hashtable_key_data_volatile_t* data;         // 8 bytes
-        } __attribute__((packed)) external_key;
-#if HASHTABLE_FLAG_ALLOW_KEY_INLINE == 1
-        struct {
-            uint8_t size;
-            hashtable_key_data_t data[HASHTABLE_KEY_INLINE_MAX_LENGTH];
-        } __attribute__((packed)) inline_key;
-#endif
-    };
-
     hashtable_key_value_flags_t flags;
-
-    hashtable_value_data_t data;                // 8 byte
+    hashtable_database_number_volatile_t database_number;
+    hashtable_key_length_volatile_t key_length;
+    hashtable_key_data_volatile_t* key;
+    hashtable_value_data_t data;
 } __attribute__((aligned(32)));
 
 /**
@@ -189,8 +169,9 @@ struct hashtable_mcmp_op_rmw_transaction {
     transaction_t *transaction;
     hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk;
     hashtable_key_value_volatile_t *key_value;
+    hashtable_database_number_t database_number;
     hashtable_key_data_t *key;
-    hashtable_key_size_t key_size;
+    hashtable_key_length_t key_length;
     hashtable_chunk_index_t chunk_index;
     hashtable_chunk_slot_index_t chunk_slot_index;
     bool created_new;

@@ -7,9 +7,17 @@ extern "C" {
 
 bool hashtable_mcmp_op_get_key(
         hashtable_t *hashtable,
+        hashtable_database_number_t database_number,
         hashtable_bucket_index_t bucket_index,
         hashtable_key_data_t **key,
-        hashtable_key_size_t *key_size);
+        hashtable_key_length_t *key_length);
+
+bool hashtable_mcmp_op_get_key_all_databases(
+        hashtable_t *hashtable,
+        hashtable_bucket_index_t bucket_index,
+        hashtable_database_number_t *database_number,
+        hashtable_key_data_t **key,
+        hashtable_key_length_t *key_length);
 
 #ifdef __cplusplus
 }

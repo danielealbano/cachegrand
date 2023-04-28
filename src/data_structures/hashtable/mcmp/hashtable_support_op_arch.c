@@ -34,8 +34,9 @@
 
 bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX)(
         hashtable_data_volatile_t *hashtable_data,
+        hashtable_database_number_t database_number,
         hashtable_key_data_t *key,
-        hashtable_key_size_t key_size,
+        hashtable_key_length_t key_length,
         hashtable_hash_t hash,
         hashtable_chunk_index_t *found_chunk_index,
         hashtable_chunk_slot_index_t *found_chunk_slot_index,
@@ -47,8 +48,8 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
     hashtable_chunk_slot_index_t chunk_slot_index;
     hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk;
     hashtable_key_value_volatile_t *key_value;
-    volatile hashtable_key_data_t *found_key;
-    hashtable_key_size_t found_key_compare_size;
+    hashtable_key_data_volatile_t *found_key;
+    hashtable_key_length_t found_key_length;
     uint32_t skip_indexes_mask;
     bool found = false;
 
@@ -143,31 +144,14 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
 
             LOG_DI(">> checking key");
 
-#if HASHTABLE_FLAG_ALLOW_KEY_INLINE==1
-            // The key may potentially change if the item is first deleted and then recreated, if it's inline it
-            // doesn't really matter because the key will mismatch and the execution will continue but if the key is
-            // stored externally and the allocated memory is freed it may crash.
-            if (HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
-                    HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
-                LOG_DI(">> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
+            MEMORY_FENCE_LOAD();
+            found_key = key_value->key;
+            found_key_length = key_value->key_length;
 
-                found_key = key_value->inline_key.data;
-                found_key_compare_size = key_value->inline_key.size;
-            } else {
-                LOG_DI(">> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
-#endif
-                MEMORY_FENCE_LOAD();
-                found_key = key_value->external_key.data;
-                found_key_compare_size = key_value->external_key.size;
-
-                if (key_value->external_key.size != key_size) {
-                    LOG_DI(">> key have different length (%lu != %lu), skipping comparison",
-                           key_size, key_value->external_key.size);
-                    continue;
-                }
-#if HASHTABLE_FLAG_ALLOW_KEY_INLINE==1
+            if (found_key_length != key_length) {
+                LOG_DI(">> key have different length (%lu != %lu), skipping comparison", key_length, found_key_length);
+                continue;
             }
-#endif
 
             // Ensure that the fresh-est flags value is going to be read to avoid that the deleted flag has
             // been set after they key pointer has been read
@@ -183,10 +167,15 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
 
             LOG_DI(">> key fetched, comparing");
 
-            if (key_size != found_key_compare_size || strncmp(
-                    key,
-                    (const char*)found_key,
-                    found_key_compare_size) != 0) {
+            // Issue a memory fence and compare the database number to ensure that the entry hasn't been changed
+            // and assigned to another database
+            MEMORY_FENCE_LOAD();
+            if (
+                    key_length != found_key_length
+                    ||
+                    strncmp(key, (const char*)found_key, found_key_length) != 0
+                    ||
+                    database_number != key_value->database_number) {
                 LOG_DI(">> key different (%s != %s), unable to continue", key, found_key);
                 continue;
             }
@@ -211,8 +200,9 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
 
 bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHTABLE_MCMP_SUPPORT_OP_ARCH_SUFFIX)(
         hashtable_data_volatile_t *hashtable_data,
+        hashtable_database_number_t database_number,
         hashtable_key_data_t *key,
-        hashtable_key_size_t key_size,
+        hashtable_key_length_t key_length,
         hashtable_hash_t hash,
         bool create_new_if_missing,
         transaction_t *transaction,
@@ -230,7 +220,8 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
     hashtable_key_value_volatile_t* key_value;
     hashtable_key_data_volatile_t* found_key;
-    hashtable_key_size_volatile_t found_key_compare_size;
+    hashtable_key_length_volatile_t found_key_length;
+
     uint32_t skip_indexes_mask;
     bool found = false;
     bool found_chunk_with_freespace = false;
@@ -378,34 +369,27 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                 LOG_DI(">>> key_value->flags = 0x%08x", key_value->flags);
 
                 if (searching_or_creating == 0) {
-#if HASHTABLE_FLAG_ALLOW_KEY_INLINE==1
-                    if (HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
-                            HASHTABLE_KEY_VALUE_FLAG_KEY_INLINE)) {
-                        LOG_DI(">>> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
+                    MEMORY_FENCE_LOAD();
+                    found_key = key_value->key;
+                    found_key_length = key_value->key_length;
 
-                        found_key = key_value->inline_key.data;
-                        found_key_compare_size = key_value->inline_key.size;
-                    } else {
-                        LOG_DI(">>> key_value->flags hasn't HASHTABLE_BUCKET_KEY_VALUE_FLAG_KEY_INLINE");
-#endif
-                        MEMORY_FENCE_LOAD();
-                        found_key = key_value->external_key.data;
-                        found_key_compare_size = key_value->external_key.size;
-
-                        if (unlikely(key_value->external_key.size != key_size)) {
-                            LOG_DI(">>> key have different length (%lu != %lu), skipping comparison",
-                                   key_size, key_value->external_key.size);
-                            continue;
-                        }
-#if HASHTABLE_FLAG_ALLOW_KEY_INLINE==1
+                    if (unlikely(found_key_length != key_length)) {
+                        LOG_DI(">>> key have different length (%lu != %lu), skipping comparison",
+                               key_length, found_key_length);
+                        continue;
                     }
-#endif
+
                     LOG_DI(">>> key fetched, comparing");
 
-                    if (key_size != found_key_compare_size || strncmp(
-                            key,
-                            (const char*)found_key,
-                            found_key_compare_size) != 0) {
+                    // Issue a memory fence and compare the database number to ensure that the entry hasn't been changed
+                    // and assigned to another database
+                    MEMORY_FENCE_LOAD();
+                    if (
+                            key_length != found_key_length
+                            ||
+                            strncmp(key, (const char*)found_key, found_key_length) != 0
+                            ||
+                            database_number != key_value->database_number) {
                         LOG_DI(">>> key different (%s != %s), unable to continue", key, found_key);
                         continue;
                     }
