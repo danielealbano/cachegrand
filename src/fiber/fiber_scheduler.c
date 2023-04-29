@@ -175,7 +175,7 @@ void fiber_scheduler_switch_to(
     fiber_scheduler_stack.index--;
 
     if (fiber->terminate) {
-        LOG_DI(TAG, "Fiber marked for termination, cleaning up");
+        LOG_DI("Fiber marked for termination, cleaning up");
         fiber_free(fiber);
     }
 }
