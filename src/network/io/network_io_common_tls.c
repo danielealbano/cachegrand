@@ -29,7 +29,7 @@
 bool network_io_common_tls_socket_set_ulp(
         network_io_common_fd_t fd,
         char *ulp) {
-    return network_io_common_socket_set_option(fd, SOL_TCP, TCP_ULP, ulp, strlen(ulp));
+    return network_io_common_socket_try_set_option(fd, SOL_TCP, TCP_ULP, ulp, strlen(ulp));
 }
 
 bool network_io_common_tls_socket_set_tls_rx(
