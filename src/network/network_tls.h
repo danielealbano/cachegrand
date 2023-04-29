@@ -29,6 +29,7 @@ int *network_tls_build_cipher_suites_from_names(
 network_tls_config_t *network_tls_config_init(
         char *certificate_path,
         char *private_key_path,
+        char *ca_certificate_path,
         config_module_network_tls_min_version_t tls_min_version,
         config_module_network_tls_max_version_t tls_max_version,
         int *cipher_suites,

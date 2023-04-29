@@ -105,6 +105,7 @@ worker_module_context_t *worker_module_contexts_initialize(
         network_tls_config_t *network_tls_config = network_tls_config_init(
                 config_module->network->tls->certificate_path,
                 config_module->network->tls->private_key_path,
+                config_module->network->tls->ca_certificate_chain_path,
                 config_module->network->tls->min_version,
                 config_module->network->tls->max_version,
                 cipher_suites,
