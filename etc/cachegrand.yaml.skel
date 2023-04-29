@@ -59,8 +59,8 @@ modules:
 #        # Path to the ca certificate chain to use, optional
 #        ca_certificate_chain_path: "/etc/cachegrand/ca.pem"
 #
-#        # If set to true, ensure that the client certificate sends a certificate and that i is signed by a ca in the
-#        # ca_certificate_chain_path, optional
+#        # If set to true, it ensures that the client sends a certificate and that the certificate is signed by a CA in
+#        # the ca_certificate_chain_path, optional
 #        verify_client_certificate: true
 #
 #        # Optional parameters to set the min and max version of the TLS versions accepted:
