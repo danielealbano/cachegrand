@@ -163,6 +163,13 @@ bool network_channel_tls_handshake(
     return return_res;
 }
 
+bool network_channel_tls_has_peer_certificate(
+        network_channel_t *network_channel) {
+    mbedtls_ssl_context *session_context = (mbedtls_ssl_context*)network_channel->tls.context;
+    mbedtls_x509_crt *peer_cert = session_context->session->peer_cert;
+    return peer_cert != NULL;
+}
+
 bool network_channel_tls_peer_certificate_get_cn(
         network_channel_t *network_channel,
         const char **cn,

@@ -212,6 +212,23 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
                     &new_channel->wrapped_channel,
                     true);
         }
+
+        // If the client has sent a client certificate, report the common name in the logs
+        if (network_channel_tls_has_peer_certificate(&new_channel->wrapped_channel)) {
+            const char *cn = NULL;
+            size_t cn_length = 0;
+
+            if (network_channel_tls_peer_certificate_get_cn(
+                    &new_channel->wrapped_channel,
+                    &cn,
+                    &cn_length)) {
+                LOG_D(
+                        TAG,
+                        "TLS client certificate common name: %.*s",
+                        (int)cn_length,
+                        cn);
+            }
+        }
     }
 
     if (unlikely(!worker_iouring_fds_map_add_and_enqueue_files_update(
