@@ -597,6 +597,14 @@ bool config_validate_after_load_modules_network_tls(
         return_result = false;
     }
 
+    if (module->network->tls->verify_client_certificate && !module->network->tls->ca_certificate_chain_path) {
+        LOG_E(
+                TAG,
+                "In module <%s>, the client certificate verification requires a ca certificate chain",
+                config_module_type_schema_strings[module->type].str);
+        return_result = false;
+    }
+
     return return_result;
 }
 
