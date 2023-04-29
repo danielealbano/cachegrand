@@ -20,7 +20,6 @@
 #include <mbedtls/gcm.h>
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
-#include <mbedtls/ssl_internal.h>
 
 #include "misc.h"
 #include "exttypes.h"

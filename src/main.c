@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <pthread.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
