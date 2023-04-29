@@ -136,9 +136,9 @@ modules:
         read_ms: 2000
         write_ms: 2000
       keepalive:
-        time: 0
-        interval: 0
-        probes: 0
+        time: 10
+        interval: 20
+        probes: 30
       tls:
         certificate_path: "/path/to/certificate.pem"
         private_key_path: "/path/to/certificate.key"
@@ -223,9 +223,9 @@ modules:
         read_ms: 2000
         write_ms: 2000
       keepalive:
-        time: 0
-        interval: 0
-        probes: 0
+        time: 10
+        interval: 20
+        probes: 30
       tls:
         certificate_path: "/path/to/non-existent/certificate"
         private_key_path: "/path/to/non-existent/private_key"
