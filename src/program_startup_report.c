@@ -91,7 +91,7 @@ void program_startup_report_machine_tls() {
     if (!network_tls_is_ulp_tls_supported()) {
         LOG_I(
                 TAG,
-                "       Try to load the tls kernel module with \"modprobe tls\" and restart %s",
+                "       Try to load the tls kernel module with \"modprobe tls\", no need to restart %s",
                 CACHEGRAND_CMAKE_CONFIG_NAME);
     }
 }
