@@ -390,19 +390,26 @@ network_op_result_t network_send_direct_internal(
 network_op_result_t network_close(
         network_channel_t *channel,
         bool shutdown_may_fail) {
-    network_op_result_t res;
+    // If TLS is enabled but kTLS is in use, the normal connection close should be used, otherwise the TLS connection
+    // has to be closed using mbedtls
+    if (network_channel_tls_is_enabled(channel)) {
+        if (network_channel_tls_uses_mbedtls(channel)) {
+            network_tls_close_internal(channel);
+        }
 
-    if (network_channel_tls_uses_mbedtls(channel)) {
-        res = network_tls_close_internal(
-                channel,
-                shutdown_may_fail);
-    } else {
-        res = network_close_internal(
-                channel,
-                shutdown_may_fail);
+        // Free up the memory
+        network_channel_tls_free(channel);
+
+        // Mark the connection as not using TLS anymore
+        network_channel_tls_set_enabled(channel, false);
+        network_channel_tls_set_mbedtls(channel, false);
+        network_channel_tls_set_ktls(channel, false);
     }
 
-    return res;
+    // Close the connection
+    return network_close_internal(
+            channel,
+            shutdown_may_fail);
 }
 
 network_op_result_t network_close_internal(

@@ -59,9 +59,8 @@ network_op_result_t network_tls_send_direct_internal(
         size_t buffer_length,
         size_t *sent_length);
 
-network_op_result_t network_tls_close_internal(
-        network_channel_t *channel,
-        bool shutdown_may_fail);
+void network_tls_close_internal(
+        network_channel_t *channel);
 
 #ifdef __cplusplus
 }

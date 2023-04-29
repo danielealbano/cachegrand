@@ -364,9 +364,8 @@ void network_tls_config_free(
     ffma_mem_free(network_tls_config);
 }
 
-network_op_result_t network_tls_close_internal(
-        network_channel_t *channel,
-        bool shutdown_may_fail) {
+void network_tls_close_internal(
+        network_channel_t *channel) {
     int32_t res;
     while((res = mbedtls_ssl_close_notify(channel->tls.context)) < 0) {
         if (res != MBEDTLS_ERR_SSL_WANT_READ && res != MBEDTLS_ERR_SSL_WANT_WRITE) {
@@ -382,8 +381,6 @@ network_op_result_t network_tls_close_internal(
                     channel->address.str);
         }
     }
-
-    return network_close_internal(channel, shutdown_may_fail);
 }
 
 network_op_result_t network_tls_receive_internal(
