@@ -106,9 +106,8 @@ bool storage_readv(
         return false;
     }
 
-    LOG_D(
-            TAG,
-            "[FD:%5d][READV] Received <%u> bytes from path <%s>",
+    LOG_DI(
+            "[FD:%5d][READV] Read <%u> bytes from path <%s>",
             channel->fd,
             read_len,
             channel->path);
@@ -172,8 +171,7 @@ bool storage_writev(
         return false;
     }
 
-    LOG_D(
-            TAG,
+    LOG_DI(
             "[FD:%5d][WRITEV] Written <%u> bytes to path <%s>",
             channel->fd,
             write_len,

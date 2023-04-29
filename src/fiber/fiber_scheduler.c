@@ -150,7 +150,7 @@ void fiber_scheduler_switch_to(
     fiber_scheduler_stack.index++;
     fiber_scheduler_stack.list[fiber_scheduler_stack.index] = fiber;
 
-    LOG_D(TAG, "Switching from fiber <%s> to fiber <%s>, file <%s:%d>, function <%s>",
+    LOG_DI("Switching from fiber <%s> to fiber <%s>, file <%s:%d>, function <%s>",
           previous_fiber->name,
           fiber->name,
           fiber->switched_back_on.file,
@@ -162,7 +162,7 @@ void fiber_scheduler_switch_to(
             &previous_fiber->stack_pointer,
             &fiber->stack_pointer);
 
-    LOG_D(TAG, "Switching back from fiber <%s>, file <%s:%d>, to fiber <%s>, file <%s:%d>",
+    LOG_DI("Switching back from fiber <%s>, file <%s:%d>, to fiber <%s>, file <%s:%d>",
           fiber->name,
           fiber->switched_back_on.file,
           fiber->switched_back_on.line,
@@ -175,7 +175,7 @@ void fiber_scheduler_switch_to(
     fiber_scheduler_stack.index--;
 
     if (fiber->terminate) {
-        LOG_D(TAG, "Fiber marked for termination, cleaning up");
+        LOG_DI(TAG, "Fiber marked for termination, cleaning up");
         fiber_free(fiber);
     }
 }

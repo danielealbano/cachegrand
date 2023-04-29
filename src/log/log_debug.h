@@ -49,6 +49,12 @@ extern "C" {
         "hashtable_mcmp_support_hash_search_resolve", \
         "hashtable_mcmp_support_op_search_key_or_create_new_resolve", \
         "hashtable_mcmp_support_op_search_key_resolve", \
+        "fiber_new", \
+        "fiber_scheduler_switch_to", \
+        "storage_readv", \
+        "storage_writev", \
+        "network_receive", \
+        "network_send_direct_wrapper"
 
 #define LOG_MESSAGE_DEBUG_RULES(var, TYPE, INCLUDE_OR_EXCLUDE) \
     const char* var[] = { LOG_MESSAGE_DEBUG_RULES_##TYPE##_##INCLUDE_OR_EXCLUDE NULL }

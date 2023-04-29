@@ -198,7 +198,7 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
                         new_channel->wrapped_channel.address.str,
                         listener_channel->wrapped_channel.address.str);
             } else {
-                LOG_V(
+                LOG_D(
                         TAG,
                         "Failed to enable kTLS for the connection <%s>, coming from listener <%s>, using mbedtls",
                         new_channel->wrapped_channel.address.str,
