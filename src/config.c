@@ -590,6 +590,41 @@ bool config_validate_after_load_modules_network_tls(
     return return_result;
 }
 
+bool config_validate_after_load_modules_network_keepalive(
+        config_module_t *module) {
+    bool return_result = true;
+
+    if (module->network->keepalive == NULL) {
+        return true;
+    }
+
+    if (module->network->keepalive->time == 0) {
+        LOG_E(
+                TAG,
+                "In module <%s>, the keepalive time has to be greater than zero",
+                config_module_type_schema_strings[module->type].str);
+        return_result = false;
+    }
+
+    if (module->network->keepalive->interval == 0) {
+        LOG_E(
+                TAG,
+                "In module <%s>, the keepalive interval has to be greater than zero",
+                config_module_type_schema_strings[module->type].str);
+        return_result = false;
+    }
+
+    if (module->network->keepalive->probes == 0) {
+        LOG_E(
+                TAG,
+                "In module <%s>, the keepalive probes has to be greater than zero",
+                config_module_type_schema_strings[module->type].str);
+        return_result = false;
+    }
+
+    return return_result;
+}
+
 bool config_validate_after_load_modules_redis(
         config_module_t *module) {
     bool return_result = true;
@@ -618,6 +653,7 @@ bool config_validate_after_load_modules(
         config_module_t *module = &config->modules[module_index];
 
         if (config_validate_after_load_modules_network_timeout(module) == false
+            || config_validate_after_load_modules_network_keepalive(module) == false
             || config_validate_after_load_modules_network_tls(module) == false
             || config_validate_after_load_modules_network_bindings(module) == false
             || config_validate_after_load_modules_redis(module) == false) {
