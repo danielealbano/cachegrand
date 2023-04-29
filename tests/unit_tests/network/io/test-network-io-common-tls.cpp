@@ -76,6 +76,16 @@ TEST_CASE("network/io/network_io_common_tls.c", "[network][network_io][network_i
         }
     }
 
+    SECTION("network_io_common_tls_socket_set_ulp_tls") {
+        if (network_tls_is_ulp_tls_supported()) {
+            SECTION("valid option") {
+                REQUIRE(network_io_common_tls_socket_set_ulp_tls(server_fd));
+            }
+        } else {
+            WARN("Can't test kTLS, tls ulp not available, try to load the tls kernel module");
+        }
+    }
+
     SECTION("network_io_common_tls_socket_set_tls_rx") {
         if (network_tls_is_ulp_tls_supported()) {
             REQUIRE(network_io_common_tls_socket_set_ulp(server_fd, "tls"));

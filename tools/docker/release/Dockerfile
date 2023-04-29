@@ -4,13 +4,6 @@
 # This software may be modified and distributed under the terms
 # of the BSD license. See the LICENSE file for details.
 
-# Build commands
-#docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-#docker buildx create --name cachegrand-builder --platform linux/amd64 --use
-#docker buildx create --name cachegrand-builder --append --platform linux/arm64,linux/arm/v8 ssh://cg-server-arm64-01
-#docker buildx build --pull --push --platform linux/amd64,linux/arm64/v8 --tag cachegrand/cachegrand-server:latest --tag cachegrand/cachegrand-server:v0.2.0 .
-#docker buildx rm --name cachegrand-builder
-
 FROM ubuntu:22.04 AS builder
 
 # General dpkg and packages settings
@@ -90,6 +83,7 @@ RUN \
         | sed -e 's/\#\(\s\+tls\:\)/\1/' \
         | sed -e 's/\#\(\s\+certificate_path\:\)/\1/' \
         | sed -e 's/\#\(\s\+private_key_path\:\)/\1/' \
+        | sed -e 's/\#\(\s\+ca_certificate_chain_path\:\)/\1/' \
         | sed -e "/^\s\- type\: file$/ s|^|//|; /^\s*\- type\: file/, /);$/ s|^|#|" \
         | sed -e 's/^           tls: true/          tls: true/' \
         | sed -e 's/^           tls: false/          tls: false/' \

@@ -107,11 +107,11 @@ void storage_db_snapshot_completed(
 
     // Report the snapshot status
     if (status == STORAGE_DB_SNAPSHOT_STATUS_FAILED_DURING_PREPARATION) {
-        LOG_E(TAG, "Snapshot failed, next run in <%s>", next_shapshot_run_buffer);
+        LOG_E(TAG, "Snapshot failed during preparation");
     } else if (status == STORAGE_DB_SNAPSHOT_STATUS_FAILED) {
-        LOG_E(TAG, "Snapshot failed after <%s>, next run in <%s>", snapshot_duration_buffer, next_shapshot_run_buffer);
+        LOG_E(TAG, "Snapshot failed after <%s>", snapshot_duration_buffer);
     } else if (status == STORAGE_DB_SNAPSHOT_STATUS_COMPLETED) {
-        LOG_I(TAG, "Snapshot completed in <%s>, next run in <%s>", snapshot_duration_buffer, next_shapshot_run_buffer);
+        LOG_I(TAG, "Snapshot completed in <%s>", snapshot_duration_buffer);
     }
 }
 

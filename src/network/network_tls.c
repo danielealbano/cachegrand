@@ -26,6 +26,7 @@
 
 #include "misc.h"
 #include "exttypes.h"
+#include "random.h"
 #include "xalloc.h"
 #include "log/log.h"
 #include "spinlock.h"
@@ -47,17 +48,60 @@
 #define TAG "network_tls"
 
 bool network_tls_is_ulp_tls_supported_internal() {
-    char buffer[256] = { 0 };
-    if (simple_file_io_read(
-            NETWORK_TLS_PROC_SYS_NET_IPV4_TCP_AVAILABLE_ULP,
-            buffer,
-            sizeof(buffer))) {
-        if (strstr(buffer, "tls") != NULL) {
-            return true;
+    bool result = true;
+    struct sockaddr_in server_addr = {
+            .sin_family = AF_INET,
+            .sin_addr.s_addr = htonl(INADDR_LOOPBACK)
+    };
+    struct sockaddr_in client_addr = {
+            .sin_family = AF_INET,
+            .sin_addr.s_addr = htonl(INADDR_LOOPBACK)
+    };
+
+    // Create the sockets
+    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int client_fd = socket(AF_INET, SOCK_STREAM, 0);
+
+    // Try to find a free port for the server to bind to and listen temporarily
+    int attempts = 0;
+    int max_attempts = 100;
+    do {
+        // Generate a random port between 10000 and UINT16_MAX
+        server_addr.sin_port = htons((random_generate() % (UINT16_MAX - 10000)) + 10000);
+    } while(bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) != 0 &&
+            attempts++ < max_attempts);
+
+    // If we have reached the max attempts, we have failed
+    if (attempts >= max_attempts) {
+        result = false;
+    }
+
+    // Listen on the socket but do not start any accept, rely on backlog set to 1 to let the connection go through
+    // unaccepted
+    if (result) {
+        if (listen(server_fd, 1) != 0) {
+            result = false;
         }
     }
 
-    return false;
+    // Connect to the server
+    client_addr.sin_port = server_addr.sin_port;
+    if (result) {
+        if (connect(client_fd, (struct sockaddr *)&client_addr, sizeof(client_addr)) != 0) {
+            result = false;
+        }
+    }
+
+    // Try to enable the ULP TLS on the client fd
+    if (result) {
+        result = network_io_common_tls_socket_set_ulp_tls(client_fd);
+    }
+
+    // Close the sockets
+    close(server_fd);
+    close(client_fd);
+
+    return result;
 }
 
 bool network_tls_does_ulp_tls_support_mbedtls_cipher_suite(
