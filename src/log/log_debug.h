@@ -54,7 +54,7 @@ extern "C" {
         "storage_readv", \
         "storage_writev", \
         "network_receive", \
-        "network_send_direct_wrapper"
+        "network_send_direct_wrapper",
 
 #define LOG_MESSAGE_DEBUG_RULES(var, TYPE, INCLUDE_OR_EXCLUDE) \
     const char* var[] = { LOG_MESSAGE_DEBUG_RULES_##TYPE##_##INCLUDE_OR_EXCLUDE NULL }
