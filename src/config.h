@@ -96,6 +96,7 @@ struct config_module_network_tls {
     unsigned cipher_suites_count;
     config_module_network_tls_min_version_t min_version;
     config_module_network_tls_max_version_t max_version;
+    bool verify_client_certificate;
 };
 
 typedef struct config_module_redis config_module_redis_t;

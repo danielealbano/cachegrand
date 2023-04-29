@@ -27,6 +27,11 @@ void network_channel_tls_free(
 bool network_channel_tls_handshake(
         network_channel_t *network_channel);
 
+bool network_channel_tls_peer_certificate_get_cn(
+        network_channel_t *network_channel,
+        const char **cn,
+        size_t *cn_length);
+
 bool network_channel_tls_setup_ktls_tx_rx(
         network_channel_t *network_channel,
         int tx_or_rx);

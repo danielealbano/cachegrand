@@ -26,6 +26,7 @@
 #include <mbedtls/poly1305.h>
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
+#include <mbedtls/oid.h>
 #include <mbedtls/ssl_internal.h>
 
 #include "misc.h"
@@ -160,6 +161,34 @@ bool network_channel_tls_handshake(
     } while(!exit);
 
     return return_res;
+}
+
+bool network_channel_tls_peer_certificate_get_cn(
+        network_channel_t *network_channel,
+        const char **cn,
+        size_t *cn_length) {
+    mbedtls_ssl_context *session_context = (mbedtls_ssl_context*)network_channel->tls.context;
+    mbedtls_x509_crt *peer_cert = session_context->session->peer_cert;
+
+    // To get the peer certificate verify has to be set to optional or required
+    if (peer_cert == NULL) {
+        return false;
+    }
+
+    // Iterate over the subject names to find the object id for the CN, the id is 3 bytes long and the value is
+    // "\x55\x04\x03" (MBEDTLS_OID_AT_CN)
+    mbedtls_x509_name *name = &peer_cert->subject;
+    do {
+        if (name->oid.len != 3 || strncmp((const char*)(name->oid.p), MBEDTLS_OID_AT_CN, 3) != 0) {
+            continue;
+        }
+
+        *cn = (const char*)name->val.p;
+        *cn_length = name->val.len;
+        return true;
+    } while((name = name->next) != NULL);
+
+    return false;
 }
 
 bool network_channel_tls_setup_ktls_tx_rx(

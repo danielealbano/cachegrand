@@ -8,17 +8,13 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
-#include <assert.h>
+#include <cstring>
+#include <cassert>
 #include <arpa/inet.h>
 #include <linux/tls.h>
 
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/entropy.h>
-#include <mbedtls/error.h>
-#include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/ssl_internal.h>
 #include <mbedtls/version.h>
@@ -169,7 +165,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                 NETWORK_TLS_PROC_SYS_NET_IPV4_TCP_AVAILABLE_ULP,
                 buffer,
                 sizeof(buffer))) {
-            if (strstr(buffer, "tls") != NULL) {
+            if (strstr(buffer, "tls") != nullptr) {
                 supported = true;
             }
         }
@@ -185,7 +181,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                 NETWORK_TLS_PROC_SYS_NET_IPV4_TCP_AVAILABLE_ULP,
                 buffer,
                 sizeof(buffer))) {
-            if (strstr(buffer, "tls") != NULL) {
+            if (strstr(buffer, "tls") != nullptr) {
                 supported = true;
             }
         }
@@ -200,14 +196,14 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
     }
 
     SECTION("network_tls_build_cipher_suites_from_names") {
-        int *cipher_suites_ids = NULL;
+        int *cipher_suites_ids = nullptr;
         size_t cipher_suites_ids_size = 0;
 
         SECTION("no names") {
             REQUIRE(network_tls_build_cipher_suites_from_names(
-                    NULL,
+                    nullptr,
                     0,
-                    &cipher_suites_ids_size) == NULL);
+                    &cipher_suites_ids_size) == nullptr);
             REQUIRE(cipher_suites_ids_size == 0);
         }
 
@@ -225,7 +221,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
             REQUIRE((cipher_suites_ids = network_tls_build_cipher_suites_from_names(
                     names,
                     names_count,
-                    &cipher_suites_ids_size)) != NULL);
+                    &cipher_suites_ids_size)) != nullptr);
 
             REQUIRE(cipher_suites_ids_size == ((names_count + 1) * sizeof(int)));
             for(int index = 0; index < names_count; index++) {
@@ -249,7 +245,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
             REQUIRE((cipher_suites_ids = network_tls_build_cipher_suites_from_names(
                     names,
                     names_count,
-                    &cipher_suites_ids_size)) != NULL);
+                    &cipher_suites_ids_size)) != nullptr);
 
             REQUIRE(cipher_suites_ids_size == (names_count) * sizeof(int));
             for(int index = 0; index < names_count - 1; index++) {
@@ -270,7 +266,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
             REQUIRE(network_tls_build_cipher_suites_from_names(
                     names,
                     names_count,
-                    &cipher_suites_ids_size) == NULL);
+                    &cipher_suites_ids_size) == nullptr);
             REQUIRE(cipher_suites_ids_size == 0);
         }
 
@@ -405,8 +401,9 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                                 nullptr,
                                                 CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
                                                 CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY,
-                                                NULL,
-                                                0);
+                                                nullptr,
+                                                0,
+                                                false);
                                 });
                     });
 
@@ -430,8 +427,9 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                                 nullptr,
                                                 CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_2,
                                                 CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2,
-                                                NULL,
-                                                0);
+                                                nullptr,
+                                                0,
+                                                false);
                                 });
                     });
 
@@ -455,8 +453,9 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                                 nullptr,
                                                 CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
                                                 CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2,
-                                                NULL,
-                                                0);
+                                                nullptr,
+                                                0,
+                                                false);
                                 });
                     });
 
@@ -497,7 +496,8 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                                 CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
                                                 CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2,
                                                 cipher_suites_ids,
-                                                cipher_suites_ids_size);
+                                                cipher_suites_ids_size,
+                                                false);
                                 });
                     });
 
@@ -523,12 +523,13 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                                 nullptr,
                                                 CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
                                                 CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY,
-                                                NULL,
-                                                0);
+                                                nullptr,
+                                                0,
+                                                false);
                                 });
                     });
 
-            REQUIRE(network_tls_config == NULL);
+            REQUIRE(network_tls_config == nullptr);
         }
 
         SECTION("invalid private key file") {
@@ -548,12 +549,13 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                                 nullptr,
                                                 CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
                                                 CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY,
-                                                NULL,
-                                                0);
+                                                nullptr,
+                                                0,
+                                                false);
                                 });
                     });
 
-            REQUIRE(network_tls_config == NULL);
+            REQUIRE(network_tls_config == nullptr);
         }
 
         if (network_tls_config) {
@@ -587,8 +589,9 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                             nullptr,
                                             CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
                                             CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY,
-                                            NULL,
-                                            0);
+                                            nullptr,
+                                            0,
+                                            false);
                                 });
                     });
 
@@ -597,7 +600,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
 
         SECTION("null") {
             // Should not crash
-            network_tls_config_free(NULL);
+            network_tls_config_free(nullptr);
         }
     }
 
@@ -610,7 +613,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
 
         // Count the cipher suites supported by mbedtls that can be used
         int count = 0;
-        const mbedtls_ssl_ciphersuite_t *mbedtls_ssl_ciphersuite_first = NULL;
+        const mbedtls_ssl_ciphersuite_t *mbedtls_ssl_ciphersuite_first = nullptr;
         for(
                 const int *mbedtls_cipher_suite_id = mbedtls_cipher_suites_ids;
                 *mbedtls_cipher_suite_id;
@@ -635,8 +638,8 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
         network_tls_mbedtls_cipher_suite_info_t *cipher_suites_info =
                 network_tls_mbedtls_get_all_cipher_suites_info();
 
-        // The list of cipher suites always end with a NULL
-        REQUIRE(cipher_suites_info[count].name == NULL);
+        // The list of cipher suites always end with a nullptr
+        REQUIRE(cipher_suites_info[count].name == nullptr);
 
         // Validate the first cipher suite as spot-checking
         REQUIRE(cipher_suites_info[0].name == mbedtls_ssl_ciphersuite_first->name);

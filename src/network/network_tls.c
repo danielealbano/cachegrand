@@ -222,7 +222,8 @@ network_tls_config_t *network_tls_config_init(
         config_module_network_tls_min_version_t tls_min_version,
         config_module_network_tls_max_version_t tls_max_version,
         int *cipher_suites,
-        size_t cipher_suites_length) {
+        size_t cipher_suites_length,
+        bool verify_client_certificate) {
     network_tls_config_t *network_tls_config = NULL;
     bool return_res = false;
 
@@ -322,6 +323,14 @@ network_tls_config_t *network_tls_config_init(
     mbedtls_ssl_conf_legacy_renegotiation(
             &network_tls_config->config,
             MBEDTLS_SSL_LEGACY_NO_RENEGOTIATION);
+
+    // If the client certificate verification is not required, then set the mutual authentication to optional, needed
+    // to access the peer certificate information if passed by the client
+    mbedtls_ssl_conf_authmode(
+            &network_tls_config->config,
+            verify_client_certificate
+                ? MBEDTLS_SSL_VERIFY_REQUIRED
+                : MBEDTLS_SSL_VERIFY_OPTIONAL);
 
     return_res = true;
 

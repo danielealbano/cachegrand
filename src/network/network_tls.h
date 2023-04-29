@@ -33,7 +33,8 @@ network_tls_config_t *network_tls_config_init(
         config_module_network_tls_min_version_t tls_min_version,
         config_module_network_tls_max_version_t tls_max_version,
         int *cipher_suites,
-        size_t cipher_suites_length);
+        size_t cipher_suites_length,
+        bool verify_client_certificate);
 
 void network_tls_config_free(
         network_tls_config_t *network_tls_config);
