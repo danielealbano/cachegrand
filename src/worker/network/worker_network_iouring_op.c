@@ -166,7 +166,7 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
                     listener_channel->wrapped_channel.address.str);
 
             worker_network_iouring_op_network_close(
-                    (network_channel_t *) new_channel,
+                    &new_channel->wrapped_channel,
                     true);
 
             return NULL;

@@ -69,6 +69,9 @@ const cyaml_schema_field_t config_module_network_tls_schema[] = {
         CYAML_FIELD_STRING_PTR(
                 "private_key_path", CYAML_FLAG_DEFAULT,
                 config_module_network_tls_t, private_key_path, 0, CYAML_UNLIMITED),
+        CYAML_FIELD_STRING_PTR(
+                "ca_certificate_chain_path", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
+                config_module_network_tls_t, ca_certificate_chain_path, 0, CYAML_UNLIMITED),
         CYAML_FIELD_SEQUENCE(
                 "cipher_suites", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
                 config_module_network_tls_t, cipher_suites,

@@ -402,6 +402,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                         network_tls_config = network_tls_config_init(
                                                 certificate_path,
                                                 private_key_path,
+                                                nullptr,
                                                 CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
                                                 CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY,
                                                 NULL,
@@ -426,6 +427,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                         network_tls_config = network_tls_config_init(
                                                 certificate_path,
                                                 private_key_path,
+                                                nullptr,
                                                 CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_TLS_1_2,
                                                 CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2,
                                                 NULL,
@@ -450,6 +452,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                         network_tls_config = network_tls_config_init(
                                                 certificate_path,
                                                 private_key_path,
+                                                nullptr,
                                                 CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
                                                 CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2,
                                                 NULL,
@@ -490,6 +493,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                         network_tls_config = network_tls_config_init(
                                                 certificate_path,
                                                 private_key_path,
+                                                nullptr,
                                                 CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
                                                 CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_TLS_1_2,
                                                 cipher_suites_ids,
@@ -516,6 +520,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                         network_tls_config = network_tls_config_init(
                                                 certificate_path,
                                                 private_key_path,
+                                                nullptr,
                                                 CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
                                                 CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY,
                                                 NULL,
@@ -540,6 +545,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                         network_tls_config = network_tls_config_init(
                                                 certificate_path,
                                                 private_key_path,
+                                                nullptr,
                                                 CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
                                                 CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY,
                                                 NULL,
@@ -578,6 +584,7 @@ TEST_CASE("network_tls.c", "[network][network_tls]") {
                                     network_tls_config = network_tls_config_init(
                                             certificate_path,
                                             private_key_path,
+                                            nullptr,
                                             CONFIG_MODULE_NETWORK_TLS_MIN_VERSION_ANY,
                                             CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY,
                                             NULL,

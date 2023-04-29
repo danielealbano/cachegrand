@@ -91,6 +91,7 @@ typedef struct config_module_network_tls config_module_network_tls_t;
 struct config_module_network_tls {
     char *certificate_path;
     char *private_key_path;
+    char *ca_certificate_chain_path;
     char **cipher_suites;
     unsigned cipher_suites_count;
     config_module_network_tls_min_version_t min_version;

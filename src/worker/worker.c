@@ -18,15 +18,6 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#include <mbedtls/aes.h>
-#include <mbedtls/ctr_drbg.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/error.h>
-#include <mbedtls/gcm.h>
-#include <mbedtls/net_sockets.h>
-#include <mbedtls/ssl.h>
-#include <mbedtls/ssl_internal.h>
-
 #include "exttypes.h"
 #include "misc.h"
 #include "xalloc.h"

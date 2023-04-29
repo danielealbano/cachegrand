@@ -587,6 +587,16 @@ bool config_validate_after_load_modules_network_tls(
         return_result = false;
     }
 
+    if (module->network->tls->ca_certificate_chain_path &&
+            !simple_file_io_exists(module->network->tls->ca_certificate_chain_path)) {
+        LOG_E(
+                TAG,
+                "In module <%s>, the ca certificate chain <%s> doesn't exist",
+                config_module_type_schema_strings[module->type].str,
+                module->network->tls->ca_certificate_chain_path);
+        return_result = false;
+    }
+
     return return_result;
 }
 

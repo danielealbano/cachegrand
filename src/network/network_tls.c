@@ -22,7 +22,6 @@
 #include <mbedtls/error.h>
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
-#include <mbedtls/ssl_internal.h>
 #include <mbedtls/version.h>
 
 #include "misc.h"
@@ -219,6 +218,7 @@ int *network_tls_build_cipher_suites_from_names(
 network_tls_config_t *network_tls_config_init(
         char *certificate_path,
         char *private_key_path,
+        char *ca_certificate_chain_path,
         config_module_network_tls_min_version_t tls_min_version,
         config_module_network_tls_max_version_t tls_max_version,
         int *cipher_suites,
@@ -273,16 +273,24 @@ network_tls_config_t *network_tls_config_init(
         goto end;
     }
 
-    mbedtls_ssl_conf_ca_chain(
-            &network_tls_config->config,
-            network_tls_config->server_cert.next,
-            NULL);
-
     if (mbedtls_ssl_conf_own_cert(
             &network_tls_config->config,
             &network_tls_config->server_cert,
             &network_tls_config->server_key) != 0) {
         goto end;
+    }
+
+    if (ca_certificate_chain_path) {
+        if (!network_tls_load_certificate(
+                &network_tls_config->server_ca_cert_chain,
+                ca_certificate_chain_path)) {
+            goto end;
+        }
+
+        mbedtls_ssl_conf_ca_chain(
+                &network_tls_config->config,
+                &network_tls_config->server_ca_cert_chain,
+                NULL);
     }
 
     if (cipher_suites != NULL) {

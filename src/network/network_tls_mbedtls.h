@@ -26,6 +26,7 @@ struct network_tls_config {
     mbedtls_ssl_config config;
     mbedtls_x509_crt server_cert;
     mbedtls_pk_context server_key;
+    mbedtls_x509_crt server_ca_cert_chain;
     int cipher_suites[];
 };
 
