@@ -586,6 +586,8 @@ bool config_validate_after_load_modules_network_tls(
                 module->network->tls->private_key_path);
         return_result = false;
     }
+
+    return return_result;
 }
 
 bool config_validate_after_load_modules_network_keepalive(
