@@ -90,6 +90,7 @@ RUN \
         | sed -e 's/\#\(\s\+tls\:\)/\1/' \
         | sed -e 's/\#\(\s\+certificate_path\:\)/\1/' \
         | sed -e 's/\#\(\s\+private_key_path\:\)/\1/' \
+        | sed -e 's/\#\(\s\+ca_certificate_chain_path\:\)/\1/' \
         | sed -e "/^\s\- type\: file$/ s|^|//|; /^\s*\- type\: file/, /);$/ s|^|#|" \
         | sed -e 's/^           tls: true/          tls: true/' \
         | sed -e 's/^           tls: false/          tls: false/' \
