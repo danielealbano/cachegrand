@@ -176,28 +176,21 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
                 &new_channel->wrapped_channel,
                 true);
 
-        if (!network_channel_tls_ktls_supports_mbedtls_cipher_suite(
+        if (network_channel_tls_ktls_supports_mbedtls_cipher_suite(
                 &new_channel->wrapped_channel)) {
-            network_channel_tls_set_mbedtls(
-                    &new_channel->wrapped_channel,
-                    true);
-        } else {
             LOG_D(
                     TAG,
                     "kTLS supports the cipher, it can be enabled for the connection <%s>, coming from listener <%s>",
                     new_channel->wrapped_channel.address.str,
                     listener_channel->wrapped_channel.address.str);
             if (network_channel_tls_setup_ktls(&new_channel->wrapped_channel)) {
+                // Enable kTLS and ensure mbedtls is disabled
                 network_channel_tls_set_ktls(
                         &new_channel->wrapped_channel,
                         true);
                 network_channel_tls_set_mbedtls(
                         &new_channel->wrapped_channel,
                         false);
-
-                // If kTLS is enabled the mbedtls context can be freed up and tls can be set to disabled because from
-                // now on all the operations will be handled transparently
-                network_channel_tls_free(&new_channel->wrapped_channel);
 
                 LOG_D(
                         TAG,
@@ -207,10 +200,17 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
             } else {
                 LOG_V(
                         TAG,
-                        "Failed to enable kTLS for the connection <%s>, coming from listener <%s>",
+                        "Failed to enable kTLS for the connection <%s>, coming from listener <%s>, using mbedtls",
                         new_channel->wrapped_channel.address.str,
                         listener_channel->wrapped_channel.address.str);
             }
+        }
+
+        // If kTLS can't be enabled or its activation fails, enable mbedtls
+        if (!network_channel_tls_uses_ktls(&new_channel->wrapped_channel)) {
+            network_channel_tls_set_mbedtls(
+                    &new_channel->wrapped_channel,
+                    true);
         }
     }
 

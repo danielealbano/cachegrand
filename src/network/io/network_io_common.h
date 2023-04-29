@@ -20,59 +20,82 @@ typedef bool (*network_io_common_parse_addresses_foreach_callback_t)(
         module_types_t protocol,
         void* user_data);
 
+bool network_io_common_socket_try_set_option(
+        network_io_common_fd_t fd,
+        int level,
+        int option,
+        void* value,
+        socklen_t value_size);
+
 bool network_io_common_socket_set_option(
         network_io_common_fd_t fd,
         int level,
         int option,
         void* value,
         socklen_t value_size);
+
 bool network_io_common_socket_set_reuse_address(
         network_io_common_fd_t fd,
         bool enable);
+
 bool network_io_common_socket_set_reuse_port(
         network_io_common_fd_t fd,
         bool enable);
+
 bool network_io_common_socket_attach_reuseport_cbpf(
         network_io_common_fd_t fd);
+
 bool network_io_common_socket_set_nodelay(
         network_io_common_fd_t fd,
         bool enable);
+
 bool network_io_common_socket_set_quickack(
         network_io_common_fd_t fd,
         bool enable);
+
 bool network_io_common_socket_set_linger(
         network_io_common_fd_t fd,
         bool enable,
         int seconds);
+
 bool network_io_common_socket_enable_keepalive(
         network_io_common_fd_t fd,
         bool enable);
+
 bool network_io_common_socket_set_keepalive_count(
         network_io_common_fd_t fd,
         uint32_t keepalive_count);
+
 bool network_io_common_socket_set_keepalive_idle(
         network_io_common_fd_t fd,
         uint32_t keepalive_idle);
+
 bool network_io_common_socket_set_keepalive_interval(
         network_io_common_fd_t fd,
         uint32_t keepalive_interval);
+
 bool network_io_common_socket_set_incoming_cpu(
         network_io_common_fd_t fd,
         int cpu);
+
 bool network_io_common_socket_set_receive_buffer(
         network_io_common_fd_t fd,
         int size);
+
 bool network_io_common_socket_set_send_buffer(
         network_io_common_fd_t fd,
         int size);
+
 bool network_io_common_socket_set_receive_timeout(
         network_io_common_fd_t fd,
         long seconds,
         long useconds);
+
 bool network_io_common_socket_set_send_timeout(
         network_io_common_fd_t fd,
         long seconds,
         long useconds);
+
 bool network_io_common_socket_set_ipv6_only(
         network_io_common_fd_t fd,
         bool enable);
@@ -81,9 +104,11 @@ bool network_io_common_socket_bind(
         network_io_common_fd_t fd,
         struct sockaddr *address,
         socklen_t address_size);
+
 bool network_io_common_socket_listen(
         network_io_common_fd_t fd,
         uint16_t backlog);
+
 bool network_io_common_socket_close(
         network_io_common_fd_t fd,
         bool shutdown_may_fail);
@@ -98,6 +123,7 @@ bool network_io_common_socket_setup_server(
 
 int network_io_common_socket_tcp4_new(
         int flags);
+
 int network_io_common_socket_tcp4_new_server(
         int flags,
         struct sockaddr_in *address,
@@ -107,6 +133,7 @@ int network_io_common_socket_tcp4_new_server(
 
 int network_io_common_socket_tcp6_new(
         int flags);
+
 int network_io_common_socket_tcp6_new_server(
         int flags,
         struct sockaddr_in6 *address,

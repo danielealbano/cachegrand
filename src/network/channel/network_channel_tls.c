@@ -325,7 +325,6 @@ bool network_channel_tls_setup_ktls(
     if (!network_io_common_tls_socket_set_ulp(
             network_channel->fd,
             "tls")) {
-        LOG_V(TAG, "Failed to setup kTLS, unable to set the ULP for the socket");
         return false;
     }
 
