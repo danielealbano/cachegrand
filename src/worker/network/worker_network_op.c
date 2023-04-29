@@ -108,7 +108,8 @@ worker_module_context_t *worker_module_contexts_initialize(
                 config_module->network->tls->min_version,
                 config_module->network->tls->max_version,
                 cipher_suites,
-                cipher_suites_ids_size);
+                cipher_suites_ids_size,
+                config_module->network->tls->verify_client_certificate);
 
         if (cipher_suites) {
             ffma_mem_free(cipher_suites);
