@@ -20,6 +20,13 @@ typedef bool (*network_io_common_parse_addresses_foreach_callback_t)(
         module_types_t protocol,
         void* user_data);
 
+bool network_io_common_socket_try_set_option(
+        network_io_common_fd_t fd,
+        int level,
+        int option,
+        void* value,
+        socklen_t value_size);
+
 bool network_io_common_socket_set_option(
         network_io_common_fd_t fd,
         int level,

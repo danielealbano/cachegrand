@@ -24,13 +24,22 @@
 
 #define TAG "network_io_common"
 
+bool network_io_common_socket_try_set_option(
+        network_io_common_fd_t fd,
+        int level,
+        int option,
+        void* value,
+        socklen_t value_size) {
+    return unlikely(setsockopt(fd, level, option, value, value_size) < 0) ? false : true;
+}
+
 bool network_io_common_socket_set_option(
         network_io_common_fd_t fd,
         int level,
         int option,
         void* value,
         socklen_t value_size) {
-    if (setsockopt(fd, level, option, value, value_size) < 0) {
+    if (unlikely(!network_io_common_socket_try_set_option(fd, level, option, value, value_size))) {
         LOG_E(TAG, "Unable to set an option on the socket with fd <%d>", fd);
         LOG_E_OS_ERROR(TAG);
 
