@@ -329,22 +329,16 @@ bool network_channel_tls_setup_ktls_tx_rx(
 
 bool network_channel_tls_setup_ktls(
         network_channel_t *network_channel) {
-    if (!network_io_common_tls_socket_set_ulp(
-            network_channel->fd,
-            "tls")) {
+    if (!network_io_common_tls_socket_set_ulp_tls(network_channel->fd)) {
         return false;
     }
 
-    if (!network_channel_tls_setup_ktls_tx_rx(
-            network_channel,
-            0)) {
+    if (!network_channel_tls_setup_ktls_tx_rx(network_channel, 0)) {
         LOG_V(TAG, "Failed to setup kTLS, unable to setup the tx offloading");
         return false;
     }
 
-    if (!network_channel_tls_setup_ktls_tx_rx(
-            network_channel,
-            1)) {
+    if (!network_channel_tls_setup_ktls_tx_rx(network_channel, 1)) {
         LOG_V(TAG, "Failed to setup kTLS, unable to setup the rx offloading");
         return false;
     }

@@ -22,6 +22,9 @@ union network_io_common_tls_crypto_info {
 #endif
 };
 
+bool network_io_common_tls_socket_set_ulp_tls(
+        network_io_common_fd_t fd);
+
 bool network_io_common_tls_socket_set_ulp(
         network_io_common_fd_t fd,
         char *ulp);

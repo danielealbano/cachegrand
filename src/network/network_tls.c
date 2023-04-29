@@ -94,7 +94,7 @@ bool network_tls_is_ulp_tls_supported_internal() {
 
     // Try to enable the ULP TLS on the client fd
     if (result) {
-        result = network_io_common_tls_socket_set_ulp(client_fd, "tls");
+        result = network_io_common_tls_socket_set_ulp_tls(client_fd);
     }
 
     // Close the sockets

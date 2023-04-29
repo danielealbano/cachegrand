@@ -26,6 +26,11 @@
 
 #define TAG "network_io_common_tls"
 
+bool network_io_common_tls_socket_set_ulp_tls(
+        network_io_common_fd_t fd) {
+    return network_io_common_tls_socket_set_ulp(fd, "tls");
+}
+
 bool network_io_common_tls_socket_set_ulp(
         network_io_common_fd_t fd,
         char *ulp) {
