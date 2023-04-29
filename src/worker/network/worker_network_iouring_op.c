@@ -198,7 +198,7 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
                         new_channel->wrapped_channel.address.str,
                         listener_channel->wrapped_channel.address.str);
             } else {
-                LOG_V(
+                LOG_D(
                         TAG,
                         "Failed to enable kTLS for the connection <%s>, coming from listener <%s>, using mbedtls",
                         new_channel->wrapped_channel.address.str,
@@ -211,6 +211,23 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
             network_channel_tls_set_mbedtls(
                     &new_channel->wrapped_channel,
                     true);
+        }
+
+        // If the client has sent a client certificate, report the common name in the logs
+        if (network_channel_tls_has_peer_certificate(&new_channel->wrapped_channel)) {
+            const char *cn = NULL;
+            size_t cn_length = 0;
+
+            if (network_channel_tls_peer_certificate_get_cn(
+                    &new_channel->wrapped_channel,
+                    &cn,
+                    &cn_length)) {
+                LOG_D(
+                        TAG,
+                        "TLS client certificate common name: %.*s",
+                        (int)cn_length,
+                        cn);
+            }
         }
     }
 

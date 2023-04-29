@@ -133,8 +133,7 @@ network_op_result_t network_receive(
         stats->network.per_minute.received_data += received_length;
         stats->network.total.received_data += received_length;
 
-        LOG_D(
-                TAG,
+        LOG_DI(
                 "[FD:%5d][RECV] Received <%lu> bytes from client <%s>",
                 channel->fd,
                 received_length,
@@ -293,8 +292,7 @@ network_op_result_t network_send_direct_wrapper(
         stats->network.per_minute.sent_data += sent_length;
         stats->network.total.sent_data += sent_length;
 
-        LOG_D(
-                TAG,
+        LOG_DI(
                 "[FD:%5d][SEND] Sent <%lu> bytes to client <%s>",
                 channel->fd,
                 sent_length,

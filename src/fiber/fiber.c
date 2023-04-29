@@ -127,8 +127,7 @@ fiber_t *fiber_new(
 #endif
 
 
-    LOG_D(
-            TAG,
+    LOG_DI(
             "Initializing new fiber <%s> with a stack of <%lu (%lu with guard pages)> bytes starting at <%p>",
             name,
             stack_size,

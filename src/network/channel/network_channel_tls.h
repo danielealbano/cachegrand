@@ -27,6 +27,9 @@ void network_channel_tls_free(
 bool network_channel_tls_handshake(
         network_channel_t *network_channel);
 
+bool network_channel_tls_has_peer_certificate(
+        network_channel_t *network_channel);
+
 bool network_channel_tls_peer_certificate_get_cn(
         network_channel_t *network_channel,
         const char **cn,
