@@ -193,7 +193,7 @@ bool config_parse_string_time(
         goto end;
     }
 
-end:
+    end:
     free(string);
     return result;
 }
@@ -318,7 +318,7 @@ bool config_parse_string_absolute_or_percent(
         goto end;
     }
 
-end:
+    end:
     free(string);
     return result;
 }
@@ -398,7 +398,7 @@ bool config_validate_after_load_database_backend_file(
 
     if (config->database->file->limits && config->database->file->limits->soft
         && config->database->file->limits->soft->max_disk_usage >=
-            config->database->file->limits->hard->max_disk_usage) {
+           config->database->file->limits->hard->max_disk_usage) {
         LOG_E(TAG, "The soft limit for the maximum disk usage must be smaller than the hard limit");
         return_result = false;
     }
@@ -426,7 +426,7 @@ bool config_validate_after_load_database_backend_memory(
 
     if (config->database->memory->limits && config->database->memory->limits->soft
         && config->database->memory->limits->soft->max_memory_usage >=
-            config->database->memory->limits->hard->max_memory_usage) {
+           config->database->memory->limits->hard->max_memory_usage) {
         LOG_E(TAG, "The soft limit for the maximum disk usage must be smaller than the hard limit");
         return_result = false;
     }
@@ -588,7 +588,7 @@ bool config_validate_after_load_modules_network_tls(
     }
 
     if (module->network->tls->ca_certificate_chain_path &&
-            !simple_file_io_exists(module->network->tls->ca_certificate_chain_path)) {
+        !simple_file_io_exists(module->network->tls->ca_certificate_chain_path)) {
         LOG_E(
                 TAG,
                 "In module <%s>, the ca certificate chain <%s> doesn't exist",
@@ -644,6 +644,7 @@ bool config_validate_after_load_modules_network_keepalive(
 }
 
 bool config_validate_after_load_modules_config_valid(
+        config_t *config,
         config_module_t *config_module) {
     bool return_result = true;
 
@@ -660,7 +661,7 @@ bool config_validate_after_load_modules_config_valid(
         return_result = false;
     } else {
         // If the module exports config_validate_after_load, use it to validate the config
-        if (module->config_validate_after_load && module->config_validate_after_load(config_module) == false) {
+        if (module->config_validate_after_load && module->config_validate_after_load(config, config_module) == false) {
             return_result = false;
         }
     }
@@ -675,7 +676,7 @@ bool config_validate_after_load_modules(
     for(int module_index = 0; module_index < config->modules_count; module_index++) {
         config_module_t *config_module = &config->modules[module_index];
 
-        if (config_validate_after_load_modules_config_valid(config_module) == false
+        if (config_validate_after_load_modules_config_valid(config, config_module) == false
             || config_validate_after_load_modules_network_timeout(config_module) == false
             || config_validate_after_load_modules_network_keepalive(config_module) == false
             || config_validate_after_load_modules_network_tls(config_module) == false
@@ -1083,7 +1084,7 @@ bool config_process_string_values(
             if (return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT) {
                 config->database->memory->limits->soft->max_memory_usage =
                         (int64_t)((double)sys_info.totalram *
-                        ((double)config->database->memory->limits->soft->max_memory_usage / 100.0));
+                                  ((double)config->database->memory->limits->soft->max_memory_usage / 100.0));
             }
         }
     }
@@ -1150,7 +1151,7 @@ bool config_process_string_values(
             if (return_value_type == CONFIG_PARSE_STRING_ABSOLUTE_OR_PERCENT_RETURN_VALUE_PERCENT) {
                 config->database->file->limits->soft->max_disk_usage =
                         (int64_t)((double)total_disk_size *
-                        ((double)config->database->file->limits->soft->max_disk_usage / 100.0));
+                                  ((double)config->database->file->limits->soft->max_disk_usage / 100.0));
             }
         }
     }

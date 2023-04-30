@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+typedef struct config config_t;
 typedef struct config_module config_module_t;
 typedef struct network_channel network_channel_t;
 
@@ -12,6 +13,7 @@ typedef uint32_t module_id_t;
 typedef bool (module_config_prepare_cb_t)(
         config_module_t *module);
 typedef bool (module_config_validate_after_load_cb_t)(
+        config_t *config,
         config_module_t *module);
 typedef bool (module_program_ctor_cb_t)(
         config_module_t *module);
