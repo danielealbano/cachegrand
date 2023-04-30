@@ -34,6 +34,9 @@ static inline __attribute__((always_inline)) module_t* module_get_by_id(
     return &modules_registered_list[module_id];
 }
 
+module_t* module_get_by_name(
+        const char *name);
+
 module_id_t module_register(
         const char *name,
         module_config_validate_after_load_t *config_validate_after_load,

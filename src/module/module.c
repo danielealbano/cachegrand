@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <string.h>
 
 #include "misc.h"
 #include "config.h"
@@ -45,4 +46,20 @@ module_id_t module_register(
     };
 
     return modules_registered_list_size - 1;
+}
+
+module_t* module_get_by_name(
+        const char *name) {
+    module_id_t module_id = 0;
+    module_t *module = NULL;
+
+    while((module = module_get_by_id(module_id++)) != NULL) {
+        if (strcmp(module->name, name) != 0) {
+            continue;
+        }
+
+        return module;
+    }
+
+    return NULL;
 }
