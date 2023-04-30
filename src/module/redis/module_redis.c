@@ -54,7 +54,6 @@
 FUNCTION_CTOR(module_redis_register_ctor, {
     module_register(
             "redis",
-            "redis",
             module_redis_config_validate_after_load,
             module_redis_connection_accept);
 });

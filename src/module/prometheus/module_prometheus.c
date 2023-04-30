@@ -59,7 +59,6 @@ extern char **environ;
 FUNCTION_CTOR(module_prometheus_register_ctor, {
     module_register(
             "prometheus",
-            "prometheus",
             NULL,
             module_prometheus_connection_accept);
 });
