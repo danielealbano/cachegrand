@@ -28,7 +28,7 @@ typedef struct network_channel_address network_channel_address_t;
 struct network_channel_address {
     char* address;
     uint16_t port;
-    module_types_t protocol;
+    module_id_t module_id;
 };
 
 typedef struct network_channel_socket_address network_channel_socket_address_t;
@@ -54,7 +54,7 @@ typedef struct network_channel network_channel_t;
 struct network_channel {
     network_io_common_fd_t fd;
     network_channel_type_t type;
-    module_types_t protocol;
+    module_id_t module_id;
     config_module_t *module_config;
     network_channel_socket_address_t address;
     network_channel_status_t status;
@@ -112,14 +112,14 @@ bool network_channel_listener_new_callback(
         socklen_t socket_address_size,
         uint16_t port,
         uint16_t backlog,
-        module_types_t module_type,
+        module_id_t module_type,
         void* user_data);
 
 bool network_channel_listener_new(
         char* address,
         uint16_t port,
         uint16_t backlog,
-        module_types_t protocol,
+        module_id_t module_type,
         network_channel_listener_new_callback_user_data_t *user_data);
 
 #ifdef __cplusplus

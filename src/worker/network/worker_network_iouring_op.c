@@ -75,7 +75,7 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
     network_channel_iouring_t* new_channel = network_channel_iouring_new(NETWORK_CHANNEL_TYPE_CLIENT);
     memcpy(&new_channel->wrapped_channel.address.socket.base, addr, addr_len);
     new_channel->wrapped_channel.address.size = addr_len;
-    new_channel->wrapped_channel.protocol = listener_channel->wrapped_channel.protocol;
+    new_channel->wrapped_channel.module_id = listener_channel->wrapped_channel.module_id;
     new_channel->wrapped_channel.module_config = listener_channel->wrapped_channel.module_config;
     new_channel->fd = new_channel->wrapped_channel.fd = cqe->res;
 

@@ -114,7 +114,7 @@ bool network_channel_listener_new_callback(
         socklen_t socket_address_size,
         uint16_t port,
         uint16_t backlog,
-        module_types_t module_type,
+        module_id_t module_id,
         void* user_data) {
     int fd;
     network_channel_t* listener;
@@ -158,7 +158,7 @@ bool network_channel_listener_new_callback(
             (cb_user_data->network_channel_size * cb_user_data->listeners_count);
     listener->fd = fd;
     listener->address.size = socket_address_size;
-    listener->protocol = module_type;
+    listener->module_id = module_id;
     listener->type = NETWORK_CHANNEL_TYPE_LISTENER;
 
     memcpy(
@@ -171,7 +171,7 @@ bool network_channel_listener_new_callback(
             listener->address.str,
             sizeof(listener->address.str));
 
-    LOG_V(TAG, "Created listener on <%s> for <%s>", listener->address.str, module_types_text[module_type]);
+    LOG_V(TAG, "Created listener on <%s> for <%s>", listener->address.str, module_get_by_id(module_id)->name);
 
     cb_user_data->listeners_count++;
 
@@ -182,7 +182,7 @@ bool network_channel_listener_new(
         char* address,
         uint16_t port,
         uint16_t backlog,
-        module_types_t protocol,
+        module_id_t module_id,
         network_channel_listener_new_callback_user_data_t *user_data) {
     int res;
 
@@ -191,7 +191,7 @@ bool network_channel_listener_new(
             port,
             backlog,
             network_channel_listener_new_callback,
-            protocol,
+            module_id,
             user_data);
 
     if (res == -1) {

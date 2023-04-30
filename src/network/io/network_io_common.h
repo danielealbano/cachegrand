@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+typedef uint32_t module_id_t;
 typedef int network_io_common_fd_t;
 
 typedef bool (*network_io_common_socket_setup_server_cb_t)(
@@ -17,7 +18,7 @@ typedef bool (*network_io_common_parse_addresses_foreach_callback_t)(
         socklen_t socket_address_size,
         uint16_t port,
         uint16_t backlog,
-        module_types_t protocol,
+        module_id_t module_id,
         void* user_data);
 
 bool network_io_common_socket_try_set_option(
@@ -155,7 +156,7 @@ int32_t network_io_common_parse_addresses_foreach(
         uint16_t port,
         uint16_t backlog,
         network_io_common_parse_addresses_foreach_callback_t callback,
-        module_types_t protocol,
+        module_id_t module_id,
         void* user_data);
 
 char* network_io_common_socket_address_str(
