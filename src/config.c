@@ -1181,6 +1181,25 @@ config_t* config_load(
         return NULL;
     }
 
+    // Set the module_id in the config and invoke the config prepare
+    for(int module_index = 0; module_index < config->modules_count; module_index++) {
+        config_module_t *config_module = &config->modules[module_index];
+        module_t *module = module_get_by_name(config_module->type);
+
+        // If the module was not found, skip it
+        if (!module) {
+            continue;
+        }
+
+        config_module->module_id = module->id;
+
+        if (module->config_prepare && module->config_prepare(config_module) == false) {
+            LOG_E(TAG, "Failed to prepare the configuration for module <%s>", config_module->type);
+            config_free(config);
+            return NULL;
+        }
+    }
+
     // Before we start to validate the configuration it's necessary to convert the values that are stored as strings
     // into the appropriate types, e.g. to convert the string "1G" into the uint64_t value 1073741824 or to convert the
     // string "50%" for the memory limits to 50% of the total system memory, etc.
