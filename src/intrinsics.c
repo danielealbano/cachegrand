@@ -20,7 +20,7 @@
 
 uint64_t intrinsics_frequency_max_internal = 0;
 
-FUNCTION_CTOR(intrinsics_cycles_per_second_init, {
+FUNCTION_CTOR(intrinsics_cycles_per_second_ctor, {
     intrinsics_frequency_max_internal = intrinsics_frequency_max();
 })
 
