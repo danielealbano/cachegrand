@@ -647,7 +647,8 @@ bool config_validate_after_load_modules_config_valid(
         config_module_t *config_module) {
     bool return_result = true;
 
-    // Try to search for a module that matches the type
+    // Don't rely on config_module->module_id as it can be zero because there is no module matching the type, try
+    // instead to search for a module that has the same name
     module_t *module = module_get_by_name(config_module->type);
 
     // If the module was not found, log an error
