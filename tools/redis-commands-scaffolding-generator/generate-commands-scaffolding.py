@@ -378,7 +378,7 @@ class Program:
             for command_info in commands_info:
                 fp.writelines([
                     "    MODULE_REDIS_COMMAND_{command_string},\n".format(
-                        command_string=command_info["command_string"]),
+                        command_string=command_info["command_string"].replace(".", "_")),
                 ])
 
             fp.writelines([
