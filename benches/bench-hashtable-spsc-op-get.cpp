@@ -360,13 +360,24 @@ public:
             strcpy(key_dup, _keys[index]);
             key_dup[strlen(_keys[index])] = '\0';
 
-            if (!hashtable_spsc_op_try_set_cs(this->_hashtable, key_dup, strlen(_keys[index]), _keys[index])) {
+            if (!hashtable_spsc_op_try_set_cs(
+                    this->_hashtable,
+                    key_dup,
+                    strlen(_keys[index]),
+                    _keys[index])) {
                 // Move back the pointer of the keys array
                 index--;
 
                 // Resize the hashtable
                 uint32_t current_size = this->_hashtable->buckets_count_real;
                 this->_hashtable = hashtable_spsc_upsize(this->_hashtable);
+                if (!hashtable_spsc_op_try_set_cs(
+                        this->_hashtable,
+                        key_dup,
+                        strlen(_keys[index]),
+                        _keys[index])) {
+                    state.SkipWithError("Failed to set key in hashtable");
+                }
             }
         }
 
@@ -416,6 +427,13 @@ public:
                 // Resize the hashtable
                 uint32_t current_size = this->_hashtable->buckets_count_real;
                 this->_hashtable = hashtable_spsc_upsize(this->_hashtable);
+                if (!hashtable_spsc_op_try_set_by_hash_and_key_uint32(
+                        this->_hashtable,
+                        *(uint32_t*)_keys[index],
+                        *(uint32_t*)_keys[index],
+                        _keys[index])) {
+                    state.SkipWithError("Failed to set key in hashtable");
+                }
             }
         }
 
