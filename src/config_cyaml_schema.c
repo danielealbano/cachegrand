@@ -132,10 +132,9 @@ const cyaml_schema_field_t config_module_network_fields_schema[] = {
 
 // Schema for config -> modules -> module -> protocol
 const cyaml_schema_field_t config_module_fields_schema[] = {
-        CYAML_FIELD_ENUM(
-                "type", CYAML_FLAG_DEFAULT | CYAML_FLAG_STRICT,
-                config_module_t, type, config_module_type_schema_strings,
-                CYAML_ARRAY_LEN(config_module_type_schema_strings)),
+        CYAML_FIELD_STRING_PTR(
+                "type", CYAML_FLAG_DEFAULT,
+                config_module_t, type, 0, 20),
         CYAML_FIELD_MAPPING_PTR(
                 "network", CYAML_FLAG_POINTER,
                 config_module_t, network, config_module_network_fields_schema),

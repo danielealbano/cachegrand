@@ -36,11 +36,11 @@
 #include "worker/worker_context.h"
 #include "worker/worker_op.h"
 
-#include "worker_fiber_storage_db_snapshot_rdb.h"
+#include "module_redis_fiber_storage_db_snapshot_rdb.h"
 
 #define TAG "worker_fiber_storage_db_snapshot"
 
-void worker_fiber_storage_db_snapshot_rdb_fiber_entrypoint(
+void module_redis_fiber_storage_db_snapshot_rdb_fiber_entrypoint(
         void* user_data) {
     bool result;
     bool last_block = false;
@@ -49,14 +49,14 @@ void worker_fiber_storage_db_snapshot_rdb_fiber_entrypoint(
 
     while(true) {
         if (!worker_is_running(worker_context) || db->snapshot.next_run_time_ms == 0) {
-            worker_op_wait_ms(WORKER_FIBER_STORAGE_DB_SNAPSHOT_RDB_WAIT_LOOP_MS);
+            worker_op_wait_ms(MODULE_REDIS_FIBER_STORAGE_DB_SNAPSHOT_RDB_WAIT_LOOP_MS);
             continue;
         }
 
         // If the snapshot is not running, wait and then check if it's time to run it and if yes ensure that the
         // snapshot is prepared to run
         if (!db->snapshot.running) {
-            if (!worker_op_wait_ms(WORKER_FIBER_STORAGE_DB_SNAPSHOT_RDB_WAIT_LOOP_MS)) {
+            if (!worker_op_wait_ms(MODULE_REDIS_FIBER_STORAGE_DB_SNAPSHOT_RDB_WAIT_LOOP_MS)) {
                 break;
             }
 
@@ -128,7 +128,7 @@ void worker_fiber_storage_db_snapshot_rdb_fiber_entrypoint(
         // To avoid a busy loop, if there are more than 2 workers, wait a bit before checking again otherwise just
         // yield the fiber
         worker_op_wait_ms(worker_context->workers_count > 2
-            ? WORKER_FIBER_STORAGE_DB_SNAPSHOT_RDB_WAIT_LOOP_MS
+            ? MODULE_REDIS_FIBER_STORAGE_DB_SNAPSHOT_RDB_WAIT_LOOP_MS
             : 0);
     }
 

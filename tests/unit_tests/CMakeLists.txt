@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Daniele Salvatore Albano
+# Copyright (C) 2018-2023 Daniele Salvatore Albano
 # All rights reserved.
 #
 # This software may be modified and distributed under the terms
@@ -75,21 +75,38 @@ set_target_properties(
         cachegrand-tests
         PROPERTIES
         LINKER_LANGUAGE CXX)
+
 add_dependencies(
         cachegrand-tests
         cachegrand-internal Catch2)
+
 target_link_libraries(
         cachegrand-tests
         PRIVATE
         cachegrand-internal Catch2::Catch2 ${LIBCYAML_DYNAMIC_PATH_LIBRARY} ${TESTSDEPS_LIST_LIBRARIES})
+
 target_link_directories(
         cachegrand-tests
         PRIVATE
         ${TESTSDEPS_LIST_LIBRARY_DIRS})
+
 target_include_directories(
         cachegrand-tests
         PRIVATE
         ${TESTSDEPS_LIST_LIBRARIES})
+
+add_custom_command(
+        TARGET cachegrand-tests
+        PRE_LINK
+        COMMAND
+        nm --format=posix "$<TARGET_FILE:cachegrand-internal>" | grep _[cd]tors_fp | cut -d\  -f1 | xargs -I{} echo -Wl,-u{} > "${CMAKE_CURRENT_BINARY_DIR}/linker_options.txt"
+        VERBATIM)
+
+set_target_properties(
+        cachegrand-tests
+        PROPERTIES
+        LINK_FLAGS
+        "@${CMAKE_CURRENT_BINARY_DIR}/linker_options.txt")
 
 add_test(
         NAME

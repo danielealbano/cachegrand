@@ -89,8 +89,20 @@ foreach(SRC_CACHEGRAND_BENCH ${SRC_CACHEGRAND_BENCHES})
             PRIVATE
             ../tests ${CMAKE_BINARY_DIR}/benchmark-install/include)
 
+    add_custom_command(
+            TARGET ${CACHEGRAND_BENCH_EXEC_NAME}
+            PRE_LINK
+            COMMAND
+            nm --format=posix "$<TARGET_FILE:cachegrand-internal>" | grep _[cd]tors_fp | cut -d\  -f1 | xargs -I{} echo -Wl,-u{} > "${CMAKE_CURRENT_BINARY_DIR}/linker_options.txt"
+            VERBATIM)
+
+    set_target_properties(
+            ${CACHEGRAND_BENCH_EXEC_NAME}
+            PROPERTIES
+            LINK_FLAGS
+            "@${CMAKE_CURRENT_BINARY_DIR}/linker_options.txt")
+
     add_dependencies(
             bench-all
             ${CACHEGRAND_BENCH_EXEC_NAME})
 endforeach()
-

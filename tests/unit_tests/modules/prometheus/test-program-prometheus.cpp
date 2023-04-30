@@ -90,7 +90,8 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
             .bindings_count = 1,
     };
     config_module_t config_module = {
-            .type = CONFIG_MODULE_TYPE_PROMETHEUS,
+            .type = "prometheus",
+            .module_id = module_get_by_name("prometheus")->id,
             .network = &config_module_network,
     };
     config_network_t config_network = {

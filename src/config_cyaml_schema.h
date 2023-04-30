@@ -23,12 +23,6 @@ static cyaml_strval_t config_module_network_tls_max_version_schema_strings[] = {
         { "any", CONFIG_MODULE_NETWORK_TLS_MAX_VERSION_ANY },
 };
 
-// Allowed strings for config -> modules -> module -> type (config_module_type_t)
-static cyaml_strval_t config_module_type_schema_strings[] = {
-        { "redis",      CONFIG_MODULE_TYPE_REDIS },
-        { "prometheus", CONFIG_MODULE_TYPE_PROMETHEUS },
-};
-
 // Allowed strings for config -> database -> keys_eviction -> policy (config_database_keys_eviction_policy_t)
 static cyaml_strval_t config_database_keys_eviction_policy_schema_strings[] = {
         { "lru", CONFIG_DATABASE_KEYS_EVICTION_POLICY_LRU },

@@ -53,49 +53,18 @@
 
 #define TAG "module_prometheus"
 
-#define MODULE_PROMETHEUS_HTTP_HEADERS_SIZE_INCREASE 5
-#define MODULE_PROMETHEUS_HTTP_MAX_URL_LENGTH 256
-#define MODULE_PROMETHEUS_HTTP_MAX_HEADER_NAME_LENGTH 256
-#define MODULE_PROMETHEUS_HTTP_MAX_HEADER_VALUE_LENGTH (8 * 1024)
-
 const char *metrics_env_prefix = "CACHEGRAND_METRIC_ENV_";
 extern char **environ;
 
-typedef struct response_metric_field response_metric_field_t;
-struct response_metric_field {
-    char *name;
-    char *value_formatter;
-    uint64_t value;
-};
-
-typedef struct client_http_header client_http_header_t;
-struct client_http_header {
-    char *name;
-    char *value;
-};
-
-typedef struct client_http_request_data client_http_request_data_t;
-struct client_http_request_data {
-    char *url;
-    size_t url_length;
-    bool request_received;
-    struct {
-        char *current_header_name;
-        size_t current_header_name_length;
-        uint16_t current_index;
-        uint16_t count;
-        uint16_t size;
-        client_http_header_t *list;
-    } headers;
-};
-
-typedef struct module_prometheus_client module_prometheus_client_t;
-struct module_prometheus_client {
-    network_channel_buffer_t read_buffer;
-    http_parser_settings http_parser_settings;
-    http_parser http_parser;
-    client_http_request_data_t http_request_data;
-};
+FUNCTION_CTOR(module_prometheus_register_ctor, {
+    module_register(
+            "prometheus",
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            module_prometheus_connection_accept);
+});
 
 void module_prometheus_client_new(
         module_prometheus_client_t *module_prometheus_client,
@@ -729,7 +698,7 @@ void module_prometheus_accept_setup_http_parser(
     module_prometheus_client->http_parser.data = &module_prometheus_client->http_request_data;
 }
 
-void module_prometheus_accept(
+void module_prometheus_connection_accept(
         network_channel_t *channel) {
     bool exit_loop = false;
     module_prometheus_client_t module_prometheus_client = { 0 };

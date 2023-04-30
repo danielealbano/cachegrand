@@ -58,8 +58,6 @@
 #include "network/channel/network_channel_tls.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
-#include "module/redis/module_redis.h"
-#include "module/prometheus/module_prometheus.h"
 
 #include "worker_network_op.h"
 
@@ -178,7 +176,7 @@ bool worker_network_listeners_initialize(
                     config_module->network->bindings[binding_index].host,
                     config_module->network->bindings[binding_index].port,
                     config->network->listen_backlog,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data) == false) {
                 return_res = false;
                 goto end;
@@ -195,19 +193,8 @@ bool worker_network_listeners_initialize(
 
     // Allocate the listeners (with the correct protocol config)
     for(int module_index = 0; module_index < config->modules_count; module_index++) {
-        module_types_t network_protocol;
-
         config_module_t *config_module = &config->modules[module_index];
-        switch(config_module->type) {
-            default:
-            case CONFIG_MODULE_TYPE_REDIS:
-                network_protocol = MODULE_TYPE_REDIS;
-                break;
-
-            case CONFIG_MODULE_TYPE_PROMETHEUS:
-                network_protocol = MODULE_TYPE_PROMETHEUS;
-                break;
-        }
+        module_id_t module_id = config_module->module_id;
 
         for(int binding_index = 0; binding_index < config_module->network->bindings_count; binding_index++) {
             config_module_network_binding_t *binding = &config_module->network->bindings[binding_index];
@@ -216,13 +203,13 @@ bool worker_network_listeners_initialize(
                     binding->host,
                     binding->port,
                     config->network->listen_backlog,
-                    network_protocol,
+                    module_id,
                     &listener_new_cb_user_data) == false) {
 
                 LOG_E(TAG, "Unable to setup listener for <%s:%u> with protocol <%d>",
                       binding->host,
                       binding->port,
-                      network_protocol);
+                      module_id);
 
                 return_res = false;
                 goto end;
@@ -312,25 +299,8 @@ void worker_network_new_client_fiber_entrypoint(
         stats->network.per_minute.accepted_tls_connections++;
     }
 
-    // Should not access the listener_channel directly
-    switch (new_channel->protocol) {
-        default:
-            // This can't really happen
-            FATAL(
-                    TAG,
-                    "[FD:%5d][ACCEPT] Channel unknown protocol <%d>",
-                    new_channel->fd,
-                    new_channel->protocol);
-
-        case MODULE_TYPE_REDIS:
-            module_redis_accept(
-                    new_channel);
-            break;
-        case MODULE_TYPE_PROMETHEUS:
-            module_prometheus_accept(
-                    new_channel);
-            break;
-    }
+    // Handover the new connection to the module
+    module_get_by_id(new_channel->module_id)->connection_accept(new_channel);
 
     // TODO: when ti gets here new_channel might have been already freed, the flow should always close the connection
     //       the connection here and not from within the module

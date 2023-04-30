@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Daniele Salvatore Albano
+# Copyright (C) 2018-2023 Daniele Salvatore Albano
 # All rights reserved.
 #
 # This software may be modified and distributed under the terms
@@ -226,3 +226,16 @@ target_link_libraries(
 if (CMAKE_C_LINK_PIE_SUPPORTED AND CMAKE_BUILD_TYPE MATCHES Release)
     set_property(TARGET cachegrand-server PROPERTY POSITION_INDEPENDENT_CODE TRUE)
 endif()
+
+add_custom_command(
+        TARGET cachegrand-server
+        PRE_LINK
+        COMMAND
+        nm --format=posix "$<TARGET_FILE:cachegrand-internal>" | grep _[cd]tors_fp | cut -d\  -f1 | xargs -I{} echo -Wl,-u{} > "${CMAKE_CURRENT_BINARY_DIR}/linker_options.txt"
+        VERBATIM)
+
+set_target_properties(
+        cachegrand-server
+        PROPERTIES
+        LINK_FLAGS
+        "@${CMAKE_CURRENT_BINARY_DIR}/linker_options.txt")

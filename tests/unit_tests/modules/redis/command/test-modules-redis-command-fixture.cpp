@@ -87,7 +87,8 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
     };
 
     config_module = {
-            .type = CONFIG_MODULE_TYPE_REDIS,
+            .type = "redis",
+            .module_id = module_get_by_name("redis")->id,
             .network = &config_module_network,
             .redis = &config_module_redis,
     };
