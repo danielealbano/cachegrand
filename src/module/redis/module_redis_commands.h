@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+extern hashtable_spsc_t *module_redis_commands_hashtable;
+
 hashtable_spsc_t *module_redis_commands_build_commands_hashtables(
         module_redis_command_info_t *command_infos,
         uint32_t command_infos_count);

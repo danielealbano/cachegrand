@@ -5,11 +5,17 @@
 extern "C" {
 #endif
 
+void module_redis_connection_accept(
+        network_channel_t *channel);
+
+bool module_redis_connection_process_data(
+        module_redis_connection_context_t *connection_context,
+        network_channel_buffer_t *read_buffer);
+
 void module_redis_connection_context_init(
         module_redis_connection_context_t *connection_context,
         storage_db_t *db,
-        network_channel_t *network_channel,
-        config_module_t *config_module);
+        network_channel_t *network_channel);
 
 void module_redis_connection_context_cleanup(
         module_redis_connection_context_t *connection_context);
