@@ -73,7 +73,7 @@ void hashtable_spsc_free(
     xalloc_free(hashtable);
 }
 
-hashtable_spsc_t* hashtable_spsc_uspize(
+hashtable_spsc_t* hashtable_spsc_upsize(
         hashtable_spsc_t *hashtable_current) {
     // Creates a new hashtable with the same parameters as the original one but twice the buckets
     hashtable_spsc_t *hashtable_uspized = hashtable_spsc_new(

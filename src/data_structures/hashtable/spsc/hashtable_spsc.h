@@ -279,7 +279,7 @@ hashtable_spsc_t *hashtable_spsc_new(
 void hashtable_spsc_free(
         hashtable_spsc_t *hashtable);
 
-hashtable_spsc_t* hashtable_spsc_uspize(
+hashtable_spsc_t* hashtable_spsc_upsize(
         hashtable_spsc_t *hashtable_current);
 
 bool hashtable_spsc_op_try_set_ci(
