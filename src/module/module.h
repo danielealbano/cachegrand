@@ -13,9 +13,13 @@ typedef bool (module_config_prepare_cb_t)(
         config_module_t *module);
 typedef bool (module_config_validate_after_load_cb_t)(
         config_module_t *module);
-typedef bool (module_worker_module_ctor_cb_t)(
+typedef bool (module_program_ctor_cb_t)(
         config_module_t *module);
-typedef bool (module_worker_module_dtor_cb_t)(
+typedef bool (module_program_dtor_cb_t)(
+        config_module_t *module);
+typedef bool (module_worker_ctor_cb_t)(
+        config_module_t *module);
+typedef bool (module_worker_dtor_cb_t)(
         config_module_t *module);
 typedef void (module_connection_accept_cb_t)(
         network_channel_t *network_channel);
@@ -25,8 +29,10 @@ struct module {
     const char *name;
     module_config_prepare_cb_t *config_prepare;
     module_config_validate_after_load_cb_t *config_validate_after_load;
-    module_worker_module_ctor_cb_t *worker_module_ctor;
-    module_worker_module_dtor_cb_t *worker_module_dtor;
+    module_program_ctor_cb_t *program_ctor;
+    module_program_dtor_cb_t *program_dtor;
+    module_worker_ctor_cb_t *worker_ctor;
+    module_worker_dtor_cb_t *worker_dtor;
     module_connection_accept_cb_t *connection_accept;
 };
 typedef struct module module_t;
@@ -50,8 +56,10 @@ module_id_t module_register(
         const char *name,
         module_config_prepare_cb_t *config_prepare,
         module_config_validate_after_load_cb_t *config_validate_after_load,
-        module_worker_module_ctor_cb_t *worker_module_ctor,
-        module_worker_module_dtor_cb_t *worker_module_dtor,
+        module_program_ctor_cb_t *program_ctor,
+        module_program_dtor_cb_t *program_dtor,
+        module_worker_ctor_cb_t *worker_ctor,
+        module_worker_dtor_cb_t *worker_dtor,
         module_connection_accept_cb_t *connection_accept);
 
 #ifdef __cplusplus

@@ -198,7 +198,7 @@ bool worker_initialize_module(
         config_module_t *config_module = &worker_context->config->modules[module_index];
         module_t *module = module_get_by_id(config_module->module_id);
 
-        if (module->worker_module_ctor && !module->worker_module_ctor(config_module)) {
+        if (module->worker_ctor && !module->worker_ctor(config_module)) {
             LOG_E(TAG, "Failed to initialize module <%s>, terminating", module->name);
             return false;
         }
@@ -249,7 +249,7 @@ bool worker_cleanup_module(
         config_module_t *config_module = &worker_context->config->modules[module_index];
         module_t *module = module_get_by_id(config_module->module_id);
 
-        if (module->worker_module_dtor && !module->worker_module_dtor(config_module)) {
+        if (module->worker_dtor && !module->worker_dtor(config_module)) {
             return false;
         }
     }
