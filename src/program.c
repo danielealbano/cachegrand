@@ -707,14 +707,14 @@ void program_cleanup(
         program_context_t* program_context) {
     // TODO: free storage backend
 
-    program_cleanup_module(program_context);
-
     if (program_context->workers_context) {
         program_workers_cleanup(
                 program_context->workers_context,
                 program_context->workers_count);
         xalloc_free(program_context->workers_context);
     }
+
+    program_cleanup_module(program_context);
 
     // Ensure that that everything will start to shutdown after the workers have terminated
     program_request_terminate(&program_context->program_terminate_event_loop);
