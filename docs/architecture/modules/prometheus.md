@@ -9,7 +9,7 @@ config file.
 
 ## Configuration
 
-To enable the module is enough to add the protocol configuration to the `protocols` section in the config file:
+To enable the module is enough to add the module configuration to the `modules` section in the config file:
 ```yaml
     - type: prometheus
       timeout:
