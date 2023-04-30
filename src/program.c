@@ -675,6 +675,34 @@ bool program_setup_pidfile(
     return pidfile_create(program_context->config->pidfile_path);
 }
 
+bool program_initialize_module(
+        program_context_t* program_context) {
+    for(int module_index = 0; module_index < program_context->config->modules_count; module_index++) {
+        config_module_t *config_module = &program_context->config->modules[module_index];
+        module_t *module = module_get_by_id(config_module->module_id);
+
+        if (module->program_ctor && !module->program_ctor(config_module)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool program_cleanup_module(
+        program_context_t* program_context) {
+    for(int module_index = 0; module_index < program_context->config->modules_count; module_index++) {
+        config_module_t *config_module = &program_context->config->modules[module_index];
+        module_t *module = module_get_by_id(config_module->module_id);
+
+        if (module->program_dtor && !module->program_dtor(config_module)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void program_cleanup(
         program_context_t* program_context) {
     // TODO: free storage backend
@@ -684,6 +712,10 @@ void program_cleanup(
                 program_context->workers_context,
                 program_context->workers_count);
         xalloc_free(program_context->workers_context);
+    }
+
+    if (program_context->config) {
+        program_cleanup_module(program_context);
     }
 
     // Ensure that that everything will start to shutdown after the workers have terminated
@@ -799,6 +831,10 @@ int program_main(
     // Initialize the epoch gc workers
     if (program_config_setup_storage_db(program_context) == false) {
         LOG_E(TAG, "Unable to initialize the database");
+        goto end;
+    }
+
+    if (program_initialize_module(program_context) == false) {
         goto end;
     }
 

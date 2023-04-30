@@ -33,8 +33,10 @@ module_id_t module_register(
         const char *name,
         module_config_prepare_cb_t *config_prepare,
         module_config_validate_after_load_cb_t *config_validate_after_load,
-        module_worker_module_ctor_cb_t *worker_module_ctor,
-        module_worker_module_dtor_cb_t *worker_module_dtor,
+        module_program_ctor_cb_t *program_ctor,
+        module_program_dtor_cb_t *program_dtor,
+        module_worker_ctor_cb_t *worker_ctor,
+        module_worker_dtor_cb_t *worker_dtor,
         module_connection_accept_cb_t *connection_accept) {
     assert(name != NULL);
     assert(connection_accept != NULL);
@@ -49,8 +51,10 @@ module_id_t module_register(
             .name = name,
             .config_prepare = config_prepare,
             .config_validate_after_load = config_validate_after_load,
-            .worker_module_ctor = worker_module_ctor,
-            .worker_module_dtor = worker_module_dtor,
+            .program_ctor = program_ctor,
+            .program_dtor = program_dtor,
+            .worker_ctor = worker_ctor,
+            .worker_dtor = worker_dtor,
             .connection_accept = connection_accept,
     };
 

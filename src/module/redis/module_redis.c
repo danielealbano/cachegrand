@@ -55,7 +55,7 @@
 
 #include "module/redis/fiber/module_redis_fiber_storage_db_snapshot_rdb.h"
 
-bool worker_module_ctor(
+bool module_redis_worker_ctor(
         config_module_t *config_module) {
     worker_context_t *worker_context = worker_context_get();
 
@@ -75,7 +75,9 @@ FUNCTION_CTOR(module_redis_register_ctor, {
             "redis",
             module_redis_config_prepare,
             module_redis_config_validate_after_load,
-            worker_module_ctor,
+            NULL,
+            NULL,
+            module_redis_worker_ctor,
             NULL,
             module_redis_connection_accept);
 });
