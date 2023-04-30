@@ -15,6 +15,16 @@ class Program:
             self):
         self._parser = argparse.ArgumentParser()
         self._parser.add_argument(
+            "--module-name",
+            required=True,
+            type=str,
+            help="Name of the module (e.g. redis)")
+        self._parser.add_argument(
+            "--files-prefix",
+            required=True,
+            type=str,
+            help="File name prefix for the auto generated files")
+        self._parser.add_argument(
             "--commands-json-path",
             required=True,
             type=str,
@@ -177,60 +187,60 @@ class Program:
         }
 
         return ",\n".join([
-                "    {{\n        " +
-                ",\n        ".join([
-                    ".name = \"{name}\"",
-                    ".type = MODULE_REDIS_COMMAND_ARGUMENT_TYPE_{type}",
-                    ".since = \"{since}\"",
-                    # parent can be both NULL or a pointer to an argument
-                    ".parent_argument = {parent_argument}",
-                    # token can be both NULL or a string, the quoting is taking care in the format below
-                    ".token = {token}",
-                    # sub_arguments can be both NULL or a pointer to an argument list
-                    ".sub_arguments = {sub_arguments}",
-                    ".sub_arguments_count = {sub_arguments_count}",
-                    ".is_positional = {is_positional}",
-                    ".is_optional = {is_optional}",
-                    ".is_sub_argument = {is_sub_argument}",
-                    ".has_sub_arguments = {has_sub_arguments}",
-                    ".has_multiple_occurrences = {has_multiple_occurrences}",
-                    ".has_multiple_token = {has_multiple_token}",
-                    ".argument_context_member_size = {argument_context_member_size}",
-                    ".argument_context_member_offset = "
-                    "offsetof({command_context_struct_name}_t,{command_context_field_name})",
-                ]).format(
-                    name=argument["name"].replace("-", "_").lower(),
-                    type=argument["type"].replace("-", "").upper(),
-                    since=argument["since"],
-                    parent_argument=(
-                        "&{}_arguments[{}]".format(parent_argument_decl_name, parent_argument_index)
-                        if parent_argument_index is not None else "NULL"),
-                    token=(
-                        "\"" + argument["token"] + "\""
-                        if not argument["token"] is None else "NULL"),
-                    sub_arguments=(
-                        "{argument_decl_name}_subargument_{argument_name}_arguments".format(
-                            argument_decl_name=argument_decl_name,
-                            argument_name=argument["name"].replace("-", "_"))
-                        if argument["has_sub_arguments"] else "NULL"),
-                    argument_context_member_size=(
-                        argument_context_member_size_per_type[argument["type"].replace("-", "").upper()].format(
-                            command_context_struct_name=command_context_struct_name,
-                            argument_name=argument["name"].replace("-", "_"))
-                        if argument["type"].replace("-", "").upper() in argument_context_member_size_per_type else 0),
-                    sub_arguments_count=len(argument["sub_arguments"]),
-                    is_optional="true" if argument["is_optional"] else "false",
-                    is_positional="true" if argument["is_positional"] else "false",
-                    is_sub_argument="true" if argument["is_sub_argument"] else "false",
-                    has_sub_arguments="true" if argument["has_sub_arguments"] else "false",
-                    has_multiple_occurrences="true" if argument["has_multiple_occurrences"] else "false",
-                    has_multiple_token="true" if argument["has_multiple_token"] else "false",
-                    command_context_struct_name=command_context_struct_name,
-                    command_context_field_name=argument["name"].replace("-", "_"),
-                ) +
-                "\n    }}"
-                for argument in arguments
-            ]
+            "    {{\n        " +
+            ",\n        ".join([
+                ".name = \"{name}\"",
+                ".type = MODULE_REDIS_COMMAND_ARGUMENT_TYPE_{type}",
+                ".since = \"{since}\"",
+                # parent can be both NULL or a pointer to an argument
+                ".parent_argument = {parent_argument}",
+                # token can be both NULL or a string, the quoting is taking care in the format below
+                ".token = {token}",
+                # sub_arguments can be both NULL or a pointer to an argument list
+                ".sub_arguments = {sub_arguments}",
+                ".sub_arguments_count = {sub_arguments_count}",
+                ".is_positional = {is_positional}",
+                ".is_optional = {is_optional}",
+                ".is_sub_argument = {is_sub_argument}",
+                ".has_sub_arguments = {has_sub_arguments}",
+                ".has_multiple_occurrences = {has_multiple_occurrences}",
+                ".has_multiple_token = {has_multiple_token}",
+                ".argument_context_member_size = {argument_context_member_size}",
+                ".argument_context_member_offset = "
+                "offsetof({command_context_struct_name}_t,{command_context_field_name})",
+            ]).format(
+                name=argument["name"].replace("-", "_").lower(),
+                type=argument["type"].replace("-", "").upper(),
+                since=argument["since"],
+                parent_argument=(
+                    "&{}_arguments[{}]".format(parent_argument_decl_name, parent_argument_index)
+                    if parent_argument_index is not None else "NULL"),
+                token=(
+                    "\"" + argument["token"] + "\""
+                    if not argument["token"] is None else "NULL"),
+                sub_arguments=(
+                    "{argument_decl_name}_subargument_{argument_name}_arguments".format(
+                        argument_decl_name=argument_decl_name,
+                        argument_name=argument["name"].replace("-", "_"))
+                    if argument["has_sub_arguments"] else "NULL"),
+                argument_context_member_size=(
+                    argument_context_member_size_per_type[argument["type"].replace("-", "").upper()].format(
+                        command_context_struct_name=command_context_struct_name,
+                        argument_name=argument["name"].replace("-", "_"))
+                    if argument["type"].replace("-", "").upper() in argument_context_member_size_per_type else 0),
+                sub_arguments_count=len(argument["sub_arguments"]),
+                is_optional="true" if argument["is_optional"] else "false",
+                is_positional="true" if argument["is_positional"] else "false",
+                is_sub_argument="true" if argument["is_sub_argument"] else "false",
+                has_sub_arguments="true" if argument["has_sub_arguments"] else "false",
+                has_multiple_occurrences="true" if argument["has_multiple_occurrences"] else "false",
+                has_multiple_token="true" if argument["has_multiple_token"] else "false",
+                command_context_struct_name=command_context_struct_name,
+                command_context_field_name=argument["name"].replace("-", "_"),
+            ) +
+            "\n    }}"
+            for argument in arguments
+        ]
         )
 
     def _generate_commands_scaffolding_header_file_command_arguments_structs_definitions(
@@ -307,16 +317,16 @@ class Program:
 
         return header
 
-    @staticmethod
     def _generate_commands_scaffolding_commands_header_command_callback(
+            self,
             command_info: dict) -> str:
         return (
-            "\n".join([
-                "MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END({command_callback_name});",
-                "MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_FREE_AUTOGEN({command_callback_name});",
-            ]).format(
-                command_string=command_info["command_string"],
-                command_callback_name=command_info["command_callback_name"]) + "\n"
+                "\n".join([
+                    "MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END({command_callback_name});",
+                    "MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_FREE_AUTOGEN({command_callback_name});",
+                ]).format(
+                    command_string=command_info["command_string"],
+                    command_callback_name=command_info["command_callback_name"]) + "\n"
         )
 
     @staticmethod
@@ -355,9 +365,9 @@ class Program:
             commands_info: list):
         with open(path.join(
                 self._arguments.commands_scaffolding_path,
-                "module_redis_autogenerated_commands_enum.h"), "w") as fp:
+                self._arguments.files_prefix + "_enum.h"), "w") as fp:
             self._write_header_header(
-                fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_ENUM_H")
+                fp, "CACHEGRAND_MODULE_" + self._arguments.module_name.upper() + "_AUTOGENERATED_COMMANDS_ENUM_H")
 
             fp.writelines([
                 "enum module_redis_commands {\n"
@@ -377,16 +387,16 @@ class Program:
             ])
 
             self._write_header_footer(
-                fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_ENUM_H")
+                fp, "CACHEGRAND_MODULE_" + self._arguments.module_name.upper() + "_AUTOGENERATED_COMMANDS_ENUM_H")
 
     def _generate_commands_module_redis_autogenerated_commands_callbacks_h_header(
             self,
             commands_info: list):
         with open(path.join(
                 self._arguments.commands_scaffolding_path,
-                "module_redis_autogenerated_commands_callbacks.h"), "w") as fp:
+                self._arguments.files_prefix + "_callbacks.h"), "w") as fp:
             self._write_header_header(
-                fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_CALLBACKS_H")
+                fp, "CACHEGRAND_MODULE_" + self._arguments.module_name.upper() + "_AUTOGENERATED_COMMANDS_CALLBACKS_H")
 
             for command_info in commands_info:
                 fp.writelines([
@@ -394,15 +404,15 @@ class Program:
                 ])
 
             self._write_header_footer(
-                fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_CALLBACKS_H")
+                fp, "CACHEGRAND_MODULE_" + self._arguments.module_name.upper() + "_AUTOGENERATED_COMMANDS_CALLBACKS_H")
 
     def _generate_commands_module_redis_autogenerated_commands_arguments_h_header(
             self,
             commands_info: list):
         with open(path.join(
-                self._arguments.commands_scaffolding_path, "module_redis_autogenerated_commands_arguments.h"), "w") as fp:
+                self._arguments.commands_scaffolding_path, self._arguments.files_prefix + "_arguments.h"), "w") as fp:
 
-            self._write_header_header(fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_ARGUMENTS_H")
+            self._write_header_header(fp, "CACHEGRAND_MODULE_" + self._arguments.module_name.upper() + "_AUTOGENERATED_COMMANDS_ARGUMENTS_H")
 
             for command_info in commands_info:
                 fp.writelines([
@@ -426,16 +436,16 @@ class Program:
                     "\n",
                 ])
 
-            self._write_header_footer(fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_ARGUMENTS_H")
+            self._write_header_footer(fp, "CACHEGRAND_MODULE_" + self._arguments.module_name.upper() + "_AUTOGENERATED_COMMANDS_ARGUMENTS_H")
 
     def _generate_commands_module_redis_autogenerated_commands_info_map_h_header(
             self,
             commands_info: list):
         with open(path.join(
-                self._arguments.commands_scaffolding_path, "module_redis_autogenerated_commands_info_map.h"), "w") \
+                self._arguments.commands_scaffolding_path, self._arguments.files_prefix + "_info_map.h"), "w") \
                 as fp:
 
-            self._write_header_header(fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_INFO_MAP_H")
+            self._write_header_header(fp, "CACHEGRAND_MODULE_" + self._arguments.module_name.upper() + "_AUTOGENERATED_COMMANDS_INFO_MAP_H")
 
             fp.writelines(["module_redis_command_info_t command_infos_map[] = {\n"])
             for command_info in commands_info:
@@ -446,7 +456,7 @@ class Program:
                     "{command_callback_name}, "
                     "{required_arguments_count}, "
                     "{has_variable_arguments}, "
-                    "{arguments_count}" 
+                    "{arguments_count}"
                     "),".format(
                         command_callback_name_uppercase=command_info["command_callback_name"].upper(),
                         command_string=command_info["command_string"].lower(),
@@ -459,7 +469,7 @@ class Program:
 
             fp.writelines(["};\n"])
 
-            self._write_header_footer(fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMANDS_INFO_MAP_H")
+            self._write_header_footer(fp, "CACHEGRAND_MODULE_" + self._arguments.module_name.upper() + "_AUTOGENERATED_COMMANDS_INFO_MAP_H")
 
     def _generate_commands_module_redis_command_autogenerated_c_headers_general(
             self,
@@ -504,11 +514,11 @@ class Program:
             "#include \"module/redis/module_redis.h\"",
             "#include \"module/redis/module_redis_connection.h\"",
             "#include \"module/redis/module_redis_command.h\"",
-            "#include \"module_redis_autogenerated_commands_contexts.h\"",
-            "#include \"module_redis_autogenerated_commands_callbacks.h\"",
+            "#include \"" + self._arguments.files_prefix + "_contexts.h\"",
+            "#include \"" + self._arguments.files_prefix + "_callbacks.h\"",
             "",
             "",
-        ]) + "\n")
+            ]) + "\n")
 
     def _generate_commands_module_redis_command_autogenerated_tag_name(
             self,
@@ -580,9 +590,9 @@ class Program:
             commands_info: list):
         with open(path.join(
                 self._arguments.commands_scaffolding_path,
-                "module_redis_autogenerated_commands_contexts.h"), "w") as fp:
+                self._arguments.files_prefix + "_contexts.h"), "w") as fp:
 
-            self._write_header_header(fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMAND_CONTEXTS_H")
+            self._write_header_header(fp, "CACHEGRAND_MODULE_" + self._arguments.module_name.upper() + "_AUTOGENERATED_COMMAND_CONTEXTS_H")
 
             for command_info in commands_info:
                 fp.writelines([
@@ -592,7 +602,7 @@ class Program:
                         command_context_struct_name_suffix=""), "\n",
                 ])
 
-            self._write_header_footer(fp, "CACHEGRAND_MODULE_REDIS_AUTOGENERATED_COMMAND_CONTEXTS_H")
+            self._write_header_footer(fp, "CACHEGRAND_MODULE_" + self._arguments.module_name.upper() + "_AUTOGENERATED_COMMAND_CONTEXTS_H")
 
     def _generate_commands_module_redis_autogenerated_commands_contexts_c_code_free_context(
             self,
@@ -719,7 +729,7 @@ class Program:
             commands_info: list):
         with open(path.join(
                 self._arguments.commands_scaffolding_path,
-                "module_redis_autogenerated_commands_contexts.c"), "w") as fp:
+                self._arguments.files_prefix + "_contexts.c"), "w") as fp:
             self._generate_commands_module_redis_command_autogenerated_c_headers_general(fp)
 
             # TODO: when support for special types will be added it will be necessary to check if extra headers will
@@ -737,7 +747,7 @@ class Program:
             commands_info: list):
         with open(path.join(
                 self._arguments.commands_scaffolding_path,
-                "module_redis_autogenerated_commands_callbacks.c"), "w") as fp_commands_callbacks:
+                self._arguments.files_prefix + "_callbacks.c"), "w") as fp_commands_callbacks:
 
             self._generate_commands_module_redis_command_autogenerated_c_headers_general(fp_commands_callbacks)
 
