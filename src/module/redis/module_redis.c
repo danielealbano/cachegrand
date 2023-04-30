@@ -31,6 +31,7 @@
 #include "memory_allocator/ffma.h"
 #include "config.h"
 #include "fiber/fiber.h"
+#include "fiber/fiber_scheduler.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "protocol/redis/protocol_redis_writer.h"
@@ -43,6 +44,7 @@
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "worker/worker.h"
+#include "worker/worker_fiber.h"
 #include "network/network.h"
 
 #include "module_redis.h"
@@ -51,8 +53,20 @@
 #include "module_redis_command.h"
 #include "module_redis_commands.h"
 
+#include "module/redis/fiber/module_redis_fiber_storage_db_snapshot_rdb.h"
+
 bool worker_module_ctor(
         config_module_t *config_module) {
+    worker_context_t *worker_context = worker_context_get();
+
+    if (!worker_fiber_register(
+            worker_context,
+            "module-redis-fiber-storage-db-snapshot-rdb",
+            module_redis_fiber_storage_db_snapshot_rdb_fiber_entrypoint,
+            NULL)) {
+        return false;
+    }
+
     return true;
 }
 

@@ -332,14 +332,6 @@ bool worker_initialize_storage_db(
         return false;
     }
 
-    if (!worker_fiber_register(
-            worker_context,
-            "worker-fiber-storage-db-snapshot-rdb",
-            worker_fiber_storage_db_snapshot_rdb_fiber_entrypoint,
-            NULL)) {
-        return false;
-    }
-
     return true;
 }
 
