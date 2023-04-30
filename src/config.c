@@ -648,31 +648,20 @@ bool config_validate_after_load_modules_config_valid(
     bool return_result = true;
 
     // Try to search for a module that matches the type
-    uint32_t module_id = 0;
-    module_t *module = NULL;
-    bool module_found = false;
-    while((module = module_get_by_id(module_id++)) != NULL) {
-        if (strcmp(module->config_type_name, config_module->type) != 0) {
-            continue;
-        }
-
-        module_found = true;
-        config_module->module_id = module->id;
-
-        if (module->config_validate_after_load && module->config_validate_after_load(config_module) == false) {
-            return_result = false;
-        }
-
-        break;
-    }
+    module_t *module = module_get_by_name(config_module->type);
 
     // If the module was not found, log an error
-    if (!module_found) {
+    if (!module) {
         LOG_E(
                 TAG,
                 "Module type <%s> unsupported",
                 config_module->type);
         return_result = false;
+    } else {
+        // If the module exports config_validate_after_load, use it to validate the config
+        if (module->config_validate_after_load && module->config_validate_after_load(config_module) == false) {
+            return_result = false;
+        }
     }
 
     return return_result;
