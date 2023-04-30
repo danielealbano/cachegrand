@@ -69,8 +69,8 @@ extern "C" {
     void (*CONCAT(CONCAT(NAME, SECTION_TYPE), fp))(void) ELF_SECTION(SECTION_TYPE_STR) = \
         CONCAT(NAME, SECTION_TYPE); \
 
-#define FUNCTION_CTOR(NAME, ...) FUNCTION_CTOR_DTOR(ctors, ".ctors", NAME, __VA_ARGS__)
-#define FUNCTION_DTOR(NAME, ...) FUNCTION_CTOR_DTOR(dtors, ".dtors", NAME, __VA_ARGS__)
+#define FUNCTION_CTOR(NAME, ...) FUNCTION_CTOR_DTOR(ctors, ".init_array", NAME, __VA_ARGS__)
+#define FUNCTION_DTOR(NAME, ...) FUNCTION_CTOR_DTOR(dtors, ".fini_array", NAME, __VA_ARGS__)
 
 #if (BYTE_ORDER == BIG_ENDIAN)
 #define int16_hton(v) (v)
