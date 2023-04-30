@@ -27,14 +27,15 @@ bool module_redis_config_prepare(
 }
 
 bool module_redis_config_validate_after_load(
-        config_module_t *module) {
+        config_t *config,
+        config_module_t *config_module) {
     bool return_result = true;
 
-    if (module->redis->max_key_length > UINT16_MAX - 1) {
+    if (config_module->redis->max_key_length > UINT16_MAX - 1) {
         LOG_E(
                 TAG,
                 "In module <%s>, the allowed maximum value of max_key_length is <%u>",
-                module->type,
+                config_module->type,
                 UINT16_MAX - 1);
         return_result = false;
     }
