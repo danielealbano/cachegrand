@@ -714,7 +714,9 @@ void program_cleanup(
         xalloc_free(program_context->workers_context);
     }
 
-    program_cleanup_module(program_context);
+    if (program_context->config) {
+        program_cleanup_module(program_context);
+    }
 
     // Ensure that that everything will start to shutdown after the workers have terminated
     program_request_terminate(&program_context->program_terminate_event_loop);
