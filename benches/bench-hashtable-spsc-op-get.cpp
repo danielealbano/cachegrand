@@ -366,7 +366,7 @@ public:
 
                 // Resize the hashtable
                 uint32_t current_size = this->_hashtable->buckets_count_real;
-                this->_hashtable = hashtable_spsc_uspize(this->_hashtable);
+                this->_hashtable = hashtable_spsc_upsize(this->_hashtable);
             }
         }
 
@@ -415,7 +415,7 @@ public:
 
                 // Resize the hashtable
                 uint32_t current_size = this->_hashtable->buckets_count_real;
-                this->_hashtable = hashtable_spsc_uspize(this->_hashtable);
+                this->_hashtable = hashtable_spsc_upsize(this->_hashtable);
             }
         }
 
