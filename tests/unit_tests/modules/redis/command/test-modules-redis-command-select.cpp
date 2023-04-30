@@ -48,9 +48,15 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SELECT", "[r
                 "+OK\r\n"));
     }
 
-    SECTION("Select DB 17 - not allowed") {
+    SECTION("Select DB 15 - allowed") {
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"SELECT", "17"},
+                std::vector<std::string>{"SELECT", "15"},
+                "+OK\r\n"));
+    }
+
+    SECTION("Select DB 16 - not allowed") {
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                std::vector<std::string>{"SELECT", "16"},
                 "-ERR invalid DB index\r\n"));
     }
 
