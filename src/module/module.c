@@ -36,6 +36,9 @@ module_id_t module_register(
         module_worker_module_ctor_cb_t *worker_module_ctor,
         module_worker_module_dtor_cb_t *worker_module_dtor,
         module_connection_accept_cb_t *connection_accept) {
+    assert(name != NULL);
+    assert(connection_accept != NULL);
+
     modules_registered_list_size++;
     modules_registered_list = xalloc_realloc(
             modules_registered_list,
