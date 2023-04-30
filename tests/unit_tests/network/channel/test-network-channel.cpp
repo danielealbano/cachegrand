@@ -88,7 +88,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
         listener_new_cb_user_data.network_channel_size = sizeof(network_channel_t);
 
         SECTION("count ipv4 address") {
-            listener_new_cb_user_data.listeners = NULL;
+            listener_new_cb_user_data.listeners = nullptr;
 
             struct sockaddr_in address = {0};
             address.sin_family = AF_INET;
@@ -100,13 +100,13 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
                     sizeof(address),
                     socket_port_free_ipv4,
                     10,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data));
             REQUIRE(listener_new_cb_user_data.listeners_count == 1);
         }
 
         SECTION("count ipv6 address") {
-            listener_new_cb_user_data.listeners = NULL;
+            listener_new_cb_user_data.listeners = nullptr;
 
             struct sockaddr_in6 address = {
                     AF_INET6,
@@ -122,7 +122,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
                     sizeof(address),
                     socket_port_free_ipv4,
                     10,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data));
             REQUIRE(listener_new_cb_user_data.listeners_count == 1);
         }
@@ -140,7 +140,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
                     sizeof(address),
                     socket_port_free_ipv4,
                     10,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data));
 
             REQUIRE(listener_new_cb_user_data.listeners[0].fd > 0);
@@ -165,7 +165,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
                     sizeof(address),
                     socket_port_free_ipv4,
                     10,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data));
 
             REQUIRE(listener_new_cb_user_data.listeners_count == 3);
@@ -195,7 +195,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
                     sizeof(address),
                     socket_port_free_ipv6,
                     10,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data));
 
             REQUIRE(listener_new_cb_user_data.listeners[0].fd > 0);
@@ -231,7 +231,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
                     sizeof(address4),
                     socket_port_free_ipv4,
                     10,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data));
 
             REQUIRE(network_channel_listener_new_callback(
@@ -240,7 +240,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
                     sizeof(address6),
                     socket_port_free_ipv6,
                     10,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data));
 
             REQUIRE(listener_new_cb_user_data.listeners[0].fd > 0);
@@ -270,7 +270,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
                     sizeof(address),
                     socket_port_free_ipv4,
                     10,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data));
         }
     }
@@ -289,7 +289,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
                     loopback_ipv4_str,
                     socket_port_free_ipv4,
                     10,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data));
 
             REQUIRE(listener_new_cb_user_data.listeners_count == 1);
@@ -307,7 +307,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
                     any_ipv4_str,
                     socket_port_free_ipv4,
                     10,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data));
 
             REQUIRE(listener_new_cb_user_data.listeners_count == 1);
@@ -327,7 +327,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
                     loopback_ipv6_str,
                     socket_port_free_ipv6,
                     10,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data));
 
             REQUIRE(listener_new_cb_user_data.listeners_count == 1);
@@ -350,7 +350,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
                     any_ipv6_str,
                     socket_port_free_ipv6,
                     10,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data));
 
             REQUIRE(listener_new_cb_user_data.listeners_count == 1);
@@ -373,13 +373,13 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
                     "127.0.0.1",
                     socket_port_free_ipv4,
                     10,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data));
             REQUIRE(network_channel_listener_new(
                     "::1",
                     socket_port_free_ipv6,
                     10,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data));
 
             REQUIRE(listener_new_cb_user_data.listeners_count == 2);
@@ -406,7 +406,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
                     "1.2.3.4",
                     socket_port_free_ipv4,
                     10,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data));
 
             REQUIRE(listener_new_cb_user_data.listeners_count == 0);
@@ -418,7 +418,7 @@ TEST_CASE("network/channel/network_channel.c", "[network][network_channel][netwo
                     "2001:db8:3333:4444:5555:6666:7777:8888",
                     socket_port_free_ipv6,
                     10,
-                    MODULE_TYPE_UNKNOWN,
+                    0,
                     &listener_new_cb_user_data));
 
             REQUIRE(listener_new_cb_user_data.listeners_count == 0);

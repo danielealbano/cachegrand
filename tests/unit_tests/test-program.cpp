@@ -85,7 +85,8 @@ void* test_program_wait_loop_terminate(
             .bindings_count = 1, \
     }; \
     config_module_t config_module = { \
-            .type = CONFIG_MODULE_TYPE_REDIS, \
+            .type = "redis", \
+            .module_id = module_get_by_name("redis")->id, \
             .network = &config_module_network, \
     }; \
     config_network_t config_network = { \

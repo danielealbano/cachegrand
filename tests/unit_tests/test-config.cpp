@@ -1027,25 +1027,6 @@ TEST_CASE("config.c", "[config]") {
         }
     }
 
-    SECTION("config_validate_after_load_modules_redis") {
-        SECTION("valid") {
-             err = cyaml_load_data(
-                    (const uint8_t *)(test_config_correct_all_fields_yaml_data.c_str()),
-                    test_config_correct_all_fields_yaml_data.length(),
-                    config_cyaml_config,
-                    config_top_schema,
-                    (cyaml_data_t **)&config,
-                    nullptr);
-
-            REQUIRE(config != nullptr);
-            REQUIRE(err == CYAML_OK);
-
-            REQUIRE(config_validate_after_load_modules_redis(&config->modules[0]));
-
-            cyaml_free(config_cyaml_config, config_top_schema, config, 0);
-        }
-    }
-
     SECTION("config_validate_after_load_modules") {
         SECTION("valid") {
             // Create empty temporary files
