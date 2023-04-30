@@ -63,6 +63,8 @@ FUNCTION_CTOR(module_prometheus_register_ctor, {
             NULL,
             NULL,
             NULL,
+            NULL,
+            NULL,
             module_prometheus_connection_accept);
 });
 
