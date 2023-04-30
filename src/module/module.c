@@ -30,7 +30,6 @@ uint32_t modules_registered_list_size = 0;
 
 module_id_t module_register(
         const char *name,
-        const char *config_section_name,
         module_config_validate_after_load_t *config_validate_after_load,
         module_connection_accept_t *connection_accept) {
     modules_registered_list_size++;
@@ -41,7 +40,6 @@ module_id_t module_register(
     modules_registered_list[modules_registered_list_size - 1] = (module_t) {
             .id = modules_registered_list_size - 1,
             .name = name,
-            .config_type_name = config_section_name,
             .config_validate_after_load = config_validate_after_load,
             .connection_accept = connection_accept,
     };

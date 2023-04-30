@@ -17,7 +17,6 @@ typedef void (module_connection_accept_t)(
 struct module {
     module_id_t id;
     const char *name;
-    const char *config_type_name;
     module_config_validate_after_load_t *config_validate_after_load;
     module_connection_accept_t *connection_accept;
 };
@@ -37,7 +36,6 @@ static inline __attribute__((always_inline)) module_t* module_get_by_id(
 
 module_id_t module_register(
         const char *name,
-        const char *config_section_name,
         module_config_validate_after_load_t *config_validate_after_load,
         module_connection_accept_t *connection_accept);
 
