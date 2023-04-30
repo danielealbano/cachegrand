@@ -5,11 +5,7 @@
 extern "C" {
 #endif
 
-enum config_module_type {
-    CONFIG_MODULE_TYPE_REDIS,
-    CONFIG_MODULE_TYPE_PROMETHEUS
-};
-typedef enum config_module_type config_module_type_t;
+typedef uint32_t module_id_t;
 
 enum config_log_type {
     CONFIG_LOG_TYPE_CONSOLE,
@@ -119,7 +115,8 @@ struct config_module_network {
 
 typedef struct config_module config_module_t;
 struct config_module {
-    config_module_type_t type;
+    char *type;
+    module_id_t module_id;
 
     config_module_network_t *network;
     config_module_redis_t *redis;
@@ -348,9 +345,6 @@ bool config_validate_after_load_modules_network_bindings(
         config_module_t *module);
 
 bool config_validate_after_load_modules_network_tls(
-        config_module_t *module);
-
-bool config_validate_after_load_modules_redis(
         config_module_t *module);
 
 bool config_validate_after_load_modules(

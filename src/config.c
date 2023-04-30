@@ -523,7 +523,7 @@ bool config_validate_after_load_modules_network_timeout(
         LOG_E(
                 TAG,
                 "In module <%s>, read_ms timeout can only be <-1> or a value greater than <0>",
-                config_module_type_schema_strings[module->type].str);
+                module->type);
         return_result = false;
     }
 
@@ -531,7 +531,7 @@ bool config_validate_after_load_modules_network_timeout(
         LOG_E(
                 TAG,
                 "In module <%s>, read_ms timeout can only be <-1> or a value greater than <0>",
-                config_module_type_schema_strings[module->type].str);
+                module->type);
         return_result = false;
     }
 
@@ -551,7 +551,7 @@ bool config_validate_after_load_modules_network_bindings(
             LOG_E(
                     TAG,
                     "In module <%s>, the binding <%s:%d> requires tls but tls is not configured",
-                    config_module_type_schema_strings[module->type].str,
+                    module->type,
                     binding->host,
                     binding->port);
             return_result = false;
@@ -573,7 +573,7 @@ bool config_validate_after_load_modules_network_tls(
         LOG_E(
                 TAG,
                 "In module <%s>, the certificate <%s> doesn't exist",
-                config_module_type_schema_strings[module->type].str,
+                module->type,
                 module->network->tls->certificate_path);
         return_result = false;
     }
@@ -582,7 +582,7 @@ bool config_validate_after_load_modules_network_tls(
         LOG_E(
                 TAG,
                 "In module <%s>, the private key <%s> doesn't exist",
-                config_module_type_schema_strings[module->type].str,
+                module->type,
                 module->network->tls->private_key_path);
         return_result = false;
     }
@@ -592,7 +592,7 @@ bool config_validate_after_load_modules_network_tls(
         LOG_E(
                 TAG,
                 "In module <%s>, the ca certificate chain <%s> doesn't exist",
-                config_module_type_schema_strings[module->type].str,
+                module->type,
                 module->network->tls->ca_certificate_chain_path);
         return_result = false;
     }
@@ -601,7 +601,7 @@ bool config_validate_after_load_modules_network_tls(
         LOG_E(
                 TAG,
                 "In module <%s>, the client certificate verification requires a ca certificate chain",
-                config_module_type_schema_strings[module->type].str);
+                module->type);
         return_result = false;
     }
 
@@ -620,7 +620,7 @@ bool config_validate_after_load_modules_network_keepalive(
         LOG_E(
                 TAG,
                 "In module <%s>, the keepalive time has to be greater than zero",
-                config_module_type_schema_strings[module->type].str);
+                module->type);
         return_result = false;
     }
 
@@ -628,7 +628,7 @@ bool config_validate_after_load_modules_network_keepalive(
         LOG_E(
                 TAG,
                 "In module <%s>, the keepalive interval has to be greater than zero",
-                config_module_type_schema_strings[module->type].str);
+                module->type);
         return_result = false;
     }
 
@@ -636,27 +636,42 @@ bool config_validate_after_load_modules_network_keepalive(
         LOG_E(
                 TAG,
                 "In module <%s>, the keepalive probes has to be greater than zero",
-                config_module_type_schema_strings[module->type].str);
+                module->type);
         return_result = false;
     }
 
     return return_result;
 }
 
-bool config_validate_after_load_modules_redis(
-        config_module_t *module) {
+bool config_validate_after_load_modules_config_valid(
+        config_module_t *config_module) {
     bool return_result = true;
 
-    if (module->type != CONFIG_MODULE_TYPE_REDIS) {
-        return true;
+    // Try to search for a module that matches the type
+    uint32_t module_id = 0;
+    module_t *module = NULL;
+    bool module_found = false;
+    while((module = module_get_by_id(module_id++)) != NULL) {
+        if (strcmp(module->config_type_name, config_module->type) != 0) {
+            continue;
+        }
+
+        module_found = true;
+        config_module->module_id = module->id;
+
+        if (module->config_validate_after_load && module->config_validate_after_load(config_module) == false) {
+            return_result = false;
+        }
+
+        break;
     }
 
-    if (module->redis->max_key_length > FFMA_OBJECT_SIZE_MAX - 1) {
+    // If the module was not found, log an error
+    if (!module_found) {
         LOG_E(
                 TAG,
-                "In module <%s>, the allowed maximum value of max_key_length is <%u>",
-                config_module_type_schema_strings[module->type].str,
-                FFMA_OBJECT_SIZE_MAX - 1);
+                "Module type <%s> unsupported",
+                config_module->type);
         return_result = false;
     }
 
@@ -668,13 +683,13 @@ bool config_validate_after_load_modules(
     bool return_result = true;
 
     for(int module_index = 0; module_index < config->modules_count; module_index++) {
-        config_module_t *module = &config->modules[module_index];
+        config_module_t *config_module = &config->modules[module_index];
 
-        if (config_validate_after_load_modules_network_timeout(module) == false
-            || config_validate_after_load_modules_network_keepalive(module) == false
-            || config_validate_after_load_modules_network_tls(module) == false
-            || config_validate_after_load_modules_network_bindings(module) == false
-            || config_validate_after_load_modules_redis(module) == false) {
+        if (config_validate_after_load_modules_config_valid(config_module) == false
+            || config_validate_after_load_modules_network_timeout(config_module) == false
+            || config_validate_after_load_modules_network_keepalive(config_module) == false
+            || config_validate_after_load_modules_network_tls(config_module) == false
+            || config_validate_after_load_modules_network_bindings(config_module) == false) {
             return_result = false;
         }
     }
