@@ -9,16 +9,25 @@ typedef struct config_module config_module_t;
 typedef struct network_channel network_channel_t;
 
 typedef uint32_t module_id_t;
-typedef bool (module_config_validate_after_load_t)(
+typedef bool (module_config_prepare_cb_t)(
         config_module_t *module);
-typedef void (module_connection_accept_t)(
+typedef bool (module_config_validate_after_load_cb_t)(
+        config_module_t *module);
+typedef bool (module_worker_module_ctor_cb_t)(
+        config_module_t *module);
+typedef bool (module_worker_module_dtor_cb_t)(
+        config_module_t *module);
+typedef void (module_connection_accept_cb_t)(
         network_channel_t *network_channel);
 
 struct module {
     module_id_t id;
     const char *name;
-    module_config_validate_after_load_t *config_validate_after_load;
-    module_connection_accept_t *connection_accept;
+    module_config_prepare_cb_t *config_prepare;
+    module_config_validate_after_load_cb_t *config_validate_after_load;
+    module_worker_module_ctor_cb_t *worker_module_ctor;
+    module_worker_module_dtor_cb_t *worker_module_dtor;
+    module_connection_accept_cb_t *connection_accept;
 };
 typedef struct module module_t;
 
@@ -39,8 +48,11 @@ module_t* module_get_by_name(
 
 module_id_t module_register(
         const char *name,
-        module_config_validate_after_load_t *config_validate_after_load,
-        module_connection_accept_t *connection_accept);
+        module_config_prepare_cb_t *config_prepare,
+        module_config_validate_after_load_cb_t *config_validate_after_load,
+        module_worker_module_ctor_cb_t *worker_module_ctor,
+        module_worker_module_dtor_cb_t *worker_module_dtor,
+        module_connection_accept_cb_t *connection_accept);
 
 #ifdef __cplusplus
 }

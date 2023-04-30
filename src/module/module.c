@@ -31,8 +31,11 @@ uint32_t modules_registered_list_size = 0;
 
 module_id_t module_register(
         const char *name,
-        module_config_validate_after_load_t *config_validate_after_load,
-        module_connection_accept_t *connection_accept) {
+        module_config_prepare_cb_t *config_prepare,
+        module_config_validate_after_load_cb_t *config_validate_after_load,
+        module_worker_module_ctor_cb_t *worker_module_ctor,
+        module_worker_module_dtor_cb_t *worker_module_dtor,
+        module_connection_accept_cb_t *connection_accept) {
     modules_registered_list_size++;
     modules_registered_list = xalloc_realloc(
             modules_registered_list,
@@ -41,7 +44,10 @@ module_id_t module_register(
     modules_registered_list[modules_registered_list_size - 1] = (module_t) {
             .id = modules_registered_list_size - 1,
             .name = name,
+            .config_prepare = config_prepare,
             .config_validate_after_load = config_validate_after_load,
+            .worker_module_ctor = worker_module_ctor,
+            .worker_module_dtor = worker_module_dtor,
             .connection_accept = connection_accept,
     };
 
