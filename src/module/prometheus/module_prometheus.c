@@ -60,9 +60,11 @@ FUNCTION_CTOR(module_prometheus_register_ctor, {
     module_register(
             "prometheus",
             NULL,
+            NULL,
+            NULL,
+            NULL,
             module_prometheus_connection_accept);
 });
-
 
 void module_prometheus_client_new(
         module_prometheus_client_t *module_prometheus_client,
