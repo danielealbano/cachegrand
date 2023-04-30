@@ -231,7 +231,7 @@ add_custom_command(
         TARGET cachegrand-server
         PRE_LINK
         COMMAND
-        nm --format=just-symbols "$<TARGET_FILE:cachegrand-internal>" | grep _[cd]tors_fp | grep -v gcov | xargs -I{} echo -Wl,-u{} > "${CMAKE_CURRENT_BINARY_DIR}/linker_options.txt"
+        nm --format=posix "$<TARGET_FILE:cachegrand-internal>" | grep _[cd]tors_fp | cut -d\  -f1 | xargs -I{} echo -Wl,-u{} > "${CMAKE_CURRENT_BINARY_DIR}/linker_options.txt"
         VERBATIM)
 
 set_target_properties(

@@ -93,7 +93,7 @@ foreach(SRC_CACHEGRAND_BENCH ${SRC_CACHEGRAND_BENCHES})
             TARGET ${CACHEGRAND_BENCH_EXEC_NAME}
             PRE_LINK
             COMMAND
-            nm --format=just-symbols "$<TARGET_FILE:cachegrand-internal>" | grep _[cd]tors_fp | grep -v gcov | xargs -I{} echo -Wl,-u{} > "${CMAKE_CURRENT_BINARY_DIR}/linker_options.txt"
+            nm --format=posix "$<TARGET_FILE:cachegrand-internal>" | grep _[cd]tors_fp | cut -d\  -f1 | xargs -I{} echo -Wl,-u{} > "${CMAKE_CURRENT_BINARY_DIR}/linker_options.txt"
             VERBATIM)
 
     set_target_properties(
