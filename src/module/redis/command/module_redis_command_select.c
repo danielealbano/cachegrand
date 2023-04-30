@@ -42,7 +42,7 @@
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(select) {
     module_redis_command_select_context_t *context = connection_context->command.context;
 
-    if (context->index.value > connection_context->db->config->max_user_databases) {
+    if (context->index.value >= connection_context->db->config->max_user_databases) {
         return module_redis_connection_error_message_printf_noncritical(
                 connection_context,
                 "ERR invalid DB index");
