@@ -65,7 +65,6 @@
 #include "worker/fiber/worker_fiber_storage_db_gc_deleted_entries.h"
 #include "worker/fiber/worker_fiber_storage_db_initialize.h"
 #include "worker/fiber/worker_fiber_storage_db_keys_eviction.h"
-#include "worker/fiber/worker_fiber_storage_db_snapshot_rdb.h"
 
 #define TAG "worker"
 
@@ -193,6 +192,21 @@ bool worker_initialize_storage(
     return true;
 }
 
+bool worker_initialize_module(
+        worker_context_t *worker_context) {
+    for(int module_index = 0; module_index < worker_context->config->modules_count; module_index++) {
+        config_module_t *config_module = &worker_context->config->modules[module_index];
+        module_t *module = module_get_by_id(config_module->module_id);
+
+        if (module->worker_module_ctor && !module->worker_module_ctor(config_module)) {
+            LOG_E(TAG, "Failed to initialize module <%s>, terminating", module->name);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void worker_shutdown_network_listeners(
         network_channel_t *listeners,
         uint8_t listeners_count) {
@@ -227,12 +241,20 @@ void worker_cleanup_storage(
     if (worker_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {
         worker_storage_iouring_cleanup(worker_context); // lgtm [cpp/useless-expression]
     }
+}
 
-    // TODO: at this point in time there may be data in the buffers waiting to be written and this can lead to potential
-    //       data loss / data corruption
+bool worker_cleanup_module(
+        worker_context_t* worker_context) {
+    for(int module_index = 0; module_index < worker_context->config->modules_count; module_index++) {
+        config_module_t *config_module = &worker_context->config->modules[module_index];
+        module_t *module = module_get_by_id(config_module->module_id);
 
-    // TODO: Should flush any open fd (device, file or directory) and then close them to ensure data are synced on the
-    //       disk
+        if (module->worker_module_dtor && !module->worker_module_dtor(config_module)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 void worker_cleanup_general(
@@ -328,6 +350,9 @@ void worker_cleanup(
         uint8_t listeners_count,
         worker_module_context_t *worker_module_contexts,
         bool aborted) {
+    worker_cleanup_module(
+            worker_context);
+
     worker_fiber_free(
             worker_context);
 
@@ -398,6 +423,11 @@ void* worker_thread_func(
     }
 
     if (worker_initialize_storage_db(worker_context) == false) {
+        LOG_E(TAG, "Unable to initialize the database!");
+        goto end;
+    }
+
+    if (worker_initialize_module(worker_context) == false) {
         LOG_E(TAG, "Unable to initialize the database!");
         goto end;
     }
