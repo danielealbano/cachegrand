@@ -227,7 +227,6 @@ if (CMAKE_C_LINK_PIE_SUPPORTED AND CMAKE_BUILD_TYPE MATCHES Release)
     set_property(TARGET cachegrand-server PROPERTY POSITION_INDEPENDENT_CODE TRUE)
 endif()
 
-
 add_custom_command(
         TARGET cachegrand-server
         PRE_LINK
@@ -239,5 +238,4 @@ set_target_properties(
         cachegrand-server
         PROPERTIES
         LINK_FLAGS
-        "@${CMAKE_CURRENT_BINARY_DIR}/linker_options.txt"
-)
+        "@${CMAKE_CURRENT_BINARY_DIR}/linker_options.txt")
