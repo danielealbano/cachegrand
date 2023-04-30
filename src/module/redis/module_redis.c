@@ -51,9 +51,17 @@
 #include "module_redis_command.h"
 #include "module_redis_commands.h"
 
+bool worker_module_ctor(
+        config_module_t *config_module) {
+    return true;
+}
+
 FUNCTION_CTOR(module_redis_register_ctor, {
     module_register(
             "redis",
+            module_redis_config_prepare,
             module_redis_config_validate_after_load,
+            worker_module_ctor,
+            NULL,
             module_redis_connection_accept);
 });

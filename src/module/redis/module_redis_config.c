@@ -20,6 +20,12 @@
 
 #define TAG "module_redis_config"
 
+bool module_redis_config_prepare(
+        config_module_t *module) {
+
+    return true;
+}
+
 bool module_redis_config_validate_after_load(
         config_module_t *module) {
     bool return_result = true;
