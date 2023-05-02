@@ -109,7 +109,7 @@ uint64_t intrinsics_frequency_max_calculate() {
     return return_value;
 }
 
-bool intrinsics_frequency_max_estimated() {
+bool intrinsics_frequency_max_is_estimated() {
 #if defined(__x86_64__)
     return intrinsics_frequency_calculate_max_x64_cpuid_level_16h() > 0 ? false : true;
 #elif defined(__aarch64__)

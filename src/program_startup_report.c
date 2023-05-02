@@ -104,7 +104,7 @@ void program_startup_report_machine_clock() {
     LOG_I(
             TAG,
             "> Monotonic clock source <Hardware (TSC)> (%scpu cycles per second <%0.02lf GHz>), resolution <%ld ms>",
-            intrinsics_frequency_max_estimated() ? "estimated " : "",
+            intrinsics_frequency_max_is_estimated() ? "estimated " : "",
             (double)intrinsics_frequency_max() / 1000000000.0f,
             clock_monotonic_coarse_get_resolution_ms());
 }
