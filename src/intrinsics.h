@@ -19,7 +19,7 @@ uint64_t intrinsics_frequency_max_calculate_simple();
 
 uint64_t intrinsics_frequency_max_calculate();
 
-bool intrinsics_frequency_max_estimated();
+bool intrinsics_frequency_max_is_estimated();
 
 static inline uint64_t intrinsics_frequency_max() {
     if (unlikely(intrinsics_frequency_max_internal == 0)) {
