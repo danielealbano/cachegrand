@@ -39,7 +39,9 @@
 #include "config.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
+#include "storage/channel/storage_buffered_channel.h"
 #include "storage/storage.h"
+#include "storage/storage_buffered.h"
 #include "storage/db/storage_db.h"
 #include "module/redis/snapshot/module_redis_snapshot.h"
 #include "module/redis/snapshot/module_redis_snapshot_serialize_primitive.h"
@@ -48,24 +50,14 @@
 
 #define TAG "storage_db_snapshot"
 
-bool storage_db_snapshot_rdb_write_buffer(
+void storage_db_snapshot_rdb_release_slice(
         storage_db_t *db,
-        uint8_t *buffer,
-        size_t buffer_size) {
-    // Write the buffer to the snapshot file
-    if (!storage_write(
-            db->snapshot.storage_channel,
-            (char*)buffer,
-            buffer_size,
-            db->snapshot.offset)) {
-        LOG_E(TAG, "Failed to write the snapshot buffer");
-        return false;
-    }
+        size_t slice_used_length) {
+    storage_buffered_write_buffer_release_slice(
+            db->snapshot.storage_buffered_channel,
+            slice_used_length);
 
-    db->snapshot.stats.data_written += buffer_size;
-    db->snapshot.offset += (off_t)buffer_size;
-
-    return true;
+    db->snapshot.stats.data_written += slice_used_length;
 }
 
 void storage_db_snapshot_completed(
@@ -121,9 +113,12 @@ void storage_db_snapshot_failed(
 
     // Close the snapshot file and delete the file from the disk
     if (db->snapshot.storage_channel_opened) {
-        storage_close(db->snapshot.storage_channel);
+        // Flush the buffer before closing the channel
+        storage_buffered_flush_write(db->snapshot.storage_buffered_channel);
+        storage_close(db->snapshot.storage_buffered_channel->storage_channel);
         db->snapshot.storage_channel_opened = false;
         MEMORY_FENCE_STORE();
+        storage_buffered_channel_free(db->snapshot.storage_buffered_channel);
     }
 
     // Check if the snapshot file exists and, if yes, delete it
@@ -217,10 +212,9 @@ void storage_db_snapshot_rdb_internal_status_reset(
         storage_db_t *db) {
     // Reset the status of the snapshot
     memset(&db->snapshot.stats, 0, sizeof(db->snapshot.stats));
-    db->snapshot.storage_channel = NULL;
+    db->snapshot.storage_buffered_channel = NULL;
     db->snapshot.storage_channel_opened = false;
     db->snapshot.block_index = 0;
-    db->snapshot.offset = 0;
     db->snapshot.progress_reported_at_ms = clock_monotonic_int64_ms();
     db->snapshot.start_time_ms = 0;
     db->snapshot.end_time_ms = 0;
@@ -234,11 +228,11 @@ void storage_db_snapshot_rdb_internal_status_reset(
 bool storage_db_snapshot_rdb_prepare(
         storage_db_t *db) {
     storage_io_common_fd_t snapshot_fd = 0;
+    storage_buffered_channel_buffer_data_t *buffer;
+    size_t buffer_size = 128;
+    size_t buffer_offset = 0;
     char snapshot_path[PATH_MAX];
     struct stat parent_path_stat;
-    uint8_t buffer[128] = { 0 };
-    size_t buffer_size = sizeof(buffer);
-    size_t buffer_offset = 0;
     storage_db_config_t *config = db->config;
     bool result = true;
 
@@ -282,24 +276,38 @@ bool storage_db_snapshot_rdb_prepare(
 
     // If the snapshot was generated correctly, the file description has to be encapsulated in a storage_channel_t
     // object to safely operate on it using the storage subsystem and the fibers.
-    if ((db->snapshot.storage_channel = storage_open_fd(snapshot_fd)) == NULL) {
+    storage_channel_t *storage_channel = NULL;
+    if ((storage_channel = storage_open_fd(snapshot_fd)) == NULL) {
         LOG_E(TAG, "Unable to open the snapshot file descriptor");
         result = false;
         goto end;
     }
 
-    // Mark the storage channel as opened
+    // Wrap the storage channel in a storage buffered channel and mark it as opened
+    db->snapshot.storage_buffered_channel = storage_buffered_channel_new(storage_channel);
     db->snapshot.storage_channel_opened = true;
 
     // Duplicate the path of the storage channel
-    db->snapshot.path = ffma_mem_alloc_zero(db->snapshot.storage_channel->path_len + 1);
-    strncpy(db->snapshot.path, db->snapshot.storage_channel->path, db->snapshot.storage_channel->path_len);
+    db->snapshot.path = ffma_mem_alloc_zero(db->snapshot.storage_buffered_channel->storage_channel->path_len + 1);
+    strncpy(
+            db->snapshot.path,
+            db->snapshot.storage_buffered_channel->storage_channel->path,
+            db->snapshot.storage_buffered_channel->storage_channel->path_len);
+
+    // Acquire a slice of the buffer
+    if ((buffer = storage_buffered_write_buffer_acquire_slice(
+            db->snapshot.storage_buffered_channel,
+            buffer_size)) == NULL) {
+        LOG_E(TAG, "Failed to acquire a slice for the snapshot header");
+        result = false;
+        goto end;
+    }
 
     // Write the snapshot header
     module_redis_snapshot_header_t header = { .version = STORAGE_DB_SNAPSHOT_RDB_VERSION };
     if (module_redis_snapshot_serialize_primitive_encode_header(
             &header,
-            buffer,
+            (uint8_t*)buffer,
             buffer_size,
             0,
             &buffer_offset) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK) {
@@ -308,11 +316,8 @@ bool storage_db_snapshot_rdb_prepare(
         goto end;
     }
 
-    if (!storage_db_snapshot_rdb_write_buffer(db, buffer, buffer_offset)) {
-        LOG_E(TAG, "Failed to write the snapshot header");
-        result = false;
-        goto end;
-    }
+    // Release the buffer slice
+    storage_db_snapshot_rdb_release_slice(db, buffer_offset);
 
     // Set the database number to zero and write it
     db->snapshot.current_database_number = 0;
@@ -359,7 +364,7 @@ bool storage_db_snapshot_rdb_ensure_prepared(
     }
 
     // Check if the status is different from IN_PREPARATION, in which case the snapshot is being prepared by another
-    // thread so we just need to wait for it to be ready
+    // thread, so we just need to wait for it to be ready
     MEMORY_FENCE_LOAD();
     if (db->snapshot.status == STORAGE_DB_SNAPSHOT_STATUS_IN_PREPARATION) {
         storage_db_snapshot_wait_for_prepared(db);
@@ -386,25 +391,35 @@ bool storage_db_snapshot_rdb_write_value_header(
         size_t key_length,
         storage_db_entry_index_t *entry_index) {
     bool result = true;
-    uint8_t buffer[128] = { 0 };
-    size_t buffer_size = sizeof(buffer);
+    bool buffer_can_contain_key = false;
+    storage_buffered_channel_buffer_data_t *buffer;
+    size_t buffer_size = 128;
     size_t buffer_offset = 0;
+
+    if (buffer_size + key_length < db->snapshot.storage_buffered_channel->buffers.write.buffer.length) {
+        buffer_can_contain_key = true;
+        buffer_size += db->snapshot.storage_buffered_channel->buffers.write.buffer.length;
+    }
+
+    // Acquire a slice of the buffer
+    if ((buffer = storage_buffered_write_buffer_acquire_slice(
+            db->snapshot.storage_buffered_channel,
+            buffer_size)) == NULL) {
+        LOG_E(TAG, "Failed to acquire a slice for the value header");
+        result = false;
+        goto end;
+    }
 
     // Check if the entry has an expiration time
     if (entry_index->expiry_time_ms != 0) {
-        // Serialize and write the expire time opcode
+        // Serialize and write the expiry time opcode
         if (module_redis_snapshot_serialize_primitive_encode_opcode_expire_time_ms(
                 entry_index->expiry_time_ms,
-                buffer,
+                (uint8_t*)buffer,
                 buffer_size,
-                0,
+                buffer_offset,
                 &buffer_offset) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK) {
             LOG_E(TAG, "Failed to write the expire time opcode");
-            result = false;
-            goto end;
-        }
-
-        if (!storage_db_snapshot_rdb_write_buffer(db, buffer, buffer_offset)) {
             result = false;
             goto end;
         }
@@ -413,16 +428,11 @@ bool storage_db_snapshot_rdb_write_value_header(
     // Serialize and write the value type opcode
     if (module_redis_snapshot_serialize_primitive_encode_opcode_value_type(
             MODULE_REDIS_SNAPSHOT_VALUE_TYPE_STRING,
-            buffer,
+            (uint8_t*)buffer,
             buffer_size,
-            0,
+            buffer_offset,
             &buffer_offset) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK) {
         LOG_E(TAG, "Failed to write the value type opcode");
-        result = false;
-        goto end;
-    }
-
-    if (!storage_db_snapshot_rdb_write_buffer(db, buffer, buffer_offset)) {
         result = false;
         goto end;
     }
@@ -430,25 +440,37 @@ bool storage_db_snapshot_rdb_write_value_header(
     // Encode the key length
     if (module_redis_snapshot_serialize_primitive_encode_length(
             key_length,
-            buffer,
+            (uint8_t*)buffer,
             buffer_size,
-            0,
+            buffer_offset,
             &buffer_offset) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK) {
         LOG_E(TAG, "Failed to write the key length");
         result = false;
         goto end;
     }
 
-    if (!storage_db_snapshot_rdb_write_buffer(db, buffer, buffer_offset)) {
-        result = false;
-        goto end;
+    if (!buffer_can_contain_key) {
+        // Release the current slice and acquire a new one for the key
+        storage_db_snapshot_rdb_release_slice(db,buffer_offset);
+
+        // Acquire a slice of the buffer
+        if ((buffer = storage_buffered_write_buffer_acquire_slice(
+                db->snapshot.storage_buffered_channel,
+                key_length)) == NULL) {
+            LOG_E(TAG, "Failed to acquire a slice for the key");
+            result = false;
+            goto end;
+        }
+
+        buffer_offset = 0;
     }
 
-    // Write the key
-    if (!storage_db_snapshot_rdb_write_buffer(db, (uint8_t*)key, key_length)) {
-        result = false;
-        goto end;
-    }
+    // Copy the key onto the destination buffer
+    memcpy(buffer + buffer_offset, key, key_length);
+    buffer_offset += key_length;
+
+    // Release the current slice
+    storage_db_snapshot_rdb_release_slice(db, buffer_offset);
 
 end:
     return result;
@@ -457,8 +479,8 @@ end:
 bool storage_db_snapshot_rdb_write_value_string(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index) {
-    uint8_t buffer[128] = { 0 };
-    size_t buffer_size = sizeof(buffer);
+    storage_buffered_channel_buffer_data_t *buffer;
+    size_t buffer_size;
     size_t buffer_offset = 0;
     int64_t string_integer;
     bool result = true;
@@ -483,9 +505,19 @@ bool storage_db_snapshot_rdb_write_value_string(
                     string,
                     entry_index->value.size,
                     &string_integer)) {
+                // Acquire a slice of the buffer
+                buffer_size = 128;
+                if ((buffer = storage_buffered_write_buffer_acquire_slice(
+                        db->snapshot.storage_buffered_channel,
+                        buffer_size)) == NULL) {
+                    LOG_E(TAG, "Failed to acquire a slice for the small string as int");
+                    result = false;
+                    goto end;
+                }
+
                 if (unlikely(module_redis_snapshot_serialize_primitive_encode_small_string_int(
                         string_integer,
-                        buffer,
+                        (uint8_t*)buffer,
                         buffer_size,
                         0,
                         &buffer_offset) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK)) {
@@ -494,11 +526,8 @@ bool storage_db_snapshot_rdb_write_value_string(
                     goto end;
                 }
 
-                if (unlikely(!storage_db_snapshot_rdb_write_buffer(db, buffer, buffer_offset))) {
-                    result = false;
-                    goto end;
-                }
-
+                // Release the slice
+                storage_db_snapshot_rdb_release_slice(db, buffer_offset);
                 string_serialized = true;
             }
         }
@@ -539,10 +568,20 @@ bool storage_db_snapshot_rdb_write_value_string(
     // If the string hasn't been serialized via the fast path or is too long, serialize it as a regular
     // string
     if (unlikely(!string_serialized)) {
+        // Acquire a slice of the buffer to write the string length
+        buffer_size = 128;
+        if ((buffer = storage_buffered_write_buffer_acquire_slice(
+                db->snapshot.storage_buffered_channel,
+                buffer_size)) == NULL) {
+            LOG_E(TAG, "Failed to acquire a slice for the string value");
+            result = false;
+            goto end;
+        }
+
         // Encode the string length
         if (unlikely(module_redis_snapshot_serialize_primitive_encode_length(
                 entry_index->value.size,
-                buffer,
+                (uint8_t*)buffer,
                 buffer_size,
                 0,
                 &buffer_offset) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK)) {
@@ -551,10 +590,8 @@ bool storage_db_snapshot_rdb_write_value_string(
             goto end;
         }
 
-        if (unlikely(!storage_db_snapshot_rdb_write_buffer(db, buffer, buffer_offset))) {
-            result = false;
-            goto end;
-        }
+        // Release the slice
+        storage_db_snapshot_rdb_release_slice(db, buffer_offset);
 
         for(uint32_t chunk_index = 0; chunk_index < entry_index->value.count; chunk_index++) {
             chunk_info = storage_db_chunk_sequence_get(
@@ -566,14 +603,25 @@ bool storage_db_snapshot_rdb_write_value_string(
                     chunk_info,
                     &string_allocated_new_buffer);
 
-            // Write the string
-            if (unlikely(!storage_db_snapshot_rdb_write_buffer(
-                    db,
-                    (uint8_t*)string,
-                    chunk_info->chunk_length))) {
+            if (!string) {
+                LOG_E(TAG, "Failed to read the chunk data");
                 result = false;
                 goto end;
             }
+
+            // Acquire a slice of the buffer
+            if ((buffer = storage_buffered_write_buffer_acquire_slice(
+                    db->snapshot.storage_buffered_channel,
+                    chunk_info->chunk_length)) == NULL) {
+                LOG_E(TAG, "Failed to acquire a slice for the string data");
+                result = false;
+                goto end;
+            }
+
+            memcpy(buffer, string, chunk_info->chunk_length);
+
+            // Release the slice
+            storage_db_snapshot_rdb_release_slice(db, chunk_info->chunk_length);
 
             // Free the string if it was allocated
             if (string_allocated_new_buffer) {
@@ -590,13 +638,22 @@ bool storage_db_snapshot_rdb_write_database_number(
         storage_db_t *db,
         storage_db_database_number_t database_number) {
     bool result = true;
-    uint8_t buffer[128] = { 0 };
-    size_t buffer_size = sizeof(buffer);
+    storage_buffered_channel_buffer_data_t *buffer;
+    size_t buffer_size = 128;
     size_t buffer_offset = 0;
+
+    // Acquire a slice of the buffer
+    if ((buffer = storage_buffered_write_buffer_acquire_slice(
+            db->snapshot.storage_buffered_channel,
+            buffer_size)) == NULL) {
+        LOG_E(TAG, "Failed to acquire a slice for the database number");
+        result = false;
+        goto end;
+    }
 
     if (module_redis_snapshot_serialize_primitive_encode_opcode_db_number(
             database_number,
-            buffer,
+            (uint8_t*)buffer,
             buffer_size,
             0,
             &buffer_offset) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK) {
@@ -605,10 +662,8 @@ bool storage_db_snapshot_rdb_write_database_number(
         goto end;
     }
 
-    if (!storage_db_snapshot_rdb_write_buffer(db, buffer, buffer_offset)) {
-        result = false;
-        goto end;
-    }
+    // Release the slice
+    storage_db_snapshot_rdb_release_slice(db, buffer_offset);
 
 end:
 
@@ -625,7 +680,7 @@ bool storage_db_snapshot_rdb_process_entry_index(
     // Check if the snapshot time of the entry is after the start of the snapshot process
     if (entry_index->snapshot_time_ms > db->snapshot.start_time_ms) {
         // If the snapshot time of the entry is newer than the snapshot start time, it means that the entry has been
-        // deleted or modified and pushed in the queue after the snapshot process has started. Therefore it has already
+        // deleted or modified and pushed in the queue after the snapshot process has started. Therefore, it has already
         // been serialized and we can skip it
         return true;
     }
@@ -665,12 +720,16 @@ void storage_db_snapshot_mark_as_being_finalized(
 
 bool storage_db_snapshot_completed_successfully(
         storage_db_t *db) {
+    // Flush the buffer before closing the channel
+    storage_buffered_flush_write(db->snapshot.storage_buffered_channel);
+
     // Close storage channel of the snapshot
-    if (!storage_close(db->snapshot.storage_channel)) {
+    if (!storage_close(db->snapshot.storage_buffered_channel->storage_channel)) {
         return false;
     }
 
     db->snapshot.storage_channel_opened = false;
+    storage_buffered_channel_free(db->snapshot.storage_buffered_channel);
     MEMORY_FENCE_STORE();
 
     if (db->config->snapshot.rotation_max_files > 1) {
@@ -750,24 +809,30 @@ bool storage_db_snapshot_completed_successfully(
 
 bool storage_db_snapshot_rdb_completed_successfully(
         storage_db_t *db) {
-    uint8_t buffer[128] = { 0 };
-    size_t buffer_size = sizeof(buffer);
+    storage_buffered_channel_buffer_data_t *buffer;
+    size_t buffer_size = 128;
     size_t buffer_offset = 0;
+
+    // Acquire a slice of the buffer
+    if ((buffer = storage_buffered_write_buffer_acquire_slice(
+            db->snapshot.storage_buffered_channel,
+            buffer_size)) == NULL) {
+        LOG_E(TAG, "Failed to acquire a slice for the snapshot end of file");
+        return false;
+    }
 
     // TODO: add the checksum
     if (module_redis_snapshot_serialize_primitive_encode_opcode_eof(
             0,
-            buffer,
+            (uint8_t*)buffer,
             buffer_size,
             0,
             &buffer_offset) != MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK) {
         return false;
     }
 
-    // Write the block to the snapshot file
-    if (!storage_db_snapshot_rdb_write_buffer(db, buffer, buffer_offset)) {
-        return false;
-    }
+    // Release the slice
+    storage_db_snapshot_rdb_release_slice(db, buffer_offset);
 
     return storage_db_snapshot_completed_successfully(db);
 }
