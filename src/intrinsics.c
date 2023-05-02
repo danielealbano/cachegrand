@@ -38,19 +38,20 @@ uint64_t intrinsics_frequency_max_calculate_aarch64_cntfrq_el0() {
 
 #if defined(__x86_64__)
 uint64_t intrinsics_frequency_calculate_max_x64_cpuid_level_16h() {
-    uint32_t eax, ebx, ecx, edx;
+    uint32_t base_mhz, max_mhz, bus_mhz, edx;
+
     if (__get_cpuid_max(0, NULL) < 0x16) {
         return 0;
     }
 
-    __cpuid_count(0x16, 0, eax, ebx, ecx, edx);
+    __cpuid_count(0x16, 0, base_mhz, max_mhz, bus_mhz, edx);
 
-    if (eax == 0) {
+    if (base_mhz == 0) {
         return 0;
     }
 
-    uint64_t cycles = ebx;
-    cycles *= 1000;
+    uint64_t cycles = base_mhz;
+    cycles *= 1000000;
 
     return cycles;
 }
