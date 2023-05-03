@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#define STORAGE_BUFFERED_PAGE_SIZE (4 * 1024)
+
 off_t storage_buffered_get_offset(
         storage_buffered_channel_t *storage_buffered_channel,
         off_t offset);
@@ -23,6 +25,14 @@ storage_buffered_channel_buffer_data_t *storage_buffered_write_buffer_acquire_sl
 void storage_buffered_write_buffer_release_slice(
         storage_buffered_channel_t *storage_buffered_channel,
         size_t slice_used_length);
+
+size_t storage_buffered_read_buffer_acquire_slice(
+        storage_buffered_channel_t *storage_buffered_channel,
+        size_t slice_length,
+        storage_buffered_channel_buffer_data_t **buffer_out);
+
+void storage_buffered_read_buffer_release_slice(
+        storage_buffered_channel_t *storage_buffered_channel);
 
 #ifdef __cplusplus
 }

@@ -98,3 +98,72 @@ void storage_buffered_write_buffer_release_slice(
     storage_buffered_channel->buffers.write.slice_acquired_length = 0;
 #endif
 }
+
+size_t storage_buffered_read_buffer_acquire_slice(
+        storage_buffered_channel_t *storage_buffered_channel,
+        size_t slice_length,
+        storage_buffered_channel_buffer_data_t **buffer_out) {
+    assert(storage_buffered_channel->buffers.read.slice_acquired_length > 0);
+    assert(slice_length <= storage_buffered_channel->buffers.read.slice_acquired_length);
+
+    *buffer_out = NULL;
+
+    size_t data_offset = storage_buffered_channel->buffers.read.buffer.data_offset;
+    size_t data_available = storage_buffered_channel->buffers.read.buffer.data_size - data_offset;
+
+    // Check if more data are needed
+    if (unlikely(slice_length > data_available)) {
+        // Move the data in the buffer at the beginning and try to fill out the remaining
+        if (unlikely(data_available > storage_buffered_channel->buffers.read.buffer.length >> 1)) {
+            // Uses memmove if there will be overlap
+            memmove(
+                    storage_buffered_channel->buffers.read.buffer.data,
+                    storage_buffered_channel->buffers.read.buffer.data + data_offset,
+                    data_available);
+        } else {
+            memcpy(
+                    storage_buffered_channel->buffers.read.buffer.data,
+                    storage_buffered_channel->buffers.read.buffer.data + data_offset,
+                    data_available);
+        }
+
+        // Calculate how much data it needs to read and rounds it up to a full 4KB page and add an extra 4kB page
+        size_t data_to_read = slice_length - data_available;
+        data_to_read = data_to_read - (data_to_read % STORAGE_BUFFERED_PAGE_SIZE) + (STORAGE_BUFFERED_PAGE_SIZE * 2);
+
+        // Try to read the requested size from the disk, returns what has been found
+        size_t read_len = storage_read_try(
+                storage_buffered_channel->storage_channel,
+                storage_buffered_channel->buffers.read.buffer.data + data_available,
+                data_to_read,
+                storage_buffered_channel->offset);
+
+        storage_buffered_channel->buffers.read.buffer.data_size = data_available + read_len;
+        storage_buffered_channel->buffers.read.buffer.data_offset = 0;
+
+        data_available = storage_buffered_channel->buffers.read.buffer.data_size;
+        data_offset = 0;
+    }
+
+    // Calculate the slice length that can actually be acquired
+    slice_length = MIN(data_available, slice_length);
+
+    // Set the buffer output
+    *buffer_out = storage_buffered_channel->buffers.read.buffer.data + data_offset;
+
+    // Update the data offset
+    storage_buffered_channel->buffers.read.buffer.data_offset += slice_length;
+
+#if DEBUG == 1
+    storage_buffered_channel->buffers.read.slice_acquired_length = slice_length;
+#endif
+
+    return slice_length;
+}
+
+void storage_buffered_read_buffer_release_slice(
+        storage_buffered_channel_t *storage_buffered_channel) {
+#if DEBUG == 1
+    storage_buffered_channel->buffers.read.slice_acquired_length = 0;
+#endif
+}
