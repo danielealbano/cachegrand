@@ -9,10 +9,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <assert.h>
 
 #include "misc.h"
-#include "exttypes.h"
 #include "log/log.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
