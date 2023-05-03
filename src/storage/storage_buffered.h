@@ -8,8 +8,7 @@ extern "C" {
 #define STORAGE_BUFFERED_PAGE_SIZE (4 * 1024)
 
 off_t storage_buffered_get_offset(
-        storage_buffered_channel_t *storage_buffered_channel,
-        off_t offset);
+        storage_buffered_channel_t *storage_buffered_channel);
 
 void storage_buffered_set_offset(
         storage_buffered_channel_t *storage_buffered_channel,
