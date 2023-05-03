@@ -56,6 +56,7 @@ bool storage_buffered_flush_write(
 
     storage_buffered_channel->offset += (off_t)storage_buffered_channel->buffers.write.buffer.data_size;
     storage_buffered_channel->buffers.write.buffer.data_size = 0;
+    storage_buffered_channel->buffers.write.buffer.data_offset = 0;
 
     return true;
 }
