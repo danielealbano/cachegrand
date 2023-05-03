@@ -24,8 +24,7 @@
 #define TAG "storage_buffered"
 
 off_t storage_buffered_get_offset(
-        storage_buffered_channel_t *storage_buffered_channel,
-        off_t offset) {
+        storage_buffered_channel_t *storage_buffered_channel) {
     return storage_buffered_channel->offset;
 }
 
