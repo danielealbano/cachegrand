@@ -13,6 +13,12 @@ storage_channel_t* storage_open(
 storage_channel_t* storage_open_fd(
         storage_io_common_fd_t fd);
 
+size_t storage_readv_internal(
+        storage_channel_t *channel,
+        storage_io_common_iovec_t *iov,
+        size_t iov_nr,
+        off_t offset);
+
 bool storage_readv(
         storage_channel_t *channel,
         storage_io_common_iovec_t *iov,
@@ -21,6 +27,12 @@ bool storage_readv(
         off_t offset);
 
 bool storage_read(
+        storage_channel_t *channel,
+        char *buffer,
+        size_t buffer_len,
+        off_t offset);
+
+size_t storage_read_try(
         storage_channel_t *channel,
         char *buffer,
         size_t buffer_len,
