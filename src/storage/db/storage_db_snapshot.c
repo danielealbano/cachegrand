@@ -398,7 +398,7 @@ bool storage_db_snapshot_rdb_write_value_header(
 
     if (buffer_size + key_length < db->snapshot.storage_buffered_channel->buffers.write.buffer.length) {
         buffer_can_contain_key = true;
-        buffer_size += db->snapshot.storage_buffered_channel->buffers.write.buffer.length;
+        buffer_size += key_length;
     }
 
     // Acquire a slice of the buffer
