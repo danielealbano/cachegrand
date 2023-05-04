@@ -85,7 +85,7 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
             new_channel->wrapped_channel.address.str,
             sizeof(new_channel->wrapped_channel.address.str));
 
-    if (unlikely(stats->network.total.active_connections >= worker_context->config->network->max_clients)) {
+    if (unlikely(stats->network.active_connections >= worker_context->config->network->max_clients)) {
         LOG_V(
                 TAG,
                 "[FD:%5d][ACCEPT] Maximum active connections established, can't accept any new connection",

@@ -128,10 +128,8 @@ network_op_result_t network_receive(
 
         // Update stats
         worker_stats_t *stats = worker_stats_get_internal_current();
-        stats->network.per_minute.received_packets++;
-        stats->network.total.received_packets++;
-        stats->network.per_minute.received_data += received_length;
-        stats->network.total.received_data += received_length;
+        stats->network.received_packets++;
+        stats->network.received_data += received_length;
 
         LOG_DI(
                 "[FD:%5d][RECV] Received <%lu> bytes from client <%s>",
@@ -287,10 +285,8 @@ network_op_result_t network_send_direct_wrapper(
 
     if (likely(res == NETWORK_OP_RESULT_OK)) {
         worker_stats_t *stats = worker_stats_get_internal_current();
-        stats->network.per_minute.sent_packets++;
-        stats->network.total.sent_packets++;
-        stats->network.per_minute.sent_data += sent_length;
-        stats->network.total.sent_data += sent_length;
+        stats->network.sent_packets++;
+        stats->network.sent_data += sent_length;
 
         LOG_DI(
                 "[FD:%5d][SEND] Sent <%lu> bytes to client <%s>",
