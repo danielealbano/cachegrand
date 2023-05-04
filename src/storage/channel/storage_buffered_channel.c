@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <sys/stat.h>
 
 #include "misc.h"
 #include "exttypes.h"
