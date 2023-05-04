@@ -95,12 +95,6 @@ size_t storage_readv_internal(
         return false;
     }
 
-    LOG_DI(
-            "[FD:%5d][READV] Read <%u> bytes from path <%s>",
-            channel->fd,
-            read_len,
-            channel->path);
-
     worker_stats_t *stats = worker_stats_get_internal_current();
     stats->storage.read_data += read_len;
     stats->storage.read_iops++;
@@ -199,12 +193,6 @@ bool storage_writev(
 
         return false;
     }
-
-    LOG_DI(
-            "[FD:%5d][WRITEV] Written <%u> bytes to path <%s>",
-            channel->fd,
-            write_len,
-            channel->path);
 
     worker_stats_t *stats = worker_stats_get_internal_current();
     stats->storage.written_data += write_len;
