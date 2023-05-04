@@ -88,6 +88,7 @@ void storage_db_snapshot_completed(
             snapshot_duration,
             snapshot_duration_buffer,
             sizeof(snapshot_duration_buffer) - 1,
+            true,
             true);
 
     uint64_t next_run_in = db->snapshot.next_run_time_ms - clock_monotonic_coarse_int64_ms();
@@ -95,7 +96,8 @@ void storage_db_snapshot_completed(
             next_run_in,
             next_shapshot_run_buffer,
             sizeof(next_shapshot_run_buffer) - 1,
-            true);
+            false,
+            false);
 
     // Report the snapshot status
     if (status == STORAGE_DB_SNAPSHOT_STATUS_FAILED_DURING_PREPARATION) {
@@ -1021,6 +1023,7 @@ void storage_db_snapshot_report_progress(
                     eta_ms,
                     eta_buffer,
                     sizeof(eta_buffer),
+                    false,
                     false));
 
     // Update the progress reported at time

@@ -32,7 +32,8 @@ char *clock_timespan_human_readable(
         uint64_t timespan_ms,
         char *buffer,
         size_t buffer_length,
-        bool add_ms) {
+        bool add_ms,
+        bool add_ms_only_if_zero) {
     assert(buffer_length >= CLOCK_TIMESPAN_MIN_LENGTH);
 
     size_t offset = 0;
@@ -77,12 +78,14 @@ char *clock_timespan_human_readable(
     }
 
     if (add_ms && milliseconds > 0) {
-        offset += snprintf(
-                buffer + offset,
-                buffer_length - offset,
-                "%s%lu ms",
-                offset > 0 ? " " : "",
-                milliseconds);
+        if (!add_ms_only_if_zero || offset == 0) {
+            offset += snprintf(
+                    buffer + offset,
+                    buffer_length - offset,
+                    "%s%lu ms",
+                    offset > 0 ? " " : "",
+                    milliseconds);
+        }
     }
 
     if (offset == 0) {

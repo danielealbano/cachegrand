@@ -35,7 +35,8 @@ char *clock_timespan_human_readable(
         uint64_t timespan_ms,
         char *buffer,
         size_t buffer_length,
-        bool add_ms);
+        bool add_ms,
+        bool add_ms_if_zero);
 
 static inline __attribute__((always_inline)) int64_t clock_timespec_to_int64_ms(
         timespec_t *timespec) {
