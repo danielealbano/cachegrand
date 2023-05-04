@@ -286,17 +286,15 @@ void worker_network_new_client_fiber_entrypoint(
     network_channel_t *new_channel = user_data;
     bool tls_enabled = new_channel->tls.enabled;
 
-    stats->network.total.active_connections++;
+    stats->network.active_connections++;
     if (tls_enabled) {
-        stats->network.total.active_tls_connections++;
+        stats->network.active_tls_connections++;
     }
 
-    stats->network.total.accepted_connections++;
-    stats->network.per_minute.accepted_connections++;
+    stats->network.accepted_connections++;
 
     if (tls_enabled) {
-        stats->network.total.accepted_tls_connections++;
-        stats->network.per_minute.accepted_tls_connections++;
+        stats->network.accepted_tls_connections++;
     }
 
     // Handover the new connection to the module
@@ -309,9 +307,9 @@ void worker_network_new_client_fiber_entrypoint(
     }
 
     // Updates the amount of active connections
-    stats->network.total.active_connections--;
+    stats->network.active_connections--;
     if (tls_enabled) {
-        stats->network.total.active_tls_connections--;
+        stats->network.active_tls_connections--;
     }
 
     fiber_scheduler_terminate_current_fiber();

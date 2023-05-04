@@ -189,12 +189,14 @@ void storage_db_counters_sum_per_db(
     uint64_t next_slot_index = 0;
 
     counters->data_size = 0;
-    while(workers_to_find > 0 && (found_slot_index = slots_bitmap_mpmc_iter(
+    while(workers_to_find-- > 0 && (found_slot_index = slots_bitmap_mpmc_iter(
             storage_db->counters_slots_bitmap, next_slot_index)) != UINT64_MAX) {
         storage_db_counters_t *counters_per_db = (storage_db_counters_t*) hashtable_spsc_op_get_by_hash_and_key_uint32(
                 storage_db->counters[found_slot_index].per_db,
                 database_number,
                 database_number);
+
+        next_slot_index = found_slot_index + 1;
 
         if (unlikely(!counters_per_db)) {
             continue;
@@ -204,8 +206,6 @@ void storage_db_counters_sum_per_db(
         counters->data_size += counters_per_db->data_size;
         counters->keys_changed += counters_per_db->keys_changed;
         counters->data_changed += counters_per_db->data_changed;
-        next_slot_index = found_slot_index + 1;
-        workers_to_find--;
     }
 }
 

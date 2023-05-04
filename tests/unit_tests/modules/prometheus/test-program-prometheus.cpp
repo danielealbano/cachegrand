@@ -61,7 +61,7 @@
 #define PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(WORKER_CONTEXT, RUNNING) { \
     do { \
         sched_yield(); \
-        usleep(10000); \
+        usleep(1000); \
         MEMORY_FENCE_LOAD(); \
     } while((WORKER_CONTEXT)->running == !RUNNING); \
 }
@@ -174,30 +174,19 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
                 { "cachegrand_db_keys_count", false },
                 { "cachegrand_db_size", false },
 
-                { "cachegrand_network_total_received_packets", true },
-                { "cachegrand_network_total_received_data", true },
-                { "cachegrand_network_total_sent_packets", true },
-                { "cachegrand_network_total_sent_data", true },
-                { "cachegrand_network_total_accepted_connections", true },
-                { "cachegrand_network_total_active_connections", true },
-                { "cachegrand_network_total_accepted_tls_connections", true },
-                { "cachegrand_network_total_active_tls_connections", true },
-                { "cachegrand_storage_total_written_data", true },
-                { "cachegrand_storage_total_write_iops", true },
-                { "cachegrand_storage_total_read_data", true },
-                { "cachegrand_storage_total_read_iops", true },
-                { "cachegrand_storage_total_open_files", true },
-
-                { "cachegrand_network_per_minute_received_packets", true },
-                { "cachegrand_network_per_minute_received_data", true },
-                { "cachegrand_network_per_minute_sent_packets", true },
-                { "cachegrand_network_per_minute_sent_data", true },
-                { "cachegrand_network_per_minute_accepted_connections", true },
-                { "cachegrand_network_per_minute_accepted_tls_connections", true },
-                { "cachegrand_storage_per_minute_written_data", true },
-                { "cachegrand_storage_per_minute_write_iops", true },
-                { "cachegrand_storage_per_minute_read_data", true },
-                { "cachegrand_storage_per_minute_read_iops", true },
+                { "cachegrand_network_received_packets", true },
+                { "cachegrand_network_received_data", true },
+                { "cachegrand_network_sent_packets", true },
+                { "cachegrand_network_sent_data", true },
+                { "cachegrand_network_accepted_connections", true },
+                { "cachegrand_network_active_connections", true },
+                { "cachegrand_network_accepted_tls_connections", true },
+                { "cachegrand_network_active_tls_connections", true },
+                { "cachegrand_storage_written_data", true },
+                { "cachegrand_storage_write_iops", true },
+                { "cachegrand_storage_read_data", true },
+                { "cachegrand_storage_read_iops", true },
+                { "cachegrand_storage_open_files", true },
 
                 nullptr,
         };
@@ -243,13 +232,40 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
             // Ensure that has found the double new line at the end of the HTTP header
             REQUIRE(new_line_ptr != nullptr);
 
+            new_line_ptr++;
             for (int test_metric_index = 0; test_metrics[test_metric_index].name != nullptr; test_metric_index++) {
                 test_metric_entry_t *test_metric = &test_metrics[test_metric_index];
 
-                // Ensure that there is enough content in the buffer to contain the metric name, "{} ", at least 1 digit
-                // and then \n
-                REQUIRE((buffer_recv_length - ((new_line_ptr + 1) - buffer_recv)) >= strlen(test_metric->name) + 3 + 1 + 1);
-                new_line_ptr++;
+                // Search for the end of the new line (\r\n) for the chunk
+                char *chunk_length_new_line_ptr = (char*)memchr(
+                        new_line_ptr,
+                        '\n',
+                        (buffer_recv_length - ((new_line_ptr + 1) - buffer_recv)));
+                REQUIRE(chunk_length_new_line_ptr != nullptr);
+                REQUIRE(chunk_length_new_line_ptr - new_line_ptr + 1 >= 3);
+                REQUIRE(*(chunk_length_new_line_ptr - 1) == '\r');
+
+                // Ensure that the length of the chunk is a valid hex number, that is not 0 and that buffer_recv_length
+                // is greater than the length of the chunk
+                size_t chunk_length_str_len = chunk_length_new_line_ptr - new_line_ptr - 2 + 1;
+                REQUIRE(chunk_length_str_len > 0);
+                char *chunk_length_str = (char*)malloc(chunk_length_str_len + 1);
+                REQUIRE(chunk_length_str != nullptr);
+                strncpy(chunk_length_str, new_line_ptr, chunk_length_new_line_ptr - new_line_ptr - 1);
+                chunk_length_str[chunk_length_str_len] = '\0';
+                REQUIRE(strspn(chunk_length_str, "0123456789abcdefABCDEF") == strlen(chunk_length_str));
+
+                size_t chunk_length = strtoul(chunk_length_str, nullptr, 16);
+                REQUIRE(chunk_length > 0);
+                REQUIRE(buffer_recv_length > chunk_length);
+
+                // Update the new line pointer to point to the start of the chunk
+                new_line_ptr = chunk_length_new_line_ptr + 1;
+
+                // Ensure that there is enough content in the buffer to contain the metric name, the symbols "{} ", at
+                // least 1 digit and then \n\r\n (which is the end of the metric for prometheus and the new line for the
+                // chunked transfer encoding)
+                REQUIRE((buffer_recv_length - ((new_line_ptr + 1) - buffer_recv)) >= strlen(test_metric->name) + 3 + 1 + 1 + 2);
 
                 // Ensure that the next metric is the expected one
                 REQUIRE(strncmp(new_line_ptr, test_metric->name, strlen(test_metric->name)) == 0);
@@ -261,8 +277,14 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
                     REQUIRE(strncmp(new_line_ptr + strlen(test_metric->name), "{} ", 3) == 0);
                 }
 
-                // THere is always a new line at the end of the line, even the last line
-                REQUIRE((new_line_ptr = (char*)memchr(new_line_ptr, '\n', buffer_recv_length)) != nullptr);
+                // There is always a new line at the end of the line, even the last line
+                REQUIRE((new_line_ptr = (char*)memchr(new_line_ptr, '\n', buffer_recv_length - ((new_line_ptr + 1) - buffer_recv))) != nullptr);
+
+                // The chunk always ends with a \r\n after the \n
+                REQUIRE(*(new_line_ptr + 1) == '\r');
+                REQUIRE(*(new_line_ptr + 2) == '\n');
+
+                new_line_ptr += 3;
             }
         }
 
@@ -316,6 +338,7 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
                         worker_index == 0 ? "0" : "aggregated",
                         expected_env_labels);
 
+                new_line_ptr++;
                 for (int test_metric_index = 0; test_metrics[test_metric_index].name != nullptr; ++test_metric_index) {
                     if (worker_index > 0 && !test_metrics[test_metric_index].metric_per_worker) {
                         continue;
@@ -323,11 +346,36 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
 
                     test_metric_entry_t *test_metric = &test_metrics[test_metric_index];
 
+                    // Search for the end of the new line (\r\n) for the chunk
+                    char *chunk_length_new_line_ptr = (char*)memchr(
+                            new_line_ptr,
+                            '\n',
+                            (buffer_recv_length - ((new_line_ptr + 1) - buffer_recv)));
+                    REQUIRE(chunk_length_new_line_ptr != nullptr);
+                    REQUIRE(chunk_length_new_line_ptr - new_line_ptr + 1 >= 3);
+                    REQUIRE(*(chunk_length_new_line_ptr - 1) == '\r');
+
+                    // Ensure that the length of the chunk is a valid hex number, that is not 0 and that buffer_recv_length
+                    // is greater than the length of the chunk
+                    size_t chunk_length_str_len = chunk_length_new_line_ptr - new_line_ptr - 2 + 1;
+                    REQUIRE(chunk_length_str_len > 0);
+                    char *chunk_length_str = (char*)malloc(chunk_length_str_len + 1);
+                    REQUIRE(chunk_length_str != nullptr);
+                    strncpy(chunk_length_str, new_line_ptr, chunk_length_new_line_ptr - new_line_ptr - 1);
+                    chunk_length_str[chunk_length_str_len] = '\0';
+                    REQUIRE(strspn(chunk_length_str, "0123456789abcdefABCDEF") == strlen(chunk_length_str));
+
+                    size_t chunk_length = strtoul(chunk_length_str, nullptr, 16);
+                    REQUIRE(chunk_length > 0);
+                    REQUIRE(buffer_recv_length > chunk_length);
+
+                    // Update the new line pointer to point to the start of the chunk
+                    new_line_ptr = chunk_length_new_line_ptr + 1;
+
                     // Ensure that there is enough content in the buffer to contain the metric name, the labels, a space, at
-                    // least 1 digit and then \n
+                    // least 1 digit and then \n and \r\n for the chunked encoding
                     REQUIRE((buffer_recv_length - ((new_line_ptr + 1) - buffer_recv)) >=
-                            strlen(test_metric->name) + strlen(expected_labels_per_worker) + 1 + 1 + 1);
-                    new_line_ptr++;
+                            strlen(test_metric->name) + strlen(expected_labels_per_worker) + 1 + 1 + 1 + 2);
 
                     // Ensure that the next metric is the expected one
                     REQUIRE(strncmp(new_line_ptr, test_metric->name, strlen(test_metric->name)) == 0);
@@ -352,6 +400,12 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
 
                     // THere is always a new line at the end of the line, even the last line
                     REQUIRE((new_line_ptr = (char*)memchr(new_line_ptr, '\n', buffer_recv_length)) != nullptr);
+
+                    // The chunk always ends with a \r\n after the \n
+                    REQUIRE(*(new_line_ptr + 1) == '\r');
+                    REQUIRE(*(new_line_ptr + 2) == '\n');
+
+                    new_line_ptr += 3;
                 }
             }
         }

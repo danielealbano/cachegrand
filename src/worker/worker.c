@@ -541,13 +541,9 @@ void* worker_thread_func(
 
         // Checks if the stats should be published with an interval of 1 second
         if (worker_stats_should_publish_totals_after_interval(&worker_context->stats.shared)) {
-            // Check if the per_minute stats should be published too
-            bool only_total = !worker_stats_should_publish_per_minute_after_interval(
-                    &worker_context->stats.shared);
             worker_stats_publish(
                     &worker_context->stats.internal,
-                    &worker_context->stats.shared,
-                    only_total);
+                    &worker_context->stats.shared);
         }
     } while(!can_terminate_loop);
 
