@@ -35,7 +35,7 @@ storage_channel_t* storage_open(
 
     if (likely(res)) {
         worker_stats_t *stats = worker_stats_get_internal_current();
-        stats->storage.total.open_files++;
+        stats->storage.open_files++;
     } else {
         int error_number = fiber_scheduler_get_error();
         LOG_E(
@@ -57,7 +57,7 @@ storage_channel_t* storage_open_fd(
 
     if (likely(res)) {
         worker_stats_t *stats = worker_stats_get_internal_current();
-        stats->storage.total.open_files++;
+        stats->storage.open_files++;
     } else {
         int error_number = fiber_scheduler_get_error();
         LOG_E(
@@ -113,10 +113,8 @@ bool storage_readv(
             channel->path);
 
     worker_stats_t *stats = worker_stats_get_internal_current();
-    stats->storage.per_minute.read_data += read_len;
-    stats->storage.total.read_data += read_len;
-    stats->storage.per_minute.read_iops++;
-    stats->storage.total.read_iops++;
+    stats->storage.read_data += read_len;
+    stats->storage.read_iops++;
 
     return true;
 }
@@ -178,10 +176,8 @@ bool storage_writev(
             channel->path);
 
     worker_stats_t *stats = worker_stats_get_internal_current();
-    stats->storage.per_minute.written_data += write_len;
-    stats->storage.total.written_data += write_len;
-    stats->storage.per_minute.write_iops++;
-    stats->storage.total.write_iops++;
+    stats->storage.written_data += write_len;
+    stats->storage.write_iops++;
 
     return true;
 }
@@ -248,7 +244,7 @@ bool storage_close(
 
     if (likely(res)) {
         worker_stats_t *stats = worker_stats_get_internal_current();
-        stats->storage.total.open_files--;
+        stats->storage.open_files--;
     } else {
         int error_number = fiber_scheduler_get_error();
         LOG_E(

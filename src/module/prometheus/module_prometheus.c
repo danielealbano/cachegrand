@@ -9,7 +9,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include <strings.h>
 #include <arpa/inet.h>
 #include <assert.h>
 #include <http_parser.h>
@@ -20,7 +19,6 @@
 #include "exttypes.h"
 #include "log/log.h"
 #include "clock.h"
-#include "utils_string.h"
 #include "spinlock.h"
 #include "transaction.h"
 #include "transaction_spinlock.h"
@@ -33,7 +31,6 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "memory_allocator/ffma.h"
 #include "config.h"
-#include "fiber/fiber.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
@@ -42,7 +39,6 @@
 #include "storage/db/storage_db.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
-#include "worker/worker.h"
 #include "network/network.h"
 #include "epoch_gc.h"
 #include "epoch_gc_worker.h"
@@ -69,8 +65,7 @@ FUNCTION_CTOR(module_prometheus_register_ctor, {
 });
 
 void module_prometheus_client_new(
-        module_prometheus_client_t *module_prometheus_client,
-        config_module_t *config_module) {
+        module_prometheus_client_t *module_prometheus_client) {
     module_prometheus_client->read_buffer.data =
             (char *)ffma_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
     module_prometheus_client->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE;
@@ -178,6 +173,12 @@ int module_prometheus_http_parser_on_header_value(
         size_t headers_list_new_size =
                 headers_list_current_size +
                 (sizeof(client_http_header_t) * MODULE_PROMETHEUS_HTTP_HEADERS_SIZE_INCREASE);
+
+        // The maximum size of the allocation is FFMA_OBJECT_SIZE_MAX
+        if (headers_list_new_size >= FFMA_OBJECT_SIZE_MAX) {
+            return -1;
+        }
+
         list_new = ffma_mem_realloc(http_request_data->headers.list, headers_list_new_size);
 
         // Check if ffma returned a new slot or if it was able to reuse the old one, if it's a new one the newly
@@ -194,7 +195,7 @@ int module_prometheus_http_parser_on_header_value(
         http_request_data->headers.size += MODULE_PROMETHEUS_HTTP_HEADERS_SIZE_INCREASE;
     }
 
-    char *header_value = ffma_mem_alloc_zero(length + 1);
+    char *header_value = ffma_mem_alloc(length + 1);
 
     if (header_value == NULL) {
         return -1;
@@ -216,15 +217,14 @@ int module_prometheus_http_parser_on_header_value(
     return 0;
 }
 
-bool module_prometheus_http_send_response(
-        network_channel_t *channel,
+bool module_prometheus_http_send_chunked_response_header(
+        network_channel_t *network_channel,
         int error_code,
-        const char *content_type,
-        char *content,
-        size_t content_length) {
+        const char *content_type) {
     size_t http_response_len;
     bool result_ret = false;
-    char *http_response = NULL, now[80];
+    char http_response_header[512] = { 0 };
+    char now[80];
     timespec_t now_timestamp = { 0 };
 
     static const char http_response_template[] =
@@ -233,7 +233,7 @@ bool module_prometheus_http_send_response(
             "Date: %4$s\r\n"
             "Expires: %4$s\r\n"
             "Server: %5$s-%6$s (built on %7$s)\r\n"
-            "Content-Length: %8$lu\r\n"
+            "Transfer-Encoding: chunked\r\n"
             "\r\n";
 
     clock_realtime(&now_timestamp);
@@ -241,10 +241,11 @@ bool module_prometheus_http_send_response(
     gmtime_r(&now_timestamp.tv_sec, &tm);
     strftime(now, sizeof(now), "%a, %d %b %Y %H:%M:%S %Z", &tm);
 
+#if DEBUG == 1
     // Calculate the amount of memory needed for the http response
     http_response_len = snprintf(
-            NULL,
-            0,
+            http_response_header,
+            sizeof(http_response_header),
             http_response_template,
             error_code,
             http_status_str(error_code),
@@ -252,44 +253,101 @@ bool module_prometheus_http_send_response(
             now,
             CACHEGRAND_CMAKE_CONFIG_NAME,
             CACHEGRAND_CMAKE_CONFIG_VERSION_GIT,
-            CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME,
-            content_length);
+            CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME);
 
-    http_response = ffma_mem_alloc(http_response_len + 1);
-    if (!http_response) {
+    assert(http_response_len + 1 < sizeof(http_response_header));
+#endif
+
+    http_response_len = snprintf(
+            http_response_header,
+            sizeof(http_response_header),
+            http_response_template,
+            error_code,
+            http_status_str(error_code),
+            content_type,
+            now,
+            CACHEGRAND_CMAKE_CONFIG_NAME,
+            CACHEGRAND_CMAKE_CONFIG_VERSION_GIT,
+            CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME);
+
+    result_ret = network_send_buffered(network_channel, http_response_header, http_response_len);
+
+    return result_ret == NETWORK_OP_RESULT_OK;
+}
+
+bool module_prometheus_http_send_chunked_response_chunk(
+        network_channel_t *network_channel,
+        char *chunk,
+        size_t chunk_length) {
+    char chunk_length_octets[16] = { 0 };
+    char chunk_end[16] = { 0 };
+    bool result_ret = false;
+
+    // Convert the chunk length to octets for the transfer encoding
+    snprintf(chunk_length_octets, sizeof(chunk_length_octets), "%lx\r\n", chunk_length);
+    snprintf(chunk_end, sizeof(chunk_end), "\r\n");
+
+    // Send the length of the chunk
+    if ((result_ret = network_send_buffered(
+            network_channel,
+            chunk_length_octets,
+            strlen(chunk_length_octets))) != NETWORK_OP_RESULT_OK) {
         goto end;
     }
 
-    snprintf(
-            http_response,
-            http_response_len + 1,
-            http_response_template,
-            error_code,
-            http_status_str(error_code),
-            content_type,
-            now,
-            CACHEGRAND_CMAKE_CONFIG_NAME,
-            CACHEGRAND_CMAKE_CONFIG_VERSION_GIT,
-            CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME,
-            content_length);
+    // Send the chunk if it's not NULL
+    if (chunk_length > 0) {
+        if ((result_ret = network_send_buffered(
+                network_channel,
+                chunk,
+                chunk_length)) != NETWORK_OP_RESULT_OK) {
+            goto end;
+        }
+    }
 
+    // Send the chunk end
     if ((result_ret = network_send_buffered(
-            channel,
-            http_response,
-            http_response_len) == NETWORK_OP_RESULT_OK)) {
-        result_ret = network_send_buffered(channel, content, content_length) == NETWORK_OP_RESULT_OK;
+            network_channel,
+            chunk_end,
+            strlen(chunk_end))) != NETWORK_OP_RESULT_OK) {
+        goto end;
     }
 
 end:
-    if (http_response) {
-        ffma_mem_free(http_response);
+    return result_ret == NETWORK_OP_RESULT_OK;
+}
+
+bool module_prometheus_http_send_chunked_response_end(
+        network_channel_t *network_channel) {
+    return module_prometheus_http_send_chunked_response_chunk(network_channel, NULL, 0);
+}
+
+bool module_prometheus_http_send_response(
+        network_channel_t *network_channel,
+        int error_code,
+        const char *content_type,
+        char *content,
+        size_t content_length) {
+    if (!module_prometheus_http_send_chunked_response_header(network_channel, error_code, content_type)) {
+        return false;
     }
 
-    return result_ret;
+    if (!module_prometheus_http_send_chunked_response_chunk(
+            network_channel,
+            content,
+            content_length)) {
+        return false;
+    }
+
+    if (!module_prometheus_http_send_chunked_response_end(network_channel)) {
+        return false;
+    }
+
+    return true;
 }
 
 bool module_prometheus_http_send_error(
-        network_channel_t *channel,
+        network_channel_t *network_channel,
         int http_code,
         const char* error_title,
         const char* error_message,
@@ -343,13 +401,13 @@ bool module_prometheus_http_send_error(
             error_message_with_args);
 
     result_ret = module_prometheus_http_send_response(
-            channel,
+            network_channel,
             http_code,
             "text/html; charset=ASCII",
             error_html_template,
             error_html_template_len);
 
-end:
+    end:
     if (error_message_with_args) {
         ffma_mem_free(error_message_with_args);
     }
@@ -420,7 +478,7 @@ char *module_prometheus_fetch_extra_metrics_from_env() {
     return extra_env_content;
 }
 
-bool module_prometheus_process_metrics_request_add_metric(
+bool module_prometheus_process_metrics_request_build_metric(
         char **buffer,
         size_t *length,
         size_t *size,
@@ -482,7 +540,7 @@ bool module_prometheus_process_metrics_request_add_metric(
 }
 
 bool module_prometheus_process_metrics_request(
-        network_channel_t *channel,
+        network_channel_t *network_channel,
         module_prometheus_client_t *module_prometheus_client) {
     worker_stats_t worker_stats;
     timespec_t now = { 0 }, uptime = { 0 };
@@ -505,6 +563,14 @@ bool module_prometheus_process_metrics_request(
     storage_db_counters_t storage_db_counters = { 0 };
     storage_db_counters_sum_global(program_context->db, &storage_db_counters);
 
+    // Send the chunked response header
+    if (!module_prometheus_http_send_chunked_response_header(
+            network_channel,
+            200,
+            "text/plain; charset=ASCII")) {
+        goto end;
+    }
+
     // Send out the global fields
     response_metric_field_t global_stats_fields[] = {
             { "uptime", "%lu", uptime.tv_sec },
@@ -514,8 +580,13 @@ bool module_prometheus_process_metrics_request(
     };
 
     for(response_metric_field_t *stat_field = global_stats_fields; stat_field->name; stat_field++) {
+        // Always set the content length to 0, the data are sent right after the metric is built. This allows us to let
+        // the module_prometheus_process_metrics_request_build_metric function to realloc the buffer if needed and at
+        // the same time to reuse the same buffer for all the metrics
+        content_length = 0;
+
         // Build the metrics
-        if (!module_prometheus_process_metrics_request_add_metric(
+        if (!module_prometheus_process_metrics_request_build_metric(
                 &content,
                 &content_length,
                 &content_size,
@@ -523,6 +594,13 @@ bool module_prometheus_process_metrics_request(
                 stat_field->value,
                 stat_field->value_formatter,
                 tags_from_env)) {
+            goto end;
+        }
+
+        if (!module_prometheus_http_send_chunked_response_chunk(
+                network_channel,
+                content,
+                content_length)) {
             goto end;
         }
     }
@@ -560,37 +638,31 @@ bool module_prometheus_process_metrics_request(
 
         // Build up the list of the fields in the response
         response_metric_field_t stats_fields[] = {
-            { "network_total_received_packets", "%lu", worker_stats.network.total.received_packets },
-            { "network_total_received_data", "%lu", worker_stats.network.total.received_data },
-            { "network_total_sent_packets", "%lu", worker_stats.network.total.sent_packets },
-            { "network_total_sent_data", "%lu", worker_stats.network.total.sent_data },
-            { "network_total_accepted_connections", "%lu", worker_stats.network.total.accepted_connections },
-            { "network_total_active_connections", "%lu", worker_stats.network.total.active_connections },
-            { "network_total_accepted_tls_connections", "%lu", worker_stats.network.total.accepted_tls_connections },
-            { "network_total_active_tls_connections", "%lu", worker_stats.network.total.active_tls_connections },
-            { "storage_total_written_data", "%lu", worker_stats.storage.total.written_data },
-            { "storage_total_write_iops", "%lu", worker_stats.storage.total.write_iops },
-            { "storage_total_read_data", "%lu", worker_stats.storage.total.read_data },
-            { "storage_total_read_iops", "%lu", worker_stats.storage.total.read_iops },
-            { "storage_total_open_files", "%lu", worker_stats.storage.total.open_files },
+                { "network_received_packets", "%lu", worker_stats.network.received_packets },
+                { "network_received_data", "%lu", worker_stats.network.received_data },
+                { "network_sent_packets", "%lu", worker_stats.network.sent_packets },
+                { "network_sent_data", "%lu", worker_stats.network.sent_data },
+                { "network_accepted_connections", "%lu", worker_stats.network.accepted_connections },
+                { "network_active_connections", "%lu", worker_stats.network.active_connections },
+                { "network_accepted_tls_connections", "%lu", worker_stats.network.accepted_tls_connections },
+                { "network_active_tls_connections", "%lu", worker_stats.network.active_tls_connections },
+                { "storage_written_data", "%lu", worker_stats.storage.written_data },
+                { "storage_write_iops", "%lu", worker_stats.storage.write_iops },
+                { "storage_read_data", "%lu", worker_stats.storage.read_data },
+                { "storage_read_iops", "%lu", worker_stats.storage.read_iops },
+                { "storage_open_files", "%lu", worker_stats.storage.open_files },
 
-            { "network_per_minute_received_packets", "%lu", worker_stats.network.per_minute.received_packets },
-            { "network_per_minute_received_data", "%lu", worker_stats.network.per_minute.received_data },
-            { "network_per_minute_sent_packets", "%lu", worker_stats.network.per_minute.sent_packets },
-            { "network_per_minute_sent_data", "%lu", worker_stats.network.per_minute.sent_data },
-            { "network_per_minute_accepted_connections", "%lu", worker_stats.network.per_minute.accepted_connections },
-            { "network_per_minute_accepted_tls_connections", "%lu", worker_stats.network.per_minute.accepted_tls_connections },
-            { "storage_per_minute_written_data", "%lu", worker_stats.storage.per_minute.written_data },
-            { "storage_per_minute_write_iops", "%lu", worker_stats.storage.per_minute.write_iops },
-            { "storage_per_minute_read_data", "%lu", worker_stats.storage.per_minute.read_data },
-            { "storage_per_minute_read_iops", "%lu", worker_stats.storage.per_minute.read_iops },
-
-            { NULL },
+                { NULL },
         };
 
         for(response_metric_field_t *stat_field = stats_fields; stat_field->name; stat_field++) {
+            // Always set the content length to 0, the data are sent right after the metric is built. This allows us to let
+            // the module_prometheus_process_metrics_request_build_metric function to realloc the buffer if needed and at
+            // the same time to reuse the same buffer for all the metrics
+            content_length = 0;
+
             // Build the metrics
-            if (!module_prometheus_process_metrics_request_add_metric(
+            if (!module_prometheus_process_metrics_request_build_metric(
                     &content,
                     &content_length,
                     &content_size,
@@ -600,6 +672,13 @@ bool module_prometheus_process_metrics_request(
                     tags)) {
                 goto end;
             }
+
+            if (!module_prometheus_http_send_chunked_response_chunk(
+                    network_channel,
+                    content,
+                    content_length)) {
+                goto end;
+            }
         }
 
         ffma_mem_free(tags);
@@ -607,12 +686,7 @@ bool module_prometheus_process_metrics_request(
         worker_index++;
     } while(found_worker);
 
-    result_ret = module_prometheus_http_send_response(
-        channel,
-        200,
-        "text/plain; charset=ASCII",
-        content,
-        content_length);
+    result_ret = module_prometheus_http_send_chunked_response_end(network_channel);
 
 end:
     if (content) {
@@ -631,18 +705,18 @@ end:
 }
 
 bool module_prometheus_process_request(
-        network_channel_t *channel,
+        network_channel_t *network_channel,
         module_prometheus_client_t *module_prometheus_client) {
     client_http_request_data_t *http_request_data = &module_prometheus_client->http_request_data;
 
     if (strlen("/metrics") == http_request_data->url_length && strncmp(http_request_data->url, "/metrics", http_request_data->url_length) == 0) {
         return module_prometheus_process_metrics_request(
-                channel,
+                network_channel,
                 module_prometheus_client);
     }
 
     return module_prometheus_http_send_error(
-            channel,
+            network_channel,
             404,
             "Page not found",
             "The page <b>%.*s</b> doesn't exist",
@@ -651,7 +725,7 @@ bool module_prometheus_process_request(
 }
 
 bool module_prometheus_process_data(
-        network_channel_t *channel,
+        network_channel_t *network_channel,
         module_prometheus_client_t *module_prometheus_client) {
     network_channel_buffer_data_t *read_buffer_data_start =
             module_prometheus_client->read_buffer.data +
@@ -673,9 +747,9 @@ bool module_prometheus_process_data(
     }
 
     if (module_prometheus_client->http_request_data.request_received) {
-        module_prometheus_process_request(channel, module_prometheus_client);
-        if (likely(network_should_flush_send_buffer(channel))) {
-            network_flush_send_buffer(channel);
+        module_prometheus_process_request(network_channel, module_prometheus_client);
+        if (likely(network_should_flush_send_buffer(network_channel))) {
+            network_flush_send_buffer(network_channel);
         }
         // Always terminate the connection once the request is processed as this implementation is simple and doesn't
         // really support pipelining or similar features
@@ -701,13 +775,12 @@ void module_prometheus_accept_setup_http_parser(
 }
 
 void module_prometheus_connection_accept(
-        network_channel_t *channel) {
+        network_channel_t *network_channel) {
     bool exit_loop = false;
     module_prometheus_client_t module_prometheus_client = { 0 };
 
     module_prometheus_client_new(
-            &module_prometheus_client,
-            channel->module_config);
+            &module_prometheus_client);
 
     module_prometheus_accept_setup_http_parser(
             &module_prometheus_client);
@@ -727,14 +800,14 @@ void module_prometheus_connection_accept(
             }
 
             exit_loop = network_receive(
-                    channel,
+                    network_channel,
                     &module_prometheus_client.read_buffer,
                     NETWORK_CHANNEL_MAX_PACKET_SIZE) != NETWORK_OP_RESULT_OK;
         }
 
         if (!exit_loop) {
             exit_loop = !module_prometheus_process_data(
-                    channel,
+                    network_channel,
                     &module_prometheus_client);
         }
     } while(!exit_loop);

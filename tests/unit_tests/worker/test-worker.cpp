@@ -62,86 +62,29 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
 
         REQUIRE(clock_gettime(
                 CLOCK_REALTIME,
-                (struct timespec*)&worker_stats_new.total_last_update_timestamp) == 0);
+                (struct timespec*)&worker_stats_new.last_update_timestamp) == 0);
 
-        SECTION("total and per_minute") {
+        SECTION("total") {
             worker_stats_publish(
                     &worker_stats_new,
-                    &worker_stats_public,
-                    false);
+                    &worker_stats_public);
 
             REQUIRE(memcmp(
-                    (char*)&worker_stats_new.network.total,
-                    ((char*)&worker_stats_public.network.total),
-                    sizeof(worker_stats_public.network.total)) == 0);
+                    (char*)&worker_stats_new.network,
+                    ((char*)&worker_stats_public.network),
+                    sizeof(worker_stats_public.network)) == 0);
             REQUIRE(memcmp(
-                    (char*)&worker_stats_new.storage.total,
-                    ((char*)&worker_stats_public.storage.total),
-                    sizeof(worker_stats_public.storage.total)) == 0);
+                    (char*)&worker_stats_new.storage,
+                    ((char*)&worker_stats_public.storage),
+                    sizeof(worker_stats_public.storage)) == 0);
 
-            REQUIRE(memcmp(
-                    (char*)&worker_stats_cmp.network.per_minute,
-                    ((char*)&worker_stats_public.network.per_minute),
-                    sizeof(worker_stats_public.network.per_minute)) == 0);
-            REQUIRE(memcmp(
-                    (char*)&worker_stats_cmp.storage.per_minute,
-                    ((char*)&worker_stats_public.storage.per_minute),
-                    sizeof(worker_stats_public.storage.per_minute)) == 0);
-
-            REQUIRE(worker_stats_public.per_minute_last_update_timestamp.tv_nsec ==
-                            worker_stats_public.total_last_update_timestamp.tv_nsec);
-            REQUIRE(worker_stats_public.per_minute_last_update_timestamp.tv_sec ==
-                            worker_stats_public.total_last_update_timestamp.tv_sec);
-
-            REQUIRE(worker_stats_public.total_last_update_timestamp.tv_sec >=
-                            worker_stats_new.total_last_update_timestamp.tv_sec);
+            REQUIRE(worker_stats_public.last_update_timestamp.tv_sec >=
+                    worker_stats_new.last_update_timestamp.tv_sec);
 
             REQUIRE(worker_stats_public.started_on_timestamp.tv_nsec ==
                             worker_stats_new.started_on_timestamp.tv_nsec);
             REQUIRE(worker_stats_public.started_on_timestamp.tv_sec ==
                             worker_stats_new.started_on_timestamp.tv_sec);
-        }
-
-        SECTION("only total") {
-            char zeroed_buffer[128] = { 0 };
-            worker_stats_publish(
-                    &worker_stats_new,
-                    &worker_stats_public,
-                    true);
-
-            REQUIRE(memcmp(
-                    (char*)&worker_stats_new.network.total,
-                    ((char*)&worker_stats_public.network.total),
-                    sizeof(worker_stats_public.network.total)) == 0);
-            REQUIRE(memcmp(
-                    (char*)&worker_stats_new.storage.total,
-                    ((char*)&worker_stats_public.storage.total),
-                    sizeof(worker_stats_public.storage.total)) == 0);
-
-            REQUIRE(worker_stats_public.per_minute_last_update_timestamp.tv_nsec == 0);
-            REQUIRE(worker_stats_public.per_minute_last_update_timestamp.tv_sec == 0);
-
-            REQUIRE(worker_stats_public.total_last_update_timestamp.tv_sec >=
-                    worker_stats_new.total_last_update_timestamp.tv_sec);
-
-            REQUIRE(worker_stats_public.started_on_timestamp.tv_nsec ==
-                    worker_stats_new.started_on_timestamp.tv_nsec);
-            REQUIRE(worker_stats_public.started_on_timestamp.tv_sec ==
-                    worker_stats_new.started_on_timestamp.tv_sec);
-
-            // Ensure that all the per_minute related settings are set to zero
-            REQUIRE(memcmp(
-                    (char*)&worker_stats_public.network.per_minute,
-                    zeroed_buffer,
-                    sizeof(worker_stats_public.network.per_minute)) == 0);
-            REQUIRE(memcmp(
-                    (char*)&worker_stats_public.storage.per_minute,
-                    zeroed_buffer,
-                    sizeof(worker_stats_public.storage.per_minute)) == 0);
-            REQUIRE(memcmp(
-                    (char*)&worker_stats_public.per_minute_last_update_timestamp,
-                    zeroed_buffer,
-                    sizeof(worker_stats_public.per_minute_last_update_timestamp)) == 0);
         }
     }
 
@@ -155,27 +98,10 @@ TEST_CASE("worker/worker.c", "[worker][worker]") {
         SECTION("should not") {
             worker_stats_volatile_t stats = {0};
 
-            clock_realtime((timespec_t*)&stats.total_last_update_timestamp);
-            stats.total_last_update_timestamp.tv_sec += WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC + 1;
+            clock_realtime((timespec_t*)&stats.last_update_timestamp);
+            stats.last_update_timestamp.tv_sec += WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC + 1;
 
             REQUIRE(!worker_stats_should_publish_totals_after_interval(&stats));
-        }
-    }
-
-    SECTION("worker_stats_should_publish_per_minute_after_interval") {
-        SECTION("should") {
-            worker_stats_volatile_t stats = {0};
-
-            REQUIRE(worker_stats_should_publish_per_minute_after_interval(&stats));
-        }
-
-        SECTION("should not") {
-            worker_stats_volatile_t stats = {0};
-
-            clock_realtime((timespec_t*)&stats.per_minute_last_update_timestamp);
-            stats.per_minute_last_update_timestamp.tv_sec += WORKER_PUBLISH_FULL_STATS_INTERVAL_SEC + 1;
-
-            REQUIRE(!worker_stats_should_publish_per_minute_after_interval(&stats));
         }
     }
 

@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#define MODULE_PROMETHEUS_HTTP_HEADERS_SIZE_INCREASE 5
+#define MODULE_PROMETHEUS_HTTP_HEADERS_SIZE_INCREASE 2
 #define MODULE_PROMETHEUS_HTTP_MAX_URL_LENGTH 256
 #define MODULE_PROMETHEUS_HTTP_MAX_HEADER_NAME_LENGTH 256
 #define MODULE_PROMETHEUS_HTTP_MAX_HEADER_VALUE_LENGTH (8 * 1024)
@@ -47,7 +47,7 @@ struct module_prometheus_client {
 };
 
 void module_prometheus_connection_accept(
-        network_channel_t *channel);
+        network_channel_t *network_channel);
 
 #ifdef __cplusplus
 }
