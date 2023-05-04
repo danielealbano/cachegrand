@@ -256,10 +256,6 @@ void module_redis_snapshot_load_process_opcode_aux(
 void module_redis_snapshot_load_process_opcode_db_number(
         storage_channel_t *channel) {
     uint32_t db_number = module_redis_snapshot_load_read_length_encoded_int(channel);
-    if (db_number != 0) {
-        FATAL(TAG, "Unsupported DB number: %d", db_number);
-    }
-
     current_database_number = db_number;
 
     LOG_V(TAG, "RDB DB number: %d", db_number);
