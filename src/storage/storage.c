@@ -71,7 +71,7 @@ storage_channel_t* storage_open_fd(
     return res;
 }
 
-size_t storage_readv_internal(
+int32_t storage_readv_internal(
         storage_channel_t *channel,
         storage_io_common_iovec_t *iov,
         size_t iov_nr,
@@ -92,14 +92,14 @@ size_t storage_readv_internal(
                 error_number,
                 channel->path);
 
-        return false;
+        return read_len;
     }
 
     worker_stats_t *stats = worker_stats_get_internal_current();
     stats->storage.read_data += read_len;
     stats->storage.read_iops++;
 
-    return true;
+    return read_len;
 }
 
 bool storage_readv(
@@ -126,7 +126,7 @@ bool storage_readv(
         return false;
     }
 
-    return true;
+    return read_len >= 0;
 }
 
 bool storage_read(
@@ -144,7 +144,7 @@ bool storage_read(
     return storage_readv(channel, iov, 1, buffer_len, offset);
 }
 
-size_t storage_read_try(
+int32_t storage_read_try(
         storage_channel_t *channel,
         char *buffer,
         size_t buffer_len,
@@ -156,7 +156,7 @@ size_t storage_read_try(
             },
     };
 
-    return storage_readv_internal(channel, iov, 1, offset);
+    return storage_readv_internal(channel, iov, 1, offset) >= 0;
 }
 
 bool storage_writev(
