@@ -29,6 +29,7 @@ extern "C" {
         "hashtable_mcmp_op_set", \
         "hashtable_mcmp_op_delete", \
         "hashtable_mcmp_op_delete_by_index", \
+        "hashtable_mcmp_op_delete_by_index_all_databases", \
         "hashtable_mcmp_support_op_search_key_avx512f", \
         "hashtable_mcmp_support_op_search_key_or_create_new_avx512f", \
         "hashtable_mcmp_support_op_search_key_avx2", \
