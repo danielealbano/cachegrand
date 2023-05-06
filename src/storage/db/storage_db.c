@@ -1644,7 +1644,8 @@ bool storage_db_op_delete_by_index(
 
 bool storage_db_op_delete_by_index_all_databases(
         storage_db_t *db,
-        hashtable_bucket_index_t bucket_index) {
+        hashtable_bucket_index_t bucket_index,
+        storage_db_entry_index_t **out_current_entry_index) {
     storage_db_entry_index_t *current_entry_index = NULL;
 
     bool res = hashtable_mcmp_op_delete_by_index_all_databases(
@@ -1652,7 +1653,7 @@ bool storage_db_op_delete_by_index_all_databases(
             bucket_index,
             (uintptr_t*)&current_entry_index);
 
-    if (res && current_entry_index != NULL) {
+    if (likely(res && current_entry_index != NULL)) {
         STORAGE_DB_COUNTERS_UPDATE(db, current_entry_index->database_number, {
             counters->keys_count--;
             counters->data_size -= (int64_t)current_entry_index->value.size;
@@ -1660,7 +1661,10 @@ bool storage_db_op_delete_by_index_all_databases(
             counters->data_changed += (int64_t)current_entry_index->value.size;
         });
 
+        *out_current_entry_index = current_entry_index;
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
+    } else {
+        *out_current_entry_index = NULL;
     }
 
     return res;
@@ -1879,6 +1883,7 @@ void storage_db_keys_eviction_bitonic_sort_16_elements(storage_db_keys_eviction_
 
 uint8_t storage_db_keys_eviction_run_worker(
         storage_db_t *db,
+        storage_db_counters_t *counters,
         bool only_ttl,
         config_database_keys_eviction_policy_t policy) {
     assert(STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS <= STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH);
@@ -1986,11 +1991,12 @@ uint8_t storage_db_keys_eviction_run_worker(
 
 #pragma unroll(STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS)
     for (
-            uint8_t entry_index = 0;
-            entry_index < evict_first_n_keys &&
-                entry_index < STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH;
-            entry_index++) {
-        storage_db_keys_eviction_kv_list_entry_t *key_eviction_list_entry = &keys_evitction_candidates_list[entry_index];
+            uint8_t key_eviction_list_entry_index = 0;
+            key_eviction_list_entry_index < evict_first_n_keys &&
+                    key_eviction_list_entry_index < STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH;
+            key_eviction_list_entry_index++) {
+        storage_db_keys_eviction_kv_list_entry_t *key_eviction_list_entry =
+                &keys_evitction_candidates_list[key_eviction_list_entry_index];
 
         // Check if the key is set to UINT64_MAX and the value is set to UINT64_MAX, in which case there are no more
         // keys to evict in the list
@@ -2001,8 +2007,15 @@ uint8_t storage_db_keys_eviction_run_worker(
 
         // Try to delete the key by index, potentially the operation might fail if the key has been deleted or if it
         // was selected twice for the eviction
-        if (storage_db_op_delete_by_index_all_databases(db, key_eviction_list_entry->value)) {
+        storage_db_entry_index_t *entry_index = NULL;
+        if (storage_db_op_delete_by_index_all_databases(
+                db,
+                key_eviction_list_entry->value,
+                &entry_index)) {
             keys_evicted_count++;
+
+            counters->keys_count--;
+            counters->data_size -= (int64_t)entry_index->value.size;
         } else {
             // If the operation fails, increment the amount of keys to evict by one
             evict_first_n_keys++;
