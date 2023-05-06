@@ -1990,11 +1990,12 @@ uint8_t storage_db_keys_eviction_run_worker(
 
 #pragma unroll(STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS)
     for (
-            uint8_t entry_index = 0;
-            entry_index < evict_first_n_keys &&
-                entry_index < STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH;
-            entry_index++) {
-        storage_db_keys_eviction_kv_list_entry_t *key_eviction_list_entry = &keys_evitction_candidates_list[entry_index];
+            uint8_t key_eviction_list_entry_index = 0;
+            key_eviction_list_entry_index < evict_first_n_keys &&
+                    key_eviction_list_entry_index < STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH;
+            key_eviction_list_entry_index++) {
+        storage_db_keys_eviction_kv_list_entry_t *key_eviction_list_entry =
+                &keys_evitction_candidates_list[key_eviction_list_entry_index];
 
         // Check if the key is set to UINT64_MAX and the value is set to UINT64_MAX, in which case there are no more
         // keys to evict in the list
