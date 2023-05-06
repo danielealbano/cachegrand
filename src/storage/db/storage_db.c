@@ -1883,6 +1883,7 @@ void storage_db_keys_eviction_bitonic_sort_16_elements(storage_db_keys_eviction_
 
 uint8_t storage_db_keys_eviction_run_worker(
         storage_db_t *db,
+        storage_db_counters_t *counters,
         bool only_ttl,
         config_database_keys_eviction_policy_t policy) {
     assert(STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS <= STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH);
@@ -2006,8 +2007,15 @@ uint8_t storage_db_keys_eviction_run_worker(
 
         // Try to delete the key by index, potentially the operation might fail if the key has been deleted or if it
         // was selected twice for the eviction
-        if (storage_db_op_delete_by_index_all_databases(db, key_eviction_list_entry->value)) {
+        storage_db_entry_index_t *entry_index = NULL;
+        if (storage_db_op_delete_by_index_all_databases(
+                db,
+                key_eviction_list_entry->value,
+                &entry_index)) {
             keys_evicted_count++;
+
+            counters->keys_count--;
+            counters->data_size -= (int64_t)entry_index->value.size;
         } else {
             // If the operation fails, increment the amount of keys to evict by one
             evict_first_n_keys++;

@@ -52,6 +52,7 @@ void worker_fiber_storage_db_keys_eviction_fiber_entrypoint(
             continue;
         }
 
+        storage_db_counters_t counters = { 0 };
         // Check if limits have been passed
         if (likely(!storage_db_keys_eviction_should_run(worker_context->db))) {
             continue;
@@ -89,6 +90,7 @@ void worker_fiber_storage_db_keys_eviction_fiber_entrypoint(
             // Run the eviction
             storage_db_keys_eviction_run_worker(
                     worker_context->db,
+                    &counters,
                     worker_context->config->database->keys_eviction->only_ttl,
                     worker_context->config->database->keys_eviction->policy);
 

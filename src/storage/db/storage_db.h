@@ -564,6 +564,7 @@ void storage_db_keys_eviction_bitonic_sort_16_elements(
 
 uint8_t storage_db_keys_eviction_run_worker(
         storage_db_t *db,
+        storage_db_counters_t *counters,
         bool only_ttl,
         config_database_keys_eviction_policy_t policy);
 
