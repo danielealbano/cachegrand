@@ -156,7 +156,7 @@ int32_t storage_read_try(
             },
     };
 
-    return storage_readv_internal(channel, iov, 1, offset) >= 0;
+    return storage_readv_internal(channel, iov, 1, offset);
 }
 
 bool storage_writev(
