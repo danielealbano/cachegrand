@@ -61,12 +61,11 @@ bool module_redis_snapshot_serialize_primitive_can_encode_string_int(
         // The string can an unsigned or a signed integer. If it's an unsigned integer, it can be greater than
         // INT64_MAX so we need to check that it's not greater than INT64_MAX.
         uint64_t string_integer_unsigned = strtoull(string_dup, &string_end, 10);
+        *string_integer_out = (int64_t)string_integer_unsigned;
 
-        if (string_integer_unsigned > ((uint64_t)(INT64_MAX))) {
+        if (string_integer_unsigned > *string_integer_out) {
             result = false;
             goto end;
-        } else {
-            *string_integer_out = (int64_t)string_integer_unsigned;
         }
     }
 
@@ -337,10 +336,6 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
         return MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_TOO_LARGE;
     }
 
-    // Ensure that the buffer is big enough to hold the compressed data for the largest possible string, it uses the
-    // stack to avoid memory allocations
-    char *compressed_string_buffer[LZF_MAX_COMPRESSED_SIZE(64*1024)] = { 0 };
-
     // Calculate the maximum required buffer space
     size_t max_required_buffer_space = 1 + 5 + 5 + LZF_MAX_COMPRESSED_SIZE(string_length);
 
@@ -354,8 +349,8 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
     size_t compressed_string_length = lzf_compress(
             string,
             string_length,
-            compressed_string_buffer,
-            sizeof(compressed_string_buffer));
+            buffer + *buffer_offset_out,
+            buffer_size - *buffer_offset_out);
 
     // Check if the compression was successful, if not, return an error
     if (compressed_string_length == 0) {
@@ -393,8 +388,7 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
         goto end;
     }
 
-    // Copy the compressed data
-    memcpy(buffer + *buffer_offset_out, compressed_string_buffer, compressed_string_length);
+    // Update the buffer offset
     *buffer_offset_out += compressed_string_length;
 
 end:
