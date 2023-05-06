@@ -19,10 +19,9 @@ struct storage_db_snapshot_entry_index_to_be_deleted {
 };
 typedef struct storage_db_snapshot_entry_index_to_be_deleted storage_db_snapshot_entry_index_to_be_deleted_t;
 
-bool storage_db_snapshot_rdb_write_buffer(
+void storage_db_snapshot_rdb_release_slice(
         storage_db_t *db,
-        uint8_t *buffer,
-        size_t buffer_size);
+        size_t slice_used_length);
 
 void storage_db_snapshot_completed(
         storage_db_t *db,

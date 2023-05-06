@@ -32,7 +32,7 @@
 
 extern thread_local fiber_scheduler_stack_t fiber_scheduler_stack;
 
-TEST_CASE("storage/storage.c", "[storage]") {
+TEST_CASE("storage/storage.c", "[storage][storage]") {
     char *fixture_temp_path_copy;
     storage_channel_t *storage_channel = nullptr;
 

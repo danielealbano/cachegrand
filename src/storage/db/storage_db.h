@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include "storage/channel/storage_buffered_channel.h"
+
 //#define STORAGE_DB_SHARD_VERSION 1
 //#define STORAGE_DB_SHARD_MAGIC_NUMBER_HIGH 0x4341434845475241
 //#define STORAGE_DB_SHARD_MAGIC_NUMBER_LOW  0x5241000000000000
@@ -191,9 +193,8 @@ struct storage_db {
         uint64_volatile_t block_index;
         bool_volatile_t running;
         bool_volatile_t storage_channel_opened;
-        storage_channel_t *storage_channel;
+        storage_buffered_channel_t *storage_buffered_channel;
         queue_mpmc_t *entry_index_to_be_deleted_queue;
-        off_t offset;
         uint64_t keys_changed_at_start;
         uint64_t data_changed_at_start;
         char *path;

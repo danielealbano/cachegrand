@@ -320,7 +320,7 @@ storage_db_t* storage_db_new(
     db->snapshot.status = STORAGE_DB_SNAPSHOT_STATUS_NONE;
     db->snapshot.block_index = 0;
     db->snapshot.storage_channel_opened = false;
-    db->snapshot.storage_channel = NULL;
+    db->snapshot.storage_buffered_channel = NULL;
     db->snapshot.path = NULL;
     db->snapshot.running = false;
     db->snapshot.keys_changed_at_start = 0;

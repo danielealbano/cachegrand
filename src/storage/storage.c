@@ -71,11 +71,10 @@ storage_channel_t* storage_open_fd(
     return res;
 }
 
-bool storage_readv(
+int32_t storage_readv_internal(
         storage_channel_t *channel,
         storage_io_common_iovec_t *iov,
         size_t iov_nr,
-        size_t expected_read_len,
         off_t offset) {
     int32_t read_len = (int32_t)worker_op_storage_read(
             channel,
@@ -83,7 +82,7 @@ bool storage_readv(
             iov_nr,
             offset);
 
-    if (unlikely(read_len< 0)) {
+    if (unlikely(read_len < 0)) {
         int error_number = -read_len;
         LOG_E(
                 TAG,
@@ -93,8 +92,29 @@ bool storage_readv(
                 error_number,
                 channel->path);
 
-        return false;
-    } else if (unlikely(read_len != expected_read_len)) {
+        return read_len;
+    }
+
+    worker_stats_t *stats = worker_stats_get_internal_current();
+    stats->storage.read_data += read_len;
+    stats->storage.read_iops++;
+
+    return read_len;
+}
+
+bool storage_readv(
+        storage_channel_t *channel,
+        storage_io_common_iovec_t *iov,
+        size_t iov_nr,
+        size_t expected_read_len,
+        off_t offset) {
+    int32_t read_len = (int32_t)storage_readv_internal(
+            channel,
+            iov,
+            iov_nr,
+            offset);
+
+    if (unlikely(read_len != expected_read_len)) {
         LOG_E(
                 TAG,
                 "[FD:%5d][READV] Expected to read <%lu> from <%s>, actually read <%lu>",
@@ -106,17 +126,7 @@ bool storage_readv(
         return false;
     }
 
-    LOG_DI(
-            "[FD:%5d][READV] Read <%u> bytes from path <%s>",
-            channel->fd,
-            read_len,
-            channel->path);
-
-    worker_stats_t *stats = worker_stats_get_internal_current();
-    stats->storage.read_data += read_len;
-    stats->storage.read_iops++;
-
-    return true;
+    return read_len >= 0;
 }
 
 bool storage_read(
@@ -132,6 +142,21 @@ bool storage_read(
     };
 
     return storage_readv(channel, iov, 1, buffer_len, offset);
+}
+
+int32_t storage_read_try(
+        storage_channel_t *channel,
+        char *buffer,
+        size_t buffer_len,
+        off_t offset) {
+    storage_io_common_iovec_t iov[1] = {
+            {
+                    .iov_base = buffer,
+                    .iov_len = buffer_len,
+            },
+    };
+
+    return storage_readv_internal(channel, iov, 1, offset);
 }
 
 bool storage_writev(
@@ -168,12 +193,6 @@ bool storage_writev(
 
         return false;
     }
-
-    LOG_DI(
-            "[FD:%5d][WRITEV] Written <%u> bytes to path <%s>",
-            channel->fd,
-            write_len,
-            channel->path);
 
     worker_stats_t *stats = worker_stats_get_internal_current();
     stats->storage.written_data += write_len;
