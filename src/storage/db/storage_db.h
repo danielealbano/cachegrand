@@ -569,19 +569,18 @@ uint8_t storage_db_keys_eviction_run_worker(
         config_database_keys_eviction_policy_t policy);
 
 static inline bool storage_db_keys_eviction_should_run(
-        storage_db_t *db) {
-    uint64_t keys_count = storage_db_op_get_keys_count_global(db);
-    uint64_t data_size = storage_db_op_get_data_size_global(db);
+        storage_db_t *db,
+        storage_db_counters_t *counters) {
 
-    if (keys_count == 0) {
+    if (counters->keys_count == 0) {
         return false;
     }
 
-    if (db->limits.keys_count.soft_limit > 0 && keys_count > db->limits.keys_count.soft_limit) {
+    if (db->limits.keys_count.soft_limit > 0 && counters->keys_count > db->limits.keys_count.soft_limit) {
         return true;
     }
 
-    if (db->limits.data_size.soft_limit > 0 && data_size > db->limits.data_size.soft_limit) {
+    if (db->limits.data_size.soft_limit > 0 && counters->data_size > db->limits.data_size.soft_limit) {
         return true;
     }
 
@@ -589,25 +588,24 @@ static inline bool storage_db_keys_eviction_should_run(
 }
 
 static inline double storage_db_keys_eviction_calculate_close_to_hard_limit_percentage(
-        storage_db_t *db) {
+        storage_db_t *db,
+        storage_db_counters_t *counters) {
     double keys_count_close_to_hard_limit_percentage = 0;
     double data_size_close_to_hard_limit_percentage = 0;
-    uint64_t keys_count = storage_db_op_get_keys_count_global(db);
-    uint64_t data_size = storage_db_op_get_data_size_global(db);
 
     if (db->limits.keys_count.soft_limit == 0 && db->limits.data_size.soft_limit == 0) {
         return 0;
     }
 
-    if (db->limits.keys_count.soft_limit > 0 && keys_count > db->limits.keys_count.soft_limit) {
+    if (db->limits.keys_count.soft_limit > 0 && counters->keys_count > db->limits.keys_count.soft_limit) {
         keys_count_close_to_hard_limit_percentage =
-                (double)(keys_count - db->limits.keys_count.soft_limit) /
+                (double)(counters->keys_count - db->limits.keys_count.soft_limit) /
                 (double)(db->limits.keys_count.hard_limit - db->limits.keys_count.soft_limit);
     }
 
-    if (db->limits.data_size.soft_limit > 0 && data_size > db->limits.data_size.soft_limit) {
+    if (db->limits.data_size.soft_limit > 0 && counters->data_size > db->limits.data_size.soft_limit) {
         data_size_close_to_hard_limit_percentage =
-                (double)(data_size - db->limits.data_size.soft_limit) /
+                (double)(counters->data_size - db->limits.data_size.soft_limit) /
                 (double)(db->limits.data_size.hard_limit - db->limits.data_size.soft_limit);
     }
 
