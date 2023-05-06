@@ -25,8 +25,8 @@ static inline __attribute__((always_inline)) size_t storage_buffered_read_buffer
         storage_buffered_channel_t *storage_buffered_channel,
         size_t slice_length,
         storage_buffered_channel_buffer_data_t **buffer_out) {
-    assert(storage_buffered_channel->buffers.read.slice_acquired_length > 0);
-    assert(slice_length <= storage_buffered_channel->buffers.read.slice_acquired_length);
+    assert(slice_length <= storage_buffered_channel->buffers.read.buffer.length);
+    assert(storage_buffered_channel->buffers.read.slice_acquired_length == 0);
 
     *buffer_out = NULL;
 
@@ -60,7 +60,11 @@ static inline __attribute__((always_inline)) size_t storage_buffered_read_buffer
 }
 
 static inline __attribute__((always_inline)) void storage_buffered_read_buffer_release_slice(
-        storage_buffered_channel_t *storage_buffered_channel) {
+        storage_buffered_channel_t *storage_buffered_channel,
+        size_t slice_used_length) {
+    assert(storage_buffered_channel->buffers.write.slice_acquired_length > 0);
+    assert(slice_used_length <= storage_buffered_channel->buffers.write.slice_acquired_length);
+
 #if DEBUG == 1
     storage_buffered_channel->buffers.read.slice_acquired_length = 0;
 #endif
