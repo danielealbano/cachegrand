@@ -1013,7 +1013,7 @@ void storage_db_snapshot_report_progress(
     // Report the progress
     LOG_I(
             TAG,
-            "Snapshot progress <%0.02f%%>, keys processed <%lu>, data processed <%0.02lf MB>, eta: <%s>",
+            "Snapshot progress <%0.02f%%>, keys processed <%lu>, data written <%0.02lf MB>, eta: <%s>",
             progress,
             db->snapshot.stats.keys_written,
             (double)db->snapshot.stats.data_written / 1024.0 / 1024.0,
