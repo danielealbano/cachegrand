@@ -89,7 +89,7 @@ TEST_CASE("storage/storage_buffered.c", "[storage][storage_buffered]") {
         REQUIRE(write(fd, buffer_write, strlen(buffer_write)) == strlen(buffer_write));
         REQUIRE(close(fd) == 0);
 
-        REQUIRE(storage_buffered_read_ahead(storage_buffered_channel, strlen(buffer_write)));
+            REQUIRE(storage_buffered_read_ahead(storage_buffered_channel, strlen(buffer_write)) > 0);
         REQUIRE(storage_buffered_channel->offset == strlen(buffer_write));
         REQUIRE(storage_buffered_channel->buffers.read.buffer.data_size == strlen(buffer_write));
         REQUIRE(storage_buffered_channel->buffers.read.buffer.data_offset == 0);

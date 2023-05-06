@@ -14,7 +14,7 @@ void storage_buffered_set_offset(
         storage_buffered_channel_t *storage_buffered_channel,
         off_t offset);
 
-bool storage_buffered_read_ahead(
+size_t storage_buffered_read_ahead(
         storage_buffered_channel_t *storage_buffered_channel,
         size_t data_size_to_read);
 

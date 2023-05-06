@@ -69,7 +69,7 @@ bool storage_buffered_read_ahead(
     storage_buffered_channel->buffers.read.buffer.data_size = data_available + read_len;
     storage_buffered_channel->buffers.read.buffer.data_offset = 0;
 
-    return read_len > 0;
+    return read_len;
 }
 
 bool storage_buffered_flush_write(
