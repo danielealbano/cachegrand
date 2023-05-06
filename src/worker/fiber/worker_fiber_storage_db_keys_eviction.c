@@ -53,8 +53,10 @@ void worker_fiber_storage_db_keys_eviction_fiber_entrypoint(
         }
 
         storage_db_counters_t counters = { 0 };
+        storage_db_counters_sum_global(worker_context->db, &counters);
+
         // Check if limits have been passed
-        if (likely(!storage_db_keys_eviction_should_run(worker_context->db))) {
+        if (likely(!storage_db_keys_eviction_should_run(worker_context->db, &counters))) {
             continue;
         }
 
@@ -65,7 +67,8 @@ void worker_fiber_storage_db_keys_eviction_fiber_entrypoint(
             // To avoid to run the eviction too often, we calculate how close we are to the hard limits and then
             // calculate a wait time based on that, closer to the limits lower the wait time.
             double close_to_hard_limit = storage_db_keys_eviction_calculate_close_to_hard_limit_percentage(
-                    worker_context->db);
+                    worker_context->db,
+                    &counters);
 
             // Upscale close_to_hard_limit to take into account the threshold
             close_to_hard_limit =
@@ -97,7 +100,7 @@ void worker_fiber_storage_db_keys_eviction_fiber_entrypoint(
             eviction_run = true;
             iterations++;
         } while(iterations < 100 &&
-                storage_db_keys_eviction_calculate_close_to_hard_limit_percentage(worker_context->db) >
+                storage_db_keys_eviction_calculate_close_to_hard_limit_percentage(worker_context->db, &counters) >
                     WORKER_FIBER_STORAGE_DB_KEYS_EVICTION_CLOSE_TO_HARD_LIMIT_PERCENTAGE_THRESHOLD);
 
         if (eviction_run) {
