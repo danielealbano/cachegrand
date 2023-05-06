@@ -1644,7 +1644,8 @@ bool storage_db_op_delete_by_index(
 
 bool storage_db_op_delete_by_index_all_databases(
         storage_db_t *db,
-        hashtable_bucket_index_t bucket_index) {
+        hashtable_bucket_index_t bucket_index,
+        storage_db_entry_index_t **out_current_entry_index) {
     storage_db_entry_index_t *current_entry_index = NULL;
 
     bool res = hashtable_mcmp_op_delete_by_index_all_databases(
@@ -1652,7 +1653,7 @@ bool storage_db_op_delete_by_index_all_databases(
             bucket_index,
             (uintptr_t*)&current_entry_index);
 
-    if (res && current_entry_index != NULL) {
+    if (likely(res && current_entry_index != NULL)) {
         STORAGE_DB_COUNTERS_UPDATE(db, current_entry_index->database_number, {
             counters->keys_count--;
             counters->data_size -= (int64_t)current_entry_index->value.size;
@@ -1660,7 +1661,10 @@ bool storage_db_op_delete_by_index_all_databases(
             counters->data_changed += (int64_t)current_entry_index->value.size;
         });
 
+        *out_current_entry_index = current_entry_index;
         storage_db_worker_mark_deleted_or_deleting_previous_entry_index(db, current_entry_index);
+    } else {
+        *out_current_entry_index = NULL;
     }
 
     return res;

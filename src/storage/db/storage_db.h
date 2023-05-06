@@ -519,7 +519,8 @@ bool storage_db_op_delete_by_index(
 
 bool storage_db_op_delete_by_index_all_databases(
         storage_db_t *db,
-        hashtable_bucket_index_t bucket_index);
+        hashtable_bucket_index_t bucket_index,
+        storage_db_entry_index_t **out_current_entry_index);
 
 char *storage_db_op_random_key(
         storage_db_t *db,
