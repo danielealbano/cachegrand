@@ -84,16 +84,56 @@ TEST_CASE("storage/storage_buffered.c", "[storage][storage_buffered]") {
     }
 
     SECTION("storage_buffered_read_ahead") {
-        int fd = openat(0, fixture_temp_path, O_WRONLY, 0);
-        REQUIRE(fd > -1);
-        REQUIRE(write(fd, buffer_write, strlen(buffer_write)) == strlen(buffer_write));
-        REQUIRE(close(fd) == 0);
+        SECTION("Without buffer window rollback") {
+            int fd = openat(0, fixture_temp_path, O_WRONLY, 0);
+            REQUIRE(fd > -1);
+            REQUIRE(write(fd, buffer_write, strlen(buffer_write)) == strlen(buffer_write));
+            REQUIRE(close(fd) == 0);
 
             REQUIRE(storage_buffered_read_ahead(storage_buffered_channel, strlen(buffer_write)) > 0);
-        REQUIRE(storage_buffered_channel->offset == strlen(buffer_write));
-        REQUIRE(storage_buffered_channel->buffers.read.buffer.data_size == strlen(buffer_write));
-        REQUIRE(storage_buffered_channel->buffers.read.buffer.data_offset == 0);
-        REQUIRE(memcmp(storage_buffered_channel->buffers.read.buffer.data, buffer_write, strlen(buffer_write)) == 0);
+            REQUIRE(storage_buffered_channel->offset == strlen(buffer_write));
+            REQUIRE(storage_buffered_channel->buffers.read.buffer.data_size == strlen(buffer_write));
+            REQUIRE(storage_buffered_channel->buffers.read.buffer.data_offset == 0);
+            REQUIRE(memcmp(storage_buffered_channel->buffers.read.buffer.data, buffer_write, strlen(buffer_write)) == 0);
+        }
+
+
+        SECTION("Without buffer window rollback") {
+            uint64_t expected_value;
+
+            int fd = openat(0, fixture_temp_path, O_WRONLY, 0);
+            REQUIRE(fd > -1);
+            for(uint64_t i = 0; i < (storage_buffered_channel->buffers.read.buffer.length * 2) / sizeof(i); i++) {
+                REQUIRE(write(fd, (char*)&i, sizeof(i)) == sizeof(i));
+            }
+            REQUIRE(close(fd) == 0);
+
+            // Fill the buffer
+            REQUIRE(storage_buffered_read_ahead(storage_buffered_channel, storage_buffered_channel->buffers.read.buffer.length));
+            REQUIRE(storage_buffered_channel->buffers.read.buffer.data_size == storage_buffered_channel->buffers.read.buffer.length);
+
+            // Simulate reading up to almost the end of the buffer
+            storage_buffered_channel->buffers.read.buffer.data_offset = storage_buffered_channel->buffers.read.buffer.length - 256;
+
+            // Try to read ahead
+            REQUIRE(storage_buffered_read_ahead(storage_buffered_channel, 8192) == 8192 + (STORAGE_BUFFERED_PAGE_SIZE * 2));
+
+            // The buffer should now contain 14kb of data plus the 256 bytes we read before
+            REQUIRE(storage_buffered_channel->buffers.read.buffer.data_size == 8192 + (STORAGE_BUFFERED_PAGE_SIZE * 2) + 256);
+            REQUIRE(storage_buffered_channel->buffers.read.buffer.data_offset == 0);
+
+            // Calculate which should be the value written at the beginning of the buffer
+            expected_value = (storage_buffered_channel->buffers.read.buffer.length - 256) / sizeof(uint64_t);
+            REQUIRE(memcmp(storage_buffered_channel->buffers.read.buffer.data, (char*)&expected_value, sizeof(expected_value)) == 0);
+
+            // Calculate which should be the value written at the end of the buffer
+            expected_value = expected_value + ((256 + 8192 + (STORAGE_BUFFERED_PAGE_SIZE * 2)) / sizeof(uint64_t)) - 1;
+            uint64_t found_value = *(uint64_t*)(
+                    storage_buffered_channel->buffers.read.buffer.data +
+                    storage_buffered_channel->buffers.read.buffer.data_size -
+                    sizeof(uint64_t));
+            REQUIRE(expected_value == found_value);
+        }
     }
 
     SECTION("storage_buffered_flush_write") {

@@ -34,29 +34,46 @@ void storage_buffered_set_offset(
     storage_buffered_channel->offset = offset;
 }
 
-bool storage_buffered_read_ahead(
+size_t storage_buffered_read_ahead(
         storage_buffered_channel_t *storage_buffered_channel,
         size_t data_size_to_read) {
-    size_t data_offset = storage_buffered_channel->buffers.read.buffer.data_offset;
-    size_t data_available = storage_buffered_channel->buffers.read.buffer.data_size - data_offset;
+    assert(storage_buffered_channel->buffers.read.slice_acquired_length == 0);
+    assert(data_size_to_read <= storage_buffered_channel->buffers.read.buffer.length);
 
-    // Move the data in the buffer at the beginning and try to fill out the remaining
-    if (unlikely(data_available > storage_buffered_channel->buffers.read.buffer.length >> 1)) {
-        // Uses memmove if there will be overlap
-        memmove(
-                storage_buffered_channel->buffers.read.buffer.data,
-                storage_buffered_channel->buffers.read.buffer.data + data_offset,
-                data_available);
-    } else {
-        memcpy(
-                storage_buffered_channel->buffers.read.buffer.data,
-                storage_buffered_channel->buffers.read.buffer.data + data_offset,
-                data_available);
-    }
+    size_t data_size = storage_buffered_channel->buffers.read.buffer.data_size;
+    size_t data_offset = storage_buffered_channel->buffers.read.buffer.data_offset;
+    size_t data_available = data_size - data_offset;
 
     // Rounds up the data that needs to be read to a full 4KB page and add an extra 4kB page
     data_size_to_read =
             data_size_to_read - (data_size_to_read % STORAGE_BUFFERED_PAGE_SIZE) + (STORAGE_BUFFERED_PAGE_SIZE * 2);
+
+    // Check if it needs to free up some space in the buffer
+    if (unlikely(data_size + data_size_to_read > storage_buffered_channel->buffers.read.buffer.length)) {
+        if (likely(data_available > 0)) {
+            // Move the data in the buffer at the beginning and try to fill out the remaining
+            if (unlikely(data_available > storage_buffered_channel->buffers.read.buffer.length >> 1)) {
+                // Uses memmove if there will be overlap
+                memmove(
+                        storage_buffered_channel->buffers.read.buffer.data,
+                        storage_buffered_channel->buffers.read.buffer.data + data_offset,
+                        data_available);
+            } else {
+                memcpy(
+                        storage_buffered_channel->buffers.read.buffer.data,
+                        storage_buffered_channel->buffers.read.buffer.data + data_offset,
+                        data_available);
+            }
+        }
+
+        storage_buffered_channel->buffers.read.buffer.data_size = data_available;
+        storage_buffered_channel->buffers.read.buffer.data_offset = 0;
+
+        // Check if the data to read is bigger than the buffer, if so, reduce the amount of data to read
+        if (unlikely(data_available + data_size_to_read > storage_buffered_channel->buffers.read.buffer.length)) {
+            data_size_to_read = storage_buffered_channel->buffers.read.buffer.length - data_available;
+        }
+    }
 
     // Try to read the requested size from the disk, returns what has been found
     size_t read_len = storage_read_try(
