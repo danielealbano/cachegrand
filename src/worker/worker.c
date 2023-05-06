@@ -505,7 +505,7 @@ void* worker_thread_func(
 
                 if (counter == 0) {
                     // All the fds have been closed
-                    if (worker_context->db->config->snapshot.snapshot_at_shutdown) {
+                    if (worker_context->worker_index == 0 && worker_context->db->config->snapshot.snapshot_at_shutdown) {
                         can_start_snapshot_at_shutdown = true;
                     } else {
                         can_terminate_loop = true;
