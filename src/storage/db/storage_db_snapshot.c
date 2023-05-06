@@ -954,7 +954,7 @@ bool storage_db_snapshot_rdb_process_block(
         }
 
         // Check if the database number has changed
-        if (*current_database_number != database_number) {
+        if (unlikely(*current_database_number != database_number)) {
             // If the database number has changed, the current database number should be updated
             *current_database_number = database_number;
 
