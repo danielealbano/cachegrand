@@ -65,6 +65,7 @@ bool storage_buffered_read_ahead(
             data_size_to_read,
             storage_buffered_channel->offset);
 
+    storage_buffered_channel->offset += (off_t)read_len;
     storage_buffered_channel->buffers.read.buffer.data_size = data_available + read_len;
     storage_buffered_channel->buffers.read.buffer.data_offset = 0;
 
