@@ -534,36 +534,34 @@ bool storage_db_snapshot_rdb_write_value_string(
             }
         }
 
-        // The LZF compression is disabled for now, it causes a segfault
-//        if (false && likely(!string_serialized || (entry_index->value.size > 32 && entry_index->value.size < 52 * 1024))) {
-//           module_redis_snapshot_serialize_primitive_result_t serialize_result;
-//            size_t allocated_buffer_size = LZF_MAX_COMPRESSED_SIZE(entry_index->value.size) * 1.2;
-//            uint8_t *allocated_buffer = ffma_mem_alloc(allocated_buffer_size);
+//        // Try to compress the string using LZF
+//        if (likely(!string_serialized && (entry_index->value.size > 32 && entry_index->value.size < 40 * 1024))) {
+//            module_redis_snapshot_serialize_primitive_result_t serialize_result;
+//            buffer_size = 128 + (size_t)(LZF_MAX_COMPRESSED_SIZE(entry_index->value.size) * 1.2);
+//            if ((buffer = storage_buffered_write_buffer_acquire_slice(
+//                    db->snapshot.storage_buffered_channel,
+//                    buffer_size)) == NULL) {
+//                LOG_E(TAG, "Failed to acquire a slice for the string value");
+//                result = false;
+//                goto end;
+//            }
 //
 //            serialize_result = module_redis_snapshot_serialize_primitive_encode_small_string_lzf(
 //                    string,
 //                    entry_index->value.size,
-//                    allocated_buffer,
-//                    allocated_buffer_size,
+//                    (uint8_t*)buffer,
+//                    buffer_size,
 //                    0,
 //                    &buffer_offset);
 //
 //            // If the compression fails or the ration is too low ignore the error, cachegrand will try to
 //            // save the string as a regular string
 //            if (likely(serialize_result == MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK)) {
-//                if (unlikely(!storage_db_snapshot_rdb_write_buffer(
-//                        db,
-//                        allocated_buffer,
-//                        allocated_buffer_size))) {
-//                    ffma_mem_free(allocated_buffer);
-//                    result = false;
-//                    goto end;
-//                }
-//
+//                storage_db_snapshot_rdb_release_slice(db, buffer_offset);
 //                string_serialized = true;
+//            } else {
+//                storage_buffered_write_buffer_discard_slice(db->snapshot.storage_buffered_channel);
 //            }
-//
-//            ffma_mem_free(allocated_buffer);
 //        }
     }
 
@@ -1015,7 +1013,7 @@ void storage_db_snapshot_report_progress(
     // Report the progress
     LOG_I(
             TAG,
-            "Snapshot progress <%0.02f%%>, keys processed <%lu>, data processed <%0.02lf MB>, eta: <%s>",
+            "Snapshot progress <%0.02f%%>, keys processed <%lu>, data written <%0.02lf MB>, eta: <%s>",
             progress,
             db->snapshot.stats.keys_written,
             (double)db->snapshot.stats.data_written / 1024.0 / 1024.0,

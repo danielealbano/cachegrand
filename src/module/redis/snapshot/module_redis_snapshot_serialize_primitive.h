@@ -13,6 +13,7 @@ enum module_redis_snapshot_serialize_primitive_result {
     MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_COMPRESSION_RATIO_TOO_LOW,
     MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_INVALID_VALUE_TYPE,
     MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_TOO_LARGE,
+    MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_NUMBER_TOO_BIG,
 };
 typedef enum module_redis_snapshot_serialize_primitive_result module_redis_snapshot_serialize_primitive_result_t;
 
@@ -75,6 +76,34 @@ bool module_redis_snapshot_serialize_primitive_can_encode_string_int(
 
 module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_header(
         module_redis_snapshot_header_t *header,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out);
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_length_up_to_uint63(
+        uint64_t length,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out);
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_length_up_to_uint16383(
+        uint64_t length,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out);
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_length_up_to_uint32b(
+        uint64_t length,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out);
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_length_up_to_uint64b(
+        uint64_t length,
         uint8_t *buffer,
         size_t buffer_size,
         size_t buffer_offset,

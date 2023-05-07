@@ -109,6 +109,17 @@ static inline __attribute__((always_inline))void storage_buffered_write_buffer_r
 #endif
 }
 
+static inline __attribute__((always_inline))void storage_buffered_write_buffer_discard_slice(
+        storage_buffered_channel_t *storage_buffered_channel) {
+    // Ensure that when the slice is released, the amount of data used is always the same or smaller than the length
+    // acquired. Also ensure that there was a slice acquired.
+    assert(storage_buffered_channel->buffers.write.slice_acquired_length > 0);
+
+#if DEBUG == 1
+    storage_buffered_channel->buffers.write.slice_acquired_length = 0;
+#endif
+}
+
 #ifdef __cplusplus
 }
 #endif
