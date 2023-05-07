@@ -196,8 +196,8 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
     // Numbers up to UINT32_MAX included are encoded in five bytes, the first two bits of the first byte are set to
     // 10 and the remaining 6 bits of the first byte are discarded. The number is encoded using big endian encoding
     // (most significant byte first) in the remaining four bytes
-        buffer[*buffer_offset_out] = 0x80;
-        (*buffer_offset_out)++;
+    buffer[*buffer_offset_out] = 0x80;
+    (*buffer_offset_out)++;
     uint32_t length_32 = int32_hton(length);
     memcpy(buffer + *buffer_offset_out, &length_32, sizeof(length_32));
     *buffer_offset_out += sizeof(length_32);
@@ -222,8 +222,8 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
     // Numbers greater than UINT32_MAX are encoded in nine bytes, the first two bits of the first byte are set to
     // 11 and the remaining 6 bits of the first byte are discarded. The number is encoded using big endian encoding
     // (most significant byte first) in the remaining eight bytes
-        buffer[*buffer_offset_out] = 0x81;
-        (*buffer_offset_out)++;
+    buffer[*buffer_offset_out] = 0x81;
+    (*buffer_offset_out)++;
     uint64_t length_64 = int64_hton(length);
     memcpy(buffer + *buffer_offset_out, &length_64, sizeof(length_64));
     *buffer_offset_out += sizeof(length_64);
@@ -463,7 +463,7 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
     (*buffer_offset_out)++;
 
     // Encode the length of the string
-    if ((result = module_redis_snapshot_serialize_primitive_encode_length(
+    if ((result = module_redis_snapshot_serialize_primitive_encode_length_up_to_uint32b(
             compressed_string_length,
             buffer,
             buffer_size,
@@ -473,7 +473,7 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
     }
 
     // Encode the length of the string
-    if ((result = module_redis_snapshot_serialize_primitive_encode_length(
+    if ((result = module_redis_snapshot_serialize_primitive_encode_length_up_to_uint32b(
             string_length,
             buffer,
             buffer_size,
