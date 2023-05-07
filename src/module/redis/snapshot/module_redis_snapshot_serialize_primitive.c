@@ -122,56 +122,150 @@ end:
     return result;
 }
 
-module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_length(
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_length_up_to_uint63(
         uint64_t length,
         uint8_t *buffer,
         size_t buffer_size,
         size_t buffer_offset,
         size_t *buffer_offset_out) {
     *buffer_offset_out = buffer_offset;
-    module_redis_snapshot_serialize_primitive_result_t result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK;
-    size_t required_buffer_space = module_redis_snapshot_serialize_primitive_encode_length_required_buffer_space(length);
+    size_t required_buffer_space = module_redis_snapshot_serialize_primitive_encode_length_required_buffer_space(
+            length);
 
-    // Check if the buffer is big enough
-    if (*buffer_offset_out + required_buffer_space > buffer_size) {
-        result = MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
-        goto end;
+    if (unlikely(length > 63)) {
+        return MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_NUMBER_TOO_BIG;
     }
 
-    // Encode the length
-    if (length <= 63) {
-        // Numbers up to 63 included are encoded in a single byte, the first two bits are set to 0
-        buffer[*buffer_offset_out] = length & 0x3F;
-        (*buffer_offset_out)++;
-    } else if (length <= 16383) {
-        // Numbers up to 16383 included are encoded in two bytes, the first two bits of the first byte are set to 01 and
-        // the first remaining 6 bits are used to encode the upper 6 bits of the number
-        buffer[*buffer_offset_out] = ((length >> 8) & 0x3F) | 0x40;
-        (*buffer_offset_out)++;
-        buffer[*buffer_offset_out] = length & 0xFF;
-        (*buffer_offset_out)++;
-    } else if (length <= UINT32_MAX) {
-        // Numbers up to UINT32_MAX included are encoded in five bytes, the first two bits of the first byte are set to
-        // 10 and the remaining 6 bits of the first byte are discarded. The number is encoded using big endian encoding
-        // (most significant byte first) in the remaining four bytes
+    if (unlikely(*buffer_offset_out + required_buffer_space > buffer_size)) {
+        return MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
+    }
+
+    // Numbers up to 63 included are encoded in a single byte, the first two bits are set to 0
+    buffer[*buffer_offset_out] = length & 0x3F;
+    (*buffer_offset_out)++;
+
+    return MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK;
+}
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_length_up_to_uint16383(
+        uint64_t length,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out) {
+    *buffer_offset_out = buffer_offset;
+    size_t required_buffer_space = module_redis_snapshot_serialize_primitive_encode_length_required_buffer_space(
+            length);
+
+    if (unlikely(length > 16383)) {
+        return MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_NUMBER_TOO_BIG;
+    }
+
+    if (unlikely(*buffer_offset_out + required_buffer_space > buffer_size)) {
+        return MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
+    }
+
+    // Numbers up to 16383 included are encoded in two bytes, the first two bits of the first byte are set to 01 and
+    // the first remaining 6 bits are used to encode the upper 6 bits of the number
+    buffer[*buffer_offset_out] = ((length >> 8) & 0x3F) | 0x40;
+    (*buffer_offset_out)++;
+    buffer[*buffer_offset_out] = length & 0xFF;
+    (*buffer_offset_out)++;
+
+    return MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK;
+}
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_length_up_to_uint32b(
+        uint64_t length,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out) {
+    *buffer_offset_out = buffer_offset;
+    size_t required_buffer_space = module_redis_snapshot_serialize_primitive_encode_length_required_buffer_space(
+            length);
+
+    if (unlikely(length > UINT32_MAX)) {
+        return MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_NUMBER_TOO_BIG;
+    }
+
+    if (unlikely(*buffer_offset_out + required_buffer_space > buffer_size)) {
+        return MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
+    }
+
+    // Numbers up to UINT32_MAX included are encoded in five bytes, the first two bits of the first byte are set to
+    // 10 and the remaining 6 bits of the first byte are discarded. The number is encoded using big endian encoding
+    // (most significant byte first) in the remaining four bytes
         buffer[*buffer_offset_out] = 0x80;
         (*buffer_offset_out)++;
-        uint32_t length_32 = int32_hton(length);
-        memcpy(buffer + *buffer_offset_out, &length_32, sizeof(length_32));
-        *buffer_offset_out += sizeof(length_32);
-    } else {
-        // Numbers greater than UINT32_MAX are encoded in nine bytes, the first two bits of the first byte are set to
-        // 11 and the remaining 6 bits of the first byte are discarded. The number is encoded using big endian encoding
-        // (most significant byte first) in the remaining eight bytes
-        buffer[*buffer_offset_out] = 0x81;
-        (*buffer_offset_out)++;
-        uint64_t length_64 = int64_hton(length);
-        memcpy(buffer + *buffer_offset_out, &length_64, sizeof(length_64));
-        *buffer_offset_out += sizeof(length_64);
+    uint32_t length_32 = int32_hton(length);
+    memcpy(buffer + *buffer_offset_out, &length_32, sizeof(length_32));
+    *buffer_offset_out += sizeof(length_32);
+
+    return MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK;
+}
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_length_up_to_uint64b(
+        uint64_t length,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out) {
+    *buffer_offset_out = buffer_offset;
+    size_t required_buffer_space = module_redis_snapshot_serialize_primitive_encode_length_required_buffer_space(
+            length);
+
+    if (unlikely(*buffer_offset_out + required_buffer_space > buffer_size)) {
+        return MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_BUFFER_OVERFLOW;
     }
 
-end:
-    return result;
+    // Numbers greater than UINT32_MAX are encoded in nine bytes, the first two bits of the first byte are set to
+    // 11 and the remaining 6 bits of the first byte are discarded. The number is encoded using big endian encoding
+    // (most significant byte first) in the remaining eight bytes
+        buffer[*buffer_offset_out] = 0x81;
+        (*buffer_offset_out)++;
+    uint64_t length_64 = int64_hton(length);
+    memcpy(buffer + *buffer_offset_out, &length_64, sizeof(length_64));
+    *buffer_offset_out += sizeof(length_64);
+
+    return MODULE_REDIS_SNAPSHOT_SERIALIZE_PRIMITIVE_RESULT_OK;
+}
+
+module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_length(
+        uint64_t length,
+        uint8_t *buffer,
+        size_t buffer_size,
+        size_t buffer_offset,
+        size_t *buffer_offset_out) {
+    if (length <= 63) {
+        return module_redis_snapshot_serialize_primitive_encode_length_up_to_uint63(
+                length,
+                buffer,
+                buffer_size,
+                buffer_offset,
+                buffer_offset_out);
+    } else if (length <= 16383) {
+        return module_redis_snapshot_serialize_primitive_encode_length_up_to_uint16383(
+                length,
+                buffer,
+                buffer_size,
+                buffer_offset,
+                buffer_offset_out);
+    } else if (length <= UINT32_MAX) {
+        return module_redis_snapshot_serialize_primitive_encode_length_up_to_uint32b(
+                length,
+                buffer,
+                buffer_size,
+                buffer_offset,
+                buffer_offset_out);
+    } else {
+        return module_redis_snapshot_serialize_primitive_encode_length_up_to_uint64b(
+                length,
+                buffer,
+                buffer_size,
+                buffer_offset,
+                buffer_offset_out);
+    }
 }
 
 module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_serialize_primitive_encode_key(
