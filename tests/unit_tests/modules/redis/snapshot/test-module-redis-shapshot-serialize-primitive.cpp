@@ -120,13 +120,13 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
         SECTION("length <= UINT32_MAX") {
             size_t result =
                     module_redis_snapshot_serialize_primitive_encode_length_required_buffer_space(UINT32_MAX);
-            REQUIRE(result == 4);
+            REQUIRE(result == 5);
         }
 
         SECTION("length > UINT32_MAX") {
             size_t result =
                     module_redis_snapshot_serialize_primitive_encode_length_required_buffer_space(UINT64_MAX);
-            REQUIRE(result == 8);
+            REQUIRE(result == 9);
         }
     }
 
@@ -784,24 +784,22 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             REQUIRE(buffer_offset > 4);
             REQUIRE(buffer[0] == (0xC0 | 0x03));
 
-            // Extract from the buffer the string length and check if it matches the initial one
-            uint32_t string_length_from_buffer = 0;
-            string_length_from_buffer |= (buffer[3] & (uint8_t)(~0xC0)) << 8;
-            string_length_from_buffer |= buffer[4];
-            REQUIRE(string_length_from_buffer == string_length);
-
             // Read the compressed length from buffer[1] to buffer[4] inclusive and checks that the compressed length is
             // smaller than the original string
-            uint32_t compressed_length = 0;
-            compressed_length |= (buffer[1] & (uint8_t)(~0xC0)) << 8;
-            compressed_length |= buffer[2];
+            REQUIRE(buffer[1] == 0x80);
+            uint32_t compressed_length = int32_ntoh(*(uint32_t*)(buffer+2));
             REQUIRE(compressed_length < string_length);
+
+            // Extract from the buffer the string length and check if it matches the initial one
+            REQUIRE(buffer[6] == 0x80);
+            uint32_t string_length_from_buffer = int32_ntoh(*(uint32_t*)(buffer+7));
+            REQUIRE(string_length_from_buffer == string_length);
 
             // Try to decompress the data
             char decompressed[1024];
             size_t decompressed_length = lzf_decompress(
-                    buffer + 5,
-                    buffer_offset - 5,
+                    buffer + 11,
+                    buffer_offset - 11,
                     decompressed,
                     sizeof(decompressed));
 
@@ -968,24 +966,22 @@ TEST_CASE("module_redis_snapshot_serialize_primitive") {
             REQUIRE(buffer_offset > 4);
             REQUIRE(buffer[0] == (0xC0 | 0x03));
 
-            // Extract from the buffer the string length and check if it matches the initial one
-            uint32_t string_length_from_buffer = 0;
-            string_length_from_buffer |= (buffer[3] & (uint8_t)(~0xC0)) << 8;
-            string_length_from_buffer |= buffer[4];
-            REQUIRE(string_length_from_buffer == string_length);
-
             // Read the compressed length from buffer[1] to buffer[4] inclusive and checks that the compressed length is
             // smaller than the original string
-            uint32_t compressed_length = 0;
-            compressed_length |= (buffer[1] & (uint8_t)(~0xC0)) << 8;
-            compressed_length |= buffer[2];
+            REQUIRE(buffer[1] == 0x80);
+            uint32_t compressed_length = int32_ntoh(*(uint32_t*)(buffer+2));
             REQUIRE(compressed_length < string_length);
+
+            // Extract from the buffer the string length and check if it matches the initial one
+            REQUIRE(buffer[6] == 0x80);
+            uint32_t string_length_from_buffer = int32_ntoh(*(uint32_t*)(buffer+7));
+            REQUIRE(string_length_from_buffer == string_length);
 
             // Try to decompress the data
             char decompressed[1024];
             size_t decompressed_length = lzf_decompress(
-                    buffer + 5,
-                    buffer_offset - 5,
+                    buffer + 11,
+                    buffer_offset - 11,
                     decompressed,
                     sizeof(decompressed));
 
