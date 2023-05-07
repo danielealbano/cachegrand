@@ -31,9 +31,9 @@ size_t module_redis_snapshot_serialize_primitive_encode_length_required_buffer_s
     } else if (length <= 16383) {
         required_buffer_space = 2;
     } else if (length <= UINT32_MAX) {
-        required_buffer_space = 4;
+        required_buffer_space = 5;
     } else {
-        required_buffer_space = 8;
+        required_buffer_space = 9;
     }
 
     return required_buffer_space;
