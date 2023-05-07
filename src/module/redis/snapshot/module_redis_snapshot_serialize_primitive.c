@@ -431,7 +431,8 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
     }
 
     // Calculate the maximum required buffer space
-    size_t max_required_buffer_space = 1 + 5 + 5 + LZF_MAX_COMPRESSED_SIZE(string_length);
+    size_t header_length = 1 + 5 + 5;
+    size_t max_required_buffer_space = header_length + LZF_MAX_COMPRESSED_SIZE(string_length);
 
     // Check if the buffer is big enough
     if (*buffer_offset_out + max_required_buffer_space > buffer_size) {
@@ -439,12 +440,13 @@ module_redis_snapshot_serialize_primitive_result_t module_redis_snapshot_seriali
         goto end;
     }
 
+
     // Try to compress the data
     size_t compressed_string_length = lzf_compress(
             string,
             string_length,
-            buffer + *buffer_offset_out,
-            buffer_size - *buffer_offset_out);
+            buffer + *buffer_offset_out + header_length,
+            buffer_size - *buffer_offset_out - header_length);
 
     // Check if the compression was successful, if not, return an error
     if (compressed_string_length == 0) {
