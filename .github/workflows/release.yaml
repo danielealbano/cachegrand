@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-push-image:
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {
+            name: "Ubuntu 22.04",
+            os: ubuntu-22.04,
+            triplet: x64-linux,
+            cc: "gcc",
+            cxx: "g++"
+          }
+
+    steps:
+      - name: Setup cmake
+        uses: lukka/get-cmake@latest
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          fetch-depth: 2
+
+      - name: Install required dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config git libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev libmbedtls-dev libpcre2-8-0 libpcre2-dev libjson-c-dev valgrind libhiredis-dev liblzf-dev
+
+      - name: Create Build Environment
+        run: cmake -E make_directory ${{github.workspace}}/cmake-build-release
+
+      - name: Configure CMake
+        shell: bash
+        working-directory: ${{github.workspace}}/cmake-build-release
+        run: cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1
+
+      - name: Build cachegrand-server
+        working-directory: ${{github.workspace}}/cmake-build-release
+        shell: bash
+        run: cmake --build . --target cachegrand-server -- -j $(nproc)
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          username: ${{ secrets.PUSH_TO_DOCKER_USERNAME }}
+          password: ${{ secrets.PUSH_TO_DOCKER_PAT }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        with:
+          images: cachegrand/cachegrand-server
+          tags: |
+            type=semver,pattern={{raw}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+        with:
+          context: .
+          file: tools/docker/release/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
