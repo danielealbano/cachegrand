@@ -229,7 +229,7 @@ logs:
     # or print everything
     # level: [ all ]
 
-  - type: file
-    level: [ all, no-verbose, no-debug ]
-    file:
-      path: /var/log/cachegrand/cachegrand.log
+#  - type: file
+#    level: [ all, no-verbose, no-debug ]
+#    file:
+#      path: /var/log/cachegrand/cachegrand.log
