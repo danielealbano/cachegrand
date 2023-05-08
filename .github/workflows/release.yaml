@@ -50,8 +50,8 @@ jobs:
       - name: Log in to the Container registry
         uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
         with:
-          username: ${{ secrets.GITHUB_PUSH_TO_DOCKER_USERNAME }}
-          password: ${{ secrets.GITHUB_PUSH_TO_DOCKER_PAT }}
+          username: ${{ secrets.PUSH_TO_DOCKER_USERNAME }}
+          password: ${{ secrets.PUSH_TO_DOCKER_PAT }}
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
