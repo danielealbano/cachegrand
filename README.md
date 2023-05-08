@@ -28,7 +28,7 @@
 ### What is cachegrand?
 
 cachegrand is the **fastest** Key-Value store available on the market today, designed from the ground up to take
-advantage of today's hardware, compatible with the well known Redis it allows to scale to millions of operations per
+advantage of today's hardware, compatible with Redis, it allows to scale to millions of operations per
 second with sub-millisecond latencies.
 
 Key features:
