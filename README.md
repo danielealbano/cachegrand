@@ -16,7 +16,8 @@
 
 ### Table of Content
 
-- [Key features](#key-features)
+- [What is cachegrand?](#what-is-cachegrand)
+- [Benchmarks](#benchmarks)
 - [Quick Start](#quick-start)
 - [How to install](#how-to-install)
 - [Configuration](#configuration)
@@ -29,8 +30,6 @@
 cachegrand is the **fastest** Key-Value store available on the market today, designed from the ground up to take
 advantage of today's hardware, compatible with the well known Redis it allows to scale to millions of operations per
 second with sub-millisecond latencies.
-
-### Key features
 
 Key features:
 - [Redis](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/redis.md) protocol support
