@@ -41,15 +41,6 @@ The available metrics are:
 | cachegrand_storage_total_read_data                 | Total amount of read data from disk           | Counter |
 | cachegrand_storage_total_read_iops                 | Total amount of read IOPS                     | Counter |
 | cachegrand_storage_total_open_files                | Total amount of open files                    | Counter |
-| cachegrand_network_per_minute_received_packets     | Per minute amount of received packets         | Counter |
-| cachegrand_network_per_minute_received_data        | Per minute amount of received data (in bytes) | Counter |
-| cachegrand_network_per_minute_sent_packets         | Per minute amount of sent packets             | Counter |
-| cachegrand_network_per_minute_sent_data            | Per minute amount of sent data                | Counter |
-| cachegrand_network_per_minute_accepted_connections | Per minute amount of accepted connections     | Counter |
-| cachegrand_storage_per_minute_written_data         | Per minute amount of data written to disk     | Counter |
-| cachegrand_storage_per_minute_write_iops           | Per minute amount of write IOPS               | Counter |
-| cachegrand_storage_per_minute_read_data            | Per minute amount of read data from disk      | Counter |
-| cachegrand_storage_per_minute_read_iops            | Per minute amount of read IOPS                | Counter |
 | cachegrand_uptime                                  | Uptime in seconds                             | Counter |
 
 ### Metrics labels
