@@ -16,8 +16,10 @@
 
 ### Table of Content
 
-- [What is cachegrand?](#what-is-cachegrand)
-- [Benchmarks](#benchmarks)
+<div>
+<div width="48%" valign="top" style="display: inline-block">
+
+- [Key features](#key-features)
 - [Quick Start](#quick-start)
 - [How to install](#how-to-install)
 - [Configuration](#configuration)
@@ -26,11 +28,21 @@
 - [Contributing](#contributing)
 - [Credits](#credits)
 
-### What is cachegrand?
+</div>
+<div width="48%" valign="top" style="display: inline-block">
 
-cachegrand is the fastest, open-source, scalable and modular Key-Value store designed from the ground up to take
+cachegrand is the **fastest** Key-Value store available on the market today, designed from the ground up to take
 advantage of today's hardware, compatible with the well known Redis it allows to scale to millions of operations per
 second with sub-millisecond latencies.
+
+[![GET/SET latest benchmarks](https://github.com/cachegrand/cachegrand-benchmarks/raw/main/images/latest-benchmarks-get-set.png)](https://github.com/cachegrand/cachegrand-benchmarks/raw/main/images/latest-benchmarks-get-set.png)
+[![GET/SET with batching latest benchmarks](https://github.com/cachegrand/cachegrand-benchmarks/raw/main/images/latest-benchmarks-get-set-pipelining.png)](https://github.com/cachegrand/cachegrand-benchmarks/raw/main/images/latest-benchmarks-get-set-pipelining.png)
+_[Benchmarks source](https://github.com/cachegrand/cachegrand-benchmarks)_
+
+</div>
+</div>
+
+### Key features
 
 Key features:
 - [Redis](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/redis.md) protocol support
@@ -58,21 +70,6 @@ folder.
 
 cachegrand runs only on Linux on x86-64 (Intel and AMD) and aarch64 (ARMv8, e.g. Raspberry PI 4, Orange PI 5, etc.), we
 are planning to port it to more hardware (e.g. RISC) once will become more feature complete.
-
-### Benchmarks
-
-An [ad-hoc repository](https://github.com/cachegrand/cachegrand-benchmarks) with the raw data is available with the
-benchmark data, below an aggregate view of the latest results for the GET/SET ops and GET/SET ops with batching
-benchmarks.
-
-<p align="center">
-  <img alt="GET/SET latest benchmarks" src="https://github.com/cachegrand/cachegrand-benchmarks/raw/main/images/latest-benchmarks-get-set.png" width="47%">
-&nbsp;
-  <img alt="GET/SET with batching latest benchmarks" src="https://github.com/cachegrand/cachegrand-benchmarks/raw/main/images/latest-benchmarks-get-set-pipelining.png" width="47%">
-</p>
-
-The benchmarks are carried out on an **AMD EPYC 7502P** with **2 x 25Gbit** network links using **Ubuntu 22.04** with
-the default configuration and using memtier_benchmark on 2 other machines with the same hardware to generate the load.
 
 ### Quick Start
 
