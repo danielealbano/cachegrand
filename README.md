@@ -1,9 +1,8 @@
+[![License](https://img.shields.io/github/license/danielealbano/cachegrand)](https://github.com/danielealbano/cachegrand/blob/main/LICENSE)
 [![Build & Test](https://github.com/danielealbano/cachegrand/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/danielealbano/cachegrand/actions/workflows/build_and_test.yml)
 [![codecov](https://codecov.io/gh/danielealbano/cachegrand/branch/main/graph/badge.svg?token=H4W0N0F7MT)](https://codecov.io/gh/danielealbano/cachegrand)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fdanielealbano%2Fcachegrand.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fdanielealbano%2Fcachegrand?ref=badge_shield)
 [![Discord](https://img.shields.io/discord/1051658969556455526?&label=discord&logoColor=white&logo=discord)](https://discord.gg/RVwE9kmdgV)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/company/cachegrand)
-[![Twitter](https://img.shields.io/twitter/follow/cachegrand?style=flat&logo=twitter&logoColor=white)](https://twitter.com/cachegrand)
 
 <p align="center">
   <a href="https://cachegrand.io">
