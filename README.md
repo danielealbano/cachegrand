@@ -19,7 +19,6 @@
 - [What is cachegrand?](#what-is-cachegrand)
 - [Benchmarks](#benchmarks)
 - [Quick Start](#quick-start)
-- [How to install](#how-to-install)
 - [Configuration](#configuration)
 - [Running cachegrand](#running-cachegrand)
 - [License](#license)
@@ -55,8 +54,8 @@ Planned Key Features:
 It's possible to find more information in the [docs'](https://github.com/danielealbano/cachegrand/blob/main/docs/)
 folder.
 
-cachegrand runs only on Linux on x86-64 (Intel and AMD) and aarch64 (ARMv8, e.g. Raspberry PI 4, Orange PI 5, etc.), we
-are planning to port it to more hardware (e.g. RISC) once will become more feature complete.
+cachegrand runs on Linux on x86-64 (Intel and AMD) and aarch64 (ARMv8, e.g. Raspberry PI 4, Orange PI 5, etc.), we are
+planning to port it to more hardware (e.g. RISC) once will become more feature complete.
 
 ### Benchmarks
 
