@@ -30,7 +30,8 @@ cachegrand is the **fastest** Key-Value store available on the market today, des
 advantage of today's hardware, compatible with Redis, it allows to scale to millions of operations per
 second with sub-millisecond latencies.
 
-Key features:
+#### Key features
+
 - [Redis](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/redis.md) protocol support
 - [Prometheus](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/prometheus.md) endpoint
   for monitoring
@@ -41,7 +42,8 @@ Key features:
 - [Scales vertically](#benchmarks), 2x cpus means ~2x requests
 - In-memory and on-disk [timeseries database](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/timeseries-db.md) (WIP)
 
-Planned Key Features:
+#### Planned Key Features
+
 - More modules for additional platforms compatibility, e.g. Memcache, HTTPS, AWS S3, DataDog, etc.
 - And ad-hoc UDP message-based (Homa-like) network stack based on Linux XDP (eXpress Data Path)
 - [WebAssembly](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/webassembly.md) to provide
