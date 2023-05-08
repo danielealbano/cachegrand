@@ -87,7 +87,8 @@ docker run \
   cachegrand/cachegrand-server:latest
 ```
 
-it comes with a default config file with redis on port 6379 and ssl for redis enabled on port 6380.
+it comes with a default config file with Redis on port 6379, TLS-enabled Redis on port 6380 and Prometheus on port 9090
+with the metrics endpoint on `/metrics`.
 
 The certificate will be generated on each start, to use an ad-hoc SSL certificate, instead of the auto-generated one,
 it's possible to mount the required certificate and key using the following command
