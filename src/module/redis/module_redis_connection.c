@@ -43,6 +43,7 @@
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_writer.h"
 #include "module/redis/module_redis.h"
+#include "module/redis/command/helpers/module_redis_command_helper_auth.h"
 
 #include "module_redis_connection.h"
 #include "module_redis_command.h"
@@ -730,7 +731,7 @@ bool module_redis_connection_process_data(
                     size_t command_length = op->data.argument.length;
                     char *command_data = read_buffer_data_start + connection_context->current_argument_token_data_offset;
 
-                    // Set the current command to UNKNOWN
+                    // Try to fetch the current command
                     connection_context->command.info = hashtable_spsc_op_get_ci(
                             module_redis_commands_hashtable,
                             command_data,
@@ -743,6 +744,13 @@ bool module_redis_connection_process_data(
                                 (int)command_length,
                                 command_data,
                                 connection_context->reader_context.arguments.count - 1);
+                        continue;
+                    }
+
+                    if (connection_context->command.info->requires_authentication &&
+                        !module_redis_connection_is_authenticated(connection_context)) {
+                        connection_context->command.info = NULL;
+                        module_redis_command_helper_auth_error_not_authenticated(connection_context);
                         continue;
                     }
 
