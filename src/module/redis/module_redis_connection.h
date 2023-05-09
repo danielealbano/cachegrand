@@ -90,6 +90,19 @@ bool module_redis_connection_flush_and_close(
 bool module_redis_connection_command_too_long(
         module_redis_connection_context_t *connection_context);
 
+bool module_redis_connection_authenticate(
+        module_redis_connection_context_t *connection_context,
+        char *client_username,
+        size_t client_username_len,
+        char *client_password,
+        size_t client_password_len);
+
+bool module_redis_connection_requires_authentication(
+        module_redis_connection_context_t *connection_context);
+
+bool module_redis_connection_is_authenticated(
+        module_redis_connection_context_t *connection_context);
+
 #ifdef __cplusplus
 }
 #endif

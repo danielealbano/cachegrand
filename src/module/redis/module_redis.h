@@ -186,6 +186,7 @@ struct module_redis_command_parser_context {
 struct module_redis_connection_context {
     protocol_redis_resp_version_t resp_version;
     char *client_name;
+    bool authenticated;
     protocol_redis_reader_context_t reader_context;
     network_channel_t *network_channel;
     network_channel_buffer_t read_buffer;

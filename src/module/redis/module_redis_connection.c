@@ -550,6 +550,45 @@ bool module_redis_connection_command_too_long(
         connection_context->network_channel->module_config->redis->max_command_length;
 }
 
+bool module_redis_connection_authenticate(
+        module_redis_connection_context_t *connection_context,
+        char *client_username,
+        size_t client_username_len,
+        char *client_password,
+        size_t client_password_len) {
+    char *config_username_default = "default";
+    char *config_username = connection_context->network_channel->module_config->redis->username;
+    char *config_password = connection_context->network_channel->module_config->redis->password;
+
+    if (config_username == NULL) {
+        config_username = config_username_default;
+    }
+
+    if (strncmp(config_username, client_username, client_username_len) != 0) {
+        return false;
+    }
+
+    if (strncmp(config_password, client_password, client_password_len) != 0) {
+        return false;
+    }
+
+    connection_context->authenticated = true;
+    return true;
+}
+
+bool module_redis_connection_requires_authentication(
+        module_redis_connection_context_t *connection_context) {
+    return connection_context->network_channel->module_config->redis->require_authentication;
+}
+
+bool module_redis_connection_is_authenticated(
+        module_redis_connection_context_t *connection_context) {
+    return
+            connection_context->network_channel->module_config->redis->require_authentication == false
+        ||
+        connection_context->authenticated;
+}
+
 void module_redis_connection_accept(
         network_channel_t *network_channel) {
     bool exit_loop = false;
