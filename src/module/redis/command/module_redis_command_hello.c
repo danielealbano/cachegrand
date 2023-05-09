@@ -123,14 +123,19 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
         }
     }
 
-    hello_response_item_t hello_responses[7] = {
+    hello_response_item_t hello_responses[] = {
             {
                     .key = "server",
                     .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
-                    .value.string = CACHEGRAND_CMAKE_CONFIG_NAME
+                    .value.string = MODULE_REDIS_COMPATIBILITY_SERVER_NAME
             },
             {
                     .key = "version",
+                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
+                    .value.string = MODULE_REDIS_COMPATIBILITY_SERVER_VERSION
+            },
+            {
+                    .key = "cachegrand_version",
                     .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
                     .value.string = CACHEGRAND_CMAKE_CONFIG_VERSION_GIT
             },
@@ -179,12 +184,12 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
         send_buffer_start = protocol_redis_writer_write_array(
                 send_buffer_start,
                 send_buffer_end - send_buffer_start,
-                sizeof(hello_responses) / sizeof(hello_response_item_t) * 2);
+                ARRAY_SIZE(hello_responses) * 2);
     } else {
         send_buffer_start = protocol_redis_writer_write_map(
                 send_buffer_start,
                 send_buffer_end - send_buffer_start,
-                sizeof(hello_responses) / sizeof(hello_response_item_t));
+                ARRAY_SIZE(hello_responses));
     }
 
     if (send_buffer_start == NULL) {
@@ -195,7 +200,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
         goto end;
     }
 
-    for(int i = 0; i < sizeof(hello_responses) / sizeof(hello_response_item_t); i++) {
+    for(int i = 0; i < ARRAY_SIZE(hello_responses); i++) {
         hello_response_item_t hello_response = hello_responses[i];
         send_buffer_start = protocol_redis_writer_write_blob_string(
                 send_buffer_start,
