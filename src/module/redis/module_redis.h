@@ -40,11 +40,12 @@ extern "C" {
         command_free, \
         MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_FREE)
 
-#define MODULE_REDIS_COMMAND_AUTOGEN(ID, COMMAND, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, HAS_VARIABLE_ARGUMENTS, ARGS_COUNT) \
+#define MODULE_REDIS_COMMAND_AUTOGEN(ID, COMMAND, REQUIRES_AUTHENTICATION, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, HAS_VARIABLE_ARGUMENTS, ARGS_COUNT) \
     { \
         .command = MODULE_REDIS_COMMAND_##ID, \
         .string = (COMMAND), \
         .string_len = strlen(COMMAND), \
+        .requires_authentication = (REQUIRES_AUTHENTICATION), \
         .context_size = sizeof(CONCAT(CONCAT(module_redis_command, COMMAND_FUNC_PTR), context_t)), \
         .arguments = CONCAT(CONCAT(module_redis_command, COMMAND_FUNC_PTR), arguments), \
         .arguments_count = (ARGS_COUNT), \
@@ -55,11 +56,12 @@ extern "C" {
         .tokens_hashtable = NULL, \
     }
 
-#define MODULE_REDIS_COMMAND(ID, COMMAND, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, HAS_VARIABLE_ARGUMENTS, ARGS_COUNT) \
+#define MODULE_REDIS_COMMAND(ID, COMMAND, REQUIRES_AUTHENTICATION, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, HAS_VARIABLE_ARGUMENTS, ARGS_COUNT) \
     { \
         .command = MODULE_REDIS_COMMAND_##ID, \
         .string = (COMMAND), \
         .string_len = strlen(COMMAND), \
+        .requires_authentication = (REQUIRES_AUTHENTICATION), \
         .context_size = sizeof(CONCAT(CONCAT(module_redis_command, COMMAND_FUNC_PTR), context_t)), \
         .arguments = CONCAT(CONCAT(module_redis_command, COMMAND_FUNC_PTR), arguments), \
         .arguments_count = (ARGS_COUNT), \
@@ -149,6 +151,7 @@ struct module_redis_command_info {
     char string[24];
     uint8_t string_len;
     module_redis_commands_t command;
+    bool requires_authentication;
     uint16_t context_size;
     uint16_t arguments_count;
     uint8_t required_arguments_count;
