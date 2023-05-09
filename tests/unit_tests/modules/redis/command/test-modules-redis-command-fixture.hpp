@@ -1,4 +1,4 @@
-#include <hiredis/hiredis.h>
+#include <hiredis.h>
 
 #define PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(WORKER_CONTEXT, RUNNING) { \
     do { \

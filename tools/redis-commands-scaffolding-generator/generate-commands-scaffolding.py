@@ -453,6 +453,7 @@ class Program:
                     "    MODULE_REDIS_COMMAND_AUTOGEN("
                     "{command_callback_name_uppercase}, "
                     "\"{command_string}\", "
+                    "{requires_authentication}, "
                     "{command_callback_name}, "
                     "{required_arguments_count}, "
                     "{has_variable_arguments}, "
@@ -460,6 +461,7 @@ class Program:
                     "),".format(
                         command_callback_name_uppercase=command_info["command_callback_name"].upper(),
                         command_string=command_info["command_string"].lower(),
+                        requires_authentication="true" if command_info["requires_authentication"] else "false",
                         command_callback_name=command_info["command_callback_name"],
                         required_arguments_count=command_info["required_arguments_count"],
                         has_variable_arguments="true" if command_info["has_variable_arguments"] else "false",

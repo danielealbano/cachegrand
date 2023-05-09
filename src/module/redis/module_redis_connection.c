@@ -43,6 +43,7 @@
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_writer.h"
 #include "module/redis/module_redis.h"
+#include "module/redis/command/helpers/module_redis_command_helper_auth.h"
 
 #include "module_redis_connection.h"
 #include "module_redis_command.h"
@@ -550,6 +551,45 @@ bool module_redis_connection_command_too_long(
         connection_context->network_channel->module_config->redis->max_command_length;
 }
 
+bool module_redis_connection_authenticate(
+        module_redis_connection_context_t *connection_context,
+        char *client_username,
+        size_t client_username_len,
+        char *client_password,
+        size_t client_password_len) {
+    char *config_username_default = "default";
+    char *config_username = connection_context->network_channel->module_config->redis->username;
+    char *config_password = connection_context->network_channel->module_config->redis->password;
+
+    if (config_username == NULL) {
+        config_username = config_username_default;
+    }
+
+    if (strncmp(config_username, client_username, client_username_len) != 0) {
+        return false;
+    }
+
+    if (strncmp(config_password, client_password, client_password_len) != 0) {
+        return false;
+    }
+
+    connection_context->authenticated = true;
+    return true;
+}
+
+bool module_redis_connection_requires_authentication(
+        module_redis_connection_context_t *connection_context) {
+    return connection_context->network_channel->module_config->redis->require_authentication;
+}
+
+bool module_redis_connection_is_authenticated(
+        module_redis_connection_context_t *connection_context) {
+    return
+            connection_context->network_channel->module_config->redis->require_authentication == false
+        ||
+        connection_context->authenticated;
+}
+
 void module_redis_connection_accept(
         network_channel_t *network_channel) {
     bool exit_loop = false;
@@ -691,7 +731,7 @@ bool module_redis_connection_process_data(
                     size_t command_length = op->data.argument.length;
                     char *command_data = read_buffer_data_start + connection_context->current_argument_token_data_offset;
 
-                    // Set the current command to UNKNOWN
+                    // Try to fetch the current command
                     connection_context->command.info = hashtable_spsc_op_get_ci(
                             module_redis_commands_hashtable,
                             command_data,
@@ -704,6 +744,13 @@ bool module_redis_connection_process_data(
                                 (int)command_length,
                                 command_data,
                                 connection_context->reader_context.arguments.count - 1);
+                        continue;
+                    }
+
+                    if (connection_context->command.info->requires_authentication &&
+                        !module_redis_connection_is_authenticated(connection_context)) {
+                        connection_context->command.info = NULL;
+                        module_redis_command_helper_auth_error_not_authenticated(connection_context);
                         continue;
                     }
 

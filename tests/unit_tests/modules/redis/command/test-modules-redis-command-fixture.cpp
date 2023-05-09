@@ -23,7 +23,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
-#include <hiredis/hiredis.h>
+#include <hiredis.h>
 
 #include "clock.h"
 #include "exttypes.h"
@@ -358,7 +358,22 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
         total_recv_length += recv_length;
 
         REQUIRE(redisReaderFeed(this->c->reader, buffer_recv_internal, recv_length) == REDIS_OK);
-        REQUIRE(redisReaderGetReply(this->c->reader, (void**)&reply) == REDIS_OK);
+
+        if (redisReaderGetReply(this->c->reader, (void**)&reply) != REDIS_OK) {
+            char temp_buffer_1[1024] = { 0 };
+            string_replace(
+                    buffer_recv_internal, total_recv_length,
+                    temp_buffer_1, sizeof(temp_buffer_1),
+                    2,
+                    "\r\n", 2, "\\r\\n", 4,
+                    "\0", 1, "\\0", 2);
+
+            fprintf(stderr, "[ HIREDIS ERROR %s (%d) ] \n", this->c->reader->errstr, this->c->reader->err);
+            fprintf(stderr, "[ BUFFER CONTENTS ]\n");
+            fprintf(stderr, "%s\n", temp_buffer_1);
+            fflush(stderr);
+            REQUIRE(this->c->reader->err == REDIS_OK);
+        }
     } while(reply == nullptr);
 
     // Return the total length of the received buffer

@@ -5,6 +5,7 @@
         "since": "2.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
+        "requires_authentication": true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -52,11 +53,51 @@
         ]
     },
     {
+        "command_string": "AUTH",
+        "command_callback_name": "auth",
+        "since": "1.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": true,
+        "requires_authentication":  false,
+        "key_specs": [],
+        "arguments": [
+            {
+                "name": "password",
+                "type": "short_string",
+                "since": "1.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": true,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "username",
+                "type": "short_string",
+                "since": "6.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": true,
+                "is_sub_argument": true,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
         "command_string": "BGSAVE",
         "command_callback_name": "bgsave",
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
         ],
         "arguments": [
@@ -82,6 +123,7 @@
         "since": "6.2.0",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -175,6 +217,7 @@
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
         ],
         "arguments": [
@@ -186,6 +229,7 @@
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -225,6 +269,7 @@
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -278,6 +323,7 @@
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -316,6 +362,7 @@
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [],
         "arguments": [
             {
@@ -340,6 +387,7 @@
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -376,6 +424,7 @@
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -499,6 +548,7 @@
         "since": "1.2.0",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -622,6 +672,7 @@
         "since": "7.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -660,6 +711,7 @@
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
         ],
         "arguments": [
@@ -714,6 +766,7 @@
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -752,6 +805,7 @@
         "since": "6.2.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -791,6 +845,7 @@
         "since": "6.2.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -915,6 +970,7 @@
         "since": "2.4.0",
         "required_arguments_count": 3,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -981,6 +1037,7 @@
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1034,6 +1091,7 @@
         "since": "6.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": true,
+        "requires_authentication":  false,
         "key_specs": [],
         "arguments": [
             {
@@ -1115,6 +1173,7 @@
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1154,6 +1213,7 @@
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1207,6 +1267,7 @@
         "since": "2.6.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1260,6 +1321,7 @@
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [],
         "arguments": [
             {
@@ -1284,6 +1346,7 @@
         "since": "7.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1392,6 +1455,7 @@
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1430,6 +1494,7 @@
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1483,6 +1548,7 @@
         "since": "1.0.1",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1550,6 +1616,7 @@
         "since": "1.0.1",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1617,6 +1684,7 @@
         "since": "2.2.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1655,6 +1723,7 @@
         "since": "2.6.0",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1778,6 +1847,7 @@
         "since": "2.6.0",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1901,6 +1971,7 @@
         "since": "7.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -1939,6 +2010,7 @@
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [],
         "arguments": [
             {
@@ -1963,6 +2035,7 @@
         "since": "2.6.0",
         "required_arguments_count": 3,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -2029,6 +2102,7 @@
         "since": "2.6.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -2067,6 +2141,7 @@
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [],
         "arguments": []
     },
@@ -2076,6 +2151,7 @@
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [],
         "arguments": []
     },
@@ -2085,6 +2161,7 @@
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -2151,6 +2228,7 @@
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -2217,6 +2295,7 @@
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
         ],
         "arguments": [
@@ -2228,6 +2307,7 @@
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
         ],
         "arguments": [
@@ -2253,6 +2333,7 @@
         "since": "2.8.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [],
         "arguments": [
             {
@@ -2319,6 +2400,7 @@
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -2515,6 +2597,7 @@
         "since": "2.0.0",
         "required_arguments_count": 3,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -2581,6 +2664,7 @@
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -2633,6 +2717,7 @@
         "since": "2.2.0",
         "required_arguments_count": 3,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -2699,6 +2784,7 @@
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [],
         "arguments": [
             {
@@ -2794,6 +2880,7 @@
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -3000,6 +3087,7 @@
         "since": "7.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -3179,6 +3267,7 @@
         "since": "2.2.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -3215,6 +3304,7 @@
         "since": "1.0.0",
         "required_arguments_count": 3,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -3281,6 +3371,7 @@
         "since": "3.2.1",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -3317,6 +3408,7 @@
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -3355,6 +3447,7 @@
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [
@@ -3391,6 +3484,7 @@
         "since": "4.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
+        "requires_authentication":  true,
         "key_specs": [
             {
                 "key_access_flags": [

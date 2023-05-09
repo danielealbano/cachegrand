@@ -101,6 +101,9 @@ struct config_module_redis {
     uint32_t max_command_length;
     uint32_t max_command_arguments;
     bool strict_parsing;
+    bool require_authentication;
+    char *username;
+    char *password;
 };
 
 typedef struct config_module_network config_module_network_t;

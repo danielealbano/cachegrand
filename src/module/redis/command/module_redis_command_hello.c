@@ -47,6 +47,7 @@
 #include "network/network.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
+#include "helpers/module_redis_command_helper_auth.h"
 
 #define TAG "module_redis_command_hello"
 
@@ -70,11 +71,32 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
 
     module_redis_command_hello_context_t *context = connection_context->command.context;
 
-    if (context->auth_username_password.has_token || context->setname_clientname.has_token) {
-        return_res = module_redis_connection_error_message_printf_noncritical(
-                connection_context,
-                "ERR the AUTH and SETNAME parameters are not yet supported");
-        goto end;
+    // If the authentication is required and the client is not authenticated and it's not trying to authenticate, return an error
+    if (module_redis_connection_requires_authentication(connection_context)) {
+        if (
+                !module_redis_connection_is_authenticated(connection_context) &&
+                !context->auth_username_password.has_token) {
+            module_redis_connection_error_message_printf_noncritical(
+                    connection_context,
+                    "NOAUTH HELLO must be called with the client already authenticated, otherwise the HELLO AUTH <user> <pass> option can be used to authenticate the client and select the RESP protocol version at the same time");
+            connection_context->terminate_connection = true;
+            return true;
+        }
+
+        if (context->auth_username_password.has_token) {
+            if (module_redis_connection_is_authenticated(connection_context)) {
+                return module_redis_command_helper_auth_error_already_authenticated(connection_context);
+            }
+
+            if (!module_redis_connection_authenticate(
+                    connection_context,
+                    context->auth_username_password.value.username.value.short_string,
+                    context->auth_username_password.value.username.value.length,
+                    context->auth_username_password.value.password.value.short_string,
+                    context->auth_username_password.value.password.value.length)) {
+                return module_redis_command_helper_auth_error_failed(connection_context);
+            }
+        }
     }
 
     // Validate the parameters
@@ -101,14 +123,19 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
         }
     }
 
-    hello_response_item_t hello_responses[7] = {
+    hello_response_item_t hello_responses[] = {
             {
                     .key = "server",
                     .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
-                    .value.string = CACHEGRAND_CMAKE_CONFIG_NAME
+                    .value.string = MODULE_REDIS_COMPATIBILITY_SERVER_NAME
             },
             {
                     .key = "version",
+                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
+                    .value.string = MODULE_REDIS_COMPATIBILITY_SERVER_VERSION
+            },
+            {
+                    .key = "cachegrand_version",
                     .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
                     .value.string = CACHEGRAND_CMAKE_CONFIG_VERSION_GIT
             },
@@ -157,12 +184,12 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
         send_buffer_start = protocol_redis_writer_write_array(
                 send_buffer_start,
                 send_buffer_end - send_buffer_start,
-                sizeof(hello_responses) / sizeof(hello_response_item_t) * 2);
+                ARRAY_SIZE(hello_responses) * 2);
     } else {
         send_buffer_start = protocol_redis_writer_write_map(
                 send_buffer_start,
                 send_buffer_end - send_buffer_start,
-                sizeof(hello_responses) / sizeof(hello_response_item_t));
+                ARRAY_SIZE(hello_responses));
     }
 
     if (send_buffer_start == NULL) {
@@ -173,7 +200,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
         goto end;
     }
 
-    for(int i = 0; i < sizeof(hello_responses) / sizeof(hello_response_item_t); i++) {
+    for(int i = 0; i < ARRAY_SIZE(hello_responses); i++) {
         hello_response_item_t hello_response = hello_responses[i];
         send_buffer_start = protocol_redis_writer_write_blob_string(
                 send_buffer_start,

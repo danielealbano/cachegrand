@@ -104,6 +104,15 @@ const cyaml_schema_field_t config_module_redis_schema[] = {
         CYAML_FIELD_BOOL(
                 "strict_parsing", CYAML_FLAG_DEFAULT,
                 config_module_redis_t, strict_parsing),
+        CYAML_FIELD_BOOL(
+                "require_authentication", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
+                config_module_redis_t, require_authentication),
+        CYAML_FIELD_STRING_PTR(
+                "username", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
+                config_module_redis_t, username, 0, CYAML_UNLIMITED),
+        CYAML_FIELD_STRING_PTR(
+                "password", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
+                config_module_redis_t, password, 0, CYAML_UNLIMITED),
         CYAML_FIELD_END
 };
 
