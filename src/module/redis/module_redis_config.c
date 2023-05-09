@@ -40,5 +40,29 @@ bool module_redis_config_validate_after_load(
         return_result = false;
     }
 
+    if (config_module->redis->require_authentication) {
+        if (!config_module->redis->password) {
+            LOG_E(
+                    TAG,
+                    "In module <%s>, require_authentication is enabled but no password is provided",
+                    config_module->type);
+            return_result = false;
+        }
+    } else {
+        if (config_module->redis->username) {
+            LOG_W(
+                    TAG,
+                    "In module <%s>, require_authentication is disabled but a username is provided",
+                    config_module->type);
+        }
+
+        if (config_module->redis->password) {
+            LOG_W(
+                    TAG,
+                    "In module <%s>, require_authentication is disabled but a password is provided",
+                    config_module->type);
+        }
+    }
+
     return return_result;
 }

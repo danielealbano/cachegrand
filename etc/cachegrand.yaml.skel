@@ -36,6 +36,16 @@ modules:
       # If enabled, the command parsing will refuse duplicated or exclusive arguments
       strict_parsing: false
 
+      # If enabled, the client will have to authenticate before being able to execute any command, the password field
+      # will be mandatory
+      require_authentication: true
+
+      # Username, optional, if not set, the username will be set to "default"
+      # username: "default"
+
+      # Password, required when require_authentication is enabled
+      password: "changeme"
+
     network:
       # Timeouts for the read and write operations in milliseconds, set to -1 to disable or greater than 0 to enable
       timeout:
