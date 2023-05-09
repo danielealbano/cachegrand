@@ -78,7 +78,7 @@ set_target_properties(
 
 add_dependencies(
         cachegrand-tests
-        cachegrand-internal Catch2)
+        cachegrand-internal Catch2 hiredis)
 
 target_link_libraries(
         cachegrand-tests

@@ -23,7 +23,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
-#include <hiredis/hiredis.h>
+#include <hiredis.h>
 
 #include "clock.h"
 #include "exttypes.h"
