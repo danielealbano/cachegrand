@@ -5,6 +5,9 @@ The Redis module exposes the redis-like functionalities to the end-user providin
 to allow unmodified client application to take advantage of better performances, lower latencies and an improved
 scalability.
 
+The module supports both authentication via mTLS (mutual TLS) and username/password based authentication, or both,
+depending on the configuration.
+
 ## Supported commands
 
 ### Basic commands
@@ -14,6 +17,7 @@ Only a subset of commands are supported, mostly string and keyspace related ones
 | Command       | Notes                                                |
 |---------------|------------------------------------------------------|
 | ✔ APPEND      |                                                      |
+| ✔ AUTH        |                                                      |
 | ✔ BGSAVE      |                                                      |
 | ✔ COPY        | Missing DB parameter                                 |
 | ✔ DBSIZE      |                                                      |
@@ -30,7 +34,7 @@ Only a subset of commands are supported, mostly string and keyspace related ones
 | ✔ GETEX       |                                                      |
 | ✔ GETRANGE    |                                                      |
 | ✔ GETSET      |                                                      |
-| ✔ HELLO       | Missing AUTH and SETNAME parameters                  |
+| ✔ HELLO       |                                                      |
 | ✔ INCR        |                                                      |
 | ✔ INCRBY      |                                                      |
 | ✔ INCRBYFLOAT |                                                      |
