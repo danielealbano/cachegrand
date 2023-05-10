@@ -12,6 +12,9 @@ bool module_redis_command_helper_auth_try_positional_parameters(
         char *parameter_position_2,
         size_t parameter_position_2_len);
 
+bool module_redis_command_helper_auth_client_trying_to_reauthenticate(
+        module_redis_connection_context_t *connection_context);
+
 bool module_redis_command_helper_auth_error_failed(
         module_redis_connection_context_t *connection_context);
 
