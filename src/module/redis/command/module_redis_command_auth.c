@@ -60,6 +60,8 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(auth) {
             context->password.value.length,
             context->username.value.short_string,
             context->username.value.length)) {
+        // Do not abruptly close the connection, the connection is already marked for termination and will be closed
+        // once the error message is sent
         return true;
     } else {
         return module_redis_connection_send_ok(connection_context);

@@ -46,6 +46,18 @@
 
 #define TAG "module_redis_command_helper_auth"
 
+bool module_redis_command_helper_auth_client_trying_to_reauthenticate(
+        module_redis_connection_context_t *connection_context) {
+    if (module_redis_connection_requires_authentication(connection_context)) {
+        if (module_redis_connection_is_authenticated(connection_context)) {
+            module_redis_command_helper_auth_error_already_authenticated(connection_context);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool module_redis_command_helper_auth_try_positional_parameters(
         module_redis_connection_context_t *connection_context,
         char *parameter_position_1,
@@ -58,8 +70,7 @@ bool module_redis_command_helper_auth_try_positional_parameters(
     size_t client_password_len = 0;
 
     // Although this behaviour is different from the one in use by Redis, it's more secure
-    if (module_redis_connection_is_authenticated(connection_context)) {
-        module_redis_command_helper_auth_error_already_authenticated(connection_context);
+    if (!module_redis_command_helper_auth_client_trying_to_reauthenticate(connection_context)) {
         return false;
     }
 

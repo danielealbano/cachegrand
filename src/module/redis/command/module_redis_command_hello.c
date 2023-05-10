@@ -48,216 +48,42 @@
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "helpers/module_redis_command_helper_auth.h"
+#include "helpers/module_redis_command_helper_hello.h"
 
 #define TAG "module_redis_command_hello"
 
-struct hello_response_item {
-    char* key;
-    protocol_redis_types_t value_type;
-    union {
-        const char* string;
-        long number;
-        struct {
-            void* list;
-            long count;
-        } array;
-    } value;
-};
-typedef struct hello_response_item hello_response_item_t;
-
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
-    bool return_res = false;
-    network_channel_buffer_data_t *send_buffer, *send_buffer_start, *send_buffer_end;
-
     module_redis_command_hello_context_t *context = connection_context->command.context;
 
-    // If the authentication is required and the client is not authenticated and it's not trying to authenticate, return an error
-    if (module_redis_connection_requires_authentication(connection_context)) {
-        if (
-                !module_redis_connection_is_authenticated(connection_context) &&
-                !context->auth_username_password.has_token) {
-            module_redis_connection_error_message_printf_noncritical(
-                    connection_context,
-                    "NOAUTH HELLO must be called with the client already authenticated, otherwise the HELLO AUTH <user> <pass> option can be used to authenticate the client and select the RESP protocol version at the same time");
-            connection_context->terminate_connection = true;
-            return true;
-        }
+    // Check if the command can be invoked (e.g. because auth not required, the client is auth-ed or the client is not
+    // auth-ed but the request includes the AUTH token to try to authenticate)
+    if (!module_redis_command_helper_hello_client_authorized_to_invoke_command(
+            connection_context,
+            context)) {
+        return true;
+    }
 
-        if (context->auth_username_password.has_token) {
-            if (module_redis_connection_is_authenticated(connection_context)) {
-                return module_redis_command_helper_auth_error_already_authenticated(connection_context);
-            }
+    if (!module_redis_command_helper_hello_client_trying_to_reauthenticate(connection_context, context)) {
+        return true;
+    }
 
-            if (!module_redis_connection_authenticate(
-                    connection_context,
-                    context->auth_username_password.value.username.value.short_string,
-                    context->auth_username_password.value.username.value.length,
-                    context->auth_username_password.value.password.value.short_string,
-                    context->auth_username_password.value.password.value.length)) {
-                return module_redis_command_helper_auth_error_failed(connection_context);
-            }
+    if (module_redis_connection_requires_authentication(connection_context) && context->auth_username_password.has_token) {
+        if (!module_redis_connection_authenticate(
+                connection_context,
+                context->auth_username_password.value.username.value.short_string,
+                context->auth_username_password.value.username.value.length,
+                context->auth_username_password.value.password.value.short_string,
+                context->auth_username_password.value.password.value.length)) {
+            return module_redis_command_helper_auth_error_failed(connection_context);
         }
     }
 
-    // Validate the parameters
-    if (connection_context->reader_context.arguments.count > 1) {
-        if (context->protover.value < 2 || context->protover.value > 3) {
-            module_redis_connection_error_message_printf_noncritical(
-                    connection_context,
-                    "NOPROTO unsupported protocol version");
-            return true;
-        }
-
-        connection_context->resp_version = context->protover.value == 2
-                ? PROTOCOL_REDIS_RESP_VERSION_2
-                : PROTOCOL_REDIS_RESP_VERSION_3;
-
-        if (context->setname_clientname.has_token) {
-            connection_context->client_name =
-                    ffma_mem_alloc(context->setname_clientname.value.length + 1);
-            strncpy(
-                    context->setname_clientname.value.short_string,
-                    connection_context->client_name,
-                    context->setname_clientname.value.length);
-            connection_context->client_name[context->setname_clientname.value.length] = 0;
-        }
+    if (!module_redis_command_helper_hello_has_valid_proto_version(connection_context, context)) {
+        return module_redis_command_helper_hello_send_error_invalid_proto_version(connection_context);
     }
 
-    hello_response_item_t hello_responses[] = {
-            {
-                    .key = "server",
-                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
-                    .value.string = MODULE_REDIS_COMPATIBILITY_SERVER_NAME
-            },
-            {
-                    .key = "version",
-                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
-                    .value.string = MODULE_REDIS_COMPATIBILITY_SERVER_VERSION
-            },
-            {
-                    .key = "cachegrand_version",
-                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
-                    .value.string = CACHEGRAND_CMAKE_CONFIG_VERSION_GIT
-            },
-            {
-                    .key = "proto",
-                    .value_type = PROTOCOL_REDIS_TYPE_NUMBER,
-                    .value.number = connection_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2
-                            ? 2
-                            : 3
-            },
-            {
-                    .key = "id",
-                    .value_type = PROTOCOL_REDIS_TYPE_NUMBER,
-                    .value.number = 0
-            },
-            {
-                    .key = "mode",
-                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
-                    .value.string = "standalone"
-            },
-            {
-                    .key = "role",
-                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
-                    .value.string = "master"
-            },
-            {
-                    .key = "modules",
-                    .value_type = PROTOCOL_REDIS_TYPE_ARRAY,
-                    .value.array.list = NULL,
-                    .value.array.count = 0
-            },
-    };
+    module_redis_command_helper_hello_try_fetch_proto_version(connection_context, context);
+    module_redis_command_helper_hello_try_fetch_client_name(connection_context, context);
 
-    size_t slice_length = 512;
-    send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
-            connection_context->network_channel,
-            slice_length);
-    if (send_buffer_start == NULL) {
-        LOG_E(TAG, "Unable to acquire send buffer slice!");
-        goto end;
-    }
-
-    send_buffer_end = send_buffer + slice_length;
-
-    if (connection_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2) {
-        send_buffer_start = protocol_redis_writer_write_array(
-                send_buffer_start,
-                send_buffer_end - send_buffer_start,
-                ARRAY_SIZE(hello_responses) * 2);
-    } else {
-        send_buffer_start = protocol_redis_writer_write_map(
-                send_buffer_start,
-                send_buffer_end - send_buffer_start,
-                ARRAY_SIZE(hello_responses));
-    }
-
-    if (send_buffer_start == NULL) {
-        network_send_buffer_release_slice(
-                connection_context->network_channel,
-                0);
-        LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-        goto end;
-    }
-
-    for(int i = 0; i < ARRAY_SIZE(hello_responses); i++) {
-        hello_response_item_t hello_response = hello_responses[i];
-        send_buffer_start = protocol_redis_writer_write_blob_string(
-                send_buffer_start,
-                send_buffer_end - send_buffer_start,
-                hello_response.key,
-                (int)strlen(hello_response.key));
-
-        if (send_buffer_start == NULL) {
-            network_send_buffer_release_slice(
-                    connection_context->network_channel,
-                    0);
-            LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-            goto end;
-        }
-
-        switch(hello_response.value_type) {
-            case PROTOCOL_REDIS_TYPE_SIMPLE_STRING:
-                send_buffer_start = protocol_redis_writer_write_blob_string(
-                        send_buffer_start,
-                        send_buffer_end - send_buffer_start,
-                        (char*)hello_response.value.string,
-                        (int)strlen(hello_response.value.string));
-                break;
-            case PROTOCOL_REDIS_TYPE_NUMBER:
-                send_buffer_start = protocol_redis_writer_write_number(
-                        send_buffer_start,
-                        send_buffer_end - send_buffer_start,
-                        hello_response.value.number);
-                break;
-            case PROTOCOL_REDIS_TYPE_ARRAY:
-                // not implemented, will simply report an empty array with the count set to 0
-                assert(hello_response.value.array.count == 0);
-
-                send_buffer_start = protocol_redis_writer_write_array(
-                        send_buffer_start,
-                        send_buffer_end - send_buffer_start,
-                        hello_response.value.array.count);
-                break;
-            default:
-                assert(0);
-        }
-
-        if (send_buffer_start == NULL) {
-            network_send_buffer_release_slice(
-                    connection_context->network_channel,
-                    0);
-            LOG_E(TAG, "buffer length incorrectly calculated, not enough space!");
-            goto end;
-        }
-    }
-
-    network_send_buffer_release_slice(
-            connection_context->network_channel,
-            send_buffer_start - send_buffer);
-
-    return_res = true;
-end:
-
-    return return_res;
+    return module_redis_command_helper_hello_send_response(connection_context);
 }
