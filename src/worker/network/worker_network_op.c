@@ -303,7 +303,7 @@ void worker_network_new_client_fiber_entrypoint(
     // TODO: when ti gets here new_channel might have been already freed, the flow should always close the connection
     //       the connection here and not from within the module
     if (new_channel->status != NETWORK_CHANNEL_STATUS_CLOSED) {
-        worker_op_network_close(new_channel, true);
+        network_close(new_channel, true);
     }
 
     // Updates the amount of active connections
