@@ -397,12 +397,8 @@ bool network_channel_tls_shutdown(
 
 void network_channel_tls_free(
         network_channel_t *network_channel) {
-    if (network_channel->tls.context == NULL) {
-        return;
-    }
-
+    assert(network_channel->tls.context != NULL);
     mbedtls_ssl_free(network_channel->tls.context);
     ffma_mem_free(network_channel->tls.context);
-
     network_channel->tls.context = NULL;
 }
