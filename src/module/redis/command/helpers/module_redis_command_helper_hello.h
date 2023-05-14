@@ -43,7 +43,9 @@ bool module_redis_command_helper_hello_send_error_invalid_proto_version(
         module_redis_connection_context_t *connection_context);
 
 bool module_redis_command_helper_hello_send_response(
-        module_redis_connection_context_t *connection_context);
+        module_redis_connection_context_t *connection_context,
+        module_redis_command_helper_hello_response_item_t *hello_items,
+        size_t hello_items_count);
 
 #ifdef __cplusplus
 }
