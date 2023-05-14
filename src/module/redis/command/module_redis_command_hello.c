@@ -85,5 +85,54 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(hello) {
     module_redis_command_helper_hello_try_fetch_proto_version(connection_context, context);
     module_redis_command_helper_hello_try_fetch_client_name(connection_context, context);
 
-    return module_redis_command_helper_hello_send_response(connection_context);
+    module_redis_command_helper_hello_response_item_t hello_items[] = {
+            {
+                    .key = "server",
+                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
+                    .value.string = MODULE_REDIS_COMPATIBILITY_SERVER_NAME
+            },
+            {
+                    .key = "version",
+                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
+                    .value.string = MODULE_REDIS_COMPATIBILITY_SERVER_VERSION
+            },
+            {
+                    .key = "cachegrand_version",
+                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
+                    .value.string = CACHEGRAND_CMAKE_CONFIG_VERSION_GIT
+            },
+            {
+                    .key = "proto",
+                    .value_type = PROTOCOL_REDIS_TYPE_NUMBER,
+                    .value.number = connection_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2
+                                    ? 2
+                                    : 3
+            },
+            {
+                    .key = "id",
+                    .value_type = PROTOCOL_REDIS_TYPE_NUMBER,
+                    .value.number = 0
+            },
+            {
+                    .key = "mode",
+                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
+                    .value.string = "standalone"
+            },
+            {
+                    .key = "role",
+                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
+                    .value.string = "master"
+            },
+            {
+                    .key = "modules",
+                    .value_type = PROTOCOL_REDIS_TYPE_ARRAY,
+                    .value.array.list = NULL,
+                    .value.array.count = 0
+            },
+    };
+
+    return module_redis_command_helper_hello_send_response(
+            connection_context,
+            hello_items,
+            ARRAY_SIZE(hello_items));
 }

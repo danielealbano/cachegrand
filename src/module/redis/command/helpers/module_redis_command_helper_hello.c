@@ -130,55 +130,11 @@ bool module_redis_command_helper_hello_send_error_invalid_proto_version(
 }
 
 bool module_redis_command_helper_hello_send_response(
-        module_redis_connection_context_t *connection_context) {
+        module_redis_connection_context_t *connection_context,
+        module_redis_command_helper_hello_response_item_t *hello_items,
+        size_t hello_items_count) {
     bool return_res = false;
     network_channel_buffer_data_t *send_buffer, *send_buffer_start, *send_buffer_end;
-
-    module_redis_command_helper_hello_response_item_t hello_responses[] = {
-            {
-                    .key = "server",
-                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
-                    .value.string = MODULE_REDIS_COMPATIBILITY_SERVER_NAME
-            },
-            {
-                    .key = "version",
-                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
-                    .value.string = MODULE_REDIS_COMPATIBILITY_SERVER_VERSION
-            },
-            {
-                    .key = "cachegrand_version",
-                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
-                    .value.string = CACHEGRAND_CMAKE_CONFIG_VERSION_GIT
-            },
-            {
-                    .key = "proto",
-                    .value_type = PROTOCOL_REDIS_TYPE_NUMBER,
-                    .value.number = connection_context->resp_version == PROTOCOL_REDIS_RESP_VERSION_2
-                                    ? 2
-                                    : 3
-            },
-            {
-                    .key = "id",
-                    .value_type = PROTOCOL_REDIS_TYPE_NUMBER,
-                    .value.number = 0
-            },
-            {
-                    .key = "mode",
-                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
-                    .value.string = "standalone"
-            },
-            {
-                    .key = "role",
-                    .value_type = PROTOCOL_REDIS_TYPE_SIMPLE_STRING,
-                    .value.string = "master"
-            },
-            {
-                    .key = "modules",
-                    .value_type = PROTOCOL_REDIS_TYPE_ARRAY,
-                    .value.array.list = NULL,
-                    .value.array.count = 0
-            },
-    };
 
     size_t slice_length = 512;
     send_buffer = send_buffer_start = network_send_buffer_acquire_slice(
@@ -195,12 +151,12 @@ bool module_redis_command_helper_hello_send_response(
         send_buffer_start = protocol_redis_writer_write_array(
                 send_buffer_start,
                 send_buffer_end - send_buffer_start,
-                ARRAY_SIZE(hello_responses) * 2);
+                hello_items_count * 2);
     } else {
         send_buffer_start = protocol_redis_writer_write_map(
                 send_buffer_start,
                 send_buffer_end - send_buffer_start,
-                ARRAY_SIZE(hello_responses));
+                hello_items_count);
     }
 
     if (send_buffer_start == NULL) {
@@ -211,13 +167,13 @@ bool module_redis_command_helper_hello_send_response(
         goto end;
     }
 
-    for(int i = 0; i < ARRAY_SIZE(hello_responses); i++) {
-        module_redis_command_helper_hello_response_item_t hello_response = hello_responses[i];
+    for(int i = 0; i < hello_items_count; i++) {
+        module_redis_command_helper_hello_response_item_t *hello_item = &hello_items[i];
         send_buffer_start = protocol_redis_writer_write_blob_string(
                 send_buffer_start,
                 send_buffer_end - send_buffer_start,
-                hello_response.key,
-                (int)strlen(hello_response.key));
+                hello_item->key,
+                (int)strlen(hello_item->key));
 
         if (send_buffer_start == NULL) {
             network_send_buffer_release_slice(
@@ -227,28 +183,28 @@ bool module_redis_command_helper_hello_send_response(
             goto end;
         }
 
-        switch(hello_response.value_type) {
+        switch(hello_item->value_type) {
             case PROTOCOL_REDIS_TYPE_SIMPLE_STRING:
                 send_buffer_start = protocol_redis_writer_write_blob_string(
                         send_buffer_start,
                         send_buffer_end - send_buffer_start,
-                        (char*)hello_response.value.string,
-                        (int)strlen(hello_response.value.string));
+                        (char*)hello_item->value.string,
+                        (int)strlen(hello_item->value.string));
                 break;
             case PROTOCOL_REDIS_TYPE_NUMBER:
                 send_buffer_start = protocol_redis_writer_write_number(
                         send_buffer_start,
                         send_buffer_end - send_buffer_start,
-                        hello_response.value.number);
+                        hello_item->value.number);
                 break;
             case PROTOCOL_REDIS_TYPE_ARRAY:
                 // not implemented, will simply report an empty array with the count set to 0
-                assert(hello_response.value.array.count == 0);
+                assert(hello_item->value.array.count == 0);
 
                 send_buffer_start = protocol_redis_writer_write_array(
                         send_buffer_start,
                         send_buffer_end - send_buffer_start,
-                        hello_response.value.array.count);
+                        hello_item->value.array.count);
                 break;
             default:
                 assert(0);
