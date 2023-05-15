@@ -92,6 +92,131 @@
         ]
     },
     {
+        "command_string": "BITCOUNT",
+        "command_callback_name": "bitcount",
+        "since": "2.6.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": true,
+        "requires_authentication": true,
+        "key_specs": [
+            {
+                "key_access_flags": [
+                    "READ_ONLY"
+                ],
+                "value_access_flags": [
+                    "ACCESS"
+                ],
+                "is_unknown": false,
+                "begin_search_index_pos": 1,
+                "find_keys_range_lastkey": 0,
+                "find_keys_range_step": 1,
+                "find_keys_range_limit": 0
+            }
+        ],
+        "arguments": [
+            {
+                "name": "key",
+                "type": "key",
+                "since": "2.6.0",
+                "key_spec_index": 0,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "range",
+                "type": "block",
+                "since": "2.6.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [
+                    {
+                        "name": "start",
+                        "type": "integer",
+                        "since": "2.6.0",
+                        "key_spec_index": null,
+                        "token": null,
+                        "sub_arguments": [],
+                        "is_positional": true,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "end",
+                        "type": "integer",
+                        "since": "2.6.0",
+                        "key_spec_index": null,
+                        "token": null,
+                        "sub_arguments": [],
+                        "is_positional": true,
+                        "is_optional": false,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": true,
+                "is_optional": true,
+                "is_sub_argument": true,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            },
+            {
+                "name": "unit",
+                "type": "oneof",
+                "since": "7.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [
+                    {
+                        "name": "unit_byte",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "BYTE",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": true,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    },
+                    {
+                        "name": "unit_bit",
+                        "type": "bool",
+                        "since": "7.0.0",
+                        "key_spec_index": null,
+                        "token": "BIT",
+                        "sub_arguments": [],
+                        "is_positional": false,
+                        "is_optional": true,
+                        "is_sub_argument": true,
+                        "has_sub_arguments": false,
+                        "has_multiple_occurrences": false,
+                        "has_multiple_token": false
+                    }
+                ],
+                "is_positional": false,
+                "is_optional": true,
+                "is_sub_argument": true,
+                "has_sub_arguments": true,
+                "has_multiple_occurrences": false,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
         "command_string": "BGSAVE",
         "command_callback_name": "bgsave",
         "since": "1.0.0",
