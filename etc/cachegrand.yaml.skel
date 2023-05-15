@@ -243,3 +243,6 @@ logs:
 #    level: [ all, no-verbose, no-debug ]
 #    file:
 #      path: /var/log/cachegrand/cachegrand.log
+
+#  - type: syslog
+#    level: [ all, no-verbose, no-debug ]
