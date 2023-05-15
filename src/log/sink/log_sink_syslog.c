@@ -99,7 +99,11 @@ void log_sink_syslog_printer(
             message_len);
 
     // Write the log message to syslog
-    syslog(LOG_USER | log_sink_syslog_log_level_map[level], "%s", log_message);
+    int syslog_level = log_sink_syslog_log_level_map[level];
+    if (syslog_level == 0) {
+        syslog_level = LOG_INFO;
+    }
+    syslog(LOG_USER | syslog_level, "%s", log_message);
 
     if (!log_message_static_buffer_selected) {
         xalloc_free(log_message);
