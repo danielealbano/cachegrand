@@ -35,6 +35,31 @@ size_t log_sink_support_printer_str_len(
     return log_message_len;
 }
 
+size_t log_sink_support_printer_simple_str(
+        char* message_out,
+        size_t message_out_len,
+        const char* tag,
+        const char* early_prefix_thread,
+        const char* message,
+        size_t message_len) {
+    size_t message_out_len_res;
+
+    message_out_len_res = snprintf(
+            message_out,
+            message_out_len,
+            "%s[%s] ",
+            early_prefix_thread != NULL ? early_prefix_thread : "",
+            tag);
+
+    strcpy(message_out + message_out_len_res, message);
+    message_out_len_res += message_len;
+
+    message_out[message_out_len_res] = '\n';
+    message_out_len_res++;
+
+    return message_out_len_res;
+}
+
 size_t log_sink_support_printer_str(
         char* message_out,
         size_t message_out_len,

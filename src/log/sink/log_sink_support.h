@@ -10,6 +10,14 @@ size_t log_sink_support_printer_str_len(
         const char* early_prefix_thread,
         size_t message_len);
 
+size_t log_sink_support_printer_simple_str(
+        char* message_out,
+        size_t message_out_len,
+        const char* tag,
+        const char* early_prefix_thread,
+        const char* message,
+        size_t message_len);
+
 size_t log_sink_support_printer_str(
         char* message_out,
         size_t message_out_len,
