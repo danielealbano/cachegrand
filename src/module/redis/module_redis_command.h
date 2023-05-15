@@ -18,6 +18,22 @@ struct module_redis_command_context_has_token_padding_detection {
     void *pointer;
 };
 
+#if CACHEGRAND_MODULE_REDIS_COMMAND_DUMP_CONTEXT == 1
+void module_redis_command_dump_argument(
+        storage_db_t *db,
+        uint32_t argument_index,
+        module_redis_command_argument_t *argument,
+        uintptr_t argument_context_base_addr,
+        int depth);
+
+void module_redis_command_dump_arguments(
+        storage_db_t *db,
+        module_redis_command_argument_t arguments[],
+        int arguments_count,
+        uintptr_t argument_context_base_addr,
+        int depth);
+#endif
+
 bool module_redis_command_process_begin(
         module_redis_connection_context_t *connection_context);
 
@@ -267,22 +283,6 @@ static inline __attribute__((always_inline)) bool module_redis_command_stream_en
             0,
             entry_index->value.size);
 }
-
-#if CACHEGRAND_MODULE_REDIS_COMMAND_DUMP_CONTEXT == 1
-void module_redis_command_dump_argument(
-        storage_db_t *db,
-        uint32_t argument_index,
-        module_redis_command_argument_t *argument,
-        uintptr_t argument_context_base_addr,
-        int depth);
-
-void module_redis_command_dump_arguments(
-        storage_db_t *db,
-        module_redis_command_argument_t arguments[],
-        int arguments_count,
-        uintptr_t argument_context_base_addr,
-        int depth);
-#endif
 
 #ifdef __cplusplus
 }

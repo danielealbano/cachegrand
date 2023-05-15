@@ -1018,7 +1018,7 @@ void module_redis_command_dump_argument(
 
     if (argument->token != NULL) {
         has_token = *(bool*)list;
-        list += field_has_token_extra_padding;
+//        list += field_has_token_extra_padding;
     }
 
     if (argument_is_list) {
@@ -1092,7 +1092,9 @@ void module_redis_command_dump_argument(
                         storage_db_chunk_read(
                                 db,
                                 storage_db_chunk_sequence_get(chunk_sequence, 0),
-                                buffer);
+                                buffer,
+                                0,
+                                64);
 
                         fprintf(stdout, "%.*s\n", (int) chunk_sequence->size, buffer);
                     } else {
