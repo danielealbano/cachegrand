@@ -11,6 +11,7 @@
 #include <string.h>
 #include <time.h>
 #include <assert.h>
+#include <unistd.h>
 
 #include "misc.h"
 #include "log/log.h"
@@ -72,6 +73,11 @@ void log_sink_console_printer(
     FILE* out = level == LOG_LEVEL_ERROR && !settings->console.use_stdout_for_errors
             ? stderr
             : stdout;
+
+    // Disable color if the output is not a terminal
+    if (!isatty(fileno(out))) {
+        level_has_color = false;
+    }
 
     if (level_has_color) {
         color_fg_desired_len = strlen(log_sink_console_log_level_color_fg_lookup[level]);
