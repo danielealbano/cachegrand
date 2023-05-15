@@ -25,4 +25,4 @@ void log_sink_file_printer(
 }
 #endif
 
-#endif //CACHEGRAND_LOG_SINK_CONSOLE_H
+#endif //CACHEGRAND_LOG_SINK_FILE_H

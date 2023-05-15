@@ -69,8 +69,8 @@ size_t log_sink_support_printer_str(
         const char* early_prefix_thread,
         const char* message,
         size_t message_len) {
-    size_t message_out_len_res = 0;
-    char timestamp_str[LOG_MESSAGE_TIMESTAMP_MAX_LENGTH + 1] = {0};
+    size_t message_out_len_res;
+    char timestamp_str[LOG_MESSAGE_TIMESTAMP_MAX_LENGTH + 1] = { 0 };
 
     message_out_len_res = snprintf(
             message_out,
