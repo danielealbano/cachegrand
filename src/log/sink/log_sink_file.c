@@ -65,7 +65,7 @@ void log_sink_file_printer(
         const char* message,
         size_t message_len) {
     char* log_message;
-    char log_message_static_buffer[200] = { 0 };
+    char log_message_static_buffer[256] = { 0 };
     bool log_message_static_buffer_selected = false;
 
     size_t log_message_size = log_sink_support_printer_str_len(
