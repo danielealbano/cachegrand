@@ -573,6 +573,10 @@ void program_config_setup_log_sinks(
                 log_sink_settings.file.path = config_log->file->path;
                 break;
 
+            case LOG_SINK_TYPE_SYSLOG:
+                // nothing to do
+                break;
+
             default:
                 // To catch mismatches
                 assert(false);

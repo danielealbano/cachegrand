@@ -10,6 +10,7 @@ typedef uint32_t module_id_t;
 enum config_log_type {
     CONFIG_LOG_TYPE_CONSOLE,
     CONFIG_LOG_TYPE_FILE,
+    CONFIG_LOG_TYPE_SYSLOG,
     CONFIG_LOG_TYPE_MAX,
 };
 typedef enum config_log_type config_log_type_t;
