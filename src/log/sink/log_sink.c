@@ -19,6 +19,7 @@
 
 #include "log/sink/log_sink_console.h"
 #include "log/sink/log_sink_file.h"
+#include "log/sink/log_sink_syslog.h"
 
 log_sink_t** log_sink_registered = NULL;
 uint8_t log_sink_registered_count = 0;
@@ -86,6 +87,9 @@ log_sink_t* log_sink_factory(
 
         case LOG_SINK_TYPE_FILE:
             return log_sink_file_init(levels, settings);
+
+        case LOG_SINK_TYPE_SYSLOG:
+            return log_sink_syslog_init(levels, settings);
 
         default:
             return NULL;

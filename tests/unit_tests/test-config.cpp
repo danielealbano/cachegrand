@@ -1969,6 +1969,7 @@ TEST_CASE("config.c", "[config]") {
     SECTION("config_log_type_t == log_sink_type_t") {
         REQUIRE((int)CONFIG_LOG_TYPE_CONSOLE == LOG_SINK_TYPE_CONSOLE);
         REQUIRE((int)CONFIG_LOG_TYPE_FILE == LOG_SINK_TYPE_FILE);
+        REQUIRE((int)CONFIG_LOG_TYPE_SYSLOG == LOG_SINK_TYPE_SYSLOG);
         REQUIRE((int)CONFIG_LOG_TYPE_MAX == LOG_SINK_TYPE_MAX);
     }
 

@@ -11,6 +11,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/syslog.h>
 
 #include "misc.h"
 #include "clock.h"
@@ -19,44 +20,53 @@
 #include "log/sink/log_sink_support.h"
 #include "xalloc.h"
 
-#include "log_sink_file.h"
+#include "log_sink_syslog.h"
 
-#define TAG "log_sink_file"
+#define TAG "log_sink_syslog"
 
-log_sink_t *log_sink_file_init(
+static bool log_sink_syslog_log_level_map_initialized = false;
+static int log_sink_syslog_log_level_map[LOG_LEVEL_MAX] = { 0 };
+void log_sink_syslog_log_level_map_init() {
+    log_sink_syslog_log_level_map[LOG_LEVEL_ERROR] = LOG_ERR;
+    log_sink_syslog_log_level_map[LOG_LEVEL_WARNING] = LOG_WARNING;
+    log_sink_syslog_log_level_map[LOG_LEVEL_INFO] = LOG_NOTICE;
+    log_sink_syslog_log_level_map[LOG_LEVEL_VERBOSE] = LOG_INFO;
+    log_sink_syslog_log_level_map[LOG_LEVEL_DEBUG] = LOG_DEBUG;
+
+    log_sink_syslog_log_level_map_initialized = true;
+}
+
+log_sink_t *log_sink_syslog_init(
         log_level_t levels,
         log_sink_settings_t* settings) {
-
-    int fd = open(
-            settings->file.path,
-            O_CLOEXEC | O_CREAT | O_APPEND | O_WRONLY,
-            S_IRUSR | S_IWUSR | S_IRGRP);
-
-    if (fd < 0) {
-        LOG_W(TAG, "Unable to open <%s> for logging", settings->file.path);
-        LOG_E_OS_ERROR(TAG);
-        return NULL;
+    // Initialize the log level map if not already initialized
+    if (!log_sink_syslog_log_level_map_initialized) {
+        log_sink_syslog_log_level_map_init();
+        log_sink_syslog_log_level_map_initialized = true;
     }
 
-    settings->file.internal.fd = fd;
+    // Open syslog
+    openlog(CACHEGRAND_CMAKE_CONFIG_NAME, LOG_CONS | LOG_NDELAY | LOG_PID, LOG_USER);
+
+    // Mark the syslog as opened
+    settings->syslog.internal.opened = true;
 
     return log_sink_init(
-            LOG_SINK_TYPE_FILE,
+            LOG_SINK_TYPE_SYSLOG,
             levels,
             settings,
-            log_sink_file_printer,
-            log_sink_file_free);
+            log_sink_syslog_printer,
+            log_sink_syslog_free);
 }
 
-void log_sink_file_free(
+void log_sink_syslog_free(
         log_sink_settings_t* settings) {
-    if (settings->file.internal.fd > 0) {
-        close(settings->file.internal.fd);
-        settings->file.internal.fd = 0;
+    if (settings->syslog.internal.opened == true) {
+        closelog();
     }
 }
 
-void log_sink_file_printer(
+void log_sink_syslog_printer(
         log_sink_settings_t* settings,
         const char* tag,
         time_t timestamp,
@@ -80,30 +90,16 @@ void log_sink_file_printer(
             &log_message_static_buffer_selected);
 
     // Write the log message
-    log_sink_support_printer_str(
+    log_sink_support_printer_simple_str(
             log_message,
             log_message_size,
             tag,
-            timestamp,
-            level,
             early_prefix_thread,
             message,
             message_len);
 
-    // Ensure that the log message is always written entirely to the disk and to catch any error
-    size_t data_written = 0;
-    do {
-        ssize_t data_written_now = write(
-                settings->file.internal.fd,
-                log_message + data_written,
-                log_message_size - data_written);
-
-        if (data_written_now < 0) {
-            break;
-        }
-
-        data_written += data_written_now;
-    } while (data_written < log_message_size);
+    // Write the log message to syslog
+    syslog(LOG_USER | log_sink_syslog_log_level_map[level], "%s", log_message);
 
     if (!log_message_static_buffer_selected) {
         xalloc_free(log_message);

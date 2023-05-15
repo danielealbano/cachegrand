@@ -13,6 +13,7 @@ extern uint8_t log_sink_registered_count;
 enum log_sink_type {
     LOG_SINK_TYPE_CONSOLE = 0,
     LOG_SINK_TYPE_FILE,
+    LOG_SINK_TYPE_SYSLOG,
     LOG_SINK_TYPE_MAX
 };
 typedef enum log_sink_type log_sink_type_t;
@@ -28,6 +29,11 @@ union log_sink_settings {
             int fd;
         } internal;
     } file;
+    struct {
+        struct {
+            bool opened;
+        } internal;
+    } syslog;
 };
 
 typedef void (log_sink_printer_fn_t)(
