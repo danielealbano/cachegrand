@@ -199,7 +199,7 @@ char* log_buffer_static_or_alloc_new(
 
     // If the message is small enough, avoid allocating & freeing memory, uses < to keep 1 byte free for NULL
     // termination
-    if (data_size < static_buffer_size) {
+    if (data_size < static_buffer_size - 1) {
         buffer = static_buffer;
         *static_buffer_selected = true;
     } else {
