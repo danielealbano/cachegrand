@@ -175,6 +175,7 @@ storage_db_t* storage_db_new(
     db->counters_slots_bitmap = slots_bitmap_mpmc_init(STORAGE_DB_WORKERS_MAX);
     db->snapshot.next_run_time_ms = 0;
     db->snapshot.status = STORAGE_DB_SNAPSHOT_STATUS_NONE;
+    db->snapshot.in_preparation = false;
     db->snapshot.block_index = 0;
     db->snapshot.storage_channel_opened = false;
     db->snapshot.storage_buffered_channel = NULL;
