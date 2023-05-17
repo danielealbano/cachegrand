@@ -396,7 +396,7 @@ bool storage_db_snapshot_rdb_ensure_prepared(
     }
 
 #if DEBUG == 1
-    assert(__sync_fetch_and_add(&db->snapshot.parallel_runs, -1) == 0);
+    assert(__sync_fetch_and_add(&db->snapshot.parallel_runs, 1) == 0);
 #endif
 
     // Prepare the snapshot
