@@ -161,7 +161,6 @@ struct storage_db_counters_global_and_per_db {
 
 enum storage_db_snapshot_status {
     STORAGE_DB_SNAPSHOT_STATUS_NONE = 0,
-    STORAGE_DB_SNAPSHOT_STATUS_IN_PREPARATION,
     STORAGE_DB_SNAPSHOT_STATUS_IN_PROGRESS,
     STORAGE_DB_SNAPSHOT_STATUS_BEING_FINALIZED,
     STORAGE_DB_SNAPSHOT_STATUS_COMPLETED,
@@ -189,6 +188,7 @@ struct storage_db {
         uint64_volatile_t start_time_ms;
         uint64_volatile_t end_time_ms;
         uint64_volatile_t progress_reported_at_ms;
+        bool_volatile_t in_preparation;
         storage_db_snapshot_status_volatile_t status;
         uint64_volatile_t block_index;
         bool_volatile_t running;
@@ -197,6 +197,9 @@ struct storage_db {
         queue_mpmc_t *entry_index_to_be_deleted_queue;
         uint64_t keys_changed_at_start;
         uint64_t data_changed_at_start;
+#if DEBUG == 1
+        uint64_volatile_t parallel_runs;
+#endif
         char *path;
         struct {
             uint64_t data_written;
