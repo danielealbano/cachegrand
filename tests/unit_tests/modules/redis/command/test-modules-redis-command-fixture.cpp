@@ -129,6 +129,7 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
             .interval_str = "7d",
             .min_data_changed_str = "0",
             .snapshot_at_shutdown = false,
+            .interval_ms = 7 * 86400 * 1000,
             .min_keys_changed = 0,
             .rotation = nullptr,
     };
