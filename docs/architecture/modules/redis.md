@@ -1,7 +1,7 @@
 Module - Redis
 ==============
 
-The Redis module exposes the redis-like functionalities to the end-user providing a compatible interface over the wire
+The Redis module provides Redis-like functionalities to the end-user with a compatible interface over the wire
 to allow unmodified client application to take advantage of better performances, lower latencies and an improved
 scalability.
 
@@ -9,10 +9,6 @@ The module supports both authentication via mTLS (mutual TLS) and username/passw
 depending on the configuration.
 
 ## Supported commands
-
-### Basic commands
-
-Only a subset of commands are supported, mostly string and keyspace related ones:
 
 | Command       | Notes                                                |
 |---------------|------------------------------------------------------|
