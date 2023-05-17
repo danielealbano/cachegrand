@@ -26,21 +26,6 @@ extern "C" {
 
 #define STORAGE_DB_ENTRY_NO_EXPIRY (0)
 
-#define STORAGE_DB_COUNTERS_UPDATE(storage_db, database_number, ...) { \
-    storage_db_counters_t *counters; \
-    { \
-        counters = &storage_db_counters_get_current_thread_data( \
-            storage_db)->global; \
-        __VA_ARGS__ \
-    } \
-    { \
-        counters = storage_db_counters_per_thread_get_or_create( \
-            storage_db, \
-            database_number); \
-        __VA_ARGS__ \
-    } \
-}
-
 typedef uint32_t storage_db_database_number_t;
 typedef uint16_t storage_db_chunk_index_t;
 typedef uint16_t storage_db_chunk_length_t;
