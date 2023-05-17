@@ -197,6 +197,9 @@ struct storage_db {
         queue_mpmc_t *entry_index_to_be_deleted_queue;
         uint64_t keys_changed_at_start;
         uint64_t data_changed_at_start;
+#if DEBUG == 1
+        uint64_volatile_t parallel_runs;
+#endif
         char *path;
         struct {
             uint64_t data_written;

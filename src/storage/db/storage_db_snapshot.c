@@ -99,6 +99,10 @@ void storage_db_snapshot_completed(
             false,
             false);
 
+#if DEBUG == 1
+    assert(__sync_fetch_and_add(&db->snapshot.parallel_runs, -1) == 1);
+#endif
+
     // Report the snapshot status
     if (status == STORAGE_DB_SNAPSHOT_STATUS_FAILED_DURING_PREPARATION) {
         LOG_E(TAG, "Snapshot failed during preparation");
@@ -390,6 +394,10 @@ bool storage_db_snapshot_rdb_ensure_prepared(
         storage_db_snapshot_wait_for_prepared(db);
         return db->snapshot.status != STORAGE_DB_SNAPSHOT_STATUS_FAILED;
     }
+
+#if DEBUG == 1
+    assert(__sync_fetch_and_add(&db->snapshot.parallel_runs, -1) == 0);
+#endif
 
     // Prepare the snapshot
     return storage_db_snapshot_rdb_prepare(db);
