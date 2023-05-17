@@ -207,7 +207,7 @@ void storage_db_snapshot_wait_for_prepared(
     // Wait for the snapshot to be ready
     do {
         MEMORY_FENCE_LOAD();
-    } while (db->snapshot.status != STORAGE_DB_SNAPSHOT_STATUS_IN_PREPARATION);
+    } while (db->snapshot.in_preparation);
 }
 
 void storage_db_snapshot_rdb_internal_status_reset(
@@ -344,6 +344,9 @@ end:
         db->snapshot.running = true;
         MEMORY_FENCE_STORE();
 
+        db->snapshot.in_preparation = false;
+        MEMORY_FENCE_STORE();
+
         LOG_I(TAG, "Snapshot started");
     } else {
         storage_db_snapshot_failed(db);
@@ -368,17 +371,22 @@ bool storage_db_snapshot_rdb_ensure_prepared(
     // Check if the status is different from IN_PREPARATION, in which case the snapshot is being prepared by another
     // thread, so we just need to wait for it to be ready
     MEMORY_FENCE_LOAD();
-    if (db->snapshot.status == STORAGE_DB_SNAPSHOT_STATUS_IN_PREPARATION) {
+    if (db->snapshot.in_preparation) {
         storage_db_snapshot_wait_for_prepared(db);
         return db->snapshot.status != STORAGE_DB_SNAPSHOT_STATUS_FAILED;
     }
 
-    // Try to set the status to IN_PREPARATION
-    storage_db_snapshot_status_t status = db->snapshot.status;
-    if (!__atomic_compare_exchange_n(&db->snapshot.status, &status,
-                                     STORAGE_DB_SNAPSHOT_STATUS_IN_PREPARATION, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
-        // The status was not set to IN_PREPARATION, so another thread is already preparing the snapshot, so we just
-        // need to wait for it to be ready
+    // Try to set the in preparation flag to true
+    bool expected_status = false;
+    if (!__atomic_compare_exchange_n(
+            &db->snapshot.in_preparation,
+            &expected_status,
+            true,
+            false,
+            __ATOMIC_ACQ_REL,
+            __ATOMIC_ACQUIRE)) {
+        // The flag was not set, so another thread is already preparing the snapshot, we just need to wait for it to be
+        // ready
         storage_db_snapshot_wait_for_prepared(db);
         return db->snapshot.status != STORAGE_DB_SNAPSHOT_STATUS_FAILED;
     }
