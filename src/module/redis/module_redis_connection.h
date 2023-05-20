@@ -15,6 +15,7 @@ bool module_redis_connection_process_data(
 void module_redis_connection_context_init(
         module_redis_connection_context_t *connection_context,
         storage_db_t *db,
+        config_t *config,
         network_channel_t *network_channel);
 
 void module_redis_connection_context_cleanup(
