@@ -1223,6 +1223,17 @@ bool storage_db_op_set(
         }
     }
 
+    if (expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY) {
+        if (db->config->enforced_ttl.default_ms != STORAGE_DB_ENTRY_NO_EXPIRY) {
+            expiry_time_ms = clock_realtime_coarse_int64_ms() + db->config->enforced_ttl.default_ms;
+        }
+    } else if (db->config->enforced_ttl.max_ms != STORAGE_DB_ENTRY_NO_EXPIRY) {
+        int64_t max_ttl_ms = clock_realtime_coarse_int64_ms() + db->config->enforced_ttl.max_ms;
+        if (db->config->enforced_ttl.max_ms != STORAGE_DB_ENTRY_NO_EXPIRY && expiry_time_ms > max_ttl_ms) {
+            expiry_time_ms = max_ttl_ms;
+        }
+    }
+
     // Fetch a new entry and assign the key and the value as needed
     entry_index->database_number = database_number;
     entry_index->value.size = value_chunk_sequence->size;
@@ -1351,6 +1362,17 @@ bool storage_db_op_rmw_commit_update(
                 rmw_status->hashtable.key_length)) {
             LOG_E(TAG, "Unable to write an index entry key");
             goto end;
+        }
+    }
+
+    if (expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY) {
+        if (db->config->enforced_ttl.default_ms != STORAGE_DB_ENTRY_NO_EXPIRY) {
+            expiry_time_ms = clock_realtime_coarse_int64_ms() + db->config->enforced_ttl.default_ms;
+        }
+    } else if (db->config->enforced_ttl.max_ms != STORAGE_DB_ENTRY_NO_EXPIRY) {
+        int64_t max_ttl_ms = clock_realtime_coarse_int64_ms() + db->config->enforced_ttl.max_ms;
+        if (db->config->enforced_ttl.max_ms != STORAGE_DB_ENTRY_NO_EXPIRY && expiry_time_ms > max_ttl_ms) {
+            expiry_time_ms = max_ttl_ms;
         }
     }
 
