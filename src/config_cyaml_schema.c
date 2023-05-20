@@ -289,6 +289,17 @@ const cyaml_schema_field_t config_database_backend_memory_schema[] = {
         CYAML_FIELD_END
 };
 
+// Schema for config -> database -> enforced_ttl
+const cyaml_schema_field_t config_database_enforced_ttl_schema[] = {
+        CYAML_FIELD_STRING_PTR(
+                "default", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
+                config_database_enforced_ttl_t, default_ttl_str, 0, 20),
+        CYAML_FIELD_STRING_PTR(
+                "max", CYAML_FLAG_DEFAULT | CYAML_FLAG_OPTIONAL,
+                config_database_enforced_ttl_t, max_ttl_str, 0, 20),
+        CYAML_FIELD_END
+};
+
 // Schema for config -> database -> limits -> hard
 const cyaml_schema_field_t config_database_limits_hard_schema[] = {
         CYAML_FIELD_UINT(
@@ -368,6 +379,9 @@ const cyaml_schema_field_t config_database_schema[] = {
         CYAML_FIELD_MAPPING_PTR(
                 "memory", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
                 config_database_t, memory, config_database_backend_memory_schema),
+        CYAML_FIELD_MAPPING_PTR(
+                "enforced_ttl", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+                config_database_t, enforced_ttl, config_database_enforced_ttl_schema),
         CYAML_FIELD_UINT(
                 "max_user_databases", CYAML_FLAG_DEFAULT,
                 config_database_t, max_user_databases),
