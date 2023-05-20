@@ -156,11 +156,8 @@ void *module_redis_command_context_list_expand_and_get_new_entry(
                 list,
                 new_size);
 
-        // If the list was reallocated and ffma allocated a different slot then, zero the new memory
-        if (unlikely(list_new != list)) {
-            // Zero the new memory
-            memset(list_new + current_size, 0, new_size - current_size);
-        }
+        // Zero the new memory
+        memset(list_new + current_size, 0, new_size - current_size);
 
         list = list_new;
 
