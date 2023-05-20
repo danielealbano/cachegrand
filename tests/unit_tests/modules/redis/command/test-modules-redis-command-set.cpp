@@ -55,6 +55,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
         REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value));
         REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value, strlen(value)) == 0);
+        REQUIRE(entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY);
     }
 
     SECTION("New key - long") {
@@ -68,6 +69,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
         REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value));
         REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value, strlen(value)) == 0);
+        REQUIRE(entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY);
     }
 
     SECTION("Overwrite key") {
@@ -86,6 +88,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
         REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value2));
         REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
+        REQUIRE(entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY);
     }
 
     SECTION("Missing parameters - key and value") {
@@ -109,11 +112,20 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
     SECTION("New key - expire in 500ms") {
         char *key = "a_key";
         char *value = "b_value";
+        storage_db_entry_index_t *entry_index;
+
         config_module_network_timeout.read_ms = 1000;
 
+        int64_t before_timestamp = clock_realtime_coarse_int64_ms();
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", key, value, "PX", "500"},
                 "+OK\r\n"));
+        int64_t after_timestamp = clock_realtime_coarse_int64_ms();
+
+        entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
+        REQUIRE(entry_index != nullptr);
+        REQUIRE(entry_index->expiry_time_ms >= before_timestamp + 500 - 10);
+        REQUIRE(entry_index->expiry_time_ms <= after_timestamp + 500 + 10);
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", key},
@@ -126,18 +138,26 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"GET", key},
                 "$-1\r\n"));
 
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
+        entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
         REQUIRE(entry_index == NULL);
     }
 
     SECTION("New key - expire in 1s") {
         char *key = "a_key";
         char *value = "b_value";
+        storage_db_entry_index_t *entry_index;
         config_module_network_timeout.read_ms = 2000;
 
+        int64_t before_timestamp = clock_realtime_coarse_int64_ms();
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", key, value, "EX", "1"},
                 "+OK\r\n"));
+        int64_t after_timestamp = clock_realtime_coarse_int64_ms();
+
+        entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
+        REQUIRE(entry_index != nullptr);
+        REQUIRE(entry_index->expiry_time_ms >= before_timestamp + 1000 - 10);
+        REQUIRE(entry_index->expiry_time_ms <= after_timestamp + 1000 + 10);
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", key},
@@ -150,7 +170,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"GET", key},
                 "$-1\r\n"));
 
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
+        entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
         REQUIRE(entry_index == NULL);
     }
 
@@ -160,9 +180,11 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
         char *value2 = "value_z";
         config_module_network_timeout.read_ms = 1000;
 
+        int64_t before_timestamp = clock_realtime_coarse_int64_ms();
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"SET", key, value1, "PX", "500"},
                 "+OK\r\n"));
+        int64_t after_timestamp = clock_realtime_coarse_int64_ms();
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", key},
@@ -185,8 +207,11 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 "+OK\r\n"));
 
         entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
+        REQUIRE(entry_index != nullptr);
         REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value2));
         REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
+        REQUIRE(entry_index->expiry_time_ms >= before_timestamp + 500 - 10);
+        REQUIRE(entry_index->expiry_time_ms <= after_timestamp + 500 + 10);
 
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"GET", key},

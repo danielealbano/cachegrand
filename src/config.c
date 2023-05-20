@@ -1156,6 +1156,42 @@ bool config_process_string_values(
         }
     }
 
+    if (config->database->enforced_ttl) {
+        if (config->database->enforced_ttl->default_ttl_str) {
+            bool result = config_parse_string_time(
+                    config->database->enforced_ttl->default_ttl_str,
+                    strlen(config->database->enforced_ttl->default_ttl_str),
+                    false,
+                    false,
+                    true,
+                    &config->database->enforced_ttl->default_ttl_ms);
+
+            if (!result) {
+                LOG_E(TAG, "Failed to parse the default ttl");
+                return false;
+            }
+
+            config->database->enforced_ttl->default_ttl_ms *= 1000;
+        }
+
+        if (config->database->enforced_ttl->max_ttl_str) {
+            bool result = config_parse_string_time(
+                    config->database->enforced_ttl->max_ttl_str,
+                    strlen(config->database->enforced_ttl->max_ttl_str),
+                    false,
+                    false,
+                    true,
+                    &config->database->enforced_ttl->max_ttl_ms);
+
+            if (!result) {
+                LOG_E(TAG, "Failed to parse the max ttl");
+                return false;
+            }
+
+            config->database->enforced_ttl->max_ttl_ms *= 1000;
+        }
+    }
+
     return true;
 }
 

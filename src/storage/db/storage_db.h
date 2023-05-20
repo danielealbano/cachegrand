@@ -104,6 +104,10 @@ struct storage_db_config {
     storage_db_config_limits_t limits;
     storage_db_config_snapshot_t snapshot;
     uint32_t max_user_databases;
+    struct {
+        storage_db_expiry_time_ms_t default_ms;
+        storage_db_expiry_time_ms_t max_ms;
+    } enforced_ttl;
     union {
         struct {
             char *basedir_path;

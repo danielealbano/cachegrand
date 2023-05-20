@@ -177,6 +177,9 @@ database:
   keys_eviction:
     policy: lru
     only_ttl: true
+  enforced_ttl:
+    default: 24h
+    max: 30d
 sentry:
   enable: true
 logs:
@@ -1404,13 +1407,15 @@ TEST_CASE("config.c", "[config]") {
                     })
 
             REQUIRE(config != nullptr);
+            REQUIRE(err == CYAML_OK);
+            REQUIRE(cyaml_logger_context.data == nullptr);
+            REQUIRE(cyaml_logger_context.data_length == 0);
             REQUIRE(config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING);
             REQUIRE(config->modules_count == 1);
             REQUIRE(config->cpus_count == 1);
             REQUIRE(config->logs_count == 2);
-            REQUIRE(cyaml_logger_context.data == nullptr);
-            REQUIRE(cyaml_logger_context.data_length == 0);
-            REQUIRE(err == CYAML_OK);
+            REQUIRE(config->database->enforced_ttl->default_ttl_ms == 1UL * 86400UL * 1000UL);
+            REQUIRE(config->database->enforced_ttl->max_ttl_ms == 30UL * 86400UL * 1000UL);
 
             cyaml_free(config_cyaml_config, config_top_schema, config, 0);
         }
