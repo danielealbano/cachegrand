@@ -259,6 +259,14 @@ struct config_database_snapshots {
 };
 typedef struct config_database_snapshots config_database_snapshots_t;
 
+struct config_database_enforced_ttl {
+    char *default_ttl_str;
+    char *max_ttl_str;
+    int64_t default_ttl_ms;
+    int64_t max_ttl_ms;
+};
+typedef struct config_database_enforced_ttl config_database_enforced_ttl_t;
+
 struct config_database {
     config_database_limits_t *limits;
     config_database_keys_eviction_t *keys_eviction;
@@ -266,6 +274,7 @@ struct config_database {
     config_database_snapshots_t *snapshots;
     config_database_file_t *file;
     config_database_memory_t *memory;
+    config_database_enforced_ttl_t *enforced_ttl;
     int64_t max_user_databases;
 };
 typedef struct config_database config_database_t;
