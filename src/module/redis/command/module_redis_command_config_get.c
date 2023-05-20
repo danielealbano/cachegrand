@@ -53,19 +53,24 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(config_get) {
 
     // Loop over the parameters until it finishes or find a wildcard
     for(int index = 0; index < context->parameter.count; index++) {
+        // If the parameter is a wildcard, we need to send all the parameters so break the current loop as the list has
+        // to be rebuilt from scratch
         if (context->parameter.list[index].length == 1 && context->parameter.list[index].short_string[0] == '*') {
             found_wildcard = true;
             break;
         }
 
-        module_redis_command_helper_config_parameter_key_value_t *parameter = module_redis_command_helper_config_parameter_get(
-                context->parameter.list[index].short_string,
-                context->parameter.list[index].length);
+        // Try to get the parameter from the list of known parameters, if it doesn't exist, skip it
+        module_redis_command_helper_config_parameter_key_value_t *parameter =
+                module_redis_command_helper_config_parameter_get(
+                        context->parameter.list[index].short_string,
+                        context->parameter.list[index].length);
 
         if (parameter == NULL) {
             continue;
         }
 
+        // Check if it's necessary to upsize the list of parameters to send
         if (parameters_to_send_count >= parameters_to_send_size) {
             if (parameters_to_send_size == 0) {
                 parameters_to_send_size = 1;
@@ -78,8 +83,11 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(config_get) {
                     parameters_to_send_size * sizeof(module_redis_command_helper_config_parameter_key_value_t));
         }
 
+        // Add the parameter to the list of parameters to send
         parameters_to_send[parameters_to_send_count].name = parameter->name;
         parameters_to_send[parameters_to_send_count].to_handle = parameter->to_handle;
+
+        // If the parameter has to be handle, call the appropriate function to get the value
         if (parameter->to_handle) {
             parameters_to_send[parameters_to_send_count].value =
                     module_redis_command_config_get_handle_parameter_value(
@@ -96,10 +104,15 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(config_get) {
 
     // If wildcard, send all the parameters
     if (found_wildcard) {
+        // All the parameters have to be sent so get the size of the array of the list of parameters
         parameters_to_send_count = ARRAY_SIZE(module_redis_command_helper_config_parameters);
+
+        // Resize the list of parameters to send
         parameters_to_send = ffma_mem_realloc(
                 parameters_to_send,
                 parameters_to_send_count * sizeof(module_redis_command_helper_config_parameter_key_value_t));
+
+        // Loop over the list of parameters and add them to the list of parameters to send
         for(
                 uint64_t parameter_index = 0;
                 parameter_index < parameters_to_send_count;
@@ -107,8 +120,11 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(config_get) {
             module_redis_command_helper_config_parameter_key_value_t *parameter =
                     &module_redis_command_helper_config_parameters[parameter_index];
 
+            // Add the parameter to the list of parameters to send
             parameters_to_send[parameter_index].name = parameter->name;
             parameters_to_send[parameter_index].to_handle = parameter->to_handle;
+
+            // If the parameter has to be handle, call the appropriate function to get the value
             if (parameter->to_handle) {
                 parameters_to_send[parameter_index].value =
                         module_redis_command_config_get_handle_parameter_value(
@@ -122,12 +138,15 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(config_get) {
         }
     }
 
+    // Send the response
     bool result = module_redis_command_helper_config_send_response(
             connection_context,
             parameters_to_send,
             parameters_to_send_count);
 
+    // Free the list of parameters to send if it was allocated
     if (parameters_to_send != NULL) {
+        // If the parameter was handled, free up the allocated memory for the value
         for(
                 uint64_t parameter_index = 0;
                 parameter_index < parameters_to_send_count;
@@ -139,6 +158,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(config_get) {
             }
         }
 
+        // Free the list of parameters to send
         ffma_mem_free(parameters_to_send);
     }
 

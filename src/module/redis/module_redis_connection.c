@@ -838,7 +838,7 @@ bool module_redis_connection_process_data(
                         op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA ||
                         op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END;
 
-                if (is_argument_op && op->data.argument.index - connection_context->command.arguments_offset > 0) {
+                if (is_argument_op && ((int64_t)op->data.argument.index - (int64_t)connection_context->command.arguments_offset) > 0) {
                     if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_BEGIN) {
                         if (unlikely(!module_redis_command_process_argument_begin(
                                 connection_context,
