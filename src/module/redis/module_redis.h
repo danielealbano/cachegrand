@@ -43,7 +43,7 @@ extern "C" {
         command_free, \
         MODULE_REDIS_COMMAND_FUNCPTR_ARGUMENTS_COMMAND_FREE)
 
-#define MODULE_REDIS_COMMAND_AUTOGEN(ID, COMMAND, REQUIRES_AUTHENTICATION, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, HAS_VARIABLE_ARGUMENTS, ARGS_COUNT) \
+#define MODULE_REDIS_COMMAND_AUTOGEN(ID, COMMAND, REQUIRES_AUTHENTICATION, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, HAS_VARIABLE_ARGUMENTS, ARGS_COUNT, IS_CONTAINER, CONTAINER_NAME) \
     { \
         .command = MODULE_REDIS_COMMAND_##ID, \
         .string = (COMMAND), \
@@ -56,10 +56,12 @@ extern "C" {
         .command_free_funcptr = MODULE_REDIS_COMMAND_FUNCPTR_NAME_AUTOGEN(COMMAND_FUNC_PTR, command_free), \
         .required_arguments_count = (REQUIRED_ARGS_COUNT), \
         .has_variable_arguments = (HAS_VARIABLE_ARGUMENTS), \
+        .is_container = (IS_CONTAINER), \
+        .container_name = (CONTAINER_NAME), \
         .tokens_hashtable = NULL, \
     }
 
-#define MODULE_REDIS_COMMAND(ID, COMMAND, REQUIRES_AUTHENTICATION, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, HAS_VARIABLE_ARGUMENTS, ARGS_COUNT) \
+#define MODULE_REDIS_COMMAND(ID, COMMAND, REQUIRES_AUTHENTICATION, COMMAND_FUNC_PTR, REQUIRED_ARGS_COUNT, HAS_VARIABLE_ARGUMENTS, ARGS_COUNT, IS_CONTAINER, CONTAINER_NAME) \
     { \
         .command = MODULE_REDIS_COMMAND_##ID, \
         .string = (COMMAND), \
@@ -159,6 +161,8 @@ struct module_redis_command_info {
     uint16_t arguments_count;
     uint8_t required_arguments_count;
     bool has_variable_arguments;
+    bool is_container;
+    char *container_name;
     module_redis_command_argument_t *arguments;
     module_redis_command_end_funcptr_t *command_end_funcptr;
     module_redis_command_free_funcptr_t *command_free_funcptr;
