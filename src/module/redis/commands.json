@@ -124,6 +124,48 @@
         ]
     },
     {
+        "command_string": "CONFIG",
+        "command_callback_name": "config",
+        "container_name": null,
+        "is_container": true,
+        "since": "2.0.0",
+        "required_arguments_count": 0,
+        "has_variable_arguments": false,
+        "requires_authentication":  true,
+        "key_specs": [
+        ],
+        "arguments": [
+        ]
+    },
+    {
+        "command_string": "GET",
+        "command_callback_name": "config_get",
+        "container_name": "CONFIG",
+        "is_container": false,
+        "since": "2.0.0",
+        "required_arguments_count": 1,
+        "has_variable_arguments": true,
+        "requires_authentication":  true,
+        "key_specs": [
+        ],
+        "arguments": [
+            {
+                "name": "parameter",
+                "type": "short_string",
+                "since": "2.0.0",
+                "key_spec_index": null,
+                "token": null,
+                "sub_arguments": [],
+                "is_positional": true,
+                "is_optional": false,
+                "is_sub_argument": false,
+                "has_sub_arguments": false,
+                "has_multiple_occurrences": true,
+                "has_multiple_token": false
+            }
+        ]
+    },
+    {
         "command_string": "COPY",
         "command_callback_name": "copy",
         "container_name": null,
