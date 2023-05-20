@@ -2,6 +2,8 @@
     {
         "command_string": "APPEND",
         "command_callback_name": "append",
+        "container_name": null,
+        "is_container": false,
         "since": "2.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
@@ -55,6 +57,8 @@
     {
         "command_string": "AUTH",
         "command_callback_name": "auth",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
@@ -94,6 +98,8 @@
     {
         "command_string": "BGSAVE",
         "command_callback_name": "bgsave",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": false,
@@ -120,6 +126,8 @@
     {
         "command_string": "COPY",
         "command_callback_name": "copy",
+        "container_name": null,
+        "is_container": false,
         "since": "6.2.0",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
@@ -214,6 +222,8 @@
     {
         "command_string": "DBSIZE",
         "command_callback_name": "dbsize",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": false,
@@ -226,6 +236,8 @@
     {
         "command_string": "DECR",
         "command_callback_name": "decr",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
@@ -266,6 +278,8 @@
     {
         "command_string": "DECRBY",
         "command_callback_name": "decrby",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
@@ -320,6 +334,8 @@
     {
         "command_string": "DEL",
         "command_callback_name": "del",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
@@ -359,6 +375,8 @@
     {
         "command_string": "ECHO",
         "command_callback_name": "echo",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": true,
@@ -384,6 +402,8 @@
     {
         "command_string": "EXISTS",
         "command_callback_name": "exists",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
@@ -421,6 +441,8 @@
     {
         "command_string": "EXPIRE",
         "command_callback_name": "expire",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
@@ -545,6 +567,8 @@
     {
         "command_string": "EXPIREAT",
         "command_callback_name": "expireat",
+        "container_name": null,
+        "is_container": false,
         "since": "1.2.0",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
@@ -669,6 +693,8 @@
     {
         "command_string": "EXPIRETIME",
         "command_callback_name": "expiretime",
+        "container_name": null,
+        "is_container": false,
         "since": "7.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
@@ -708,6 +734,8 @@
     {
         "command_string": "FLUSHDB",
         "command_callback_name": "flushdb",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": false,
@@ -763,6 +791,8 @@
     {
         "command_string": "GET",
         "command_callback_name": "get",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
@@ -802,6 +832,8 @@
     {
         "command_string": "GETDEL",
         "command_callback_name": "getdel",
+        "container_name": null,
+        "is_container": false,
         "since": "6.2.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
@@ -842,6 +874,8 @@
     {
         "command_string": "GETEX",
         "command_callback_name": "getex",
+        "container_name": null,
+        "is_container": false,
         "since": "6.2.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
@@ -967,6 +1001,8 @@
     {
         "command_string": "GETRANGE",
         "command_callback_name": "getrange",
+        "container_name": null,
+        "is_container": false,
         "since": "2.4.0",
         "required_arguments_count": 3,
         "has_variable_arguments": false,
@@ -1034,6 +1070,8 @@
     {
         "command_string": "GETSET",
         "command_callback_name": "getset",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
@@ -1088,6 +1126,8 @@
     {
         "command_string": "HELLO",
         "command_callback_name": "hello",
+        "container_name": null,
+        "is_container": false,
         "since": "6.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": true,
@@ -1170,6 +1210,8 @@
     {
         "command_string": "INCR",
         "command_callback_name": "incr",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
@@ -1210,6 +1252,8 @@
     {
         "command_string": "INCRBY",
         "command_callback_name": "incrby",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
@@ -1264,6 +1308,8 @@
     {
         "command_string": "INCRBYFLOAT",
         "command_callback_name": "incrbyfloat",
+        "container_name": null,
+        "is_container": false,
         "since": "2.6.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
@@ -1318,6 +1364,8 @@
     {
         "command_string": "KEYS",
         "command_callback_name": "keys",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
@@ -1343,6 +1391,8 @@
     {
         "command_string": "LCS",
         "command_callback_name": "lcs",
+        "container_name": null,
+        "is_container": false,
         "since": "7.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
@@ -1452,6 +1502,8 @@
     {
         "command_string": "MGET",
         "command_callback_name": "mget",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
@@ -1491,6 +1543,8 @@
     {
         "command_string": "MOVE",
         "command_callback_name": "move",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
@@ -1545,6 +1599,8 @@
     {
         "command_string": "MSET",
         "command_callback_name": "mset",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.1",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
@@ -1613,6 +1669,8 @@
     {
         "command_string": "MSETNX",
         "command_callback_name": "msetnx",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.1",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
@@ -1681,6 +1739,8 @@
     {
         "command_string": "PERSIST",
         "command_callback_name": "persist",
+        "container_name": null,
+        "is_container": false,
         "since": "2.2.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
@@ -1720,6 +1780,8 @@
     {
         "command_string": "PEXPIRE",
         "command_callback_name": "pexpire",
+        "container_name": null,
+        "is_container": false,
         "since": "2.6.0",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
@@ -1844,6 +1906,8 @@
     {
         "command_string": "PEXPIREAT",
         "command_callback_name": "pexpireat",
+        "container_name": null,
+        "is_container": false,
         "since": "2.6.0",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
@@ -1968,6 +2032,8 @@
     {
         "command_string": "PEXPIRETIME",
         "command_callback_name": "pexpiretime",
+        "container_name": null,
+        "is_container": false,
         "since": "7.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
@@ -2007,6 +2073,8 @@
     {
         "command_string": "PING",
         "command_callback_name": "ping",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": true,
@@ -2032,6 +2100,8 @@
     {
         "command_string": "PSETEX",
         "command_callback_name": "psetex",
+        "container_name": null,
+        "is_container": false,
         "since": "2.6.0",
         "required_arguments_count": 3,
         "has_variable_arguments": false,
@@ -2099,6 +2169,8 @@
     {
         "command_string": "PTTL",
         "command_callback_name": "pttl",
+        "container_name": null,
+        "is_container": false,
         "since": "2.6.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
@@ -2138,6 +2210,8 @@
     {
         "command_string": "QUIT",
         "command_callback_name": "quit",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": true,
@@ -2148,6 +2222,8 @@
     {
         "command_string": "RANDOMKEY",
         "command_callback_name": "randomkey",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": false,
@@ -2158,6 +2234,8 @@
     {
         "command_string": "RENAME",
         "command_callback_name": "rename",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
@@ -2225,6 +2303,8 @@
     {
         "command_string": "RENAMENX",
         "command_callback_name": "renamenx",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
@@ -2292,6 +2372,8 @@
     {
         "command_string": "SAVE",
         "command_callback_name": "save",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": false,
@@ -2304,6 +2386,8 @@
     {
         "command_string": "SELECT",
         "command_callback_name": "select",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
@@ -2330,6 +2414,8 @@
     {
         "command_string": "SCAN",
         "command_callback_name": "scan",
+        "container_name": null,
+        "is_container": false,
         "since": "2.8.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
@@ -2397,6 +2483,8 @@
     {
         "command_string": "SET",
         "command_callback_name": "set",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": true,
@@ -2594,6 +2682,8 @@
     {
         "command_string": "SETEX",
         "command_callback_name": "setex",
+        "container_name": null,
+        "is_container": false,
         "since": "2.0.0",
         "required_arguments_count": 3,
         "has_variable_arguments": false,
@@ -2661,6 +2751,8 @@
     {
         "command_string": "SETNX",
         "command_callback_name": "setnx",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 2,
         "has_variable_arguments": false,
@@ -2714,6 +2806,8 @@
     {
         "command_string": "SETRANGE",
         "command_callback_name": "setrange",
+        "container_name": null,
+        "is_container": false,
         "since": "2.2.0",
         "required_arguments_count": 3,
         "has_variable_arguments": false,
@@ -2781,6 +2875,8 @@
     {
         "command_string": "SHUTDOWN",
         "command_callback_name": "shutdown",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 0,
         "has_variable_arguments": true,
@@ -2877,6 +2973,8 @@
     {
         "command_string": "SORT",
         "command_callback_name": "sort",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
@@ -3084,6 +3182,8 @@
     {
         "command_string": "SORT_RO",
         "command_callback_name": "sort_ro",
+        "container_name": null,
+        "is_container": false,
         "since": "7.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
@@ -3264,6 +3364,8 @@
     {
         "command_string": "STRLEN",
         "command_callback_name": "strlen",
+        "container_name": null,
+        "is_container": false,
         "since": "2.2.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
@@ -3301,6 +3403,8 @@
     {
         "command_string": "SUBSTR",
         "command_callback_name": "substr",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 3,
         "has_variable_arguments": false,
@@ -3368,6 +3472,8 @@
     {
         "command_string": "TOUCH",
         "command_callback_name": "touch",
+        "container_name": null,
+        "is_container": false,
         "since": "3.2.1",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
@@ -3405,6 +3511,8 @@
     {
         "command_string": "TTL",
         "command_callback_name": "ttl",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
@@ -3444,6 +3552,8 @@
     {
         "command_string": "TYPE",
         "command_callback_name": "type",
+        "container_name": null,
+        "is_container": false,
         "since": "1.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": false,
@@ -3481,6 +3591,8 @@
     {
         "command_string": "UNLINK",
         "command_callback_name": "unlink",
+        "container_name": null,
+        "is_container": false,
         "since": "4.0.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
