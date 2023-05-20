@@ -1223,10 +1223,8 @@ bool storage_db_op_set(
         }
     }
 
-    if (expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY) {
-        if (db->config->enforced_ttl.default_ms != STORAGE_DB_ENTRY_NO_EXPIRY) {
-            expiry_time_ms = clock_realtime_coarse_int64_ms() + db->config->enforced_ttl.default_ms;
-        }
+    if (expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY && db->config->enforced_ttl.default_ms != STORAGE_DB_ENTRY_NO_EXPIRY) {
+        expiry_time_ms = clock_realtime_coarse_int64_ms() + db->config->enforced_ttl.default_ms;
     } else if (db->config->enforced_ttl.max_ms != STORAGE_DB_ENTRY_NO_EXPIRY) {
         int64_t max_ttl_ms = clock_realtime_coarse_int64_ms() + db->config->enforced_ttl.max_ms;
         if (db->config->enforced_ttl.max_ms != STORAGE_DB_ENTRY_NO_EXPIRY && expiry_time_ms > max_ttl_ms) {
@@ -1365,10 +1363,8 @@ bool storage_db_op_rmw_commit_update(
         }
     }
 
-    if (expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY) {
-        if (db->config->enforced_ttl.default_ms != STORAGE_DB_ENTRY_NO_EXPIRY) {
-            expiry_time_ms = clock_realtime_coarse_int64_ms() + db->config->enforced_ttl.default_ms;
-        }
+    if (expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY && db->config->enforced_ttl.default_ms != STORAGE_DB_ENTRY_NO_EXPIRY) {
+        expiry_time_ms = clock_realtime_coarse_int64_ms() + db->config->enforced_ttl.default_ms;
     } else if (db->config->enforced_ttl.max_ms != STORAGE_DB_ENTRY_NO_EXPIRY) {
         int64_t max_ttl_ms = clock_realtime_coarse_int64_ms() + db->config->enforced_ttl.max_ms;
         if (db->config->enforced_ttl.max_ms != STORAGE_DB_ENTRY_NO_EXPIRY && expiry_time_ms > max_ttl_ms) {
