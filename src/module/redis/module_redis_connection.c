@@ -598,6 +598,7 @@ void module_redis_connection_accept(
     module_redis_connection_context_init(
             &connection_context,
             worker_context_get()->db,
+            worker_context_get()->config,
             network_channel);
 
     do {
