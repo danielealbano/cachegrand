@@ -292,7 +292,6 @@ void worker_network_new_client_fiber_entrypoint(
     }
 
     stats->network.accepted_connections++;
-
     if (tls_enabled) {
         stats->network.accepted_tls_connections++;
     }
@@ -300,7 +299,7 @@ void worker_network_new_client_fiber_entrypoint(
     // Handover the new connection to the module
     module_get_by_id(new_channel->module_id)->connection_accept(new_channel);
 
-    // TODO: when ti gets here new_channel might have been already freed, the flow should always close the connection
+    // TODO: when it gets here new_channel might have been already freed, the flow should always close the connection
     //       the connection here and not from within the module
     if (new_channel->status != NETWORK_CHANNEL_STATUS_CLOSED) {
         network_close(new_channel, true);
