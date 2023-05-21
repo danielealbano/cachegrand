@@ -379,7 +379,7 @@ int32_t protocol_redis_reader_read(
             return op_index;
         }
 
-        // Ensure that there is at least 1 charater and the \r before the found \n
+        // Ensure that there is at least 1 character and the \r before the found \n
         if (unlikely(new_line_ptr - buffer < 2 || *(new_line_ptr - 1) != '\r')) {
             context->error = PROTOCOL_REDIS_READER_ERROR_ARGS_ARRAY_INVALID_LENGTH;
             return -1;
