@@ -42,15 +42,23 @@
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PING", "[redis][command][PING]") {
-    SECTION("Without value") {
+    SECTION("Without value - RESP") {
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"PING"},
                 "+PONG\r\n"));
     }
 
-    SECTION("With value") {
+    SECTION("With value - RESP") {
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
                 std::vector<std::string>{"PING", "a test"},
                 "$6\r\na test\r\n"));
+    }
+
+    SECTION("Without value - Inline") {
+        this->protocol_version = TEST_MODULES_REDIS_COMMAND_FIXTURE_PROTOCOL_INLINE;
+
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                std::vector<std::string>{"PING"},
+                "+PONG\r\n"));
     }
 }

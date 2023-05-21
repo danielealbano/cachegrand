@@ -8,12 +8,20 @@
     } while((WORKER_CONTEXT)->running == !(RUNNING)); \
 }
 
+enum TestModulesRedisCommandFixtureProtocol {
+    TEST_MODULES_REDIS_COMMAND_FIXTURE_PROTOCOL_UNKNOWN = 0,
+    TEST_MODULES_REDIS_COMMAND_FIXTURE_PROTOCOL_INLINE = 1,
+    TEST_MODULES_REDIS_COMMAND_FIXTURE_PROTOCOL_RESP_2 = 2,
+    TEST_MODULES_REDIS_COMMAND_FIXTURE_PROTOCOL_RESP_3 = 3,
+};
+
 class TestModulesRedisCommandFixture {
 public:
     TestModulesRedisCommandFixture();
     ~TestModulesRedisCommandFixture();
 protected:
     redisContext *c;
+    uint8_t protocol_version;
 
     size_t buffer_send_data_len{};
     char buffer_send[16 * 1024] = {0};
@@ -44,11 +52,6 @@ protected:
 
     program_context_t *program_context;
 
-    static size_t build_resp_command(
-            char *buffer,
-            size_t buffer_size,
-            const std::vector<std::string>& arguments);
-
     static size_t string_replace(
             char *input,
             size_t input_len,
@@ -57,8 +60,10 @@ protected:
             int count,
             ...);
 
-    size_t send_recv_resp_command_calculate_multi_recv(
-            size_t expected_length) const;
+    size_t build_resp_command(
+            char *buffer,
+            size_t buffer_size,
+            const std::vector<std::string>& arguments) const;
 
     bool send_recv_resp_command_multi_recv(
             const std::vector<std::string>& arguments,
