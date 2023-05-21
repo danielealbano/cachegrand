@@ -71,18 +71,18 @@ size_t module_redis_snapshot_load_read(
 
 uint64_t module_redis_snapshot_load_read_length_encoded_int(
         storage_channel_t *channel) {
-    uint8_t byte;
+    uint8_t byte = 0;
     uint64_t length = 0;
     module_redis_snapshot_load_read(channel, (char *) &byte, 1);
 
     if ((byte & 0xC0) == 0) {
         length = byte & 0x3F;
     } else if ((byte & 0xC0) == 0x40) {
-        uint8_t next_byte;
+        uint8_t next_byte = 0;
         module_redis_snapshot_load_read(channel, (char *) &next_byte, 1);
         length = ((byte & 0x3F) << 8) | next_byte;
     } else if ((byte & 0xC0) == 0x80 && (byte & 0x01) == 0) {
-        uint32_t length32;
+        uint32_t length32 = 0;
         module_redis_snapshot_load_read(channel, (char *) &length32, 4);
         length = int32_ntoh(length32);
     } else if ((byte & 0xC0) == 0x80 && (byte & 0x01) == 1) {
@@ -236,8 +236,8 @@ uint8_t module_redis_snapshot_load_read_opcode(
 
 void module_redis_snapshot_load_process_opcode_aux(
         storage_channel_t *channel) {
-    size_t key_length;
-    size_t value_length;
+    size_t key_length = 0;
+    size_t value_length = 0;
     void *key = module_redis_snapshot_load_read_string(channel, &key_length);
     void *value = module_redis_snapshot_load_read_string(channel, &value_length);
 
@@ -361,8 +361,8 @@ void module_redis_snapshot_load_process_value_string(
         storage_channel_t *channel,
         uint64_t expiry_ms) {
     bool set_failed = false;
-    size_t key_length;
-    size_t value_length;
+    size_t key_length = 0;
+    size_t value_length = 0;
     char *key, *value;
 
     key = module_redis_snapshot_load_read_string(channel, &key_length);
