@@ -58,8 +58,66 @@ int32_t protocol_redis_reader_read(
         bool is_inline = first_byte != PROTOCOL_REDIS_TYPE_ARRAY;
 
         if (unlikely(is_inline)) {
+            // The inline protocol support has still to be implemented by to support redis-benchmark there is an ad-hoc
+            // check for the PING command, as redis-benchmark ignores the protocol type and sends the PING command
+            // as inline.
+            // This check will also work only if the PING command is sent as PING\r\n altogether, if the command will
+            // be split among multiple packets it will not work.
+            if (length >= 6 && strncmp(buffer, "PING\r\n", 6) == 0) {
+                size_t command_length = 4;
+                size_t data_read_len = 6;
+
+                // Update the context status
+                context->arguments.count = 1;
+                context->state = PROTOCOL_REDIS_READER_STATE_COMMAND_PARSED;
+
+                // Update the various offsets (and pointers)
+                read_offset += data_read_len;
+                buffer += data_read_len;
+                context->arguments.current.received_length += data_read_len;
+
+                // Update the ops list
+                ops[op_index].type = PROTOCOL_REDIS_READER_OP_TYPE_COMMAND_BEGIN;
+                ops[op_index].data_read_len = 0;
+                ops[op_index].data.command.arguments_count = 1;
+                op_index++;
+
+                // Update the OPs list
+                ops[op_index].type = PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_BEGIN;
+                ops[op_index].data_read_len = 0;
+                ops[op_index].data.argument.index = 0;
+                ops[op_index].data.argument.length = command_length;
+                op_index++;
+
+                // Update the OPs list
+                ops[op_index].type = PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA;
+                ops[op_index].data_read_len = (off_t)command_length;
+                ops[op_index].data.argument.index = 0;
+                ops[op_index].data.argument.length = command_length;
+                ops[op_index].data.argument.offset = 0;
+                ops[op_index].data.argument.data_length = command_length;
+                op_index++;
+
+                // Update the OPs list
+                ops[op_index].type = PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END;
+                ops[op_index].data_read_len = 0;
+                ops[op_index].data.argument.index = 0;
+                ops[op_index].data.argument.length = command_length;
+                ops[op_index].data.argument.offset = command_length;
+                op_index++;
+
+                // Update the OPs list
+                ops[op_index].type = PROTOCOL_REDIS_READER_OP_TYPE_COMMAND_END;
+                ops[op_index].data_read_len = 2;
+                ops[op_index].data.command.arguments_count = 1;
+                op_index++;
+
+                return op_index;
+            }
+
             context->error = PROTOCOL_REDIS_READER_ERROR_INLINE_PROTOCOL_NOT_SUPPORTED;
             return -1;
+
 //            context->protocol_type = PROTOCOL_REDIS_READER_PROTOCOL_TYPE_INLINE;
 //            context->state = PROTOCOL_REDIS_READER_STATE_INLINE_WAITING_ARGUMENT;
 //            context->arguments.count = 0;
