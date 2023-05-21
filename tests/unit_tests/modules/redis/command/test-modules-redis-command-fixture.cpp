@@ -178,6 +178,8 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
 
     PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true)
 
+    this->protocol_version = TEST_MODULES_REDIS_COMMAND_FIXTURE_PROTOCOL_RESP_2;
+
     this->c = redisConnect(config_module_network_binding.host, config_module_network_binding.port);
 
     REQUIRE(this->c != nullptr);
@@ -217,24 +219,45 @@ TestModulesRedisCommandFixture::~TestModulesRedisCommandFixture() {
 size_t TestModulesRedisCommandFixture::build_resp_command(
         char *buffer,
         size_t buffer_size,
-        const std::vector<std::string>& arguments) {
+        const std::vector<std::string>& arguments) const {
     size_t buffer_offset = 0;
     size_t arguments_count = arguments.size();
 
-    buffer_offset += snprintf(
-            buffer ? buffer + buffer_offset : nullptr,
-            buffer ? buffer_size - buffer_offset : 0,
-            "*%lu\r\n",
-            arguments_count);
+    if (this->protocol_version >= TEST_MODULES_REDIS_COMMAND_FIXTURE_PROTOCOL_RESP_2) {
+        buffer_offset += snprintf(
+                buffer ? buffer + buffer_offset : nullptr,
+                buffer ? buffer_size - buffer_offset : 0,
+                "*%lu\r\n",
+                arguments_count);
 
-    for(const auto& value: arguments) {
+        for (const auto &value: arguments) {
+            char *buffer_start = buffer + buffer_offset;
+            buffer_offset += snprintf(
+                    buffer ? buffer_start : nullptr,
+                    buffer ? buffer_size - buffer_offset : 0,
+                    "$%lu\r\n%s\r\n",
+                    value.length(),
+                    value.c_str());
+        }
+    } else {
+        bool is_first = true;
+        for (const auto &value: arguments) {
+            char *buffer_start = buffer + buffer_offset;
+            buffer_offset += snprintf(
+                    buffer ? buffer_start : nullptr,
+                    buffer ? buffer_size - buffer_offset : 0,
+                    "%s%s",
+                    is_first ? "" : " ",
+                    value.c_str());
+
+            is_first = false;
+        }
+
         char *buffer_start = buffer + buffer_offset;
         buffer_offset += snprintf(
                 buffer ? buffer_start : nullptr,
                 buffer ? buffer_size - buffer_offset : 0,
-                "$%lu\r\n%s\r\n",
-                value.length(),
-                value.c_str());
+                "\r\n");
     }
 
     return buffer_offset;
@@ -319,18 +342,34 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
     // Sets up the reader
     this->c->reader = redisReaderCreate();
 
-    // Prepares the command and write it to the internal buffer
-    redisAppendCommandArgv(
-            this->c,
-            (int)arguments.size(),
-            c_strs.data(),
-            nullptr);
+    if (this->protocol_version == TEST_MODULES_REDIS_COMMAND_FIXTURE_PROTOCOL_INLINE) {
+        size_t buffer_length = build_resp_command(nullptr, 0, arguments);
+        char *buffer = (char *) malloc(buffer_length + 1);
+        build_resp_command(buffer, buffer_length + 1, arguments);
 
-    // Sends the data out
-    int done = 0;
-    do {
-        REQUIRE(redisBufferWrite(this->c, &done) == REDIS_OK);
-    } while(done == 0);
+        // Sends the data out
+        size_t sent_data = 0;
+        do {
+            ssize_t result = send(this->c->fd, buffer + sent_data, buffer_length - sent_data, 0);
+
+            REQUIRE(result >= 0);
+
+            sent_data += result;
+        } while (sent_data < buffer_length);
+    } else {
+        // Prepares the command and write it to the internal buffer
+        redisAppendCommandArgv(
+                this->c,
+                (int)arguments.size(),
+                c_strs.data(),
+                nullptr);
+
+        // Sends the data out
+        int done = 0;
+        do {
+            REQUIRE(redisBufferWrite(this->c, &done) == REDIS_OK);
+        } while(done == 0);
+    }
 
     // As the redisReaderGetReply discards the reader buffer and we need it entirely instead, the code below handles
     // the receive of the data, store them in an internal buffer and passes them to the reader for processing.
