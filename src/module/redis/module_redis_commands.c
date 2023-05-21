@@ -85,7 +85,7 @@ hashtable_spsc_t *module_redis_commands_build_commands_hashtables(
         module_redis_command_info_t *command_infos,
         uint32_t command_infos_count) {
     hashtable_spsc_t *commands_hashtable = hashtable_spsc_new(
-            command_infos_count,
+            command_infos_count * 2,
             32,
             false);
     for(
