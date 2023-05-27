@@ -771,9 +771,9 @@ bool module_redis_connection_process_data(
                         continue;
                     }
 
-                    if (module_redis_commands_is_command_disabled(
+                    if (unlikely(module_redis_commands_is_command_disabled(
                             connection_context->command.info->string,
-                            connection_context->command.info->string_len)) {
+                            connection_context->command.info->string_len))) {
                         module_redis_connection_error_message_printf_noncritical(
                                 connection_context,
                                 "ERR command `%.*s` is disabled",
