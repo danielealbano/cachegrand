@@ -105,6 +105,8 @@ struct config_module_redis {
     bool require_authentication;
     char *username;
     char *password;
+    char **disabled_commands;
+    unsigned disabled_commands_count;
 };
 
 typedef struct config_module_network config_module_network_t;

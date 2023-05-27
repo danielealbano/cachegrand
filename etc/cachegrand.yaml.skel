@@ -46,6 +46,10 @@ modules:
       # Password, required when require_authentication is enabled
       password: "changeme"
 
+#      # List of commands that can be disabled for security reasons, optional
+#       disabled_commands:
+#       - "mset"
+
     network:
       # Timeouts for the read and write operations in milliseconds, set to -1 to disable or greater than 0 to enable
       timeout:

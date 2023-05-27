@@ -62,6 +62,12 @@ void program_workers_cleanup(
 bool program_setup_pidfile(
         program_context_t *program_context);
 
+bool program_initialize_module(
+        program_context_t* program_context);
+
+bool program_cleanup_module(
+        program_context_t* program_context);
+
 bool program_config_thread_affinity_set_selected_cpus(
         program_context_t *program_context);
 
