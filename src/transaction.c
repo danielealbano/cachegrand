@@ -75,8 +75,10 @@ bool transaction_acquire(
     transaction->transaction_id.worker_index = transaction_manager_worker_index;
     transaction->transaction_id.transaction_index = transaction_manager_transaction_index;
 
+    // FFMA_OBJECT_SIZE_MIN should be 16 bytes, therefore the size of the locks list should be 16 / 8 = 2 by default
+    // and it should be enough for most of the cases
+    transaction->locks.size = FFMA_OBJECT_SIZE_MIN / sizeof(transaction_spinlock_lock_volatile_t*);
     transaction->locks.count = 0;
-    transaction->locks.size = 8;
     transaction->locks.list = ffma_mem_alloc(
             sizeof(transaction_spinlock_lock_volatile_t*) * transaction->locks.size);
 
