@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 extern hashtable_spsc_t *module_redis_commands_hashtable;
+extern thread_local hashtable_spsc_t *module_redis_disabled_commands_hashtable;
 
 void module_redis_commands_set_disabled_commands_hashtables(
         hashtable_spsc_t *commands_hashtable);
@@ -15,10 +16,6 @@ hashtable_spsc_t *module_redis_commands_get_disabled_commands_hashtables();
 hashtable_spsc_t *module_redis_commands_build_disabled_commands_hashtables(
         char **disabled_commands,
         uint32_t disabled_commands_count);
-
-bool module_redis_commands_is_command_disabled(
-        char *command,
-        size_t command_length);
 
 void module_redis_commands_free_disabled_commands_hashtables(
         hashtable_spsc_t *hashtable);
@@ -53,6 +50,15 @@ void module_redis_commands_free_command_arguments_token_entries_hashtable(
 void module_redis_commands_free_commands_arguments_token_entries_hashtable(
         module_redis_command_info_t *command_infos,
         uint32_t command_infos_count);
+
+static inline __attribute__((always_inline)) bool module_redis_commands_is_command_disabled(
+        char *command,
+        size_t command_length) {
+    return module_redis_disabled_commands_hashtable != NULL && hashtable_spsc_op_get_ci(
+            module_redis_disabled_commands_hashtable,
+            command,
+            command_length) != NULL;
+}
 
 #ifdef __cplusplus
 }

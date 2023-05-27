@@ -117,15 +117,6 @@ hashtable_spsc_t *module_redis_commands_get_disabled_commands_hashtables() {
     return module_redis_disabled_commands_hashtable;
 }
 
-bool module_redis_commands_is_command_disabled(
-        char *command,
-        size_t command_length) {
-    return module_redis_disabled_commands_hashtable != NULL && hashtable_spsc_op_get_ci(
-            module_redis_disabled_commands_hashtable,
-            command,
-            command_length) != NULL;
-}
-
 hashtable_spsc_t *module_redis_commands_build_disabled_commands_hashtables(
         char **disabled_commands,
         uint32_t disabled_commands_count) {
