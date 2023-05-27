@@ -31,7 +31,7 @@
 
 thread_local uint32_t transaction_manager_worker_index = 0;
 thread_local uint16_t transaction_manager_transaction_index = 0;
-pthread_once_t transaction_manager_init_once_control = PTHREAD_ONCE_INIT;
+thread_local pthread_once_t transaction_manager_init_once_control = PTHREAD_ONCE_INIT;
 
 void transaction_set_worker_index(
         uint32_t worker_index) {
