@@ -16,6 +16,7 @@
 #include <cmath>
 #include <functional>
 #include <algorithm>
+#include <utility>
 
 #include <pthread.h>
 #include <mcheck.h>
@@ -62,8 +63,39 @@
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
-    char* cpus[] = { "0" };
+    setup_config();
+    start_workers();
+}
 
+TestModulesRedisCommandFixture::TestModulesRedisCommandFixture(
+        std::vector<char*> disabled_commands) {
+    this->disabled_commands = std::move(disabled_commands);
+    setup_config();
+    start_workers();
+}
+
+TestModulesRedisCommandFixture::~TestModulesRedisCommandFixture() {
+    // Necessary to avoid a double free
+    if (this->c->reader == nullptr) {
+        this->c->reader = redisReaderCreate();
+    }
+    redisFree(this->c);
+
+    // As the config is not allocated via cyaml, set program_context->config to null to avoid the code trying to free
+    // memory allocated on the stack
+    program_context->config = nullptr;
+
+    // Request the termination of the workers
+    program_request_terminate(&program_context->workers_terminate_event_loop);
+
+    // Wait for the cachegrand instance to terminate
+    program_cleanup(program_context);
+
+    // Reset the context for the next test if needed
+    program_reset_context();
+}
+
+void TestModulesRedisCommandFixture::setup_config() {
     config_module_network_binding = {
             .host = "127.0.0.1",
             .port = network_tests_support_search_free_port_ipv4(),
@@ -73,6 +105,8 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
             .max_key_length = 256,
             .max_command_length = 8 * 1024,
             .max_command_arguments = 128,
+            .disabled_commands = &disabled_commands[0],
+            .disabled_commands_count = static_cast<unsigned int>(disabled_commands.size()),
     };
 
     config_module_network_timeout = {
@@ -144,34 +178,32 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
     };
 
     config = {
-            .cpus = cpus,
-            .cpus_count = 1,
+            .cpus = &cpus[0],
+            .cpus_count = (unsigned int)cpus.size(),
             .workers_per_cpus = 1,
             .network = &config_network,
             .modules = &config_module,
             .modules_count = 1,
             .database = &config_database,
     };
+}
 
-    workers_count = config.cpus_count * config.workers_per_cpus;
-
+void TestModulesRedisCommandFixture::start_workers() {
     db_config = storage_db_config_new();
     db_config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY;
     db_config->limits.keys_count.hard_limit = 1000;
 
     program_context = program_get_context();
     program_context->config = &config;
-    program_context->workers_count = 1;
+
+    program_config_thread_affinity_set_selected_cpus(program_context);
+    program_workers_initialize_count(program_context);
 
     program_config_setup_storage_db(program_context);
     db = program_context->db;
     storage_db_open(db);
 
     program_epoch_gc_workers_initialize(program_context);
-
-    program_config_thread_affinity_set_selected_cpus(program_context);
-
-    program_workers_initialize_count(program_context);
 
     worker_context = program_workers_initialize_context(
             program_context);
@@ -193,27 +225,6 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
     // Will be recreated each time during the tests
     redisReaderFree(this->c->reader);
     this->c->reader = nullptr;
-}
-
-TestModulesRedisCommandFixture::~TestModulesRedisCommandFixture() {
-    // Necessary to avoid a double free
-    if (this->c->reader == nullptr) {
-        this->c->reader = redisReaderCreate();
-    }
-    redisFree(this->c);
-
-    // As the config is not allocated via cyaml, set program_context->config to null to avoid the code trying to free
-    // memory allocated on the stack
-    program_context->config = nullptr;
-
-    // Request the termination of the workers
-    program_request_terminate(&program_context->workers_terminate_event_loop);
-
-    // Wait for the cachegrand instance to terminate
-    program_cleanup(program_context);
-
-    // Reset the context for the next test if needed
-    program_reset_context();
 }
 
 size_t TestModulesRedisCommandFixture::build_resp_command(

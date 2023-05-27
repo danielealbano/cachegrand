@@ -1,3 +1,5 @@
+#pragma GCC diagnostic ignored "-Wwrite-strings"
+
 #include <hiredis.h>
 
 #define PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(WORKER_CONTEXT, RUNNING) { \
@@ -18,10 +20,35 @@ enum TestModulesRedisCommandFixtureProtocol {
 class TestModulesRedisCommandFixture {
 public:
     TestModulesRedisCommandFixture();
+
+    TestModulesRedisCommandFixture(std::vector<char*> disabled_commands);
+
     ~TestModulesRedisCommandFixture();
+
+    bool send_recv_resp_command_multi_recv(
+            const std::vector<std::string>& arguments,
+            char *buffer_recv_int,
+            size_t *out_buffer_recv_length) const;
+
+    bool send_recv_resp_command_multi_recv_and_validate_recv(
+            const std::vector<std::string>& arguments,
+            char *expected,
+            size_t expected_length);
+
+    bool send_recv_resp_command_and_validate_recv(
+            const std::vector<std::string>& arguments,
+            char *expected,
+            size_t expected_length);
+
+    bool send_recv_resp_command_text_and_validate_recv(
+            const std::vector<std::string>& arguments,
+            char *expected);
 protected:
     redisContext *c;
     uint8_t protocol_version;
+
+    std::vector<char*> cpus{ "0" };
+    std::vector<char*> disabled_commands{};
 
     size_t buffer_send_data_len{};
     char buffer_send[16 * 1024] = {0};
@@ -60,27 +87,12 @@ protected:
             int count,
             ...);
 
+    virtual void setup_config();
+
+    virtual void start_workers();
+
     size_t build_resp_command(
             char *buffer,
             size_t buffer_size,
             const std::vector<std::string>& arguments) const;
-
-    bool send_recv_resp_command_multi_recv(
-            const std::vector<std::string>& arguments,
-            char *buffer_recv_int,
-            size_t *out_buffer_recv_length) const;
-
-    bool send_recv_resp_command_multi_recv_and_validate_recv(
-            const std::vector<std::string>& arguments,
-            char *expected,
-            size_t expected_length);
-
-    bool send_recv_resp_command_and_validate_recv(
-            const std::vector<std::string>& arguments,
-            char *expected,
-            size_t expected_length);
-
-    bool send_recv_resp_command_text_and_validate_recv(
-            const std::vector<std::string>& arguments,
-            char *expected);
 };
