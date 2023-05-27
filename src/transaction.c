@@ -66,8 +66,9 @@ bool transaction_acquire(
 
     transaction_manager_transaction_index++;
 
-    if (unlikely(transaction_manager_worker_index == 0 &&
-        transaction_manager_transaction_index == TRANSACTION_ID_NOT_ACQUIRED)) {
+    // Having both the worker index and the transaction index to 0 matches the transaction id not acquired value
+    // therefore we need to increment the transaction index by 1 to avoid it
+    if (unlikely(transaction_manager_worker_index == 0 && transaction_manager_transaction_index == 0)) {
         transaction_manager_transaction_index++;
     }
 
