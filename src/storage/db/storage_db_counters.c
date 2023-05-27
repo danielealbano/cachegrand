@@ -105,6 +105,8 @@ void storage_db_counters_sum_global(
         next_slot_index = found_slot_index + 1;
         workers_to_find--;
     }
+    assert(counters->keys_count >= 0);
+    assert(counters->data_size >= 0);
 }
 
 void storage_db_counters_sum_per_db(
