@@ -771,6 +771,17 @@ bool module_redis_connection_process_data(
                         continue;
                     }
 
+                    if (module_redis_commands_is_command_disabled(
+                            connection_context->command.info->string,
+                            connection_context->command.info->string_len)) {
+                        module_redis_connection_error_message_printf_noncritical(
+                                connection_context,
+                                "ERR command `%.*s` is disabled",
+                                (int)command_data_to_search_length,
+                                command_data_to_search);
+                        continue;
+                    }
+
                     if (connection_context->command.info->requires_authentication &&
                         !module_redis_connection_is_authenticated(connection_context)) {
                         connection_context->command.info = NULL;
