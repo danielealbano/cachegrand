@@ -74,4 +74,10 @@ TEST_CASE_METHOD(TestModulesRedisCommandDisabledFixture, "Redis - command - disa
                 std::vector<std::string>{"DEL", "a_key"},
                 ":1\r\n"));
     }
+
+    SECTION("Disabled command - test case") {
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                std::vector<std::string>{"Get", "a_key"},
+                "-ERR command `Get` is disabled\r\n"));
+    }
 }
