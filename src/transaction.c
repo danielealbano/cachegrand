@@ -31,7 +31,7 @@
 
 thread_local uint32_t transaction_manager_worker_index = 0;
 thread_local uint16_t transaction_manager_transaction_index = 0;
-thread_local pthread_once_t transaction_manager_init_once_control = PTHREAD_ONCE_INIT;
+thread_local bool_volatile_t transaction_manager_inited = false;
 
 void transaction_set_worker_index(
         uint32_t worker_index) {
@@ -59,7 +59,10 @@ uint16_t transaction_peek_current_thread_index() {
 
 bool transaction_acquire(
         transaction_t *transaction) {
-    pthread_once(&transaction_manager_init_once_control, transaction_manager_init);
+    if (unlikely(transaction_manager_inited == false)) {
+        transaction_manager_init();
+        transaction_manager_inited = true;
+    }
 
     transaction_manager_transaction_index++;
 
