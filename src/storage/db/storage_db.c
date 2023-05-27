@@ -1134,6 +1134,11 @@ bool storage_db_set_entry_index(
 
     storage_db_entry_index_touch(entry_index);
 
+    // After the set the entry_index can't be relied upon as another thread can delete it
+    size_t value_size = entry_index->value.size;
+
+    assert(entry_index->status.deleted == false);
+
     bool res = hashtable_mcmp_op_set(
             db->hashtable,
             database_number,
@@ -1144,8 +1149,9 @@ bool storage_db_set_entry_index(
             &out_bucket_index,
             &out_should_free_key);
 
+
     if (res) {
-        int64_t counter_data_size_delta = (int64_t)entry_index->value.size;
+        int64_t counter_data_size_delta = (int64_t)value_size;
         if (previous_entry_index != NULL) {
             counter_data_size_delta -= (int64_t)previous_entry_index->value.size;
 
@@ -1179,7 +1185,7 @@ bool storage_db_set_entry_index(
 
     STORAGE_DB_COUNTERS_UPDATE(db, database_number, {
         counters->keys_changed++;
-        counters->data_changed += (int64_t) entry_index->value.size;
+        counters->data_changed += (int64_t)value_size;
     });
 
     if (out_should_free_key) {
@@ -1381,11 +1387,16 @@ bool storage_db_op_rmw_commit_update(
 
     storage_db_entry_index_touch(entry_index);
 
+    // After the set the entry_index can't be relied upon as another thread can delete it
+    size_t value_size = entry_index->value.size;
+
+    assert(entry_index->status.deleted == false);
+
     hashtable_mcmp_op_rmw_commit_update(
             &rmw_status->hashtable,
             (uintptr_t)entry_index);
 
-    int64_t counter_data_size_delta = (int64_t)entry_index->value.size;
+    int64_t counter_data_size_delta = (int64_t)value_size;
     if (rmw_status->hashtable.current_value != 0) {
         counter_data_size_delta -=
                 (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value.size;
@@ -1399,7 +1410,7 @@ bool storage_db_op_rmw_commit_update(
         counters->keys_count += rmw_status->hashtable.current_value ? 0 : 1;
         counters->data_size += counter_data_size_delta;
         counters->keys_changed++;
-        counters->data_changed += (int64_t) entry_index->value.size;
+        counters->data_changed += (int64_t)value_size;
     });
 
     result_res = true;
