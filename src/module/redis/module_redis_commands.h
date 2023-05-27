@@ -7,6 +7,22 @@ extern "C" {
 
 extern hashtable_spsc_t *module_redis_commands_hashtable;
 
+void module_redis_commands_set_disabled_commands_hashtables(
+        hashtable_spsc_t *commands_hashtable);
+
+hashtable_spsc_t *module_redis_commands_get_disabled_commands_hashtables();
+
+hashtable_spsc_t *module_redis_commands_build_disabled_commands_hashtables(
+        char **disabled_commands,
+        uint32_t disabled_commands_count);
+
+bool module_redis_commands_is_command_disabled(
+        char *command,
+        size_t command_length);
+
+void module_redis_commands_free_disabled_commands_hashtables(
+        hashtable_spsc_t *hashtable);
+
 hashtable_spsc_t *module_redis_commands_build_commands_hashtables(
         module_redis_command_info_t *command_infos,
         uint32_t command_infos_count);

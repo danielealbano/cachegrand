@@ -59,6 +59,13 @@ bool module_redis_worker_ctor(
         config_module_t *config_module) {
     worker_context_t *worker_context = worker_context_get();
 
+    // Setup the hashtable with the list of disabled commands
+    module_redis_commands_set_disabled_commands_hashtables(
+            module_redis_commands_build_disabled_commands_hashtables(
+                config_module->redis->disabled_commands,
+                config_module->redis->disabled_commands_count));
+
+    // Register the fiber for the RDB snapshot
     if (!worker_fiber_register(
             worker_context,
             "module-redis-fiber-storage-db-snapshot-rdb",
@@ -66,6 +73,16 @@ bool module_redis_worker_ctor(
             NULL)) {
         return false;
     }
+
+    return true;
+}
+
+bool module_redis_worker_dtor(
+        config_module_t *config_module) {
+    // Free the hashtable with the list of disabled commands and reset it
+    module_redis_commands_free_disabled_commands_hashtables(
+            module_redis_commands_get_disabled_commands_hashtables());
+    module_redis_commands_set_disabled_commands_hashtables(NULL);
 
     return true;
 }
@@ -78,6 +95,6 @@ FUNCTION_CTOR(module_redis_register_ctor, {
             NULL,
             NULL,
             module_redis_worker_ctor,
-            NULL,
+            module_redis_worker_dtor,
             module_redis_connection_accept);
 });
