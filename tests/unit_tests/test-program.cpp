@@ -84,10 +84,13 @@ void* test_program_wait_loop_terminate(
             .bindings = &config_module_network_binding, \
             .bindings_count = 1, \
     }; \
+    config_module_redis_t config_module_redis = { \
+    }; \
     config_module_t config_module = { \
             .type = "redis", \
             .module_id = module_get_by_name("redis")->id, \
             .network = &config_module_network, \
+            .redis = &config_module_redis, \
     }; \
     config_network_t config_network = { \
             .backend = CONFIG_NETWORK_BACKEND_IO_URING,         \
