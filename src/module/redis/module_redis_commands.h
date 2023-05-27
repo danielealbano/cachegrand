@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 extern hashtable_spsc_t *module_redis_commands_hashtable;
-extern thread_local hashtable_spsc_t *module_redis_disabled_commands_hashtable;
+extern hashtable_spsc_t *module_redis_disabled_commands_hashtable;
 
 void module_redis_commands_set_disabled_commands_hashtables(
         hashtable_spsc_t *commands_hashtable);

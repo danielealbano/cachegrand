@@ -55,15 +55,30 @@
 
 #include "module/redis/fiber/module_redis_fiber_storage_db_snapshot_rdb.h"
 
-bool module_redis_worker_ctor(
+bool module_redis_program_ctor(
         config_module_t *config_module) {
-    worker_context_t *worker_context = worker_context_get();
-
     // Setup the hashtable with the list of disabled commands
     module_redis_commands_set_disabled_commands_hashtables(
             module_redis_commands_build_disabled_commands_hashtables(
-                config_module->redis->disabled_commands,
-                config_module->redis->disabled_commands_count));
+                    config_module->redis->disabled_commands,
+                    config_module->redis->disabled_commands_count));
+
+    return true;
+}
+
+bool module_redis_program_dtor(
+        config_module_t *config_module) {
+    // Free the hashtable with the list of disabled commands and reset it
+    module_redis_commands_free_disabled_commands_hashtables(
+            module_redis_commands_get_disabled_commands_hashtables());
+    module_redis_commands_set_disabled_commands_hashtables(NULL);
+
+    return true;
+}
+
+bool module_redis_worker_ctor(
+        config_module_t *config_module) {
+    worker_context_t *worker_context = worker_context_get();
 
     // Register the fiber for the RDB snapshot
     if (!worker_fiber_register(
@@ -77,24 +92,14 @@ bool module_redis_worker_ctor(
     return true;
 }
 
-bool module_redis_worker_dtor(
-        config_module_t *config_module) {
-    // Free the hashtable with the list of disabled commands and reset it
-    module_redis_commands_free_disabled_commands_hashtables(
-            module_redis_commands_get_disabled_commands_hashtables());
-    module_redis_commands_set_disabled_commands_hashtables(NULL);
-
-    return true;
-}
-
 FUNCTION_CTOR(module_redis_register_ctor, {
     module_register(
             "redis",
             module_redis_config_prepare,
             module_redis_config_validate_after_load,
-            NULL,
-            NULL,
+            module_redis_program_ctor,
+            module_redis_program_dtor,
             module_redis_worker_ctor,
-            module_redis_worker_dtor,
+            NULL,
             module_redis_connection_accept);
 });

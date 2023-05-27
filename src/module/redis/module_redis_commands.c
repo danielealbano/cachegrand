@@ -47,7 +47,7 @@
 #define TAG "module_redis_commands"
 
 hashtable_spsc_t *module_redis_commands_hashtable = NULL;
-thread_local hashtable_spsc_t *module_redis_disabled_commands_hashtable = NULL;
+hashtable_spsc_t *module_redis_disabled_commands_hashtable = NULL;
 
 FUNCTION_CTOR(module_redis_commands_ctor, {
     uint32_t command_infos_map_count = sizeof(command_infos_map) / sizeof(module_redis_command_info_t);
