@@ -89,9 +89,11 @@ TEST_CASE("transaction.c", "[transaction]") {
     }
 
     SECTION("transaction_locks_list_add") {
+        uint32_t locks_size = FFMA_OBJECT_SIZE_MIN / sizeof(transaction_spinlock_lock_volatile_t*);
+
         transaction_t transaction = { };
         transaction.locks.count = 0;
-        transaction.locks.size = 8;
+        transaction.locks.size = locks_size;
         transaction.locks.list = (transaction_spinlock_lock_volatile_t**)ffma_mem_alloc(
                 sizeof(void*) * transaction.locks.size);
 
@@ -100,7 +102,7 @@ TEST_CASE("transaction.c", "[transaction]") {
 
             REQUIRE(transaction_locks_list_add(&transaction, &lock));
             REQUIRE(transaction.locks.count == 1);
-            REQUIRE(transaction.locks.size == 8);
+            REQUIRE(transaction.locks.size == locks_size);
             REQUIRE(transaction.locks.list[0] == &lock);
         }
 
@@ -108,16 +110,28 @@ TEST_CASE("transaction.c", "[transaction]") {
             transaction_spinlock_lock_volatile_t lock[2] = { 0 };
             REQUIRE(transaction_locks_list_add(&transaction, &lock[0]));
             REQUIRE(transaction.locks.count == 1);
-            REQUIRE(transaction.locks.size == 8);
+            REQUIRE(transaction.locks.size == locks_size);
             REQUIRE(transaction.locks.list[0] == &lock[0]);
 
             REQUIRE(transaction_locks_list_add(&transaction, &lock[1]));
             REQUIRE(transaction.locks.count == 2);
-            REQUIRE(transaction.locks.size == 8);
+            REQUIRE(transaction.locks.size == locks_size);
             REQUIRE(transaction.locks.list[1] == &lock[1]);
         }
 
-        SECTION("Force expansions") {
+        SECTION("Trigger an expansion expansion") {
+            transaction_spinlock_lock_volatile_t lock[3] = { 0 };
+
+            for(int index = 0; index < ARRAY_SIZE(lock); index++) {
+                REQUIRE(transaction_locks_list_add(&transaction, &lock[index]));
+            }
+
+            REQUIRE(transaction.locks.count == ARRAY_SIZE(lock));
+            REQUIRE(transaction.locks.size == locks_size * 2);
+            REQUIRE(transaction.locks.list[ARRAY_SIZE(lock) - 1] == &lock[ARRAY_SIZE(lock) - 1]);
+        }
+
+        SECTION("Trigger multiple expansion") {
             transaction_spinlock_lock_volatile_t lock[10] = { 0 };
 
             for(int index = 0; index < ARRAY_SIZE(lock); index++) {
@@ -144,7 +158,7 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(transaction.transaction_id.transaction_index == current_transaction_index + 1);
 
             REQUIRE(transaction.locks.count == 0);
-            REQUIRE(transaction.locks.size == 8);
+            REQUIRE(transaction.locks.size == FFMA_OBJECT_SIZE_MIN / sizeof(transaction_spinlock_lock_volatile_t*));
             REQUIRE(transaction.locks.list != nullptr);
 
             ffma_mem_free(transaction.locks.list);

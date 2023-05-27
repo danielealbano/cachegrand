@@ -31,7 +31,7 @@
 
 thread_local uint32_t transaction_manager_worker_index = 0;
 thread_local uint16_t transaction_manager_transaction_index = 0;
-pthread_once_t transaction_manager_init_once_control = PTHREAD_ONCE_INIT;
+thread_local bool_volatile_t transaction_manager_inited = false;
 
 void transaction_set_worker_index(
         uint32_t worker_index) {
@@ -59,20 +59,26 @@ uint16_t transaction_peek_current_thread_index() {
 
 bool transaction_acquire(
         transaction_t *transaction) {
-    pthread_once(&transaction_manager_init_once_control, transaction_manager_init);
+    if (unlikely(transaction_manager_inited == false)) {
+        transaction_manager_init();
+        transaction_manager_inited = true;
+    }
 
     transaction_manager_transaction_index++;
 
-    if (unlikely(transaction_manager_worker_index == 0 &&
-        transaction_manager_transaction_index == TRANSACTION_ID_NOT_ACQUIRED)) {
+    // Having both the worker index and the transaction index to 0 matches the transaction id not acquired value
+    // therefore we need to increment the transaction index by 1 to avoid it
+    if (unlikely(transaction_manager_worker_index == 0 && transaction_manager_transaction_index == 0)) {
         transaction_manager_transaction_index++;
     }
 
     transaction->transaction_id.worker_index = transaction_manager_worker_index;
     transaction->transaction_id.transaction_index = transaction_manager_transaction_index;
 
+    // FFMA_OBJECT_SIZE_MIN should be 16 bytes, therefore the size of the locks list should be 16 / 8 = 2 by default
+    // and it should be enough for most of the cases
+    transaction->locks.size = FFMA_OBJECT_SIZE_MIN / sizeof(transaction_spinlock_lock_volatile_t*);
     transaction->locks.count = 0;
-    transaction->locks.size = 8;
     transaction->locks.list = ffma_mem_alloc(
             sizeof(transaction_spinlock_lock_volatile_t*) * transaction->locks.size);
 

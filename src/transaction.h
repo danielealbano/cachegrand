@@ -9,11 +9,12 @@ typedef struct transaction_spinlock_lock transaction_spinlock_lock_t;
 typedef _Volatile(transaction_spinlock_lock_t) transaction_spinlock_lock_volatile_t;
 
 typedef struct transaction_id transaction_id_t;
+typedef _Volatile(transaction_id_t) transaction_id_volatile_t;
 struct transaction_id {
     union {
         struct {
-            uint16_t worker_index;
-            uint16_t transaction_index;
+            uint16_volatile_t transaction_index;
+            uint16_volatile_t worker_index;
         };
         uint32_volatile_t id;
     };
@@ -21,7 +22,7 @@ struct transaction_id {
 
 typedef struct transaction transaction_t;
 struct transaction {
-    transaction_id_t transaction_id;
+    transaction_id_volatile_t transaction_id;
     struct {
         uint32_t count;
         uint32_t size;
