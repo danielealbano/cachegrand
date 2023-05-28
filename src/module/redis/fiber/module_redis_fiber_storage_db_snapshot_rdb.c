@@ -119,7 +119,7 @@ void module_redis_fiber_storage_db_snapshot_rdb_fiber_entrypoint(
             storage_db_snapshot_rdb_flush_entry_index_to_be_deleted_queue(db);
 
             // Mark the snapshot as failed
-            storage_db_snapshot_failed(db);
+            storage_db_snapshot_failed(db, false);
         }
 
         // Release the lock

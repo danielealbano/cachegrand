@@ -28,7 +28,8 @@ void storage_db_snapshot_completed(
         storage_db_snapshot_status_t status);
 
 void storage_db_snapshot_failed(
-        storage_db_t *db);
+        storage_db_t *db,
+        bool during_preparation);
 
 bool storage_db_snapshot_enough_keys_data_changed(
         storage_db_t *db);
@@ -46,6 +47,9 @@ void storage_db_snapshot_wait_for_prepared(
         storage_db_t *db);
 
 bool storage_db_snapshot_rdb_prepare(
+        storage_db_t *db);
+
+bool storage_db_snapshot_is_failed(
         storage_db_t *db);
 
 bool storage_db_snapshot_rdb_ensure_prepared(
