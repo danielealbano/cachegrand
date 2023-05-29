@@ -142,93 +142,16 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
                 &new_channel->wrapped_channel,
                 listener_channel->wrapped_channel.tls.config);
 
-        if (unlikely(!network_channel_tls_init(
-                &new_channel->wrapped_channel))) {
-            LOG_W(
-                    TAG,
-                    "TLS setup failed for the connection <%s>, coming from listener <%s>",
-                    new_channel->wrapped_channel.address.str,
-                    listener_channel->wrapped_channel.address.str);
-
-            worker_network_iouring_op_network_close(
-                    (network_channel_t *)new_channel,
-                    true);
-
-            return NULL;
-        }
-
-        if (unlikely(!network_channel_tls_handshake(
-                &new_channel->wrapped_channel))) {
-            LOG_V(
-                    TAG,
-                    "TLS handshake failed for the connection <%s>, coming from listener <%s>",
-                    new_channel->wrapped_channel.address.str,
-                    listener_channel->wrapped_channel.address.str);
-
-            worker_network_iouring_op_network_close(
-                    &new_channel->wrapped_channel,
-                    true);
-
-            return NULL;
-        }
-
         network_channel_tls_set_enabled(
                 &new_channel->wrapped_channel,
                 true);
 
-        if (network_channel_tls_ktls_supports_mbedtls_cipher_suite(
-                &new_channel->wrapped_channel)) {
-            LOG_D(
-                    TAG,
-                    "kTLS supports the cipher, it can be enabled for the connection <%s>, coming from listener <%s>",
-                    new_channel->wrapped_channel.address.str,
-                    listener_channel->wrapped_channel.address.str);
-            if (network_channel_tls_setup_ktls(&new_channel->wrapped_channel)) {
-                // Enable kTLS and ensure mbedtls is disabled
-                network_channel_tls_set_ktls(
-                        &new_channel->wrapped_channel,
-                        true);
-                network_channel_tls_set_mbedtls(
-                        &new_channel->wrapped_channel,
-                        false);
-
-                LOG_D(
-                        TAG,
-                        "kTLS successfully enabled for connection <%s>, coming from listener <%s>",
-                        new_channel->wrapped_channel.address.str,
-                        listener_channel->wrapped_channel.address.str);
-            } else {
-                LOG_D(
-                        TAG,
-                        "Failed to enable kTLS for the connection <%s>, coming from listener <%s>, using mbedtls",
-                        new_channel->wrapped_channel.address.str,
-                        listener_channel->wrapped_channel.address.str);
-            }
-        }
-
-        // If kTLS can't be enabled or its activation fails, enable mbedtls
-        if (!network_channel_tls_uses_ktls(&new_channel->wrapped_channel)) {
-            network_channel_tls_set_mbedtls(
-                    &new_channel->wrapped_channel,
-                    true);
-        }
-
-        // If the client has sent a client certificate, report the common name in the logs
-        if (network_channel_tls_has_peer_certificate(&new_channel->wrapped_channel)) {
-            const char *cn = NULL;
-            size_t cn_length = 0;
-
-            if (network_channel_tls_peer_certificate_get_cn(
-                    &new_channel->wrapped_channel,
-                    &cn,
-                    &cn_length)) {
-                LOG_D(
-                        TAG,
-                        "TLS client certificate common name: %.*s",
-                        (int)cn_length,
-                        cn);
-            }
-        }
+        // At this point the TLS handshake is not even started so we can't know if kTLS can be enabled or not, it will
+        // be decided later. Therefore at this point we just set the mbedtls flag to true and we will set it to false
+        // later if needed.
+        network_channel_tls_set_mbedtls(
+                &new_channel->wrapped_channel,
+                true);
     }
 
     if (unlikely(!worker_iouring_fds_map_add_and_enqueue_files_update(
