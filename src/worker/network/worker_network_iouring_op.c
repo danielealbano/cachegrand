@@ -334,23 +334,20 @@ bool worker_network_iouring_op_network_close(
     return res;
 }
 
-int32_t worker_network_iouring_op_network_receive(
+int32_t worker_network_iouring_op_network_receive_internal(
         network_channel_t *channel,
         char* buffer,
-        size_t buffer_length) {
+        size_t buffer_length,
+        kernel_timespec_t *kernel_timespec) {
     int32_t res;
     worker_iouring_context_t *context = worker_iouring_context_get();
-    kernel_timespec_t kernel_timespec = {
-            .tv_sec = channel->timeout.read.sec,
-            .tv_nsec = channel->timeout.read.nsec,
-    };
 
     fiber_scheduler_reset_error();
 
     do {
         uint8_t extra_sqes = 0;
 
-        if (kernel_timespec.tv_nsec != -1) {
+        if (kernel_timespec->tv_nsec != -1) {
             extra_sqes |= IOSQE_IO_LINK;
         }
 
@@ -366,10 +363,10 @@ int32_t worker_network_iouring_op_network_receive(
             return -ENOMEM;
         }
 
-        if (kernel_timespec.tv_nsec != -1) {
+        if (kernel_timespec->tv_nsec != -1) {
             if (unlikely(!io_uring_support_sqe_enqueue_link_timeout(
                     context->ring,
-                    &kernel_timespec,
+                    kernel_timespec,
                     0,
                     0))) {
                 fiber_scheduler_set_error(ENOMEM);
@@ -396,6 +393,22 @@ int32_t worker_network_iouring_op_network_receive(
     }
 
     return res;
+}
+
+int32_t worker_network_iouring_op_network_receive(
+        network_channel_t *channel,
+        char* buffer,
+        size_t buffer_length) {
+    kernel_timespec_t kernel_timespec = {
+            .tv_sec = channel->timeout.read.sec,
+            .tv_nsec = channel->timeout.read.nsec,
+    };
+
+    return worker_network_iouring_op_network_receive_internal(
+            channel,
+            buffer,
+            buffer_length,
+            &kernel_timespec);
 }
 
 int32_t worker_network_iouring_op_network_send(
