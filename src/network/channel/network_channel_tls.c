@@ -76,10 +76,19 @@ int network_channel_tls_receive_internal_mbed(
         void *context,
         unsigned char *buffer,
         size_t buffer_length) {
-    return worker_op_network_receive(
-            context,
-            (char *)buffer,
-            buffer_length);
+    network_channel_t *channel = context;
+    if (likely(network_channel_tls_is_handshake_completed(channel))) {
+        return worker_op_network_receive(
+                context,
+                (char *)buffer,
+                buffer_length);
+    } else {
+        return worker_op_network_receive_timeout(
+                context,
+                (char *)buffer,
+                buffer_length,
+                500);
+    }
 }
 
 bool network_channel_tls_ktls_supports_mbedtls_cipher_suite(
