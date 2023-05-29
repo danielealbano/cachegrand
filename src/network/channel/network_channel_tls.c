@@ -160,6 +160,8 @@ bool network_channel_tls_handshake(
         }
     } while(!exit);
 
+    network_channel_tls_set_handshake_completed(network_channel, return_res);
+
     return return_res;
 }
 
