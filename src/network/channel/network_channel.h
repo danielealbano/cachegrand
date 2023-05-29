@@ -66,6 +66,7 @@ struct network_channel {
     } buffers;
     struct {
         bool enabled;
+        bool handshake_completed;
         bool ktls;
         bool mbedtls;
         void *context;

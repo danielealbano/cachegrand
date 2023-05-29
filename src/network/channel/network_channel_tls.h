@@ -70,6 +70,13 @@ void network_channel_tls_set_mbedtls(
 bool network_channel_tls_uses_mbedtls(
         network_channel_t *network_channel);
 
+bool network_channel_tls_is_handshake_completed(
+        network_channel_t *network_channel);
+
+void network_channel_tls_set_handshake_completed(
+        network_channel_t *network_channel,
+        bool handshake_completed);
+
 bool network_channel_tls_shutdown(
         network_channel_t *network_channel);
 
