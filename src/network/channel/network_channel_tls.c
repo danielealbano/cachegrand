@@ -401,6 +401,17 @@ bool network_channel_tls_uses_mbedtls(
     return network_channel->tls.mbedtls;
 }
 
+bool network_channel_tls_is_handshake_completed(
+        network_channel_t *network_channel) {
+    return network_channel->tls.handshake_completed;
+}
+
+void network_channel_tls_set_handshake_completed(
+        network_channel_t *network_channel,
+        bool handshake_completed) {
+    network_channel->tls.handshake_completed = handshake_completed;
+}
+
 bool network_channel_tls_shutdown(
         network_channel_t *network_channel) {
     return mbedtls_ssl_close_notify(network_channel->tls.context) == 0;
