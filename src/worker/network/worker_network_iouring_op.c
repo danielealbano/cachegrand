@@ -395,6 +395,23 @@ int32_t worker_network_iouring_op_network_receive_internal(
     return res;
 }
 
+int32_t worker_network_iouring_op_network_receive_timeout(
+        network_channel_t *channel,
+        char* buffer,
+        size_t buffer_length,
+        uint32_t timeout_ms) {
+    kernel_timespec_t kernel_timespec = {
+            .tv_sec = timeout_ms / 1000,
+            .tv_nsec = (timeout_ms % 1000) * 1000000,
+    };
+
+    return worker_network_iouring_op_network_receive_internal(
+            channel,
+            buffer,
+            buffer_length,
+            &kernel_timespec);
+}
+
 int32_t worker_network_iouring_op_network_receive(
         network_channel_t *channel,
         char* buffer,
@@ -541,6 +558,7 @@ bool worker_network_iouring_op_register() {
     worker_op_network_channel_free = worker_network_iouring_network_channel_free;
     worker_op_network_accept = worker_network_iouring_op_network_accept;
     worker_op_network_receive = worker_network_iouring_op_network_receive;
+    worker_op_network_receive_timeout = worker_network_iouring_op_network_receive_timeout;
     worker_op_network_send = worker_network_iouring_op_network_send;
     worker_op_network_close = worker_network_iouring_op_network_close;
 
