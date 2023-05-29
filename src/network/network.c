@@ -394,8 +394,9 @@ network_op_result_t network_close(
         // Free up the memory
         network_channel_tls_free(channel);
 
-        // Mark the connection as not using TLS anymore
+        // Mark the connection as not using TLS anymore and reset all the TLS related flags
         network_channel_tls_set_enabled(channel, false);
+        network_channel_tls_set_handshake_completed(channel, false);
         network_channel_tls_set_mbedtls(channel, false);
         network_channel_tls_set_ktls(channel, false);
     }
