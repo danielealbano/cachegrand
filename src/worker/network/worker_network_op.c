@@ -295,7 +295,8 @@ void worker_network_new_client_fiber_entrypoint(
         if (unlikely(!network_channel_tls_init(new_channel))) {
             LOG_W(
                     TAG,
-                    "TLS setup failed for the connection <%s>",
+                    "[FD:%5d] TLS setup failed for the connection <%s>",
+                    new_channel->fd,
                     new_channel->address.str);
             goto end;
         }
@@ -303,7 +304,8 @@ void worker_network_new_client_fiber_entrypoint(
         if (unlikely(!network_channel_tls_handshake(new_channel))) {
             LOG_V(
                     TAG,
-                    "TLS handshake failed for the connection <%s>",
+                    "[FD:%5d] TLS handshake failed for the connection <%s>",
+                    new_channel->fd,
                     new_channel->address.str);
             goto end;
         }

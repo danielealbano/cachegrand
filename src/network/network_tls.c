@@ -413,16 +413,7 @@ void network_tls_close_internal(
     int32_t res;
     while((res = mbedtls_ssl_close_notify(channel->tls.context)) < 0) {
         if (res != MBEDTLS_ERR_SSL_WANT_READ && res != MBEDTLS_ERR_SSL_WANT_WRITE) {
-            char errbuf[256] = { 0 };
-            mbedtls_strerror(res, errbuf, sizeof(errbuf) - 1);
-
-            LOG_V(
-                    TAG,
-                    "[FD:%5d][ERROR CLIENT] Error <%s (%d)> from client <%s>",
-                    channel->fd,
-                    errbuf,
-                    -res,
-                    channel->address.str);
+            break;
         }
     }
 }
@@ -455,7 +446,7 @@ network_op_result_t network_tls_receive_internal(
 
             return NETWORK_OP_RESULT_CLOSE_SOCKET;
         } else if (res == -ECANCELED) {
-            LOG_I(
+            LOG_V(
                     TAG,
                     "[FD:%5d][ERROR CLIENT] Send timeout to client <%s>",
                     channel->fd,
@@ -465,7 +456,7 @@ network_op_result_t network_tls_receive_internal(
             char errbuf[256] = { 0 };
             mbedtls_strerror(res, errbuf, sizeof(errbuf) - 1);
 
-            LOG_I(
+            LOG_V(
                     TAG,
                     "[FD:%5d][ERROR CLIENT] Error <%s (%d)> from client <%s>",
                     channel->fd,
@@ -517,7 +508,7 @@ network_op_result_t network_tls_send_direct_internal(
 
             return NETWORK_OP_RESULT_CLOSE_SOCKET;
         } else if (res == -ECANCELED) {
-            LOG_I(
+            LOG_V(
                     TAG,
                     "[FD:%5d][ERROR CLIENT] Send timeout to client <%s>",
                     channel->fd,
@@ -527,7 +518,7 @@ network_op_result_t network_tls_send_direct_internal(
             char errbuf[256] = { 0 };
             mbedtls_strerror(res, errbuf, sizeof(errbuf) - 1);
 
-            LOG_I(
+            LOG_V(
                     TAG,
                     "[FD:%5d][ERROR CLIENT] Error <%s (%d)> from client <%s>",
                     channel->fd,
