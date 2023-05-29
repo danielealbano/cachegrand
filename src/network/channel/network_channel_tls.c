@@ -76,10 +76,19 @@ int network_channel_tls_receive_internal_mbed(
         void *context,
         unsigned char *buffer,
         size_t buffer_length) {
-    return worker_op_network_receive(
-            context,
-            (char *)buffer,
-            buffer_length);
+    network_channel_t *channel = context;
+    if (likely(network_channel_tls_is_handshake_completed(channel))) {
+        return worker_op_network_receive(
+                context,
+                (char *)buffer,
+                buffer_length);
+    } else {
+        return worker_op_network_receive_timeout(
+                context,
+                (char *)buffer,
+                buffer_length,
+                500);
+    }
 }
 
 bool network_channel_tls_ktls_supports_mbedtls_cipher_suite(
@@ -159,6 +168,8 @@ bool network_channel_tls_handshake(
                 exit = true;
         }
     } while(!exit);
+
+    network_channel_tls_set_handshake_completed(network_channel, return_res);
 
     return return_res;
 }
@@ -390,6 +401,17 @@ bool network_channel_tls_uses_mbedtls(
     return network_channel->tls.mbedtls;
 }
 
+bool network_channel_tls_is_handshake_completed(
+        network_channel_t *network_channel) {
+    return network_channel->tls.handshake_completed;
+}
+
+void network_channel_tls_set_handshake_completed(
+        network_channel_t *network_channel,
+        bool handshake_completed) {
+    network_channel->tls.handshake_completed = handshake_completed;
+}
+
 bool network_channel_tls_shutdown(
         network_channel_t *network_channel) {
     return mbedtls_ssl_close_notify(network_channel->tls.context) == 0;
@@ -397,7 +419,10 @@ bool network_channel_tls_shutdown(
 
 void network_channel_tls_free(
         network_channel_t *network_channel) {
-    assert(network_channel->tls.context != NULL);
+    if (network_channel->tls.context == NULL) {
+        return;
+    }
+
     mbedtls_ssl_free(network_channel->tls.context);
     ffma_mem_free(network_channel->tls.context);
     network_channel->tls.context = NULL;

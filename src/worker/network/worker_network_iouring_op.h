@@ -22,6 +22,12 @@ bool worker_network_iouring_op_network_close(
         network_channel_t *channel,
         bool shutdown_may_fail);
 
+int32_t worker_network_iouring_op_network_receive_timeout(
+        network_channel_t *channel,
+        char* buffer,
+        size_t buffer_length,
+        uint32_t timeout_ms);
+
 int32_t worker_network_iouring_op_network_receive(
         network_channel_t *channel,
         char* buffer,
