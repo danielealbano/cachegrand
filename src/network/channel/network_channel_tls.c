@@ -87,7 +87,7 @@ int network_channel_tls_receive_internal_mbed(
                 context,
                 (char *)buffer,
                 buffer_length,
-                500);
+                2000);
     }
 }
 
@@ -164,7 +164,7 @@ bool network_channel_tls_handshake(
 
             default:
                 mbedtls_strerror(res, err_buffer, sizeof(err_buffer) - 1);
-                LOG_V(TAG, "Failed to perform the TLS handshake because <%s>", err_buffer);
+                LOG_V(TAG, "[FD:%5d] Failed to perform the TLS handshake because <%s>", network_channel->fd, err_buffer);
                 exit = true;
         }
     } while(!exit);
