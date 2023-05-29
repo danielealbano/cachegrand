@@ -87,7 +87,7 @@ int network_channel_tls_receive_internal_mbed(
                 context,
                 (char *)buffer,
                 buffer_length,
-                2000);
+                7500);
     }
 }
 
