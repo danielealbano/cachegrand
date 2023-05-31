@@ -44,5 +44,7 @@ RUN apt-get update -y \
         libpcre2-8-0 libpcre2-dev \
         libjson-c-dev \
         lcov gcovr \
+        valgrind \
+        libhiredis-dev redis-tools \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
