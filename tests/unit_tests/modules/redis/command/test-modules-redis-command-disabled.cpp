@@ -9,9 +9,13 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdbool>
+#include <cstring>
 #include <memory>
+#include <string>
 
+#include <unistd.h>
 #include <netinet/in.h>
+#include <sys/types.h>
 
 #include "clock.h"
 #include "exttypes.h"
@@ -41,24 +45,39 @@
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
-TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - PING", "[redis][command][PING]") {
-    SECTION("Without value - RESP") {
+class TestModulesRedisCommandDisabledFixture: public TestModulesRedisCommandFixture {
+public:
+    TestModulesRedisCommandDisabledFixture() :
+        TestModulesRedisCommandFixture(std::vector<char*>{ "GET", "UNLINK" }) {
+    }
+};
+
+TEST_CASE_METHOD(TestModulesRedisCommandDisabledFixture, "Redis - command - disabled", "[redis][command][disabled]") {
+    SECTION("Disabled command") {
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"PING"},
-                "+PONG\r\n"));
+                std::vector<std::string>{"SET", "a_key", "a_value"},
+                "+OK\r\n"));
+
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                std::vector<std::string>{"GET", "a_key"},
+                "-ERR command `GET` is disabled\r\n"));
+
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                std::vector<std::string>{"MGET", "a_key"},
+                "*1\r\n$7\r\na_value\r\n"));
+
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                std::vector<std::string>{"UNLINK", "a_key"},
+                "-ERR command `UNLINK` is disabled\r\n"));
+
+        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+                std::vector<std::string>{"DEL", "a_key"},
+                ":1\r\n"));
     }
 
-    SECTION("With value - RESP") {
+    SECTION("Disabled command - test case") {
         REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"PING", "a test"},
-                "$6\r\na test\r\n"));
-    }
-
-    SECTION("Without value - Inline") {
-        this->protocol_version = TEST_MODULES_REDIS_COMMAND_FIXTURE_PROTOCOL_INLINE;
-
-        REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"PING"},
-                "+PONG\r\n"));
+                std::vector<std::string>{"Get", "a_key"},
+                "-ERR command `Get` is disabled\r\n"));
     }
 }

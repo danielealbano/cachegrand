@@ -99,6 +99,10 @@ void storage_db_snapshot_completed(
             false,
             false);
 
+#if DEBUG == 1
+    assert(__sync_fetch_and_add(&db->snapshot.parallel_runs, -1) == 1);
+#endif
+
     // Report the snapshot status
     if (status == STORAGE_DB_SNAPSHOT_STATUS_FAILED_DURING_PREPARATION) {
         LOG_E(TAG, "Snapshot failed during preparation");
@@ -110,7 +114,8 @@ void storage_db_snapshot_completed(
 }
 
 void storage_db_snapshot_failed(
-        storage_db_t *db) {
+        storage_db_t *db,
+        bool during_preparation) {
     struct stat path_stat;
 
     // Close the snapshot file and delete the file from the disk
@@ -129,7 +134,11 @@ void storage_db_snapshot_failed(
     }
 
     // The operation has failed so the storage channel must be closed and the snapshot deleted
-    storage_db_snapshot_completed(db, STORAGE_DB_SNAPSHOT_STATUS_FAILED_DURING_PREPARATION);
+    storage_db_snapshot_completed(
+            db,
+            during_preparation
+            ? STORAGE_DB_SNAPSHOT_STATUS_FAILED_DURING_PREPARATION
+            : STORAGE_DB_SNAPSHOT_STATUS_FAILED);
 }
 
 bool storage_db_snapshot_enough_keys_data_changed(
@@ -207,7 +216,7 @@ void storage_db_snapshot_wait_for_prepared(
     // Wait for the snapshot to be ready
     do {
         MEMORY_FENCE_LOAD();
-    } while (db->snapshot.status != STORAGE_DB_SNAPSHOT_STATUS_IN_PREPARATION);
+    } while (db->snapshot.in_preparation);
 }
 
 void storage_db_snapshot_rdb_internal_status_reset(
@@ -237,6 +246,8 @@ bool storage_db_snapshot_rdb_prepare(
     struct stat parent_path_stat;
     storage_db_config_t *config = db->config;
     bool result = true;
+
+    LOG_V(TAG, "Preparing to start snapshot");
 
     // Reset the status of the snapshot
     storage_db_snapshot_rdb_internal_status_reset(db);
@@ -344,9 +355,12 @@ end:
         db->snapshot.running = true;
         MEMORY_FENCE_STORE();
 
+        db->snapshot.in_preparation = false;
+        MEMORY_FENCE_STORE();
+
         LOG_I(TAG, "Snapshot started");
     } else {
-        storage_db_snapshot_failed(db);
+        storage_db_snapshot_failed(db, true);
 
         // Doesn't matter if the close fails, it might have been closed already, it's pointless to check we can just
         // ignore the error if there is one
@@ -356,6 +370,15 @@ end:
     }
 
     return result;
+}
+
+bool storage_db_snapshot_is_failed(
+        storage_db_t *db) {
+    MEMORY_FENCE_LOAD();
+    return
+            (db->snapshot.status == STORAGE_DB_SNAPSHOT_STATUS_FAILED)
+            ||
+            (db->snapshot.status == STORAGE_DB_SNAPSHOT_STATUS_FAILED_DURING_PREPARATION);
 }
 
 bool storage_db_snapshot_rdb_ensure_prepared(
@@ -368,20 +391,29 @@ bool storage_db_snapshot_rdb_ensure_prepared(
     // Check if the status is different from IN_PREPARATION, in which case the snapshot is being prepared by another
     // thread, so we just need to wait for it to be ready
     MEMORY_FENCE_LOAD();
-    if (db->snapshot.status == STORAGE_DB_SNAPSHOT_STATUS_IN_PREPARATION) {
+    if (db->snapshot.in_preparation) {
         storage_db_snapshot_wait_for_prepared(db);
-        return db->snapshot.status != STORAGE_DB_SNAPSHOT_STATUS_FAILED;
+        return !storage_db_snapshot_is_failed(db);
     }
 
-    // Try to set the status to IN_PREPARATION
-    storage_db_snapshot_status_t status = db->snapshot.status;
-    if (!__atomic_compare_exchange_n(&db->snapshot.status, &status,
-                                     STORAGE_DB_SNAPSHOT_STATUS_IN_PREPARATION, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
-        // The status was not set to IN_PREPARATION, so another thread is already preparing the snapshot, so we just
-        // need to wait for it to be ready
+    // Try to set the in preparation flag to true
+    bool expected_status = false;
+    if (!__atomic_compare_exchange_n(
+            &db->snapshot.in_preparation,
+            &expected_status,
+            true,
+            false,
+            __ATOMIC_ACQ_REL,
+            __ATOMIC_ACQUIRE)) {
+        // The flag was not set, so another thread is already preparing the snapshot, we just need to wait for it to be
+        // ready
         storage_db_snapshot_wait_for_prepared(db);
-        return db->snapshot.status != STORAGE_DB_SNAPSHOT_STATUS_FAILED;
+        return !storage_db_snapshot_is_failed(db);
     }
+
+#if DEBUG == 1
+    assert(__sync_fetch_and_add(&db->snapshot.parallel_runs, 1) == 0);
+#endif
 
     // Prepare the snapshot
     return storage_db_snapshot_rdb_prepare(db);

@@ -54,9 +54,11 @@
 void module_redis_connection_context_init(
         module_redis_connection_context_t *connection_context,
         storage_db_t *db,
+        config_t *config,
         network_channel_t *network_channel) {
-    connection_context->resp_version = PROTOCOL_REDIS_RESP_VERSION_2,
+    connection_context->resp_version = PROTOCOL_REDIS_RESP_VERSION_2;
     connection_context->db = db;
+    connection_context->config = config;
     connection_context->network_channel = network_channel;
     connection_context->read_buffer.data = (char *)ffma_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
     connection_context->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE;
@@ -72,12 +74,19 @@ void module_redis_connection_context_cleanup(
 
 void module_redis_connection_context_reset(
         module_redis_connection_context_t *connection_context) {
+    if (connection_context->command.command_string_with_container) {
+        ffma_mem_free(connection_context->command.command_string_with_container);
+    }
+
     // Reset the reader_context to handle the next command in the buffer, the resp_version isn't touched as it's
     // to be known all along the connection lifecycle
     connection_context->command.info = NULL;
     connection_context->command.context  = NULL;
     connection_context->command.skip = false;
     connection_context->command.data_length = 0;
+    connection_context->command.arguments_offset = 0;
+    connection_context->command.command_string_with_container = NULL;
+    connection_context->command.command_string_with_container_length = 0;
     connection_context->terminate_connection = false;
 
     memset(&connection_context->command.parser_context, 0, sizeof(module_redis_command_parser_context_t));
@@ -598,6 +607,7 @@ void module_redis_connection_accept(
     module_redis_connection_context_init(
             &connection_context,
             worker_context_get()->db,
+            worker_context_get()->config,
             network_channel);
 
     do {
@@ -705,7 +715,7 @@ bool module_redis_connection_process_data(
                     continue;
                 }
 
-                if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA && op->data.argument.index == 0) {
+                if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA && op->data.argument.index - connection_context->command.arguments_offset == 0) {
                     bool last_op = op_index == (uint8_t) ops_found - 1;
                     bool op_followed_by_argument_end =
                             !last_op && (ops[op_index + 1].type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END);
@@ -726,24 +736,49 @@ bool module_redis_connection_process_data(
                     }
 
                     connection_context->current_argument_token_data_offset = op->data.argument.offset;
-                } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END && op->data.argument.index == 0) {
+                } else if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END && op->data.argument.index - connection_context->command.arguments_offset == 0) {
                     // If the end of the first argument has been found then check if it's a known command
                     size_t command_length = op->data.argument.length;
                     char *command_data = read_buffer_data_start + connection_context->current_argument_token_data_offset;
+                    char *command_data_to_search = command_data;
+                    size_t command_data_to_search_length = command_length;
+
+                    if (connection_context->command.command_string_with_container) {
+                        strncpy(
+                                connection_context->command.command_string_with_container + connection_context->command.command_string_with_container_length,
+                                command_data,
+                                MIN(command_length, MODULE_REDIS_COMMAND_MAX_LENGTH));
+                        command_data_to_search = connection_context->command.command_string_with_container;
+                        command_data_to_search_length =
+                                connection_context->command.command_string_with_container_length + command_length;
+
+                        *(command_data_to_search + command_data_to_search_length) = '\0';
+                    }
 
                     // Try to fetch the current command
                     connection_context->command.info = hashtable_spsc_op_get_ci(
                             module_redis_commands_hashtable,
-                            command_data,
-                            command_length);
+                            command_data_to_search,
+                            command_data_to_search_length);
 
                     if (!connection_context->command.info) {
                         module_redis_connection_error_message_printf_noncritical(
                                 connection_context,
                                 "ERR unknown command `%.*s` with `%d` args",
-                                (int)command_length,
-                                command_data,
-                                connection_context->reader_context.arguments.count - 1);
+                                (int)command_data_to_search_length,
+                                command_data_to_search,
+                                connection_context->reader_context.arguments.count - 1 - connection_context->command.arguments_offset);
+                        continue;
+                    }
+
+                    if (unlikely(module_redis_commands_is_command_disabled(
+                            connection_context->command.info->string,
+                            connection_context->command.info->string_len))) {
+                        module_redis_connection_error_message_printf_noncritical(
+                                connection_context,
+                                "ERR command `%.*s` is disabled",
+                                (int)command_data_to_search_length,
+                                command_data_to_search);
                         continue;
                     }
 
@@ -754,6 +789,28 @@ bool module_redis_connection_process_data(
                         continue;
                     }
 
+                    if (connection_context->command.info->is_container) {
+                        connection_context->command.arguments_offset++;
+                        connection_context->command.info = NULL;
+
+                        size_t current_length = connection_context->command.command_string_with_container_length;
+                        connection_context->command.command_string_with_container_length += command_length + 1;
+                        connection_context->command.command_string_with_container = ffma_mem_realloc(
+                                connection_context->command.command_string_with_container,
+                                connection_context->command.command_string_with_container_length + MODULE_REDIS_COMMAND_MAX_LENGTH + 1);
+
+                        // Append the container command
+                        strncpy(
+                                connection_context->command.command_string_with_container + current_length,
+                                command_data,
+                                command_length);
+
+                        // Add the space
+                        *(connection_context->command.command_string_with_container + current_length + command_length) = ' ';
+
+                        continue;
+                    }
+
                     LOG_D(
                             TAG,
                             "[RECV][REDIS] <%s> command received",
@@ -761,19 +818,19 @@ bool module_redis_connection_process_data(
 
                     // Check if the command has been found and if the required arguments are going to be provided else
                     if (unlikely(connection_context->command.info->required_arguments_count >
-                                 connection_context->reader_context.arguments.count - 1)) {
+                                 connection_context->reader_context.arguments.count - 1 - connection_context->command.arguments_offset)) {
                         module_redis_connection_error_message_printf_noncritical(
                                 connection_context,
                                 "ERR wrong number of arguments for '%s' command",
                                 connection_context->command.info->string);
                         continue;
-                    } else if (unlikely(connection_context->reader_context.arguments.count - 1 >
+                    } else if (unlikely(connection_context->reader_context.arguments.count - 1 - connection_context->command.arguments_offset >
                                         connection_context->network_channel->module_config->redis->max_command_arguments)) {
                         module_redis_connection_error_message_printf_noncritical(
                                 connection_context,
                                 "ERR command '%s' has '%u' arguments but only '%u' allowed",
                                 connection_context->command.info->string,
-                                connection_context->reader_context.arguments.count - 1,
+                                connection_context->reader_context.arguments.count - 1 - connection_context->command.arguments_offset,
                                 connection_context->network_channel->module_config->redis->max_command_arguments);
                         continue;
                     }
@@ -792,7 +849,7 @@ bool module_redis_connection_process_data(
                         op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_DATA ||
                         op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_END;
 
-                if (is_argument_op && op->data.argument.index > 0) {
+                if (is_argument_op && ((int64_t)op->data.argument.index - (int64_t)connection_context->command.arguments_offset) > 0) {
                     if (op->type == PROTOCOL_REDIS_READER_OP_TYPE_ARGUMENT_BEGIN) {
                         if (unlikely(!module_redis_command_process_argument_begin(
                                 connection_context,

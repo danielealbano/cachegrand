@@ -39,13 +39,20 @@ using namespace std;
 #include "worker/worker_context.h"
 #include "worker/worker.h"
 
+std::atomic<uint32_t> worker_index_counter(1);
+
 // Returns 1 if it can do the initial lock, 2 instead if it's able to reach the point in which has
 // to wait for the spinlock to become free
 void* test_transaction_spinlock_lock_lock_retry_try_lock_thread_func(void* rawdata) {
+    worker_context_t worker_context = { 0 };
+    worker_context.worker_index = worker_index_counter.fetch_add(1);
+    worker_context_set(&worker_context);
+    transaction_set_worker_index(worker_context.worker_index);
+
     transaction_t transaction = { .transaction_id = { }, .locks = { .count = 0 , .size = 0, .list = nullptr, } };
-    transaction_id_t *transaction_id = &transaction.transaction_id;
+    transaction_id_volatile_t *transaction_id = &transaction.transaction_id;
     transaction_id->worker_index = 0; transaction_id->transaction_index = 0;
-    transaction_spinlock_lock_t* lock = (transaction_spinlock_lock_t*)rawdata;
+    auto* lock = (transaction_spinlock_lock_t*)rawdata;
 
     transaction_acquire(&transaction);
     if (transaction_spinlock_try_lock(lock, &transaction)) {
@@ -95,7 +102,7 @@ void* test_transaction_spinlock_lock_counter_thread_func(void* rawdata) {
 
     for(uint64_t i = 0; i < data->increments; i++) {
         transaction_t transaction = { .transaction_id = { }, .locks = { .count = 0 , .size = 0, .list = nullptr, } };
-        transaction_id_t *transaction_id = &transaction.transaction_id;
+        transaction_id_volatile_t *transaction_id = &transaction.transaction_id;
         transaction_id->worker_index = 0; transaction_id->transaction_index = 0;
 
         transaction_acquire(&transaction);
@@ -138,7 +145,7 @@ TEST_CASE("transaction_spinlock.c", "[transaction_spinlock]") {
     SECTION("transaction_spinlock_try_lock") {
         SECTION("lock") {
             transaction_t transaction = { .transaction_id = { }, .locks = { .count = 0 , .size = 0, .list = nullptr, } };
-            transaction_id_t *transaction_id = &transaction.transaction_id;
+            transaction_id_volatile_t *transaction_id = &transaction.transaction_id;
             transaction_id->worker_index = 0; transaction_id->transaction_index = 0;
             transaction_spinlock_lock_t lock = {0};
             transaction_spinlock_init(&lock);
@@ -148,7 +155,7 @@ TEST_CASE("transaction_spinlock.c", "[transaction_spinlock]") {
             REQUIRE(transaction_spinlock_try_lock(&lock, &transaction));
 
             REQUIRE(lock.transaction_id != TRANSACTION_SPINLOCK_UNLOCKED);
-            REQUIRE(transaction.locks.size == 8);
+            REQUIRE(transaction.locks.size == 2);
             REQUIRE(transaction.locks.count == 1);
 
             transaction_release(&transaction);
@@ -169,7 +176,7 @@ TEST_CASE("transaction_spinlock.c", "[transaction_spinlock]") {
     SECTION("transaction_spinlock_unlock") {
         SECTION("unlock") {
             transaction_t transaction = { .transaction_id = { }, .locks = { .count = 0 , .size = 0, .list = nullptr, } };
-            transaction_id_t *transaction_id = &transaction.transaction_id;
+            transaction_id_volatile_t *transaction_id = &transaction.transaction_id;
             transaction_id->worker_index = 0; transaction_id->transaction_index = 1;
             transaction_spinlock_lock_t lock = {0};
             transaction_spinlock_init(&lock);
@@ -188,7 +195,7 @@ TEST_CASE("transaction_spinlock.c", "[transaction_spinlock]") {
     SECTION("transaction_spinlock_lock") {
         SECTION("fail already locked") {
             transaction_t transaction = { .transaction_id = { }, .locks = { .count = 0 , .size = 0, .list = nullptr, } };
-            transaction_id_t *transaction_id = &transaction.transaction_id;
+            transaction_id_volatile_t *transaction_id = &transaction.transaction_id;
             transaction_id->worker_index = 0; transaction_id->transaction_index = 0;
             transaction_spinlock_lock_t lock = {0};
             transaction_spinlock_init(&lock);
@@ -205,7 +212,7 @@ TEST_CASE("transaction_spinlock.c", "[transaction_spinlock]") {
         SECTION("lock") {
             int res, pthread_return_val, *pthread_return = nullptr;
             transaction_t transaction = { .transaction_id = { }, .locks = { .count = 0 , .size = 0, .list = nullptr, } };
-            transaction_id_t *transaction_id = &transaction.transaction_id;
+            transaction_id_volatile_t *transaction_id = &transaction.transaction_id;
             transaction_id->worker_index = 0; transaction_id->transaction_index = 0;
             transaction_spinlock_lock_t lock = {0};
             pthread_t pthread;

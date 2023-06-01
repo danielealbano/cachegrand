@@ -61,153 +61,10 @@
 
 #include "storage_db.h"
 #include "storage_db_snapshot.h"
+#include "storage_db_counters.h"
 
 #define TAG "storage_db"
 
-static pthread_key_t storage_db_counters_index_key;
-static pthread_once_t storage_db_counters_index_key_once = PTHREAD_ONCE_INIT;
-
-static void storage_db_counters_index_key_destroy(void *value) {
-    storage_db_counters_slots_bitmap_and_index_t *slot =
-            (storage_db_counters_slots_bitmap_and_index_t*)value;
-
-    if (!slot) {
-        return;
-    }
-
-    // TODO: free up memory at the shutdown
-    //hashtable_spsc_free(storage_db->counters[storage_db_counters_get_current_thread_get_slot_index(storage_db)].per_db);
-
-    slots_bitmap_mpmc_release(slot->slots_bitmap, slot->index);
-    ffma_mem_free(slot);
-}
-
-void storage_db_counters_slot_key_init_once() {
-    pthread_key_create(
-            &storage_db_counters_index_key,
-            storage_db_counters_index_key_destroy);
-
-    pthread_setspecific(storage_db_counters_index_key, NULL);
-}
-
-void storage_db_counters_slot_key_ensure_init(
-        storage_db_t *storage_db) {
-    // ensure that storage_db_counters_index_key has been initialized once, if not set it up passing the
-    // storage_db down the line
-    pthread_once(
-            &storage_db_counters_index_key_once,
-            storage_db_counters_slot_key_init_once);
-
-    // If the value is set to null, it means that the current thread has not been assigned a slot yet
-    if (pthread_getspecific(storage_db_counters_index_key) == NULL) {
-        storage_db_counters_slots_bitmap_and_index_t *slot =
-            ffma_mem_alloc(sizeof(storage_db_counters_slots_bitmap_and_index_t));
-        if (!slot) {
-            FATAL(TAG, "Unable to allocate memory for storage db counters");
-        }
-
-        slot->slots_bitmap = storage_db->counters_slots_bitmap;
-        slot->index = slots_bitmap_mpmc_get_next_available(slot->slots_bitmap);
-
-        if (slot->index == UINT64_MAX) {
-            FATAL(TAG, "No more slots available for worker counters");
-        }
-
-        storage_db->counters[slot->index].per_db = hashtable_spsc_new(
-                100, HASHTABLE_SPSC_DEFAULT_MAX_RANGE, false);
-
-        pthread_setspecific(storage_db_counters_index_key, slot);
-    }
-}
-
-static inline __attribute__((always_inline)) uint64_t storage_db_counters_get_current_thread_get_slot_index(
-        storage_db_t *storage_db) {
-    storage_db_counters_slot_key_ensure_init(storage_db);
-
-    void *value = pthread_getspecific(storage_db_counters_index_key);
-    storage_db_counters_slots_bitmap_and_index_t *slot =
-            (storage_db_counters_slots_bitmap_and_index_t*)value;
-
-    return slot->index;
-}
-
-static inline __attribute__((always_inline)) storage_db_counters_global_and_per_db_t* storage_db_counters_get_current_thread_data(
-        storage_db_t *storage_db) {
-    return &storage_db->counters[storage_db_counters_get_current_thread_get_slot_index(storage_db)];
-}
-
-static inline storage_db_counters_t* storage_db_counters_per_thread_get_or_create(
-        storage_db_t *storage_db,
-        storage_db_database_number_t database_number) {
-    storage_db_counters_t *counters_per_db = NULL;
-
-    storage_db_counters_global_and_per_db_t *counters_global_and_per_db =
-            storage_db_counters_get_current_thread_data(storage_db);
-
-    counters_per_db = (storage_db_counters_t*) hashtable_spsc_op_get_by_hash_and_key_uint32(
-            counters_global_and_per_db->per_db,
-            database_number,
-            database_number);
-
-    if (!counters_per_db) {
-        counters_per_db = ffma_mem_alloc_zero(sizeof(storage_db_counters_t));
-        hashtable_spsc_op_try_set_by_hash_and_key_uint32(
-                counters_global_and_per_db->per_db,
-                database_number,
-                database_number,
-                counters_per_db);
-    }
-
-    return counters_per_db;
-}
-
-void storage_db_counters_sum_global(
-        storage_db_t *storage_db,
-        storage_db_counters_t *counters) {
-    uint64_t workers_to_find = storage_db->workers_count;
-    uint64_t found_slot_index;
-    uint64_t next_slot_index = 0;
-
-    counters->data_size = 0;
-    while(workers_to_find > 0 && (found_slot_index = slots_bitmap_mpmc_iter(
-            storage_db->counters_slots_bitmap, next_slot_index)) != UINT64_MAX) {
-        counters->keys_count += storage_db->counters[found_slot_index].global.keys_count;
-        counters->data_size += storage_db->counters[found_slot_index].global.data_size;
-        counters->keys_changed += storage_db->counters[found_slot_index].global.keys_changed;
-        counters->data_changed += storage_db->counters[found_slot_index].global.data_changed;
-        next_slot_index = found_slot_index + 1;
-        workers_to_find--;
-    }
-}
-
-void storage_db_counters_sum_per_db(
-        storage_db_t *storage_db,
-        storage_db_database_number_t database_number,
-        storage_db_counters_t *counters) {
-    uint64_t workers_to_find = storage_db->workers_count;
-    uint64_t found_slot_index;
-    uint64_t next_slot_index = 0;
-
-    counters->data_size = 0;
-    while(workers_to_find-- > 0 && (found_slot_index = slots_bitmap_mpmc_iter(
-            storage_db->counters_slots_bitmap, next_slot_index)) != UINT64_MAX) {
-        storage_db_counters_t *counters_per_db = (storage_db_counters_t*) hashtable_spsc_op_get_by_hash_and_key_uint32(
-                storage_db->counters[found_slot_index].per_db,
-                database_number,
-                database_number);
-
-        next_slot_index = found_slot_index + 1;
-
-        if (unlikely(!counters_per_db)) {
-            continue;
-        }
-
-        counters->keys_count += counters_per_db->keys_count;
-        counters->data_size += counters_per_db->data_size;
-        counters->keys_changed += counters_per_db->keys_changed;
-        counters->data_changed += counters_per_db->data_changed;
-    }
-}
 
 char *storage_db_shard_build_path(
         char *basedir_path,
@@ -318,6 +175,7 @@ storage_db_t* storage_db_new(
     db->counters_slots_bitmap = slots_bitmap_mpmc_init(STORAGE_DB_WORKERS_MAX);
     db->snapshot.next_run_time_ms = 0;
     db->snapshot.status = STORAGE_DB_SNAPSHOT_STATUS_NONE;
+    db->snapshot.in_preparation = false;
     db->snapshot.block_index = 0;
     db->snapshot.storage_channel_opened = false;
     db->snapshot.storage_buffered_channel = NULL;
@@ -1276,6 +1134,11 @@ bool storage_db_set_entry_index(
 
     storage_db_entry_index_touch(entry_index);
 
+    // After the set the entry_index can't be relied upon as another thread can delete it
+    size_t value_size = entry_index->value.size;
+
+    assert(entry_index->status.deleted == false);
+
     bool res = hashtable_mcmp_op_set(
             db->hashtable,
             database_number,
@@ -1286,8 +1149,9 @@ bool storage_db_set_entry_index(
             &out_bucket_index,
             &out_should_free_key);
 
+
     if (res) {
-        int64_t counter_data_size_delta = (int64_t)entry_index->value.size;
+        int64_t counter_data_size_delta = (int64_t)value_size;
         if (previous_entry_index != NULL) {
             counter_data_size_delta -= (int64_t)previous_entry_index->value.size;
 
@@ -1321,7 +1185,7 @@ bool storage_db_set_entry_index(
 
     STORAGE_DB_COUNTERS_UPDATE(db, database_number, {
         counters->keys_changed++;
-        counters->data_changed += (int64_t) entry_index->value.size;
+        counters->data_changed += (int64_t)value_size;
     });
 
     if (out_should_free_key) {
@@ -1362,6 +1226,15 @@ bool storage_db_op_set(
                 key_length)) {
             LOG_E(TAG, "Unable to write an index entry key");
             goto end;
+        }
+    }
+
+    if (expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY && db->config->enforced_ttl.default_ms != STORAGE_DB_ENTRY_NO_EXPIRY) {
+        expiry_time_ms = clock_realtime_coarse_int64_ms() + db->config->enforced_ttl.default_ms;
+    } else if (db->config->enforced_ttl.max_ms != STORAGE_DB_ENTRY_NO_EXPIRY) {
+        int64_t max_ttl_ms = clock_realtime_coarse_int64_ms() + db->config->enforced_ttl.max_ms;
+        if (db->config->enforced_ttl.max_ms != STORAGE_DB_ENTRY_NO_EXPIRY && expiry_time_ms > max_ttl_ms) {
+            expiry_time_ms = max_ttl_ms;
         }
     }
 
@@ -1496,6 +1369,15 @@ bool storage_db_op_rmw_commit_update(
         }
     }
 
+    if (expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY && db->config->enforced_ttl.default_ms != STORAGE_DB_ENTRY_NO_EXPIRY) {
+        expiry_time_ms = clock_realtime_coarse_int64_ms() + db->config->enforced_ttl.default_ms;
+    } else if (db->config->enforced_ttl.max_ms != STORAGE_DB_ENTRY_NO_EXPIRY) {
+        int64_t max_ttl_ms = clock_realtime_coarse_int64_ms() + db->config->enforced_ttl.max_ms;
+        if (db->config->enforced_ttl.max_ms != STORAGE_DB_ENTRY_NO_EXPIRY && expiry_time_ms > max_ttl_ms) {
+            expiry_time_ms = max_ttl_ms;
+        }
+    }
+
     // Fetch a new entry and assign the key and the value as needed
     entry_index->database_number = rmw_status->hashtable.database_number;
     entry_index->value.size = value_chunk_sequence->size;
@@ -1505,11 +1387,16 @@ bool storage_db_op_rmw_commit_update(
 
     storage_db_entry_index_touch(entry_index);
 
+    // After the set the entry_index can't be relied upon as another thread can delete it
+    size_t value_size = entry_index->value.size;
+
+    assert(entry_index->status.deleted == false);
+
     hashtable_mcmp_op_rmw_commit_update(
             &rmw_status->hashtable,
             (uintptr_t)entry_index);
 
-    int64_t counter_data_size_delta = (int64_t)entry_index->value.size;
+    int64_t counter_data_size_delta = (int64_t)value_size;
     if (rmw_status->hashtable.current_value != 0) {
         counter_data_size_delta -=
                 (int64_t)((storage_db_entry_index_t *)rmw_status->hashtable.current_value)->value.size;
@@ -1523,7 +1410,7 @@ bool storage_db_op_rmw_commit_update(
         counters->keys_count += rmw_status->hashtable.current_value ? 0 : 1;
         counters->data_size += counter_data_size_delta;
         counters->keys_changed++;
-        counters->data_changed += (int64_t) entry_index->value.size;
+        counters->data_changed += (int64_t)value_size;
     });
 
     result_res = true;

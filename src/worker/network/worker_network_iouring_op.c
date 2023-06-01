@@ -142,93 +142,16 @@ network_channel_t* worker_network_iouring_op_network_accept_setup_new_channel(
                 &new_channel->wrapped_channel,
                 listener_channel->wrapped_channel.tls.config);
 
-        if (unlikely(!network_channel_tls_init(
-                &new_channel->wrapped_channel))) {
-            LOG_W(
-                    TAG,
-                    "TLS setup failed for the connection <%s>, coming from listener <%s>",
-                    new_channel->wrapped_channel.address.str,
-                    listener_channel->wrapped_channel.address.str);
-
-            worker_network_iouring_op_network_close(
-                    (network_channel_t *)new_channel,
-                    true);
-
-            return NULL;
-        }
-
-        if (unlikely(!network_channel_tls_handshake(
-                &new_channel->wrapped_channel))) {
-            LOG_V(
-                    TAG,
-                    "TLS handshake failed for the connection <%s>, coming from listener <%s>",
-                    new_channel->wrapped_channel.address.str,
-                    listener_channel->wrapped_channel.address.str);
-
-            worker_network_iouring_op_network_close(
-                    &new_channel->wrapped_channel,
-                    true);
-
-            return NULL;
-        }
-
         network_channel_tls_set_enabled(
                 &new_channel->wrapped_channel,
                 true);
 
-        if (network_channel_tls_ktls_supports_mbedtls_cipher_suite(
-                &new_channel->wrapped_channel)) {
-            LOG_D(
-                    TAG,
-                    "kTLS supports the cipher, it can be enabled for the connection <%s>, coming from listener <%s>",
-                    new_channel->wrapped_channel.address.str,
-                    listener_channel->wrapped_channel.address.str);
-            if (network_channel_tls_setup_ktls(&new_channel->wrapped_channel)) {
-                // Enable kTLS and ensure mbedtls is disabled
-                network_channel_tls_set_ktls(
-                        &new_channel->wrapped_channel,
-                        true);
-                network_channel_tls_set_mbedtls(
-                        &new_channel->wrapped_channel,
-                        false);
-
-                LOG_D(
-                        TAG,
-                        "kTLS successfully enabled for connection <%s>, coming from listener <%s>",
-                        new_channel->wrapped_channel.address.str,
-                        listener_channel->wrapped_channel.address.str);
-            } else {
-                LOG_D(
-                        TAG,
-                        "Failed to enable kTLS for the connection <%s>, coming from listener <%s>, using mbedtls",
-                        new_channel->wrapped_channel.address.str,
-                        listener_channel->wrapped_channel.address.str);
-            }
-        }
-
-        // If kTLS can't be enabled or its activation fails, enable mbedtls
-        if (!network_channel_tls_uses_ktls(&new_channel->wrapped_channel)) {
-            network_channel_tls_set_mbedtls(
-                    &new_channel->wrapped_channel,
-                    true);
-        }
-
-        // If the client has sent a client certificate, report the common name in the logs
-        if (network_channel_tls_has_peer_certificate(&new_channel->wrapped_channel)) {
-            const char *cn = NULL;
-            size_t cn_length = 0;
-
-            if (network_channel_tls_peer_certificate_get_cn(
-                    &new_channel->wrapped_channel,
-                    &cn,
-                    &cn_length)) {
-                LOG_D(
-                        TAG,
-                        "TLS client certificate common name: %.*s",
-                        (int)cn_length,
-                        cn);
-            }
-        }
+        // At this point the TLS handshake is not even started so we can't know if kTLS can be enabled or not, it will
+        // be decided later. Therefore at this point we just set the mbedtls flag to true and we will set it to false
+        // later if needed.
+        network_channel_tls_set_mbedtls(
+                &new_channel->wrapped_channel,
+                true);
     }
 
     if (unlikely(!worker_iouring_fds_map_add_and_enqueue_files_update(
@@ -334,23 +257,20 @@ bool worker_network_iouring_op_network_close(
     return res;
 }
 
-int32_t worker_network_iouring_op_network_receive(
+int32_t worker_network_iouring_op_network_receive_internal(
         network_channel_t *channel,
         char* buffer,
-        size_t buffer_length) {
+        size_t buffer_length,
+        kernel_timespec_t *kernel_timespec) {
     int32_t res;
     worker_iouring_context_t *context = worker_iouring_context_get();
-    kernel_timespec_t kernel_timespec = {
-            .tv_sec = channel->timeout.read.sec,
-            .tv_nsec = channel->timeout.read.nsec,
-    };
 
     fiber_scheduler_reset_error();
 
     do {
         uint8_t extra_sqes = 0;
 
-        if (kernel_timespec.tv_nsec != -1) {
+        if (kernel_timespec->tv_nsec != -1) {
             extra_sqes |= IOSQE_IO_LINK;
         }
 
@@ -366,10 +286,10 @@ int32_t worker_network_iouring_op_network_receive(
             return -ENOMEM;
         }
 
-        if (kernel_timespec.tv_nsec != -1) {
+        if (kernel_timespec->tv_nsec != -1) {
             if (unlikely(!io_uring_support_sqe_enqueue_link_timeout(
                     context->ring,
-                    &kernel_timespec,
+                    kernel_timespec,
                     0,
                     0))) {
                 fiber_scheduler_set_error(ENOMEM);
@@ -396,6 +316,39 @@ int32_t worker_network_iouring_op_network_receive(
     }
 
     return res;
+}
+
+int32_t worker_network_iouring_op_network_receive_timeout(
+        network_channel_t *channel,
+        char* buffer,
+        size_t buffer_length,
+        uint32_t timeout_ms) {
+    kernel_timespec_t kernel_timespec = {
+            .tv_sec = timeout_ms / 1000,
+            .tv_nsec = (timeout_ms % 1000) * 1000000,
+    };
+
+    return worker_network_iouring_op_network_receive_internal(
+            channel,
+            buffer,
+            buffer_length,
+            &kernel_timespec);
+}
+
+int32_t worker_network_iouring_op_network_receive(
+        network_channel_t *channel,
+        char* buffer,
+        size_t buffer_length) {
+    kernel_timespec_t kernel_timespec = {
+            .tv_sec = channel->timeout.read.sec,
+            .tv_nsec = channel->timeout.read.nsec,
+    };
+
+    return worker_network_iouring_op_network_receive_internal(
+            channel,
+            buffer,
+            buffer_length,
+            &kernel_timespec);
 }
 
 int32_t worker_network_iouring_op_network_send(
@@ -528,6 +481,7 @@ bool worker_network_iouring_op_register() {
     worker_op_network_channel_free = worker_network_iouring_network_channel_free;
     worker_op_network_accept = worker_network_iouring_op_network_accept;
     worker_op_network_receive = worker_network_iouring_op_network_receive;
+    worker_op_network_receive_timeout = worker_network_iouring_op_network_receive_timeout;
     worker_op_network_send = worker_network_iouring_op_network_send;
     worker_op_network_close = worker_network_iouring_op_network_close;
 

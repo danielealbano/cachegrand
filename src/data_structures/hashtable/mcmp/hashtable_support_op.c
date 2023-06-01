@@ -88,6 +88,7 @@ HASHTABLE_MCMP_SUPPORT_OP_FUNC_RESOLVER(hashtable_mcmp_support_op_search_key_or_
 
 bool hashtable_mcmp_support_op_search_key(
         hashtable_data_volatile_t *hashtable_data,
+        hashtable_database_number_t database_number,
         hashtable_key_data_t *key,
         hashtable_key_length_t key_length,
         hashtable_hash_t hash,
@@ -96,6 +97,7 @@ bool hashtable_mcmp_support_op_search_key(
         hashtable_key_value_volatile_t **found_key_value) {
     return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(hashtable_mcmp_support_op_search_key, loop)(
             hashtable_data,
+            database_number,
             key,
             key_length,
             hash,
@@ -107,6 +109,7 @@ bool hashtable_mcmp_support_op_search_key(
 
 bool hashtable_mcmp_support_op_search_key_or_create_new(
         hashtable_data_volatile_t *hashtable_data,
+        hashtable_database_number_t database_number,
         hashtable_key_data_t *key,
         hashtable_key_length_t key_length,
         hashtable_hash_t hash,
@@ -119,6 +122,7 @@ bool hashtable_mcmp_support_op_search_key_or_create_new(
         hashtable_key_value_volatile_t **found_key_value) {
     return HASHTABLE_MCMP_SUPPORT_OP_FUNC_METHOD(hashtable_mcmp_support_op_search_key_or_create_new, loop)(
         hashtable_data,
+        database_number,
         key,
         key_length,
         hash,

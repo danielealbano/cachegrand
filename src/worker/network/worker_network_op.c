@@ -72,6 +72,7 @@ worker_op_network_channel_size_fp_t* worker_op_network_channel_size;
 worker_op_network_channel_free_fp_t* worker_op_network_channel_free;
 worker_op_network_accept_fp_t* worker_op_network_accept;
 worker_op_network_receive_fp_t* worker_op_network_receive;
+worker_op_network_receive_timeout_fp_t* worker_op_network_receive_timeout;
 worker_op_network_send_fp_t* worker_op_network_send;
 worker_op_network_close_fp_t* worker_op_network_close;
 
@@ -285,22 +286,90 @@ void worker_network_new_client_fiber_entrypoint(
 
     network_channel_t *new_channel = user_data;
     bool tls_enabled = new_channel->tls.enabled;
+    bool tls_handshake_completed = false;
 
     stats->network.active_connections++;
-    if (tls_enabled) {
-        stats->network.active_tls_connections++;
-    }
-
     stats->network.accepted_connections++;
 
     if (tls_enabled) {
+        if (unlikely(!network_channel_tls_init(new_channel))) {
+            LOG_W(
+                    TAG,
+                    "[FD:%5d] TLS setup failed for the connection <%s>",
+                    new_channel->fd,
+                    new_channel->address.str);
+            goto end;
+        }
+
+        if (unlikely(!network_channel_tls_handshake(new_channel))) {
+            LOG_V(
+                    TAG,
+                    "[FD:%5d] TLS handshake failed for the connection <%s>",
+                    new_channel->fd,
+                    new_channel->address.str);
+            goto end;
+        }
+
+        tls_handshake_completed = true;
+        stats->network.active_tls_connections++;
         stats->network.accepted_tls_connections++;
+
+        if (network_channel_tls_ktls_supports_mbedtls_cipher_suite(new_channel)) {
+            LOG_D(
+                    TAG,
+                    "kTLS supports the cipher, it can be enabled for the connection <%s>",
+                    new_channel->address.str);
+            if (network_channel_tls_setup_ktls(new_channel)) {
+                // Enable kTLS and ensure mbedtls is disabled
+                network_channel_tls_set_ktls(
+                        new_channel,
+                        true);
+                network_channel_tls_set_mbedtls(
+                        new_channel,
+                        false);
+
+                LOG_D(
+                        TAG,
+                        "kTLS successfully enabled for connection <%s>",
+                        new_channel->address.str);
+            } else {
+                LOG_D(
+                        TAG,
+                        "Failed to enable kTLS for the connection <%s>, switching to mbedtls",
+                        new_channel->address.str);
+            }
+        }
+
+        // If kTLS can't be enabled or its activation fails, enable mbedtls
+        if (!network_channel_tls_uses_ktls(new_channel)) {
+            network_channel_tls_set_mbedtls(
+                    new_channel,
+                    true);
+        }
+
+        // If the client has sent a client certificate, report the common name in the logs
+        if (network_channel_tls_has_peer_certificate(new_channel)) {
+            const char *cn = NULL;
+            size_t cn_length = 0;
+
+            if (network_channel_tls_peer_certificate_get_cn(
+                    new_channel,
+                    &cn,
+                    &cn_length)) {
+                LOG_D(
+                        TAG,
+                        "TLS client certificate common name: %.*s",
+                        (int)cn_length,
+                        cn);
+            }
+        }
     }
 
     // Handover the new connection to the module
     module_get_by_id(new_channel->module_id)->connection_accept(new_channel);
 
-    // TODO: when ti gets here new_channel might have been already freed, the flow should always close the connection
+end:
+    // TODO: when it gets here new_channel might have been already freed, the flow should always close the connection
     //       the connection here and not from within the module
     if (new_channel->status != NETWORK_CHANNEL_STATUS_CLOSED) {
         network_close(new_channel, true);
@@ -308,7 +377,10 @@ void worker_network_new_client_fiber_entrypoint(
 
     // Updates the amount of active connections
     stats->network.active_connections--;
-    if (tls_enabled) {
+
+    // Check if tls was enabled at the beginning of the connection, as the channel, when it gets closed, has its
+    // properties, including tls.enabled, reset to the default values
+    if (tls_enabled && tls_handshake_completed) {
         stats->network.active_tls_connections--;
     }
 

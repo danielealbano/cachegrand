@@ -16,6 +16,7 @@
 #include <cmath>
 #include <functional>
 #include <algorithm>
+#include <utility>
 
 #include <pthread.h>
 #include <mcheck.h>
@@ -62,8 +63,39 @@
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
-    char* cpus[] = { "0" };
+    setup_config();
+    start_workers();
+}
 
+TestModulesRedisCommandFixture::TestModulesRedisCommandFixture(
+        std::vector<char*> disabled_commands) {
+    this->disabled_commands = std::move(disabled_commands);
+    setup_config();
+    start_workers();
+}
+
+TestModulesRedisCommandFixture::~TestModulesRedisCommandFixture() {
+    // Necessary to avoid a double free
+    if (this->c->reader == nullptr) {
+        this->c->reader = redisReaderCreate();
+    }
+    redisFree(this->c);
+
+    // As the config is not allocated via cyaml, set program_context->config to null to avoid the code trying to free
+    // memory allocated on the stack
+    program_context->config = nullptr;
+
+    // Request the termination of the workers
+    program_request_terminate(&program_context->workers_terminate_event_loop);
+
+    // Wait for the cachegrand instance to terminate
+    program_cleanup(program_context);
+
+    // Reset the context for the next test if needed
+    program_reset_context();
+}
+
+void TestModulesRedisCommandFixture::setup_config() {
     config_module_network_binding = {
             .host = "127.0.0.1",
             .port = network_tests_support_search_free_port_ipv4(),
@@ -73,6 +105,8 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
             .max_key_length = 256,
             .max_command_length = 8 * 1024,
             .max_command_arguments = 128,
+            .disabled_commands = &disabled_commands[0],
+            .disabled_commands_count = static_cast<unsigned int>(disabled_commands.size()),
     };
 
     config_module_network_timeout = {
@@ -129,6 +163,7 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
             .interval_str = "7d",
             .min_data_changed_str = "0",
             .snapshot_at_shutdown = false,
+            .interval_ms = 7 * 86400 * 1000,
             .min_keys_changed = 0,
             .rotation = nullptr,
     };
@@ -143,39 +178,41 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
     };
 
     config = {
-            .cpus = cpus,
-            .cpus_count = 1,
+            .cpus = &cpus[0],
+            .cpus_count = (unsigned int)cpus.size(),
             .workers_per_cpus = 1,
             .network = &config_network,
             .modules = &config_module,
             .modules_count = 1,
             .database = &config_database,
     };
+}
 
-    workers_count = config.cpus_count * config.workers_per_cpus;
-
+void TestModulesRedisCommandFixture::start_workers() {
     db_config = storage_db_config_new();
     db_config->backend_type = STORAGE_DB_BACKEND_TYPE_MEMORY;
     db_config->limits.keys_count.hard_limit = 1000;
 
     program_context = program_get_context();
     program_context->config = &config;
-    program_context->workers_count = 1;
+
+    program_config_thread_affinity_set_selected_cpus(program_context);
+    program_workers_initialize_count(program_context);
 
     program_config_setup_storage_db(program_context);
     db = program_context->db;
     storage_db_open(db);
 
+    program_initialize_module(program_context);
+
     program_epoch_gc_workers_initialize(program_context);
-
-    program_config_thread_affinity_set_selected_cpus(program_context);
-
-    program_workers_initialize_count(program_context);
 
     worker_context = program_workers_initialize_context(
             program_context);
 
     PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true)
+
+    this->protocol_version = TEST_MODULES_REDIS_COMMAND_FIXTURE_PROTOCOL_RESP_2;
 
     this->c = redisConnect(config_module_network_binding.host, config_module_network_binding.port);
 
@@ -192,48 +229,48 @@ TestModulesRedisCommandFixture::TestModulesRedisCommandFixture() {
     this->c->reader = nullptr;
 }
 
-TestModulesRedisCommandFixture::~TestModulesRedisCommandFixture() {
-    // Necessary to avoid a double free
-    if (this->c->reader == nullptr) {
-        this->c->reader = redisReaderCreate();
-    }
-    redisFree(this->c);
-
-    // As the config is not allocated via cyaml, set program_context->config to null to avoid the code trying to free
-    // memory allocated on the stack
-    program_context->config = nullptr;
-
-    // Request the termination of the workers
-    program_request_terminate(&program_context->workers_terminate_event_loop);
-
-    // Wait for the cachegrand instance to terminate
-    program_cleanup(program_context);
-
-    // Reset the context for the next test if needed
-    program_reset_context();
-}
-
 size_t TestModulesRedisCommandFixture::build_resp_command(
         char *buffer,
         size_t buffer_size,
-        const std::vector<std::string>& arguments) {
+        const std::vector<std::string>& arguments) const {
     size_t buffer_offset = 0;
     size_t arguments_count = arguments.size();
 
-    buffer_offset += snprintf(
-            buffer ? buffer + buffer_offset : nullptr,
-            buffer ? buffer_size - buffer_offset : 0,
-            "*%lu\r\n",
-            arguments_count);
+    if (this->protocol_version >= TEST_MODULES_REDIS_COMMAND_FIXTURE_PROTOCOL_RESP_2) {
+        buffer_offset += snprintf(
+                buffer ? buffer + buffer_offset : nullptr,
+                buffer ? buffer_size - buffer_offset : 0,
+                "*%lu\r\n",
+                arguments_count);
 
-    for(const auto& value: arguments) {
+        for (const auto &value: arguments) {
+            char *buffer_start = buffer + buffer_offset;
+            buffer_offset += snprintf(
+                    buffer ? buffer_start : nullptr,
+                    buffer ? buffer_size - buffer_offset : 0,
+                    "$%lu\r\n%s\r\n",
+                    value.length(),
+                    value.c_str());
+        }
+    } else {
+        bool is_first = true;
+        for (const auto &value: arguments) {
+            char *buffer_start = buffer + buffer_offset;
+            buffer_offset += snprintf(
+                    buffer ? buffer_start : nullptr,
+                    buffer ? buffer_size - buffer_offset : 0,
+                    "%s%s",
+                    is_first ? "" : " ",
+                    value.c_str());
+
+            is_first = false;
+        }
+
         char *buffer_start = buffer + buffer_offset;
         buffer_offset += snprintf(
                 buffer ? buffer_start : nullptr,
                 buffer ? buffer_size - buffer_offset : 0,
-                "$%lu\r\n%s\r\n",
-                value.length(),
-                value.c_str());
+                "\r\n");
     }
 
     return buffer_offset;
@@ -318,18 +355,34 @@ bool TestModulesRedisCommandFixture::send_recv_resp_command_multi_recv(
     // Sets up the reader
     this->c->reader = redisReaderCreate();
 
-    // Prepares the command and write it to the internal buffer
-    redisAppendCommandArgv(
-            this->c,
-            (int)arguments.size(),
-            c_strs.data(),
-            nullptr);
+    if (this->protocol_version == TEST_MODULES_REDIS_COMMAND_FIXTURE_PROTOCOL_INLINE) {
+        size_t buffer_length = build_resp_command(nullptr, 0, arguments);
+        char *buffer = (char *) malloc(buffer_length + 1);
+        build_resp_command(buffer, buffer_length + 1, arguments);
 
-    // Sends the data out
-    int done = 0;
-    do {
-        REQUIRE(redisBufferWrite(this->c, &done) == REDIS_OK);
-    } while(done == 0);
+        // Sends the data out
+        size_t sent_data = 0;
+        do {
+            ssize_t result = send(this->c->fd, buffer + sent_data, buffer_length - sent_data, 0);
+
+            REQUIRE(result >= 0);
+
+            sent_data += result;
+        } while (sent_data < buffer_length);
+    } else {
+        // Prepares the command and write it to the internal buffer
+        redisAppendCommandArgv(
+                this->c,
+                (int)arguments.size(),
+                c_strs.data(),
+                nullptr);
+
+        // Sends the data out
+        int done = 0;
+        do {
+            REQUIRE(redisBufferWrite(this->c, &done) == REDIS_OK);
+        } while(done == 0);
+    }
 
     // As the redisReaderGetReply discards the reader buffer and we need it entirely instead, the code below handles
     // the receive of the data, store them in an internal buffer and passes them to the reader for processing.

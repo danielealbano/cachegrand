@@ -47,6 +47,7 @@
 #define TAG "module_redis_commands"
 
 hashtable_spsc_t *module_redis_commands_hashtable = NULL;
+hashtable_spsc_t *module_redis_disabled_commands_hashtable = NULL;
 
 FUNCTION_CTOR(module_redis_commands_ctor, {
     uint32_t command_infos_map_count = sizeof(command_infos_map) / sizeof(module_redis_command_info_t);
@@ -85,7 +86,7 @@ hashtable_spsc_t *module_redis_commands_build_commands_hashtables(
         module_redis_command_info_t *command_infos,
         uint32_t command_infos_count) {
     hashtable_spsc_t *commands_hashtable = hashtable_spsc_new(
-            command_infos_count,
+            command_infos_count * 2,
             32,
             false);
     for(
@@ -105,6 +106,54 @@ hashtable_spsc_t *module_redis_commands_build_commands_hashtables(
     }
 
     return commands_hashtable;
+}
+
+void module_redis_commands_set_disabled_commands_hashtables(
+        hashtable_spsc_t *hashtable) {
+    module_redis_disabled_commands_hashtable = hashtable;
+}
+
+hashtable_spsc_t *module_redis_commands_get_disabled_commands_hashtables() {
+    return module_redis_disabled_commands_hashtable;
+}
+
+hashtable_spsc_t *module_redis_commands_build_disabled_commands_hashtables(
+        char **disabled_commands,
+        uint32_t disabled_commands_count) {
+    if (disabled_commands_count == 0) {
+        return NULL;
+    }
+
+    hashtable_spsc_t *hashtable = hashtable_spsc_new(
+            disabled_commands_count * 2,
+            32,
+            false);
+    for(
+            uint32_t disabled_command_index = 0;
+            disabled_command_index < disabled_commands_count;
+            disabled_command_index++) {
+        char *disabled_command = disabled_commands[disabled_command_index];
+
+        if (!hashtable_spsc_op_try_set_ci(
+                hashtable,
+                disabled_command,
+                strlen(disabled_command),
+                (void*)true)) {
+            hashtable_spsc_free(hashtable);
+            return NULL;
+        }
+    }
+
+    return hashtable;
+}
+
+void module_redis_commands_free_disabled_commands_hashtables(
+        hashtable_spsc_t *hashtable) {
+    if (!hashtable) {
+        return;
+    }
+
+    hashtable_spsc_free(hashtable);
 }
 
 uint16_t module_redis_commands_count_tokens_in_command_arguments(

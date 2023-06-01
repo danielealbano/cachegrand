@@ -41,6 +41,7 @@ static cyaml_strval_t config_database_backend_schema_strings[] = {
 static cyaml_strval_t config_log_type_schema_strings[] = {
         { "console", CONFIG_LOG_TYPE_CONSOLE },
         { "file",    CONFIG_LOG_TYPE_FILE },
+        { "syslog",    CONFIG_LOG_TYPE_SYSLOG },
 };
 
 // Allowed strings for config -> logs -> log -> level (config_log_level_t)

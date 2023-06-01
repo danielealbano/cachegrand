@@ -573,6 +573,10 @@ void program_config_setup_log_sinks(
                 log_sink_settings.file.path = config_log->file->path;
                 break;
 
+            case LOG_SINK_TYPE_SYSLOG:
+                // nothing to do
+                break;
+
             default:
                 // To catch mismatches
                 assert(false);
@@ -614,6 +618,18 @@ bool program_config_setup_storage_db(
                                               ? program_context->config->database->snapshots->rotation->max_files
                                               : 0;
         config->snapshot.snapshot_at_shutdown = program_context->config->database->snapshots->snapshot_at_shutdown;
+
+        config->enforced_ttl.default_ms = STORAGE_DB_ENTRY_NO_EXPIRY;
+        config->enforced_ttl.max_ms = STORAGE_DB_ENTRY_NO_EXPIRY;
+
+        if (program_context->config->database->enforced_ttl) {
+            if (program_context->config->database->enforced_ttl->default_ttl_str) {
+                config->enforced_ttl.default_ms = program_context->config->database->enforced_ttl->default_ttl_ms;
+            }
+            if (program_context->config->database->enforced_ttl->max_ttl_str) {
+                config->enforced_ttl.max_ms = program_context->config->database->enforced_ttl->max_ttl_ms;
+            }
+        }
     }
 
     if (program_context->config->database->backend == CONFIG_DATABASE_BACKEND_FILE) {

@@ -18,28 +18,13 @@ extern "C" {
 #define STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH (64)
 #define STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS (5)
 #define STORAGE_DB_KEYS_EVICTION_ITER_MAX_DISTANCE (5000)
-#define STORAGE_DB_KEYS_EVICTION_ITER_MAX_SEARCH_ATTEMPTS (100)
+#define STORAGE_DB_KEYS_EVICTION_ITER_MAX_SEARCH_ATTEMPTS (5)
 
 // This magic value defines the size of the ring buffer used to keep in memory data long enough to be sure they are not
 // being in use anymore.
 #define STORAGE_DB_WORKER_ENTRY_INDEX_RING_BUFFER_SIZE 512
 
 #define STORAGE_DB_ENTRY_NO_EXPIRY (0)
-
-#define STORAGE_DB_COUNTERS_UPDATE(storage_db, database_number, ...) { \
-    storage_db_counters_t *counters; \
-    { \
-        counters = &storage_db_counters_get_current_thread_data( \
-            storage_db)->global; \
-        __VA_ARGS__ \
-    } \
-    { \
-        counters = storage_db_counters_per_thread_get_or_create( \
-            storage_db, \
-            database_number); \
-        __VA_ARGS__ \
-    } \
-}
 
 typedef uint32_t storage_db_database_number_t;
 typedef uint16_t storage_db_chunk_index_t;
@@ -119,6 +104,10 @@ struct storage_db_config {
     storage_db_config_limits_t limits;
     storage_db_config_snapshot_t snapshot;
     uint32_t max_user_databases;
+    struct {
+        storage_db_expiry_time_ms_t default_ms;
+        storage_db_expiry_time_ms_t max_ms;
+    } enforced_ttl;
     union {
         struct {
             char *basedir_path;
@@ -161,7 +150,6 @@ struct storage_db_counters_global_and_per_db {
 
 enum storage_db_snapshot_status {
     STORAGE_DB_SNAPSHOT_STATUS_NONE = 0,
-    STORAGE_DB_SNAPSHOT_STATUS_IN_PREPARATION,
     STORAGE_DB_SNAPSHOT_STATUS_IN_PROGRESS,
     STORAGE_DB_SNAPSHOT_STATUS_BEING_FINALIZED,
     STORAGE_DB_SNAPSHOT_STATUS_COMPLETED,
@@ -189,6 +177,7 @@ struct storage_db {
         uint64_volatile_t start_time_ms;
         uint64_volatile_t end_time_ms;
         uint64_volatile_t progress_reported_at_ms;
+        bool_volatile_t in_preparation;
         storage_db_snapshot_status_volatile_t status;
         uint64_volatile_t block_index;
         bool_volatile_t running;
@@ -197,6 +186,9 @@ struct storage_db {
         queue_mpmc_t *entry_index_to_be_deleted_queue;
         uint64_t keys_changed_at_start;
         uint64_t data_changed_at_start;
+#if DEBUG == 1
+        uint64_volatile_t parallel_runs;
+#endif
         char *path;
         struct {
             uint64_t data_written;

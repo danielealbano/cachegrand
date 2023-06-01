@@ -37,7 +37,9 @@
 
 #include "worker_fiber_storage_db_keys_eviction.h"
 
-#define TAG "worker_fiber_storage_db_initialize"
+#define TAG "worker_fiber_storage_db_keys_eviction"
+
+thread_local bool worker_fiber_storage_db_keys_eviction_fiber_negative_counters_reported = false;
 
 void worker_fiber_storage_db_keys_eviction_fiber_entrypoint(
         void* user_data) {
@@ -87,6 +89,21 @@ void worker_fiber_storage_db_keys_eviction_fiber_entrypoint(
             uint64_t elapsed = now - last_run;
 
             if (likely(elapsed < wait_time)) {
+                continue;
+            }
+
+            if (unlikely(counters.keys_count <= 0 || counters.data_size <= 0)) {
+                if (unlikely(!worker_fiber_storage_db_keys_eviction_fiber_negative_counters_reported)) {
+                    LOG_E(
+                            TAG,
+                            "The counters are invalid, keys_count=%ld, data_size=%ld",
+                            counters.keys_count,
+                            counters.data_size);
+
+                    worker_fiber_storage_db_keys_eviction_fiber_negative_counters_reported = true;
+                }
+
+                last_run = clock_monotonic_coarse_int64_ms();
                 continue;
             }
 
