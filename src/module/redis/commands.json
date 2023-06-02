@@ -98,6 +98,8 @@
     {
         "command_string": "BITCOUNT",
         "command_callback_name": "bitcount",
+        "container_name": null,
+        "is_container": false,
         "since": "2.6.0",
         "required_arguments_count": 1,
         "has_variable_arguments": true,
