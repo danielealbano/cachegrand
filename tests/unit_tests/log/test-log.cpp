@@ -121,7 +121,7 @@ TEST_CASE("log/log.c", "[log]") {
         char timestamp_dest_cmp[100] = { 0 };
         snprintf(timestamp_dest_cmp, sizeof(timestamp_dest_cmp),
                  "%04d-%02d-%02dT%02d:%02d:%02dZ",
-                 1900 + tm_cmp.tm_year, tm_cmp.tm_mon, tm_cmp.tm_mday,
+                 1900 + tm_cmp.tm_year, tm_cmp.tm_mon + 1, tm_cmp.tm_mday,
                  tm_cmp.tm_hour, tm_cmp.tm_min, tm_cmp.tm_sec);
 
         SECTION("validate format") {
