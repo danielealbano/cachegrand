@@ -25,11 +25,41 @@
 
 ### What is cachegrand?
 
-cachegrand is the **fastest** Key-Value store available on the market today, designed from the ground up to take
-advantage of today's hardware, compatible with Redis, it allows to scale to millions of operations per
-second with sub-millisecond latencies.
+cachegrand is a high-performance key-value store designed to optimize performance on modern hardware. It offers
+efficient data handling, processing, and retrieval capabilities through standard protocols and APIs. With its impressive
+scalability, cachegrand can handle millions of operations per second, all completed in less than a millisecond.
 
-#### Key features
+Underneath its robust architecture, cachegrand employs its own database engine that seamlessly works with various data
+types to to enable a versatile data ingestion and retrieval. Additionally, cachegrand supports WebAssembly, empowering
+server-side data processing.
+
+One of cachegrand's notable features is its compatibility with widely adopted protocols and interfaces, including Kafka,
+Redis, and Memcache. This compatibility allows developers to leverage their existing familiarity with SDKs and
+frameworks.
+
+cachegrand is still in development and some of the features are still in the works, but it's already possible to use it
+as a high-performance key-value store with the Redis protocol.
+
+#### Use cases
+
+cachegrand simplifies real-time operations by providing an integrated solution, eliminating the need for stitching
+together multiple technologies. It offers a streamlined approach to manage and process data, enabling efficient
+real-time scenarios.
+
+With cachegrand, you can:
+
+- Ingest data using familiar streaming methods like Kafka or Redis.
+- Process data using WebAssembly-compatible languages like Python or Rust.
+- Leverage the internal database to store intermediate and final results.
+- Deliver processed data using supported protocols such as Kafka, Redis, HTTP(s), or Memcached.
+
+But it's also possible just to use single components of cachegrand, like the Key-Value store via the Redis protocol,
+or the Kafka protocol, both with or without the WebAssembly support, depending on your needs.
+
+#### Implemented Key features
+
+Currently cachegrand supports only the Redis interface to interact with the Key-Value store, support for the Kafka
+interface and the WebAssembly support are still in the works.
 
 - [Redis](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/redis.md) protocol support
 - [Prometheus](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/modules/prometheus.md) endpoint
@@ -40,10 +70,11 @@ second with sub-millisecond latencies.
   capable of allocating and freeing memory in O(1)
 - [Scales vertically](#benchmarks), 2x cpus means ~2x requests
 - In-memory and on-disk [timeseries database](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/timeseries-db.md) (WIP)
+- Supports different collection data types (Streams, Lists, Hashsets, Sorted Sets, etc.) (WIP)
 
 #### Planned Key Features
 
-- More modules for additional platforms compatibility, e.g. Memcache, HTTPS, AWS S3, DataDog, etc.
+- More modules for additional platforms compatibility, e.g. Kafka, Memcache, HTTPS, AWS S3, DataDog, etc.
 - And ad-hoc UDP message-based (Homa-like) network stack based on Linux XDP (eXpress Data Path)
 - [WebAssembly](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/webassembly.md) to provide
   [User Defined Functions](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/webassembly/user-defined-functions.md),
@@ -59,6 +90,8 @@ cachegrand runs on Linux on x86-64 (Intel and AMD) and aarch64 (ARMv8, e.g. Rasp
 planning to port it to more hardware (e.g. RISC) once will become more feature complete.
 
 ### Benchmarks
+
+#### Internal Key-Value stor via the Redis interface
 
 The benchmarks are regularly carried out on an **AMD EPYC 7502P** with **2 x 25Gbit** network links using
 **Ubuntu 22.04** and two other servers, with the same hardware, to generate load using memtier_benchmark.
