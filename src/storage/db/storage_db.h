@@ -76,12 +76,14 @@ enum storage_db_backend_type {
 };
 typedef enum storage_db_backend_type storage_db_backend_type_t;
 
+// Never change the order of these values as they are used in the on disk storage
 enum storage_db_entry_index_value_type {
     STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_UNKNOWN = 1,
     STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING = 2,
     STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_LIST = 3,
     STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_HASHSET = 4,
-    STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_SORTEDSET = 5
+    STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_SORTEDSET = 5,
+    STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STREAM = 6,
 };
 typedef enum storage_db_entry_index_value_type storage_db_entry_index_value_type_t;
 
