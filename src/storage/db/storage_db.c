@@ -1240,6 +1240,7 @@ bool storage_db_op_set(
 
     // Fetch a new entry and assign the key and the value as needed
     entry_index->database_number = database_number;
+    entry_index->value_type = value_type;
     entry_index->value.size = value_chunk_sequence->size;
     entry_index->value.count = value_chunk_sequence->count;
     entry_index->value.sequence = value_chunk_sequence->sequence;
@@ -1380,6 +1381,7 @@ bool storage_db_op_rmw_commit_update(
 
     // Fetch a new entry and assign the key and the value as needed
     entry_index->database_number = rmw_status->hashtable.database_number;
+    entry_index->value_type = value_type;
     entry_index->value.size = value_chunk_sequence->size;
     entry_index->value.count = value_chunk_sequence->count;
     entry_index->value.sequence = value_chunk_sequence->sequence;
