@@ -597,8 +597,22 @@ size_t storage_db_chunk_sequence_calculate_chunk_count(
     return ceil((double)size / (double)STORAGE_DB_CHUNK_MAX_SIZE);
 }
 
+uint64_t storage_db_chunk_sequence_allowed_max_count() {
+    return (int)(FFMA_OBJECT_SIZE_MAX / sizeof(storage_db_chunk_info_t));
+}
+
+bool storage_db_chunk_sequence_is_count_allowed(
+        uint64_t count) {
+    bool error = false;
+
+    // TODO: should check if the other limits (e.g. number of chunks allowed) are broken
+    error |= count > storage_db_chunk_sequence_allowed_max_count();
+
+    return !error;
+}
+
 size_t storage_db_chunk_sequence_allowed_max_size() {
-    return ((int)(FFMA_OBJECT_SIZE_MAX / sizeof(storage_db_chunk_info_t))) * STORAGE_DB_CHUNK_MAX_SIZE;
+    return storage_db_chunk_sequence_allowed_max_count() * STORAGE_DB_CHUNK_MAX_SIZE;
 }
 
 bool storage_db_chunk_sequence_is_size_allowed(
@@ -619,6 +633,10 @@ bool storage_db_chunk_sequence_allocate(
     storage_db_chunk_index_t allocated_chunks_count = 0;
     uint32_t chunk_count = storage_db_chunk_sequence_calculate_chunk_count(size);
     size_t remaining_length = size;
+
+    if (unlikely(!storage_db_chunk_sequence_is_count_allowed(chunk_count))) {
+        goto end;
+    }
 
     chunk_sequence->size = size;
     chunk_sequence->count = chunk_count;
