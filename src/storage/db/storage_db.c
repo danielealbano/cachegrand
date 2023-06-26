@@ -667,7 +667,7 @@ bool storage_db_chunk_sequence_allocate(
 
     return_result = true;
 
-end:
+    end:
     if (unlikely(!return_result)) {
         if (chunk_sequence->sequence) {
             for(storage_db_chunk_index_t chunk_index = 0; chunk_index < allocated_chunks_count; chunk_index++) {
@@ -682,6 +682,42 @@ end:
     }
 
     return return_result;
+}
+
+bool storage_db_chunk_sequence_transfer(
+        storage_db_t *db,
+        storage_db_chunk_sequence_t *totransfer_chunk_sequence,
+        storage_db_chunk_sequence_t *transferto_chunk_sequence) {
+    uint64_t new_chunk_count = transferto_chunk_sequence->count + totransfer_chunk_sequence->count;
+
+    if (unlikely(!storage_db_chunk_sequence_is_count_allowed(new_chunk_count))) {
+        return false;
+    }
+
+    storage_db_chunk_info_t *new_sequence = ffma_mem_realloc(
+            transferto_chunk_sequence->sequence,
+            sizeof(storage_db_chunk_info_t) * new_chunk_count);
+
+    if (unlikely(!transferto_chunk_sequence->sequence)) {
+        return false;
+    }
+
+    transferto_chunk_sequence->sequence = new_sequence;
+    totransfer_chunk_sequence->size += totransfer_chunk_sequence->size;
+
+    for (storage_db_chunk_index_t chunk_index = 0; chunk_index < totransfer_chunk_sequence->count; chunk_index++) {
+        memcpy(
+                &transferto_chunk_sequence->sequence[transferto_chunk_sequence->count + chunk_index],
+                &totransfer_chunk_sequence->sequence[chunk_index],
+                sizeof(storage_db_chunk_info_t));
+
+    }
+
+    totransfer_chunk_sequence->size = 0;
+    totransfer_chunk_sequence->count = 0;
+    totransfer_chunk_sequence->sequence = NULL;
+
+    return true;
 }
 
 void storage_db_chunk_sequence_free_chunks(
