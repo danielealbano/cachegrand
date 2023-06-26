@@ -382,6 +382,11 @@ bool storage_db_chunk_write(
 size_t storage_db_chunk_sequence_calculate_chunk_count(
         size_t size);
 
+uint64_t storage_db_chunk_sequence_allowed_max_count();
+
+bool storage_db_chunk_sequence_is_count_allowed(
+        uint64_t count);
+
 size_t storage_db_chunk_sequence_allowed_max_size();
 
 bool storage_db_chunk_sequence_is_size_allowed(
@@ -391,6 +396,11 @@ bool storage_db_chunk_sequence_allocate(
         storage_db_t *db,
         storage_db_chunk_sequence_t *chunk_sequence,
         size_t size);
+
+bool storage_db_chunk_sequence_transfer(
+        storage_db_t *db,
+        storage_db_chunk_sequence_t *totransfer_chunk_sequence,
+        storage_db_chunk_sequence_t *transferto_chunk_sequence);
 
 storage_db_chunk_info_t *storage_db_chunk_sequence_get(
         storage_db_chunk_sequence_t *chunk_sequence,
