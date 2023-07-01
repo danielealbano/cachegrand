@@ -46,5 +46,6 @@ RUN apt-get update -y \
         lcov gcovr \
         valgrind \
         libhiredis-dev redis-tools \
+        gdb tcl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
