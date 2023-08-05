@@ -55,10 +55,7 @@ struct storage_db_config_limits {
 typedef struct storage_db_config_limits storage_db_config_limits_t;
 
 struct storage_db_keys_eviction_list_entry {
-    uint16_t key_size;
-    uint32_t accesses_counters;
     char *key;
-    storage_db_last_access_time_ms_t last_access_time_ms;
     storage_db_expiry_time_ms_t expiry_time_ms;
 };
 typedef struct storage_db_keys_eviction_list_entry storage_db_keys_eviction_list_entry_t;
@@ -81,7 +78,10 @@ enum storage_db_entry_index_value_type {
     STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING = 2,
     STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_LIST = 3,
     STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_HASHSET = 4,
-    STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_SORTEDSET = 5
+    STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_SORTEDSET = 5,
+    STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STREAM = 6,
+    STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STREAM_DATA = 7,
+    STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_HASHSET_DATA = 8,
 };
 typedef enum storage_db_entry_index_value_type storage_db_entry_index_value_type_t;
 
