@@ -10,6 +10,8 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <assert.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -25,7 +27,6 @@
 #include "worker/worker.h"
 
 #include "transaction.h"
-#include "transaction_rwspinlock.h"
 
 #define TAG "transaction_spinlock"
 
