@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include <assert.h>
+
 #define TRANSACTION_ID_NOT_ACQUIRED (0)
 #define TRANSACTION_SPINLOCK_UNLOCKED   (0)
 
@@ -192,6 +194,17 @@ static inline __attribute__((always_inline)) bool transaction_lock_for_write_int
                 src_line))) {
             return false;
         }
+    }
+
+    if (!transaction_locks_list_add(transaction, transaction_rwspinlock)) {
+        // Unlock the spinlock and fail the operation
+        transaction_rwspinlock_unlock_internal(
+                transaction_rwspinlock
+#if DEBUG == 1
+                , transaction
+#endif
+            );
+        return false;
     }
 
     return true;
