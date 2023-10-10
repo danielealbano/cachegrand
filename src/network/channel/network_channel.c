@@ -17,7 +17,7 @@
 #include "misc.h"
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_spinlock.h"
+#include "transaction_rwspinlock.h"
 #include "log/log.h"
 #include "xalloc.h"
 #include "config.h"

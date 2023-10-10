@@ -13,11 +13,12 @@
 #include "exttypes.h"
 
 #include "transaction.h"
-#include "transaction_spinlock.h"
+#include "transaction_rwspinlock.h"
 
 #define TAG "transaction_spinlock"
 
-void transaction_spinlock_init(
-        transaction_spinlock_lock_volatile_t* spinlock) {
+void transaction_rwspinlock_init(
+        transaction_rwspinlock_volatile_t* spinlock) {
     spinlock->transaction_id = TRANSACTION_SPINLOCK_UNLOCKED;
+    spinlock->readers_count = 0;
 }

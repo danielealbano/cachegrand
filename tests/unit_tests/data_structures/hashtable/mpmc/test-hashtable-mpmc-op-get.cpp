@@ -16,7 +16,7 @@
 #include "exttypes.h"
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_spinlock.h"
+#include "transaction_rwspinlock.h"
 #include "xalloc.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"

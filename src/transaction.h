@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
-typedef struct transaction_spinlock_lock transaction_spinlock_lock_t;
-typedef _Volatile(transaction_spinlock_lock_t) transaction_spinlock_lock_volatile_t;
+typedef struct transaction_rwspinlock transaction_rwspinlock_t;
+typedef _Volatile(transaction_rwspinlock_t) transaction_rwspinlock_volatile_t;
 
 typedef struct transaction_id transaction_id_t;
 typedef _Volatile(transaction_id_t) transaction_id_volatile_t;
@@ -26,7 +26,7 @@ struct transaction {
     struct {
         uint32_t count;
         uint32_t size;
-        transaction_spinlock_lock_volatile_t **list;
+        transaction_rwspinlock_volatile_t **list;
     } locks;
 };
 
@@ -51,7 +51,7 @@ static inline __attribute__((always_inline)) bool transaction_needs_expand_locks
 
 static inline __attribute__((always_inline)) bool transaction_locks_list_add(
         transaction_t *transaction,
-        transaction_spinlock_lock_volatile_t *transaction_spinlock) {
+        transaction_rwspinlock_volatile_t *transaction_spinlock) {
     if (unlikely(transaction_needs_expand_locks_list(transaction))) {
         if (unlikely(!transaction_expand_locks_list(transaction))) {
             return false;

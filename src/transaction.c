@@ -25,7 +25,7 @@
 #include "worker/worker.h"
 
 #include "transaction.h"
-#include "transaction_spinlock.h"
+#include "transaction_rwspinlock.h"
 
 #define TAG "transaction_spinlock"
 
@@ -48,7 +48,7 @@ bool transaction_expand_locks_list(
     transaction->locks.size = transaction->locks.size * 2;
     transaction->locks.list = ffma_mem_realloc(
             transaction->locks.list,
-            sizeof(transaction_spinlock_lock_volatile_t*) * transaction->locks.size);
+            sizeof(transaction_rwspinlock_volatile_t*) * transaction->locks.size);
 
     return transaction->locks.list != NULL;
 }
@@ -77,10 +77,10 @@ bool transaction_acquire(
 
     // FFMA_OBJECT_SIZE_MIN should be 16 bytes, therefore the size of the locks list should be 16 / 8 = 2 by default
     // and it should be enough for most of the cases
-    transaction->locks.size = FFMA_OBJECT_SIZE_MIN / sizeof(transaction_spinlock_lock_volatile_t*);
+    transaction->locks.size = FFMA_OBJECT_SIZE_MIN / sizeof(transaction_rwspinlock_volatile_t*);
     transaction->locks.count = 0;
     transaction->locks.list = ffma_mem_alloc(
-            sizeof(transaction_spinlock_lock_volatile_t*) * transaction->locks.size);
+            sizeof(transaction_rwspinlock_volatile_t*) * transaction->locks.size);
 
     if (transaction->locks.list == NULL) {
         return false;
@@ -95,9 +95,9 @@ void transaction_release(
 
     for(uint32_t index = 0; index < transaction->locks.count; index++) {
 #if DEBUG == 1
-        transaction_spinlock_unlock_internal(transaction->locks.list[index], transaction);
+        transaction_rwspinlock_unlock_internal(transaction->locks.list[index], transaction);
 #else
-        transaction_spinlock_unlock_internal(transaction->locks.list[index]);
+        transaction_rwspinlock_unlock_internal(transaction->locks.list[index]);
 #endif
     }
 

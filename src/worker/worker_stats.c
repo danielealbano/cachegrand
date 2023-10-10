@@ -19,7 +19,7 @@
 #include "exttypes.h"
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_spinlock.h"
+#include "transaction_rwspinlock.h"
 #include "config.h"
 #include "fiber/fiber.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"

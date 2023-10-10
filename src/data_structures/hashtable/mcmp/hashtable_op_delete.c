@@ -19,7 +19,7 @@
 #include "log/log.h"
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_spinlock.h"
+#include "transaction_rwspinlock.h"
 
 #include "hashtable.h"
 #include "hashtable_support_index.h"
@@ -96,7 +96,7 @@ bool hashtable_mcmp_op_delete(
         }
 
         transaction_acquire(&transaction);
-        if (unlikely(!transaction_spinlock_lock(&half_hashes_chunk->write_lock, &transaction))) {
+        if (unlikely(!transaction_rwspinlock_lock(&half_hashes_chunk->lock, &transaction))) {
             return false;
         }
 
@@ -184,7 +184,7 @@ bool hashtable_mcmp_op_delete_by_index(
         }
 
         transaction_acquire(&transaction);
-        if (unlikely(!transaction_spinlock_lock(&half_hashes_chunk->write_lock, &transaction))) {
+        if (unlikely(!transaction_rwspinlock_lock(&half_hashes_chunk->lock, &transaction))) {
             return false;
         }
 
@@ -270,7 +270,7 @@ bool hashtable_mcmp_op_delete_by_index_all_databases(
         }
 
         transaction_acquire(&transaction);
-        if (unlikely(!transaction_spinlock_lock(&half_hashes_chunk->write_lock, &transaction))) {
+        if (unlikely(!transaction_rwspinlock_lock(&half_hashes_chunk->lock, &transaction))) {
             return false;
         }
 

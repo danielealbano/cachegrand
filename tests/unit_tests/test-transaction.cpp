@@ -26,7 +26,7 @@
 
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_spinlock.h"
+#include "transaction_rwspinlock.h"
 
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "worker/worker_stats.h"
@@ -44,7 +44,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         transaction.locks.count = 0;
         transaction.locks.size = 8;
 
-        transaction_spinlock_lock_volatile_t** initial_list = (transaction_spinlock_lock_volatile_t**)ffma_mem_alloc(
+        transaction_rwspinlock_volatile_t** initial_list = (transaction_rwspinlock_volatile_t**)ffma_mem_alloc(
                 sizeof(void*) * transaction.locks.size);
         transaction.locks.list = initial_list;
 
@@ -59,7 +59,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         SECTION("Expand twice") {
             transaction_expand_locks_list(&transaction);
 
-            transaction_spinlock_lock_volatile_t** interim_list = transaction.locks.list;
+            transaction_rwspinlock_volatile_t** interim_list = transaction.locks.list;
             transaction_expand_locks_list(&transaction);
 
             REQUIRE(transaction.locks.size == 32);
@@ -89,16 +89,16 @@ TEST_CASE("transaction.c", "[transaction]") {
     }
 
     SECTION("transaction_locks_list_add") {
-        uint32_t locks_size = FFMA_OBJECT_SIZE_MIN / sizeof(transaction_spinlock_lock_volatile_t*);
+        uint32_t locks_size = FFMA_OBJECT_SIZE_MIN / sizeof(transaction_rwspinlock_volatile_t*);
 
         transaction_t transaction = { };
         transaction.locks.count = 0;
         transaction.locks.size = locks_size;
-        transaction.locks.list = (transaction_spinlock_lock_volatile_t**)ffma_mem_alloc(
+        transaction.locks.list = (transaction_rwspinlock_volatile_t**)ffma_mem_alloc(
                 sizeof(void*) * transaction.locks.size);
 
         SECTION("Add one lock") {
-            transaction_spinlock_lock_volatile_t lock = { 0 };
+            transaction_rwspinlock_volatile_t lock = { 0 };
 
             REQUIRE(transaction_locks_list_add(&transaction, &lock));
             REQUIRE(transaction.locks.count == 1);
@@ -107,7 +107,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         }
 
         SECTION("Add two lock") {
-            transaction_spinlock_lock_volatile_t lock[2] = { 0 };
+            transaction_rwspinlock_volatile_t lock[2] = { 0 };
             REQUIRE(transaction_locks_list_add(&transaction, &lock[0]));
             REQUIRE(transaction.locks.count == 1);
             REQUIRE(transaction.locks.size == locks_size);
@@ -120,7 +120,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         }
 
         SECTION("Trigger an expansion expansion") {
-            transaction_spinlock_lock_volatile_t lock[3] = { 0 };
+            transaction_rwspinlock_volatile_t lock[3] = { 0 };
 
             for(int index = 0; index < ARRAY_SIZE(lock); index++) {
                 REQUIRE(transaction_locks_list_add(&transaction, &lock[index]));
@@ -132,7 +132,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         }
 
         SECTION("Trigger multiple expansion") {
-            transaction_spinlock_lock_volatile_t lock[10] = { 0 };
+            transaction_rwspinlock_volatile_t lock[10] = { 0 };
 
             for(int index = 0; index < ARRAY_SIZE(lock); index++) {
                 REQUIRE(transaction_locks_list_add(&transaction, &lock[index]));
@@ -158,7 +158,7 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(transaction.transaction_id.transaction_index == current_transaction_index + 1);
 
             REQUIRE(transaction.locks.count == 0);
-            REQUIRE(transaction.locks.size == FFMA_OBJECT_SIZE_MIN / sizeof(transaction_spinlock_lock_volatile_t*));
+            REQUIRE(transaction.locks.size == FFMA_OBJECT_SIZE_MIN / sizeof(transaction_rwspinlock_volatile_t*));
             REQUIRE(transaction.locks.list != nullptr);
 
             ffma_mem_free(transaction.locks.list);
@@ -193,7 +193,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         }
 
         SECTION("With one lock") {
-            transaction_spinlock_lock_volatile_t lock = { transaction.transaction_id.id };
+            transaction_rwspinlock_volatile_t lock = { transaction.transaction_id.id };
 
             REQUIRE(transaction_locks_list_add(&transaction, &lock));
 
@@ -205,8 +205,8 @@ TEST_CASE("transaction.c", "[transaction]") {
         }
 
         SECTION("With two locks") {
-            transaction_spinlock_lock_volatile_t lock1 = { transaction.transaction_id.id };
-            transaction_spinlock_lock_volatile_t lock2 = { transaction.transaction_id.id };
+            transaction_rwspinlock_volatile_t lock1 = { transaction.transaction_id.id };
+            transaction_rwspinlock_volatile_t lock2 = { transaction.transaction_id.id };
 
             REQUIRE(transaction_locks_list_add(&transaction, &lock1));
             REQUIRE(transaction_locks_list_add(&transaction, &lock2));
@@ -220,7 +220,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         }
 
         SECTION("Expanded") {
-            transaction_spinlock_lock_volatile_t lock[10] = { 0 };
+            transaction_rwspinlock_volatile_t lock[10] = { 0 };
 
             for(int index = 0; index < ARRAY_SIZE(lock); index++) {
                 lock[index].transaction_id = transaction.transaction_id.id;

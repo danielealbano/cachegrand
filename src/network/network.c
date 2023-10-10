@@ -22,7 +22,7 @@
 #include "clock.h"
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_spinlock.h"
+#include "transaction_rwspinlock.h"
 #include "log/log.h"
 #include "fiber/fiber.h"
 #include "fiber/fiber_scheduler.h"

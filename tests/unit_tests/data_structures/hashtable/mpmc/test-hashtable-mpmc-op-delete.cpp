@@ -15,7 +15,7 @@
 #include "spinlock.h"
 #include "xalloc.h"
 #include "transaction.h"
-#include "transaction_spinlock.h"
+#include "transaction_rwspinlock.h"
 #include "random.h"
 #include "fiber/fiber.h"
 #include "fiber/fiber_scheduler.h"
