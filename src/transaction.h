@@ -79,7 +79,7 @@ static inline __attribute__((always_inline)) bool transaction_rwspinlock_is_owne
     return spinlock->internal_data.transaction_id == transaction->transaction_id.id;
 }
 
-static inline __attribute__((always_inline)) bool transaction_rwspinlock_try_write_lock(
+static inline __attribute__((always_inline)) bool transaction_rwspinlock_try_write_lock_internal(
         transaction_rwspinlock_volatile_t *spinlock,
         transaction_t *transaction) {
     assert(transaction->transaction_id.id != TRANSACTION_ID_NOT_ACQUIRED);
@@ -131,7 +131,7 @@ static inline __attribute__((always_inline)) bool transaction_rwspinlock_write_l
     uint32_t max_spins_before_probably_stuck = 1 << 26;
 
     uint64_t spins = 0;
-    while (unlikely(!transaction_rwspinlock_try_write_lock(spinlock, transaction))) {
+    while (unlikely(!transaction_rwspinlock_try_write_lock_internal(spinlock, transaction))) {
         if (unlikely(spins++ == max_spins_before_probably_stuck)) {
             LOG_E("transaction_rwspinlock", "Possible stuck transactional spinlock detected for thread %lu in %s:%u",
                   syscall(__NR_gettid), src_path, src_line);
