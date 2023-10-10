@@ -43,7 +43,7 @@ std::atomic<uint32_t> worker_index_counter(1);
 
 // Returns 1 if it can do the initial lock, 2 instead if it's able to reach the point in which has
 // to wait for the spinlock to become free
-void* test_transaction_rwspinlock_lock_lock_retry_try_lock_thread_func(void* rawdata) {
+void* test_transaction_rwspinlock_lock_retry_try_lock_thread_func(void* rawdata) {
     worker_context_t worker_context = { 0 };
     worker_context.worker_index = worker_index_counter.fetch_add(1);
     worker_context_set(&worker_context);
@@ -54,13 +54,51 @@ void* test_transaction_rwspinlock_lock_lock_retry_try_lock_thread_func(void* raw
     transaction_id->worker_index = 0; transaction_id->transaction_index = 0;
     auto* lock = (transaction_rwspinlock_t*)rawdata;
 
-    if (transaction_rwspinlock_try_write_lock(lock, &transaction)) {
+    transaction_acquire(&transaction);
+    if (transaction_rwspinlock_try_write_lock_internal(lock, &transaction)) {
         return (void*)1;
     }
 
     REQUIRE(transaction_rwspinlock_write_lock_internal(lock, &transaction, "", 0));
 
     if (transaction_rwspinlock_is_write_locked(lock) == 1) {
+        transaction_rwspinlock_unlock_internal(
+                lock
+#if DEBUG == 1
+                ,&transaction
+#endif
+                );
+        return (void*)2;
+    } else {
+        return (void*)1;
+    }
+}
+
+void *test_transaction_rwspinlock_lock_wait_for_reader_thread_func(void* rawdata) {
+    worker_context_t worker_context = { 0 };
+    worker_context.worker_index = worker_index_counter.fetch_add(1);
+    worker_context_set(&worker_context);
+    transaction_set_worker_index(worker_context.worker_index);
+
+    transaction_t transaction = { .transaction_id = { }, .locks = { .count = 0 , .size = 0, .list = nullptr, } };
+    transaction_id_volatile_t *transaction_id = &transaction.transaction_id;
+    transaction_id->worker_index = 0; transaction_id->transaction_index = 0;
+    auto* lock = (transaction_rwspinlock_t*)rawdata;
+
+    transaction_acquire(&transaction);
+    if (transaction_rwspinlock_try_write_lock_internal(lock, &transaction)) {
+        return (void*)1;
+    }
+
+    REQUIRE(transaction_rwspinlock_write_lock_internal(lock, &transaction, "", 0));
+
+    if (transaction_rwspinlock_is_write_locked(lock) == 1) {
+        transaction_rwspinlock_unlock_internal(
+                lock
+#if DEBUG == 1
+                ,&transaction
+#endif
+        );
         return (void*)2;
     } else {
         return (void*)1;
@@ -100,10 +138,17 @@ void* test_transaction_rwspinlock_lock_counter_thread_func(void* rawdata) {
         transaction_id_volatile_t *transaction_id = &transaction.transaction_id;
         transaction_id->worker_index = 0; transaction_id->transaction_index = 0;
 
+        transaction_acquire(&transaction);
+
         REQUIRE(transaction_rwspinlock_write_lock_internal(data->lock, &transaction, "", 0));
         (*data->counter)++;
 
-        transaction_rwspinlock_unlock_internal(data->lock, &transaction);
+        transaction_rwspinlock_unlock_internal(
+                data->lock
+#if DEBUG == 1
+                ,&transaction
+#endif
+        );
     }
 
     return nullptr;
@@ -135,7 +180,7 @@ TEST_CASE("transaction.c (transaction_rwspinlock)", "[transaction][transaction_r
         REQUIRE(transaction_rwspinlock_is_write_locked(&lock));
     }
 
-    SECTION("transaction_rwspinlock_try_write_lock") {
+    SECTION("transaction_rwspinlock_try_write_lock_internal") {
         SECTION("lock") {
             transaction_t transaction = { .transaction_id = { }, .locks = { .count = 0 , .size = 0, .list = nullptr, } };
             transaction_id_volatile_t *transaction_id = &transaction.transaction_id;
@@ -143,13 +188,15 @@ TEST_CASE("transaction.c (transaction_rwspinlock)", "[transaction][transaction_r
             transaction_rwspinlock_t lock = {0};
             transaction_rwspinlock_init(&lock);
 
-            REQUIRE(transaction_rwspinlock_try_write_lock(&lock, &transaction));
-
+            transaction_acquire(&transaction);
+            REQUIRE(transaction_rwspinlock_try_write_lock_internal(&lock, &transaction));
             REQUIRE(lock.internal_data.transaction_id != TRANSACTION_SPINLOCK_UNLOCKED);
-            REQUIRE(transaction.locks.size == 2);
-            REQUIRE(transaction.locks.count == 1);
-
-            transaction_rwspinlock_unlock_internal(&lock, &transaction);
+            transaction_rwspinlock_unlock_internal(
+                    &lock
+#if DEBUG == 1
+                    ,&transaction
+#endif
+            );
         }
 
         SECTION("lock - fail already locked") {
@@ -184,20 +231,6 @@ TEST_CASE("transaction.c (transaction_rwspinlock)", "[transaction][transaction_r
     }
 
     SECTION("transaction_rwspinlock_lock") {
-        SECTION("fail already locked") {
-            transaction_t transaction = { .transaction_id = { }, .locks = { .count = 0 , .size = 0, .list = nullptr, } };
-            transaction_id_volatile_t *transaction_id = &transaction.transaction_id;
-            transaction_id->worker_index = 0; transaction_id->transaction_index = 0;
-            transaction_rwspinlock_t lock = {0};
-            transaction_rwspinlock_init(&lock);
-
-            REQUIRE(transaction_rwspinlock_write_lock_internal(&lock, &transaction, "", 0));
-            REQUIRE(lock.internal_data.transaction_id == transaction_id->id);
-            REQUIRE(!transaction_rwspinlock_try_write_lock(&lock, &transaction));
-
-            transaction_rwspinlock_unlock_internal(&lock, &transaction);
-        }
-
         SECTION("lock") {
             int res, pthread_return_val, *pthread_return = nullptr;
             transaction_t transaction = { .transaction_id = { }, .locks = { .count = 0 , .size = 0, .list = nullptr, } };
@@ -214,12 +247,14 @@ TEST_CASE("transaction.c (transaction_rwspinlock)", "[transaction][transaction_r
                 perror("pthread_attr_init");
             }
 
+            transaction_acquire(&transaction);
+
             // Lock
-            REQUIRE(transaction_rwspinlock_try_write_lock(&lock, &transaction));
+            REQUIRE(transaction_rwspinlock_try_write_lock_internal(&lock, &transaction));
             REQUIRE(lock.internal_data.transaction_id == transaction_id->id);
 
             // Create the thread that wait for unlock
-            res = pthread_create(&pthread, &attr, &test_transaction_rwspinlock_lock_lock_retry_try_lock_thread_func, (void*)&lock);
+            res = pthread_create(&pthread, &attr, &test_transaction_rwspinlock_lock_retry_try_lock_thread_func, (void*)&lock);
             if (res != 0) {
                 perror("pthread_create");
             }
@@ -228,14 +263,18 @@ TEST_CASE("transaction.c (transaction_rwspinlock)", "[transaction][transaction_r
             usleep(100000);
 
             // Unlock
-            transaction_rwspinlock_unlock_internal(&lock, &transaction);
+            transaction_rwspinlock_unlock_internal(
+                    &lock
+#if DEBUG == 1
+                    ,&transaction
+#endif
+            );
 
             // Wait
             usleep(1000000);
 
             // TODO: would be better to come up with a better mechanism to check if the thread has actually finished or
-            //       not but the above sleep seems reasonable, the thread doesn't finish within 1 second the spinlock
-            //       is buggy and stuck
+            //       not but the above sleep seems reasonable, the thread doesn't finish within 1 second
             int pthread_tryjoin_np_res = pthread_tryjoin_np(pthread, (void**)&pthread_return);
             pthread_return_val = (int)(uint64_t)pthread_return;
 
@@ -245,6 +284,90 @@ TEST_CASE("transaction.c (transaction_rwspinlock)", "[transaction][transaction_r
             // The difference between this test and the plain spinlock one is that the thread does a transaction release
             // therefore the lock gets unlocked
             REQUIRE(lock.internal_data.transaction_id == TRANSACTION_SPINLOCK_UNLOCKED);
+        }
+
+        SECTION("lock - wait for reader") {
+            int res, pthread_return_val, *pthread_return = nullptr;
+            transaction_t transaction = { .transaction_id = { }, .locks = { .count = 0 , .size = 0, .list = nullptr, } };
+            transaction_id_volatile_t *transaction_id = &transaction.transaction_id;
+            transaction_id->worker_index = 0; transaction_id->transaction_index = 0;
+            transaction_rwspinlock_t lock = {0};
+            pthread_t pthread;
+            pthread_attr_t attr;
+
+            transaction_rwspinlock_init(&lock);
+
+            res = pthread_attr_init(&attr);
+            if (res != 0) {
+                perror("pthread_attr_init");
+            }
+
+            transaction_acquire(&transaction);
+
+            // Set the reader counter to 1
+            lock.internal_data.readers_count = 1;
+
+            // Create the thread that wait for unlock
+            res = pthread_create(&pthread, &attr, &test_transaction_rwspinlock_lock_wait_for_reader_thread_func, (void*)&lock);
+            if (res != 0) {
+                perror("pthread_create");
+            }
+
+            // Wait
+            usleep(100000);
+
+            // Reset the reader counter
+            lock.internal_data.readers_count = 0;
+            MEMORY_FENCE_STORE();
+
+            // Wait
+            usleep(1000000);
+
+            // TODO: would be better to come up with a better mechanism to check if the thread has actually finished or
+            //       not but the above sleep seems reasonable, the thread doesn't finish within 1 second
+            int pthread_tryjoin_np_res = pthread_tryjoin_np(pthread, (void**)&pthread_return);
+            pthread_return_val = (int)(uint64_t)pthread_return;
+
+            REQUIRE(pthread_tryjoin_np_res == 0);
+            REQUIRE(pthread_return_val == 2);
+
+            // The difference between this test and the plain spinlock one is that the thread does a transaction release
+            // therefore the lock gets unlocked
+            REQUIRE(lock.internal_data.transaction_id == TRANSACTION_SPINLOCK_UNLOCKED);
+        }
+
+        SECTION("fail - already locked") {
+            transaction_t transaction = { .transaction_id = { }, .locks = { .count = 0 , .size = 0, .list = nullptr, } };
+            transaction_id_volatile_t *transaction_id = &transaction.transaction_id;
+            transaction_id->worker_index = 0; transaction_id->transaction_index = 0;
+            transaction_rwspinlock_t lock = {0};
+            transaction_rwspinlock_init(&lock);
+
+            transaction_acquire(&transaction);
+
+            REQUIRE(transaction_rwspinlock_write_lock_internal(&lock, &transaction, "", 0));
+            REQUIRE(lock.internal_data.transaction_id == transaction_id->id);
+            REQUIRE(!transaction_rwspinlock_try_write_lock_internal(&lock, &transaction));
+
+            transaction_rwspinlock_unlock_internal(
+                    &lock
+#if DEBUG == 1
+                    ,&transaction
+#endif
+            );
+        }
+
+        SECTION("fail - readers") {
+            transaction_t transaction = { .transaction_id = { }, .locks = { .count = 0 , .size = 0, .list = nullptr, } };
+            transaction_id_volatile_t *transaction_id = &transaction.transaction_id;
+            transaction_id->worker_index = 0; transaction_id->transaction_index = 0;
+            transaction_rwspinlock_t lock = {0};
+            transaction_rwspinlock_init(&lock);
+
+            transaction_acquire(&transaction);
+
+            lock.internal_data.readers_count = 1;
+            REQUIRE(!transaction_rwspinlock_try_write_lock_internal(&lock, &transaction));
         }
 
         SECTION("test lock parallelism") {
