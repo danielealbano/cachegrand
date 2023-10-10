@@ -19,7 +19,6 @@
 #include "log/log.h"
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_rwspinlock.h"
 
 #include "hashtable.h"
 #include "hashtable_support_index.h"
@@ -38,6 +37,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
         hashtable_key_data_t *key,
         hashtable_key_length_t key_length,
         hashtable_hash_t hash,
+        transaction_t *transaction,
         hashtable_chunk_index_t *found_chunk_index,
         hashtable_chunk_slot_index_t *found_chunk_slot_index,
         hashtable_key_value_volatile_t **found_key_value) {
@@ -71,7 +71,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
     LOG_DI("hashtable_data->chunks_count = %lu", hashtable_data->chunks_count);
     LOG_DI("hashtable_data->buckets_count = %lu", hashtable_data->buckets_count);
     LOG_DI("hashtable_data->buckets_count_real = %lu", hashtable_data->buckets_count_real);
-    LOG_DI("half_hashes_chunk->lock.lock = %d", half_hashes_chunk->lock.transaction_id);
+    LOG_DI("half_hashes_chunk->lock.lock = %d", half_hashes_chunk->lock.internal_data.transaction_id);
     LOG_DI("half_hashes_chunk->metadata.is_full = %lu", half_hashes_chunk->metadata.is_full);
     LOG_DI("half_hashes_chunk->metadata.slots_occupied = %lu", half_hashes_chunk->metadata.slots_occupied);
     LOG_DI("half_hashes_chunk->metadata.overflowed_chunks_counter = %lu", overflowed_chunks_counter);
@@ -98,6 +98,18 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
         if (half_hashes_chunk->metadata.slots_occupied == 0) {
             LOG_DI(">> skipping chunk because it's empty");
             continue;
+        }
+
+//        // Increment the readers counter
+//        if (unlikely(!transaction_rwspinlock_increment_readers(&half_hashes_chunk->read_lock))) {
+//            return false;
+//        }
+
+        // Ensure that there isn't a transaction in progress
+        if (likely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
+            if (unlikely(!transaction_rwspinlock_wait_write_lock(&half_hashes_chunk->lock))) {
+                return false;
+            }
         }
 
         skip_indexes_mask = 0;
@@ -249,7 +261,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
     half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index_start];
 
     if (likely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
-        if (unlikely(!transaction_rwspinlock_lock(&half_hashes_chunk->lock, transaction))) {
+        if (unlikely(!transaction_lock_for_write(transaction, &half_hashes_chunk->lock))) {
             return false;
         }
     }
@@ -260,7 +272,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
 
     uint8_volatile_t overflowed_chunks_counter = half_hashes_chunk->metadata.overflowed_chunks_counter;
 
-    LOG_DI("half_hashes_chunk->lock.lock = %lu", half_hashes_chunk->lock.transaction_id);
+    LOG_DI("half_hashes_chunk->lock.lock = %lu", half_hashes_chunk->lock.internal_data.transaction_id);
     LOG_DI("half_hashes_chunk->metadata.is_full = %lu", half_hashes_chunk->metadata.is_full);
     LOG_DI("half_hashes_chunk->metadata.slots_occupied = %lu", half_hashes_chunk->metadata.slots_occupied);
     LOG_DI("half_hashes_chunk->metadata.overflowed_chunks_counter = %lu", overflowed_chunks_counter);
@@ -316,7 +328,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
 
                 LOG_DI(">> locking chunk (with retry)");
                 if (likely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
-                    if (unlikely(!transaction_rwspinlock_lock(&half_hashes_chunk->lock, transaction))) {
+                    if (unlikely(!transaction_lock_for_write(transaction, &half_hashes_chunk->lock))) {
                         return false;
                     }
                 }

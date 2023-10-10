@@ -26,7 +26,6 @@
 
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_rwspinlock.h"
 
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "worker/worker_stats.h"
@@ -44,7 +43,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         transaction.locks.count = 0;
         transaction.locks.size = 8;
 
-        transaction_rwspinlock_volatile_t** initial_list = (transaction_rwspinlock_volatile_t**)ffma_mem_alloc(
+        auto** initial_list = (transaction_rwspinlock_volatile_t**)ffma_mem_alloc(
                 sizeof(void*) * transaction.locks.size);
         transaction.locks.list = initial_list;
 
@@ -122,8 +121,8 @@ TEST_CASE("transaction.c", "[transaction]") {
         SECTION("Trigger an expansion expansion") {
             transaction_rwspinlock_volatile_t lock[3] = { 0 };
 
-            for(int index = 0; index < ARRAY_SIZE(lock); index++) {
-                REQUIRE(transaction_locks_list_add(&transaction, &lock[index]));
+            for(auto & index : lock) {
+                REQUIRE(transaction_locks_list_add(&transaction, &index));
             }
 
             REQUIRE(transaction.locks.count == ARRAY_SIZE(lock));
@@ -134,8 +133,8 @@ TEST_CASE("transaction.c", "[transaction]") {
         SECTION("Trigger multiple expansion") {
             transaction_rwspinlock_volatile_t lock[10] = { 0 };
 
-            for(int index = 0; index < ARRAY_SIZE(lock); index++) {
-                REQUIRE(transaction_locks_list_add(&transaction, &lock[index]));
+            for(auto & index : lock) {
+                REQUIRE(transaction_locks_list_add(&transaction, &index));
             }
 
             REQUIRE(transaction.locks.count == ARRAY_SIZE(lock));
@@ -199,7 +198,7 @@ TEST_CASE("transaction.c", "[transaction]") {
 
             transaction_release(&transaction);
 
-            REQUIRE(lock.transaction_id == TRANSACTION_SPINLOCK_UNLOCKED);
+            REQUIRE(lock.internal_data.transaction_id == TRANSACTION_SPINLOCK_UNLOCKED);
             REQUIRE(transaction.locks.list == nullptr);
             REQUIRE(transaction.transaction_id.id == TRANSACTION_ID_NOT_ACQUIRED);
         }
@@ -213,8 +212,8 @@ TEST_CASE("transaction.c", "[transaction]") {
 
             transaction_release(&transaction);
 
-            REQUIRE(lock1.transaction_id == TRANSACTION_SPINLOCK_UNLOCKED);
-            REQUIRE(lock2.transaction_id == TRANSACTION_SPINLOCK_UNLOCKED);
+            REQUIRE(lock1.internal_data.transaction_id == TRANSACTION_SPINLOCK_UNLOCKED);
+            REQUIRE(lock2.internal_data.transaction_id == TRANSACTION_SPINLOCK_UNLOCKED);
             REQUIRE(transaction.locks.list == nullptr);
             REQUIRE(transaction.transaction_id.id == TRANSACTION_ID_NOT_ACQUIRED);
         }
@@ -222,15 +221,15 @@ TEST_CASE("transaction.c", "[transaction]") {
         SECTION("Expanded") {
             transaction_rwspinlock_volatile_t lock[10] = { 0 };
 
-            for(int index = 0; index < ARRAY_SIZE(lock); index++) {
-                lock[index].transaction_id = transaction.transaction_id.id;
-                REQUIRE(transaction_locks_list_add(&transaction, &lock[index]));
+            for(auto & index : lock) {
+                index.internal_data.transaction_id = transaction.transaction_id.id;
+                REQUIRE(transaction_locks_list_add(&transaction, &index));
             }
 
             transaction_release(&transaction);
 
-            for(int index = 0; index < ARRAY_SIZE(lock); index++) {
-                REQUIRE(lock[index].transaction_id == TRANSACTION_SPINLOCK_UNLOCKED);
+            for(auto & index : lock) {
+                REQUIRE(index.internal_data.transaction_id == TRANSACTION_SPINLOCK_UNLOCKED);
             }
             REQUIRE(transaction.locks.list == nullptr);
             REQUIRE(transaction.transaction_id.id == TRANSACTION_ID_NOT_ACQUIRED);

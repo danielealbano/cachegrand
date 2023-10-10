@@ -14,7 +14,6 @@
 #include "exttypes.h"
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_rwspinlock.h"
 
 #include "hashtable.h"
 #include "hashtable_support_index.h"

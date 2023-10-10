@@ -25,7 +25,6 @@
 #include "memory_fences.h"
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_rwspinlock.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
