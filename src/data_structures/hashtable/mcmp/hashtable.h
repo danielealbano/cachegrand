@@ -104,6 +104,9 @@ typedef _Volatile(hashtable_half_hashes_chunk_t) hashtable_half_hashes_chunk_vol
 struct hashtable_half_hashes_chunk {
     // The half hashes occupy 56 of the 64 bytes available, so we need to play with unions to accommodate the 6 bytes
     // needed for the rwspinlock and the 2 bytes needed for the metadata.
+    // It's very important to keep in mind that the rwspinlock uses atomic operations and these operations are 8 byte
+    // wide therefore the will read and write ALSO the metadata, this is not a problem because the metadata is
+    // modified only under a write lock, but it's important to keep in mind in case the structure is modified.
     union {
         transaction_rwspinlock_volatile_t lock;
         struct {
