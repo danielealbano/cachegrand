@@ -130,7 +130,7 @@ static inline __attribute__((always_inline)) bool transaction_rwspinlock_wait_wr
     uint64_t spins = 0;
     while (unlikely(transaction_rwspinlock_is_write_locked(spinlock))) {
         if (unlikely(spins++ == max_spins_before_probably_stuck)) {
-            LOG_E("transaction_rwspinlock", "Possible stuck transactional spinlock detected for thread %lu in %s:%u",
+            LOG_E("transaction_rwspinlock", "Possible transactional spinlock stuck detected for thread %lu in %s:%u",
                   syscall(__NR_gettid), src_path, src_line);
             return false;
         }
@@ -150,7 +150,7 @@ static inline __attribute__((always_inline)) bool transaction_rwspinlock_write_l
     uint64_t spins = 0;
     while (unlikely(!transaction_rwspinlock_try_write_lock_internal(spinlock, transaction, expected_readers))) {
         if (unlikely(spins++ == max_spins_before_probably_stuck)) {
-            LOG_E("transaction_rwspinlock", "Possible stuck transactional spinlock detected for thread %lu in %s:%u",
+            LOG_E("transaction_rwspinlock", "Possible transactional spinlock stuck detected for thread %lu in %s:%u",
                   syscall(__NR_gettid), src_path, src_line);
             return false;
         }
