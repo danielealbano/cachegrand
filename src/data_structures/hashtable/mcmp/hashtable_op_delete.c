@@ -52,6 +52,7 @@ bool hashtable_mcmp_op_delete(
 
     LOG_DI("key (%d) = %s", key_length, key);
     LOG_DI("hash = 0x%016x", hash);
+    transaction_acquire(&transaction);
 
     volatile hashtable_data_t* hashtable_data_list[] = {
             hashtable->ht_current,
@@ -79,6 +80,7 @@ bool hashtable_mcmp_op_delete(
                 key,
                 key_length,
                 hash,
+                &transaction,
                 &chunk_index,
                 &chunk_slot_index,
                 &key_value) == false) {
@@ -94,8 +96,7 @@ bool hashtable_mcmp_op_delete(
             return false;
         }
 
-        transaction_acquire(&transaction);
-        if (unlikely(!transaction_lock_for_write(&transaction, &half_hashes_chunk->lock))) {
+        if (unlikely(!transaction_upgrade_lock_for_write(&transaction, &half_hashes_chunk->lock))) {
             return false;
         }
 

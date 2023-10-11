@@ -100,16 +100,9 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
             continue;
         }
 
-//        // Increment the readers counter
-//        if (unlikely(!transaction_rwspinlock_increment_readers(&half_hashes_chunk->read_lock))) {
-//            return false;
-//        }
-
-        // Ensure that there isn't a transaction in progress
-        if (likely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
-            if (unlikely(!transaction_rwspinlock_wait_write_lock(&half_hashes_chunk->lock))) {
-                return false;
-            }
+        // Increment the readers counter
+        if (unlikely(!transaction_lock_for_readers(transaction, &half_hashes_chunk->lock))) {
+            return false;
         }
 
         skip_indexes_mask = 0;

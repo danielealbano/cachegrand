@@ -62,6 +62,7 @@ bool hashtable_mcmp_support_op_search_key(
         hashtable_key_data_t *key,
         hashtable_key_length_t key_length,
         hashtable_hash_t hash,
+        transaction_t *transaction,
         hashtable_chunk_index_t *found_chunk_index,
         hashtable_chunk_slot_index_t *found_chunk_slot_index,
         hashtable_key_value_volatile_t **found_key_value)
