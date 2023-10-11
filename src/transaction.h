@@ -282,7 +282,7 @@ static inline __attribute__((always_inline)) bool transaction_upgrade_lock_for_w
     return true;
 }
 
-static inline __attribute__((always_inline)) bool transaction_lock_for_readers_internal(
+static inline __attribute__((always_inline)) bool transaction_lock_for_read_internal(
         transaction_t *transaction,
         transaction_rwspinlock_volatile_t *transaction_rwspinlock,
         const char* src_path,
@@ -332,8 +332,8 @@ cleanup:
 /**
  * Uses a macro to wrap transaction_upgrade_lock_for_write_internal to automatically define the path and the line args
  */
-#define transaction_lock_for_readers(transaction_var, transaction_rwspinlock_var) \
-    transaction_lock_for_readers_internal(transaction_var, transaction_rwspinlock_var, CACHEGRAND_SRC_PATH, __LINE__)
+#define transaction_lock_for_read(transaction_var, transaction_rwspinlock_var) \
+    transaction_lock_for_read_internal(transaction_var, transaction_rwspinlock_var, CACHEGRAND_SRC_PATH, __LINE__)
 
 #ifdef __cplusplus
 }

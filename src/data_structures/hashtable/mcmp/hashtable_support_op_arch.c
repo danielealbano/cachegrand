@@ -101,7 +101,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
         }
 
         // Increment the readers counter
-        if (unlikely(!transaction_lock_for_readers(transaction, &half_hashes_chunk->lock))) {
+        if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
             return false;
         }
 

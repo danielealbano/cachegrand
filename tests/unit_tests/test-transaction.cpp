@@ -290,7 +290,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         transaction_release(&transaction);
     }
 
-    SECTION("transaction_lock_for_readers") {
+    SECTION("transaction_lock_for_read") {
         uint16_t lock_internal_data_reserved = 1234;
         transaction_t transaction = { 0 };
         REQUIRE(transaction_acquire(&transaction));
@@ -298,7 +298,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         lock.internal_data.reserved = lock_internal_data_reserved;
 
         SECTION("Lock with no writer") {
-            REQUIRE(transaction_lock_for_readers(&transaction, &lock));
+            REQUIRE(transaction_lock_for_read(&transaction, &lock));
 
             REQUIRE(lock.internal_data.transaction_id == 0);
             REQUIRE(lock.internal_data.readers_count == 1);
@@ -311,7 +311,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         SECTION("Lock with readers") {
             lock.internal_data.readers_count = 1;
 
-            REQUIRE(transaction_lock_for_readers(&transaction, &lock));
+            REQUIRE(transaction_lock_for_read(&transaction, &lock));
 
             REQUIRE(lock.internal_data.transaction_id == 0);
             REQUIRE(lock.internal_data.readers_count == 2);
@@ -324,7 +324,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         SECTION("Failing lock with writer") {
             lock.internal_data.transaction_id = 1234;
 
-            REQUIRE(!transaction_lock_for_readers(&transaction, &lock));
+            REQUIRE(!transaction_lock_for_read(&transaction, &lock));
 
             REQUIRE(lock.internal_data.transaction_id == 1234);
             REQUIRE(lock.internal_data.readers_count == 0);
@@ -341,7 +341,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         lock.internal_data.reserved = lock_internal_data_reserved;
 
         SECTION("Upgrade with no readers") {
-            REQUIRE(transaction_lock_for_readers(&transaction, &lock));
+            REQUIRE(transaction_lock_for_read(&transaction, &lock));
 
             REQUIRE(transaction_upgrade_lock_for_write(&transaction, &lock));
 
@@ -358,7 +358,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         SECTION("Failing lock with readers") {
             lock.internal_data.readers_count = 1;
 
-            REQUIRE(transaction_lock_for_readers(&transaction, &lock));
+            REQUIRE(transaction_lock_for_read(&transaction, &lock));
             REQUIRE(!transaction_upgrade_lock_for_write(&transaction, &lock));
 
             REQUIRE(lock.internal_data.transaction_id == 0);
