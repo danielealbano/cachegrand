@@ -209,6 +209,7 @@ void TestModulesRedisCommandFixture::start_workers() {
 
     worker_context = program_workers_initialize_context(
             program_context);
+    worker_context_set(worker_context);
 
     PROGRAM_WAIT_FOR_WORKER_RUNNING_STATUS(worker_context, true)
 
