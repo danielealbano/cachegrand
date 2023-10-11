@@ -43,7 +43,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         transaction.locks.count = 0;
         transaction.locks.size = 8;
 
-        auto** initial_list = (transaction_rwspinlock_volatile_t**)ffma_mem_alloc(
+        auto* initial_list = (transaction_locks_list_entry_t*)ffma_mem_alloc(
                 sizeof(void*) * transaction.locks.size);
         transaction.locks.list = initial_list;
 
@@ -58,7 +58,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         SECTION("Expand twice") {
             transaction_expand_locks_list(&transaction);
 
-            transaction_rwspinlock_volatile_t** interim_list = transaction.locks.list;
+            transaction_locks_list_entry_t* interim_list = transaction.locks.list;
             transaction_expand_locks_list(&transaction);
 
             REQUIRE(transaction.locks.size == 32);
@@ -93,53 +93,64 @@ TEST_CASE("transaction.c", "[transaction]") {
         transaction_t transaction = { };
         transaction.locks.count = 0;
         transaction.locks.size = locks_size;
-        transaction.locks.list = (transaction_rwspinlock_volatile_t**)ffma_mem_alloc(
+        transaction.locks.list = (transaction_locks_list_entry_t*)ffma_mem_alloc(
                 sizeof(void*) * transaction.locks.size);
 
-        SECTION("Add one lock") {
+        SECTION("Add one lock - Write") {
             transaction_rwspinlock_volatile_t lock = { 0 };
 
-            REQUIRE(transaction_locks_list_add(&transaction, &lock));
+            REQUIRE(transaction_locks_list_add(&transaction, &lock, TRANSACTION_LOCK_TYPE_WRITE));
             REQUIRE(transaction.locks.count == 1);
             REQUIRE(transaction.locks.size == locks_size);
-            REQUIRE(transaction.locks.list[0] == &lock);
+            REQUIRE(transaction.locks.list[0].spinlock == &lock);
+            REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_WRITE);
+        }
+
+        SECTION("Add one lock - Read") {
+            transaction_rwspinlock_volatile_t lock = { 0 };
+
+            REQUIRE(transaction_locks_list_add(&transaction, &lock, TRANSACTION_LOCK_TYPE_READ));
+            REQUIRE(transaction.locks.count == 1);
+            REQUIRE(transaction.locks.size == locks_size);
+            REQUIRE(transaction.locks.list[0].spinlock == &lock);
+            REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_READ);
         }
 
         SECTION("Add two lock") {
             transaction_rwspinlock_volatile_t lock[2] = { 0 };
-            REQUIRE(transaction_locks_list_add(&transaction, &lock[0]));
+            REQUIRE(transaction_locks_list_add(&transaction, &lock[0], TRANSACTION_LOCK_TYPE_WRITE));
             REQUIRE(transaction.locks.count == 1);
             REQUIRE(transaction.locks.size == locks_size);
-            REQUIRE(transaction.locks.list[0] == &lock[0]);
+            REQUIRE(transaction.locks.list[0].spinlock == &lock[0]);
 
-            REQUIRE(transaction_locks_list_add(&transaction, &lock[1]));
+            REQUIRE(transaction_locks_list_add(&transaction, &lock[1], TRANSACTION_LOCK_TYPE_WRITE));
             REQUIRE(transaction.locks.count == 2);
             REQUIRE(transaction.locks.size == locks_size);
-            REQUIRE(transaction.locks.list[1] == &lock[1]);
+            REQUIRE(transaction.locks.list[1].spinlock == &lock[1]);
         }
 
         SECTION("Trigger an expansion expansion") {
             transaction_rwspinlock_volatile_t lock[3] = { 0 };
 
             for(auto & index : lock) {
-                REQUIRE(transaction_locks_list_add(&transaction, &index));
+                REQUIRE(transaction_locks_list_add(&transaction, &index, TRANSACTION_LOCK_TYPE_WRITE));
             }
 
             REQUIRE(transaction.locks.count == ARRAY_SIZE(lock));
             REQUIRE(transaction.locks.size == locks_size * 2);
-            REQUIRE(transaction.locks.list[ARRAY_SIZE(lock) - 1] == &lock[ARRAY_SIZE(lock) - 1]);
+            REQUIRE(transaction.locks.list[ARRAY_SIZE(lock) - 1].spinlock == &lock[ARRAY_SIZE(lock) - 1]);
         }
 
         SECTION("Trigger multiple expansion") {
             transaction_rwspinlock_volatile_t lock[10] = { 0 };
 
             for(auto & index : lock) {
-                REQUIRE(transaction_locks_list_add(&transaction, &index));
+                REQUIRE(transaction_locks_list_add(&transaction, &index, TRANSACTION_LOCK_TYPE_WRITE));
             }
 
             REQUIRE(transaction.locks.count == ARRAY_SIZE(lock));
             REQUIRE(transaction.locks.size == 16);
-            REQUIRE(transaction.locks.list[ARRAY_SIZE(lock) - 1] == &lock[ARRAY_SIZE(lock) - 1]);
+            REQUIRE(transaction.locks.list[ARRAY_SIZE(lock) - 1].spinlock == &lock[ARRAY_SIZE(lock) - 1]);
         }
 
         ffma_mem_free(transaction.locks.list);
@@ -194,7 +205,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         SECTION("With one lock") {
             transaction_rwspinlock_volatile_t lock = { transaction.transaction_id.id };
 
-            REQUIRE(transaction_locks_list_add(&transaction, &lock));
+            REQUIRE(transaction_locks_list_add(&transaction, &lock, TRANSACTION_LOCK_TYPE_WRITE));
 
             transaction_release(&transaction);
 
@@ -207,8 +218,8 @@ TEST_CASE("transaction.c", "[transaction]") {
             transaction_rwspinlock_volatile_t lock1 = { transaction.transaction_id.id };
             transaction_rwspinlock_volatile_t lock2 = { transaction.transaction_id.id };
 
-            REQUIRE(transaction_locks_list_add(&transaction, &lock1));
-            REQUIRE(transaction_locks_list_add(&transaction, &lock2));
+            REQUIRE(transaction_locks_list_add(&transaction, &lock1, TRANSACTION_LOCK_TYPE_WRITE));
+            REQUIRE(transaction_locks_list_add(&transaction, &lock2, TRANSACTION_LOCK_TYPE_WRITE));
 
             transaction_release(&transaction);
 
@@ -223,7 +234,7 @@ TEST_CASE("transaction.c", "[transaction]") {
 
             for(auto & index : lock) {
                 index.internal_data.transaction_id = transaction.transaction_id.id;
-                REQUIRE(transaction_locks_list_add(&transaction, &index));
+                REQUIRE(transaction_locks_list_add(&transaction, &index, TRANSACTION_LOCK_TYPE_WRITE));
             }
 
             transaction_release(&transaction);
