@@ -19,7 +19,6 @@
 #include "log/log.h"
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_spinlock.h"
 
 #include "hashtable.h"
 #include "hashtable_support_index.h"
@@ -53,6 +52,7 @@ bool hashtable_mcmp_op_delete(
 
     LOG_DI("key (%d) = %s", key_length, key);
     LOG_DI("hash = 0x%016x", hash);
+    transaction_acquire(&transaction);
 
     volatile hashtable_data_t* hashtable_data_list[] = {
             hashtable->ht_current,
@@ -80,6 +80,7 @@ bool hashtable_mcmp_op_delete(
                 key,
                 key_length,
                 hash,
+                &transaction,
                 &chunk_index,
                 &chunk_slot_index,
                 &key_value) == false) {
@@ -92,11 +93,12 @@ bool hashtable_mcmp_op_delete(
         half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
 
         if (half_hashes_chunk->half_hashes[chunk_slot_index].filled == 0) {
+            transaction_release(&transaction);
             return false;
         }
 
-        transaction_acquire(&transaction);
-        if (unlikely(!transaction_spinlock_lock(&half_hashes_chunk->write_lock, &transaction))) {
+        if (unlikely(!transaction_upgrade_lock_for_write(&transaction, &half_hashes_chunk->lock))) {
+            transaction_release(&transaction);
             return false;
         }
 
@@ -184,7 +186,7 @@ bool hashtable_mcmp_op_delete_by_index(
         }
 
         transaction_acquire(&transaction);
-        if (unlikely(!transaction_spinlock_lock(&half_hashes_chunk->write_lock, &transaction))) {
+        if (unlikely(!transaction_lock_for_write(&transaction, &half_hashes_chunk->lock))) {
             return false;
         }
 
@@ -270,7 +272,7 @@ bool hashtable_mcmp_op_delete_by_index_all_databases(
         }
 
         transaction_acquire(&transaction);
-        if (unlikely(!transaction_spinlock_lock(&half_hashes_chunk->write_lock, &transaction))) {
+        if (unlikely(!transaction_lock_for_write(&transaction, &half_hashes_chunk->lock))) {
             return false;
         }
 

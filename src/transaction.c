@@ -10,6 +10,8 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <assert.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 
 #include "misc.h"
 #include "exttypes.h"
@@ -25,7 +27,6 @@
 #include "worker/worker.h"
 
 #include "transaction.h"
-#include "transaction_spinlock.h"
 
 #define TAG "transaction_spinlock"
 
@@ -48,7 +49,7 @@ bool transaction_expand_locks_list(
     transaction->locks.size = transaction->locks.size * 2;
     transaction->locks.list = ffma_mem_realloc(
             transaction->locks.list,
-            sizeof(transaction_spinlock_lock_volatile_t*) * transaction->locks.size);
+            sizeof(transaction_locks_list_entry_t) * transaction->locks.size);
 
     return transaction->locks.list != NULL;
 }
@@ -75,12 +76,9 @@ bool transaction_acquire(
     transaction->transaction_id.worker_index = transaction_manager_worker_index;
     transaction->transaction_id.transaction_index = transaction_manager_transaction_index;
 
-    // FFMA_OBJECT_SIZE_MIN should be 16 bytes, therefore the size of the locks list should be 16 / 8 = 2 by default
-    // and it should be enough for most of the cases
-    transaction->locks.size = FFMA_OBJECT_SIZE_MIN / sizeof(transaction_spinlock_lock_volatile_t*);
+    transaction->locks.size = 2;
     transaction->locks.count = 0;
-    transaction->locks.list = ffma_mem_alloc(
-            sizeof(transaction_spinlock_lock_volatile_t*) * transaction->locks.size);
+    transaction->locks.list = ffma_mem_alloc(sizeof(transaction_locks_list_entry_t) * transaction->locks.size);
 
     if (transaction->locks.list == NULL) {
         return false;
@@ -94,11 +92,22 @@ void transaction_release(
     assert(transaction->transaction_id.id != TRANSACTION_ID_NOT_ACQUIRED);
 
     for(uint32_t index = 0; index < transaction->locks.count; index++) {
+        transaction_locks_list_entry_t *entry = &transaction->locks.list[index];
+
+        assert(entry->lock_type != TRANSACTION_LOCK_TYPE_NONE);
+        assert(entry->spinlock != NULL);
+
+        // There are always going to be more read locks than write locks
+        if (unlikely(entry->lock_type == TRANSACTION_LOCK_TYPE_WRITE)) {
+            transaction_rwspinlock_unlock_internal(
+                    entry->spinlock
 #if DEBUG == 1
-        transaction_spinlock_unlock_internal(transaction->locks.list[index], transaction);
-#else
-        transaction_spinlock_unlock_internal(transaction->locks.list[index]);
+                    ,transaction
 #endif
+                    );
+        } else {
+            transaction_rwspinlock_readers_decrement(entry->spinlock);
+        }
     }
 
     ffma_mem_free(transaction->locks.list);

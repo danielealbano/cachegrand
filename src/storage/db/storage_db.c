@@ -30,7 +30,6 @@
 #include "memory_fences.h"
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_spinlock.h"
 #include "utils_string.h"
 #include "xalloc.h"
 #include "random.h"

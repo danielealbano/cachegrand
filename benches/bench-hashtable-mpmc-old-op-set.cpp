@@ -18,7 +18,6 @@
 #include "thread.h"
 #include "memory_fences.h"
 #include "transaction.h"
-#include "transaction_spinlock.h"
 #include "spinlock.h"
 #include "log/log.h"
 #include "memory_fences.h"

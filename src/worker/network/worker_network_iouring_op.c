@@ -19,7 +19,6 @@
 #include "log/log.h"
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_spinlock.h"
 #include "fiber/fiber.h"
 #include "config.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"

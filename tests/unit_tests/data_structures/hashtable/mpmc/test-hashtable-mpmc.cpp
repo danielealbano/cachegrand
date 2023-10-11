@@ -13,7 +13,6 @@
 #include "exttypes.h"
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_spinlock.h"
 
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
@@ -96,8 +95,8 @@ TEST_CASE("hashtable/hashtable.c", "[hashtable][hashtable]") {
         }
 
         SECTION("sizeof(hashtable_half_hashes_chunk_atomic.metadata.padding) == 4") {
-            hashtable_half_hashes_chunk_volatile_t hashtable_half_hashes_chunk_atomic = { 0 };
-            REQUIRE(sizeof(hashtable_half_hashes_chunk_atomic.metadata.padding) == 4);
+            hashtable_half_hashes_chunk_volatile_t hashtable_half_hashes_chunk_atomic;
+            REQUIRE(sizeof(hashtable_half_hashes_chunk_atomic.metadata) == 8);
         }
 
         SECTION("sizeof(hashtable_half_hashes_chunk_atomic.half_hashes) == 4 * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT)") {

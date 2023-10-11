@@ -18,7 +18,6 @@
 #include "memory_fences.h"
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_spinlock.h"
 #include "log/log.h"
 
 #include "hashtable.h"
@@ -36,6 +35,7 @@ bool hashtable_mcmp_op_get(
     hashtable_chunk_index_t chunk_index = 0;
     hashtable_chunk_slot_index_t chunk_slot_index = 0;
     hashtable_key_value_volatile_t* key_value = 0;
+    transaction_t transaction = { 0 };
 
     bool data_found = false;
     *data = 0;
@@ -44,6 +44,8 @@ bool hashtable_mcmp_op_get(
 
     LOG_DI("key (%d) = %s", key_length, key);
     LOG_DI("hash = 0x%016x", hash);
+
+    transaction_acquire(&transaction);
 
     hashtable_data_volatile_t* hashtable_data_list[] = {
             hashtable->ht_current,
@@ -73,6 +75,7 @@ bool hashtable_mcmp_op_get(
                 key,
                 key_length,
                 hash,
+                &transaction,
                 &chunk_index,
                 &chunk_slot_index,
                 &key_value) == false) {
@@ -90,6 +93,8 @@ bool hashtable_mcmp_op_get(
 
         break;
     }
+
+    transaction_release(&transaction);
 
     LOG_DI("data_found = %s", data_found ? "YES" : "NO");
     LOG_DI("data = 0x%016x", data);

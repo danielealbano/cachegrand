@@ -13,7 +13,6 @@
 #include "exttypes.h"
 #include "spinlock.h"
 #include "transaction.h"
-#include "transaction_spinlock.h"
 #include "xalloc.h"
 #include "misc.h"
 #include "log/log.h"
@@ -74,7 +73,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         &out_should_free_key));
 
                 // Check if the write lock has been released
-                REQUIRE(!transaction_spinlock_is_locked(&half_hashes_chunk->write_lock));
+                REQUIRE(!transaction_rwspinlock_is_write_locked(&half_hashes_chunk->lock));
 
                 // Check if the first slot of the chain ring contains the correct key/value
                 REQUIRE(half_hashes_chunk->metadata.slots_occupied == 1);
@@ -473,7 +472,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                             &out_should_free_key));
 
                     // Check if the write lock has been released
-                    REQUIRE(!transaction_spinlock_is_locked(&half_hashes_chunk->write_lock));
+                    REQUIRE(!transaction_rwspinlock_is_write_locked(&half_hashes_chunk->lock));
 
                     // Check if the first slot of the chain ring contains the correct key/value
                     REQUIRE(half_hashes_chunk->metadata.slots_occupied == 1);

@@ -102,15 +102,22 @@ typedef union {
 typedef struct hashtable_half_hashes_chunk hashtable_half_hashes_chunk_t;
 typedef _Volatile(hashtable_half_hashes_chunk_t) hashtable_half_hashes_chunk_volatile_t;
 struct hashtable_half_hashes_chunk {
-    transaction_spinlock_lock_volatile_t write_lock;
+    // The half hashes occupy 56 of the 64 bytes available, so we need to play with unions to accommodate the 6 bytes
+    // needed for the rwspinlock and the 2 bytes needed for the metadata.
+    // It's very important to keep in mind that the rwspinlock uses atomic operations and these operations are 8 byte
+    // wide therefore the will read and write ALSO the metadata, this is not a problem because the metadata is
+    // modified only under a write lock, but it's important to keep in mind in case the structure is modified.
     union {
-        uint32_t padding;
+        transaction_rwspinlock_volatile_t lock;
         struct {
-            uint8_volatile_t overflowed_chunks_counter;
-            uint8_volatile_t slots_occupied;
-            uint8_volatile_t is_full;
-        };
-    } metadata;
+            char padding[6];
+            struct {
+                uint8_volatile_t overflowed_chunks_counter;
+                uint8_volatile_t slots_occupied:7;
+                uint8_volatile_t is_full:1;
+            };
+        } metadata;
+    };
     hashtable_slot_id_wrapper_t half_hashes[HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT];
 } __attribute__((aligned(64)));
 
