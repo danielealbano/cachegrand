@@ -10,6 +10,8 @@ extern "C" {
 #define TRANSACTION_ID_NOT_ACQUIRED (0)
 #define TRANSACTION_SPINLOCK_UNLOCKED   (0)
 
+static uint32_t max_spins_before_probably_stuck = 1 << 26;
+
 enum transaction_lock_type {
     TRANSACTION_LOCK_TYPE_NONE = 0,
     TRANSACTION_LOCK_TYPE_READ = 1,
@@ -125,8 +127,6 @@ static inline __attribute__((always_inline)) bool transaction_rwspinlock_wait_wr
         transaction_rwspinlock_volatile_t *spinlock,
         const char* src_path,
         uint32_t src_line) {
-    uint32_t max_spins_before_probably_stuck = 1 << 26;
-
     uint64_t spins = 0;
     while (unlikely(transaction_rwspinlock_is_write_locked(spinlock))) {
         if (unlikely(spins++ == max_spins_before_probably_stuck)) {
@@ -145,8 +145,6 @@ static inline __attribute__((always_inline)) bool transaction_rwspinlock_write_l
         uint16_t expected_readers,
         const char* src_path,
         uint32_t src_line) {
-    uint32_t max_spins_before_probably_stuck = 1 << 26;
-
     uint64_t spins = 0;
     while (unlikely(!transaction_rwspinlock_try_write_lock_internal(spinlock, transaction, expected_readers))) {
         if (unlikely(spins++ == max_spins_before_probably_stuck)) {
