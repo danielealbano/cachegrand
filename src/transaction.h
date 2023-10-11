@@ -10,6 +10,13 @@ extern "C" {
 #define TRANSACTION_ID_NOT_ACQUIRED (0)
 #define TRANSACTION_SPINLOCK_UNLOCKED   (0)
 
+enum transaction_lock_type {
+    TRANSACTION_LOCK_TYPE_NONE = 0,
+    TRANSACTION_LOCK_TYPE_READ = 1,
+    TRANSACTION_LOCK_TYPE_WRITE = 2,
+};
+typedef enum transaction_lock_type transaction_lock_type_t;
+
 typedef struct transaction_id transaction_id_t;
 typedef _Volatile(transaction_id_t) transaction_id_volatile_t;
 struct transaction_id {
@@ -37,13 +44,19 @@ struct transaction_rwspinlock {
     };
 } __attribute__((aligned(8)));
 
+typedef struct transaction_locks_list_entry transaction_locks_list_entry_t;
+struct transaction_locks_list_entry {
+    transaction_rwspinlock_volatile_t *spinlock;
+    transaction_lock_type_t lock_type;
+};
+
 typedef struct transaction transaction_t;
 struct transaction {
     transaction_id_volatile_t transaction_id;
     struct {
         uint32_t count;
         uint32_t size;
-        transaction_rwspinlock_volatile_t **list;
+        transaction_locks_list_entry_t *list;
     } locks;
 };
 
@@ -83,12 +96,13 @@ static inline __attribute__((always_inline)) bool transaction_rwspinlock_is_owne
 
 static inline __attribute__((always_inline)) bool transaction_rwspinlock_try_write_lock_internal(
         transaction_rwspinlock_volatile_t *spinlock,
-        transaction_t *transaction) {
+        transaction_t *transaction,
+        uint16_t expected_readers) {
     assert(transaction->transaction_id.id != TRANSACTION_ID_NOT_ACQUIRED);
 
     transaction_rwspinlock_t new_value = { 0 };
     new_value.internal_data.transaction_id = transaction->transaction_id.id;
-    new_value.internal_data.readers_count = 0;
+    new_value.internal_data.readers_count = expected_readers;
 
     // These 2 bytes must be always imported as they might not belong to the rwspinlock itself as by specs the
     // rwspinlock is only 6 bytes long.
@@ -96,7 +110,7 @@ static inline __attribute__((always_inline)) bool transaction_rwspinlock_try_wri
 
     transaction_rwspinlock_t expected_value = { 0 };
     expected_value.internal_data.transaction_id = TRANSACTION_SPINLOCK_UNLOCKED;
-    expected_value.internal_data.readers_count = 0;
+    expected_value.internal_data.readers_count = expected_readers;
 
     // These 2 bytes must be always imported as they might not belong to the rwspinlock itself as by specs the
     // rwspinlock is only 6 bytes long.
@@ -114,7 +128,7 @@ static inline __attribute__((always_inline)) bool transaction_rwspinlock_wait_wr
     uint32_t max_spins_before_probably_stuck = 1 << 26;
 
     uint64_t spins = 0;
-    while (unlikely(!transaction_rwspinlock_is_write_locked(spinlock))) {
+    while (unlikely(transaction_rwspinlock_is_write_locked(spinlock))) {
         if (unlikely(spins++ == max_spins_before_probably_stuck)) {
             LOG_E("transaction_rwspinlock", "Possible stuck transactional spinlock detected for thread %lu in %s:%u",
                   syscall(__NR_gettid), src_path, src_line);
@@ -128,12 +142,13 @@ static inline __attribute__((always_inline)) bool transaction_rwspinlock_wait_wr
 static inline __attribute__((always_inline)) bool transaction_rwspinlock_write_lock_internal(
         transaction_rwspinlock_volatile_t *spinlock,
         transaction_t *transaction,
+        uint16_t expected_readers,
         const char* src_path,
         uint32_t src_line) {
     uint32_t max_spins_before_probably_stuck = 1 << 26;
 
     uint64_t spins = 0;
-    while (unlikely(!transaction_rwspinlock_try_write_lock_internal(spinlock, transaction))) {
+    while (unlikely(!transaction_rwspinlock_try_write_lock_internal(spinlock, transaction, expected_readers))) {
         if (unlikely(spins++ == max_spins_before_probably_stuck)) {
             LOG_E("transaction_rwspinlock", "Possible stuck transactional spinlock detected for thread %lu in %s:%u",
                   syscall(__NR_gettid), src_path, src_line);
@@ -142,6 +157,16 @@ static inline __attribute__((always_inline)) bool transaction_rwspinlock_write_l
     }
 
     return true;
+}
+
+static inline __attribute__((always_inline)) void transaction_rwspinlock_readers_increment(
+        transaction_rwspinlock_volatile_t *spinlock) {
+    __sync_fetch_and_add(&spinlock->internal_data.readers_count, 1);
+}
+
+static inline __attribute__((always_inline)) void transaction_rwspinlock_readers_decrement(
+        transaction_rwspinlock_volatile_t *spinlock) {
+    __sync_fetch_and_sub(&spinlock->internal_data.readers_count, 1);
 }
 
 void transaction_set_worker_index(
@@ -165,14 +190,20 @@ static inline __attribute__((always_inline)) bool transaction_needs_expand_locks
 
 static inline __attribute__((always_inline)) bool transaction_locks_list_add(
         transaction_t *transaction,
-        transaction_rwspinlock_volatile_t *transaction_spinlock) {
+        transaction_rwspinlock_volatile_t *transaction_rwspinlock,
+        transaction_lock_type_t lock_type) {
+    assert(transaction != NULL);
+    assert(transaction_rwspinlock != NULL);
+    assert(lock_type != TRANSACTION_LOCK_TYPE_NONE);
+
     if (unlikely(transaction_needs_expand_locks_list(transaction))) {
         if (unlikely(!transaction_expand_locks_list(transaction))) {
             return false;
         }
     }
 
-    transaction->locks.list[transaction->locks.count] = transaction_spinlock;
+    transaction->locks.list[transaction->locks.count].spinlock = transaction_rwspinlock;
+    transaction->locks.list[transaction->locks.count].lock_type = lock_type;
     transaction->locks.count++;
 
     return true;
@@ -190,37 +221,121 @@ static inline __attribute__((always_inline)) bool transaction_lock_for_write_int
         if (unlikely(!transaction_rwspinlock_write_lock_internal(
                 transaction_rwspinlock,
                 transaction,
+                0,
                 src_path,
                 src_line))) {
             return false;
         }
     }
 
-    if (!transaction_locks_list_add(transaction, transaction_rwspinlock)) {
+    if (!transaction_locks_list_add(
+            transaction,
+            transaction_rwspinlock,
+            TRANSACTION_LOCK_TYPE_WRITE)) {
         // Unlock the spinlock and fail the operation
         transaction_rwspinlock_unlock_internal(
                 transaction_rwspinlock
 #if DEBUG == 1
                 , transaction
 #endif
-            );
+        );
         return false;
     }
 
     return true;
 }
 
-/**
- * Uses a macro to wrap transaction_rwspinlock_wait_write_lock_internal to automatically define the path and the line args
- */
-#define transaction_rwspinlock_wait_write_lock(transaction_rwspinlock_var) \
-    transaction_rwspinlock_wait_write_lock_internal(transaction_rwspinlock_var, CACHEGRAND_SRC_PATH, __LINE__)
+static inline __attribute__((always_inline)) bool transaction_upgrade_lock_for_write_internal(
+        transaction_t *transaction,
+        transaction_rwspinlock_volatile_t *transaction_rwspinlock,
+        const char* src_path,
+        uint32_t src_line) {
+    assert(transaction != NULL);
+    assert(transaction_rwspinlock != NULL);
+
+    if (likely(!transaction_rwspinlock_is_owned_by_transaction(
+            transaction_rwspinlock,
+            transaction))) {
+        if (unlikely(!transaction_rwspinlock_write_lock_internal(
+                transaction_rwspinlock,
+                transaction,
+                1,
+                src_path,
+                src_line))) {
+            return false;
+        }
+    }
+
+    if (!transaction_locks_list_add(
+            transaction,
+            transaction_rwspinlock,
+            TRANSACTION_LOCK_TYPE_WRITE)) {
+        // Unlock the spinlock and fail the operation
+        transaction_rwspinlock_unlock_internal(
+                transaction_rwspinlock
+#if DEBUG == 1
+                , transaction
+#endif
+        );
+
+        return false;
+    }
+
+    return true;
+}
+
+static inline __attribute__((always_inline)) bool transaction_lock_for_readers_internal(
+        transaction_t *transaction,
+        transaction_rwspinlock_volatile_t *transaction_rwspinlock,
+        const char* src_path,
+        uint32_t src_line) {
+    assert(transaction != NULL);
+    assert(transaction_rwspinlock != NULL);
+    assert(transaction->transaction_id.id != transaction_rwspinlock->internal_data.transaction_id);
+
+    // Increment the readers count
+    transaction_rwspinlock_readers_increment(transaction_rwspinlock);
+
+    // Ensure that there isn't a transaction in progress
+    if (unlikely(!transaction_rwspinlock_wait_write_lock_internal(
+            transaction_rwspinlock,
+            src_path,
+            src_line))) {
+        goto cleanup;
+    }
+
+    if (!transaction_locks_list_add(
+            transaction,
+            transaction_rwspinlock,
+            TRANSACTION_LOCK_TYPE_READ)) {
+        goto cleanup;
+    }
+
+    return true;
+
+cleanup:
+
+    transaction_rwspinlock_readers_decrement(transaction_rwspinlock);
+    return false;
+}
 
 /**
  * Uses a macro to wrap transaction_rwspinlock_write_lock_internal to automatically define the path and the line args
  */
 #define transaction_lock_for_write(transaction_var, transaction_rwspinlock_var) \
     transaction_lock_for_write_internal(transaction_var, transaction_rwspinlock_var, CACHEGRAND_SRC_PATH, __LINE__)
+
+/**
+ * Uses a macro to wrap transaction_upgrade_lock_for_write_internal to automatically define the path and the line args
+ */
+#define transaction_upgrade_lock_for_write(transaction_var, transaction_rwspinlock_var) \
+    transaction_upgrade_lock_for_write_internal(transaction_var, transaction_rwspinlock_var, CACHEGRAND_SRC_PATH, __LINE__)
+
+/**
+ * Uses a macro to wrap transaction_upgrade_lock_for_write_internal to automatically define the path and the line args
+ */
+#define transaction_lock_for_readers(transaction_var, transaction_rwspinlock_var) \
+    transaction_lock_for_readers_internal(transaction_var, transaction_rwspinlock_var, CACHEGRAND_SRC_PATH, __LINE__)
 
 #ifdef __cplusplus
 }
