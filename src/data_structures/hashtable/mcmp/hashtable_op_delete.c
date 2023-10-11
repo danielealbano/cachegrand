@@ -93,10 +93,12 @@ bool hashtable_mcmp_op_delete(
         half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
 
         if (half_hashes_chunk->half_hashes[chunk_slot_index].filled == 0) {
+            transaction_release(&transaction);
             return false;
         }
 
         if (unlikely(!transaction_upgrade_lock_for_write(&transaction, &half_hashes_chunk->lock))) {
+            transaction_release(&transaction);
             return false;
         }
 

@@ -94,6 +94,8 @@ bool hashtable_mcmp_op_get(
         break;
     }
 
+    transaction_release(&transaction);
+
     LOG_DI("data_found = %s", data_found ? "YES" : "NO");
     LOG_DI("data = 0x%016x", data);
 
