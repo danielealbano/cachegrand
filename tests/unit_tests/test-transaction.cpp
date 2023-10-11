@@ -290,44 +290,6 @@ TEST_CASE("transaction.c", "[transaction]") {
         transaction_release(&transaction);
     }
 
-    SECTION("transaction_upgrade_lock_for_write") {
-        uint16_t lock_internal_data_reserved = 1234;
-        transaction_t transaction = { 0 };
-        REQUIRE(transaction_acquire(&transaction));
-        transaction_rwspinlock_volatile_t lock = { 0 };
-        lock.internal_data.reserved = lock_internal_data_reserved;
-
-        SECTION("Upgrade with no readers") {
-
-            REQUIRE(transaction_lock_for_readers(&transaction, &lock));
-
-            REQUIRE(transaction_upgrade_lock_for_write(&transaction, &lock));
-
-            REQUIRE(lock.internal_data.transaction_id == transaction.transaction_id.id);
-            REQUIRE(lock.internal_data.readers_count == 1);
-            REQUIRE(lock.internal_data.reserved == lock_internal_data_reserved);
-            REQUIRE(transaction.locks.count == 2);
-            REQUIRE(transaction.locks.list[0].spinlock == &lock);
-            REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_READ);
-            REQUIRE(transaction.locks.list[1].spinlock == &lock);
-            REQUIRE(transaction.locks.list[1].lock_type == TRANSACTION_LOCK_TYPE_WRITE);
-        }
-
-        SECTION("Failing lock with readers") {
-            lock.internal_data.readers_count = 1;
-
-            REQUIRE(transaction_lock_for_readers(&transaction, &lock));
-            REQUIRE(!transaction_upgrade_lock_for_write(&transaction, &lock));
-
-            REQUIRE(lock.internal_data.transaction_id == 0);
-            REQUIRE(lock.internal_data.readers_count == 2);
-            REQUIRE(lock.internal_data.reserved == lock_internal_data_reserved);
-            REQUIRE(transaction.locks.count == 1);
-            REQUIRE(transaction.locks.list[0].spinlock == &lock);
-            REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_READ);
-        }
-    }
-
     SECTION("transaction_lock_for_readers") {
         uint16_t lock_internal_data_reserved = 1234;
         transaction_t transaction = { 0 };
@@ -368,6 +330,43 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(lock.internal_data.readers_count == 0);
             REQUIRE(lock.internal_data.reserved == lock_internal_data_reserved);
             REQUIRE(transaction.locks.count == 0);
+        }
+    }
+
+    SECTION("transaction_upgrade_lock_for_write") {
+        uint16_t lock_internal_data_reserved = 1234;
+        transaction_t transaction = { 0 };
+        REQUIRE(transaction_acquire(&transaction));
+        transaction_rwspinlock_volatile_t lock = { 0 };
+        lock.internal_data.reserved = lock_internal_data_reserved;
+
+        SECTION("Upgrade with no readers") {
+            REQUIRE(transaction_lock_for_readers(&transaction, &lock));
+
+            REQUIRE(transaction_upgrade_lock_for_write(&transaction, &lock));
+
+            REQUIRE(lock.internal_data.transaction_id == transaction.transaction_id.id);
+            REQUIRE(lock.internal_data.readers_count == 1);
+            REQUIRE(lock.internal_data.reserved == lock_internal_data_reserved);
+            REQUIRE(transaction.locks.count == 2);
+            REQUIRE(transaction.locks.list[0].spinlock == &lock);
+            REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_READ);
+            REQUIRE(transaction.locks.list[1].spinlock == &lock);
+            REQUIRE(transaction.locks.list[1].lock_type == TRANSACTION_LOCK_TYPE_WRITE);
+        }
+
+        SECTION("Failing lock with readers") {
+            lock.internal_data.readers_count = 1;
+
+            REQUIRE(transaction_lock_for_readers(&transaction, &lock));
+            REQUIRE(!transaction_upgrade_lock_for_write(&transaction, &lock));
+
+            REQUIRE(lock.internal_data.transaction_id == 0);
+            REQUIRE(lock.internal_data.readers_count == 2);
+            REQUIRE(lock.internal_data.reserved == lock_internal_data_reserved);
+            REQUIRE(transaction.locks.count == 1);
+            REQUIRE(transaction.locks.list[0].spinlock == &lock);
+            REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_READ);
         }
     }
 }
