@@ -20,6 +20,7 @@
 #include "clock.h"
 #include "spinlock.h"
 #include "transaction.h"
+#include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
