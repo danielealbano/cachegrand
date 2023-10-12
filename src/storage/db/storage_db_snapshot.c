@@ -366,6 +366,9 @@ end:
         if (snapshot_fd > 0) {
             close(snapshot_fd);
         }
+
+        db->snapshot.in_preparation = false;
+        MEMORY_FENCE_STORE();
     }
 
     return result;
