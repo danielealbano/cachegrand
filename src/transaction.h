@@ -159,11 +159,13 @@ static inline __attribute__((always_inline)) bool transaction_rwspinlock_write_l
 
 static inline __attribute__((always_inline)) void transaction_rwspinlock_readers_increment(
         transaction_rwspinlock_volatile_t *spinlock) {
+    assert(spinlock->internal_data.readers_count < UINT16_MAX);
     __sync_fetch_and_add(&spinlock->internal_data.readers_count, 1);
 }
 
 static inline __attribute__((always_inline)) void transaction_rwspinlock_readers_decrement(
         transaction_rwspinlock_volatile_t *spinlock) {
+    assert(spinlock->internal_data.readers_count > 0);
     __sync_fetch_and_sub(&spinlock->internal_data.readers_count, 1);
 }
 
