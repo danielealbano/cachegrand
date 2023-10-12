@@ -100,9 +100,13 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
             continue;
         }
 
-        // Increment the readers counter
+        // The first chunk is locked initially to read the overflowed_chunks_counter
+        if (likely(chunk_index != chunk_index_start_initial)) {
+            // Increment the readers counter (it will issue an atomic increment which will sync the cachelines as needed
+            // mimicking a memory fence)
         if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
             return false;
+        }
         }
 
         skip_indexes_mask = 0;
