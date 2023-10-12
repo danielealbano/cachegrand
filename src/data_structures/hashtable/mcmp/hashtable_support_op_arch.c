@@ -51,6 +51,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
     hashtable_key_data_volatile_t *found_key;
     hashtable_key_length_t found_key_length;
     uint32_t skip_indexes_mask;
+    uint8_volatile_t overflowed_chunks_counter;
     bool found = false;
 
     bucket_index = hashtable_mcmp_support_index_from_hash(hashtable_data->buckets_count, hash);
@@ -60,21 +61,15 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
     assert(bucket_index < hashtable_data->buckets_count);
     assert(chunk_index_start_initial < hashtable_data->chunks_count);
 
-    MEMORY_FENCE_LOAD();
-
     half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index_start_initial];
-    uint8_volatile_t overflowed_chunks_counter = half_hashes_chunk->metadata.overflowed_chunks_counter;
 
-    LOG_DI("hash_half = %lu", hash_half);
-    LOG_DI("bucket_index = %lu", bucket_index);
+    // Lock the chunk for reading to get a consistent view of the data and ensure that overflowed_chunks_counter is
+    // up to date
     if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
         return false;
     }
-    LOG_DI("hashtable_data->buckets_count_real = %lu", hashtable_data->buckets_count_real);
+
     overflowed_chunks_counter = half_hashes_chunk->metadata.overflowed_chunks_counter;
-    LOG_DI("half_hashes_chunk->metadata.is_full = %lu", half_hashes_chunk->metadata.is_full);
-    LOG_DI("half_hashes_chunk->metadata.slots_occupied = %lu", half_hashes_chunk->metadata.slots_occupied);
-    LOG_DI("half_hashes_chunk->metadata.overflowed_chunks_counter = %lu", overflowed_chunks_counter);
 
     slot_id_wrapper.filled = 1;
     slot_id_wrapper.quarter_hash = hashtable_mcmp_support_hash_quarter(hash_half);
@@ -87,16 +82,8 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
 
         slot_id_wrapper.distance = chunk_index - chunk_index_start_initial;
 
-        LOG_DI("> slot_id_wrapper.slot_id = %lu", slot_id_wrapper.slot_id);
-        LOG_DI("> slot_id_wrapper.filled = %lu", slot_id_wrapper.filled);
-        LOG_DI("> slot_id_wrapper.distance = %lu", slot_id_wrapper.distance);
-        LOG_DI("> slot_id_wrapper.quarter_hash = %lu", slot_id_wrapper.quarter_hash);
-        LOG_DI("> chunk_index = %lu", chunk_index);
-
         half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
-
         if (half_hashes_chunk->metadata.slots_occupied == 0) {
-            LOG_DI(">> skipping chunk because it's empty");
             continue;
         }
 
@@ -104,25 +91,18 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
         if (likely(chunk_index != chunk_index_start_initial)) {
             // Increment the readers counter (it will issue an atomic increment which will sync the cachelines as needed
             // mimicking a memory fence)
-        if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
-            return false;
-        }
+            if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
+                return false;
+            }
         }
 
         skip_indexes_mask = 0;
         uint32_t result_mask = HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_FUNC(
-        while(true) {
-            // Ensure that the fresh-est half_hashes are going to be read
-            MEMORY_FENCE_LOAD();
-
-                    slot_id_wrapper.slot_id,
+                slot_id_wrapper.slot_id,
                 (hashtable_hash_half_volatile_t *) half_hashes_chunk->half_hashes);
         while(true) {
             uint32_t skip_indexes_mask_inv = ~(skip_indexes_mask | 0xC000);
             if ((result_mask & skip_indexes_mask_inv) == 0) {
-
-            if (chunk_slot_index == HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_NOT_FOUND) {
-                LOG_DI(">> no match found, exiting slot search loop");
                 break;
             }
             chunk_slot_index = __builtin_ctz(result_mask & skip_indexes_mask_inv);
@@ -130,62 +110,36 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
             // Update the skip indexes in case of another iteration
             skip_indexes_mask |= 1u << chunk_slot_index;
 
-            LOG_DI(">> skip_indexes_mask = 0x%08x", skip_indexes_mask);
-            LOG_DI(">> fetching key_value at bucket index = %lu",
-                   (chunk_index * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index);
-
             key_value = &hashtable_data->keys_values[
                     (chunk_index * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index];
 
-            // Ensure that the fresh-est flags value is going to be read in the next code block
-            MEMORY_FENCE_LOAD();
-
-            LOG_DI(">> key_value->flags = 0x%08x", key_value->flags);
-
             // Stop if hash found but bucket being filled, edge case because of parallelism.
             if (unlikely(HASHTABLE_KEY_VALUE_IS_EMPTY(key_value->flags))) {
-                LOG_DI(">> key_value->flags = 0 - terminating loop");
                 break;
             } else if (unlikely(HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags, HASHTABLE_KEY_VALUE_FLAG_DELETED))) {
-                LOG_DI(">> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED - continuing");
                 continue;
             }
 
-            LOG_DI(">> checking key");
-
-            MEMORY_FENCE_LOAD();
             found_key = key_value->key;
             found_key_length = key_value->key_length;
 
             if (found_key_length != key_length) {
-                LOG_DI(">> key have different length (%lu != %lu), skipping comparison", key_length, found_key_length);
                 continue;
             }
-
-            // Ensure that the fresh-est flags value is going to be read to avoid that the deleted flag has
-            // been set after they key pointer has been read
-            MEMORY_FENCE_LOAD();
 
             // Check the flags after it fetches the key, if DELETED is set the flag that indicates that the key is
             // inlined is not reliable anymore, therefore we may read from some memory not owned by the software.
             if (unlikely(HASHTABLE_KEY_VALUE_HAS_FLAG(key_value->flags,
                     HASHTABLE_KEY_VALUE_FLAG_DELETED))) {
-                LOG_DI(">> key_value->flags has HASHTABLE_BUCKET_KEY_VALUE_FLAG_DELETED - continuing");
                 continue;
             }
 
-            LOG_DI(">> key fetched, comparing");
-
-            // Issue a memory fence and compare the database number to ensure that the entry hasn't been changed
-            // and assigned to another database
-            MEMORY_FENCE_LOAD();
             if (
                     key_length != found_key_length
                     ||
                     strncmp(key, (const char*)found_key, found_key_length) != 0
                     ||
                     database_number != key_value->database_number) {
-                LOG_DI(">> key different (%s != %s), unable to continue", key, found_key);
                 continue;
             }
 
@@ -194,15 +148,9 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
             *found_key_value = key_value;
             found = true;
 
-            LOG_DI(">> match found, updating found_key_value");
             break;
         }
     }
-
-    LOG_DI("found_chunk_index = %lu", *found_chunk_index);
-    LOG_DI("found_chunk_slot_index = %lu", *found_chunk_slot_index);
-    LOG_DI("found_key_value = 0x%016x", *found_key_value);
-    LOG_DI("found = %s", found ? "YES" : "NO");
 
     return found;
 }
@@ -247,14 +195,6 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
     assert(chunk_index_start < hashtable_data->chunks_count);
 
     hash_half = hashtable_mcmp_support_hash_half(hash);
-
-    LOG_DI("hash_half = %lu", hash_half);
-    LOG_DI("bucket_index = %lu", bucket_index);
-    LOG_DI("chunk_index_start = %lu", chunk_index_start);
-    LOG_DI("hashtable_data->chunks_count = %lu", hashtable_data->chunks_count);
-    LOG_DI("hashtable_data->buckets_count = %lu", hashtable_data->buckets_count);
-    LOG_DI("hashtable_data->buckets_count_real = %lu", hashtable_data->buckets_count_real);
-
     half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index_start];
 
     if (likely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
@@ -264,15 +204,7 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
     }
 
     locked_up_to_chunk_index = chunk_index_start;
-
-    LOG_DI("locked_up_to_chunk_index = %lu", locked_up_to_chunk_index);
-
     uint8_volatile_t overflowed_chunks_counter = half_hashes_chunk->metadata.overflowed_chunks_counter;
-
-    LOG_DI("half_hashes_chunk->lock.lock = %lu", half_hashes_chunk->lock.internal_data.transaction_id);
-    LOG_DI("half_hashes_chunk->metadata.is_full = %lu", half_hashes_chunk->metadata.is_full);
-    LOG_DI("half_hashes_chunk->metadata.slots_occupied = %lu", half_hashes_chunk->metadata.slots_occupied);
-    LOG_DI("half_hashes_chunk->metadata.overflowed_chunks_counter = %lu", overflowed_chunks_counter);
 
     slot_id_wrapper.filled = 1;
     slot_id_wrapper.quarter_hash = hashtable_mcmp_support_hash_quarter(hash_half);
@@ -293,10 +225,6 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                     HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX;
         }
 
-        LOG_DI("> searching_or_creating = %s", searching_or_creating == 0 ? "SEARCHING" : "CREATING");
-        LOG_DI("> chunk_index_start = %u", chunk_index_start);
-        LOG_DI("> chunk_index_end = %u", chunk_index_end);
-
         assert(chunk_index_start <= hashtable_data->chunks_count);
         assert(chunk_index_end <= hashtable_data->chunks_count);
 
@@ -309,21 +237,12 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
             // Update the distance in the slot id wrapper
             slot_id_wrapper.distance = chunk_index - chunk_index_start_initial;
 
-            LOG_DI("> slot_id_wrapper.slot_id = %lu", slot_id_wrapper.slot_id);
-            LOG_DI("> slot_id_wrapper.filled = %lu", slot_id_wrapper.filled);
-            LOG_DI("> slot_id_wrapper.distance = %lu", slot_id_wrapper.distance);
-            LOG_DI("> slot_id_wrapper.quarter_hash = %lu", slot_id_wrapper.quarter_hash);
-            LOG_DI(">> chunk_index = %lu", chunk_index);
-
             half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
 
             // Every time a new chunk gets processed during the search it has to be locked for safety reasons
-            LOG_DI(">> chunk_index > locked_up_to_chunk_index = %s", chunk_index > locked_up_to_chunk_index ? "YES" : "NO");
             if (chunk_index > locked_up_to_chunk_index) {
-                LOG_DI(">> updating locked_up_to_chunk_index to %d", chunk_index);
                 locked_up_to_chunk_index = chunk_index;
 
-                LOG_DI(">> locking chunk (with retry)");
                 if (likely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
                     if (unlikely(!transaction_lock_for_write(transaction, &half_hashes_chunk->lock))) {
                         return false;
@@ -335,16 +254,12 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                 // Check if it has found a chunk with free space
                 if (found_chunk_with_freespace == false) {
                     chunk_first_with_freespace = chunk_index;
-                    LOG_DI(">> chunk_first_with_freespace = %lu", chunk_first_with_freespace);
-
                     if (half_hashes_chunk->metadata.is_full == 0) {
-                        LOG_DI(">> found chunk with free space");
                         found_chunk_with_freespace = true;
                     }
                 }
 
                 if (half_hashes_chunk->metadata.slots_occupied == 0) {
-                    LOG_DI(">> skipping chunk because it's empty");
                     continue;
                 }
             }
@@ -357,8 +272,6 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
             while (true) {
                 uint32_t skip_indexes_mask_inv = ~(skip_indexes_mask | 0xC000);
                 if ((result_mask & skip_indexes_mask_inv) == 0) {
-                LOG_DI(">>> chunk_slot_index = %lu", chunk_slot_index);
-
                     break;
                 }
 
@@ -367,42 +280,27 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                 // Update the skip indexes in case of another iteration
                 skip_indexes_mask |= 1u << chunk_slot_index;
 
-                LOG_DI(">>> skip_indexes_mask = 0x%08x", skip_indexes_mask);
-                LOG_DI(">>> fetching key_value at bucket index = %lu",
-                       (chunk_index * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index);
-
                 key_value = &hashtable_data->keys_values[
                         (chunk_index * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index];
 
-                LOG_DI(">>> key_value->flags = 0x%08x", key_value->flags);
-
                 if (searching_or_creating == 0) {
-                    MEMORY_FENCE_LOAD();
                     found_key = key_value->key;
                     found_key_length = key_value->key_length;
 
                     if (unlikely(found_key_length != key_length)) {
-                        LOG_DI(">>> key have different length (%lu != %lu), skipping comparison",
-                               key_length, found_key_length);
                         continue;
                     }
 
-                    LOG_DI(">>> key fetched, comparing");
-
                     // Issue a memory fence and compare the database number to ensure that the entry hasn't been changed
                     // and assigned to another database
-                    MEMORY_FENCE_LOAD();
                     if (
                             key_length != found_key_length
                             ||
                             strncmp(key, (const char*)found_key, found_key_length) != 0
                             ||
                             database_number != key_value->database_number) {
-                        LOG_DI(">>> key different (%s != %s), unable to continue", key, found_key);
                         continue;
                     }
-
-                    LOG_DI(">>> match found");
                 } else {
                     // Not needed to perform a memory store barrier here, at some point the cpu will flush or a memory
                     // barrier will be issued. Setting the value without flushing is not impacting the functionalities.
@@ -412,9 +310,6 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                     // Update the counter for the occupied slots
                     half_hashes_chunk->metadata.slots_occupied++;
                     assert(half_hashes_chunk->metadata.slots_occupied <= HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT);
-                    LOG_DI(">>> incrementing the slots_occupied to %d", half_hashes_chunk->metadata.slots_occupied);
-
-                    LOG_DI(">>> empty slot found, updating the half_hashes in the chunk with the hash");
                 }
 
                 *found_half_hashes_chunk = half_hashes_chunk;
@@ -422,8 +317,6 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                 *found_chunk_index = chunk_index;
                 *found_chunk_slot_index = chunk_slot_index;
                 found = true;
-
-                LOG_DI(">>> updating found_chunk_index and found_key_value");
 
                 // Update the overflowed_chunks_counter if necessary
                 uint8_volatile_t overflowed_chunks_counter_new = (uint8_t)(*found_chunk_index - chunk_index_start_initial);
@@ -435,16 +328,12 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
                 hashtable_data->half_hashes_chunk[chunk_index_start_initial].metadata.overflowed_chunks_counter =
                         overflowed_chunks_counter_update;
 
-                LOG_DI(">>> updating overflowed_chunks_counter to %lu", overflowed_chunks_counter_update);
-
                 assert(overflowed_chunks_counter_update < HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX);
                 break;
             }
 
             if (searching_or_creating == 1) {
                 if (found == false) {
-                    LOG_DI(">> can't find a free slot in current chunk, setting is_full to 1");
-
                     // Not needed to perform a memory store barrier here, the is_full metadata is used only by the
                     // thread holding the lock
                     half_hashes_chunk->metadata.is_full = 1;
@@ -452,17 +341,6 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
             }
         }
     }
-
-    // Iterate of the chunks to remove the place locks, the only lock not removed is if the chunk holding the hash
-
-    if (found) {
-        LOG_DI("chunk %lu will not be unlocked, it has to be returned to the caller", *found_chunk_index);
-    }
-
-    LOG_DI("found_half_hashes_chunk = 0x%016x", *found_half_hashes_chunk);
-    LOG_DI("found_key_value = 0x%016x", *found_key_value);
-    LOG_DI("created_new = %s", *created_new ? "YES" : "NO");
-    LOG_DI("found = %s", found ? "YES" : "NO");
 
     return found;
 }
