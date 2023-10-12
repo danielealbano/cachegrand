@@ -8,6 +8,8 @@
 
 #include <cstdint>
 #include <numa.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 
 #include <benchmark/benchmark.h>
 
@@ -15,6 +17,8 @@
 #include "exttypes.h"
 #include "clock.h"
 #include "config.h"
+#include "log/log.h"
+#include "xalloc.h"
 #include "thread.h"
 #include "memory_fences.h"
 #include "transaction.h"
@@ -41,7 +45,7 @@
 #include "benchmark-program.hpp"
 #include "benchmark-support.hpp"
 
-#define TEST_VALIDATE_KEYS 0
+#define TEST_VALIDATE_KEYS 1
 
 // Set the generator to use
 #define KEYSET_GENERATOR_METHOD     TEST_SUPPORT_RANDOM_KEYS_GEN_FUNC_RANDOM_STR_MAX_LENGTH
@@ -95,11 +99,10 @@ public:
 
     void SetUp(const ::benchmark::State& state) override {
         char error_message[150] = {0};
-        worker_context_t worker_context = { 0 };
+        auto worker_context = (worker_context_t*)xalloc_alloc_zero(sizeof(worker_context_t));
 
-        worker_context.worker_index = state.thread_index();
-        worker_context_set(&worker_context);
-        transaction_set_worker_index(worker_context.worker_index);
+        worker_context->worker_index = state.thread_index();
+        worker_context_set(worker_context);
 
         test_support_set_thread_affinity(state.thread_index());
 
@@ -160,6 +163,7 @@ public:
         this->RunningThreadsWait();
 
         if (state.thread_index() != 0) {
+            xalloc_free(worker_context_get());
             return;
         }
 
@@ -175,6 +179,8 @@ public:
             // Free the keys
             test_support_free_keyset_slots(this->_keyset_slots);
         }
+
+        xalloc_free(worker_context_get());
 
         this->_hashtable = nullptr;
         this->_keyset_slots = nullptr;
@@ -208,12 +214,17 @@ BENCHMARK_DEFINE_F(HashtableOpSetInsertFixture, hashtable_op_set_insert)(benchma
                 uint64_t key_index = state.thread_index();
                 key_index < requested_keyset_size;
                 key_index += state.threads()) {
+            bool should_free_key = false;
+            hashtable_bucket_index_t out_bucket_index;
             benchmark::DoNotOptimize((result = hashtable_mcmp_op_set(
                     hashtable,
+                    0,
                     keyset_slots[key_index].key,
                     keyset_slots[key_index].key_length,
                     key_index,
-                    nullptr)));
+                    nullptr,
+                    &out_bucket_index,
+                    &should_free_key)));
 
             if (!result) {
                 sprintf(
@@ -237,6 +248,7 @@ BENCHMARK_DEFINE_F(HashtableOpSetInsertFixture, hashtable_op_set_insert)(benchma
 
         result = hashtable_mcmp_op_get(
                 hashtable,
+                0,
                 keyset_slots[key_index].key,
                 keyset_slots[key_index].key_length,
                 &data);
@@ -306,11 +318,10 @@ public:
 
     void SetUp(const ::benchmark::State& state) override {
         char error_message[150] = {0};
-        worker_context_t worker_context = { 0 };
+        auto worker_context = (worker_context_t*)xalloc_alloc_zero(sizeof(worker_context_t));
 
-        worker_context.worker_index = state.thread_index();
-        worker_context_set(&worker_context);
-        transaction_set_worker_index(worker_context.worker_index);
+        worker_context->worker_index = state.thread_index();
+        worker_context_set(worker_context);
 
         test_support_set_thread_affinity(state.thread_index());
 
@@ -364,12 +375,17 @@ public:
                 uint64_t key_index = state.thread_index();
                 key_index < this->_requested_keyset_size;
                 key_index += state.threads()) {
+            bool should_free_key = false;
+            hashtable_bucket_index_t out_bucket_index;
             bool result = hashtable_mcmp_op_set(
                     (hashtable_t*)static_hashtable,
+                    0,
                     static_keyset_slots[key_index].key,
                     static_keyset_slots[key_index].key_length,
                     key_index,
-                    nullptr);
+                    nullptr,
+                    &out_bucket_index,
+                    &should_free_key);
 
             if (!result) {
                 sprintf(
@@ -408,6 +424,7 @@ public:
         this->RunningThreadsWait();
 
         if (state.thread_index() != 0) {
+            xalloc_free(worker_context_get());
             return;
         }
 
@@ -423,6 +440,8 @@ public:
             // Free the keys
             test_support_free_keyset_slots(this->_keyset_slots);
         }
+
+        xalloc_free(worker_context_get());
 
         this->_hashtable = nullptr;
         this->_keyset_slots = nullptr;
@@ -455,12 +474,17 @@ BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_op_set_update)(benchma
                 uint64_t key_index = state.thread_index();
                 key_index < requested_keyset_size;
                 key_index += state.threads()) {
+            bool should_free_key = false;
+            hashtable_bucket_index_t out_bucket_index;
             benchmark::DoNotOptimize((result = hashtable_mcmp_op_set(
                     hashtable,
+                    0,
                     keyset_slots[key_index].key,
                     keyset_slots[key_index].key_length,
                     key_index,
-                    nullptr)));
+                    nullptr,
+                    &out_bucket_index,
+                    &should_free_key)));
 
             if (!result) {
                 sprintf(
@@ -485,6 +509,7 @@ BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_op_set_update)(benchma
 
         result = hashtable_mcmp_op_get(
                 hashtable,
+                0,
                 keyset_slots[key_index].key,
                 keyset_slots[key_index].key_length,
                 &data);
@@ -526,7 +551,7 @@ static void BenchArguments(benchmark::internal::Benchmark* b) {
             ->ThreadRange(TEST_THREADS_RANGE_BEGIN, TEST_THREADS_RANGE_END)
             ->Iterations(1)
             ->Repetitions(25)
-            ->DisplayAggregatesOnly(false);
+            ->DisplayAggregatesOnly(true);
 }
 
 BENCHMARK_REGISTER_F(HashtableOpSetInsertFixture, hashtable_op_set_insert)

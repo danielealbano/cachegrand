@@ -23,12 +23,10 @@
  *
  * https://stackoverflow.com/a/62123631/169278
  **/
-static inline hashtable_chunk_slot_index_t hashtable_mcmp_support_hash_search_avx2_14(
+static inline uint32_t hashtable_mcmp_support_hash_search_avx2_14(
         hashtable_hash_half_t hash,
-        hashtable_hash_half_volatile_t* hashes,
-        uint32_t skip_indexes_mask) {
+        hashtable_hash_half_volatile_t* hashes) {
     uint32_t compacted_result_mask = 0;
-    uint32_t skip_indexes_mask_inv = ~skip_indexes_mask;
     __m256i cmp_vector = _mm256_set1_epi32(hash);
 
     // The second load, load from the 6th uint32 to the 14th uint32, _mm256_loadu_si256 always loads 8 x uint32
@@ -40,5 +38,5 @@ static inline hashtable_chunk_slot_index_t hashtable_mcmp_support_hash_search_av
         compacted_result_mask |= (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(result_mask_vector)) << (base_index);
     }
 
-    return _tzcnt_u32(compacted_result_mask & skip_indexes_mask_inv);
+    return compacted_result_mask;
 }

@@ -1082,7 +1082,7 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
                 key_length,
                 &rmw_status,
                 &current_entry_index))) {
-            return NULL;
+            goto end_expired;
         }
 
         // If the current entry index still matches entry index the storage_db_op_rmw_abort will carry out the clean up
@@ -1099,7 +1099,9 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
             storage_db_op_rmw_commit_delete(db, &rmw_status);
         }
 
+end_expired:
         entry_index = NULL;
+        transaction_release(&transaction);
     }
 
     return entry_index;
