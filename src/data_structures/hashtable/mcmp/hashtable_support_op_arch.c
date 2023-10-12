@@ -67,11 +67,11 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
 
     LOG_DI("hash_half = %lu", hash_half);
     LOG_DI("bucket_index = %lu", bucket_index);
-    LOG_DI("chunk_index_start = %lu", chunk_index_start_initial);
-    LOG_DI("hashtable_data->chunks_count = %lu", hashtable_data->chunks_count);
-    LOG_DI("hashtable_data->buckets_count = %lu", hashtable_data->buckets_count);
+    if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
+        return false;
+    }
     LOG_DI("hashtable_data->buckets_count_real = %lu", hashtable_data->buckets_count_real);
-    LOG_DI("half_hashes_chunk->lock.lock = %d", half_hashes_chunk->lock.internal_data.transaction_id);
+    overflowed_chunks_counter = half_hashes_chunk->metadata.overflowed_chunks_counter;
     LOG_DI("half_hashes_chunk->metadata.is_full = %lu", half_hashes_chunk->metadata.is_full);
     LOG_DI("half_hashes_chunk->metadata.slots_occupied = %lu", half_hashes_chunk->metadata.slots_occupied);
     LOG_DI("half_hashes_chunk->metadata.overflowed_chunks_counter = %lu", overflowed_chunks_counter);
