@@ -18,13 +18,11 @@
 #include "hashtable.h"
 #include "hashtable_support_hash_search.h"
 
-static inline hashtable_chunk_slot_index_t hashtable_mcmp_support_hash_search_armv8a_neon_14(
+static inline uint32_t hashtable_mcmp_support_hash_search_armv8a_neon_14(
         hashtable_hash_half_t hash,
-        hashtable_hash_half_volatile_t* hashes,
-        uint32_t skip_indexes_mask) {
+        hashtable_hash_half_volatile_t* hashes) {
     uint32x4_t tmp;
     uint32_t compacted_result_mask = 0;
-    uint32_t skip_indexes_mask_inv = ~skip_indexes_mask;
     static const int32x4_t shift = {0, 1, 2, 3};
 
     uint32x4_t cmp_vector = vdupq_n_u32(hash);
@@ -49,6 +47,5 @@ static inline hashtable_chunk_slot_index_t hashtable_mcmp_support_hash_search_ar
     tmp = vshrq_n_u32(cmp_vector_10_13, 31);
     compacted_result_mask |=  vaddvq_u32(vshlq_u32(tmp, shift)) << 10;
 
-
-    return __builtin_ctz(compacted_result_mask & skip_indexes_mask_inv);
+    return compacted_result_mask;
 }

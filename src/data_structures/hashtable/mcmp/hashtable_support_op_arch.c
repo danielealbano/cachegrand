@@ -106,22 +106,22 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
         }
 
         skip_indexes_mask = 0;
-
+        uint32_t result_mask = HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_FUNC(
         while(true) {
             // Ensure that the fresh-est half_hashes are going to be read
             MEMORY_FENCE_LOAD();
 
-            chunk_slot_index = HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_FUNC(
                     slot_id_wrapper.slot_id,
-                    (hashtable_hash_half_volatile_t *) half_hashes_chunk->half_hashes,
-                    skip_indexes_mask);
-
-            LOG_DI(">> chunk_slot_index = %lu", chunk_slot_index);
+                (hashtable_hash_half_volatile_t *) half_hashes_chunk->half_hashes);
+        while(true) {
+            uint32_t skip_indexes_mask_inv = ~(skip_indexes_mask | 0xC000);
+            if ((result_mask & skip_indexes_mask_inv) == 0) {
 
             if (chunk_slot_index == HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_NOT_FOUND) {
                 LOG_DI(">> no match found, exiting slot search loop");
                 break;
             }
+            chunk_slot_index = __builtin_ctz(result_mask & skip_indexes_mask_inv);
 
             // Update the skip indexes in case of another iteration
             skip_indexes_mask |= 1u << chunk_slot_index;
@@ -346,20 +346,19 @@ bool CONCAT(hashtable_mcmp_support_op_search_key_or_create_new, CACHEGRAND_HASHT
             }
 
             skip_indexes_mask = 0;
+            uint32_t result_mask = HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_FUNC(
+                    searching_or_creating == 0 ? slot_id_wrapper.slot_id : 0,
+                    (hashtable_hash_half_volatile_t *) half_hashes_chunk->half_hashes);
 
             while (true) {
-                // It's not necessary to have a memory fence here, these data are not going to change because of the
-                // write-lock and a full barrier is issued by the lock operation
-                chunk_slot_index = HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_FUNC(
-                        searching_or_creating == 0 ? slot_id_wrapper.slot_id : 0,
-                        (hashtable_hash_half_volatile_t *) half_hashes_chunk->half_hashes,
-                        skip_indexes_mask);
-
+                uint32_t skip_indexes_mask_inv = ~(skip_indexes_mask | 0xC000);
+                if ((result_mask & skip_indexes_mask_inv) == 0) {
                 LOG_DI(">>> chunk_slot_index = %lu", chunk_slot_index);
 
-                if (chunk_slot_index == HASHTABLE_MCMP_SUPPORT_HASH_SEARCH_NOT_FOUND) {
                     break;
                 }
+
+                chunk_slot_index = __builtin_ctz(result_mask & skip_indexes_mask_inv);
 
                 // Update the skip indexes in case of another iteration
                 skip_indexes_mask |= 1u << chunk_slot_index;

@@ -45,9 +45,8 @@
                     123, 234, 345, 456, 567, 678, 789, 890, 901, 12, 987, 876, 765, 654 \
             }; \
             hashtable_hash_half_t hash = 345; \
-            uint32_t skip_indexes_mask = 0; \
         \
-            REQUIRE(hashtable_mcmp_support_hash_search##SUFFIX(hash, hashes, skip_indexes_mask) == 2); \
+            REQUIRE(__builtin_ctz(hashtable_mcmp_support_hash_search##SUFFIX(hash, hashes)) == 2); \
         } \
         \
         SECTION("hash - not found") { \
@@ -55,9 +54,8 @@
                     123, 234, 345, 456, 567, 678, 789, 890, 901, 12, 987, 876, 765, 654 \
             }; \
             hashtable_hash_half_t hash = 999999; \
-            uint32_t skip_indexes_mask = 0; \
         \
-            REQUIRE(hashtable_mcmp_support_hash_search##SUFFIX(hash, hashes, skip_indexes_mask) == HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX); \
+            REQUIRE(hashtable_mcmp_support_hash_search##SUFFIX(hash, hashes) == 0); \
         } \
         \
         SECTION("hash - multiple - find first") { \
@@ -65,19 +63,8 @@
                     123, 234, 345, 456, 567, 234, 789, 890, 901, 234, 987, 876, 765, 654 \
             }; \
             hashtable_hash_half_t hash = 234; \
-            uint32_t skip_indexes_mask = 0; \
         \
-            REQUIRE(hashtable_mcmp_support_hash_search##SUFFIX(hash, hashes, skip_indexes_mask) == 1); \
-        } \
-        \
-        SECTION("hash - multiple - find second") { \
-            hashtable_hash_half_volatile_t hashes[HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT] = { \
-                    123, 234, 345, 456, 567, 234, 789, 890, 901, 234, 987, 876, 765, 654 \
-            }; \
-            hashtable_hash_half_t hash = 234; \
-            uint32_t skip_indexes_mask = 1 << 1; \
-        \
-            REQUIRE(hashtable_mcmp_support_hash_search##SUFFIX(hash, hashes, skip_indexes_mask) == 5); \
+            REQUIRE(__builtin_ctz(hashtable_mcmp_support_hash_search##SUFFIX(hash, hashes)) == 1); \
         } \
     }
 
