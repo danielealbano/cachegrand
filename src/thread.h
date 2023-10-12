@@ -8,7 +8,11 @@ extern "C" {
 extern thread_local uint32_t thread_current_core_index;
 extern thread_local uint32_t thread_current_numa_node_index;
 
+#ifdef __cplusplus
+extern int getcpu (unsigned int *, unsigned int *) __THROW;
+#else
 extern int getcpu (unsigned int *, unsigned int *);
+#endif
 
 void thread_flush_cached_core_index_and_numa_node_index();
 
