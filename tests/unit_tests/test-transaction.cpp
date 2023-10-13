@@ -44,7 +44,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         transaction.locks.size = 8;
 
         auto* initial_list = (transaction_locks_list_entry_t*)xalloc_alloc(
-                sizeof(void*) * transaction.locks.size);
+                sizeof(transaction_locks_list_entry_t) * transaction.locks.size);
         transaction.locks.list = initial_list;
 
         SECTION("Expand once") {
@@ -88,13 +88,13 @@ TEST_CASE("transaction.c", "[transaction]") {
     }
 
     SECTION("transaction_locks_list_add") {
-        uint32_t locks_size = 8;
+        uint32_t locks_size = 2;
 
         transaction_t transaction = { };
         transaction.locks.count = 0;
         transaction.locks.size = locks_size;
         transaction.locks.list = (transaction_locks_list_entry_t*)xalloc_alloc(
-                sizeof(void*) * transaction.locks.size);
+                sizeof(transaction_locks_list_entry_t) * transaction.locks.size);
 
         SECTION("Add one lock - Write") {
             transaction_rwspinlock_volatile_t lock = { 0 };
@@ -116,7 +116,7 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_READ);
         }
 
-        SECTION("Add two lock") {
+        SECTION("Add two locks") {
             transaction_rwspinlock_volatile_t lock[2] = { 0 };
             REQUIRE(transaction_locks_list_add(&transaction, &lock[0], TRANSACTION_LOCK_TYPE_WRITE));
             REQUIRE(transaction.locks.count == 1);
