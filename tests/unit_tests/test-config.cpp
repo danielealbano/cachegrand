@@ -119,7 +119,6 @@ cpus:
 workers_per_cpus: 2
 run_in_foreground: false
 pidfile_path: /var/run/cachegrand.pid
-use_hugepages: false
 network:
   backend: io_uring
   max_clients: 10000
@@ -209,7 +208,6 @@ cpus:
 workers_per_cpus: 2
 run_in_foreground: false
 pidfile_path: /var/run/cachegrand.pid
-use_hugepages: false
 network:
   backend: io_uring
   max_clients: 10000
@@ -777,8 +775,6 @@ TEST_CASE("config.c", "[config]") {
             REQUIRE(config->network->backend == CONFIG_NETWORK_BACKEND_IO_URING);
             REQUIRE(config->modules_count == 1);
             REQUIRE(config->cpus_count == 1);
-            REQUIRE(config->use_hugepages != nullptr);
-            REQUIRE(*config->use_hugepages == false);
             REQUIRE(config->logs_count == 2);
             REQUIRE(cyaml_logger_context.data == nullptr);
             REQUIRE(cyaml_logger_context.data_length == 0);

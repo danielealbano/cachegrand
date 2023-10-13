@@ -318,7 +318,7 @@ int32_t protocol_redis_reader_read(
 //                context->arguments.current.length = data_length;
 //
 //                // Increase the size of the list and update the new element
-//                context->arguments.list = ffma_mem_realloc(
+//                context->arguments.list = xalloc_realloc(
 //                        context->arguments.list,
 //                        sizeof(protocol_redis_reader_context_argument_t) * (context->arguments.count - 1),
 //                        sizeof(protocol_redis_reader_context_argument_t) * context->arguments.count,
@@ -333,7 +333,7 @@ int32_t protocol_redis_reader_read(
 //            } else {
 //                // If the data are not from the buffer, it needs to resize the allocated memory and copy the new data
 //                if (context->arguments.list[context->arguments.current.index].copied_from_buffer) {
-//                    context->arguments.list[context->arguments.current.index].value = ffma_mem_realloc(
+//                    context->arguments.list[context->arguments.current.index].value = xalloc_realloc(
 //                            context->arguments.list[context->arguments.current.index].value,
 //                            context->arguments.current.length,
 //                            context->arguments.current.length + data_length,

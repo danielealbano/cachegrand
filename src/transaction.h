@@ -7,6 +7,8 @@ extern "C" {
 
 #include <assert.h>
 
+#include "log/log.h"
+
 #define TRANSACTION_ID_NOT_ACQUIRED (0)
 #define TRANSACTION_SPINLOCK_UNLOCKED   (0)
 

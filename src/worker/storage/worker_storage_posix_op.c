@@ -28,7 +28,6 @@
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
-#include "memory_allocator/ffma.h"
 #include "config.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
@@ -76,7 +75,7 @@ storage_channel_t* worker_storage_posix_op_storage_open_fd(
     }
 
     // Copy the path to a new buffer
-    char *path = ffma_mem_alloc_zero(strlen(temp_fd_path) + 1);
+    char *path = xalloc_alloc_zero(strlen(temp_fd_path) + 1);
     if (!path) {
         return NULL;
     }

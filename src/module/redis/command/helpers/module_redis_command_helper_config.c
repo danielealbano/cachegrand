@@ -25,7 +25,6 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "protocol/redis/protocol_redis.h"
@@ -97,7 +96,7 @@ char *module_redis_command_config_get_handle_parameter_value(
     if (strcmp(parameter_name, "bind") == 0) {
         // cachegrand supports multiple bind addresses, but redis only one so we send only the first one
         size_t size = strlen(config_module->network->bindings[0].host);
-        char *host = ffma_mem_alloc(size + 1);
+        char *host = xalloc_alloc(size + 1);
         strncpy(host, config_module->network->bindings[0].host, size + 1);
 
         return host;
@@ -114,7 +113,7 @@ char *module_redis_command_config_get_handle_parameter_value(
         }
 
         size_t size = snprintf(NULL, 0, "%d", port);
-        char *port_str = ffma_mem_alloc(size + 1);
+        char *port_str = xalloc_alloc(size + 1);
         snprintf(port_str, size + 1, "%d", port);
 
         return port_str;
@@ -131,7 +130,7 @@ char *module_redis_command_config_get_handle_parameter_value(
         }
 
         size_t size = snprintf(NULL, 0, "%d", tls_port);
-        char *port_str = ffma_mem_alloc(size + 1);
+        char *port_str = xalloc_alloc(size + 1);
         snprintf(port_str, size + 1, "%d", tls_port);
 
         return port_str;
@@ -139,7 +138,7 @@ char *module_redis_command_config_get_handle_parameter_value(
 
     if (strcmp(parameter_name, "client-query-buffer-limit") == 0) {
         size_t size = snprintf(NULL, 0, "%u", config_module->redis->max_command_length);
-        char *databases_str = ffma_mem_alloc(size + 1);
+        char *databases_str = xalloc_alloc(size + 1);
         snprintf(databases_str, size + 1, "%u", config_module->redis->max_command_length);
 
         return databases_str;
@@ -147,7 +146,7 @@ char *module_redis_command_config_get_handle_parameter_value(
 
     if (strcmp(parameter_name, "crash-log-enabled") == 0) {
         size_t size = 4;
-        char *crash_log_enabled_str = ffma_mem_alloc(size + 1);
+        char *crash_log_enabled_str = xalloc_alloc(size + 1);
         if (config->sentry->enable) {
             snprintf(crash_log_enabled_str, size + 1, "yes");
         } else {
@@ -159,7 +158,7 @@ char *module_redis_command_config_get_handle_parameter_value(
 
     if (strcmp(parameter_name, "databases") == 0) {
         size_t size = snprintf(NULL, 0, "%ld", config->database->max_user_databases);
-        char *databases_str = ffma_mem_alloc(size + 1);
+        char *databases_str = xalloc_alloc(size + 1);
         snprintf(databases_str, size + 1, "%ld", config->database->max_user_databases);
 
         return databases_str;
@@ -170,11 +169,11 @@ char *module_redis_command_config_get_handle_parameter_value(
 
         if (config->database->snapshots) {
             size_t size = strlen(config->database->snapshots->path);
-            path = ffma_mem_alloc(size + 1);
+            path = xalloc_alloc(size + 1);
             strncpy(path, config->database->snapshots->path, size + 1);
         } else {
             size_t size = 0;
-            path = ffma_mem_alloc(size + 1);
+            path = xalloc_alloc(size + 1);
             path[0] = '\0';
         }
 
@@ -183,7 +182,7 @@ char *module_redis_command_config_get_handle_parameter_value(
 
     if (strcmp(parameter_name, "maxclients") == 0) {
         size_t size = snprintf(NULL, 0, "%u", config->network->max_clients);
-        char *maxclients_str = ffma_mem_alloc(size + 1);
+        char *maxclients_str = xalloc_alloc(size + 1);
         snprintf(maxclients_str, size + 1, "%u", config->network->max_clients);
 
         return maxclients_str;
@@ -191,7 +190,7 @@ char *module_redis_command_config_get_handle_parameter_value(
 
     if (strcmp(parameter_name, "maxmemory-policy") == 0) {
         size_t size = 15;
-        char *policy_str = ffma_mem_alloc(size + 1);
+        char *policy_str = xalloc_alloc(size + 1);
 
         if (config->database->keys_eviction) {
             switch (config->database->keys_eviction->policy) {
@@ -236,7 +235,7 @@ char *module_redis_command_config_get_handle_parameter_value(
                 0,
                 "%d",
                 STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH);
-        char *maxmemory_samples_str = ffma_mem_alloc(size + 1);
+        char *maxmemory_samples_str = xalloc_alloc(size + 1);
         snprintf(
                 maxmemory_samples_str,
                 size + 1,
@@ -248,7 +247,7 @@ char *module_redis_command_config_get_handle_parameter_value(
 
     if (strcmp(parameter_name, "maxmemory") == 0) {
         size_t size = snprintf(NULL, 0, "%ld", storage_db_config->limits.data_size.hard_limit);
-        char *maxmemory_str = ffma_mem_alloc(size + 1);
+        char *maxmemory_str = xalloc_alloc(size + 1);
         snprintf(maxmemory_str, size + 1, "%ld", storage_db_config->limits.data_size.hard_limit);
 
         return maxmemory_str;
@@ -256,7 +255,7 @@ char *module_redis_command_config_get_handle_parameter_value(
 
     if (strcmp(parameter_name, "proto-max-bulk-len") == 0) {
         size_t size = snprintf(NULL, 0, "%u", config_module->redis->max_command_length);
-        char *proto_max_bulk_len_str = ffma_mem_alloc(size + 1);
+        char *proto_max_bulk_len_str = xalloc_alloc(size + 1);
         snprintf(proto_max_bulk_len_str, size + 1, "%u", config_module->redis->max_command_length);
 
         return proto_max_bulk_len_str;

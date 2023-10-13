@@ -19,8 +19,6 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "thread.h"
-#include "memory_allocator/ffma_region_cache.h"
-#include "memory_allocator/ffma.h"
 #include "log/log.h"
 #include "log/sink/log_sink.h"
 #include "log/sink/log_sink_console.h"

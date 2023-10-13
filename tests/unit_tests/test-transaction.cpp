@@ -13,12 +13,12 @@
 
 #include "misc.h"
 #include "exttypes.h"
+#include "xalloc.h"
 #include "memory_fences.h"
 #include "utils_cpu.h"
 #include "thread.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
 #include "fiber/fiber.h"
 #include "fiber/fiber_scheduler.h"
 #include "clock.h"
@@ -43,8 +43,8 @@ TEST_CASE("transaction.c", "[transaction]") {
         transaction.locks.count = 0;
         transaction.locks.size = 8;
 
-        auto* initial_list = (transaction_locks_list_entry_t*)ffma_mem_alloc(
-                sizeof(void*) * transaction.locks.size);
+        auto* initial_list = (transaction_locks_list_entry_t*)xalloc_alloc(
+                sizeof(transaction_locks_list_entry_t) * transaction.locks.size);
         transaction.locks.list = initial_list;
 
         SECTION("Expand once") {
@@ -66,7 +66,7 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(transaction.locks.list != interim_list);
         }
 
-        ffma_mem_free(transaction.locks.list);
+        xalloc_free(transaction.locks.list);
     }
 
     SECTION("transaction_needs_expand_locks_list") {
@@ -88,13 +88,13 @@ TEST_CASE("transaction.c", "[transaction]") {
     }
 
     SECTION("transaction_locks_list_add") {
-        uint32_t locks_size = FFMA_OBJECT_SIZE_MIN / sizeof(transaction_rwspinlock_volatile_t*);
+        uint32_t locks_size = 2;
 
         transaction_t transaction = { };
         transaction.locks.count = 0;
         transaction.locks.size = locks_size;
-        transaction.locks.list = (transaction_locks_list_entry_t*)ffma_mem_alloc(
-                sizeof(void*) * transaction.locks.size);
+        transaction.locks.list = (transaction_locks_list_entry_t*)xalloc_alloc(
+                sizeof(transaction_locks_list_entry_t) * transaction.locks.size);
 
         SECTION("Add one lock - Write") {
             transaction_rwspinlock_volatile_t lock = { 0 };
@@ -116,7 +116,7 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_READ);
         }
 
-        SECTION("Add two lock") {
+        SECTION("Add two locks") {
             transaction_rwspinlock_volatile_t lock[2] = { 0 };
             REQUIRE(transaction_locks_list_add(&transaction, &lock[0], TRANSACTION_LOCK_TYPE_WRITE));
             REQUIRE(transaction.locks.count == 1);
@@ -153,7 +153,7 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(transaction.locks.list[ARRAY_SIZE(lock) - 1].spinlock == &lock[ARRAY_SIZE(lock) - 1]);
         }
 
-        ffma_mem_free(transaction.locks.list);
+        xalloc_free(transaction.locks.list);
     }
 
     SECTION("transaction_acquire") {
@@ -168,10 +168,10 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(transaction.transaction_id.transaction_index == current_transaction_index + 1);
 
             REQUIRE(transaction.locks.count == 0);
-            REQUIRE(transaction.locks.size == FFMA_OBJECT_SIZE_MIN / sizeof(transaction_rwspinlock_volatile_t*));
+            REQUIRE(transaction.locks.size == 2);
             REQUIRE(transaction.locks.list != nullptr);
 
-            ffma_mem_free(transaction.locks.list);
+            xalloc_free(transaction.locks.list);
         }
 
         SECTION("Acquire two") {
@@ -186,8 +186,8 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(transaction2.transaction_id.worker_index == UINT16_MAX);
             REQUIRE(transaction2.transaction_id.transaction_index == current_transaction_index + 2);
 
-            ffma_mem_free(transaction1.locks.list);
-            ffma_mem_free(transaction2.locks.list);
+            xalloc_free(transaction1.locks.list);
+            xalloc_free(transaction2.locks.list);
         }
     }
 

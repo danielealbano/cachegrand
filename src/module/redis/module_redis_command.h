@@ -101,7 +101,7 @@ static inline __attribute__((always_inline)) void module_redis_command_process_f
     connection_context->command.info->command_free_funcptr(
             connection_context);
 
-    ffma_mem_free(connection_context->command.context);
+    xalloc_free(connection_context->command.context);
     connection_context->command.context = NULL;
 }
 

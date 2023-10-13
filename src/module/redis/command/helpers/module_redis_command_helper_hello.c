@@ -25,7 +25,6 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "protocol/redis/protocol_redis.h"
@@ -111,7 +110,7 @@ void module_redis_command_helper_hello_try_fetch_client_name(
         module_redis_command_hello_context_t *context) {
     if (context->setname_clientname.has_token) {
         connection_context->client_name =
-                ffma_mem_alloc(context->setname_clientname.value.length + 1);
+                xalloc_alloc(context->setname_clientname.value.length + 1);
         strncpy(
                 context->setname_clientname.value.short_string,
                 connection_context->client_name,

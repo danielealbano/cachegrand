@@ -30,8 +30,8 @@ but depending on the distribution or on the security settings the operation migh
 
 ## Hugepages
 
-cachegrand implements a novel memory allocator, called FFMA, capable of performing extremely fast allocations and frees,
-able to compete with mimalloc, jemalloc and tcmalloc being faster in most of the cases.
+cachegrand uses mimalloc, a novel memory allocator, capable of performing extremely fast allocations and frees, to
+allocate memory, delivering better performances than the most known jemalloc and tcmalloc.
 The memory allocator is capable of leveraging the 2MB hugepages if enabled, a simple way to enable them is to set
 `/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages` to the desired number of hugepages to allocate bearing in mind
 that each page is 2 MB.
@@ -43,11 +43,8 @@ echo 512 | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
 
 The hugepages can also be configured to at the system boot via sysctl, the specifics depend on the distribution in use. 
 
-Once the hugepages have been enabled in the system it's possible to set the flag `use_hugepages` to `true` in the
-configuration file to enable the usage of hugepages by cachegrand.
-
 Bear in mind that the hugepages are shared between all the processes running on the system and cachegrand has no control
-over them, if hugepages are not available cachegrand will report an error and fail.
+over them.
 
 ## Config file
 
@@ -59,7 +56,6 @@ cachegrand uses YAML for its configuration file, an example can be found in `etc
 | workers_per_cpus                             | numeric                                                                                                                                | 1                                                                         | Number of workers per cpu, suggested 1                                                                                                                                                           |
 | run_in_foreground                            | bool                                                                                                                                   | false                                                                     | True/false flag to run cachegrand in the foreground (currently unsupported)                                                                                                                      |
 | pidfile_path                                 | string                                                                                                                                 | /var/run/cachegrand/cachegrand.pid                                        | Path to the pid file                                                                                                                                                                             |
-| use_hugepages                                | bool                                                                                                                                   | false                                                                     | Enable or disable the slab allocator, requires hugepages available                                                                                                                               |
 | network.backend                              | enum (io_uring)                                                                                                                        | io_uring                                                                  | Set the backend for the network, allowed values *io_uring*                                                                                                                                       |
 | network.max_clients                          | numeric                                                                                                                                | 250                                                                       | Max amount of clients that can connect                                                                                                                                                           |
 | network.listen_backlog                       | numeric                                                                                                                                | 100                                                                       | Max listen backlog                                                                                                                                                                               |

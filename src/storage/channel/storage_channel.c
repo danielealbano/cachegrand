@@ -13,10 +13,10 @@
 
 #include "misc.h"
 #include "exttypes.h"
+#include "xalloc.h"
 #include "spinlock.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
 #include "storage/io/storage_io_common.h"
 
 #include "storage_channel.h"
@@ -32,7 +32,7 @@ bool storage_channel_init(
 
 storage_channel_t* storage_channel_new() {
     storage_channel_t *channel =
-            (storage_channel_t*)ffma_mem_alloc_zero(sizeof(storage_channel_t));
+            (storage_channel_t*)xalloc_alloc_zero(sizeof(storage_channel_t));
 
     storage_channel_init(channel);
 
@@ -42,7 +42,7 @@ storage_channel_t* storage_channel_new() {
 storage_channel_t* storage_channel_multi_new(
         uint32_t count) {
     storage_channel_t *channels =
-            (storage_channel_t*)ffma_mem_alloc_zero(sizeof(storage_channel_t) * count);
+            (storage_channel_t*)xalloc_alloc_zero(sizeof(storage_channel_t) * count);
 
     for(int index = 0; index < count; index++) {
         storage_channel_init(&channels[index]);
@@ -53,6 +53,6 @@ storage_channel_t* storage_channel_multi_new(
 
 void storage_channel_free(
         storage_channel_t* storage_channel) {
-    ffma_mem_free(storage_channel->path);
-    ffma_mem_free(storage_channel);
+    xalloc_free(storage_channel->path);
+    xalloc_free(storage_channel);
 }

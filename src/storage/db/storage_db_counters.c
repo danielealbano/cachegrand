@@ -24,7 +24,6 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
-#include "memory_allocator/ffma.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/storage.h"
@@ -46,7 +45,7 @@ static void storage_db_counters_index_key_destroy(void *value) {
     }
 
     slots_bitmap_mpmc_release(slot->slots_bitmap, slot->index);
-    ffma_mem_free(slot);
+    xalloc_free(slot);
 }
 
 void storage_db_counters_slot_key_init_once() {
@@ -68,7 +67,7 @@ void storage_db_counters_slot_key_ensure_init(
     // If the value is set to null, it means that the current thread has not been assigned a slot yet
     if (pthread_getspecific(storage_db_counters_index_key) == NULL) {
         storage_db_counters_slots_bitmap_and_index_t *slot =
-                ffma_mem_alloc(sizeof(storage_db_counters_slots_bitmap_and_index_t));
+                xalloc_alloc(sizeof(storage_db_counters_slots_bitmap_and_index_t));
         if (!slot) {
             FATAL(TAG, "Unable to allocate memory for storage db counters");
         }

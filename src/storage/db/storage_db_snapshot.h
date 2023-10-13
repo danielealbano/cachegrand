@@ -1,7 +1,6 @@
 #ifndef CACHEGRAND_STORAGE_DB_SNAPSHOT_H
 #define CACHEGRAND_STORAGE_DB_SNAPSHOT_H
 
-#include "memory_allocator/ffma.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -135,7 +134,7 @@ static inline bool storage_db_snapshot_queue_entry_index_to_be_deleted(
     memcpy(key_dup, key, key_length);
 
     storage_db_snapshot_entry_index_to_be_deleted_t *data =
-            ffma_mem_alloc(sizeof(storage_db_snapshot_entry_index_to_be_deleted_t));
+            xalloc_alloc(sizeof(storage_db_snapshot_entry_index_to_be_deleted_t));
     if (!data) {
         return false;
     }
@@ -148,7 +147,7 @@ static inline bool storage_db_snapshot_queue_entry_index_to_be_deleted(
     result = queue_mpmc_push(db->snapshot.entry_index_to_be_deleted_queue, data);
 
     if (!result) {
-        ffma_mem_free(data);
+        xalloc_free(data);
         xalloc_free(key_dup);
     }
 

@@ -22,7 +22,6 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
@@ -52,7 +51,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(msetnx) {
     uint32_t rmw_statuses_processed_up_to = 0;
     module_redis_command_msetnx_context_t *context = connection_context->command.context;
 
-    rmw_statuses = ffma_mem_alloc_zero(sizeof(storage_db_op_rmw_status_t) * context->key_value.count);
+    rmw_statuses = xalloc_alloc_zero(sizeof(storage_db_op_rmw_status_t) * context->key_value.count);
 
     transaction_acquire(&transaction);
 

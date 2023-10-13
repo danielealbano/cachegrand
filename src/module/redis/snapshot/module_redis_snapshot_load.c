@@ -29,7 +29,6 @@
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
-#include "memory_allocator/ffma.h"
 #include "config.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
@@ -464,7 +463,7 @@ bool module_redis_snapshot_load(
     }
 
     // Open the snapshot file
-    char *snapshot_path = ffma_mem_alloc(strlen(path) + 1);
+    char *snapshot_path = xalloc_alloc(strlen(path) + 1);
     strcpy(snapshot_path, path);
     storage_channel_t *snapshot_channel = storage_open(
             snapshot_path,

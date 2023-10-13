@@ -24,7 +24,6 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_set.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
@@ -180,7 +179,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
         } while(source_chunk_written_data < source_chunk_info->chunk_length);
 
         if (unlikely(allocated_new_buffer)) {
-            ffma_mem_free(source_chunk_data);
+            xalloc_free(source_chunk_data);
             allocated_new_buffer = false;
         }
     }
@@ -222,7 +221,7 @@ end:
     }
 
     if (unlikely(allocated_new_buffer)) {
-        ffma_mem_free(source_chunk_data);
+        xalloc_free(source_chunk_data);
         allocated_new_buffer = false;
     }
 

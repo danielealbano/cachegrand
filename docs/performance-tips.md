@@ -6,13 +6,6 @@ Performance Tips
 cachegrand has the ability to leverage the hugepages for several optimizations and although the usage is not mandatory
 it's expected to be run in production with them enabled.
 
-### Fast Fixed Memory Allocator
-
-Fast Fixed Memory Allocator (FFMA) is capable of providing a very fast memory allocation and deallocation of fixed size
-blocks, this is used by cachegrand to allocate and free the memory for the items and the keys.
-It's enabled by default and it's extremely fast, it's much faster than the glibc memory allocator and tcmalloc and
-faster in almost all cases than jemalloc and mimalloc, especially when the thread count goes up. 
-
 ## Network Settings
 
 Below a number of tips and suggestions to help improve cachegrand performances, although in general they are useful for
