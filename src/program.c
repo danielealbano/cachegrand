@@ -489,33 +489,6 @@ config_t* program_parse_arguments_and_load_config(
     return config;
 }
 
-bool program_use_hugepages(
-        program_context_t* program_context) {
-    // TODO: estimate how much 2mb hugepages should be available to properly work with the current settings, just
-    //       having 2mb hugepages is not enough to guarantee that memory will be available during the execution, it
-    //       should be reserved
-    int requested_hugepages = 0;
-    bool use_hugepages;
-
-    // use_hugepages is optional
-    if (program_context->config->use_hugepages == NULL) {
-        use_hugepages = false;
-    } else {
-        use_hugepages = *program_context->config->use_hugepages;
-    }
-
-    if (use_hugepages) {
-        if (!hugepages_2mb_is_available(requested_hugepages)) {
-            LOG_W(TAG, "Not enough 2mb hugepages, the fast fixed memory allocator wil not use them");
-            use_hugepages = false;
-        }
-    }
-
-    program_context->use_hugepages = use_hugepages;
-
-    return use_hugepages;
-}
-
 void program_setup_initial_log_sink_console() {
     log_level_t level = LOG_LEVEL_ALL;
     log_sink_settings_t settings = { 0 };
@@ -833,10 +806,6 @@ int program_main(
 
     // Signal handling
     signal(SIGCHLD, SIG_IGN);
-
-    // If enabled in the config and if the hugepages are available enables the usage of hugepages to take advantage, for
-    // example, of the fast fixed memory allocator and to run the code from the hugepages after relocating it there
-    program_use_hugepages(program_context);
 
     // Calculate workers count
     program_workers_initialize_count(program_context);
