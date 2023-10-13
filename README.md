@@ -65,10 +65,8 @@ interface and the WebAssembly support are still in the works.
   for monitoring
 - Blazing fast [hashtable](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/hashtable.md) capable
   of digesting 2.1 billion records per second on a 1x AMD EPYC 7502
-- [Fast Fixed Memory Allocator (or FFMA)](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/fast-fixed-memory-allocator.md) 
-  capable of allocating and freeing memory in O(1)
 - [Scales vertically](#benchmarks), 2x cpus means ~2x requests
-- In-memory and on-disk [timeseries database](https://github.com/danielealbano/cachegrand/blob/main/docs/architecture/timeseries-db.md) (WIP)
+- In-memory and on-disk storage
 - Supports different collection data types (Streams, Lists, Hashsets, Sorted Sets, etc.) (WIP)
 
 #### Planned Key Features
