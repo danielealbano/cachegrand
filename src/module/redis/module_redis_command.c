@@ -32,7 +32,6 @@
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
-#include "memory_allocator/ffma.h"
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "protocol/redis/protocol_redis_writer.h"
@@ -298,13 +297,6 @@ bool module_redis_command_process_argument_begin(
     }
 
     if (expected_argument->type == MODULE_REDIS_COMMAND_ARGUMENT_TYPE_LONG_STRING) {
-        if (!storage_db_chunk_sequence_is_size_allowed(argument_length)) {
-            return module_redis_connection_error_message_printf_noncritical(
-                    connection_context,
-                    "ERR The argument length has exceeded the allowed size of '%lu'",
-                    storage_db_chunk_sequence_allowed_max_size());
-        }
-
         command_parser_context->current_argument.member_context_addr =
                 module_redis_command_context_get_argument_member_context_addr(
                         expected_argument,

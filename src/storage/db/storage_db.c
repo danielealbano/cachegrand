@@ -47,7 +47,6 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
-#include "memory_allocator/ffma.h"
 #include "fiber/fiber.h"
 #include "fiber/fiber_scheduler.h"
 #include "log/log.h"
@@ -594,20 +593,6 @@ storage_db_entry_index_t *storage_db_entry_index_new() {
 size_t storage_db_chunk_sequence_calculate_chunk_count(
         size_t size) {
     return ceil((double)size / (double)STORAGE_DB_CHUNK_MAX_SIZE);
-}
-
-size_t storage_db_chunk_sequence_allowed_max_size() {
-    return ((int)(FFMA_OBJECT_SIZE_MAX / sizeof(storage_db_chunk_info_t))) * STORAGE_DB_CHUNK_MAX_SIZE;
-}
-
-bool storage_db_chunk_sequence_is_size_allowed(
-        size_t size) {
-    bool error = false;
-
-    // TODO: should check if the other limits (e.g. number of chunks allowed) are broken
-    error |= size > storage_db_chunk_sequence_allowed_max_size();
-
-    return !error;
 }
 
 bool storage_db_chunk_sequence_allocate(

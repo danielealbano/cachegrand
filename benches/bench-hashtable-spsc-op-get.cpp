@@ -12,7 +12,6 @@
 #include "exttypes.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
 #include "xalloc.h"
 
 #include "benchmark-program-simple.hpp"

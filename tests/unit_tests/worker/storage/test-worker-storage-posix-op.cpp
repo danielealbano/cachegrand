@@ -19,6 +19,7 @@
 
 #include "misc.h"
 #include "exttypes.h"
+#include "xalloc.h"
 #include "spinlock.h"
 #include "transaction.h"
 #include "fiber/fiber.h"
@@ -28,7 +29,6 @@
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "config.h"
 #include "clock.h"
-#include "memory_allocator/ffma.h"
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "worker/worker.h"

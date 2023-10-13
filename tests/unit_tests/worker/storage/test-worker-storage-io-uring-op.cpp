@@ -20,6 +20,7 @@
 
 #include "misc.h"
 #include "exttypes.h"
+#include "xalloc.h"
 #include "spinlock.h"
 #include "transaction.h"
 #include "fiber/fiber.h"
@@ -29,7 +30,6 @@
 #include "support/io_uring/io_uring_support.h"
 #include "config.h"
 #include "clock.h"
-#include "memory_allocator/ffma.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "storage/io/storage_io_common.h"

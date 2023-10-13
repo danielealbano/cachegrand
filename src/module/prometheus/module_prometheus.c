@@ -28,7 +28,6 @@
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
 #include "config.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
@@ -172,11 +171,6 @@ int module_prometheus_http_parser_on_header_value(
         size_t headers_list_new_size =
                 headers_list_current_size +
                 (sizeof(client_http_header_t) * MODULE_PROMETHEUS_HTTP_HEADERS_SIZE_INCREASE);
-
-        // The maximum size of the allocation is FFMA_OBJECT_SIZE_MAX
-        if (headers_list_new_size >= FFMA_OBJECT_SIZE_MAX) {
-            return -1;
-        }
 
         list_new = xalloc_realloc(http_request_data->headers.list, headers_list_new_size);
 

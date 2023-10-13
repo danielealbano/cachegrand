@@ -60,8 +60,6 @@
 #include "data_structures/hashtable/mcmp/hashtable_config.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "thread.h"
-#include "memory_allocator/ffma_region_cache.h"
-#include "memory_allocator/ffma.h"
 #include "support/sentry/sentry_support.h"
 #include "signal_handler_thread.h"
 #include "version.h"
@@ -513,7 +511,6 @@ bool program_use_hugepages(
         }
     }
 
-    ffma_set_use_hugepages(use_hugepages);
     program_context->use_hugepages = use_hugepages;
 
     return use_hugepages;
@@ -897,10 +894,6 @@ end:
 
     // Final cleanup
     program_cleanup(program_context);
-
-#if FFMA_TRACK_ALLOCS_FREES == 1
-    ffma_debug_allocs_frees_end();
-#endif
 
     return return_res;
 }

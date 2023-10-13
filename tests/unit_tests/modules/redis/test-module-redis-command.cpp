@@ -24,7 +24,6 @@
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
-#include "memory_allocator/ffma.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"

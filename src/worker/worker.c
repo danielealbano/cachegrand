@@ -59,7 +59,6 @@
 #include "worker/network/worker_network_iouring_op.h"
 #include "worker/storage/worker_storage_iouring_op.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
 #include "worker.h"
 #include "worker/worker_fiber.h"
 #include "worker/fiber/worker_fiber_storage_db_gc_deleted_entries.h"

@@ -22,7 +22,6 @@
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_voidptr.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/hashtable/mcmp/hashtable.h"
-#include "memory_allocator/ffma.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"

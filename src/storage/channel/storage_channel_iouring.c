@@ -9,11 +9,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <netinet/in.h>
+
 #include "exttypes.h"
 #include "spinlock.h"
+#include "xalloc.h"
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
-#include "memory_allocator/ffma.h"
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/channel/storage_channel_iouring.h"

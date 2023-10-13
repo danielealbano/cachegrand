@@ -1,7 +1,6 @@
 #ifndef CACHEGRAND_STORAGE_DB_SNAPSHOT_H
 #define CACHEGRAND_STORAGE_DB_SNAPSHOT_H
 
-#include "memory_allocator/ffma.h"
 
 #ifdef __cplusplus
 extern "C" {

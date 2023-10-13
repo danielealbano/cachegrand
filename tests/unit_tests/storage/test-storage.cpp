@@ -26,7 +26,6 @@
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "worker/storage/worker_storage_posix_op.h"
-#include "memory_allocator/ffma.h"
 
 #include "storage/storage.h"
 
