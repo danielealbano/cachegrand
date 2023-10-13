@@ -144,7 +144,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
     char fixture_temp_path[] = "/tmp/cachegrand-tests-XXXXXX.tmp";
     int fixture_temp_path_suffix_len = 4;
     close(mkstemps(fixture_temp_path, fixture_temp_path_suffix_len));
-    fixture_temp_path_copy = (char *)(ffma_mem_alloc(strlen(fixture_temp_path) + 1));
+    fixture_temp_path_copy = (char *)(xalloc_alloc(strlen(fixture_temp_path) + 1));
     strcpy(fixture_temp_path_copy, fixture_temp_path);
 
     char buffer_write[] = "cachegrand test - read / write tests";
@@ -813,7 +813,7 @@ TEST_CASE("worker/storage/worker_storage_io_uring_op.c", "[worker][worker_storag
 
         storage_channel_iouring_free(storage_channel_iouring);
     } else {
-        ffma_mem_free(fixture_temp_path_copy);
+        xalloc_free(fixture_temp_path_copy);
     }
 
     unlink(fixture_temp_path_copy);

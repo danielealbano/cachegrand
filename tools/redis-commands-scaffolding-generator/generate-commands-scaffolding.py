@@ -735,7 +735,7 @@ class Program:
                     lines.append("    for(int i = 0; i < context->{argument_name}.count; i++) {{")
                     lines.append("        {free_memory_func}(db, &context->{argument_name}.list[i]);")
                     lines.append("    }}")
-                    lines.append("    ffma_mem_free(context->{argument_name}.list);")
+                    lines.append("    xalloc_free(context->{argument_name}.list);")
                     lines.append("}}")
                 else:
                     lines.append("{free_memory_func}(db, &context->{argument_name}.value);")
@@ -750,7 +750,7 @@ class Program:
                     lines.append("            {free_memory_func}(db, &context->{argument_name}.list[i].chunk_sequence);")
                     lines.append("        }}")
                     lines.append("    }}")
-                    lines.append("    ffma_mem_free(context->{argument_name}.list);")
+                    lines.append("    xalloc_free(context->{argument_name}.list);")
                     lines.append("}}")
                 else:
                     lines.append("if (context->{argument_name}.value.chunk_sequence.sequence) {{")
@@ -774,7 +774,7 @@ class Program:
                     lines.append("            {free_memory_func}(context->{argument_name}.list[i].{field_name});")
                     lines.append("        }}")
                     lines.append("    }}")
-                    lines.append("    ffma_mem_free(context->{argument_name}.list);")
+                    lines.append("    xalloc_free(context->{argument_name}.list);")
                     lines.append("}}")
                 else:
                     lines.append("if (context->{argument_name}.value.{field_name}) {{")

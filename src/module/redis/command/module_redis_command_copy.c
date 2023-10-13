@@ -180,7 +180,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
         } while(source_chunk_written_data < source_chunk_info->chunk_length);
 
         if (unlikely(allocated_new_buffer)) {
-            ffma_mem_free(source_chunk_data);
+            xalloc_free(source_chunk_data);
             allocated_new_buffer = false;
         }
     }
@@ -222,7 +222,7 @@ end:
     }
 
     if (unlikely(allocated_new_buffer)) {
-        ffma_mem_free(source_chunk_data);
+        xalloc_free(source_chunk_data);
         allocated_new_buffer = false;
     }
 

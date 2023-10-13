@@ -84,7 +84,7 @@ char *storage_db_shard_build_path(
             basedir_path_len,
             basedir_path,
             shard_index);
-    path = ffma_mem_alloc(required_length + 1);
+    path = xalloc_alloc(required_length + 1);
 
     snprintf(
             path,
@@ -98,12 +98,12 @@ char *storage_db_shard_build_path(
 }
 
 storage_db_config_t* storage_db_config_new() {
-    return ffma_mem_alloc_zero(sizeof(storage_db_config_t));
+    return xalloc_alloc_zero(sizeof(storage_db_config_t));
 }
 
 void storage_db_config_free(
         storage_db_config_t* config) {
-    ffma_mem_free(config);
+    xalloc_free(config);
 }
 
 storage_db_t* storage_db_new(
@@ -131,7 +131,7 @@ storage_db_t* storage_db_new(
     }
 
     // Initialize the per-worker set of information
-    workers = ffma_mem_alloc_zero(sizeof(storage_db_worker_t) * workers_count);
+    workers = xalloc_alloc_zero(sizeof(storage_db_worker_t) * workers_count);
     if (!workers) {
         LOG_E(TAG, "Unable to allocate memory for the per worker configurations");
         goto fail;
@@ -160,7 +160,7 @@ storage_db_t* storage_db_new(
     }
 
     // Initialize the db wrapper structure
-    db = ffma_mem_alloc_zero(sizeof(storage_db_t));
+    db = xalloc_alloc_zero(sizeof(storage_db_t));
     if (!db) {
         LOG_E(TAG, "Unable to allocate memory for the storage db");
         goto fail;
@@ -224,7 +224,7 @@ fail:
             }
         }
 
-        ffma_mem_free(workers);
+        xalloc_free(workers);
     }
 
     if (db) {
@@ -234,7 +234,7 @@ fail:
             double_linked_list_free(db->shards.opened_shards);
         }
 
-        ffma_mem_free(db);
+        xalloc_free(db);
     }
 
     return NULL;
@@ -294,7 +294,7 @@ bool storage_db_chunk_data_pre_allocate(
     chunk_info->chunk_length = chunk_length;
 
     if (db->config->backend_type == STORAGE_DB_BACKEND_TYPE_MEMORY) {
-        chunk_info->memory.chunk_data = ffma_mem_alloc(chunk_length);
+        chunk_info->memory.chunk_data = xalloc_alloc(chunk_length);
         if (!chunk_info->memory.chunk_data) {
             LOG_E(
                     TAG,
@@ -353,7 +353,7 @@ void storage_db_chunk_data_free(
     }
 
     if (db->config->backend_type == STORAGE_DB_BACKEND_TYPE_MEMORY) {
-        ffma_mem_free(chunk_info->memory.chunk_data);
+        xalloc_free(chunk_info->memory.chunk_data);
     } else {
         // TODO: currently not implemented, the data on the disk should be collected by a garbage collector
     }
@@ -385,7 +385,7 @@ storage_db_shard_t* storage_db_shard_new(
         return NULL;
     }
 
-    storage_db_shard_t *shard = ffma_mem_alloc_zero(sizeof(storage_db_shard_t));
+    storage_db_shard_t *shard = xalloc_alloc_zero(sizeof(storage_db_shard_t));
 
     shard->storage_channel = storage_channel;
     shard->index = index;
@@ -443,7 +443,7 @@ void storage_db_shard_free(
     // TODO: should also ensure that all the in-flight data being written are actually written
     // TODO: should close the shards properly writing the footer to be able to carry out a quick read
     storage_close(shard->storage_channel);
-    ffma_mem_free(shard);
+    xalloc_free(shard);
 }
 
 storage_db_shard_t *storage_db_new_active_shard_per_current_worker(
@@ -533,8 +533,8 @@ void storage_db_free(
     slots_bitmap_mpmc_free(db->counters_slots_bitmap);
     hashtable_mcmp_free(db->hashtable);
     storage_db_config_free(db->config);
-    ffma_mem_free(db->workers);
-    ffma_mem_free(db);
+    xalloc_free(db->workers);
+    xalloc_free(db);
 }
 
 storage_db_entry_index_t *storage_db_entry_index_ring_buffer_new(
@@ -588,7 +588,7 @@ void storage_db_entry_index_ring_buffer_free(
 }
 
 storage_db_entry_index_t *storage_db_entry_index_new() {
-    return ffma_mem_alloc_zero(sizeof(storage_db_entry_index_t));
+    return xalloc_alloc_zero(sizeof(storage_db_entry_index_t));
 }
 
 size_t storage_db_chunk_sequence_calculate_chunk_count(
@@ -623,7 +623,7 @@ bool storage_db_chunk_sequence_allocate(
     chunk_sequence->count = chunk_count;
 
     if (likely(size > 0)) {
-        chunk_sequence->sequence = ffma_mem_alloc(sizeof(storage_db_chunk_info_t) * chunk_count);
+        chunk_sequence->sequence = xalloc_alloc(sizeof(storage_db_chunk_info_t) * chunk_count);
 
         if (unlikely(!chunk_sequence->sequence)) {
             goto end;
@@ -655,7 +655,7 @@ end:
                 storage_db_chunk_data_free(db, storage_db_chunk_sequence_get(chunk_sequence, chunk_index));
             }
 
-            ffma_mem_free(chunk_sequence->sequence);
+            xalloc_free(chunk_sequence->sequence);
             chunk_sequence->sequence = NULL;
             chunk_sequence->size = 0;
             chunk_sequence->count = 0;
@@ -676,7 +676,7 @@ void storage_db_chunk_sequence_free_chunks(
         storage_db_chunk_data_free(db, chunk_info);
     }
 
-    ffma_mem_free(sequence->sequence);
+    xalloc_free(sequence->sequence);
     sequence->count = 0;
     sequence->sequence = NULL;
     sequence->size = 0;
@@ -702,7 +702,7 @@ void storage_db_entry_index_free(
         storage_db_t *db,
         storage_db_entry_index_t *entry_index) {
     storage_db_entry_index_chunks_free(db, entry_index);
-    ffma_mem_free(entry_index);
+    xalloc_free(entry_index);
 }
 
 bool storage_db_entry_chunk_can_read_from_memory(
@@ -818,7 +818,7 @@ char *storage_db_get_chunk_data(
                 chunk_info);
     } else {
         *allocated_new_buffer = true;
-        buffer = ffma_mem_alloc(chunk_info->chunk_length);
+        buffer = xalloc_alloc(chunk_info->chunk_length);
 
         if (unlikely(!storage_db_chunk_read(
                 db,

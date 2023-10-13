@@ -66,7 +66,7 @@ void hashtable_spsc_free(
                 continue;
             }
 
-            ffma_mem_free((void*)buckets[bucket_index].key);
+            xalloc_free((void*)buckets[bucket_index].key);
         }
     }
 
@@ -133,7 +133,7 @@ bool hashtable_spsc_op_delete_by_bucket_index(
 
     if (hashtable->free_keys_on_deallocation) {
         hashtable_spsc_bucket_t *buckets = hashtable_spsc_get_buckets(hashtable);
-        ffma_mem_free((void*)buckets[bucket_index].key);
+        xalloc_free((void*)buckets[bucket_index].key);
     }
 
     return true;

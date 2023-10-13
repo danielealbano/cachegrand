@@ -76,7 +76,7 @@ storage_channel_t* worker_storage_posix_op_storage_open_fd(
     }
 
     // Copy the path to a new buffer
-    char *path = ffma_mem_alloc_zero(strlen(temp_fd_path) + 1);
+    char *path = xalloc_alloc_zero(strlen(temp_fd_path) + 1);
     if (!path) {
         return NULL;
     }

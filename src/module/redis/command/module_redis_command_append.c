@@ -167,7 +167,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(append) {
             } while(buffer_length > 0);
 
             if (unlikely(allocated_new_buffer)) {
-                ffma_mem_free(source_buffer);
+                xalloc_free(source_buffer);
                 source_buffer = NULL;
                 allocated_new_buffer = false;
             }
@@ -201,7 +201,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(append) {
 end:
 
     if (unlikely(allocated_new_buffer)) {
-        ffma_mem_free(source_buffer);
+        xalloc_free(source_buffer);
         source_buffer = NULL;
         allocated_new_buffer = false;
     }

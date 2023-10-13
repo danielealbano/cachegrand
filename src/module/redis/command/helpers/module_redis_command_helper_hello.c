@@ -111,7 +111,7 @@ void module_redis_command_helper_hello_try_fetch_client_name(
         module_redis_command_hello_context_t *context) {
     if (context->setname_clientname.has_token) {
         connection_context->client_name =
-                ffma_mem_alloc(context->setname_clientname.value.length + 1);
+                xalloc_alloc(context->setname_clientname.value.length + 1);
         strncpy(
                 context->setname_clientname.value.short_string,
                 connection_context->client_name,

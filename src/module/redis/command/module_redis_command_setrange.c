@@ -177,7 +177,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
             if (unlikely(current_chunk_info == NULL)) {
                 // When the source is null, an empty chunk of memory has to be written
                 if (unlikely(padding_memory_zeroed == NULL)) {
-                    padding_memory_zeroed = ffma_mem_alloc_zero(STORAGE_DB_CHUNK_MAX_SIZE);
+                    padding_memory_zeroed = xalloc_alloc_zero(STORAGE_DB_CHUNK_MAX_SIZE);
                 }
 
                 // Calculate how much has to be written, if current_chunk_info is NULL there will be nothing to write
@@ -222,7 +222,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
                 data_to_write_buffer,
                 data_to_write_length))) {
             if (unlikely(allocated_new_buffer)) {
-                ffma_mem_free(allocated_buffer);
+                xalloc_free(allocated_buffer);
                 allocated_buffer = NULL;
                 allocated_new_buffer = false;
             }
@@ -234,7 +234,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setrange) {
         }
 
         if (unlikely(allocated_new_buffer)) {
-            ffma_mem_free(allocated_buffer);
+            xalloc_free(allocated_buffer);
             allocated_buffer = NULL;
             allocated_new_buffer = false;
         }

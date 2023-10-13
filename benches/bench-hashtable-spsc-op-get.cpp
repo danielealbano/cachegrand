@@ -356,7 +356,7 @@ public:
                 true);
 
         for (int index = 0; index < this->_keys_count; index++) {
-            char *key_dup = (char*)ffma_mem_alloc(strlen(_keys[index]) + 1);
+            char *key_dup = (char*)xalloc_alloc(strlen(_keys[index]) + 1);
             strcpy(key_dup, _keys[index]);
             key_dup[strlen(_keys[index])] = '\0';
 

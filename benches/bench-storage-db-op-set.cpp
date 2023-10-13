@@ -198,7 +198,7 @@ BENCHMARK_DEFINE_F(StorageDbOpSetInsertFixture, storage_db_op_set_insert)(benchm
     // they can be recycled or re-created.
     if ((worker_context = worker_context_get()) == nullptr) {
         // This assigned memory will be lost but this is a benchmark and we don't care
-        worker_context = (worker_context_t *)ffma_mem_alloc(sizeof(worker_context_t));
+        worker_context = (worker_context_t *)xalloc_alloc(sizeof(worker_context_t));
         worker_context_set(worker_context);
     }
 

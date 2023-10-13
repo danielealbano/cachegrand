@@ -32,7 +32,7 @@ bool storage_channel_init(
 
 storage_channel_t* storage_channel_new() {
     storage_channel_t *channel =
-            (storage_channel_t*)ffma_mem_alloc_zero(sizeof(storage_channel_t));
+            (storage_channel_t*)xalloc_alloc_zero(sizeof(storage_channel_t));
 
     storage_channel_init(channel);
 
@@ -42,7 +42,7 @@ storage_channel_t* storage_channel_new() {
 storage_channel_t* storage_channel_multi_new(
         uint32_t count) {
     storage_channel_t *channels =
-            (storage_channel_t*)ffma_mem_alloc_zero(sizeof(storage_channel_t) * count);
+            (storage_channel_t*)xalloc_alloc_zero(sizeof(storage_channel_t) * count);
 
     for(int index = 0; index < count; index++) {
         storage_channel_init(&channels[index]);
@@ -53,6 +53,6 @@ storage_channel_t* storage_channel_multi_new(
 
 void storage_channel_free(
         storage_channel_t* storage_channel) {
-    ffma_mem_free(storage_channel->path);
-    ffma_mem_free(storage_channel);
+    xalloc_free(storage_channel->path);
+    xalloc_free(storage_channel);
 }

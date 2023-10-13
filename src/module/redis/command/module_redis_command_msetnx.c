@@ -52,7 +52,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(msetnx) {
     uint32_t rmw_statuses_processed_up_to = 0;
     module_redis_command_msetnx_context_t *context = connection_context->command.context;
 
-    rmw_statuses = ffma_mem_alloc_zero(sizeof(storage_db_op_rmw_status_t) * context->key_value.count);
+    rmw_statuses = xalloc_alloc_zero(sizeof(storage_db_op_rmw_status_t) * context->key_value.count);
 
     transaction_acquire(&transaction);
 

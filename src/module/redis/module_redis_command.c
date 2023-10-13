@@ -55,7 +55,7 @@ bool module_redis_command_process_begin(
     module_redis_command_parser_context_t *command_parser_context = &connection_context->command.parser_context;
 
     if (connection_context->command.info->context_size > 0) {
-        if ((connection_context->command.context = ffma_mem_alloc_zero(
+        if ((connection_context->command.context = xalloc_alloc_zero(
                 connection_context->command.info->context_size)) == NULL) {
             LOG_D(TAG, "Unable to allocate the command context, terminating connection");
             return false;
@@ -145,13 +145,13 @@ void *module_redis_command_context_list_expand_and_get_new_entry(
 
     // If the list_count is zero it's not necessary to get the current pointer
     if (list_count == 0) {
-        list = ffma_mem_alloc_zero(list_count_new * argument->argument_context_member_size);
+        list = xalloc_alloc_zero(list_count_new * argument->argument_context_member_size);
     } else {
         list = module_redis_command_context_list_get_list(argument, base_addr);
         size_t current_size = list_count * argument->argument_context_member_size;
         size_t new_size = list_count_new * argument->argument_context_member_size;
 
-        list_new = ffma_mem_realloc(
+        list_new = xalloc_realloc(
                 list,
                 new_size);
 
@@ -921,7 +921,7 @@ bool module_redis_command_stream_entry_range_with_multiple_chunks(
                     buffer_to_send + sent_data,
                     data_to_send_length) != NETWORK_OP_RESULT_OK) {
                 if (allocated_new_buffer) {
-                    ffma_mem_free(buffer_to_send);
+                    xalloc_free(buffer_to_send);
                 }
 
                 return false;
@@ -934,7 +934,7 @@ bool module_redis_command_stream_entry_range_with_multiple_chunks(
         assert(sent_data == chunk_length_to_send);
 
         if (allocated_new_buffer) {
-            ffma_mem_free(buffer_to_send);
+            xalloc_free(buffer_to_send);
         }
 
         // Resets sent data at the end of the loop

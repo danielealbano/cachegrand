@@ -59,22 +59,22 @@ void module_redis_connection_context_init(
     connection_context->db = db;
     connection_context->config = config;
     connection_context->network_channel = network_channel;
-    connection_context->read_buffer.data = (char *)ffma_mem_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
+    connection_context->read_buffer.data = (char *)xalloc_alloc_zero(NETWORK_CHANNEL_RECV_BUFFER_SIZE);
     connection_context->read_buffer.length = NETWORK_CHANNEL_RECV_BUFFER_SIZE;
 }
 
 void module_redis_connection_context_cleanup(
         module_redis_connection_context_t *connection_context) {
     if (connection_context->client_name) {
-        ffma_mem_free(connection_context->client_name);
+        xalloc_free(connection_context->client_name);
     }
-    ffma_mem_free(connection_context->read_buffer.data);
+    xalloc_free(connection_context->read_buffer.data);
 }
 
 void module_redis_connection_context_reset(
         module_redis_connection_context_t *connection_context) {
     if (connection_context->command.command_string_with_container) {
-        ffma_mem_free(connection_context->command.command_string_with_container);
+        xalloc_free(connection_context->command.command_string_with_container);
     }
 
     // Reset the reader_context to handle the next command in the buffer, the resp_version isn't touched as it's
@@ -91,7 +91,7 @@ void module_redis_connection_context_reset(
     memset(&connection_context->command.parser_context, 0, sizeof(module_redis_command_parser_context_t));
 
     if (connection_context->error.message != NULL) {
-        ffma_mem_free(connection_context->error.message);
+        xalloc_free(connection_context->error.message);
         connection_context->error.message = NULL;
     }
 
@@ -129,7 +129,7 @@ bool module_redis_connection_error_message_vprintf_internal(
     }
 
     if (connection_context->error.message != NULL) {
-        ffma_mem_free(connection_context->error.message);
+        xalloc_free(connection_context->error.message);
     }
 
     // Calculate the total amount of memory needed
@@ -142,7 +142,7 @@ bool module_redis_connection_error_message_vprintf_internal(
     assert(error_message_with_args_length > 0);
 
     // Allocate the memory and run vsnprintf
-    char *error_message_with_args = ffma_mem_alloc(error_message_with_args_length + 1);
+    char *error_message_with_args = xalloc_alloc(error_message_with_args_length + 1);
 
     if (error_message_with_args == NULL) {
         LOG_E(TAG, "Unable to allocate <%lu> bytes for the command error message", error_message_with_args_length + 1);
@@ -350,7 +350,7 @@ bool module_redis_connection_send_error(
 
     // Free up the error message and set it to null to avoid sending the same error message multiple times
     // while the command is still being parsed if the connection is not closed
-    ffma_mem_free(connection_context->error.message);
+    xalloc_free(connection_context->error.message);
     connection_context->error.message = NULL;
 
     if (send_buffer_start == NULL) {
@@ -794,7 +794,7 @@ bool module_redis_connection_process_data(
 
                         size_t current_length = connection_context->command.command_string_with_container_length;
                         connection_context->command.command_string_with_container_length += command_length + 1;
-                        connection_context->command.command_string_with_container = ffma_mem_realloc(
+                        connection_context->command.command_string_with_container = xalloc_realloc(
                                 connection_context->command.command_string_with_container,
                                 connection_context->command.command_string_with_container_length + MODULE_REDIS_COMMAND_MAX_LENGTH + 1);
 

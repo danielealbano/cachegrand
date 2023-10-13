@@ -66,7 +66,7 @@ void storage_db_snapshot_completed(
     char next_shapshot_run_buffer[256] = { 0 };
 
     if (db->snapshot.path) {
-        ffma_mem_free(db->snapshot.path);
+        xalloc_free(db->snapshot.path);
     }
 
     // Update the snapshot general information, no need to check if the update next run time is fails as this function
@@ -300,7 +300,7 @@ bool storage_db_snapshot_rdb_prepare(
     db->snapshot.storage_channel_opened = true;
 
     // Duplicate the path of the storage channel
-    db->snapshot.path = ffma_mem_alloc_zero(db->snapshot.storage_buffered_channel->storage_channel->path_len + 1);
+    db->snapshot.path = xalloc_alloc_zero(db->snapshot.storage_buffered_channel->storage_channel->path_len + 1);
     strncpy(
             db->snapshot.path,
             db->snapshot.storage_buffered_channel->storage_channel->path,
@@ -659,7 +659,7 @@ bool storage_db_snapshot_rdb_write_value_string(
 
             // Free the string if it was allocated
             if (string_allocated_new_buffer) {
-                ffma_mem_free(string);
+                xalloc_free(string);
             }
         }
     }
@@ -893,7 +893,7 @@ bool storage_db_snapshot_rdb_process_entry_index_to_be_deleted_queue(
 
         // Free the memory
         xalloc_free(data->key);
-        ffma_mem_free(data);
+        xalloc_free(data);
 
         // If the operation failed, exit after freeing the memory
         if (!result) {
@@ -911,7 +911,7 @@ void storage_db_snapshot_rdb_flush_entry_index_to_be_deleted_queue(
     while ((data = queue_mpmc_pop(db->snapshot.entry_index_to_be_deleted_queue)) != NULL) {
         storage_db_entry_index_status_decrease_readers_counter(data->entry_index, NULL);
         xalloc_free(data->key);
-        ffma_mem_free(data);
+        xalloc_free(data);
     }
 }
 

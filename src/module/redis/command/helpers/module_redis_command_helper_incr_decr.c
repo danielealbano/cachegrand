@@ -175,7 +175,7 @@ bool module_redis_command_helper_incr_decr(
 end:
 
     if (allocated_new_buffer) {
-        ffma_mem_free(current_string);
+        xalloc_free(current_string);
     }
 
     if (unlikely(abort_rmw)) {
@@ -281,7 +281,7 @@ bool module_redis_command_helper_incr_decr_float(
 
         new_number_buffer_length = snprintf(NULL, 0, "%.17Lf", new_number);
         if (unlikely(new_number_buffer_length > sizeof(new_number_buffer_static))) {
-            new_number_buffer = ffma_mem_alloc(new_number_buffer_length + 1);
+            new_number_buffer = xalloc_alloc(new_number_buffer_length + 1);
             new_number_allocated_buffer = true;
         } else {
             new_number_buffer = (char*)new_number_buffer_static;
@@ -379,11 +379,11 @@ bool module_redis_command_helper_incr_decr_float(
 end:
 
     if (new_number_allocated_buffer) {
-        ffma_mem_free(new_number_buffer);
+        xalloc_free(new_number_buffer);
     }
 
     if (allocated_new_buffer) {
-        ffma_mem_free(current_string);
+        xalloc_free(current_string);
     }
 
     if (unlikely(abort_rmw)) {

@@ -78,7 +78,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(config_get) {
                 parameters_to_send_size *= 2;
             }
 
-            parameters_to_send = ffma_mem_realloc(
+            parameters_to_send = xalloc_realloc(
                     parameters_to_send,
                     parameters_to_send_size * sizeof(module_redis_command_helper_config_parameter_key_value_t));
         }
@@ -108,7 +108,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(config_get) {
         parameters_to_send_count = ARRAY_SIZE(module_redis_command_helper_config_parameters);
 
         // Resize the list of parameters to send
-        parameters_to_send = ffma_mem_realloc(
+        parameters_to_send = xalloc_realloc(
                 parameters_to_send,
                 parameters_to_send_count * sizeof(module_redis_command_helper_config_parameter_key_value_t));
 
@@ -154,12 +154,12 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(config_get) {
             module_redis_command_helper_config_parameter_key_value_t *parameter = &parameters_to_send[parameter_index];
 
             if (parameter->to_handle) {
-                ffma_mem_free(parameter->value);
+                xalloc_free(parameter->value);
             }
         }
 
         // Free the list of parameters to send
-        ffma_mem_free(parameters_to_send);
+        xalloc_free(parameters_to_send);
     }
 
     return result;

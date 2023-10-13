@@ -43,7 +43,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         transaction.locks.count = 0;
         transaction.locks.size = 8;
 
-        auto* initial_list = (transaction_locks_list_entry_t*)ffma_mem_alloc(
+        auto* initial_list = (transaction_locks_list_entry_t*)xalloc_alloc(
                 sizeof(void*) * transaction.locks.size);
         transaction.locks.list = initial_list;
 
@@ -66,7 +66,7 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(transaction.locks.list != interim_list);
         }
 
-        ffma_mem_free(transaction.locks.list);
+        xalloc_free(transaction.locks.list);
     }
 
     SECTION("transaction_needs_expand_locks_list") {
@@ -93,7 +93,7 @@ TEST_CASE("transaction.c", "[transaction]") {
         transaction_t transaction = { };
         transaction.locks.count = 0;
         transaction.locks.size = locks_size;
-        transaction.locks.list = (transaction_locks_list_entry_t*)ffma_mem_alloc(
+        transaction.locks.list = (transaction_locks_list_entry_t*)xalloc_alloc(
                 sizeof(void*) * transaction.locks.size);
 
         SECTION("Add one lock - Write") {
@@ -153,7 +153,7 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(transaction.locks.list[ARRAY_SIZE(lock) - 1].spinlock == &lock[ARRAY_SIZE(lock) - 1]);
         }
 
-        ffma_mem_free(transaction.locks.list);
+        xalloc_free(transaction.locks.list);
     }
 
     SECTION("transaction_acquire") {
@@ -171,7 +171,7 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(transaction.locks.size == FFMA_OBJECT_SIZE_MIN / sizeof(transaction_rwspinlock_volatile_t*));
             REQUIRE(transaction.locks.list != nullptr);
 
-            ffma_mem_free(transaction.locks.list);
+            xalloc_free(transaction.locks.list);
         }
 
         SECTION("Acquire two") {
@@ -186,8 +186,8 @@ TEST_CASE("transaction.c", "[transaction]") {
             REQUIRE(transaction2.transaction_id.worker_index == UINT16_MAX);
             REQUIRE(transaction2.transaction_id.transaction_index == current_transaction_index + 2);
 
-            ffma_mem_free(transaction1.locks.list);
-            ffma_mem_free(transaction2.locks.list);
+            xalloc_free(transaction1.locks.list);
+            xalloc_free(transaction2.locks.list);
         }
     }
 

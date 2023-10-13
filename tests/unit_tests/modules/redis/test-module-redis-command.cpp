@@ -89,6 +89,6 @@ TEST_CASE("module/redis/module_redis_command.c", "[module][redis][module_redis_c
 //        module_redis_command_context_t *command_context = module_redis_command_process_begin(
 //                &test_module_redis_command_sort_command_info);
 //
-//        ffma_mem_free(command_context);
+//        xalloc_free(command_context);
 //    }
 }

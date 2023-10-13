@@ -156,7 +156,7 @@ public:
         worker_context_t *worker_context;
         if ((worker_context = worker_context_get()) == nullptr) {
             // This assigned memory will be lost but this is a benchmark and we don't care
-            worker_context = (worker_context_t *) ffma_mem_alloc(sizeof(worker_context_t));
+            worker_context = (worker_context_t *) xalloc_alloc(sizeof(worker_context_t));
             worker_context_set(worker_context);
         }
 
@@ -275,7 +275,7 @@ BENCHMARK_DEFINE_F(StorageDbOpGetFixture, storage_db_op_get_different_keys)(benc
     // they can be recycled or re-created.
     if ((worker_context = worker_context_get()) == nullptr) {
         // This assigned memory will be lost but this is a benchmark and we don't care
-        worker_context = (worker_context_t *)ffma_mem_alloc(sizeof(worker_context_t));
+        worker_context = (worker_context_t *)xalloc_alloc(sizeof(worker_context_t));
         worker_context_set(worker_context);
     }
 
@@ -369,7 +369,7 @@ BENCHMARK_DEFINE_F(StorageDbOpGetFixture, storage_db_op_get_same_keys)(benchmark
     // they can be recycled or re-created.
     if ((worker_context = worker_context_get()) == nullptr) {
         // This assigned memory will be lost but this is a benchmark and we don't care
-        worker_context = (worker_context_t *)ffma_mem_alloc(sizeof(worker_context_t));
+        worker_context = (worker_context_t *)xalloc_alloc(sizeof(worker_context_t));
         worker_context_set(worker_context);
     }
 

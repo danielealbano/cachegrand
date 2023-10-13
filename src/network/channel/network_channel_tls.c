@@ -106,7 +106,7 @@ bool network_channel_tls_init(
         network_channel_t *network_channel) {
     bool result_res = false;
 
-    network_channel->tls.context = ffma_mem_alloc(sizeof(mbedtls_ssl_context));
+    network_channel->tls.context = xalloc_alloc(sizeof(mbedtls_ssl_context));
     mbedtls_ssl_init(network_channel->tls.context);
 
     if (mbedtls_ssl_setup(
@@ -130,7 +130,7 @@ end:
 
     if (!result_res && network_channel->tls.context) {
         mbedtls_ssl_free(network_channel->tls.context);
-        ffma_mem_free(network_channel->tls.context);
+        xalloc_free(network_channel->tls.context);
 
         network_channel->tls.context = NULL;
     }
@@ -424,6 +424,6 @@ void network_channel_tls_free(
     }
 
     mbedtls_ssl_free(network_channel->tls.context);
-    ffma_mem_free(network_channel->tls.context);
+    xalloc_free(network_channel->tls.context);
     network_channel->tls.context = NULL;
 }

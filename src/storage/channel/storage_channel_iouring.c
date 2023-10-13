@@ -20,7 +20,7 @@
 
 storage_channel_iouring_t* storage_channel_iouring_new() {
     storage_channel_iouring_t *channel =
-            (storage_channel_iouring_t*)ffma_mem_alloc_zero(sizeof(storage_channel_iouring_t));
+            (storage_channel_iouring_t*)xalloc_alloc_zero(sizeof(storage_channel_iouring_t));
 
     storage_channel_init(&channel->wrapped_channel);
 
@@ -30,7 +30,7 @@ storage_channel_iouring_t* storage_channel_iouring_new() {
 storage_channel_iouring_t* storage_channel_iouring_multi_new(
         uint32_t count) {
     storage_channel_iouring_t *channels =
-            (storage_channel_iouring_t*)ffma_mem_alloc_zero(sizeof(storage_channel_iouring_t) * count);
+            (storage_channel_iouring_t*)xalloc_alloc_zero(sizeof(storage_channel_iouring_t) * count);
 
     for(int index = 0; index < count; index++) {
         storage_channel_init(&channels[index].wrapped_channel);
@@ -41,6 +41,6 @@ storage_channel_iouring_t* storage_channel_iouring_multi_new(
 
 void storage_channel_iouring_free(
         storage_channel_iouring_t* storage_channel) {
-    ffma_mem_free(storage_channel->wrapped_channel.path);
-    ffma_mem_free(storage_channel);
+    xalloc_free(storage_channel->wrapped_channel.path);
+    xalloc_free(storage_channel);
 }

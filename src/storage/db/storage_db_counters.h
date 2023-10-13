@@ -71,7 +71,7 @@ static inline storage_db_counters_t* storage_db_counters_per_thread_get_or_creat
             database_number);
 
     if (!counters_per_db) {
-        counters_per_db = ffma_mem_alloc_zero(sizeof(storage_db_counters_t));
+        counters_per_db = xalloc_alloc_zero(sizeof(storage_db_counters_t));
         hashtable_spsc_op_try_set_by_hash_and_key_uint32(
                 counters_global_and_per_db->per_db,
                 database_number,

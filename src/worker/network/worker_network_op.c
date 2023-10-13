@@ -81,7 +81,7 @@ worker_module_context_t *worker_module_contexts_initialize(
     worker_module_context_t *worker_module_context = NULL;
 
     worker_module_context =
-            ffma_mem_alloc_zero(sizeof(worker_module_context_t) * config->modules_count);
+            xalloc_alloc_zero(sizeof(worker_module_context_t) * config->modules_count);
     if (!worker_module_context) {
         goto end;
     }
@@ -110,7 +110,7 @@ worker_module_context_t *worker_module_contexts_initialize(
                 config_module->network->tls->verify_client_certificate);
 
         if (cipher_suites) {
-            ffma_mem_free(cipher_suites);
+            xalloc_free(cipher_suites);
         }
 
         if (!network_tls_config) {
@@ -132,7 +132,7 @@ end:
             network_tls_config_free(worker_module_context[module_index].network_tls_config);
         }
 
-        ffma_mem_free(worker_module_context);
+        xalloc_free(worker_module_context);
         worker_module_context = NULL;
     }
 
@@ -149,7 +149,7 @@ void worker_module_context_free(
         network_tls_config_free(worker_module_context[module_index].network_tls_config);
     }
 
-    ffma_mem_free(worker_module_context);
+    xalloc_free(worker_module_context);
 }
 
 // TODO: the listener and accept operations should be refactored to split them in an user frontend operation and in an

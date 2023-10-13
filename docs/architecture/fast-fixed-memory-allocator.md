@@ -165,10 +165,10 @@ the pointer to the `double_linked_list_item` can be cast back to `ffma_slice_t`.
 The field `page_addr` points to the beginning of the slice and although it's a duplication,
 `double_linked_list_item` it's the beginning of the slice itself, there is currently enough space for it and to improve
 the code readability it's better to have it. This field is mostly used in the pointer math used to calculate the slot /
-object memory address in `ffma_mem_free`.
+object memory address in `xalloc_free`.
 
 The field `data_addr` points instead to the beginning of the slots, to `slots[0]`, and it's used as well in the pointer
-math to calculate the slot / object index in `ffma_mem_free`. It's also worth to note that `data_addr`, for
+math to calculate the slot / object index in `xalloc_free`. It's also worth to note that `data_addr`, for
 performance reasons, is kept **always** page aligned.
 
 The field `metrics.objects_total_count` is calculated using the following code

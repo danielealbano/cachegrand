@@ -219,7 +219,7 @@ int *network_tls_build_cipher_suites_from_names(
     }
 
     // There might be over allocation in case of invalid cipher suites
-    int *cipher_suites_ids = ffma_mem_alloc_zero(sizeof(int) * (cipher_suites_names_count + 1));
+    int *cipher_suites_ids = xalloc_alloc_zero(sizeof(int) * (cipher_suites_names_count + 1));
 
     int cipher_suite_id_index = 0;
     for(
@@ -250,7 +250,7 @@ int *network_tls_build_cipher_suites_from_names(
 
     // Check if all the ciphers specified are invalid
     if (cipher_suite_id_index == 0) {
-        ffma_mem_free(cipher_suites_ids);
+        xalloc_free(cipher_suites_ids);
         return NULL;
     }
 
@@ -271,7 +271,7 @@ network_tls_config_t *network_tls_config_init(
     network_tls_config_t *network_tls_config = NULL;
     bool return_res = false;
 
-    network_tls_config = ffma_mem_alloc(sizeof(network_tls_config_t) + cipher_suites_length);
+    network_tls_config = xalloc_alloc(sizeof(network_tls_config_t) + cipher_suites_length);
     if (network_tls_config == NULL) {
         goto end;
     }
@@ -386,7 +386,7 @@ end:
         mbedtls_entropy_free(&network_tls_config->entropy);
         mbedtls_ssl_config_free(&network_tls_config->config);
 
-        ffma_mem_free(network_tls_config);
+        xalloc_free(network_tls_config);
         network_tls_config = NULL;
     }
 
@@ -405,7 +405,7 @@ void network_tls_config_free(
     mbedtls_entropy_free(&network_tls_config->entropy);
     mbedtls_ssl_config_free(&network_tls_config->config);
 
-    ffma_mem_free(network_tls_config);
+    xalloc_free(network_tls_config);
 }
 
 void network_tls_close_internal(
@@ -564,7 +564,7 @@ network_tls_mbedtls_cipher_suite_info_t *network_tls_mbedtls_get_all_cipher_suit
     }
 
     // Fills up the data to be returned
-    cipher_suites = ffma_mem_alloc_zero(sizeof(network_tls_mbedtls_cipher_suite_info_t) * (count + 1));
+    cipher_suites = xalloc_alloc_zero(sizeof(network_tls_mbedtls_cipher_suite_info_t) * (count + 1));
     index = 0;
     for(
             const int *mbedtls_cipher_suite_id = mbedtls_cipher_suites_ids;

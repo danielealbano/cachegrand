@@ -25,12 +25,12 @@
 storage_buffered_channel_t* storage_buffered_channel_new(
         storage_channel_t *storage_channel) {
     storage_buffered_channel_t *storage_buffered_channel =
-            (storage_buffered_channel_t*)ffma_mem_alloc_zero(sizeof(storage_buffered_channel_t));
+            (storage_buffered_channel_t*)xalloc_alloc_zero(sizeof(storage_buffered_channel_t));
     storage_buffered_channel->storage_channel = storage_channel;
 
-    storage_buffered_channel->buffers.write.buffer.data = ffma_mem_alloc(STORAGE_BUFFERED_CHANNEL_BUFFER_SIZE);
+    storage_buffered_channel->buffers.write.buffer.data = xalloc_alloc(STORAGE_BUFFERED_CHANNEL_BUFFER_SIZE);
     storage_buffered_channel->buffers.write.buffer.length = STORAGE_BUFFERED_CHANNEL_BUFFER_SIZE;
-    storage_buffered_channel->buffers.read.buffer.data = ffma_mem_alloc(STORAGE_BUFFERED_CHANNEL_BUFFER_SIZE);
+    storage_buffered_channel->buffers.read.buffer.data = xalloc_alloc(STORAGE_BUFFERED_CHANNEL_BUFFER_SIZE);
     storage_buffered_channel->buffers.read.buffer.length = STORAGE_BUFFERED_CHANNEL_BUFFER_SIZE;
 
     return storage_buffered_channel;
@@ -38,7 +38,7 @@ storage_buffered_channel_t* storage_buffered_channel_new(
 
 void storage_buffered_channel_free(
         storage_buffered_channel_t* storage_buffered_channel) {
-    ffma_mem_free(storage_buffered_channel->buffers.write.buffer.data);
-    ffma_mem_free(storage_buffered_channel->buffers.read.buffer.data);
-    ffma_mem_free(storage_buffered_channel);
+    xalloc_free(storage_buffered_channel->buffers.write.buffer.data);
+    xalloc_free(storage_buffered_channel->buffers.read.buffer.data);
+    xalloc_free(storage_buffered_channel);
 }

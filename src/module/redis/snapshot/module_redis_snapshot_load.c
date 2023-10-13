@@ -464,7 +464,7 @@ bool module_redis_snapshot_load(
     }
 
     // Open the snapshot file
-    char *snapshot_path = ffma_mem_alloc(strlen(path) + 1);
+    char *snapshot_path = xalloc_alloc(strlen(path) + 1);
     strcpy(snapshot_path, path);
     storage_channel_t *snapshot_channel = storage_open(
             snapshot_path,
