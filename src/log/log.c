@@ -18,7 +18,6 @@
 
 #include "misc.h"
 #include "xalloc.h"
-#include "mimalloc.h"
 
 #include "log.h"
 #include "log/sink/log_sink.h"
