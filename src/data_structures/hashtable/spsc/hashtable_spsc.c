@@ -364,6 +364,82 @@ bool hashtable_spsc_op_try_set_by_hash_and_key_uint32(
     return true;
 }
 
+bool hashtable_spsc_op_try_set_by_hash_and_key_uint64(
+        hashtable_spsc_t *hashtable,
+        uint32_t hash,
+        uint64_t key_uint64,
+        void *value) {
+    hashtable_spsc_bucket_index_t bucket_index;
+    hashtable_spsc_bucket_count_t bucket_index_max;
+
+    assert(hashtable->free_keys_on_deallocation == false);
+
+    // Search if there is already a bucket with the same hash and key
+    bucket_index = hashtable_spsc_find_bucket_index_by_key_uint64(hashtable, hash, key_uint64);
+
+    if (bucket_index == -1) {
+        // If not search for an empty bucket within the allowed range
+        bucket_index = hashtable_spsc_bucket_index_from_hash(hashtable, hash);
+        bucket_index_max = bucket_index + hashtable->max_range;
+        bucket_index = hashtable_spsc_find_empty_bucket(
+                hashtable,
+                bucket_index,
+                bucket_index_max);
+
+        if (bucket_index > -1) {
+            // If an empty bucket was found, update the hash and mark it as in use
+            hashtable->hashes[bucket_index].set = true;
+            hashtable->hashes[bucket_index].cmp_hash = HASHTABLE_SPSC_HASH(hash);
+        }
+    }
+
+    if (unlikely(bucket_index == -1)) {
+        return false;
+    }
+
+    hashtable_spsc_bucket_t *buckets = hashtable_spsc_get_buckets(hashtable);
+
+    buckets[bucket_index].key_uint64 = key_uint64;
+    buckets[bucket_index].key_length = 0;
+    buckets[bucket_index].value = value;
+
+    return true;
+}
+
+bool hashtable_spsc_op_delete_by_hash_and_key_uint32(
+        hashtable_spsc_t *hashtable,
+        uint32_t hash,
+        uint32_t key) {
+    hashtable_spsc_bucket_index_t bucket_index = hashtable_spsc_find_bucket_index_by_key_uint32(
+            hashtable,
+            hash,
+            key);
+
+    if (unlikely(bucket_index == -1)) {
+        return false;
+    }
+
+    hashtable_spsc_op_delete_by_bucket_index(hashtable, bucket_index);
+    return true;
+}
+
+bool hashtable_spsc_op_delete_by_hash_and_key_uint64(
+        hashtable_spsc_t *hashtable,
+        uint32_t hash,
+        uint64_t key) {
+    hashtable_spsc_bucket_index_t bucket_index = hashtable_spsc_find_bucket_index_by_key_uint64(
+            hashtable,
+            hash,
+            key);
+
+    if (unlikely(bucket_index == -1)) {
+        return false;
+    }
+
+    hashtable_spsc_op_delete_by_bucket_index(hashtable, bucket_index);
+    return true;
+}
+
 void *hashtable_spsc_op_iter(
         hashtable_spsc_t *hashtable,
         hashtable_spsc_bucket_index_t *bucket_index) {

@@ -263,6 +263,63 @@ static inline __attribute__((always_inline)) void *hashtable_spsc_op_get_by_hash
     return hashtable_spsc_get_buckets(hashtable)[bucket_index].value;
 }
 
+static inline __attribute__((always_inline)) hashtable_spsc_bucket_index_t hashtable_spsc_find_bucket_index_by_key_uint64(
+        hashtable_spsc_t *hashtable,
+        uint32_t hash,
+        uint64_t key_uint64) {
+    hashtable_spsc_bucket_index_t bucket_index;
+    hashtable_spsc_bucket_count_t bucket_index_max;
+    hashtable_spsc_cmp_hash_t cmp_hash = HASHTABLE_SPSC_HASH(hash);
+    hashtable_spsc_bucket_t *buckets = hashtable_spsc_get_buckets(hashtable);
+
+    assert(hashtable->free_keys_on_deallocation == false);
+
+    bucket_index = hashtable_spsc_bucket_index_from_hash(hashtable, hash);
+    bucket_index_max = bucket_index + hashtable->max_range;
+
+    do {
+        bucket_index = hashtable_spsc_find_set_bucket(
+                hashtable,
+                bucket_index,
+                bucket_index_max);
+
+        if (unlikely(bucket_index == -1)) {
+            break;
+        }
+
+        if (likely(hashtable->hashes[bucket_index].cmp_hash != cmp_hash)) {
+            continue;
+        }
+
+
+        if (unlikely(key_uint64 != buckets[bucket_index].key_uint64)) {
+            continue;
+        }
+
+        return bucket_index;
+    } while(++bucket_index);
+
+    return -1;
+}
+
+static inline __attribute__((always_inline)) void *hashtable_spsc_op_get_by_hash_and_key_uint64(
+        hashtable_spsc_t *hashtable,
+        uint32_t hash,
+        uint64_t key_uint64) {
+    assert(hashtable->free_keys_on_deallocation == false);
+
+    hashtable_spsc_bucket_index_t bucket_index = hashtable_spsc_find_bucket_index_by_key_uint64(
+            hashtable,
+            hash,
+            key_uint64);
+
+    if (unlikely(bucket_index == -1)) {
+        return NULL;
+    }
+
+    return hashtable_spsc_get_buckets(hashtable)[bucket_index].value;
+}
+
 static inline __attribute__((always_inline)) void *hashtable_spsc_op_get_cs(
         hashtable_spsc_t *hashtable,
         const char* key,
@@ -309,6 +366,22 @@ bool hashtable_spsc_op_try_set_by_hash_and_key_uint32(
         uint32_t hash,
         uint32_t key_uint32,
         void *value);
+
+bool hashtable_spsc_op_try_set_by_hash_and_key_uint64(
+        hashtable_spsc_t *hashtable,
+        uint32_t hash,
+        uint64_t key_uint64,
+        void *value);
+
+bool hashtable_spsc_op_delete_by_hash_and_key_uint32(
+        hashtable_spsc_t *hashtable,
+        uint32_t hash,
+        uint32_t key_uint32);
+
+bool hashtable_spsc_op_delete_by_hash_and_key_uint64(
+        hashtable_spsc_t *hashtable,
+        uint32_t hash,
+        uint64_t key_uint64);
 
 void *hashtable_spsc_op_iter(
         hashtable_spsc_t *hashtable,
