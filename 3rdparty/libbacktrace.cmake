@@ -1,0 +1,27 @@
+include(ProcessorCount)
+include(ExternalProject)
+
+set(LIBBACKTRACE_SRC_PATH "${CMAKE_BINARY_DIR}/_deps/src/backtrace")
+set(LIBBACKTRACE_BUILD_PATH "${CMAKE_BINARY_DIR}/_deps/src/backtrace")
+set(LIBBACKTRACE_INCLUDE_PATH "${LIBBACKTRACE_SRC_PATH}")
+
+ProcessorCount(BUILD_CPU_CORES)
+ExternalProject_Add(
+        backtrace
+        GIT_REPOSITORY https://github.com/ianlancetaylor/libbacktrace.git
+        GIT_TAG 9ae4f4ae4481b1e69d38ed810980d33103544613
+        PREFIX ${CMAKE_BINARY_DIR}/_deps
+        BUILD_BYPRODUCTS ${LIBBACKTRACE_SRC_PATH}/.libs/libbacktrace.a
+        CONFIGURE_COMMAND
+        cd ${LIBBACKTRACE_SRC_PATH} && chmod +x ${LIBBACKTRACE_SRC_PATH}/configure && ${LIBBACKTRACE_SRC_PATH}/configure --prefix=${CMAKE_BINARY_DIR}/_deps/libbacktrace/install
+        BUILD_COMMAND
+        make -C ${LIBBACKTRACE_SRC_PATH} -j ${BUILD_CPU_CORES}
+        INSTALL_COMMAND "")
+
+set(LIBBACKTRACE_LIBRARY_DIRS "${LIBBACKTRACE_SRC_PATH}/.libs/")
+set(LIBBACKTRACE_INCLUDE_DIRS "${LIBBACKTRACE_INCLUDE_PATH}")
+set(LIBBACKTRACE_LIBRARIES_STATIC "libbacktrace.a")
+
+list(APPEND DEPS_LIST_LIBRARIES_PRIVATE "${LIBBACKTRACE_LIBRARIES_STATIC}")
+list(APPEND DEPS_LIST_INCLUDE_DIRS "${LIBBACKTRACE_INCLUDE_DIRS}")
+list(APPEND DEPS_LIST_LIBRARY_DIRS "${LIBBACKTRACE_LIBRARY_DIRS}")
