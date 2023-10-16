@@ -6,11 +6,6 @@ set(LIBHIREDIS_SRC_PATH "${CMAKE_BINARY_DIR}/_deps/src/hiredis")
 set(LIBHIREDIS_BUILD_PATH "${LIBHIREDIS_SRC_PATH}")
 set(LIBHIREDIS_INCLUDE_PATH "${LIBHIREDIS_SRC_PATH}")
 
-# Notes:
-# - do not use the latest tagged version (currently v1.1.0) as it contains some bugs and the errors in the yaml
-#   documents are not being reported correctly.
-# - because it's not a release version, enforce VERSION_DEVEL to 0
-# - build the dynamic version of the library for the tests (check tests/CMakeLists.txt for more details)
 ProcessorCount(BUILD_CPU_CORES)
 ExternalProject_Add(
         hiredis
