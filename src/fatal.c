@@ -8,10 +8,11 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include <errno.h>
 #include <string.h>
-#include <signal.h>
 #include <stdbool.h>
+#include <signal.h>
+#include <errno.h>
+#include <unistd.h>
 
 #if defined(__linux__)
 #include <execinfo.h>
@@ -21,8 +22,18 @@
 
 #include "misc.h"
 #include "log/log.h"
-#include "fatal.h"
-#include "backtrace.h"
+
+void backtrace_print() {
+#if defined(__linux__)
+    void *array[50];
+    int size;
+
+    size = backtrace(array, 50);
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+#else
+#error Platform not supported
+#endif
+}
 
 void fatal_trigger_debugger() {
 #if defined(__linux__)
