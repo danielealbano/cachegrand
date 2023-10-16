@@ -9,6 +9,7 @@ extern "C" {
 extern const char *CACHEGRAND_CMAKE_CONFIG_VERSION_GIT;
 extern const char *CACHEGRAND_CMAKE_CONFIG_BUILD_DATE_TIME;
 
+#define CACHEGRAND_BASE_PATH_LEN                                (@CMAKE_SOURCE_DIR_LENGTH@)
 #define CACHEGRAND_SRC_PATH                                     ((const char*)__FILE__ + @CMAKE_SOURCE_DIR_LENGTH@)
 #define CACHEGRAND_CONFIG_PATH_DEFAULT                          "@CONFIG_PATH_DEFAULT@"
 
