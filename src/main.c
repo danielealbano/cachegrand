@@ -41,8 +41,6 @@
 #include "worker/worker_context.h"
 #include "worker/worker.h"
 #include "signal_handler_thread.h"
-#include "epoch_gc.h"
-#include "epoch_gc_worker.h"
 #include "program.h"
 
 int main(

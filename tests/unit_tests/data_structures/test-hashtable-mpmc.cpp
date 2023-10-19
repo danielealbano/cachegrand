@@ -23,9 +23,7 @@
 #include "data_structures/double_linked_list/double_linked_list.h"
 #include "data_structures/ring_bounded_queue_spsc/ring_bounded_queue_spsc_uint128.h"
 #include "transaction.h"
-#include "epoch_gc.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
-#include "data_structures/hashtable_mpmc/hashtable_mpmc.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
 
 #if CACHEGRAND_CMAKE_CONFIG_USE_HASH_ALGORITHM_T1HA2 == 1

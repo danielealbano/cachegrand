@@ -37,8 +37,6 @@
 #include "worker/worker_stats.h"
 #include "worker/worker_context.h"
 #include "signal_handler_thread.h"
-#include "epoch_gc.h"
-#include "epoch_gc_worker.h"
 #include "program.h"
 
 // Needed to be defined there as there is a recursive dependency between worker_context and worker_stats
