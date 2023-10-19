@@ -203,8 +203,6 @@ void TestModulesRedisCommandFixture::start_workers() {
 
     program_initialize_module(program_context);
 
-    program_epoch_gc_workers_initialize(program_context);
-
     worker_context = program_workers_initialize_context(
             program_context);
     worker_context_set(worker_context);

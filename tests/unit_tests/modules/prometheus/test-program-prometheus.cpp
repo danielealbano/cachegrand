@@ -141,8 +141,6 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
     storage_db_t *db = program_context->db;
     storage_db_open(db);
 
-    program_epoch_gc_workers_initialize(program_context);
-
     program_config_thread_affinity_set_selected_cpus(program_context);
 
     program_workers_initialize_count(program_context);
