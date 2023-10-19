@@ -188,8 +188,6 @@ static void slots_bitmap_mpmc_fill_sequential(benchmark::State& state) {
 }
 
 static void BenchArguments(benchmark::internal::Benchmark* b) {
-    // To run more than 131072 iterations is necessary to increase EPOCH_OPERATION_QUEUE_RING_SIZE in
-    // epoch_operations_queue.h as there is no processing of the queue included with the test
     b
             ->ThreadRange(TEST_THREADS_RANGE_BEGIN, TEST_THREADS_RANGE_END)
             ->Iterations(BITS_PER_THREAD)
