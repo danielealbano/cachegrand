@@ -51,8 +51,6 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
-#include "epoch_gc.h"
-#include "epoch_gc_worker.h"
 
 #include "program.h"
 
@@ -142,8 +140,6 @@ TEST_CASE("program.c-prometheus", "[program-prometheus]") {
     program_config_setup_storage_db(program_context);
     storage_db_t *db = program_context->db;
     storage_db_open(db);
-
-    program_epoch_gc_workers_initialize(program_context);
 
     program_config_thread_affinity_set_selected_cpus(program_context);
 

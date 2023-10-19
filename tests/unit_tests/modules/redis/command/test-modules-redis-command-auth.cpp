@@ -38,8 +38,6 @@
 #include "protocol/redis/protocol_redis.h"
 #include "protocol/redis/protocol_redis_reader.h"
 #include "storage/db/storage_db.h"
-#include "epoch_gc.h"
-#include "epoch_gc_worker.h"
 #include "module/redis/module_redis.h"
 
 #include "program.h"

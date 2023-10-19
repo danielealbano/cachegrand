@@ -51,8 +51,6 @@
 #include "storage/io/storage_io_common.h"
 #include "storage/channel/storage_channel.h"
 #include "storage/db/storage_db.h"
-#include "epoch_gc.h"
-#include "epoch_gc_worker.h"
 
 #include "../../../network/network_tests_support.h"
 
@@ -204,8 +202,6 @@ void TestModulesRedisCommandFixture::start_workers() {
     storage_db_open(db);
 
     program_initialize_module(program_context);
-
-    program_epoch_gc_workers_initialize(program_context);
 
     worker_context = program_workers_initialize_context(
             program_context);
