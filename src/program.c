@@ -44,8 +44,6 @@
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
-#include "epoch_gc.h"
-#include "epoch_gc_worker.h"
 #include "module/module.h"
 #include "network/io/network_io_common.h"
 #include "network/channel/network_channel.h"
@@ -105,38 +103,6 @@ signal_handler_thread_context_t* program_signal_handler_thread_initialize(
     }
 
     return signal_handler_thread_context;
-}
-
-bool program_epoch_gc_workers_initialize(
-        program_context_t *program_context) {
-
-    int epoch_gc_workers_count = (int)EPOCH_GC_OBJECT_TYPE_MAX;
-    program_context->epoch_gc_workers_count = epoch_gc_workers_count;
-    program_context->epoch_gc_workers_context =
-            xalloc_alloc_zero(epoch_gc_workers_count * sizeof(epoch_gc_worker_context_t));
-
-    LOG_V(TAG, "Creating epoch gc workers");
-
-    for(int object_type_index = 0; object_type_index < program_context->epoch_gc_workers_count; object_type_index++) {
-        epoch_gc_worker_context_t *epoch_gc_worker_context =
-                &program_context->epoch_gc_workers_context[object_type_index];
-
-        epoch_gc_worker_context->epoch_gc = epoch_gc_init(object_type_index);
-        epoch_gc_worker_context->terminate_event_loop = &program_context->program_terminate_event_loop;
-        epoch_gc_worker_context->stats.collected_objects = 0;
-
-        if (pthread_create(
-                &epoch_gc_worker_context->pthread,
-                NULL,
-                epoch_gc_worker_func,
-                epoch_gc_worker_context) != 0) {
-            LOG_E(TAG, "Unable to start the epoch gc worker for object type index <%d>", object_type_index);
-            LOG_E_OS_ERROR(TAG);
-            return false;
-        }
-    }
-
-    return true;
 }
 
 void program_workers_initialize_count(
@@ -296,40 +262,6 @@ void program_workers_cleanup(
                     worker_index);
         }
     }
-}
-
-void program_epoch_gc_workers_cleanup(
-        epoch_gc_worker_context_t *epoch_gc_workers_context,
-        uint32_t epoch_gc_workers_count) {
-    int res;
-
-    LOG_V(
-            TAG,
-            "Waiting for gc epoch workers to terminate");
-
-    for(uint32_t index = 0; index < epoch_gc_workers_count; index++) {
-        epoch_gc_worker_context_t *epoch_gc_worker_context = &epoch_gc_workers_context[index];
-        if (epoch_gc_worker_context->pthread == 0) {
-            continue;
-        }
-
-        res = pthread_join(
-                epoch_gc_worker_context->pthread,
-                NULL);
-
-        if (res != 0) {
-            LOG_E(TAG, "Error while joining the epoch gc worker for object type <%d>", index);
-            LOG_E_OS_ERROR(TAG);
-        } else {
-            LOG_V(TAG, "Epoch gc worker for object type <%d> terminated", index);
-        }
-
-        if (epoch_gc_worker_context->epoch_gc != NULL) {
-            epoch_gc_free(epoch_gc_worker_context->epoch_gc);
-        }
-    }
-
-    LOG_V(TAG, "Epoch gc workers terminated");
 }
 
 void program_signal_handler_thread_cleanup(
@@ -718,13 +650,6 @@ void program_cleanup(
         storage_db_free(program_context->db, program_context->workers_count);
     }
 
-    if (program_context->epoch_gc_workers_context) {
-        program_epoch_gc_workers_cleanup(
-                program_context->epoch_gc_workers_context,
-                program_context->epoch_gc_workers_count);
-        xalloc_free(program_context->epoch_gc_workers_context);
-    }
-
     if (program_context->selected_cpus) {
         xalloc_free(program_context->selected_cpus);
         program_context->selected_cpus_count = 0;
@@ -810,7 +735,7 @@ int program_main(
     // Calculate workers count
     program_workers_initialize_count(program_context);
 
-    // Initialize the epoch gc workers
+    // Initialize the storage backend
     if (program_config_setup_storage_db(program_context) == false) {
         LOG_E(TAG, "Unable to initialize the database");
         goto end;
@@ -820,15 +745,9 @@ int program_main(
         goto end;
     }
 
-    // Initialize the epoch gc workers
+    // Initialize the signal handler thread
     if (program_signal_handler_thread_initialize(
             program_context) == NULL) {
-        goto end;
-    }
-
-    // Initialize the epoch gc workers
-    if (program_epoch_gc_workers_initialize(
-            program_context) == false) {
         goto end;
     }
 

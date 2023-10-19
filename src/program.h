@@ -16,8 +16,6 @@ struct program_context {
     uint32_t workers_count;
     worker_context_t *workers_context;
     signal_handler_thread_context_t *signal_handler_thread_context;
-    uint32_t epoch_gc_workers_count;
-    epoch_gc_worker_context_t *epoch_gc_workers_context;
     bool_volatile_t storage_db_loaded;
     bool_volatile_t workers_terminate_event_loop;
     bool_volatile_t program_terminate_event_loop;
@@ -29,13 +27,6 @@ void program_reset_context();
 
 bool program_config_setup_storage_db(
         program_context_t* program_context);
-
-bool program_epoch_gc_workers_initialize(
-        program_context_t *program_context);
-
-void program_epoch_gc_workers_cleanup(
-        epoch_gc_worker_context_t *epoch_gc_workers_context,
-        uint32_t epoch_gc_workers_count);
 
 void program_workers_initialize_count(
         program_context_t *program_context);
