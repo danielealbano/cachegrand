@@ -65,6 +65,8 @@
 #include <dlfcn.h>
 #include <backtrace-supported.h>
 #include <backtrace.h>
+#define UNW_LOCAL_ONLY
+#include <libunwind.h>
 
 #include "intrinsics.h"
 #include "exttypes.h"
@@ -592,16 +594,45 @@ static void* xalloc_track_allocations_allocate_get_caller() {
         skip = 2;
     }
 
-    if (__bt_state == NULL) {
-        xalloc_track_allocations_acquire_create_state();
+//    if (__bt_state == NULL) {
+//        xalloc_track_allocations_acquire_create_state();
+//    }
+//
+//    backtrace_simple(
+//            __bt_state,
+//            skip,
+//            xalloc_track_allocations_allocate_get_caller_callback,
+//            xalloc_track_allocations_allocate_get_caller_callback_error,
+//            &caller);
+
+    unw_cursor_t cursor;
+    unw_context_t context;
+
+    // grab the machine context and initialize the cursor
+    if (unw_getcontext(&context) < 0) {
+        FATAL(TAG, "cannot get local machine state");
     }
 
-    backtrace_simple(
-            __bt_state,
-            skip,
-            xalloc_track_allocations_allocate_get_caller_callback,
-            xalloc_track_allocations_allocate_get_caller_callback_error,
-            &caller);
+    if (unw_init_local(&cursor, &context) < 0) {
+        FATAL(TAG, "cannot initialize cursor for local unwinding");
+    }
+
+    unw_word_t pc = 0;
+
+    // unwind until we reach the desired frame
+    skip++;
+    do {
+        skip--;
+        if (skip > 0) {
+            continue;
+        }
+
+        if (unw_get_reg(&cursor, UNW_REG_IP, &pc)) {
+            LOG_E(TAG, "Cannot read program counter");
+            break;
+        }
+    } while (unw_step(&cursor) > 0 && skip > 0);
+    caller = (void*)pc;
 
     return caller;
 }
@@ -1102,20 +1133,29 @@ int xalloc_track_allocations_info_from_pc_data_compare_desc(
 }
 
 static void* xalloc_track_allocations_ctor_thread_func(void *user_data) {
-    xalloc_track_allocations_ctor_thread_terminate = false;
-    xalloc_track_allocations_ctor_thread_terminated = false;
-    MEMORY_FENCE_STORE();
-
     // To avoid the hooks being called from this thread, we set xalloc_track_allocations_in_hook to true to emulate
     // being in a hook, permanently
     xalloc_track_allocations_in_hook = true;
 
+    // Set the thread status
+    xalloc_track_allocations_ctor_thread_terminate = false;
+    xalloc_track_allocations_ctor_thread_terminated = false;
+    MEMORY_FENCE_STORE();
+
+    // Acquire the path to the current executable
     char current_executable[1024];
     size_t current_executable_len = readlink("/proc/self/exe", current_executable, sizeof(current_executable));
     if (current_executable_len == -1) {
         FATAL(TAG, "xalloc track allocations: failed to readlink /proc/self/exe");
     }
     current_executable[current_executable_len] = '\0';
+
+    // Acquire the path to the current executable
+    __bt_state = backtrace_create_state(
+            current_executable,
+            0,
+            xalloc_track_allocations_create_state_callback_error,
+            NULL);
 
     if (pthread_setname_np(pthread_self(), "xalloctrkalloc") != 0) {
         LOG_W(TAG, "failed to set thread name");
@@ -1206,7 +1246,7 @@ static void* xalloc_track_allocations_ctor_thread_func(void *user_data) {
                     xalloc_track_allocations_info_from_pc_data_t *entry = &entries[entry_index];
 
                     char buffer_out[512] = { 0 };
-                    sprintf(buffer_out, "[%s][%s:%d]", entry->filename + CACHEGRAND_BASE_PATH_LEN, entry->function, entry->lineno);
+                    sprintf(buffer_out, "[%s:%d / %s]", entry->filename + CACHEGRAND_BASE_PATH_LEN, entry->lineno, entry->function);
 
                     fprintf(stdout, "%s", buffer_out);
                     fprintf(
