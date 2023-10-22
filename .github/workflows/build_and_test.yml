@@ -6,31 +6,20 @@ on:
   pull_request:
     branches: [ main ]
 
-env:
-  BUILD_TYPE: Debug
-
 jobs:
   build:
-    name: ${{ matrix.config.name }}
-    runs-on: ${{ matrix.config.os }}
     strategy:
       fail-fast: false
       matrix:
         config:
-          - {
-            name: "Ubuntu 20.04",
-            os: ubuntu-20.04,
-            triplet: x64-linux,
-            cc: "gcc",
-            cxx: "g++"
-          }
-          - {
-            name: "Ubuntu 22.04",
-            os: ubuntu-22.04,
-            triplet: x64-linux,
-            cc: "gcc",
-            cxx: "g++"
-          }
+          - { triplet: "ubuntu2004-x64-gcc", os: [ self-hosted, x64, ubuntu2004 ], ostype: "ubuntu", cc: "gcc", cxx: "g++" }
+          - { triplet: "ubuntu2204-x64-gcc", os: [ self-hosted, x64, ubuntu2204 ], ostype: "ubuntu", cc: "gcc", cxx: "g++" }
+          - { triplet: "ubuntu2210-x64-gcc", os: [ self-hosted, x64, ubuntu2210 ], ostype: "ubuntu", cc: "gcc", cxx: "g++" }
+          - { triplet: "ubuntu2004-arm64-gcc", os: [ self-hosted, arm64, ubuntu2004 ], ostype: "ubuntu", cc: "gcc", cxx: "g++" }
+          - { triplet: "ubuntu2204-arm64-gcc", os: [ self-hosted, arm64, ubuntu2204 ], ostype: "ubuntu", cc: "gcc", cxx: "g++" }
+          - { triplet: "ubuntu2210-arm64-gcc", os: [ self-hosted, arm64, ubuntu2210 ], ostype: "ubuntu", cc: "gcc", cxx: "g++" }
+    name: "${{ matrix.config.triplet }}"
+    runs-on: ${{ matrix.config.os }}
 
     steps:
       - name: Setup cmake
@@ -50,35 +39,53 @@ jobs:
       - name: Install required dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config git libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev libmbedtls-dev libpcre2-8-0 libpcre2-dev libjson-c-dev valgrind libhiredis-dev liblzf-dev redis-tools
 
+      # Build the debug version of cachegrand-server and the tests
       - name: Create Build Environment
-        run: cmake -E make_directory ${{github.workspace}}/build
+        run: cmake -E make_directory ${{github.workspace}}/build-debug
 
-      - name: Configure CMake
+      - name: Configure CMake - Debug
         shell: bash
-        working-directory: ${{github.workspace}}/build
-        run: CC=/usr/bin/gcc-9 CXX=/usr/bin/g++-9 cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
+        working-directory: ${{github.workspace}}/build-debug
+        run: CC=${{ matrix.config.cc }} CXX=${{ matrix.config.cxx }} cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1
 
-      - name: Build cachegrand-tests
-        working-directory: ${{github.workspace}}/build
+      - name: Build cachegrand-tests - Debug
+        working-directory: ${{github.workspace}}/build-debug
         shell: bash
         run: cmake --build . --target cachegrand-tests -- -j $(nproc)
 
-      - name: Build cachegrand-server
-        working-directory: ${{github.workspace}}/build
+      - name: Build cachegrand-server - Debug
+        working-directory: ${{github.workspace}}/build-debug
         shell: bash
         run: cmake --build . --target cachegrand-server -- -j $(nproc)
 
-      - name: Tests - Unit Tests
-        working-directory: ${{github.workspace}}/build
+      # Run the tests
+      - name: Tests - Unit Tests - Debug
+        working-directory: ${{github.workspace}}/build-debug
         shell: bash
         run: cd tests/unit_tests && sudo ./cachegrand-tests --order lex
 
+      # Build the release version of cachegrand-server to ensure it builds fine (needed as artifact for later)
+      - name: Create Build Environment - Release
+        run: cmake -E make_directory ${{github.workspace}}/build-release
+
+      - name: Configure CMake - Release
+        shell: bash
+        working-directory: ${{github.workspace}}/build-release
+        run: CC=${{ matrix.config.cc }} CXX=${{ matrix.config.cxx }} cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DUSE_HASH_ALGORITHM_T1HA2=1
+
+      - name: Build cachegrand-server - Release
+        working-directory: ${{github.workspace}}/build-release
+        shell: bash
+        run: cmake --build . --target cachegrand-server -- -j 4
+
+      # Generate the code coverage report
       - name: Code Coverage - Generation
         uses: danielealbano/lcov-action@v3
         with:
           gcov_path: /usr/bin/gcov-9
           remove_patterns: 3rdparty,tests
 
+      # Upload the code coverage report to codecov.io
       - uses: codecov/codecov-action@v3
         with:
           files: ${{github.workspace}}/coverage.info
@@ -86,13 +93,3 @@ jobs:
           name: cachegrand-server
           fail_ci_if_error: false
           verbose: false
-
-#      - name: Tests - Integration Tests - Redis Server
-#        working-directory: ${{github.workspace}}/build
-#        shell: bash
-#        run: ctest -R cachegrand-integration-tests-redis-server --verbose || true
-
-#      - uses: actions/upload-artifact@v2
-#        with:
-#          name: tests-integration-tests-redis-server-results
-#          path: ${{github.workspace}}/build/tests/integration_tests/redis_server/junit-report.xml
