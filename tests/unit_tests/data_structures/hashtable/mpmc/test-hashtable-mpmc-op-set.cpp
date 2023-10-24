@@ -48,6 +48,9 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
     SECTION("hashtable_mcmp_op_set") {
         SECTION("set 1 bucket - external key") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 uintptr_t prev_value = 0;
                 hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
@@ -65,6 +68,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_long_1_alloc,
                         test_key_long_1_len,
                         test_value_1,
@@ -72,8 +76,13 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         &out_bucket_index,
                         &out_should_free_key));
 
+                // Check if the transaction has locked the write lock
+                REQUIRE(transaction.locks.count == 1);
+                REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_WRITE);
+                REQUIRE(transaction.locks.list[0].spinlock == &half_hashes_chunk->lock);
+
                 // Check if the write lock has been released
-                REQUIRE(!transaction_rwspinlock_is_write_locked(&half_hashes_chunk->lock));
+                REQUIRE(transaction_rwspinlock_is_write_locked(&half_hashes_chunk->lock));
 
                 // Check if the first slot of the chain ring contains the correct key/value
                 REQUIRE(half_hashes_chunk->metadata.slots_occupied == 1);
@@ -92,11 +101,16 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
 
                 // Check if the subsequent element has been affected by the changes
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index + 1].slot_id == 0);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("set and update 1 slot") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 uintptr_t prev_value1 = 0;
                 uintptr_t prev_value2 = 0;
 
@@ -116,6 +130,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
@@ -129,12 +144,17 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1 + 1,
                         &prev_value2,
                         &out_bucket_index,
                         &out_should_free_key));
+
+                REQUIRE(transaction.locks.count == 1);
+                REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_WRITE);
+                REQUIRE(transaction.locks.list[0].spinlock == &half_hashes_chunk->lock);
 
                 // Check if the first slot of the chain ring contains the correct key/value
                 REQUIRE(half_hashes_chunk->metadata.slots_occupied == 1);
@@ -156,11 +176,16 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
 
                 // Check if the subsequent element has been affected by the changes
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index + 1].slot_id == 0);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("set 2 slots") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 hashtable_chunk_index_t chunk_index1 = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
@@ -187,6 +212,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
@@ -200,12 +226,19 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_2_alloc,
                         test_key_2_len,
                         test_value_2,
                         nullptr,
                         &out_bucket_index,
                         &out_should_free_key));
+
+                REQUIRE(transaction.locks.count == 2);
+                REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_WRITE);
+                REQUIRE(transaction.locks.list[0].spinlock == &half_hashes_chunk1->lock);
+                REQUIRE(transaction.locks.list[1].lock_type == TRANSACTION_LOCK_TYPE_WRITE);
+                REQUIRE(transaction.locks.list[1].spinlock == &half_hashes_chunk2->lock);
 
                 // Check the first set
                 REQUIRE(half_hashes_chunk1->half_hashes[chunk_slot_index1].filled == true);
@@ -228,11 +261,16 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         test_key_2,
                         test_key_2_len) == 0);
                 REQUIRE(key_value2->data == test_value_2);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("fill entire half hashes chunk - key with same prefix - key not inline") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 hashtable_chunk_slot_index_t slots_to_fill = HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
                 test_key_same_bucket_t *test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
                         0,
@@ -250,6 +288,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
                             0,
+                            &transaction,
                             test_key_same_bucket_current_copy,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
@@ -285,11 +324,16 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 }
 
                 test_support_same_hash_mod_fixtures_free(test_key_same_bucket);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("overflow half hashes chunk - check hashes and key (key > INLINE, using prefix)") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 hashtable_chunk_count_t chunks_to_overflow = 3;
                 hashtable_chunk_slot_index_t slots_to_fill =
                         (HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT * chunks_to_overflow) + 3;
@@ -309,6 +353,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
                             0,
+                            &transaction,
                             test_key_same_bucket_current_copy,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
@@ -348,11 +393,16 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 }
 
                 test_support_same_hash_mod_fixtures_free(test_key_same_bucket);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("overflow half hashes chunk - check overflowed_chunks_counter") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 hashtable_chunk_count_t chunks_to_overflow = 3;
                 hashtable_chunk_slot_index_t slots_to_fill =
                         (HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT * chunks_to_overflow) + 3;
@@ -372,6 +422,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
                             0,
+                            &transaction,
                             test_key_same_bucket_current_copy,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
@@ -389,6 +440,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(half_hashes_chunk->metadata.overflowed_chunks_counter == chunks_to_overflow);
 
                 test_support_same_hash_mod_fixtures_free(test_key_same_bucket);
+
+                transaction_release(&transaction);
             })
         }
 
@@ -403,6 +456,9 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
 #else
 #error "Unsupported hash algorithm"
 #endif
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 test_key_same_bucket_t *test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
                         0,
                         hashtable->ht_current->buckets_count,
@@ -420,6 +476,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
                             0,
+                            &transaction,
                             test_key_same_bucket_current_copy,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
@@ -434,6 +491,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(!hashtable_mcmp_op_set(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_alloc,
                         test_key_same_bucket[i].key_len,
                         test_value_1 + i,
@@ -442,12 +500,17 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                         &out_should_free_key));
 
                 test_support_same_hash_mod_fixtures_free(test_key_same_bucket);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("set 1 bucket - numa aware") {
             if (numa_available() == 0 && numa_num_configured_nodes() >= 2) {
                 HASHTABLE_NUMA_AWARE(0x7FFFF, false, numa_all_nodes_ptr, {
+                    transaction_t transaction = { 0 };
+                    transaction_acquire(&transaction);
+
                     hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                             hashtable->ht_current->buckets_count,
                             test_key_1_hash));
@@ -464,6 +527,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
                             0,
+                            &transaction,
                             test_key_1_alloc,
                             test_key_1_len,
                             test_value_1,
@@ -488,6 +552,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_set.c", "[hashtable][hashtable_op][hashta
 
                     // Check if the subsequent element has been affected by the changes
                     REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index + 1].slot_id == 0);
+
+                    transaction_release(&transaction);
                 })
             } else {
                 WARN("Can't test numa awareness, numa not available or only one numa node");

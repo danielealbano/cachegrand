@@ -44,20 +44,41 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
     SECTION("hashtable_mcmp_op_delete") {
         SECTION("delete non-existing") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
+                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
+                        hashtable->ht_current->buckets_count,
+                        test_key_1_hash));
+
+                hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
+                        &hashtable->ht_current->half_hashes_chunk[chunk_index];
+
                 REQUIRE(!hashtable_mcmp_op_delete(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1,
                         test_key_1_len,
                         nullptr));
+
+                REQUIRE(transaction.locks.count == 1);
+                REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_READ);
+                REQUIRE(transaction.locks.list[0].spinlock == &half_hashes_chunk->lock);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("set and delete 1 bucket") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 hashtable_bucket_index_t out_bucket_index = 0;
                 bool out_should_free_key = false;
                 uintptr_t prev_value = 0;
+
                 hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
@@ -74,6 +95,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
@@ -90,6 +112,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1,
                         test_key_1_len,
                         nullptr));
@@ -97,14 +120,24 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(half_hashes_chunk->metadata.slots_occupied == 0);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
+
+                REQUIRE(transaction.locks.count == 1);
+                REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_WRITE);
+                REQUIRE(transaction.locks.list[0].spinlock == &half_hashes_chunk->lock);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("set and delete 1 bucket - check previous value") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 hashtable_bucket_index_t out_bucket_index = 0;
                 bool out_should_free_key = false;
                 uintptr_t prev_value;
+
                 hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
@@ -121,6 +154,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
@@ -136,6 +170,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1,
                         test_key_1_len,
                         &prev_value));
@@ -144,13 +179,23 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
                 REQUIRE(prev_value == test_value_1);
+
+                REQUIRE(transaction.locks.count == 1);
+                REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_WRITE);
+                REQUIRE(transaction.locks.list[0].spinlock == &half_hashes_chunk->lock);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("set and delete 1 bucket - twice to reuse") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 hashtable_bucket_index_t out_bucket_index = 0;
                 bool out_should_free_key = false;
+
                 hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
@@ -167,6 +212,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
@@ -181,6 +227,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1,
                         test_key_1_len,
                         nullptr));
@@ -195,6 +242,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1_alloc,
                         test_key_1_len,
                         test_value_1,
@@ -212,6 +260,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1,
                         test_key_1_len,
                         nullptr));
@@ -219,14 +268,24 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(half_hashes_chunk->metadata.slots_occupied == 0);
                 REQUIRE(half_hashes_chunk->half_hashes[chunk_slot_index].slot_id == 0);
                 REQUIRE(key_value->flags == HASHTABLE_KEY_VALUE_FLAG_DELETED);
+
+                REQUIRE(transaction.locks.count == 1);
+                REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_WRITE);
+                REQUIRE(transaction.locks.list[0].spinlock == &half_hashes_chunk->lock);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("set N buckets delete random") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 hashtable_bucket_index_t out_bucket_index = 0;
                 bool out_should_free_key = false;
                 hashtable_chunk_slot_index_t slots_to_fill = 8;
+
                 test_key_same_bucket_t* test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
                         0,
                         hashtable->ht_current->buckets_count,
@@ -240,6 +299,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
                             0,
+                            &transaction,
                             test_key_same_bucket_alloc,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
@@ -253,6 +313,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_same_bucket[random_slot_index].key,
                         test_key_same_bucket[random_slot_index].key_len,
                         nullptr));
@@ -272,14 +333,20 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
 
                 // The delete operation in the hash table already frees all the keys so it's enough to free test_key_same_bucket
                 free(test_key_same_bucket);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("set N buckets delete random and re-insert") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 hashtable_bucket_index_t out_bucket_index = 0;
                 bool out_should_free_key = false;
                 hashtable_chunk_slot_index_t slots_to_fill = 8;
+
                 test_key_same_bucket_t* test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
                         0,
                         hashtable->ht_current->buckets_count,
@@ -293,6 +360,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                     REQUIRE(hashtable_mcmp_op_set(
                             hashtable,
                             0,
+                            &transaction,
                             test_key_same_bucket_alloc,
                             test_key_same_bucket[i].key_len,
                             test_value_1 + i,
@@ -306,6 +374,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(hashtable_mcmp_op_delete(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_same_bucket[random_slot_index].key,
                         test_key_same_bucket[random_slot_index].key_len,
                         nullptr));
@@ -329,6 +398,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
                 REQUIRE(hashtable_mcmp_op_set(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_same_bucket_alloc,
                         test_key_same_bucket[slots_to_fill - 1].key_len,
                         test_value_1 + slots_to_fill - 1,
@@ -345,6 +415,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_delete.c", "[hashtable][hashtable_op][has
 
                 // The delete operation in the hash table already frees all the keys so it's enough to free test_key_same_bucket
                 free(test_key_same_bucket);
+
+                transaction_release(&transaction);
             })
         }
     }

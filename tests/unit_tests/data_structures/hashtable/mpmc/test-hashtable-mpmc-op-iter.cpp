@@ -46,8 +46,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_iter.c", "[hashtable][hashtable_op][hasht
             hashtable_bucket_index_t bucket_index = 0;
 
             HASHTABLE(0x7FFF, false, {
-                REQUIRE(!hashtable_mcmp_op_iter(hashtable, 0, &bucket_index));
-                REQUIRE(bucket_index + 1 == hashtable->ht_current->buckets_count_real);
+                REQUIRE(hashtable_mcmp_op_iter(hashtable, 0, bucket_index) == HASHTABLE_OP_ITER_END);
             })
         }
 
@@ -70,12 +69,10 @@ TEST_CASE("hashtable/hashtable_mcmp_op_iter.c", "[hashtable][hashtable_op][hasht
                         test_key_1_len,
                         test_value_1);
 
-                REQUIRE((uintptr_t)hashtable_mcmp_op_iter(hashtable, 0, &bucket_index) == test_value_1);
-                REQUIRE(bucket_index == HASHTABLE_TO_BUCKET_INDEX(chunk_index1, 0));
+                REQUIRE((bucket_index = hashtable_mcmp_op_iter(hashtable, 0, bucket_index)) == HASHTABLE_TO_BUCKET_INDEX(chunk_index1, 0));
 
                 bucket_index++;
-                REQUIRE(!hashtable_mcmp_op_iter(hashtable, 0, &bucket_index));
-                REQUIRE(bucket_index + 1 == hashtable->ht_current->buckets_count_real);
+                REQUIRE(hashtable_mcmp_op_iter(hashtable, 0, bucket_index) == HASHTABLE_OP_ITER_END);
             })
         }
 
@@ -110,14 +107,13 @@ TEST_CASE("hashtable/hashtable_mcmp_op_iter.c", "[hashtable][hashtable_op][hasht
                 }
 
                 for (hashtable_chunk_slot_index_t i = 0; i < HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT; i++) {
-                    REQUIRE((uintptr_t)hashtable_mcmp_op_iter(hashtable, 0, &bucket_index) == test_value_1 + i);
-                    REQUIRE(bucket_index == HASHTABLE_TO_BUCKET_INDEX(HASHTABLE_TO_CHUNK_INDEX(bucket_index_base), i));
+                    REQUIRE((bucket_index = hashtable_mcmp_op_iter(hashtable, 0, bucket_index)) ==
+                        HASHTABLE_TO_BUCKET_INDEX(HASHTABLE_TO_CHUNK_INDEX(bucket_index_base), i));
 
                     bucket_index++;
                 }
 
-                REQUIRE(!hashtable_mcmp_op_iter(hashtable, 0, &bucket_index));
-                REQUIRE(bucket_index + 1 == hashtable->ht_current->buckets_count_real);
+                REQUIRE(hashtable_mcmp_op_iter(hashtable, 0, bucket_index) == HASHTABLE_OP_ITER_END);
             })
         }
 
@@ -154,8 +150,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_iter.c", "[hashtable][hashtable_op][hasht
                             HASHTABLE_KEY_VALUE_FLAG_DELETED;
                 }
 
-                REQUIRE(!hashtable_mcmp_op_iter(hashtable, 0, &bucket_index));
-                REQUIRE(bucket_index + 1 == hashtable->ht_current->buckets_count_real);
+                REQUIRE(hashtable_mcmp_op_iter(hashtable, 0, bucket_index) == HASHTABLE_OP_ITER_END);
             })
         }
     }
@@ -165,8 +160,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_iter.c", "[hashtable][hashtable_op][hasht
             hashtable_bucket_index_t bucket_index = 0;
 
             HASHTABLE(0x7FFF, false, {
-                REQUIRE(!hashtable_mcmp_op_iter_max_distance(hashtable, 0, &bucket_index, 100));
-                REQUIRE(bucket_index + 1 == 100 - (100 % HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT);
+                REQUIRE(hashtable_mcmp_op_iter_max_distance(hashtable, 0, bucket_index, 100) == HASHTABLE_OP_ITER_END);
             })
         }
 
@@ -189,18 +183,11 @@ TEST_CASE("hashtable/hashtable_mcmp_op_iter.c", "[hashtable][hashtable_op][hasht
                         test_key_1_len,
                         test_value_1);
 
-                hashtable_mcmp_op_iter_max_distance(hashtable, 0, &bucket_index, HASHTABLE_TO_BUCKET_INDEX(chunk_index1, 0) + 1);
+                bucket_index = hashtable_mcmp_op_iter_max_distance(hashtable, 0, bucket_index, HASHTABLE_TO_BUCKET_INDEX(chunk_index1, 0) + 1);
                 REQUIRE(bucket_index == HASHTABLE_TO_BUCKET_INDEX(chunk_index1, 0));
 
                 bucket_index++;
-                REQUIRE(!hashtable_mcmp_op_iter_max_distance(hashtable, 0, &bucket_index, 2000));
-
-                hashtable_bucket_index_t expected_bucket_index =
-                        HASHTABLE_TO_BUCKET_INDEX(chunk_index1, 0) +
-                        2000 - (2000 % HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) +
-                            HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT +
-                        HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
-                REQUIRE(bucket_index + 1 == expected_bucket_index);
+                REQUIRE(hashtable_mcmp_op_iter_max_distance(hashtable, 0, bucket_index, 2000) == HASHTABLE_OP_ITER_END);
             })
         }
     }
