@@ -43,14 +43,15 @@
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
     bool use_rmw = false;
     bool abort_rmw = true;
-    transaction_t transaction = { 0 };
     storage_db_op_rmw_status_t rmw_status = { 0 };
-    bool release_transaction = true;
     bool return_res = false;
     bool key_and_value_owned = false;
     bool previous_entry_index_prepped_for_read = false;
     storage_db_entry_index_t *previous_entry_index = NULL;
     module_redis_command_set_context_t *context = connection_context->command.context;
+
+    transaction_t transaction = { 0 };
+    transaction_acquire(&transaction);
 
     storage_db_expiry_time_ms_t expiry_time_ms = STORAGE_DB_ENTRY_NO_EXPIRY;
 
@@ -102,6 +103,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
         if (unlikely(!storage_db_op_set(
                 connection_context->db,
                 connection_context->database_number,
+                &transaction,
                 context->key.value.key,
                 context->key.value.length,
                 STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
@@ -116,8 +118,6 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
         key_and_value_owned = true;
         return_res = module_redis_connection_send_ok(connection_context);
     } else {
-        transaction_acquire(&transaction);
-
         if (unlikely(!storage_db_op_rmw_begin(
                 connection_context->db,
                 &transaction,
@@ -173,9 +173,6 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
             key_and_value_owned = true;
         }
 
-        transaction_release(&transaction);
-        release_transaction = false;
-
         // previous_entry_index might have been set to null by the return value of
         // storage_db_get_entry_index_prep_for_read if it had been deleted or if it's expired, it's necessary to check
         // again
@@ -193,9 +190,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(set) {
 
 end:
 
-    if (use_rmw && release_transaction) {
-        transaction_release(&transaction);
-    }
+    transaction_release(&transaction);
 
     if (unlikely(previous_entry_index && previous_entry_index_prepped_for_read)) {
         storage_db_entry_index_status_decrease_readers_counter(previous_entry_index, NULL);

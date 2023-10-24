@@ -44,9 +44,13 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(pttl) {
     storage_db_entry_index_t *entry_index = NULL;
     module_redis_command_pttl_context_t *context = connection_context->command.context;
 
+    transaction_t transaction = { 0 };
+    transaction_acquire(&transaction);
+
     entry_index = storage_db_get_entry_index(
             connection_context->db,
             connection_context->database_number,
+            &transaction,
             context->key.value.key,
             context->key.value.length);
 
@@ -58,6 +62,8 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(pttl) {
             response = -1;
         }
     }
+
+    transaction_release(&transaction);
 
     return module_redis_connection_send_number(connection_context, response);
 }

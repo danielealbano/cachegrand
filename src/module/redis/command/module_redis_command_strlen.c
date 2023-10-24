@@ -43,15 +43,21 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(strlen) {
     int64_t length = 0;
     module_redis_command_strlen_context_t *context = connection_context->command.context;
 
+    transaction_t transaction = { 0 };
+    transaction_acquire(&transaction);
+
     storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
             connection_context->db,
             connection_context->database_number,
+            &transaction,
             context->key.value.key,
             context->key.value.length);
 
     if (likely(entry_index)) {
         length = (int64_t)entry_index->value.size;
     }
+
+    transaction_release(&transaction);
 
     return module_redis_connection_send_number(
             connection_context,

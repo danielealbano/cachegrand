@@ -47,7 +47,6 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
     bool error_found = false;
     bool value_copied = false;
     bool abort_rmw = true;
-    bool release_transaction = true;
     transaction_t transaction = { 0 };
     storage_db_op_rmw_status_t rmw_status = { 0 };
     storage_db_entry_index_t *entry_index_source = NULL;
@@ -96,6 +95,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
     entry_index_source = storage_db_get_entry_index_for_read(
             connection_context->db,
             connection_context->database_number,
+            &transaction,
             context->source.value.key,
             context->source.value.length);
 
@@ -199,8 +199,6 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(copy) {
         goto end;
     }
 
-    transaction_release(&transaction);
-    release_transaction = false;
     abort_rmw = false;
     value_copied = true;
     return_res = true;
@@ -216,9 +214,7 @@ end:
         storage_db_op_rmw_abort(connection_context->db, &rmw_status);
     }
 
-    if (unlikely(release_transaction)) {
-        transaction_release(&transaction);
-    }
+    transaction_release(&transaction);
 
     if (unlikely(allocated_new_buffer)) {
         xalloc_free(source_chunk_data);

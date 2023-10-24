@@ -43,13 +43,19 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(exists) {
     int found_keys_count = 0;
     module_redis_command_exists_context_t *context = connection_context->command.context;
 
+    transaction_t transaction = { 0 };
+    transaction_acquire(&transaction);
+
     for(int index = 0; index < context->key.count; index++) {
         found_keys_count += storage_db_get_entry_index(
                 connection_context->db,
                 connection_context->database_number,
+                &transaction,
                 context->key.list[index].key,
                 context->key.list[index].length) != NULL ? 1 : 0;
     }
+
+    transaction_release(&transaction);
 
     return module_redis_connection_send_number(connection_context, found_keys_count);
 }

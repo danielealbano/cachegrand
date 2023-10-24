@@ -44,9 +44,14 @@
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(randomkey) {
     bool return_res;
     hashtable_key_length_t key_size = 0;
+
+    transaction_t transaction = { 0 };
+    transaction_acquire(&transaction);
+
     char *key = storage_db_op_random_key(
             connection_context->db,
             connection_context->database_number,
+            &transaction,
             &key_size);
 
     if (likely(key)) {
@@ -55,6 +60,8 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(randomkey) {
     } else {
         return_res = module_redis_connection_send_string_null(connection_context);
     }
+
+    transaction_release(&transaction);
 
     return return_res;
 }
