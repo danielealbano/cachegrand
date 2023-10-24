@@ -138,8 +138,10 @@ bool hashtable_mcmp_op_get_by_index(
             return false;
         }
 
-        if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
-            return false;
+        if (unlikely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
+            if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
+                return false;
+            }
         }
 
         key_value = &hashtable_data->keys_values[bucket_index];
@@ -197,8 +199,10 @@ bool hashtable_mcmp_op_get_by_index_all_databases(
             return false;
         }
 
-        if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
-            return false;
+        if (unlikely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
+            if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
+                return false;
+            }
         }
 
         key_value = &hashtable_data->keys_values[bucket_index];

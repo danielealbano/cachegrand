@@ -65,8 +65,10 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
 
     // Lock the chunk for reading to get a consistent view of the data and ensure that overflowed_chunks_counter is
     // up to date
-    if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
-        return false;
+    if (unlikely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
+        if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
+            return false;
+        }
     }
 
     overflowed_chunks_counter = half_hashes_chunk->metadata.overflowed_chunks_counter;
@@ -91,8 +93,10 @@ bool CONCAT(hashtable_mcmp_support_op_search_key, CACHEGRAND_HASHTABLE_MCMP_SUPP
         if (likely(chunk_index != chunk_index_start_initial)) {
             // Increment the readers counter (it will issue an atomic increment which will sync the cachelines as needed
             // mimicking a memory fence)
-            if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
-                return false;
+            if (unlikely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
+                if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
+                    return false;
+                }
             }
         }
 

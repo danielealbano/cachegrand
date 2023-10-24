@@ -95,8 +95,10 @@ bool hashtable_mcmp_op_delete(
             return false;
         }
 
-        if (unlikely(!transaction_upgrade_lock_for_write(transaction, &half_hashes_chunk->lock))) {
-            return false;
+        if (unlikely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
+            if (unlikely(!transaction_upgrade_lock_for_write(transaction, &half_hashes_chunk->lock))) {
+                return false;
+            }
         }
 
         // The hashtable_mcmp_support_op_search_key operation is lockless, it's necessary to set the lock and validate
@@ -186,8 +188,10 @@ bool hashtable_mcmp_op_delete_by_index(
                 return false;
             }
         } else {
-            if (unlikely(!transaction_lock_for_write(transaction, &half_hashes_chunk->lock))) {
-                return false;
+            if (unlikely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
+                if (unlikely(!transaction_lock_for_write(transaction, &half_hashes_chunk->lock))) {
+                    return false;
+                }
             }
         }
 

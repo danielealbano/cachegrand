@@ -44,8 +44,10 @@ bool hashtable_mcmp_op_get_key(
     hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
             &hashtable_data->half_hashes_chunk[chunk_index];
 
-    if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
-        return false;
+    if (unlikely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
+        if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
+            return false;
+        }
     }
 
     hashtable_slot_id_volatile_t slot_id = half_hashes_chunk->half_hashes[chunk_slot_index].slot_id;
@@ -116,8 +118,10 @@ bool hashtable_mcmp_op_get_key_all_databases(
     hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
             &hashtable_data->half_hashes_chunk[chunk_index];
 
-    if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
-        return false;
+    if (unlikely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
+        if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
+            return false;
+        }
     }
 
     hashtable_slot_id_volatile_t slot_id = half_hashes_chunk->half_hashes[chunk_slot_index].slot_id;
