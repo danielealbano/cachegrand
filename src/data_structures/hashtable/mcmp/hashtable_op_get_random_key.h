@@ -8,6 +8,7 @@ extern "C" {
 bool hashtable_mcmp_op_get_random_key_try(
         hashtable_t *hashtable,
         hashtable_database_number_t database_number,
+        transaction_t *transaction,
         char **key,
         hashtable_key_length_t *key_length);
 

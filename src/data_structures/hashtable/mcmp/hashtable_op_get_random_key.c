@@ -30,6 +30,7 @@
 bool hashtable_mcmp_op_get_random_key_try(
         hashtable_t *hashtable,
         hashtable_database_number_t database_number,
+        transaction_t *transaction,
         char **key,
         hashtable_key_length_t *key_length) {
     uint64_t random_value = random_generate();
@@ -37,6 +38,7 @@ bool hashtable_mcmp_op_get_random_key_try(
     return hashtable_mcmp_op_get_key(
             hashtable,
             database_number,
+            transaction,
             random_value % hashtable->ht_current->buckets_count_real,
             key,
             key_length);

@@ -29,6 +29,7 @@
 bool hashtable_mcmp_op_delete(
         hashtable_t* hashtable,
         hashtable_database_number_t database_number,
+        transaction_t *transaction,
         hashtable_key_data_t* key,
         hashtable_key_length_t key_length,
         hashtable_value_data_t *current_value) {
@@ -37,7 +38,6 @@ bool hashtable_mcmp_op_delete(
     hashtable_chunk_slot_index_t chunk_slot_index = 0;
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
     hashtable_key_value_volatile_t* key_value;
-    transaction_t transaction = { 0 };
     bool deleted = false;
 
     // TODO: the deletion algorithm needs to be updated to compact the keys stored in further away slots relying on the
@@ -52,7 +52,6 @@ bool hashtable_mcmp_op_delete(
 
     LOG_DI("key (%d) = %s", key_length, key);
     LOG_DI("hash = 0x%016x", hash);
-    transaction_acquire(&transaction);
 
     volatile hashtable_data_t* hashtable_data_list[] = {
             hashtable->ht_current,
@@ -80,7 +79,7 @@ bool hashtable_mcmp_op_delete(
                 key,
                 key_length,
                 hash,
-                &transaction,
+                transaction,
                 &chunk_index,
                 &chunk_slot_index,
                 &key_value) == false) {
@@ -93,12 +92,10 @@ bool hashtable_mcmp_op_delete(
         half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
 
         if (half_hashes_chunk->half_hashes[chunk_slot_index].filled == 0) {
-            transaction_release(&transaction);
             return false;
         }
 
-        if (unlikely(!transaction_upgrade_lock_for_write(&transaction, &half_hashes_chunk->lock))) {
-            transaction_release(&transaction);
+        if (unlikely(!transaction_upgrade_lock_for_write(transaction, &half_hashes_chunk->lock))) {
             return false;
         }
 
@@ -130,8 +127,6 @@ bool hashtable_mcmp_op_delete(
             deleted = true;
         }
 
-        transaction_release(&transaction);
-
         if (likely(deleted)) {
             break;
         }
@@ -147,13 +142,14 @@ bool hashtable_mcmp_op_delete(
 bool hashtable_mcmp_op_delete_by_index(
         hashtable_t* hashtable,
         hashtable_database_number_t database_number,
+        transaction_t *transaction,
+        bool already_locked_for_read,
         hashtable_bucket_index_t bucket_index,
         hashtable_value_data_t *current_value) {
     hashtable_chunk_index_t chunk_index = 0;
     hashtable_chunk_slot_index_t chunk_slot_index = 0;
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
     hashtable_key_value_volatile_t* key_value;
-    transaction_t transaction = { 0 };
     bool deleted = false;
 
     volatile hashtable_data_t* hashtable_data_list[] = {
@@ -185,15 +181,19 @@ bool hashtable_mcmp_op_delete_by_index(
             return false;
         }
 
-        transaction_acquire(&transaction);
-        if (unlikely(!transaction_lock_for_write(&transaction, &half_hashes_chunk->lock))) {
-            return false;
+        if (already_locked_for_read) {
+            if (unlikely(!transaction_upgrade_lock_for_write(transaction, &half_hashes_chunk->lock))) {
+                return false;
+            }
+        } else {
+            if (unlikely(!transaction_lock_for_write(transaction, &half_hashes_chunk->lock))) {
+                return false;
+            }
         }
 
         key_value = &hashtable_data->keys_values[bucket_index];
 
         if (unlikely(key_value->database_number != database_number)) {
-            transaction_release(&transaction);
             return false;
         }
 
@@ -218,8 +218,6 @@ bool hashtable_mcmp_op_delete_by_index(
         key_value->key_length = 0;
 
         deleted = true;
-
-        transaction_release(&transaction);
 
         break;
     }
@@ -233,13 +231,14 @@ bool hashtable_mcmp_op_delete_by_index(
 
 bool hashtable_mcmp_op_delete_by_index_all_databases(
         hashtable_t* hashtable,
+        transaction_t *transaction,
+        bool already_locked_for_read,
         hashtable_bucket_index_t bucket_index,
         hashtable_value_data_t *current_value) {
     hashtable_chunk_index_t chunk_index = 0;
     hashtable_chunk_slot_index_t chunk_slot_index = 0;
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
     hashtable_key_value_volatile_t* key_value;
-    transaction_t transaction = { 0 };
     bool deleted = false;
 
     volatile hashtable_data_t* hashtable_data_list[] = {
@@ -271,9 +270,14 @@ bool hashtable_mcmp_op_delete_by_index_all_databases(
             return false;
         }
 
-        transaction_acquire(&transaction);
-        if (unlikely(!transaction_lock_for_write(&transaction, &half_hashes_chunk->lock))) {
-            return false;
+        if (already_locked_for_read) {
+            if (unlikely(!transaction_upgrade_lock_for_write(transaction, &half_hashes_chunk->lock))) {
+                return false;
+            }
+        } else {
+            if (unlikely(!transaction_lock_for_write(transaction, &half_hashes_chunk->lock))) {
+                return false;
+            }
         }
 
         key_value = &hashtable_data->keys_values[bucket_index];
@@ -299,8 +303,6 @@ bool hashtable_mcmp_op_delete_by_index_all_databases(
         key_value->key_length = 0;
 
         deleted = true;
-
-        transaction_release(&transaction);
 
         break;
     }

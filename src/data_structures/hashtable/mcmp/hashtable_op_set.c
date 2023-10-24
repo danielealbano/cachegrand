@@ -27,6 +27,7 @@
 bool hashtable_mcmp_op_set(
         hashtable_t *hashtable,
         hashtable_database_number_t database_number,
+        transaction_t *transaction,
         hashtable_key_data_t *key,
         hashtable_key_length_t key_length,
         hashtable_value_data_t new_value,
@@ -39,7 +40,6 @@ bool hashtable_mcmp_op_set(
     hashtable_chunk_index_t chunk_index = 0;
     hashtable_chunk_slot_index_t chunk_slot_index = 0;
     hashtable_key_value_volatile_t* key_value = 0;
-    transaction_t transaction = { 0 };
 
     hash = hashtable_mcmp_support_hash_calculate(database_number, key, key_length);
 
@@ -47,8 +47,6 @@ bool hashtable_mcmp_op_set(
     LOG_DI("hash = 0x%016x", hash);
 
     assert(*key != 0);
-
-    transaction_acquire(&transaction);
 
     // TODO: there is no support for resizing right now but when creating a new item the function must be aware that
     //       it has to be created in the new hashtable and not in the one being looked into
@@ -59,7 +57,7 @@ bool hashtable_mcmp_op_set(
             key_length,
             hash,
             true,
-            &transaction,
+            transaction,
             &created_new,
             &chunk_index,
             &half_hashes_chunk,
@@ -71,7 +69,6 @@ bool hashtable_mcmp_op_set(
     LOG_DI("key_value =  0x%016x", key_value);
 
     if (ret == false) {
-        transaction_release(&transaction);
         LOG_DI("key not found or not created, continuing");
         return false;
     }
@@ -111,9 +108,6 @@ bool hashtable_mcmp_op_set(
 
         LOG_DI("key_value->flags = %d", key_value->flags);
     }
-
-    // Will perform the memory fence for us
-    transaction_release(&transaction);
 
     LOG_DI("unlocking half_hashes_chunk 0x%016x", half_hashes_chunk);
 
