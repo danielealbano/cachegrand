@@ -414,6 +414,7 @@ void storage_db_entry_index_status_set_deleted(
 storage_db_entry_index_t *storage_db_get_entry_index(
         storage_db_t *db,
         storage_db_database_number_t database_number,
+        transaction_t *transaction,
         char *key,
         size_t key_length);
 
@@ -437,12 +438,14 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep_no_expired_ev
 storage_db_entry_index_t *storage_db_get_entry_index_for_read(
         storage_db_t *db,
         storage_db_database_number_t database_number,
+        transaction_t *transaction,
         char *key,
         size_t key_length);
 
 bool storage_db_set_entry_index(
         storage_db_t *db,
         storage_db_database_number_t database_number,
+        transaction_t *transaction,
         char *key,
         size_t key_length,
         storage_db_entry_index_t *entry_index);
@@ -450,6 +453,7 @@ bool storage_db_set_entry_index(
 bool storage_db_op_set(
         storage_db_t *db,
         storage_db_database_number_t database_number,
+        transaction_t *transaction,
         char *key,
         size_t key_length,
         storage_db_entry_index_value_type_t value_type,
@@ -497,22 +501,28 @@ void storage_db_op_rmw_abort(
 bool storage_db_op_delete(
         storage_db_t *db,
         storage_db_database_number_t database_number,
+        transaction_t *transaction,
         char *key,
         size_t key_length);
 
 bool storage_db_op_delete_by_index(
         storage_db_t *db,
         storage_db_database_number_t database_number,
+        transaction_t *transaction,
+        bool already_locked_for_read,
         hashtable_bucket_index_t bucket_index);
 
 bool storage_db_op_delete_by_index_all_databases(
         storage_db_t *db,
+        transaction_t *transaction,
+        bool already_locked_for_read,
         hashtable_bucket_index_t bucket_index,
         storage_db_entry_index_t **out_current_entry_index);
 
 char *storage_db_op_random_key(
         storage_db_t *db,
         storage_db_database_number_t database_number,
+        transaction_t *transaction,
         hashtable_key_length_t *key_size);
 
 int64_t storage_db_op_get_keys_count_per_db(

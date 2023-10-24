@@ -522,11 +522,14 @@ void storage_db_free(
 
     // Iterates over the hashtable to free up the entry index
     hashtable_bucket_index_t bucket_index = 0;
-    for(
-            void *data = hashtable_mcmp_op_iter_all_databases(db->hashtable, &bucket_index);
-            data;
-            ++bucket_index && (data = hashtable_mcmp_op_iter_all_databases(db->hashtable, &bucket_index))) {
-        storage_db_entry_index_free(db, data);
+    while((bucket_index = hashtable_mcmp_op_iter_all_databases(db->hashtable, bucket_index)) != HASHTABLE_OP_ITER_END) {
+        // This is the ONLY place where the hashtable internal data structure can be accessed directly and without
+        // transactions as the system is shutting down, the memory is getting freed and there is no concurrency to
+        // handle
+        storage_db_entry_index_free(
+                db,
+                (storage_db_entry_index_t *) db->hashtable->ht_current->keys_values[bucket_index].data);
+        bucket_index++;
     }
 
     slots_bitmap_mpmc_free(db->counters_slots_bitmap);
@@ -570,6 +573,7 @@ storage_db_entry_index_t *storage_db_entry_index_ring_buffer_new(
 void storage_db_entry_index_touch(
         storage_db_entry_index_t *entry_index) {
     entry_index->last_access_time_ms = clock_monotonic_int64_ms();
+    MEMORY_FENCE_STORE();
 }
 
 void storage_db_entry_index_ring_buffer_free(
@@ -962,6 +966,7 @@ void storage_db_worker_mark_deleted_or_deleting_previous_entry_index(
 storage_db_entry_index_t *storage_db_get_entry_index(
         storage_db_t *db,
         storage_db_database_number_t database_number,
+        transaction_t *transaction,
         char *key,
         size_t key_length) {
     storage_db_entry_index_t *entry_index = NULL;
@@ -970,6 +975,7 @@ storage_db_entry_index_t *storage_db_get_entry_index(
     bool res = hashtable_mcmp_op_get(
             db->hashtable,
             database_number,
+            transaction,
             key,
             key_length,
             &memptr);
@@ -1095,11 +1101,12 @@ end_expired:
 storage_db_entry_index_t *storage_db_get_entry_index_for_read(
         storage_db_t *db,
         storage_db_database_number_t database_number,
+        transaction_t *transaction,
         char *key,
         size_t key_length) {
     storage_db_entry_index_t *entry_index = NULL;
 
-    entry_index = storage_db_get_entry_index(db, database_number, key, key_length);
+    entry_index = storage_db_get_entry_index(db, database_number, transaction, key, key_length);
 
     if (likely(entry_index)) {
         entry_index = storage_db_get_entry_index_for_read_prep(db, database_number, key, key_length, entry_index);
@@ -1111,6 +1118,7 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read(
 bool storage_db_set_entry_index(
         storage_db_t *db,
         storage_db_database_number_t database_number,
+        transaction_t *transaction,
         char *key,
         size_t key_length,
         storage_db_entry_index_t *entry_index) {
@@ -1128,6 +1136,7 @@ bool storage_db_set_entry_index(
     bool res = hashtable_mcmp_op_set(
             db->hashtable,
             database_number,
+            transaction,
             key,
             key_length,
             (uintptr_t)entry_index,
@@ -1184,6 +1193,7 @@ bool storage_db_set_entry_index(
 bool storage_db_op_set(
         storage_db_t *db,
         storage_db_database_number_t database_number,
+        transaction_t *transaction,
         char *key,
         size_t key_length,
         storage_db_entry_index_value_type_t value_type,
@@ -1235,6 +1245,7 @@ bool storage_db_op_set(
     if (!storage_db_set_entry_index(
             db,
             database_number,
+            transaction,
             key,
             key_length,
             entry_index)) {
@@ -1251,9 +1262,7 @@ bool storage_db_op_set(
 end:
 
     if (!result_res) {
-        if (entry_index) {
-            storage_db_entry_index_free(db, entry_index);
-        }
+        storage_db_entry_index_free(db, entry_index);
     }
 
     return result_res;
@@ -1464,6 +1473,7 @@ void storage_db_op_rmw_abort(
 bool storage_db_op_delete(
         storage_db_t *db,
         storage_db_database_number_t database_number,
+        transaction_t *transaction,
         char *key,
         size_t key_length) {
     storage_db_entry_index_t *current_entry_index = NULL;
@@ -1471,6 +1481,7 @@ bool storage_db_op_delete(
     bool res = hashtable_mcmp_op_delete(
             db->hashtable,
             database_number,
+            transaction,
             key,
             key_length,
             (uintptr_t*)&current_entry_index);
@@ -1492,12 +1503,16 @@ bool storage_db_op_delete(
 bool storage_db_op_delete_by_index(
         storage_db_t *db,
         storage_db_database_number_t database_number,
+        transaction_t *transaction,
+        bool already_locked_for_read,
         hashtable_bucket_index_t bucket_index) {
     storage_db_entry_index_t *current_entry_index = NULL;
 
     bool res = hashtable_mcmp_op_delete_by_index(
             db->hashtable,
             database_number,
+            transaction,
+            already_locked_for_read,
             bucket_index,
             (uintptr_t*)&current_entry_index);
 
@@ -1517,12 +1532,16 @@ bool storage_db_op_delete_by_index(
 
 bool storage_db_op_delete_by_index_all_databases(
         storage_db_t *db,
+        transaction_t *transaction,
+        bool already_locked_for_read,
         hashtable_bucket_index_t bucket_index,
         storage_db_entry_index_t **out_current_entry_index) {
     storage_db_entry_index_t *current_entry_index = NULL;
 
     bool res = hashtable_mcmp_op_delete_by_index_all_databases(
             db->hashtable,
+            transaction,
+            already_locked_for_read,
             bucket_index,
             (uintptr_t*)&current_entry_index);
 
@@ -1580,11 +1599,17 @@ int64_t storage_db_op_get_data_size_global(
 char *storage_db_op_random_key(
         storage_db_t *db,
         storage_db_database_number_t database_number,
+        transaction_t *transaction,
         hashtable_key_length_t *key_size) {
     char *key = NULL;
 
     while(storage_db_op_get_keys_count_per_db(db, database_number) > 0 &&
-          !hashtable_mcmp_op_get_random_key_try(db->hashtable, database_number, &key, key_size)) {
+          !hashtable_mcmp_op_get_random_key_try(
+                  db->hashtable,
+                  database_number,
+                  transaction,
+                  &key,
+                  key_size)) {
         // do nothing
     }
 
@@ -1601,15 +1626,33 @@ bool storage_db_op_flush_sync(
 
     // Iterates over the hashtable to free up the entry index
     hashtable_bucket_index_t bucket_index = 0;
-    for(
-            void *data = hashtable_mcmp_op_iter(db->hashtable, database_number, &bucket_index);
-            data;
-            ++bucket_index && (data = hashtable_mcmp_op_iter(db->hashtable, database_number, &bucket_index))) {
-        storage_db_entry_index_t *entry_index = data;
+    while((bucket_index = hashtable_mcmp_op_iter(
+            db->hashtable,
+            database_number,
+            bucket_index)) != HASHTABLE_OP_ITER_END) {
+        // To avoid long-running transactions, a transaction is created and destroyed for each entry
+        transaction_t transaction = {0};
+        transaction_acquire(&transaction);
 
-        if (entry_index->created_time_ms <= deletion_start_ms) {
-            storage_db_op_delete_by_index(db, database_number, bucket_index);
+        storage_db_entry_index_t *entry_index = NULL;
+        if (hashtable_mcmp_op_get_by_index(
+                db->hashtable,
+                database_number,
+                &transaction,
+                bucket_index,
+                (void *) &entry_index)) {
+            if (entry_index->created_time_ms <= deletion_start_ms) {
+                storage_db_op_delete_by_index(
+                        db,
+                        database_number,
+                        &transaction,
+                        true,
+                        bucket_index);
+            }
         }
+
+        transaction_release(&transaction);
+        bucket_index++;
     }
 
     return true;
@@ -1627,10 +1670,8 @@ storage_db_key_and_key_length_t *storage_db_op_get_keys(
     hashtable_key_data_t *key;
     hashtable_key_length_t key_size;
     bool end_reached = false;
-    hashtable_bucket_index_t bucket_index = cursor;
-    storage_db_entry_index_t *entry_index = NULL;
     *keys_count = 0;
-    *cursor_next = 0;
+    *cursor_next = cursor;
 
     if (unlikely(storage_db_op_get_keys_count_per_db(db, database_number)) == 0) {
         return NULL;
@@ -1655,28 +1696,49 @@ storage_db_key_and_key_length_t *storage_db_op_get_keys(
 
     // Iterates over the hashtable to free up the entry index
     do {
-        entry_index = hashtable_mcmp_op_iter(db->hashtable, database_number, &bucket_index);
+        hashtable_bucket_index_t bucket_index = hashtable_mcmp_op_iter(
+                db->hashtable,
+                database_number,
+                *cursor_next);
 
-        if (unlikely(entry_index == NULL)) {
+        if (unlikely(bucket_index == HASHTABLE_OP_ITER_END)) {
             end_reached = true;
             break;
         }
 
         *cursor_next = bucket_index + 1;
 
-        if (unlikely(entry_index->created_time_ms > scan_start_ms)) {
+        // Fetch the entry index
+        transaction_t transaction_read = {0};
+        transaction_acquire(&transaction_read);
+
+        storage_db_entry_index_t *entry_index = NULL;
+        if (!hashtable_mcmp_op_get_by_index_all_databases(
+                db->hashtable,
+                &transaction_read,
+                bucket_index,
+                (void*)&entry_index)) {
+            transaction_release(&transaction_read);
             continue;
         }
 
-        // The bucket might have been deleted in the meantime so get_key has to return true
+        if (unlikely(entry_index->created_time_ms > scan_start_ms)) {
+            transaction_release(&transaction_read);
+            continue;
+        }
+
         if (unlikely(!hashtable_mcmp_op_get_key(
                 db->hashtable,
                 database_number,
+                &transaction_read,
                 bucket_index,
                 &key,
                 &key_size))) {
+            transaction_release(&transaction_read);
             continue;
         }
+
+        transaction_release(&transaction_read);
 
         if (likely(pattern_length > 0)) {
             if (!utils_string_glob_match(key, key_size, pattern, pattern_length)) {
@@ -1693,7 +1755,7 @@ storage_db_key_and_key_length_t *storage_db_op_get_keys(
         keys[*keys_count].key = key;
         keys[*keys_count].key_size = key_size;
         (*keys_count)++;
-    } while(likely(entry_index && ++bucket_index < cursor + count));
+    } while(likely(*cursor_next < cursor + count));
 
     if (unlikely(end_reached)) {
         *cursor_next = 0;
@@ -1778,7 +1840,6 @@ uint8_t storage_db_keys_eviction_run_worker(
     hashtable_bucket_count_t segment_size =
             buckets_end / STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH;
     uint32_t search_attempts = 0;
-    void *data = NULL;
     for(
             keys_eviction_candidates_list_count = 0;
             keys_eviction_candidates_list_count < STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH &&
@@ -1788,11 +1849,12 @@ uint8_t storage_db_keys_eviction_run_worker(
         bucket_index += increment;
 
         // Tries to fetch the next entry index
-        data = hashtable_mcmp_op_iter_max_distance_all_databases(
+        bucket_index = hashtable_mcmp_op_iter_max_distance_all_databases(
                 db->hashtable,
-                &bucket_index,
+                bucket_index,
                 STORAGE_DB_KEYS_EVICTION_ITER_MAX_DISTANCE * search_attempts);
-        if (unlikely(bucket_index >= buckets_end || data == NULL)) {
+
+        if (unlikely(bucket_index >= buckets_end || bucket_index == HASHTABLE_OP_ITER_END)) {
             // In case data is null but the bucket index is not at the end, it means that the max distance has been
             // reached and no bucket has been found.
             if (unlikely(bucket_index >= buckets_end)) {
@@ -1808,10 +1870,27 @@ uint8_t storage_db_keys_eviction_run_worker(
         search_attempts = 0;
 
         // Fetch the entry index
-        storage_db_entry_index_t *entry_index = data;
+        transaction_t transaction_read = {0};
+        transaction_acquire(&transaction_read);
+
+        storage_db_entry_index_t *entry_index = NULL;
+        if (!hashtable_mcmp_op_get_by_index_all_databases(
+                db->hashtable,
+                &transaction_read,
+                bucket_index,
+                (void*)&entry_index)) {
+            transaction_release(&transaction_read);
+
+            // Drops the increment and retry
+            bucket_index -= increment;
+            keys_eviction_candidates_list_count--;
+            continue;
+        }
 
         // If only the keys with expiry time have to be evicted and the current key has no expiry time, then skip it
         if (unlikely(only_ttl && entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY)) {
+            transaction_release(&transaction_read);
+
             // Drops the increment and retry
             bucket_index -= increment;
             keys_eviction_candidates_list_count--;
@@ -1842,6 +1921,8 @@ uint8_t storage_db_keys_eviction_run_worker(
         // Set the sort key and the value (the key of the entry)
         keys_evitction_candidates_list[keys_eviction_candidates_list_count].key = sort_key;
         keys_evitction_candidates_list[keys_eviction_candidates_list_count].value = bucket_index;
+
+        transaction_release(&transaction_read);
     }
 
     // If too many search attempts have been carried out, fill the rest of the array with key set to UINT64_MAX and
@@ -1862,12 +1943,17 @@ uint8_t storage_db_keys_eviction_run_worker(
     // Delete the first 10 keys
     uint8_t evict_first_n_keys = STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS;
 
+    // Starts a new transaction to delete the selected entries
+    transaction_t transaction_delete = {0};
+    transaction_acquire(&transaction_delete);
+
 #pragma unroll(STORAGE_DB_KEYS_EVICTION_EVICT_FIRST_N_KEYS)
     for (
             uint8_t key_eviction_list_entry_index = 0;
             key_eviction_list_entry_index < evict_first_n_keys &&
                     key_eviction_list_entry_index < STORAGE_DB_KEYS_EVICTION_BITONIC_SORT_16_ELEMENTS_ARRAY_LENGTH;
             key_eviction_list_entry_index++) {
+        storage_db_entry_index_t *entry_index = NULL;
         storage_db_keys_eviction_kv_list_entry_t *key_eviction_list_entry =
                 &keys_evitction_candidates_list[key_eviction_list_entry_index];
 
@@ -1878,11 +1964,25 @@ uint8_t storage_db_keys_eviction_run_worker(
             break;
         }
 
-        // Try to delete the key by index, potentially the operation might fail if the key has been deleted or if it
-        // was selected twice for the eviction
-        storage_db_entry_index_t *entry_index = NULL;
+        // First try to read the entry to ensure it's still the same one
+        if (!hashtable_mcmp_op_get_by_index_all_databases(
+                db->hashtable,
+                &transaction_delete,
+                bucket_index,
+                (void*)&entry_index)) {
+            // If the operation fails, increment the amount of keys to evict by one and continue
+            evict_first_n_keys++;
+            continue;
+        }
+
+        // TODO: check that the bucket didn't change in the meantime
+
+
+        // Delete the key
         if (storage_db_op_delete_by_index_all_databases(
                 db,
+                &transaction_delete,
+                true,
                 key_eviction_list_entry->value,
                 &entry_index)) {
             keys_evicted_count++;
@@ -1890,10 +1990,12 @@ uint8_t storage_db_keys_eviction_run_worker(
             counters->keys_count--;
             counters->data_size -= (int64_t)entry_index->value.size;
         } else {
-            // If the operation fails, increment the amount of keys to evict by one
+            // Should never fail, but just in case increment the amount of keys to evict by one and continue
             evict_first_n_keys++;
         }
     }
+
+    transaction_release(&transaction_delete);
 
     return keys_evicted_count;
 }
