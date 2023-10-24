@@ -499,15 +499,21 @@ bool test_support_hashtable_prefill(
     for(long int i = 0; i < insert_count; i++) {
         char* key = keyset + (TEST_SUPPORT_RANDOM_KEYS_MAX_LENGTH_WITH_NULL * i);
 
+        transaction_t transaction = { 0 };
+        transaction_acquire(&transaction);
+
         bool result = hashtable_mcmp_op_set(
                 hashtable,
                 database_number,
+                &transaction,
                 key,
                 strlen(key),
                 value + i,
                 NULL,
                 &out_bucket_index,
                 &out_should_free_key);
+
+        transaction_release(&transaction);
 
         if (!result) {
             return false;

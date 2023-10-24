@@ -56,11 +56,18 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - Enforced TTL
                 std::vector<std::string>{"SET", a_key, a_value},
                 "+OK\r\n"));
         int64_t after_timestamp = clock_realtime_coarse_int64_ms();
+
+        transaction_t transaction = { 0 };
+        transaction_acquire(&transaction);
+
         storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
                 db,
                 0,
+                &transaction,
                 a_key,
                 strlen(a_key));
+
+        transaction_release(&transaction);
 
         REQUIRE(entry_index != nullptr);
         REQUIRE(entry_index->expiry_time_ms >= before_timestamp + db->config->enforced_ttl.default_ms);
@@ -74,11 +81,17 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - Enforced TTL
                 "+OK\r\n"));
         int64_t after_timestamp = clock_realtime_coarse_int64_ms();
 
+        transaction_t transaction = { 0 };
+        transaction_acquire(&transaction);
+
         storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
                 db,
                 0,
+                &transaction,
                 a_key,
                 strlen(a_key));
+
+        transaction_release(&transaction);
 
         REQUIRE(entry_index != nullptr);
         REQUIRE(entry_index->expiry_time_ms >= before_timestamp + 500 - 10);
@@ -92,11 +105,17 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - Enforced TTL
                 "+OK\r\n"));
         int64_t after_timestamp = clock_realtime_coarse_int64_ms();
 
+        transaction_t transaction = { 0 };
+        transaction_acquire(&transaction);
+
         storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
                 db,
                 0,
+                &transaction,
                 a_key,
                 strlen(a_key));
+
+        transaction_release(&transaction);
 
         REQUIRE(entry_index != nullptr);
         REQUIRE(entry_index->expiry_time_ms >= before_timestamp + 5000 - 10);
@@ -113,11 +132,17 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - Enforced TTL
                 "+OK\r\n"));
         int64_t after_timestamp = clock_realtime_coarse_int64_ms();
 
+        transaction_t transaction = { 0 };
+        transaction_acquire(&transaction);
+
         storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
                 db,
                 0,
+                &transaction,
                 a_key,
                 strlen(a_key));
+
+        transaction_release(&transaction);
 
         REQUIRE(entry_index != nullptr);
         REQUIRE(entry_index->expiry_time_ms >= before_timestamp + db->config->enforced_ttl.max_ms);

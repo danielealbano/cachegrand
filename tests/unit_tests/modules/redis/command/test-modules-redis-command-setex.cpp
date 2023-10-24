@@ -87,7 +87,18 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETEX", "[re
                 std::vector<std::string>{"GET", key},
                 "$-1\r\n"));
 
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
+        transaction_t transaction = { 0 };
+        transaction_acquire(&transaction);
+
+        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
+                db,
+                0,
+                &transaction,
+                key,
+                strlen(key));
+
+        transaction_release(&transaction);
+
         REQUIRE(entry_index == NULL);
     }
 }
