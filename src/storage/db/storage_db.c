@@ -1038,6 +1038,7 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep_no_expired_ev
 storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         storage_db_t *db,
         storage_db_database_number_t database_number,
+        transaction_t *transaction,
         char *key,
         size_t key_length,
         storage_db_entry_index_t *entry_index) {
@@ -1059,15 +1060,12 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         // because the check has to be carried out again under the lock to verify if the entry_index has been replaced
         // with a new one and therefore the current entry_index has not to be touched or if the entire bucket has to be
         // freed
-        transaction_t transaction = { 0 };
         storage_db_op_rmw_status_t rmw_status = { 0 };
-
-        transaction_acquire(&transaction);
 
         storage_db_entry_index_t *current_entry_index = NULL;
         if (unlikely(!storage_db_op_rmw_begin(
                 db,
-                &transaction,
+                transaction,
                 database_number,
                 key,
                 key_length,
@@ -1092,7 +1090,6 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
 
 end_expired:
         entry_index = NULL;
-        transaction_release(&transaction);
     }
 
     return entry_index;
@@ -1109,7 +1106,7 @@ storage_db_entry_index_t *storage_db_get_entry_index_for_read(
     entry_index = storage_db_get_entry_index(db, database_number, transaction, key, key_length);
 
     if (likely(entry_index)) {
-        entry_index = storage_db_get_entry_index_for_read_prep(db, database_number, key, key_length, entry_index);
+        entry_index = storage_db_get_entry_index_for_read_prep(db, database_number, transaction, key, key_length, entry_index);
     }
 
     return entry_index;

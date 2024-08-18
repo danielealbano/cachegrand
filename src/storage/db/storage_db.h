@@ -427,6 +427,7 @@ int64_t storage_db_entry_index_ttl_ms(
 storage_db_entry_index_t *storage_db_get_entry_index_for_read_prep(
         storage_db_t *db,
         storage_db_database_number_t database_number,
+        transaction_t *transaction,
         char *key,
         size_t key_length,
         storage_db_entry_index_t *entry_index);
