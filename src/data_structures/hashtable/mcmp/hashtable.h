@@ -175,7 +175,6 @@ typedef struct hashtable_mcmp_op_rmw_transaction hashtable_mcmp_op_rmw_status_t;
 struct hashtable_mcmp_op_rmw_transaction {
     hashtable_hash_t hash;
     hashtable_t *hashtable;
-    transaction_t *transaction;
     hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk;
     hashtable_key_value_volatile_t *key_value;
     hashtable_database_number_t database_number;

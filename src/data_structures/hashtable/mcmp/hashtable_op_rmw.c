@@ -79,7 +79,6 @@ bool hashtable_mcmp_op_rmw_begin(
     rmw_status->key_length = key_length;
     rmw_status->hash = hash;
     rmw_status->hashtable = hashtable;
-    rmw_status->transaction = transaction;
     rmw_status->half_hashes_chunk = half_hashes_chunk;
     rmw_status->chunk_index = chunk_index;
     rmw_status->chunk_slot_index = chunk_slot_index;
