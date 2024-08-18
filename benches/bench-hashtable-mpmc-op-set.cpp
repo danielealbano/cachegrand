@@ -213,17 +213,23 @@ BENCHMARK_DEFINE_F(HashtableOpSetInsertFixture, hashtable_op_set_insert)(benchma
                 uint64_t key_index = state.thread_index();
                 key_index < requested_keyset_size;
                 key_index += state.threads()) {
+            transaction_t transaction = { 0 };
+            transaction_acquire(&transaction);
+
             bool should_free_key = false;
             hashtable_bucket_index_t out_bucket_index;
             benchmark::DoNotOptimize((result = hashtable_mcmp_op_set(
                     hashtable,
                     0,
+                    &transaction,
                     keyset_slots[key_index].key,
                     keyset_slots[key_index].key_length,
                     key_index,
                     nullptr,
                     &out_bucket_index,
                     &should_free_key)));
+
+            transaction_release(&transaction);
 
             if (!result) {
                 sprintf(
@@ -245,12 +251,18 @@ BENCHMARK_DEFINE_F(HashtableOpSetInsertFixture, hashtable_op_set_insert)(benchma
             key_index += state.threads()) {
         hashtable_value_data_t data = 0;
 
+        transaction_t transaction = { 0 };
+        transaction_acquire(&transaction);
+
         result = hashtable_mcmp_op_get(
                 hashtable,
                 0,
+                &transaction,
                 keyset_slots[key_index].key,
                 keyset_slots[key_index].key_length,
                 &data);
+
+        transaction_release(&transaction);
 
         if (!result) {
             sprintf(
@@ -374,17 +386,23 @@ public:
                 uint64_t key_index = state.thread_index();
                 key_index < this->_requested_keyset_size;
                 key_index += state.threads()) {
+            transaction_t transaction = { 0 };
+            transaction_acquire(&transaction);
+
             bool should_free_key = false;
             hashtable_bucket_index_t out_bucket_index;
             bool result = hashtable_mcmp_op_set(
                     (hashtable_t*)static_hashtable,
                     0,
+                    &transaction,
                     static_keyset_slots[key_index].key,
                     static_keyset_slots[key_index].key_length,
                     key_index,
                     nullptr,
                     &out_bucket_index,
                     &should_free_key);
+
+            transaction_release(&transaction);
 
             if (!result) {
                 sprintf(
@@ -473,17 +491,23 @@ BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_op_set_update)(benchma
                 uint64_t key_index = state.thread_index();
                 key_index < requested_keyset_size;
                 key_index += state.threads()) {
+            transaction_t transaction = { 0 };
+            transaction_acquire(&transaction);
+
             bool should_free_key = false;
             hashtable_bucket_index_t out_bucket_index;
             benchmark::DoNotOptimize((result = hashtable_mcmp_op_set(
                     hashtable,
                     0,
+                    &transaction,
                     keyset_slots[key_index].key,
                     keyset_slots[key_index].key_length,
                     key_index,
                     nullptr,
                     &out_bucket_index,
                     &should_free_key)));
+
+            transaction_release(&transaction);
 
             if (!result) {
                 sprintf(
@@ -506,12 +530,18 @@ BENCHMARK_DEFINE_F(HashtableOpSetUpdateFixture, hashtable_op_set_update)(benchma
             key_index += state.threads()) {
         hashtable_value_data_t data = 0;
 
+        transaction_t transaction = { 0 };
+        transaction_acquire(&transaction);
+
         result = hashtable_mcmp_op_get(
                 hashtable,
                 0,
+                &transaction,
                 keyset_slots[key_index].key,
                 keyset_slots[key_index].key_length,
                 &data);
+
+        transaction_release(&transaction);
 
         if (!result) {
             sprintf(
