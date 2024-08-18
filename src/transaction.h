@@ -6,6 +6,8 @@ extern "C" {
 #endif
 
 #include <assert.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 
 #include "log/log.h"
 
