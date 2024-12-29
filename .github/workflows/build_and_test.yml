@@ -24,6 +24,13 @@ jobs:
             cc: "gcc",
             cxx: "g++"
           }
+          - {
+            name: "Ubuntu 24.04",
+            os: ubuntu-24.04,
+            triplet: x64-linux,
+            cc: "gcc",
+            cxx: "g++"
+          }
 
     steps:
       - name: Setup cmake
