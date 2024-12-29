@@ -104,7 +104,7 @@ bool io_uring_support_probe_opcode(
         res = false;
     } else {
         res = io_uring_opcode_supported(probe, opcode);
-        free(probe);
+        io_uring_free_probe(probe);
     }
 
     return res;
