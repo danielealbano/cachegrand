@@ -13,11 +13,11 @@ ProcessorCount(BUILD_CPU_CORES)
 ExternalProject_Add(
         liburing
         GIT_REPOSITORY https://github.com/axboe/liburing.git
-        GIT_TAG 4915f2af869876d892a1f591ee2c21be21c6fc5c # tag liburing-2.3
+        GIT_TAG 80272cbeb42bcd0b39a75685a50b0009b77cd380 # tag liburing-2.8
         PREFIX ${CMAKE_BINARY_DIR}/_deps
         BUILD_BYPRODUCTS ${LIBURING_SRC_PATH}/src/liburing.a
         CONFIGURE_COMMAND
-        chmod +x ${LIBURING_SRC_PATH}/configure && ${LIBURING_SRC_PATH}/configure --prefix=${CMAKE_BINARY_DIR}/_deps/liburing/install
+        cd ${LIBURING_SRC_PATH} && chmod +x ${LIBURING_SRC_PATH}/configure && ${LIBURING_SRC_PATH}/configure --prefix=${CMAKE_BINARY_DIR}/_deps/liburing/install
         BUILD_COMMAND
         make -C ${LIBURING_SRC_PATH} -j ${BUILD_CPU_CORES}
         INSTALL_COMMAND "")
