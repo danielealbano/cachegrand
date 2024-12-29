@@ -15,9 +15,9 @@ bool hashtable_mcmp_op_get(
 
 bool hashtable_mcmp_op_get_by_index(
         hashtable_t *hashtable,
-        hashtable_database_number_t database_number,
         transaction_t *transaction,
         hashtable_bucket_index_t bucket_index,
+        hashtable_database_number_t *database_number,
         hashtable_value_data_t *current_value);
 
 bool hashtable_mcmp_op_get_by_index_all_databases(

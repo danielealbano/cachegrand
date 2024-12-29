@@ -100,9 +100,9 @@ bool hashtable_mcmp_op_get(
 
 bool hashtable_mcmp_op_get_by_index(
         hashtable_t *hashtable,
-        hashtable_database_number_t database_number,
         transaction_t *transaction,
         hashtable_bucket_index_t bucket_index,
+        hashtable_database_number_t *database_number,
         hashtable_value_data_t *current_value) {
     hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
     hashtable_chunk_index_t chunk_index;
@@ -146,12 +146,9 @@ bool hashtable_mcmp_op_get_by_index(
 
         key_value = &hashtable_data->keys_values[bucket_index];
 
-        if (unlikely(key_value->database_number != database_number)) {
-            return false;
-        }
-
         if (current_value != NULL) {
             *current_value = key_value->data;
+            *database_number = key_value->database_number;
         }
 
         return true;
