@@ -1632,13 +1632,16 @@ bool storage_db_op_flush_sync(
         transaction_acquire(&transaction);
 
         storage_db_entry_index_t *entry_index = NULL;
+        storage_db_database_number_t entry_database_number;
         if (hashtable_mcmp_op_get_by_index(
                 db->hashtable,
-                database_number,
                 &transaction,
                 bucket_index,
+                &entry_database_number,
                 (void *) &entry_index)) {
-            if (entry_index->created_time_ms <= deletion_start_ms) {
+            // Ensure that the entry is from the correct database and that it's older than the deletion start time, to
+            // avoid deleting entries that have been created after the flush has started
+            if (database_number == entry_database_number && entry_index->created_time_ms <= deletion_start_ms) {
                 storage_db_op_delete_by_index(
                         db,
                         database_number,
