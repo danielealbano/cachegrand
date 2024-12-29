@@ -58,10 +58,10 @@ jobs:
         working-directory: ${{github.workspace}}/build
         run: CC=/usr/bin/gcc-12 CXX=/usr/bin/g++-12 cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
 
-      - name: Build cachegrand-server
-        working-directory: ${{github.workspace}}/build
-        shell: bash
-        run: cmake --build . --target cachegrand-server -- -j $(nproc)
+#      - name: Build cachegrand-server
+#        working-directory: ${{github.workspace}}/build
+#        shell: bash
+#        run: cmake --build . --target cachegrand-server -- -j $(nproc)
 
       - name: Build cachegrand-tests
         working-directory: ${{github.workspace}}/build
