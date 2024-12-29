@@ -30,6 +30,7 @@
 #include "data_structures/hashtable/mcmp/hashtable.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_iter.h"
 #include "data_structures/hashtable/mcmp/hashtable_op_get_key.h"
+#include "data_structures/hashtable/mcmp/hashtable_op_get.h"
 #include "data_structures/queue_mpmc/queue_mpmc.h"
 #include "data_structures/slots_bitmap_mpmc/slots_bitmap_mpmc.h"
 #include "data_structures/hashtable/spsc/hashtable_spsc.h"
@@ -945,43 +946,54 @@ bool storage_db_snapshot_rdb_process_block(
 
         // Tries to fetch the next entry within the block being processed
         bucket_index++;
-        storage_db_entry_index_t *entry_index =
-                (storage_db_entry_index_t*)hashtable_mcmp_op_iter_max_distance_all_databases(
-                        db->hashtable,
-                        &bucket_index,
-                        block_end - bucket_index);
+        bucket_index = hashtable_mcmp_op_iter_max_distance_all_databases(
+                db->hashtable,
+                bucket_index,
+                block_end - bucket_index);
 
         // Ensure the entry is not null
-        if (entry_index == NULL) {
+        if (bucket_index == HASHTABLE_OP_ITER_END) {
             // If the entry is NULL, it means that the block has been fully processed or the iterator has reached the
             // end of the hashtable, in both cases the loop can be terminated
             break;
         }
 
+        transaction_t transaction = { 0 };
+        transaction_acquire(&transaction);
+
+        storage_db_entry_index_t *entry_index = NULL;
+        if (!hashtable_mcmp_op_get_by_index(
+                db->hashtable,
+                database_number,
+                &transaction,
+                bucket_index,
+                (void *) &entry_index)) {
+            goto loop_end;
+        }
+
         // Check if the creation time is previous to the start time of the snapshot, in which case the key was created
         // after the snapshot was started and it should be skipped
         if (!storage_db_snapshot_should_entry_index_be_processed_creation_time(db, entry_index)) {
-            continue;
+            goto loop_end;
         }
 
         // Try to get the key
         if (unlikely(!hashtable_mcmp_op_get_key_all_databases(
                 db->hashtable,
                 bucket_index,
+                &transaction,
                 &database_number,
                 &key,
                 &key_size))) {
-            continue;
+            goto loop_end;
         }
 
         // Get the entry
         entry_index = storage_db_get_entry_index_for_read_prep_no_expired_eviction(db, entry_index);
         if (unlikely(entry_index == NULL)) {
             // If entry_index is null after the call to storage_db_get_entry_index_for_read_prep_no_expired_eviction,
-            // it means that it has been deleted or has expired, in this case the entry can be skipped and the key can
-            // be freed
-            xalloc_free(key);
-            continue;
+            // it means that it has expired, in this case the entry can be skipped and the key can be freed
+            goto loop_end;
         }
 
         // Check if the database number has changed
@@ -1009,7 +1021,11 @@ bool storage_db_snapshot_rdb_process_block(
 
 loop_end:
         // Free the key
-        xalloc_free(key);
+        if (key) {
+            xalloc_free(key);
+        }
+
+        transaction_release(&transaction);
 
         if (unlikely(!result)) {
             break;

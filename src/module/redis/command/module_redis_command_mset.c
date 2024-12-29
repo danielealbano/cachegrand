@@ -42,17 +42,22 @@
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(mset) {
     module_redis_command_mset_context_t *context = connection_context->command.context;
 
+    transaction_t transaction = { 0 };
+    transaction_acquire(&transaction);
+
     for(int index = 0; index < context->key_value.count; index++) {
         module_redis_command_mset_context_subargument_key_value_t *key_value = &context->key_value.list[index];
 
         if (!storage_db_op_set(
                 connection_context->db,
                 connection_context->database_number,
+                &transaction,
                 key_value->key.value.key,
                 key_value->key.value.length,
                 STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
                 &key_value->value.value.chunk_sequence,
                 STORAGE_DB_ENTRY_NO_EXPIRY)) {
+            transaction_release(&transaction);
             return module_redis_connection_error_message_printf_noncritical(connection_context, "ERR mset failed");
         }
 
@@ -62,6 +67,8 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(mset) {
         key_value->key.value.key = NULL;
         key_value->value.value.chunk_sequence.sequence = NULL;
     }
+
+    transaction_release(&transaction);
 
     return module_redis_connection_send_ok(connection_context);
 }

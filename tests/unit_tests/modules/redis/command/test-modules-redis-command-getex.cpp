@@ -71,7 +71,18 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GETEX", "[re
                     std::vector<std::string>{"GET", "a_key"},
                     "$-1\r\n"));
 
-            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, "a_key", strlen("a_key"));
+            transaction_t transaction = { 0 };
+            transaction_acquire(&transaction);
+
+            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
+                    db,
+                    0,
+                    &transaction,
+                    "a_key",
+                    strlen("a_key"));
+
+            transaction_release(&transaction);
+
             REQUIRE(entry_index == NULL);
         }
 
@@ -93,7 +104,18 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GETEX", "[re
                     std::vector<std::string>{"GET", "a_key"},
                     "$-1\r\n"));
 
-            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, "a_key", strlen("a_key"));
+            transaction_t transaction = { 0 };
+            transaction_acquire(&transaction);
+
+            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
+                    db,
+                    0,
+                    &transaction,
+                    "a_key",
+                    strlen("a_key"));
+
+            transaction_release(&transaction);
+
             REQUIRE(entry_index == NULL);
         }
 

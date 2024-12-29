@@ -45,6 +45,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setex) {
     bool key_and_value_owned = false;
     module_redis_command_setex_context_t *context = connection_context->command.context;
 
+    transaction_t transaction = { 0 };
+    transaction_acquire(&transaction);
+
     if (context->seconds.value <= 0) {
         return_res = module_redis_connection_error_message_printf_noncritical(
                 connection_context,
@@ -58,6 +61,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(setex) {
     if (unlikely(!storage_db_op_set(
             connection_context->db,
             connection_context->database_number,
+            &transaction,
             context->key.value.key,
             context->key.value.length,
             STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
@@ -80,6 +84,8 @@ end:
         context->key.value.key = NULL;
         context->value.value.chunk_sequence.sequence = NULL;
     }
+
+    transaction_release(&transaction);
 
     return return_res;
 }

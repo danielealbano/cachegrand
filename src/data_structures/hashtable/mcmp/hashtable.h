@@ -9,6 +9,8 @@ extern "C" {
 #define HASHTABLE_USE_UINT64    1
 #endif
 
+#define HASHTABLE_OP_ITER_END   UINT64_MAX
+
 #define HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT    14
 #define HASHTABLE_HALF_HASHES_CHUNK_SEARCH_MAX          32
 
@@ -173,7 +175,6 @@ typedef struct hashtable_mcmp_op_rmw_transaction hashtable_mcmp_op_rmw_status_t;
 struct hashtable_mcmp_op_rmw_transaction {
     hashtable_hash_t hash;
     hashtable_t *hashtable;
-    transaction_t *transaction;
     hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk;
     hashtable_key_value_volatile_t *key_value;
     hashtable_database_number_t database_number;

@@ -41,7 +41,11 @@
 #define TAG "module_redis_command_mget"
 
 MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
+    bool return_result = false;
     module_redis_command_mget_context_t *context = connection_context->command.context;
+
+    transaction_t transaction = { 0 };
+    transaction_acquire(&transaction);
 
     if (unlikely(!module_redis_connection_send_array(connection_context, context->key.count))) {
         return false;
@@ -51,12 +55,13 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
         storage_db_entry_index_t *entry_index = storage_db_get_entry_index_for_read(
                 connection_context->db,
                 connection_context->database_number,
+                &transaction,
                 context->key.list[index].key,
                 context->key.list[index].length);
 
         if (unlikely(!entry_index)) {
             if (!module_redis_connection_send_string_null(connection_context)) {
-                return false;
+                goto end;
             }
         } else {
             bool res = module_redis_command_stream_entry(
@@ -67,10 +72,16 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(mget) {
             storage_db_entry_index_status_decrease_readers_counter(entry_index, NULL);
 
             if (!res) {
-                return false;
+                goto end;
             }
         }
     }
 
-    return true;
+    return_result = true;
+
+end:
+
+    transaction_release(&transaction);
+
+    return return_result;
 }

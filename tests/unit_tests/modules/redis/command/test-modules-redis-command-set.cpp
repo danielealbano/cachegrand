@@ -43,6 +43,9 @@
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redis][command][SET]") {
+    transaction_t transaction = { 0 };
+    transaction_acquire(&transaction);
+
     SECTION("New key - short") {
         char *key = "a_key";
         char *value = "b_value";
@@ -50,7 +53,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"SET", key, value},
                 "+OK\r\n"));
 
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
+        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, &transaction, key, strlen(key));
         REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value));
         REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value, strlen(value)) == 0);
         REQUIRE(entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY);
@@ -64,7 +67,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"SET", key, value},
                 "+OK\r\n"));
 
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
+        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, &transaction, key, strlen(key));
         REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value));
         REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value, strlen(value)) == 0);
         REQUIRE(entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY);
@@ -83,7 +86,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"SET", key, value2},
                 "+OK\r\n"));
 
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
+        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, &transaction, key, strlen(key));
         REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value2));
         REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
         REQUIRE(entry_index->expiry_time_ms == STORAGE_DB_ENTRY_NO_EXPIRY);
@@ -120,7 +123,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 "+OK\r\n"));
         int64_t after_timestamp = clock_realtime_coarse_int64_ms();
 
-        entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
+        entry_index = storage_db_get_entry_index(db, 0, &transaction, key, strlen(key));
         REQUIRE(entry_index != nullptr);
         REQUIRE(entry_index->expiry_time_ms >= before_timestamp + 500 - 10);
         REQUIRE(entry_index->expiry_time_ms <= after_timestamp + 500 + 10);
@@ -136,7 +139,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"GET", key},
                 "$-1\r\n"));
 
-        entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
+        entry_index = storage_db_get_entry_index(db, 0, &transaction, key, strlen(key));
         REQUIRE(entry_index == NULL);
     }
 
@@ -152,7 +155,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 "+OK\r\n"));
         int64_t after_timestamp = clock_realtime_coarse_int64_ms();
 
-        entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
+        entry_index = storage_db_get_entry_index(db, 0, &transaction, key, strlen(key));
         REQUIRE(entry_index != nullptr);
         REQUIRE(entry_index->expiry_time_ms >= before_timestamp + 1000 - 10);
         REQUIRE(entry_index->expiry_time_ms <= after_timestamp + 1000 + 10);
@@ -168,7 +171,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"GET", key},
                 "$-1\r\n"));
 
-        entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
+        entry_index = storage_db_get_entry_index(db, 0, &transaction, key, strlen(key));
         REQUIRE(entry_index == NULL);
     }
 
@@ -188,7 +191,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"GET", key},
                 "$7\r\nb_value\r\n"));
 
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
+        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(db, 0, &transaction, key, strlen(key));
         REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value1));
         REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value1, strlen(value1)) == 0);
 
@@ -204,7 +207,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"SET", key, value2, "KEEPTTL"},
                 "+OK\r\n"));
 
-        entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
+        entry_index = storage_db_get_entry_index(db, 0, &transaction, key, strlen(key));
         REQUIRE(entry_index != nullptr);
         REQUIRE(entry_index->value.sequence[0].chunk_length == strlen(value2));
         REQUIRE(strncmp((char *) entry_index->value.sequence[0].memory.chunk_data, value2, strlen(value2)) == 0);
@@ -222,7 +225,7 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"GET", key},
                 "$-1\r\n"));
 
-        entry_index = storage_db_get_entry_index(db, 0, key, strlen(key));
+        entry_index = storage_db_get_entry_index(db, 0, &transaction, key, strlen(key));
         REQUIRE(entry_index == NULL);
     }
 
@@ -505,4 +508,6 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SET", "[redi
                 std::vector<std::string>{"SET", "a_key", "b_value", "PXAT", "0"},
                 "-ERR invalid expire time in 'set' command\r\n"));
     }
+
+    transaction_release(&transaction);
 }

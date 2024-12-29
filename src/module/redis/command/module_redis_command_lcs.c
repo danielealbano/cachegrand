@@ -192,6 +192,9 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
     char *value_1_chunk_data = NULL, *value_2_chunk_data = NULL;
     module_redis_command_lcs_context_t *context = connection_context->command.context;
 
+    transaction_t transaction = { 0 };
+    transaction_acquire(&transaction);
+
     if (context->idx_idx.has_token || context->minmatchlen_len.has_token || context->withmatchlen_withmatchlen.has_token) {
         return_res = module_redis_connection_error_message_printf_noncritical(
                 connection_context,
@@ -209,6 +212,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
     if (!(entry_index_1 = storage_db_get_entry_index_for_read(
             connection_context->db,
             connection_context->database_number,
+            &transaction,
             context->key1.value.key,
             context->key1.value.length))) {
         goto end;
@@ -217,6 +221,7 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(lcs) {
     if (!(entry_index_2 = storage_db_get_entry_index_for_read(
             connection_context->db,
             connection_context->database_number,
+            &transaction,
             context->key2.value.key,
             context->key2.value.length))) {
         goto end;
@@ -323,6 +328,8 @@ end:
             assert(false);
         }
     }
+
+    transaction_release(&transaction);
 
     if (lcsmap != NULL) {
         xalloc_free(lcsmap);

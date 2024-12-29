@@ -43,13 +43,19 @@ MODULE_REDIS_COMMAND_FUNCPTR_COMMAND_END(del) {
     int deleted_keys_count = 0;
     module_redis_command_del_context_t *context = connection_context->command.context;
 
+    transaction_t transaction = { 0 };
+    transaction_acquire(&transaction);
+
     for(int index = 0; index < context->key.count; index++) {
         deleted_keys_count += storage_db_op_delete(
                 connection_context->db,
                 connection_context->database_number,
+                &transaction,
                 context->key.list[index].key,
                 context->key.list[index].length) ? 1 : 0;
     }
+
+    transaction_release(&transaction);
 
     return module_redis_connection_send_number(connection_context, deleted_keys_count);
 }

@@ -29,6 +29,7 @@
 bool hashtable_mcmp_op_get_key(
         hashtable_t *hashtable,
         hashtable_database_number_t database_number,
+        transaction_t *transaction,
         hashtable_bucket_index_t bucket_index,
         hashtable_key_data_t **key,
         hashtable_key_length_t *key_length) {
@@ -40,8 +41,16 @@ bool hashtable_mcmp_op_get_key(
     MEMORY_FENCE_LOAD();
 
     hashtable_data_volatile_t* hashtable_data = hashtable->ht_current;
-    hashtable_slot_id_volatile_t slot_id =
-            hashtable_data->half_hashes_chunk[chunk_index].half_hashes[chunk_slot_index].slot_id;
+    hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
+            &hashtable_data->half_hashes_chunk[chunk_index];
+
+    if (unlikely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
+        if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
+            return false;
+        }
+    }
+
+    hashtable_slot_id_volatile_t slot_id = half_hashes_chunk->half_hashes[chunk_slot_index].slot_id;
     hashtable_key_value_volatile_t *key_value = &hashtable_data->keys_values[bucket_index];
 
     if (
@@ -93,6 +102,7 @@ bool hashtable_mcmp_op_get_key(
 bool hashtable_mcmp_op_get_key_all_databases(
         hashtable_t *hashtable,
         hashtable_bucket_index_t bucket_index,
+        transaction_t *transaction,
         hashtable_database_number_t *database_number,
         hashtable_key_data_t **key,
         hashtable_key_length_t *key_length) {
@@ -105,8 +115,16 @@ bool hashtable_mcmp_op_get_key_all_databases(
     MEMORY_FENCE_LOAD();
 
     hashtable_data_volatile_t* hashtable_data = hashtable->ht_current;
-    hashtable_slot_id_volatile_t slot_id =
-            hashtable_data->half_hashes_chunk[chunk_index].half_hashes[chunk_slot_index].slot_id;
+    hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
+            &hashtable_data->half_hashes_chunk[chunk_index];
+
+    if (unlikely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
+        if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
+            return false;
+        }
+    }
+
+    hashtable_slot_id_volatile_t slot_id = half_hashes_chunk->half_hashes[chunk_slot_index].slot_id;
     hashtable_key_value_volatile_t *key_value = &hashtable_data->keys_values[bucket_index];
 
     if (

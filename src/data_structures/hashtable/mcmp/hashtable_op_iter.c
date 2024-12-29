@@ -24,11 +24,11 @@
 
 #include "hashtable_op_iter.h"
 
-void *hashtable_mcmp_op_data_iter(
+uint64_t hashtable_mcmp_op_iter_internal(
         hashtable_data_volatile_t *hashtable_data,
         bool all_databases,
         hashtable_database_number_t database_number,
-        uint64_t *bucket_index,
+        uint64_t bucket_index,
         uint64_t max_distance) {
     hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk;
     hashtable_key_value_volatile_t *key_value;
@@ -36,9 +36,9 @@ void *hashtable_mcmp_op_data_iter(
     hashtable_chunk_slot_index_t chunk_slot_index;
     uint64_t distance = 0;
 
-    chunk_index_start = *bucket_index / HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
+    chunk_index_start = bucket_index / HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
     chunk_index_end = hashtable_data->chunks_count;
-    chunk_slot_index = *bucket_index % HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
+    chunk_slot_index = bucket_index % HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
 
     for(
             chunk_index = chunk_index_start;
@@ -55,7 +55,7 @@ void *hashtable_mcmp_op_data_iter(
         // If a chunk has no changes it can be skipped
         if (half_hashes_chunk->metadata.slots_occupied == 0) {
             distance += HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT - chunk_slot_index;
-            *bucket_index = (chunk_index * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT - 1;
+            bucket_index = (chunk_index * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT - 1;
             chunk_slot_index = 0;
             continue;
         }
@@ -63,16 +63,16 @@ void *hashtable_mcmp_op_data_iter(
         // Loop over the slots in the chunk
         for(; chunk_slot_index < HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT; chunk_slot_index++) {
             MEMORY_FENCE_LOAD();
-            *bucket_index = (chunk_index * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index;
+            bucket_index = (chunk_index * HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT) + chunk_slot_index;
 
-            assert(*bucket_index < hashtable_data->buckets_count_real);
+            assert(bucket_index < hashtable_data->buckets_count_real);
 
             // If there is no slot_id (hash plus other metadata) the bucket is empty and can be skipped
             if (half_hashes_chunk->half_hashes[chunk_slot_index].slot_id == 0) {
                 continue;
             }
 
-            key_value = &hashtable_data->keys_values[*bucket_index];
+            key_value = &hashtable_data->keys_values[bucket_index];
             volatile void* data = (void*)key_value->data;
 
             MEMORY_FENCE_LOAD();
@@ -88,21 +88,21 @@ void *hashtable_mcmp_op_data_iter(
                 }
             }
 
-            return (void*)data;
+            return bucket_index;
         }
 
         distance += HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT - chunk_slot_index;
         chunk_slot_index = 0;
     }
 
-    return NULL;
+    return HASHTABLE_OP_ITER_END;
 }
 
-void *hashtable_mcmp_op_iter(
+uint64_t hashtable_mcmp_op_iter(
         hashtable_t *hashtable,
         hashtable_database_number_t database_number,
-        uint64_t *bucket_index) {
-    return hashtable_mcmp_op_data_iter(
+        uint64_t bucket_index) {
+    return hashtable_mcmp_op_iter_internal(
             hashtable->ht_current,
             false,
             database_number,
@@ -110,12 +110,12 @@ void *hashtable_mcmp_op_iter(
             UINT64_MAX);
 }
 
-void *hashtable_mcmp_op_iter_max_distance(
+uint64_t hashtable_mcmp_op_iter_max_distance(
         hashtable_t *hashtable,
         hashtable_database_number_t database_number,
-        uint64_t *bucket_index,
+        uint64_t bucket_index,
         uint64_t max_distance) {
-    return hashtable_mcmp_op_data_iter(
+    return hashtable_mcmp_op_iter_internal(
             hashtable->ht_current,
             false,
             database_number,
@@ -123,10 +123,10 @@ void *hashtable_mcmp_op_iter_max_distance(
             max_distance);
 }
 
-void *hashtable_mcmp_op_iter_all_databases(
+uint64_t hashtable_mcmp_op_iter_all_databases(
         hashtable_t *hashtable,
-        uint64_t *bucket_index) {
-    return hashtable_mcmp_op_data_iter(
+        uint64_t bucket_index) {
+    return hashtable_mcmp_op_iter_internal(
             hashtable->ht_current,
             true,
             0,
@@ -134,11 +134,11 @@ void *hashtable_mcmp_op_iter_all_databases(
             UINT64_MAX);
 }
 
-void *hashtable_mcmp_op_iter_max_distance_all_databases(
+uint64_t hashtable_mcmp_op_iter_max_distance_all_databases(
         hashtable_t *hashtable,
-        uint64_t *bucket_index,
+        uint64_t bucket_index,
         uint64_t max_distance) {
-    return hashtable_mcmp_op_data_iter(
+    return hashtable_mcmp_op_iter_internal(
             hashtable->ht_current,
             true,
             0,

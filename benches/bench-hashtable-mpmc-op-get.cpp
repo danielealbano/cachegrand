@@ -61,11 +61,18 @@ static void hashtable_op_get_not_found_key(benchmark::State& state) {
     test_support_set_thread_affinity(state.thread_index());
 
     for (auto _ : state) {
+        transaction_t transaction = { 0 };
+        transaction_acquire(&transaction);
+
         benchmark::DoNotOptimize(hashtable_mcmp_op_get(
                 hashtable,
+                0,
+                &transaction,
                 test_key_1,
                 test_key_1_len,
                 &value));
+
+        transaction_release(&transaction);
     }
 
     if (state.thread_index() == 0) {
@@ -108,11 +115,18 @@ static void hashtable_op_get_single_key_external(benchmark::State& state) {
     test_support_set_thread_affinity(state.thread_index());
 
     for (auto _ : state) {
+        transaction_t transaction = { 0 };
+        transaction_acquire(&transaction);
+
         benchmark::DoNotOptimize((result = hashtable_mcmp_op_get(
                 hashtable,
+                0,
+                &transaction,
                 test_key_1,
                 test_key_1_len,
                 &value)));
+
+        transaction_release(&transaction);
 
         if (!result) {
             sprintf(

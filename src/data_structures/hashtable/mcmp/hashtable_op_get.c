@@ -28,6 +28,7 @@
 bool hashtable_mcmp_op_get(
         hashtable_t *hashtable,
         hashtable_database_number_t database_number,
+        transaction_t *transaction,
         hashtable_key_data_t *key,
         hashtable_key_length_t key_length,
         hashtable_value_data_t *data) {
@@ -35,7 +36,6 @@ bool hashtable_mcmp_op_get(
     hashtable_chunk_index_t chunk_index = 0;
     hashtable_chunk_slot_index_t chunk_slot_index = 0;
     hashtable_key_value_volatile_t* key_value = 0;
-    transaction_t transaction = { 0 };
 
     bool data_found = false;
     *data = 0;
@@ -44,8 +44,6 @@ bool hashtable_mcmp_op_get(
 
     LOG_DI("key (%d) = %s", key_length, key);
     LOG_DI("hash = 0x%016x", hash);
-
-    transaction_acquire(&transaction);
 
     hashtable_data_volatile_t* hashtable_data_list[] = {
             hashtable->ht_current,
@@ -75,7 +73,7 @@ bool hashtable_mcmp_op_get(
                 key,
                 key_length,
                 hash,
-                &transaction,
+                transaction,
                 &chunk_index,
                 &chunk_slot_index,
                 &key_value) == false) {
@@ -94,10 +92,127 @@ bool hashtable_mcmp_op_get(
         break;
     }
 
-    transaction_release(&transaction);
-
     LOG_DI("data_found = %s", data_found ? "YES" : "NO");
     LOG_DI("data = 0x%016x", data);
 
     return data_found;
+}
+
+bool hashtable_mcmp_op_get_by_index(
+        hashtable_t *hashtable,
+        hashtable_database_number_t database_number,
+        transaction_t *transaction,
+        hashtable_bucket_index_t bucket_index,
+        hashtable_value_data_t *current_value) {
+    hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
+    hashtable_chunk_index_t chunk_index;
+    hashtable_chunk_slot_index_t chunk_slot_index;
+    hashtable_key_value_volatile_t* key_value;
+
+    volatile hashtable_data_t* hashtable_data_list[] = {
+            hashtable->ht_current,
+            hashtable->ht_old
+    };
+    uint8_t hashtable_data_list_size = 2;
+
+    for (
+            uint8_t hashtable_data_index = 0;
+            hashtable_data_index < hashtable_data_list_size;
+            hashtable_data_index++) {
+        volatile hashtable_data_t *hashtable_data = hashtable_data_list[hashtable_data_index];
+
+        LOG_DI("hashtable_data_index = %u", hashtable_data_index);
+        LOG_DI("hashtable_data = 0x%016x", hashtable_data);
+
+        if (hashtable_data_index > 0 && (!hashtable->is_resizing || hashtable_data == NULL)) {
+            LOG_DI("not resizing, skipping check on the current hashtable_data");
+            continue;
+        }
+
+        chunk_index = bucket_index / HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
+        chunk_slot_index = bucket_index % HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
+
+        half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
+
+        if (half_hashes_chunk->half_hashes[chunk_slot_index].filled == 0) {
+            return false;
+        }
+
+        if (unlikely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
+            if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
+                return false;
+            }
+        }
+
+        key_value = &hashtable_data->keys_values[bucket_index];
+
+        if (unlikely(key_value->database_number != database_number)) {
+            return false;
+        }
+
+        if (current_value != NULL) {
+            *current_value = key_value->data;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+bool hashtable_mcmp_op_get_by_index_all_databases(
+        hashtable_t *hashtable,
+        transaction_t *transaction,
+        hashtable_bucket_index_t bucket_index,
+        hashtable_value_data_t *current_value) {
+    hashtable_half_hashes_chunk_volatile_t* half_hashes_chunk;
+    hashtable_chunk_index_t chunk_index;
+    hashtable_chunk_slot_index_t chunk_slot_index;
+    hashtable_key_value_volatile_t* key_value;
+
+    volatile hashtable_data_t* hashtable_data_list[] = {
+            hashtable->ht_current,
+            hashtable->ht_old
+    };
+    uint8_t hashtable_data_list_size = 2;
+
+    for (
+            uint8_t hashtable_data_index = 0;
+            hashtable_data_index < hashtable_data_list_size;
+            hashtable_data_index++) {
+        volatile hashtable_data_t *hashtable_data = hashtable_data_list[hashtable_data_index];
+
+        LOG_DI("hashtable_data_index = %u", hashtable_data_index);
+        LOG_DI("hashtable_data = 0x%016x", hashtable_data);
+
+        if (hashtable_data_index > 0 && (!hashtable->is_resizing || hashtable_data == NULL)) {
+            LOG_DI("not resizing, skipping check on the current hashtable_data");
+            continue;
+        }
+
+        chunk_index = bucket_index / HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
+        chunk_slot_index = bucket_index % HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT;
+
+        half_hashes_chunk = &hashtable_data->half_hashes_chunk[chunk_index];
+
+        if (half_hashes_chunk->half_hashes[chunk_slot_index].filled == 0) {
+            return false;
+        }
+
+        if (unlikely(!transaction_rwspinlock_is_owned_by_transaction(&half_hashes_chunk->lock, transaction))) {
+            if (unlikely(!transaction_lock_for_read(transaction, &half_hashes_chunk->lock))) {
+                return false;
+            }
+        }
+
+        key_value = &hashtable_data->keys_values[bucket_index];
+
+        if (current_value != NULL) {
+            *current_value = key_value->data;
+        }
+
+        return true;
+    }
+
+    return false;
 }

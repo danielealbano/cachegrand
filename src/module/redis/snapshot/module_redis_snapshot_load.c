@@ -342,18 +342,22 @@ bool module_redis_snapshot_load_write_key_value_string(
         return false;
     }
 
-    if (unlikely(!storage_db_op_set(
+    transaction_t transaction = { 0 };
+    transaction_acquire(&transaction);
+
+    bool result = storage_db_op_set(
             db,
             current_database_number,
+            &transaction,
             key,
             key_length,
             STORAGE_DB_ENTRY_INDEX_VALUE_TYPE_STRING,
             &chunk_sequence,
-            expiry_ms))) {
-        return false;
-    }
+            expiry_ms);
 
-    return true;
+    transaction_release(&transaction);
+
+    return result;
 }
 
 void module_redis_snapshot_load_process_value_string(

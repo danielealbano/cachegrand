@@ -47,17 +47,36 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
 
         SECTION("not found - hashtable empty") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
+                hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
+                        hashtable->ht_current->buckets_count,
+                        test_key_1_hash));
+                hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
+                        &hashtable->ht_current->half_hashes_chunk[chunk_index];
+
                 REQUIRE(!hashtable_mcmp_op_get(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1,
                         test_key_1_len,
                         &value));
+
+                REQUIRE(transaction.locks.count == 1);
+                REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_READ);
+                REQUIRE(transaction.locks.list[0].spinlock == &half_hashes_chunk->lock);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("found - key external") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 // Not necessary to free, the key is owned by the hashtable
                 char *test_key_1_copy = (char*)xalloc_alloc(test_key_1_len + 1);
                 strcpy(test_key_1_copy, test_key_1);
@@ -65,6 +84,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                 hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
+                hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
+                        &hashtable->ht_current->half_hashes_chunk[chunk_index];
 
                 HASHTABLE_SET_KEY_DB_0_BY_INDEX(
                         chunk_index,
@@ -77,16 +98,26 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(hashtable_mcmp_op_get(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1_copy,
                         test_key_1_len,
                         &value));
 
                 REQUIRE(value == test_value_1);
+
+                REQUIRE(transaction.locks.count == 1);
+                REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_READ);
+                REQUIRE(transaction.locks.list[0].spinlock == &half_hashes_chunk->lock);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("found - multiple chunks first slot") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 // Not necessary to free, the key(s) is owned by the hashtable
                 char *test_key_1_copy = (char*)xalloc_alloc(test_key_1_len + 1);
                 char *test_key_2_copy = (char*)xalloc_alloc(test_key_1_len + 1);
@@ -96,9 +127,13 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                 hashtable_chunk_index_t chunk_index1 = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
+                hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk1 =
+                        &hashtable->ht_current->half_hashes_chunk[chunk_index1];
                 hashtable_chunk_index_t chunk_index2 = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_2_hash));
+                hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk2 =
+                        &hashtable->ht_current->half_hashes_chunk[chunk_index2];
 
                 HASHTABLE_SET_KEY_DB_0_BY_INDEX(
                         chunk_index1,
@@ -119,6 +154,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(hashtable_mcmp_op_get(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1_copy,
                         test_key_1_len,
                         &value));
@@ -128,16 +164,28 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(hashtable_mcmp_op_get(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_2_copy,
                         test_key_2_len,
                         &value));
 
                 REQUIRE(value == test_value_2);
+
+                REQUIRE(transaction.locks.count == 2);
+                REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_READ);
+                REQUIRE(transaction.locks.list[0].spinlock == &half_hashes_chunk1->lock);
+                REQUIRE(transaction.locks.list[1].lock_type == TRANSACTION_LOCK_TYPE_READ);
+                REQUIRE(transaction.locks.list[1].spinlock == &half_hashes_chunk2->lock);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("found - single chunk with first slot empty") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 // Not necessary to free, the key(s) is owned by the hashtable
                 char *test_key_1_copy = (char*)xalloc_alloc(test_key_1_len + 1);
                 strcpy(test_key_1_copy, test_key_1);
@@ -145,6 +193,8 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                 hashtable_chunk_index_t chunk_index = HASHTABLE_TO_CHUNK_INDEX(hashtable_mcmp_support_index_from_hash(
                         hashtable->ht_current->buckets_count,
                         test_key_1_hash));
+                hashtable_half_hashes_chunk_volatile_t *half_hashes_chunk =
+                        &hashtable->ht_current->half_hashes_chunk[chunk_index];
 
                 HASHTABLE_SET_KEY_DB_0_BY_INDEX(
                         chunk_index,
@@ -157,16 +207,26 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(hashtable_mcmp_op_get(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1_copy,
                         test_key_1_len,
                         &value));
 
                 REQUIRE(value == test_value_1);
+
+                REQUIRE(transaction.locks.count == 1);
+                REQUIRE(transaction.locks.list[0].lock_type == TRANSACTION_LOCK_TYPE_READ);
+                REQUIRE(transaction.locks.list[0].spinlock == &half_hashes_chunk->lock);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("found - single chunk multiple slots - key prefix/external") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 test_key_same_bucket_t* test_key_same_bucket = test_support_same_hash_mod_fixtures_generate(
                         0,
                         hashtable->ht_current->buckets_count,
@@ -197,6 +257,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                     REQUIRE(hashtable_mcmp_op_get(
                             hashtable,
                             0,
+                            &transaction,
                             (char *) test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len,
                             &value));
@@ -204,11 +265,16 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                 }
 
                 test_support_same_hash_mod_fixtures_free(test_key_same_bucket);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("found - multiple chunks multiple slots - key prefix/external") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 hashtable_chunk_count_t chunks_to_set = 3;
                 hashtable_chunk_slot_index_t slots_to_fill =
                         (HASHTABLE_MCMP_HALF_HASHES_CHUNK_SLOTS_COUNT * chunks_to_set) + 3;
@@ -258,6 +324,7 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                     REQUIRE(hashtable_mcmp_op_get(
                             hashtable,
                             0,
+                            &transaction,
                             (char *) test_key_same_bucket[i].key,
                             test_key_same_bucket[i].key_len,
                             &value));
@@ -265,11 +332,16 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                 }
 
                 test_support_same_hash_mod_fixtures_free(test_key_same_bucket);
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("not found - deleted flag") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 // Not necessary to free, the key(s) is owned by the hashtable
                 char *test_key_1_copy = (char*)xalloc_alloc(test_key_1_len + 1);
                 strcpy(test_key_1_copy, test_key_1);
@@ -288,14 +360,20 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(!hashtable_mcmp_op_get(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1,
                         test_key_1_len,
                         &value));
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("not found - hash set but key_value not (edge case because of parallelism)") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 // Not necessary to free, the key(s) is owned by the hashtable
                 char *test_key_1_copy = (char*)xalloc_alloc(test_key_1_len + 1);
                 strcpy(test_key_1_copy, test_key_1);
@@ -320,14 +398,20 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(!hashtable_mcmp_op_get(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1,
                         test_key_1_len,
                         &value));
+
+                transaction_release(&transaction);
             })
         }
 
         SECTION("found - single bucket - get key after delete with hash still in hash_half (edge case because of parallelism)") {
             HASHTABLE(0x7FFF, false, {
+                transaction_t transaction = { 0 };
+                transaction_acquire(&transaction);
+
                 // Not necessary to free, the key(s) is owned by the hashtable
                 char *test_key_1_copy = (char*)xalloc_alloc(test_key_1_len + 1);
                 char *test_key_2_copy = (char*)xalloc_alloc(test_key_1_len + 1);
@@ -360,11 +444,14 @@ TEST_CASE("hashtable/hashtable_mcmp_op_get.c", "[hashtable][hashtable_op][hashta
                 REQUIRE(hashtable_mcmp_op_get(
                         hashtable,
                         0,
+                        &transaction,
                         test_key_1,
                         test_key_1_len,
                         &value));
 
                 REQUIRE(value == test_value_1 + 10);
+
+                transaction_release(&transaction);
             })
         }
     }
