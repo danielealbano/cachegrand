@@ -964,9 +964,9 @@ bool storage_db_snapshot_rdb_process_block(
         storage_db_entry_index_t *entry_index = NULL;
         if (!hashtable_mcmp_op_get_by_index(
                 db->hashtable,
-                database_number,
                 &transaction,
                 bucket_index,
+                &database_number,
                 (void *) &entry_index)) {
             goto loop_end;
         }
