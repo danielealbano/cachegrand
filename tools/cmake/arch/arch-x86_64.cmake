@@ -9,7 +9,7 @@ include(CheckCSourceCompiles)
 include(CheckCSourceRuns)
 
 execute_process(
-        cat
+        COMMAND cat
         ARGS "/proc/cpuinfo"
         OUTPUT_VARIABLE CPUINFO
         OUTPUT_STRIP_TRAILING_WHITESPACE)
