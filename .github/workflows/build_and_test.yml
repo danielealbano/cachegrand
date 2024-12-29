@@ -76,7 +76,7 @@ jobs:
       - name: Code Coverage - Generation
         uses: danielealbano/lcov-action@v3
         with:
-          gcov_path: /usr/bin/gcov-9
+          gcov_path: /usr/bin/gcov
           remove_patterns: 3rdparty,tests
 
       - uses: codecov/codecov-action@v3
