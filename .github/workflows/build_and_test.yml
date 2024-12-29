@@ -48,7 +48,7 @@ jobs:
           fetch-depth: 2
 
       - name: Install required dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config git libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev libmbedtls-dev libpcre2-8-0 libpcre2-dev libjson-c-dev valgrind libhiredis-dev liblzf-dev redis-tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config git libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev libmbedtls-dev libpcre2-8-0 libpcre2-dev libjson-c-dev valgrind libhiredis-dev liblzf-dev redis-tools gcc-12 g++-12
 
       - name: Create Build Environment
         run: cmake -E make_directory ${{github.workspace}}/build
@@ -56,7 +56,7 @@ jobs:
       - name: Configure CMake
         shell: bash
         working-directory: ${{github.workspace}}/build
-        run: cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
+        run: CC=/usr/bin/gcc-12 CXX=/usr/bin/g++-12 cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
 
       - name: Build cachegrand-tests
         working-directory: ${{github.workspace}}/build
@@ -74,7 +74,7 @@ jobs:
         run: cd tests/unit_tests && sudo ./cachegrand-tests --order lex
 
       - name: Code Coverage - Generation
-        uses: danielealbano/lcov-action@v3
+        uses: danielealbano/lcov-action@v4
         with:
           gcov_path: /usr/bin/gcov-12
           remove_patterns: 3rdparty,tests
