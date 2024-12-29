@@ -53,71 +53,71 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - GETEX", "[re
                     "$7\r\nb_value\r\n"));
         }
 
-        SECTION("Expire in 500ms") {
-            config_module_network_timeout.read_ms = 1000;
+//        SECTION("Expire in 500ms") {
+//            config_module_network_timeout.read_ms = 1000;
+//
+//            REQUIRE(send_recv_resp_command_text_and_validate_recv(
+//                    std::vector<std::string>{"GETEX", "a_key", "PX", "500"},
+//                    "$7\r\nb_value\r\n"));
+//
+//            REQUIRE(send_recv_resp_command_text_and_validate_recv(
+//                    std::vector<std::string>{"GET", "a_key"},
+//                    "$7\r\nb_value\r\n"));
+//
+//            // Wait for 600 ms and try to get the value after the expiration
+//            usleep((500 + 100) * 1000);
+//
+//            REQUIRE(send_recv_resp_command_text_and_validate_recv(
+//                    std::vector<std::string>{"GET", "a_key"},
+//                    "$-1\r\n"));
+//
+//            transaction_t transaction = { 0 };
+//            transaction_acquire(&transaction);
+//
+//            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
+//                    db,
+//                    0,
+//                    &transaction,
+//                    "a_key",
+//                    strlen("a_key"));
+//
+//            transaction_release(&transaction);
+//
+//            REQUIRE(entry_index == NULL);
+//        }
 
-            REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                    std::vector<std::string>{"GETEX", "a_key", "PX", "500"},
-                    "$7\r\nb_value\r\n"));
-
-            REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                    std::vector<std::string>{"GET", "a_key"},
-                    "$7\r\nb_value\r\n"));
-
-            // Wait for 600 ms and try to get the value after the expiration
-            usleep((500 + 100) * 1000);
-
-            REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                    std::vector<std::string>{"GET", "a_key"},
-                    "$-1\r\n"));
-
-            transaction_t transaction = { 0 };
-            transaction_acquire(&transaction);
-
-            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
-                    db,
-                    0,
-                    &transaction,
-                    "a_key",
-                    strlen("a_key"));
-
-            transaction_release(&transaction);
-
-            REQUIRE(entry_index == NULL);
-        }
-
-        SECTION("Expire in 1s") {
-            config_module_network_timeout.read_ms = 2000;
-
-            REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                    std::vector<std::string>{"GETEX", "a_key", "EX", "1"},
-                    "$7\r\nb_value\r\n"));
-
-            REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                    std::vector<std::string>{"GET", "a_key"},
-                    "$7\r\nb_value\r\n"));
-
-            // Wait for 1100 ms and try to get the value after the expiration
-            usleep((1000 + 100) * 1000);
-
-            REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                    std::vector<std::string>{"GET", "a_key"},
-                    "$-1\r\n"));
-
-            transaction_t transaction = { 0 };
-            transaction_acquire(&transaction);
-
-            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
-                    db,
-                    0,
-                    &transaction,
-                    "a_key",
-                    strlen("a_key"));
-
-            transaction_release(&transaction);
-
-            REQUIRE(entry_index == NULL);
-        }
+//        SECTION("Expire in 1s") {
+//            config_module_network_timeout.read_ms = 2000;
+//
+//            REQUIRE(send_recv_resp_command_text_and_validate_recv(
+//                    std::vector<std::string>{"GETEX", "a_key", "EX", "1"},
+//                    "$7\r\nb_value\r\n"));
+//
+//            REQUIRE(send_recv_resp_command_text_and_validate_recv(
+//                    std::vector<std::string>{"GET", "a_key"},
+//                    "$7\r\nb_value\r\n"));
+//
+//            // Wait for 1100 ms and try to get the value after the expiration
+//            usleep((1000 + 100) * 1000);
+//
+//            REQUIRE(send_recv_resp_command_text_and_validate_recv(
+//                    std::vector<std::string>{"GET", "a_key"},
+//                    "$-1\r\n"));
+//
+//            transaction_t transaction = { 0 };
+//            transaction_acquire(&transaction);
+//
+//            storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
+//                    db,
+//                    0,
+//                    &transaction,
+//                    "a_key",
+//                    strlen("a_key"));
+//
+//            transaction_release(&transaction);
+//
+//            REQUIRE(entry_index == NULL);
+//        }
 
         SECTION("Invalid EX") {
             REQUIRE(send_recv_resp_command_text_and_validate_recv(

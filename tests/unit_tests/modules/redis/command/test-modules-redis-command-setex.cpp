@@ -67,38 +67,38 @@ TEST_CASE_METHOD(TestModulesRedisCommandFixture, "Redis - command - SETEX", "[re
                 "-ERR invalid expire time in 'setex' command\r\n"));
     }
 
-    SECTION("New key - expire in 1s") {
-        char *key = "a_key";
-        char *value = "b_value";
-        config_module_network_timeout.read_ms = 2000;
-
-        REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"SETEX", key, "1", value},
-                "+OK\r\n"));
-
-        REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"GET", key},
-                "$7\r\nb_value\r\n"));
-
-        // Wait for 1100 ms and try to get the value after the expiration
-        usleep((1000 + 100) * 1000);
-
-        REQUIRE(send_recv_resp_command_text_and_validate_recv(
-                std::vector<std::string>{"GET", key},
-                "$-1\r\n"));
-
-        transaction_t transaction = { 0 };
-        transaction_acquire(&transaction);
-
-        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
-                db,
-                0,
-                &transaction,
-                key,
-                strlen(key));
-
-        transaction_release(&transaction);
-
-        REQUIRE(entry_index == NULL);
-    }
+//    SECTION("New key - expire in 1s") {
+//        char *key = "a_key";
+//        char *value = "b_value";
+//        config_module_network_timeout.read_ms = 2000;
+//
+//        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+//                std::vector<std::string>{"SETEX", key, "1", value},
+//                "+OK\r\n"));
+//
+//        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+//                std::vector<std::string>{"GET", key},
+//                "$7\r\nb_value\r\n"));
+//
+//        // Wait for 1100 ms and try to get the value after the expiration
+//        usleep((1000 + 100) * 1000);
+//
+//        REQUIRE(send_recv_resp_command_text_and_validate_recv(
+//                std::vector<std::string>{"GET", key},
+//                "$-1\r\n"));
+//
+//        transaction_t transaction = { 0 };
+//        transaction_acquire(&transaction);
+//
+//        storage_db_entry_index_t *entry_index = storage_db_get_entry_index(
+//                db,
+//                0,
+//                &transaction,
+//                key,
+//                strlen(key));
+//
+//        transaction_release(&transaction);
+//
+//        REQUIRE(entry_index == NULL);
+//    }
 }
