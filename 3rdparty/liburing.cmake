@@ -17,7 +17,7 @@ ExternalProject_Add(
         PREFIX ${CMAKE_BINARY_DIR}/_deps
         BUILD_BYPRODUCTS ${LIBURING_SRC_PATH}/src/liburing.a
         CONFIGURE_COMMAND
-        mkdir ${CMAKE_BINARY_DIR}/_deps/liburing/install && cd ${LIBURING_SRC_PATH} && chmod +x ${LIBURING_SRC_PATH}/configure && ${LIBURING_SRC_PATH}/configure --prefix=${CMAKE_BINARY_DIR}/_deps/liburing/install
+        mkdir -p ${CMAKE_BINARY_DIR}/_deps/liburing/install && cd ${LIBURING_SRC_PATH} && chmod +x ${LIBURING_SRC_PATH}/configure && ${LIBURING_SRC_PATH}/configure --prefix=${CMAKE_BINARY_DIR}/_deps/liburing/install
         BUILD_COMMAND
         make -C ${LIBURING_SRC_PATH} -j ${BUILD_CPU_CORES}
         INSTALL_COMMAND "")
