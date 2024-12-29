@@ -25,7 +25,9 @@ extern "C" {
 #define LOG_MESSAGE_DEBUG_RULES_SRC_FUNC_INCLUDE
 
 #define LOG_MESSAGE_DEBUG_RULES_SRC_FUNC_EXCLUDE \
-        "hashtable_mcmp_op_get", \
+        "hashtable_mcmp_op_get",                 \
+        "hashtable_mcmp_op_get_by_index", \
+        "hashtable_mcmp_op_get_by_index_all_databases", \
         "hashtable_mcmp_op_set", \
         "hashtable_mcmp_op_delete", \
         "hashtable_mcmp_op_delete_by_index", \
