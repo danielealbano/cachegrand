@@ -77,7 +77,7 @@ jobs:
         uses: danielealbano/lcov-action@v4
         with:
           gcov_path: /usr/bin/gcov-12
-          remove_patterns: 3rdparty,tests
+          remove_patterns: 3rdparty,tests,catch2
 
       - uses: codecov/codecov-action@v3
         with:
