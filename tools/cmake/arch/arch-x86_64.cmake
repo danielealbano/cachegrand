@@ -8,7 +8,11 @@ include(CheckCCompilerFlag)
 include(CheckCSourceCompiles)
 include(CheckCSourceRuns)
 
-EXEC_PROGRAM(cat ARGS "/proc/cpuinfo" OUTPUT_VARIABLE CPUINFO)
+execute_process(
+        cat
+        ARGS "/proc/cpuinfo"
+        OUTPUT_VARIABLE CPUINFO
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 check_c_compiler_flag(-mavx512f                           COMPILER_HAS_MAVX512F_FLAG)
 check_c_compiler_flag(-mavx2                              COMPILER_HAS_MAVX2_FLAG)
