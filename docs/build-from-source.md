@@ -31,7 +31,7 @@ Example output
 
 ## Install the required packages
 
-### Ubuntu 22.04
+### Ubuntu 22.04 and Ubuntu 24.04
 
 `libatomic1` is not included directly as it's as dependency of `libatomic` which is a dependency itself of 
 `build-essential`.
@@ -43,24 +43,6 @@ sudo apt install \
     libcurl4-openssl-dev libcurl4 \
     libyaml-0-2 libyaml-dev \
     libmbedtls-dev libmbedtls14 \
-    libpcre2-8-0 libpcre2-dev \
-    libjson-c-dev \
-    libhiredis-dev \
-    liblzf-dev
-```
-
-### Ubuntu 20.04
-
-`libatomic1` is not included directly as it's as dependency of `libatomic` which is a dependency itself of
-`build-essential`.
-
-```shell
-sudo apt install \
-    build-essential cmake pkg-config git \
-    libnuma1 libnuma-dev \
-    libcurl4-openssl-dev libcurl4 \
-    libyaml-0-2 libyaml-dev \
-    libmbedtls-dev libmbedtls12 \
     libpcre2-8-0 libpcre2-dev \
     libjson-c-dev \
     libhiredis-dev \
