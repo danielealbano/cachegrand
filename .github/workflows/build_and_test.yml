@@ -33,6 +33,14 @@ jobs:
             cxx: "g++-13",
             gcov: "gcov-13"
           }
+          - {
+            name: "Ubuntu 24.04 - GCC 14",
+            os: ubuntu-24.04,
+            triplet: x64-linux,
+            cc: "gcc-14",
+            cxx: "g++-14",
+            gcov: "gcov-14"
+          }
 
     steps:
       - name: Setup cmake
