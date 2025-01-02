@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
+#include <liburing.h>
 
 #include "misc.h"
 #include "intrinsics.h"
@@ -82,6 +83,14 @@ void program_startup_report_machine_memory() {
     }
 }
 
+void program_startup_report_machine_liburing() {
+    LOG_I(
+            TAG,
+            "> liburing: v%d.%d",
+            io_uring_major_version(),
+            io_uring_minor_version());
+}
+
 void program_startup_report_machine_tls() {
     LOG_I(
             TAG,
@@ -113,6 +122,7 @@ void program_startup_report() {
     program_startup_report_build();
     program_startup_report_machine_uname();
     program_startup_report_machine_memory();
+    program_startup_report_machine_liburing();
     program_startup_report_machine_tls();
     program_startup_report_machine_clock();
 }
