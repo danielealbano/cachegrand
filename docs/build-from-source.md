@@ -31,7 +31,7 @@ Example output
 
 ## Install the required packages
 
-### Ubuntu 22.04
+### Ubuntu 22.04 and Ubuntu 24.04
 
 `libatomic1` is not included directly as it's as dependency of `libatomic` which is a dependency itself of 
 `build-essential`.
