@@ -18,11 +18,28 @@ jobs:
       matrix:
         config:
           - {
-            name: "Ubuntu 22.04",
+            name: "Ubuntu 22.04 - GCC 12",
             os: ubuntu-22.04,
             triplet: x64-linux,
-            cc: "gcc",
-            cxx: "g++"
+            cc: "gcc-12",
+            cxx: "g++-12",
+            gcov: "gcov-12"
+          }
+          - {
+            name: "Ubuntu 24.04 - GCC 13",
+            os: ubuntu-24.04,
+            triplet: x64-linux,
+            cc: "gcc-13",
+            cxx: "g++-13",
+            gcov: "gcov-13"
+          }
+          - {
+            name: "Ubuntu 24.04 - GCC 14",
+            os: ubuntu-24.04,
+            triplet: x64-linux,
+            cc: "gcc-14",
+            cxx: "g++-14",
+            gcov: "gcov-14"
           }
 
     steps:
@@ -41,7 +58,16 @@ jobs:
           fetch-depth: 2
 
       - name: Install required dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config git libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev libmbedtls-dev libpcre2-8-0 libpcre2-dev libjson-c-dev valgrind libhiredis-dev liblzf-dev redis-tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config git libnuma1 libnuma-dev libcurl4-openssl-dev libcurl4 libyaml-0-2 libyaml-dev libmbedtls-dev libpcre2-8-0 libpcre2-dev libjson-c-dev valgrind libhiredis-dev liblzf-dev redis-tools lcov
+
+      - name: Report build tool versions
+        shell: bash
+        run: |
+          echo "CC version: $(${{matrix.config.cc}} --version)"
+          echo "CXX version: $(${{matrix.config.cxx}} --version)"
+          echo "gcov version: $(${{matrix.config.gcov}} --version)"
+          echo "cmake version: $(cmake --version)"
+          echo "lcov version: $(lcov --version)"
 
       - name: Create Build Environment
         run: cmake -E make_directory ${{github.workspace}}/build
@@ -49,17 +75,17 @@ jobs:
       - name: Configure CMake
         shell: bash
         working-directory: ${{github.workspace}}/build
-        run: cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
-
-      - name: Build cachegrand-tests
-        working-directory: ${{github.workspace}}/build
-        shell: bash
-        run: cmake --build . --target cachegrand-tests -- -j $(nproc)
+        run: CC=${{matrix.config.cc}} CXX=${{matrix.config.cxx}} cmake $GITHUB_WORKSPACE -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_HASH_ALGORITHM_T1HA2=1 -DBUILD_TESTS=1 -DBUILD_INTERNAL_BENCHES=1
 
       - name: Build cachegrand-server
         working-directory: ${{github.workspace}}/build
         shell: bash
         run: cmake --build . --target cachegrand-server -- -j $(nproc)
+
+      - name: Build cachegrand-tests
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: cmake --build . --target cachegrand-tests -- -j $(nproc)
 
       - name: Tests - Unit Tests
         working-directory: ${{github.workspace}}/build
@@ -67,15 +93,16 @@ jobs:
         run: cd tests/unit_tests && sudo ./cachegrand-tests --order lex
 
       - name: Code Coverage - Generation
-        uses: danielealbano/lcov-action@v3
-        with:
-          gcov_path: /usr/bin/gcov-9
-          remove_patterns: 3rdparty,tests
+        run: |
+          cd ${{github.workspace}}/build
+          lcov --gcov-tool ${{matrix.config.gcov}} --capture --directory . --exclude catch2 --output-file coverage.info
+          lcov --gcov-tool ${{matrix.config.gcov}} --remove coverage.info '3rdparty/*' 'tests/*' '/usr/*' '_deps/*' --output-file coverage.info
+          lcov --gcov-tool ${{matrix.config.gcov}} --list coverage.info
 
       - uses: codecov/codecov-action@v3
         with:
-          files: ${{github.workspace}}/coverage.info
-          flags: unittests # optional
+          files: ${{github.workspace}}/build/coverage.info
+          flags: unittests
           name: cachegrand-server
           fail_ci_if_error: false
           verbose: false
